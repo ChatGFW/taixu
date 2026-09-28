@@ -146,7 +146,7 @@ class WorkflowRunManager(
             }
         }
         try {
-            handle.state.collect { state ->
+            handle.state.first { state ->
                 _activeRuns.update { it + (executionId to state) }
                 val terminal = state.status in TERMINAL
                 val now = System.currentTimeMillis()
@@ -155,10 +155,7 @@ class WorkflowRunManager(
                     lastPersistAt = now
                     runCatching { repository.saveExecution(state, source, scheduleId) }
                 }
-                if (terminal) {
-                    approvalJob.cancel()
-                    finishRun(executionId)
-                }
+                terminal
             }
         } finally {
             approvalJob.cancel()

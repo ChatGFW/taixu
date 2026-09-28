@@ -2,6 +2,7 @@ package top.wkbin.taixu.harness.queue
 
 import java.util.UUID
 import kotlinx.serialization.json.Json
+import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.HarnessEntryEntity
 import top.wkbin.taixu.core.database.HarnessQueueItemEntity
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
@@ -25,7 +26,15 @@ class PromptQueueManager(
     private val repository: HarnessRuntimeRepository,
     private val json: Json,
     private val sessionStore: SessionTreeStore,
+    private val logger: AppLogger? = null,
 ) {
+    private suspend fun decodeOrCancel(item: HarnessQueueItemEntity): PendingMessage? =
+        runCatching { json.decodeFromString(PendingMessage.serializer(), item.payloadJson) }
+            .onFailure { failure ->
+                logger?.w("Removing invalid queued prompt ${item.id}: ${failure.message}")
+                repository.cancelQueued(item.id)
+            }.getOrNull()
+
     suspend fun enqueue(
         sessionId: String,
         queue: PromptQueue,
@@ -54,7 +63,7 @@ class PromptQueueManager(
         laneName: String = SessionTreeStore.MAIN_LANE,
     ): List<Pair<String, PendingMessage>> =
         repository.listQueue(sessionId, laneName, queue.id).mapNotNull { item ->
-            runCatching { item.id to json.decodeFromString(PendingMessage.serializer(), item.payloadJson) }.getOrNull()
+            decodeOrCancel(item)?.let { item.id to it }
         }
 
     suspend fun first(
@@ -67,10 +76,13 @@ class PromptQueueManager(
         sessionId: String,
         laneName: String = SessionTreeStore.MAIN_LANE,
     ): List<QueuedPrompt> = repository.listAllQueues(sessionId, laneName).mapNotNull { item ->
-        val queue = PromptQueue.entries.firstOrNull { it.id == item.queueType } ?: return@mapNotNull null
-        runCatching {
-            QueuedPrompt(item.id, queue, json.decodeFromString(PendingMessage.serializer(), item.payloadJson))
-        }.getOrNull()
+        val queue = PromptQueue.entries.firstOrNull { it.id == item.queueType }
+        if (queue == null) {
+            logger?.w("Removing queued prompt ${item.id} with unknown queue type ${item.queueType}")
+            repository.cancelQueued(item.id)
+            return@mapNotNull null
+        }
+        decodeOrCancel(item)?.let { QueuedPrompt(item.id, queue, it) }
     }
 
     suspend fun cancel(sessionId: String, queue: PromptQueue, index: Int, laneName: String = SessionTreeStore.MAIN_LANE) {
@@ -94,8 +106,7 @@ class PromptQueueManager(
         val items = repository.listQueue(sessionId, laneName, queue.id).take(limit)
         val consumed = ArrayList<UserMessage>(items.size)
         for (item in items) {
-            val prompt = runCatching { json.decodeFromString(PendingMessage.serializer(), item.payloadJson) }.getOrNull()
-                ?: continue
+            val prompt = decodeOrCancel(item) ?: continue
             val lane = repository.ensureLane(sessionId, laneName)
             val message = UserMessage(
                 id = UUID.randomUUID().toString(),

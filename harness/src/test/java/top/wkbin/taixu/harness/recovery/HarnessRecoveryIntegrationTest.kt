@@ -19,6 +19,7 @@ import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.HarnessRuntimeDao
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
+import top.wkbin.taixu.core.database.HarnessLaneResultEntity
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.ToolCall
@@ -172,6 +173,36 @@ class HarnessRecoveryIntegrationTest {
         val outcome = recoveryManager.recoverSession(sessionId)
         assertTrue("损坏状态应进入 Suspended 而非抛异常", outcome is RecoveryOutcome.Suspended)
         assertTrue((outcome as RecoveryOutcome.Suspended).reason.contains("运行状态损坏"))
+    }
+
+    @Test
+    fun `recovery suspends main and subagent lanes`() = runBlocking {
+        val sessionId = "s-multi-lane"
+        val mainId = coordinator.acceptRun(sessionId, user("main"))
+        val subId = coordinator.beginRun(sessionId, "subagent-one")
+        coordinator.providerIntent(mainId, "main-answer", 0, 1, 1)
+        coordinator.providerIntent(subId, "sub-answer", 0, 1, 1)
+        rebuildRuntime()
+
+        assertTrue(recoveryManager.recoverSession(sessionId) is RecoveryOutcome.Suspended)
+        assertEquals(OperationStatus.SUSPENDED.id, repository.findOperation(mainId)?.status)
+        assertEquals(OperationStatus.SUSPENDED.id, repository.findOperation(subId)?.status)
+    }
+
+    @Test
+    fun `finishing an old operation preserves a newer lane owner`() = runBlocking {
+        val sessionId = "s-lane-cas"
+        val oldId = coordinator.acceptRun(sessionId, user("old"))
+        val dao = database.harnessRuntimeDao()
+        val oldLane = repository.findLane(sessionId, "main")!!
+        dao.upsertLane(oldLane.copy(currentOperationId = "new-owner"))
+
+        dao.finishOperation(
+            HarnessLaneResultEntity(sessionId, "main", oldId, "aborted", null, null, 9L),
+            oldLane.copy(currentOperationId = null, updatedAt = 9L),
+        )
+
+        assertEquals("new-owner", repository.findLane(sessionId, "main")?.currentOperationId)
     }
 
     @Test

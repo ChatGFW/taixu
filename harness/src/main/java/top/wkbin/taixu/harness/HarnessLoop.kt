@@ -635,7 +635,6 @@ class HarnessLoop(
             if (lastUserIndex < 0) return@startSessionRun RunResult.Completed
             val lastUserMessage = current[lastUserIndex] as UserMessage
             val toKeep = current.subList(0, lastUserIndex + 1)
-            val liveFlow = messageProjector.messagesFlow(sessId)
             messageProjector.replaceAll(sessId, toKeep)
             messageStore.moveTo(sessId, lastUserMessage.id)
             runLoopInternal(sessId, startedAt = now())
@@ -700,7 +699,6 @@ class HarnessLoop(
             }
             val targetMessage = current[targetIndex]
             val toKeep = current.subList(0, targetIndex)
-            val liveFlow = messageProjector.messagesFlow(sessId)
             messageProjector.replaceAll(sessId, toKeep)
             messageStore.rewindBefore(sessId, targetMessage.id)
             runLoop(sessId, trimmed)

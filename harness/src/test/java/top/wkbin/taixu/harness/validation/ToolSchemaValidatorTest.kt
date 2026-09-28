@@ -157,6 +157,13 @@ class ToolSchemaValidatorTest {
     }
 
     @Test
+    fun `anyOf branch properties are accepted alongside parent properties`() {
+        val schema = schema("""{"type":"object","properties":{"common":{"type":"string"}},"anyOf":[{"required":["left"],"properties":{"left":{"type":"string"}}},{"required":["right"],"properties":{"right":{"type":"string"}}}]}""")
+        assertTrue(ToolSchemaValidator.validate(schema, args("common" to "ok", "left" to "yes")).isEmpty())
+        assertTrue(ToolSchemaValidator.validate(schema, args("common" to "ok", "right" to "yes")).isEmpty())
+    }
+
+    @Test
     fun `string encoded numbers and booleans pass type validation smoothly`() {
         val schema = schema("""{"type":"object","properties":{"count":{"type":"integer","minimum":1,"maximum":100},"flag":{"type":"boolean"}}}""")
         val validArgs = buildJsonObject {

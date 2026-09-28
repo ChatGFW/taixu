@@ -677,10 +677,11 @@ object ContextWindowPolicy {
         maxBytes: Int = REQUEST_BODY_HARD_LIMIT_BYTES,
     ): List<HarnessMessage> {
         if (messages.isEmpty() || maxBytes <= 0) return messages
-        if (estimateHarnessPayloadBytes(messages) <= maxBytes) return messages
+        var bytes = estimateHarnessPayloadBytes(messages)
+        if (bytes <= maxBytes) return messages
         val out = messages.toMutableList()
         var changed = false
-        while (estimateHarnessPayloadBytes(out) > maxBytes) {
+        while (bytes > maxBytes) {
             val idx = out.indices
                 .mapNotNull { index -> (out[index] as? ToolResult)?.takeIf { it.output.length > ACTIVE_TOOL_KEEP_HEAD_CHARS + ACTIVE_TOOL_KEEP_TAIL_CHARS }?.let { index to it } }
                 .maxByOrNull { it.second.output.length }
@@ -691,19 +692,23 @@ object ContextWindowPolicy {
             val compacted = compactActiveToolOutput(name, args, result.output, result.success) +
                 "\n[工具输出因请求体体积限制已压缩；全文在会话记录中，需要细节时调用 history_read(message_id=\"${result.id}\") 回读]"
             if (compacted.length >= result.output.length) break
-            out[idx] = result.copy(output = compacted)
+            val updated = result.copy(output = compacted)
+            bytes += harnessMessagePayloadBytes(updated) - harnessMessagePayloadBytes(result)
+            out[idx] = updated
             changed = true
         }
-        if (estimateHarnessPayloadBytes(out) > maxBytes) {
+        if (bytes > maxBytes) {
             for (index in out.indices) {
-                if (estimateHarnessPayloadBytes(out) <= maxBytes) break
+                if (bytes <= maxBytes) break
                 val message = out[index] as? UserMessage ?: continue
                 if (message.imageUrls.isEmpty()) continue
-                out[index] = message.copy(
+                val updated = message.copy(
                     imageUrls = emptyList(),
                     text = message.text +
                         "\n\n[…… 本消息携带的 ${message.imageUrls.size} 张图片因请求体体积限制已从模型上下文省略 ……]",
                 )
+                bytes += harnessMessagePayloadBytes(updated) - harnessMessagePayloadBytes(message)
+                out[index] = updated
                 changed = true
             }
         }
@@ -716,10 +721,11 @@ object ContextWindowPolicy {
         maxBytes: Int = REQUEST_BODY_HARD_LIMIT_BYTES,
     ): List<ApiMessage> {
         if (messages.isEmpty() || maxBytes <= 0) return messages
-        if (estimateApiPayloadBytes(messages) <= maxBytes) return messages
+        var bytes = estimateApiPayloadBytes(messages)
+        if (bytes <= maxBytes) return messages
         val out = messages.toMutableList()
         var changed = false
-        while (estimateApiPayloadBytes(out) > maxBytes) {
+        while (bytes > maxBytes) {
             val idx = out.indices
                 .filter { index ->
                     val message = out[index]
@@ -731,19 +737,23 @@ object ContextWindowPolicy {
             val message = out[idx]
             val compacted = compactActiveText(message.content.orEmpty())
             if (compacted.length >= message.content.orEmpty().length) break
-            out[idx] = message.copy(content = compacted)
+            val updated = message.copy(content = compacted)
+            bytes += apiMessagePayloadBytes(updated) - apiMessagePayloadBytes(message)
+            out[idx] = updated
             changed = true
         }
-        if (estimateApiPayloadBytes(out) > maxBytes) {
+        if (bytes > maxBytes) {
             for (index in out.indices) {
-                if (estimateApiPayloadBytes(out) <= maxBytes) break
+                if (bytes <= maxBytes) break
                 val message = out[index]
                 if (message.imageUrls.isEmpty()) continue
-                out[index] = message.copy(
+                val updated = message.copy(
                     imageUrls = emptyList(),
                     content = message.content.orEmpty() +
                         "\n\n[…… ${message.imageUrls.size} 张图片因请求体体积限制已从模型上下文省略 ……]",
                 )
+                bytes += apiMessagePayloadBytes(updated) - apiMessagePayloadBytes(message)
+                out[index] = updated
                 changed = true
             }
         }
@@ -752,43 +762,37 @@ object ContextWindowPolicy {
 
     fun estimateHarnessPayloadBytes(messages: List<HarnessMessage>): Int {
         var bytes = 0
-        messages.forEach { message ->
-            bytes += JSON_FRAMING_PER_MESSAGE
-            when (message) {
-                is UserMessage -> {
-                    bytes += jsonTextBytes(message.text)
-                    bytes += message.imageUrls.sumOf { it.length }
-                }
-                is AssistantText -> {
-                    bytes += jsonTextBytes(assistantTextForContext(message.text))
-                    bytes += jsonTextBytes(message.reasoning.orEmpty())
-                }
-                is ToolCall -> {
-                    bytes += jsonTextBytes(message.args.toString())
-                    bytes += jsonTextBytes(message.reasoning.orEmpty())
-                }
-                is ToolResult -> bytes += jsonTextBytes(message.output)
-                else -> Unit
-            }
-        }
+        messages.forEach { message -> bytes += harnessMessagePayloadBytes(message) }
         return bytes
     }
 
+    private fun harnessMessagePayloadBytes(message: HarnessMessage): Int =
+        JSON_FRAMING_PER_MESSAGE + when (message) {
+                is UserMessage -> {
+                    jsonTextBytes(message.text) + message.imageUrls.sumOf { it.length }
+                }
+                is AssistantText -> {
+                    jsonTextBytes(assistantTextForContext(message.text)) + jsonTextBytes(message.reasoning.orEmpty())
+                }
+                is ToolCall -> {
+                    jsonTextBytes(message.args.toString()) + jsonTextBytes(message.reasoning.orEmpty())
+                }
+                is ToolResult -> jsonTextBytes(message.output)
+                else -> 0
+            }
+
     fun estimateApiPayloadBytes(messages: List<ApiMessage>): Int {
         var bytes = JSON_FRAMING_PER_MESSAGE
-        messages.forEach { message ->
-            bytes += JSON_FRAMING_PER_MESSAGE
-            bytes += jsonTextBytes(message.content.orEmpty())
-            bytes += jsonTextBytes(message.reasoning_content.orEmpty())
-            bytes += message.imageUrls.sumOf { it.length }
-            message.tool_calls.orEmpty().forEach { call ->
-                bytes += jsonTextBytes(call.function.name)
-                bytes += jsonTextBytes(call.function.arguments)
-                bytes += JSON_FRAMING_PER_MESSAGE
-            }
-        }
+        messages.forEach { message -> bytes += apiMessagePayloadBytes(message) }
         return bytes
     }
+
+    private fun apiMessagePayloadBytes(message: ApiMessage): Int =
+        JSON_FRAMING_PER_MESSAGE + jsonTextBytes(message.content.orEmpty()) +
+            jsonTextBytes(message.reasoning_content.orEmpty()) + message.imageUrls.sumOf { it.length } +
+            message.tool_calls.orEmpty().sumOf { call ->
+                jsonTextBytes(call.function.name) + jsonTextBytes(call.function.arguments) + JSON_FRAMING_PER_MESSAGE
+            }
 
     private fun compactActiveToolOutput(
         toolName: String?,

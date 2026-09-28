@@ -12,6 +12,7 @@ import top.wkbin.taixu.harness.operation.OperationPhase
 import top.wkbin.taixu.harness.operation.OperationSnapshot
 import top.wkbin.taixu.harness.operation.OperationStatus
 import top.wkbin.taixu.harness.operation.ReplayPolicy
+import top.wkbin.taixu.harness.session.SessionTreeStore
 
 sealed interface RecoveryOutcome {
     data object Clean : RecoveryOutcome
@@ -29,34 +30,43 @@ class RecoveryManager(
     private val eventBus: HarnessEventBus,
 ) {
     suspend fun recoverSession(sessionId: String): RecoveryOutcome {
-        val outcome = recoverSessionInternal(sessionId)
-        if (outcome !is RecoveryOutcome.Clean) {
-            val detail = when (outcome) {
-                is RecoveryOutcome.Suspended -> outcome.reason
-                is RecoveryOutcome.ToolInterrupted -> "不可重放工具已写入中断结果"
-                RecoveryOutcome.WaitingApproval -> "存在等待中的审批"
-                RecoveryOutcome.Clean -> null
+        val laneNames = listOf(SessionTreeStore.MAIN_LANE) +
+            repository.listActiveOperations(sessionId).map { it.laneName }
+                .filter { it != SessionTreeStore.MAIN_LANE }.distinct()
+        var mainOutcome: RecoveryOutcome = RecoveryOutcome.Clean
+        for (laneName in laneNames) {
+            // An old operation row can survive a lane move; only its current pointer is recoverable.
+            if (laneName != SessionTreeStore.MAIN_LANE && repository.findLane(sessionId, laneName)?.currentOperationId == null) continue
+            val outcome = recoverSessionInternal(sessionId, laneName)
+            if (laneName == SessionTreeStore.MAIN_LANE) mainOutcome = outcome
+            if (outcome !is RecoveryOutcome.Clean) {
+                val detail = when (outcome) {
+                    is RecoveryOutcome.Suspended -> outcome.reason
+                    is RecoveryOutcome.ToolInterrupted -> "不可重放工具已写入中断结果"
+                    RecoveryOutcome.WaitingApproval -> "存在等待中的审批"
+                    RecoveryOutcome.Clean -> null
+                }
+                val operationId = when (outcome) {
+                    is RecoveryOutcome.Suspended -> outcome.operationId
+                    is RecoveryOutcome.ToolInterrupted -> outcome.operationId
+                    else -> null
+                }
+                eventBus.emit(
+                    HarnessEvent.RecoveryApplied(
+                        sessionId = sessionId,
+                        timestamp = System.currentTimeMillis(),
+                        operationId = operationId,
+                        outcome = outcome::class.simpleName ?: "unknown",
+                        detail = detail,
+                    ),
+                )
             }
-            val operationId = when (outcome) {
-                is RecoveryOutcome.Suspended -> outcome.operationId
-                is RecoveryOutcome.ToolInterrupted -> outcome.operationId
-                else -> null
-            }
-            eventBus.emit(
-                HarnessEvent.RecoveryApplied(
-                    sessionId = sessionId,
-                    timestamp = System.currentTimeMillis(),
-                    operationId = operationId,
-                    outcome = outcome::class.simpleName ?: "unknown",
-                    detail = detail,
-                ),
-            )
         }
-        return outcome
+        return mainOutcome
     }
 
-    private suspend fun recoverSessionInternal(sessionId: String): RecoveryOutcome {
-        val operation = coordinator.active(sessionId) ?: return RecoveryOutcome.Clean
+    private suspend fun recoverSessionInternal(sessionId: String, laneName: String): RecoveryOutcome {
+        val operation = coordinator.active(sessionId, laneName) ?: return RecoveryOutcome.Clean
         if (operation.status == OperationStatus.WAITING_APPROVAL.id) {
             // 审批等待期间进程死亡：审批可能已在停机期间过期/丢失。
             // pendingNow 会先清扫过期请求；无可恢复审批时终止该操作，避免 lane 永久占用。

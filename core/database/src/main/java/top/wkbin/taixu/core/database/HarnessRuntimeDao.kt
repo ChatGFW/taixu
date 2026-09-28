@@ -221,6 +221,9 @@ interface HarnessRuntimeDao {
     @Query("SELECT * FROM harness_operations WHERE sessionId = :sessionId AND status IN ('running', 'waiting_approval', 'suspended', 'aborting') ORDER BY startedAt")
     suspend fun listActiveOperations(sessionId: String): List<HarnessOperationEntity>
 
+    @Query("UPDATE harness_lanes SET currentOperationId = NULL, updatedAt = :updatedAt, faulted = :faulted WHERE sessionId = :sessionId AND name = :laneName AND currentOperationId = :operationId")
+    suspend fun clearLaneOperationIfCurrent(sessionId: String, laneName: String, operationId: String, updatedAt: Long, faulted: Boolean): Int
+
     @Query("SELECT * FROM harness_queue_items WHERE sessionId = :sessionId AND laneName = :laneName AND queueType = :queueType ORDER BY createdAt, id")
     suspend fun listQueue(sessionId: String, laneName: String, queueType: String): List<HarnessQueueItemEntity>
 
@@ -299,7 +302,8 @@ interface HarnessRuntimeDao {
         deleteOperationQueue(result.operationId)
         deleteOperation(result.operationId)
         upsertLaneResult(result)
-        upsertLane(lane)
+        // A later run may have claimed this lane since the caller read its snapshot.
+        clearLaneOperationIfCurrent(lane.sessionId, lane.name, result.operationId, lane.updatedAt, lane.faulted)
     }
 
     @Transaction

@@ -313,7 +313,6 @@ class SubagentOrchestrator(
             }
         } finally {
             laneLock.unlock()
-            resumeLaneLocks.remove(laneLockKey, laneLock)
         }
 
         // 超时取消时 withTimeoutOrNull 返回 null，若直接 ?: 0 会把子智能体在超时窗口内
@@ -478,9 +477,6 @@ class SubagentOrchestrator(
         // 实测 6 分钟不够用，超时前往往仍在正常执行中途。
         const val SUBAGENT_TIMEOUT_MS = 15 * 60 * 1000L
     }
-
-    private fun buildSummaryMarkdown(outcomes: List<SubagentExecutionOutcome>): String =
-        renderSummaryMarkdown(outcomes)
 
     /**
      * 结果分页读取：汇总注入父上下文前先做预算控制。

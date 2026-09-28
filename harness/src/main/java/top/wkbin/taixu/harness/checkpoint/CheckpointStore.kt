@@ -206,6 +206,9 @@ class CheckpointStore() {
                 // 避免恢复列表超过 100 项且与磁盘清理错位
                 while (state.checkpoints.size > MAX_KEPT) state.checkpoints.removeAt(0)
                 restored.maxOfOrNull { it.turn }?.let { if (it > state.lastTurn) state.lastTurn = it }
+            }.onFailure {
+                restoredSessions.remove(sessionId)
+                System.err.println("Checkpoint restore failed for $sessionId; will retry: ${it.message}")
             }
         }
         return state

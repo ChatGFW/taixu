@@ -63,8 +63,17 @@ class OperationCoordinator(
     }
 
     suspend fun beginRun(sessionId: String, laneName: String = SessionTreeStore.MAIN_LANE): String = acceptMutex.withLock {
-        val lane = repository.ensureLane(sessionId, laneName)
-        lane.currentOperationId?.let { return it }
+        var lane = repository.ensureLane(sessionId, laneName)
+        lane.currentOperationId?.let { existingId ->
+            val existing = repository.findOperation(existingId)
+            if (existing != null && existing.status != OperationStatus.SUSPENDED.id) return existingId
+            if (existing == null) {
+                repository.clearLaneOperation(sessionId, laneName)
+            } else {
+                finish(sessionId, "aborted", details = "挂起的旧运行已被新请求接管", laneName = laneName)
+            }
+            lane = repository.ensureLane(sessionId, laneName)
+        }
         val now = System.currentTimeMillis()
         val operationId = UUID.randomUUID().toString()
         repository.beginOperation(

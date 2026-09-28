@@ -984,6 +984,8 @@ class ProviderClient(
                 selected.protocol == ApiProtocol.ANTHROPIC -> AnthropicApi(httpClient, json).chat(selected, sanitized)
                 else -> ChatApi(httpClient, json).chat(selected, sanitized)
             }
+        }.also { result ->
+            if (result.isBlankResponse) throw LlmEmptyResponseException(EMPTY_RESPONSE_MESSAGE)
         }
 
     /**
@@ -1034,6 +1036,7 @@ class ProviderClient(
                 )
             }
         }
+        if (result.isBlankResponse) throw LlmEmptyResponseException(EMPTY_RESPONSE_MESSAGE)
         val reasoningMs = timing.finish()
         return if (reasoningMs != null) result.copy(reasoningMs = reasoningMs) else result
     }

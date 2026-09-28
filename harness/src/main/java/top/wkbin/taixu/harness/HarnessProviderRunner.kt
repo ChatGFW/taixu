@@ -91,6 +91,18 @@ class HarnessProviderRunner(
             streamReasoning.clear()
             messageProjector.remove(sessId, assistantId)
         }
+        suspend fun settleFailedStream() {
+            stateMirrors.setThinkingLive(sessId, false)
+            if (streamText.length > 0) {
+                persistAssistant(
+                    sessId, assistantId, assistantAt, streamText.toString(),
+                    streamReasoning.toString().ifBlank { null },
+                    totalMs = now() - startedAt, operationId = operationId, round = round,
+                )
+            } else {
+                messageProjector.remove(sessId, assistantId)
+            }
+        }
 
         var requestModel = model
         var outputBudgetReduced = false
@@ -192,7 +204,9 @@ class HarnessProviderRunner(
                 }
             } catch (cancellation: CancellationException) {
                 persistCancelledPartial(sessId, assistantId, assistantAt, streamText, streamReasoning, startedAt, operationId, round)
-                agentEventLogger.log(sessId, "Cancelled", "用户主动取消执行，保留已生成内容 ${streamText.length} 字符")
+                withContext(NonCancellable) {
+                    agentEventLogger.log(sessId, "Cancelled", "用户主动取消执行，保留已生成内容 ${streamText.length} 字符")
+                }
                 throw cancellation
             } catch (handling: StreamChunkHandlingException) {
                 // 本地流式处理异常：原样终止，严禁当作网络故障重发（否则重复文字/半截 JSON 会污染上下文）。
@@ -231,7 +245,10 @@ class HarnessProviderRunner(
                     return TurnProviderOutcome.Failed("模型服务商额度已耗尽，无法继续执行。请充值、切换可用模型或更新 API Key。$detail")
                 }
                 netRetry++
-                if (netRetry > maxNetworkRetries) throw rateLimit
+                if (netRetry > maxNetworkRetries) {
+                    settleFailedStream()
+                    throw rateLimit
+                }
                 metrics.streamRetry()
                 stateMirrors.setThinkingLive(sessId, false)
                 val waitSeconds = rateLimit.retryAfterSeconds ?: (netRetry * RETRY_BACKOFF_SEC).coerceAtMost(60L)
@@ -349,7 +366,9 @@ class HarnessProviderRunner(
                 // 用户取消会主动关闭 socket，通常以 IOException 形式抛出：先按取消语义保留已生成内容，再传播取消。
                 if (!currentCoroutineContext().isActive) {
                     persistCancelledPartial(sessId, assistantId, assistantAt, streamText, streamReasoning, startedAt, operationId, round)
-                    agentEventLogger.log(sessId, "Cancelled", "用户主动取消执行，保留已生成内容 ${streamText.length} 字符")
+                    withContext(NonCancellable) {
+                        agentEventLogger.log(sessId, "Cancelled", "用户主动取消执行，保留已生成内容 ${streamText.length} 字符")
+                    }
                 }
                 currentCoroutineContext().ensureActive()
                 netRetry++
@@ -367,7 +386,10 @@ class HarnessProviderRunner(
                         (if (transient) "，瞬态故障不受大上下文降级" else "") + "）：${io.message}",
                     io,
                 )
-                if (netRetry > retryBudget) throw io
+                if (netRetry > retryBudget) {
+                    settleFailedStream()
+                    throw io
+                }
                 metrics.streamRetry()
                 stateMirrors.setThinkingLive(sessId, false)
                 stateMirrors.setStatus(sessId, "网络中断，自动重发中（第 $netRetry 次失败，上限 $retryBudget）")

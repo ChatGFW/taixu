@@ -459,6 +459,7 @@ val harnessModule = module {
             repository = get(),
             json = get(),
             sessionStore = get(),
+            logger = get(),
         )
     }
 

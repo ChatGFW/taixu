@@ -15,6 +15,7 @@ import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
 import java.util.concurrent.ConcurrentHashMap
+import java.lang.ref.SoftReference
 
 /** Serialization and active-branch projection for the immutable session tree. */
 class SessionTreeStore(
@@ -22,10 +23,40 @@ class SessionTreeStore(
     private val json: Json,
     private val logger: AppLogger,
 ) {
-    private val laneLocks = ConcurrentHashMap<String, Mutex>()
+    private class LaneLock(val mutex: Mutex = Mutex(), var users: Int = 0)
+    private val laneLocks = ConcurrentHashMap<String, LaneLock>()
+    private data class CachedBranch(val leafId: String?, val messages: SoftReference<List<HarnessMessage>>)
+    private val decodedBranches = LinkedHashMap<String, CachedBranch>(8, 0.75f, true)
 
-    private fun laneLock(sessionId: String, laneName: String): Mutex =
-        laneLocks.getOrPut("$sessionId/$laneName") { Mutex() }
+    private suspend fun decodedBranch(sessionId: String, leafId: String?): List<HarnessMessage> {
+        synchronized(decodedBranches) {
+            decodedBranches[sessionId]?.takeIf { it.leafId == leafId }?.messages?.get()?.let { return it }
+        }
+        val loaded = repository.branch(sessionId, leafId).mapNotNull(::decode)
+        synchronized(decodedBranches) {
+            decodedBranches[sessionId] = CachedBranch(leafId, SoftReference(loaded))
+            if (decodedBranches.size > MAX_DECODED_BRANCHES) {
+                decodedBranches.remove(decodedBranches.keys.first())
+            }
+        }
+        return loaded
+    }
+
+    private suspend fun <T> withRetainedLaneLock(sessionId: String, laneName: String, block: suspend () -> T): T {
+        val key = "$sessionId/$laneName"
+        val holder = laneLocks.compute(key) { _, current ->
+            (current ?: LaneLock()).also { it.users++ }
+        }!!
+        try {
+            return holder.mutex.withLock { block() }
+        } finally {
+            // Count waiters as users. Remove only after the last holder leaves, so a new
+            // caller cannot obtain a different mutex while an older waiter is still queued.
+            laneLocks.compute(key) { _, current ->
+                if (current !== holder) current else holder.takeIf { --it.users > 0 }
+            }
+        }
+    }
 
     suspend fun ensureMainLane(sessionId: String) {
         repository.ensureLane(sessionId, MAIN_LANE)
@@ -49,7 +80,7 @@ class SessionTreeStore(
     }.getOrDefault(emptyList())
 
     suspend fun append(sessionId: String, message: HarnessMessage, laneName: String = MAIN_LANE) {
-        laneLock(sessionId, laneName).withLock {
+        withRetainedLaneLock(sessionId, laneName) {
             val lane = repository.ensureLane(sessionId, laneName)
             val entry = HarnessEntryEntity(
                 id = message.id,
@@ -86,7 +117,7 @@ class SessionTreeStore(
         laneName: String = MAIN_LANE,
     ): Boolean {
         if (block.isBlank()) return false
-        return laneLock(sessionId, laneName).withLock {
+        return withRetainedLaneLock(sessionId, laneName) {
             runCatching {
                 val lane = repository.ensureLane(sessionId, laneName)
                 val entry = HarnessEntryEntity(
@@ -110,24 +141,25 @@ class SessionTreeStore(
      * 重读与写入和本 lane 的 append 串行化。锁内不得执行长耗时挂起调用（如 LLM）。
      */
     suspend fun <T> withLaneLock(sessionId: String, laneName: String = MAIN_LANE, block: suspend () -> T): T =
-        laneLock(sessionId, laneName).withLock { block() }
+        withRetainedLaneLock(sessionId, laneName, block)
 
     /** Navigate to the parent of [entryId], preserving the abandoned branch. */
     suspend fun rewindBefore(sessionId: String, entryId: String, laneName: String = MAIN_LANE) {
-        laneLock(sessionId, laneName).withLock {
-            val target = repository.findEntry(sessionId, entryId) ?: return
+        withRetainedLaneLock(sessionId, laneName) {
+            val target = repository.findEntry(sessionId, entryId) ?: return@withRetainedLaneLock
             repository.moveLane(sessionId, laneName, target.parentId)
         }
     }
 
     suspend fun moveTo(sessionId: String, entryId: String?, laneName: String = MAIN_LANE) {
-        laneLock(sessionId, laneName).withLock {
+        withRetainedLaneLock(sessionId, laneName) {
             repository.moveLane(sessionId, laneName, entryId)
         }
     }
 
     suspend fun deleteSession(sessionId: String) {
         repository.deleteSessionData(sessionId)
+        synchronized(decodedBranches) { decodedBranches.remove(sessionId) }
     }
 
     data class SearchHit(val message: HarnessMessage, val index: Int)
@@ -140,7 +172,7 @@ class SessionTreeStore(
         val needle = query.trim()
         if (needle.isBlank()) return emptyList()
         val lane = repository.ensureLane(sessionId, MAIN_LANE)
-        val messages = repository.branch(sessionId, lane.leafId).mapNotNull(::decode)
+        val messages = decodedBranch(sessionId, lane.leafId)
         val resultsByCallId = messages.filterIsInstance<ToolResult>().groupBy { it.toolCallId }
         val callsById = messages.filterIsInstance<ToolCall>().associateBy { it.id }
         val terms = needle.split(SEARCH_TERM_SEPARATOR).filter { it.isNotBlank() }
@@ -163,7 +195,7 @@ class SessionTreeStore(
 
     suspend fun read(sessionId: String, messageId: String? = null, index: Int? = null): HarnessMessage? {
         val lane = repository.ensureLane(sessionId, MAIN_LANE)
-        val messages = repository.branch(sessionId, lane.leafId).mapNotNull(::decode)
+        val messages = decodedBranch(sessionId, lane.leafId)
         return when {
             !messageId.isNullOrBlank() -> messages.firstOrNull { it.id == messageId }
             index != null && index >= 0 -> messages.getOrNull(index)
@@ -178,7 +210,7 @@ class SessionTreeStore(
         index: Int? = null,
     ): List<HarnessMessage> {
         val lane = repository.ensureLane(sessionId, MAIN_LANE)
-        val messages = repository.branch(sessionId, lane.leafId).mapNotNull(::decode)
+        val messages = decodedBranch(sessionId, lane.leafId)
         val selected = when {
             !messageId.isNullOrBlank() -> messages.firstOrNull { it.id == messageId }
             index != null && index >= 0 -> messages.getOrNull(index)
@@ -223,6 +255,7 @@ class SessionTreeStore(
 
     companion object {
         const val MAIN_LANE = "main"
+        private const val MAX_DECODED_BRANCHES = 4
         const val RECALL_ENTRY_PREFIX = "recall_"
         /** 记忆召回后缀 entry 类型：紧随用户轮持久化，project() 读出映射为该轮 provider 后缀。 */
         const val RECALL_ENTRY_TYPE = "recall_context"

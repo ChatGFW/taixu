@@ -18,6 +18,7 @@ import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
+import top.wkbin.taixu.core.database.HarnessQueueItemEntity
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ToolCall
@@ -26,6 +27,8 @@ import top.wkbin.taixu.harness.UserMessage
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import top.wkbin.taixu.harness.session.SessionTreeStore
+import top.wkbin.taixu.harness.queue.PromptQueue
+import top.wkbin.taixu.harness.queue.PromptQueueManager
 
 /**
  * 会话消息投影器集成测试：真实 Room 持久化 + SessionTreeStore 全链路，
@@ -208,5 +211,24 @@ class SessionMessageProjectorTest {
         ))
 
         assertEquals(listOf("call", "result"), store.readWithRelated("read-related", messageId = "call").map { it.id })
+    }
+
+    @Test
+    fun `invalid queued prompt is removed when listed or consumed`() = runBlocking {
+        val repository = RoomHarnessRuntimeRepository(database.harnessRuntimeDao())
+        val queue = PromptQueueManager(repository, Json, store)
+        repository.enqueue(HarnessQueueItemEntity(
+            id = "bad", sessionId = "queue", laneName = "main", operationId = null,
+            queueType = PromptQueue.FOLLOW_UP.id, createdAt = 1L, payloadJson = "{broken",
+        ))
+        assertTrue(queue.list("queue", PromptQueue.FOLLOW_UP).isEmpty())
+        assertTrue(repository.listQueue("queue", "main", PromptQueue.FOLLOW_UP.id).isEmpty())
+
+        repository.enqueue(HarnessQueueItemEntity(
+            id = "bad2", sessionId = "queue", laneName = "main", operationId = null,
+            queueType = PromptQueue.FOLLOW_UP.id, createdAt = 2L, payloadJson = "{broken",
+        ))
+        assertTrue(queue.consume("queue", PromptQueue.FOLLOW_UP).isEmpty())
+        assertTrue(repository.listQueue("queue", "main", PromptQueue.FOLLOW_UP.id).isEmpty())
     }
 }

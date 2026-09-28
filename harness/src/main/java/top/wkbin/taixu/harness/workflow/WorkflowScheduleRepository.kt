@@ -54,10 +54,14 @@ class WorkflowScheduleRepository(
     }
 
     suspend fun setEnabled(id: String, enabled: Boolean) {
-        store.setEnabled(id, enabled)
         val entity = store.findSchedule(id) ?: return
+        val updated = entity.copy(
+            enabled = enabled,
+            nextRunAt = if (enabled) computeNextRunAt(entity) else null,
+        )
+        store.upsert(updated)
         if (enabled) {
-            dispatcher.dispatch(entity.copy(nextRunAt = computeNextRunAt(entity)))
+            dispatcher.dispatch(updated)
         } else {
             dispatcher.cancel(id)
         }

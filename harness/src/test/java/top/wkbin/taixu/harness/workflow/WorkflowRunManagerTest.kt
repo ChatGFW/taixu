@@ -167,6 +167,24 @@ class WorkflowRunManagerTest {
             repository.computeNextRunAt(scheduleEntity(repeatType = "INTERVAL", intervalMinutes = 3), from),
         )
     }
+
+    @Test
+    fun `enabling schedule persists the same next run sent to dispatcher`() = runBlocking {
+        val store = FakeScheduleStore().apply {
+            saved = scheduleEntity(repeatType = "INTERVAL", intervalMinutes = 15).copy(enabled = false, nextRunAt = 1L)
+        }
+        val dispatcher = RecordingDispatcher()
+        val repository = WorkflowScheduleRepository(store, FakeWorkflowRepository(), dispatcher)
+
+        repository.setEnabled("sched_test", true)
+
+        assertTrue(store.saved!!.enabled)
+        assertTrue(store.saved!!.nextRunAt!! > System.currentTimeMillis())
+        assertEquals(store.saved, dispatcher.lastDispatched)
+        repository.setEnabled("sched_test", false)
+        assertNull(store.saved!!.nextRunAt)
+        assertEquals(1, dispatcher.cancelled)
+    }
 }
 
 private fun manager(
@@ -227,9 +245,10 @@ private fun localTime(year: Int, month: Int, day: Int, hour: Int, minute: Int): 
     }.timeInMillis
 
 private class FakeScheduleStore : WorkflowScheduleStore {
+    var saved: WorkflowScheduleEntity? = null
     override fun observeSchedules(): Flow<List<WorkflowScheduleEntity>> = MutableStateFlow(emptyList())
-    override suspend fun findSchedule(id: String): WorkflowScheduleEntity? = null
-    override suspend fun upsert(entity: WorkflowScheduleEntity) = Unit
+    override suspend fun findSchedule(id: String): WorkflowScheduleEntity? = saved?.takeIf { it.id == id }
+    override suspend fun upsert(entity: WorkflowScheduleEntity) { saved = entity }
     override suspend fun delete(id: String) = Unit
     override suspend fun setEnabled(id: String, enabled: Boolean) = Unit
     override suspend fun updateRunInfo(id: String, executionId: String?, runAt: Long, nextRunAt: Long?) = Unit
@@ -238,8 +257,10 @@ private class FakeScheduleStore : WorkflowScheduleStore {
 private class RecordingDispatcher : WorkflowScheduleDispatcher {
     var dispatched = 0
     var cancelled = 0
+    var lastDispatched: WorkflowScheduleEntity? = null
     override fun dispatch(entity: WorkflowScheduleEntity) {
         dispatched++
+        lastDispatched = entity
     }
 
     override fun cancel(scheduleId: String) {

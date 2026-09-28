@@ -102,9 +102,20 @@ object TextToolCallCodec {
             val prefix = start.groupValues[1].takeIf { it.isNotBlank() }
             val contentStart = start.range.last + 1
             val endTag = if (prefix == null) "</tool_call>" else "</${prefix}_tool_call>"
-            val closingAt = text.indexOf(endTag, contentStart, ignoreCase = true)
             val nextStart = xmlStartPattern.find(text, contentStart)
-            val hasClosingBeforeNext = closingAt >= 0 && (nextStart == null || closingAt < nextStart.range.first)
+            val limit = nextStart?.range?.first ?: text.length
+            var closingAt = -1
+            var cursor = contentStart
+            while (cursor < limit) {
+                val candidate = text.indexOf("</", cursor)
+                if (candidate < 0 || candidate >= limit) break
+                if (text.regionMatches(candidate, endTag, 0, endTag.length, ignoreCase = true)) {
+                    closingAt = candidate
+                    break
+                }
+                cursor = candidate + 2
+            }
+            val hasClosingBeforeNext = closingAt >= 0
             val contentEndExclusive = when {
                 hasClosingBeforeNext -> closingAt
                 nextStart != null -> nextStart.range.first
@@ -143,25 +154,23 @@ object TextToolCallCodec {
     }.getOrNull()
 
     private fun parseTaggedPayload(json: Json, payload: String, prefix: String?): ApiToolCallSpec? {
-        val escapedPrefix = prefix?.let { Regex.escape("${it}_") }.orEmpty()
-        val keyPattern = Regex("""<$escapedPrefix(?:argkey|arg_key)>""", RegexOption.IGNORE_CASE)
-        val valuePattern = Regex("""<$escapedPrefix(?:argvalue|arg_value)>""", RegexOption.IGNORE_CASE)
-        val firstKey = keyPattern.find(payload) ?: return null
-        val name = payload.substring(0, firstKey.range.first).trim()
+        val tagPrefix = prefix?.let { "${it}_" }.orEmpty()
+        val firstKey = findArgumentTag(payload, 0, tagPrefix, "argkey", "arg_key") ?: return null
+        val name = payload.substring(0, firstKey.start).trim()
         if (name.isBlank()) return null
 
         val arguments = linkedMapOf<String, JsonElement>()
-        var keyMatch: MatchResult? = firstKey
+        var keyMatch: ArgumentTag? = firstKey
         while (keyMatch != null) {
-            val keyStart = keyMatch.range.last + 1
-            val valueMatch = valuePattern.find(payload, keyStart) ?: return null
-            val nextKeyBeforeValue = keyPattern.find(payload, keyStart)
-            if (nextKeyBeforeValue != null && nextKeyBeforeValue.range.first < valueMatch.range.first) return null
-            val key = payload.substring(keyStart, valueMatch.range.first).trim()
+            val keyStart = keyMatch.endExclusive
+            val valueMatch = findArgumentTag(payload, keyStart, tagPrefix, "argvalue", "arg_value") ?: return null
+            val nextKeyBeforeValue = findArgumentTag(payload, keyStart, tagPrefix, "argkey", "arg_key")
+            if (nextKeyBeforeValue != null && nextKeyBeforeValue.start < valueMatch.start) return null
+            val key = payload.substring(keyStart, valueMatch.start).trim()
             if (key.isBlank()) return null
-            val valueStart = valueMatch.range.last + 1
-            val nextKey = keyPattern.find(payload, valueStart)
-            val rawValue = payload.substring(valueStart, nextKey?.range?.first ?: payload.length).trim()
+            val valueStart = valueMatch.endExclusive
+            val nextKey = findArgumentTag(payload, valueStart, tagPrefix, "argkey", "arg_key")
+            val rawValue = payload.substring(valueStart, nextKey?.start ?: payload.length).trim()
             arguments[key] = parseArgumentValue(json, rawValue)
             keyMatch = nextKey
         }
@@ -171,6 +180,14 @@ object TextToolCallCodec {
             argumentsJson = JsonObject(arguments).toString(),
         )
     }
+
+    private data class ArgumentTag(val start: Int, val endExclusive: Int)
+
+    private fun findArgumentTag(text: String, from: Int, prefix: String, vararg names: String): ArgumentTag? =
+        names.mapNotNull { name ->
+            val tag = "<$prefix$name>"
+            text.indexOf(tag, from, ignoreCase = true).takeIf { it >= 0 }?.let { ArgumentTag(it, it + tag.length) }
+        }.minByOrNull { it.start }
 
     private fun parseArgumentValue(json: Json, rawValue: String): JsonElement {
         if (rawValue.isBlank()) return JsonPrimitive("")

@@ -39,6 +39,7 @@ class SessionMessageProjector(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val liveFlows = ConcurrentHashMap<String, MutableStateFlow<List<HarnessMessage>>>()
+    private val historyVersions = ConcurrentHashMap<String, AtomicLong>()
     private val lastAccess = ConcurrentHashMap<String, Long>()
     private val accessCounter = AtomicLong()
     private val streamingSessions = ConcurrentHashMap.newKeySet<String>()
@@ -67,20 +68,26 @@ class SessionMessageProjector(
             return it
         }
         val created = MutableStateFlow<List<HarnessMessage>>(emptyList())
+        val version = historyVersions.computeIfAbsent(sessionId) { AtomicLong() }
+        val expectedVersion = version.get()
         val flow = liveFlows.putIfAbsent(sessionId, created) ?: created.also {
             scope.launch(Dispatchers.IO) {
                 val history = history(sessionId)
-                created.update { current ->
-                    if (current.isEmpty()) {
-                        boundLiveWindow(history)
-                    } else {
-                        // Current contains newer stream/persisted projections and wins on duplicate ids.
-                        boundLiveWindow(
-                            (history + current).associateBy { it.id }.values.sortedBy { it.createdAt },
-                        )
+                synchronized(created) {
+                    if (liveFlows[sessionId] === created && version.get() == expectedVersion) {
+                        created.update { current ->
+                            if (current.isEmpty()) {
+                                boundLiveWindow(history)
+                            } else {
+                                // Current contains newer stream/persisted projections and wins on duplicate ids.
+                                boundLiveWindow(
+                                    (history + current).associateBy { it.id }.values.sortedBy { it.createdAt },
+                                )
+                            }
+                        }
+                        mirrorIfForeground(sessionId, created.value)
                     }
                 }
-                mirrorIfForeground(sessionId, created.value)
             }
         }
         evictLeastRecentlyUsed(sessionId)
@@ -109,7 +116,16 @@ class SessionMessageProjector(
     /** 新建会话：无条件以空列表开局。 */
     fun seedEmpty(sessionId: String) {
         touch(sessionId)
-        liveFlows[sessionId] = MutableStateFlow(emptyList())
+        val current = liveFlows[sessionId]
+        if (current != null) {
+            synchronized(current) {
+                historyVersions.computeIfAbsent(sessionId) { AtomicLong() }.incrementAndGet()
+                liveFlows[sessionId] = MutableStateFlow(emptyList())
+            }
+        } else {
+            historyVersions.computeIfAbsent(sessionId) { AtomicLong() }.incrementAndGet()
+            liveFlows[sessionId] = MutableStateFlow(emptyList())
+        }
         evictLeastRecentlyUsed(sessionId)
     }
 
@@ -121,12 +137,24 @@ class SessionMessageProjector(
     /** 整体替换某会话的实时消息（重生成 / 回退 / 分支切换等场景）。 */
     fun replaceAll(sessionId: String, messages: List<HarnessMessage>) {
         val bounded = boundLiveWindow(messages)
-        messagesFlow(sessionId).value = bounded
-        mirrorIfForeground(sessionId, bounded)
+        val flow = messagesFlow(sessionId)
+        synchronized(flow) {
+            historyVersions.computeIfAbsent(sessionId) { AtomicLong() }.incrementAndGet()
+            flow.value = bounded
+            mirrorIfForeground(sessionId, bounded)
+        }
     }
 
     fun removeSession(sessionId: String) {
-        liveFlows.remove(sessionId)
+        val flow = liveFlows[sessionId]
+        if (flow != null) {
+            synchronized(flow) {
+                liveFlows.remove(sessionId, flow)
+                historyVersions.remove(sessionId)
+            }
+        } else {
+            historyVersions.remove(sessionId)
+        }
         lastAccess.remove(sessionId)
         endStreamingInternal(sessionId)
     }
@@ -244,6 +272,7 @@ class SessionMessageProjector(
             .forEach { id ->
                 if (excess <= 0) return@forEach
                 if (liveFlows.remove(id) != null) {
+                    historyVersions.remove(id)
                     lastAccess.remove(id)
                     endStreamingInternal(id)
                     excess--

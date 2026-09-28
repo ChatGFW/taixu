@@ -136,8 +136,11 @@ class McpStdioTransport(
             // 按引用精确删除：失败连接触发 discard 前，另一线程可能已经历
             // "A 死亡 → connectionLocked 换新 B" 的重建，单参 remove 会误杀 B 及其
             // 挂着的并发等待者（sweep 用的同样是两参 remove）
-            val removed = failed?.takeIf { connections.remove(serverId, it) }
-                ?: connections[serverId]?.takeIf { connections.remove(serverId, it) }
+            val removed = if (failed != null) {
+                failed.takeIf { connections.remove(serverId, it) }
+            } else {
+                connections[serverId]?.takeIf { connections.remove(serverId, it) }
+            }
             removed?.close()
         }
     }

@@ -24,6 +24,8 @@ import top.wkbin.taixu.harness.mcp.McpToolApiName
  */
 object ToolSchemaValidator {
     private val json = Json { ignoreUnknownKeys = true }
+    private const val MAX_PATTERN_LENGTH = 256
+    private const val MAX_PATTERN_INPUT_LENGTH = 512
 
     /**
      * 智能参数解包、键扁平化还原与别名规整：
@@ -194,17 +196,26 @@ object ToolSchemaValidator {
         return ProviderClient.TOOLS.firstOrNull { it.function.name == apiName }?.function?.parameters
     }
 
-    private fun validateObject(schema: JsonObject, obj: JsonObject, prefix: String): List<String> {
+    private fun validateObject(
+        schema: JsonObject,
+        obj: JsonObject,
+        prefix: String,
+        inheritedProperties: Set<String> = emptySet(),
+    ): List<String> {
         val problems = mutableListOf<String>()
+        val alternatives = (schema["anyOf"] as? JsonArray).orEmpty()
+        val allowedProperties = inheritedProperties +
+            (schema["properties"] as? JsonObject).orEmpty().keys +
+            alternatives.filterIsInstance<JsonObject>().flatMap { (it["properties"] as? JsonObject).orEmpty().keys }
 
         (schema["required"] as? JsonArray)?.forEach { element ->
             val name = (element as? JsonPrimitive)?.contentOrNull ?: return@forEach
             if (!obj.containsKey(name)) problems += "缺少必填参数 ${prefix}${name}"
         }
 
-        (schema["anyOf"] as? JsonArray)?.takeIf { it.isNotEmpty() }?.let { alternatives ->
+        alternatives.takeIf { it.isNotEmpty() }?.let { alternatives ->
             val satisfied = alternatives.any { alternative ->
-                (alternative as? JsonObject)?.let { validateObject(it, obj, prefix).isEmpty() } == true
+                (alternative as? JsonObject)?.let { validateObject(it, obj, prefix, allowedProperties).isEmpty() } == true
             }
             if (!satisfied) {
                 val combos = alternatives.mapNotNull { alternative ->
@@ -236,7 +247,7 @@ object ToolSchemaValidator {
         // 本工具接受哪些参数，让模型一次修正到位，而不是反复以错误参数重试。
         val allowExtra = (schema["additionalProperties"] as? JsonPrimitive)?.contentOrNull == "true"
         (schema["properties"] as? JsonObject)?.let { properties ->
-            val unknown = obj.keys.filter { it !in properties.keys }
+            val unknown = obj.keys.filter { it !in allowedProperties }
             if (unknown.isNotEmpty() && !allowExtra) {
                 val at = if (prefix.isEmpty()) "" else "（位于 $prefix 层）"
                 problems += "不接受参数 ${unknown.joinToString("、")}$at" +
@@ -280,7 +291,13 @@ object ToolSchemaValidator {
 
         if (value is JsonPrimitive && value.isString) {
             schema["pattern"]?.jsonPrimitive?.contentOrNull?.let { pattern ->
-                val matches = runCatching { Regex(pattern).containsMatchIn(value.content) }.getOrDefault(true)
+                // Java regex has no timeout. Avoid known exponential shapes and huge inputs;
+                // unsupported remote patterns are ignored like other unknown schema keywords.
+                val safe = pattern.length <= MAX_PATTERN_LENGTH &&
+                    value.content.length <= MAX_PATTERN_INPUT_LENGTH &&
+                    pattern.none { it == '(' || it == ')' || it == '|' } &&
+                    pattern.count { it == '*' || it == '+' || it == '?' || it == '{' } <= 2
+                val matches = if (safe) runCatching { Regex(pattern).containsMatchIn(value.content) }.getOrDefault(true) else true
                 if (!matches) problems += "参数 $label 格式不符合要求（需匹配 $pattern）"
             }
         }
