@@ -2,10 +2,7 @@ package top.wkbin.taixu.ui.theme
 
 import android.app.WallpaperColors
 import android.app.WallpaperManager
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
@@ -24,7 +21,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -298,20 +294,8 @@ fun rememberWallpaperDynamicColorScheme(
             listener
         } else null
 
-        // 2. Broadcast receiver for wallpaper changes
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(c: Context?, intent: Intent?) {
-                updateSeed()
-            }
-        }
-        runCatching {
-            ContextCompat.registerReceiver(
-                context,
-                receiver,
-                IntentFilter(Intent.ACTION_WALLPAPER_CHANGED),
-                ContextCompat.RECEIVER_NOT_EXPORTED,
-            )
-        }
+        // 壁纸变化经 WallpaperManager.OnColorsChangedListener 感知（O_MR1+ 覆盖全部 minSdk）；
+        // ACTION_WALLPAPER_CHANGED 广播已废弃且不再向三方应用派发，不再注册冗余接收器。
 
         onDispose {
             isDisposed = true
@@ -320,7 +304,6 @@ fun rememberWallpaperDynamicColorScheme(
                     WallpaperManager.getInstance(context).removeOnColorsChangedListener(colorsListener)
                 }
             }
-            runCatching { context.unregisterReceiver(receiver) }
         }
     }
 

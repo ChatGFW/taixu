@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.workflow
 
+import android.content.ClipData
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -61,8 +64,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -84,6 +87,9 @@ import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+
+/** 共享的 pretty Json：构建实例开销大，不在 remember/重组中反复创建。 */
+private val PrettyJson = Json { prettyPrint = true }
 
 @Composable
 fun WorkflowEditorView(
@@ -645,7 +651,8 @@ private fun RunConsoleModal(
     onCancelRun: () -> Unit,
     onRerun: () -> Unit,
 ) {
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val clipboardScope = rememberCoroutineScope()
     val isRunning = activeRunState.status in setOf(WorkflowRunStatus.RUNNING, WorkflowRunStatus.WAITING_APPROVAL)
     val startedAt = activeRunState.startedAt ?: 0L
     val finishedAt = activeRunState.finishedAt ?: 0L
@@ -776,7 +783,9 @@ private fun RunConsoleModal(
         confirmButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RuntimeOutlinedButton(onClick = {
-                    clipboard.setText(AnnotatedString(consoleOutput))
+                    clipboardScope.launch {
+                        clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("workflow_console", consoleOutput)))
+                    }
                 }) {
                     Text("复制日志")
                 }
@@ -1035,10 +1044,10 @@ private fun NodeInspectorCard(
     }
     var showAdvancedJson by remember { mutableStateOf(false) }
     var rawJsonText by remember(node.id, node.config) {
-        mutableStateOf(Json { prettyPrint = true }.encodeToString(node.config))
+        mutableStateOf(PrettyJson.encodeToString(node.config))
     }
     val parsedConfig = remember(rawJsonText) {
-        runCatching { Json.decodeFromString<Map<String, String>>(rawJsonText) }.getOrNull()
+        runCatching { PrettyJson.decodeFromString<Map<String, String>>(rawJsonText) }.getOrNull()
     }
 
     RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {

@@ -23,15 +23,18 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import top.wkbin.taixu.core.database.AgentApprovalRepository
+import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.harness.validation.ToolCallLoopDetector
 import top.wkbin.taixu.harness.metrics.RunMetrics
 import top.wkbin.taixu.harness.task.AgentStateMachine
-
 import top.wkbin.taixu.core.datastore.AgentPreferences
+import top.wkbin.taixu.harness.approval.ApprovalResumePolicy
+import top.wkbin.taixu.harness.approval.SessionApprovalGrants
+import top.wkbin.taixu.harness.checkpoint.RewindController
+import top.wkbin.taixu.harness.compaction.BranchSummarizer
 import top.wkbin.taixu.harness.session.SessionTreeStore
 import top.wkbin.taixu.harness.session.SessionTurnCoordinator
 import top.wkbin.taixu.harness.session.TurnPriority
@@ -47,6 +50,7 @@ import top.wkbin.taixu.harness.events.AgentEventLogger
 import top.wkbin.taixu.harness.projection.CurrentSessionTracker
 import top.wkbin.taixu.harness.projection.SessionMessageProjector
 import top.wkbin.taixu.harness.projection.SessionStateMirrors
+import top.wkbin.taixu.harness.skill.SkillEvolutionAdvisor
 
 /** Agent 单次运行的结构化结果，外层据此设置会话状态，避免内部失败被误标为 COMPLETED。 */
 private sealed interface RunResult {
@@ -71,11 +75,11 @@ class HarnessLoop(
     private val toolRoundDispatcher: ToolRoundDispatcher,
     private val messageStore: SessionTreeStore,
     private val sessionDao: HarnessSessionRepository,
-    private val modelRepository: top.wkbin.taixu.core.database.AiModelRepository,
+    private val modelRepository: AiModelRepository,
     private val settingsDataStore: AgentPreferences,
     private val json: Json,
     private val logger: AppLogger,
-    private val approvalRepository: top.wkbin.taixu.core.database.AgentApprovalRepository,
+    private val approvalRepository: AgentApprovalRepository,
     private val operationCoordinator: OperationCoordinator,
     private val recoveryManager: RecoveryManager,
     private val promptQueueManager: PromptQueueManager,
@@ -83,13 +87,13 @@ class HarnessLoop(
     private val stateMirrors: SessionStateMirrors,
     private val messageProjector: SessionMessageProjector,
     private val agentEventLogger: AgentEventLogger,
-    private val resumePolicy: top.wkbin.taixu.harness.approval.ApprovalResumePolicy,
-    private val sessionApprovalGrants: top.wkbin.taixu.harness.approval.SessionApprovalGrants,
+    private val resumePolicy: ApprovalResumePolicy,
+    private val sessionApprovalGrants: SessionApprovalGrants,
     private val agentTaskStateMachine: AgentStateMachine,
     private val turnRunner: TurnRunner,
-    private val rewindController: top.wkbin.taixu.harness.checkpoint.RewindController,
-    private val branchSummarizer: top.wkbin.taixu.harness.compaction.BranchSummarizer,
-    private val skillEvolutionAdvisor: top.wkbin.taixu.harness.skill.SkillEvolutionAdvisor? = null,
+    private val rewindController: RewindController,
+    private val branchSummarizer: BranchSummarizer,
+    private val skillEvolutionAdvisor: SkillEvolutionAdvisor? = null,
     private val turnCoordinator: SessionTurnCoordinator,
 ) {
     private val loopScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

@@ -69,10 +69,10 @@ fun WorkflowScheduleEditDialog(
     var repeat by remember {
         mutableStateOf(existing?.let { WorkflowScheduleRepeat.valueOf(it.repeatType) } ?: WorkflowScheduleRepeat.DAILY)
     }
-    var hour by remember { mutableStateOf((existing?.hour ?: 9)?.toString().orEmpty()) }
-    var minute by remember { mutableStateOf((existing?.minute ?: 0)?.toString().orEmpty()) }
+    var hour by remember { mutableStateOf((existing?.hour ?: 9).toString()) }
+    var minute by remember { mutableStateOf((existing?.minute ?: 0).toString()) }
     var intervalMinutes by remember {
-        mutableStateOf((existing?.intervalMinutes ?: 60)?.toString().orEmpty())
+        mutableStateOf((existing?.intervalMinutes ?: 60).toString())
     }
     var onceAt by remember {
         mutableStateOf(

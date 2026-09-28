@@ -363,10 +363,10 @@ class StorageManager(
     }
 
     suspend fun clearCategory(categoryId: String): AppResult<Unit> =
-        clean(requireMatch = true) { it.rule.category == categoryId }.map { Unit }
+        clean(requireMatch = true) { it.rule.category == categoryId }.map { }
 
     suspend fun clearEntry(categoryId: String, entryId: String): AppResult<Unit> =
-        clean(requireMatch = true) { it.rule.category == categoryId && it.rule.id == entryId }.map { Unit }
+        clean(requireMatch = true) { it.rule.category == categoryId && it.rule.id == entryId }.map { }
 
     suspend fun clearCache(): AppResult<Unit> = clearCategory("cache")
 

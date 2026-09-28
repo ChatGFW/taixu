@@ -735,8 +735,7 @@ internal fun sanitizeApiTranscript(messages: List<ApiMessage>): List<ApiMessage>
             message.role == "assistant" && !message.tool_calls.isNullOrEmpty() -> {
                 flushMissingResults()
                 out.add(message)
-                awaitingResultIds = message.tool_calls.orEmpty()
-                    .mapTo(LinkedHashSet()) { it.id }
+                awaitingResultIds = message.tool_calls.mapTo(LinkedHashSet()) { it.id }
             }
             message.role == "tool" -> {
                 val id = message.tool_call_id.orEmpty()
@@ -857,17 +856,14 @@ class ProviderClient(
 
     suspend fun resolveModel(): ModelConfig = withContext(Dispatchers.IO) {
         val active = modelDao.activeModel()
-        val baseConfig = if (active != null) {
-            active.toModelConfig(providerRepository)
-        } else {
-            ModelConfig(
+        val baseConfig = active?.toModelConfig(providerRepository)
+            ?: ModelConfig(
                 name = "默认",
                 provider = providerRepository.provider.first(),
                 model = providerRepository.model.first().ifBlank { DEFAULT_MODEL },
                 baseUrl = providerRepository.baseUrl.first().ifBlank { DEFAULT_BASE_URL },
                 apiKey = providerRepository.readApiKey(),
             )
-        }
         // 主流模型自动适配：provider 的 /models 通常不返回 context window，
         // 这里在最终模型名（含 variant）确定后统一补全；显式 contextTokens 仍优先。
         baseConfig.withResolvedContextWindow().applyGlobalReasoningDepth()

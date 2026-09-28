@@ -148,7 +148,7 @@ fun TerminalScreen(
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN,
         )
         onDispose {
-            if (previous != null) window?.setSoftInputMode(previous)
+            if (previous != null) window.setSoftInputMode(previous)
         }
     }
 

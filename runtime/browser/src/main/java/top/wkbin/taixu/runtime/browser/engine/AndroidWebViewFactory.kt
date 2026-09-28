@@ -25,7 +25,6 @@ object AndroidWebViewFactory {
         val s: WebSettings = view.settings
         s.javaScriptEnabled = true
         s.domStorageEnabled = true
-        s.databaseEnabled = true
         s.loadWithOverviewMode = true
         s.useWideViewPort = true
         s.setSupportZoom(true)

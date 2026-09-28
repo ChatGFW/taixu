@@ -140,9 +140,8 @@ class HostGuiToolkit(
                 GuiKey.BACK -> AccessibilityService.GLOBAL_ACTION_BACK
                 GuiKey.HOME -> AccessibilityService.GLOBAL_ACTION_HOME
                 GuiKey.RECENTS -> AccessibilityService.GLOBAL_ACTION_RECENTS
-                else -> null
             }
-            if (global != null && TaiXuGuiAccessibilityService.performGlobal(global)) {
+            if (TaiXuGuiAccessibilityService.performGlobal(global)) {
                 return GuiExecResult(true, "已触发按键：${key.name.lowercase()}", GuiBackendId.ACCESSIBILITY)
             }
             attempts += GuiAttempt(GuiBackendId.ACCESSIBILITY, false, "无障碍全局动作不可用（已尝试特权自授权）")

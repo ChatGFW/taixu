@@ -86,7 +86,7 @@ fun EnvironmentVariableSettingsScreen(
             },
             onSave = { key, value, note ->
                 if (editing == null) viewModel.addEnvironmentVariable(key, value, note) { if (it) { showEditor = false } }
-                else viewModel.updateEnvironmentVariable(editing!!.id, key, value, note) { if (it) { showEditor = false; editingKey = null } }
+                else viewModel.updateEnvironmentVariable(editing.id, key, value, note) { if (it) { showEditor = false; editingKey = null } }
             },
         )
     }

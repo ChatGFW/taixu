@@ -61,6 +61,8 @@ class CrashReporter(
                 appendLine("package=${context.packageName}")
                 appendLine("version=${appVersion()}")
                 appendLine("processId=${Process.myPid()}")
+                // threadId() 需 API 35+（minSdk 29 不可用），Thread.id 弃用但语义不变，仅用于崩溃报告展示
+                @Suppress("DEPRECATION")
                 appendLine("thread=${thread.name} (${thread.id})")
                 appendLine("device=${Build.MANUFACTURER} ${Build.MODEL}")
                 appendLine("android=${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")

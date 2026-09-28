@@ -585,7 +585,14 @@ class WebChatBridgeServer(
             acquire(24 * 60 * 60 * 1000L)
         }
         val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
-        wifiLock = wifi?.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "taixu:webchat_bridge_wifi")?.apply {
+        // API 34+ 用 LOW_LATENCY 模式更契合实时桥接；旧版本保留 HIGH_PERF（已废弃但仍是该级别的最优档）
+        val wifiMode = if (android.os.Build.VERSION.SDK_INT >= 34) {
+            android.net.wifi.WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+        } else {
+            @Suppress("DEPRECATION")
+            android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF
+        }
+        wifiLock = wifi?.createWifiLock(wifiMode, "taixu:webchat_bridge_wifi")?.apply {
             setReferenceCounted(false)
             acquire()
         }

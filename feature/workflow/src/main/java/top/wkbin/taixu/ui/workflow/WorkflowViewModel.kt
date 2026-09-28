@@ -4,6 +4,7 @@ import android.content.Context
 import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -122,6 +123,7 @@ class WorkflowViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     val approvalRequest: StateFlow<WorkflowApprovalRequest?> = _viewingRunId.flatMapLatest { id ->
         id?.let { runManager.approvalRequestFor(it) } ?: flowOf(null)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)

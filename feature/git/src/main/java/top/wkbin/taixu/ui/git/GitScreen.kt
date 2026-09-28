@@ -27,8 +27,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
@@ -198,7 +198,7 @@ fun GitScreen(
                     }
                 }
 
-                TabRow(selectedTabIndex = selectedTab) {
+                PrimaryTabRow(selectedTabIndex = selectedTab) {
                     // 页签文案统一两字 + 数量角标，防止窄屏下换行（"提交记录"曾折成两行）
                     Tab(
                         selected = selectedTab == 0,
