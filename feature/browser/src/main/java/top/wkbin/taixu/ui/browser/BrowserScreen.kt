@@ -53,6 +53,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.browser.network.NetworkTimelineSheet
 import top.wkbin.taixu.ui.browser.snapshot.SnapshotSheet
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun BrowserScreen(
@@ -154,7 +155,7 @@ fun BrowserPane(
             if (networkSheetVisible) {
                 NetworkTimelineSheet(
                     requests = networkRequests,
-                    hookHits = viewModel.hookHits.value,
+                    hookHits = viewModel.hookHits.collectAsState().value,
                     detail = networkDetail,
                     onLoadDetail = viewModel::loadNetworkDetail,
                     onDismiss = viewModel::dismissNetworkSheet,
