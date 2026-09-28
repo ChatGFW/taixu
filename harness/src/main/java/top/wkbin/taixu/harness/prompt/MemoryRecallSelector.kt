@@ -13,11 +13,12 @@ import top.wkbin.taixu.core.database.AgentMemoryEntity
  * 与旧 LIKE 方案的行为差异：不再"无命中就注入最近记忆"——不相关记忆是噪声与 token 浪费，
  * 必须常驻的指令应 pinned（pinned 走 system prompt 稳定前缀）。
  *
- * 关键契约：召回结果**每用户轮只计算一次并持久化**（recall_context entry），此后该轮的
- * provider 投影永远携带同一段后缀字节。记忆库后续变化（模型写记忆、用户改 pinned）不影响
- * 历史轮的已持久化后缀——这是 prefix cache 稳定性的前提，也是它与旧「system prompt 尾部
- * 注入」方案的本质区别：system prompt 任何逐轮变化都会击穿其后全部对话的缓存，而追加在
- * user 轮上的后缀只影响该轮之后的新增内容（本来就未缓存）。
+ * 关键契约：块内容（记忆召回 + 计划看板）**每用户轮只计算一次并持久化**
+ * （recall_context entry），此后该轮的 provider 投影永远携带同一段前缀字节。记忆库后续变化
+ * （模型写记忆、用户改 pinned）与计划后续推进都不影响历史轮的已持久化字节——这是 prefix
+ * cache 稳定性的前提，也是它与旧「system prompt 尾部注入」方案的本质区别：system prompt
+ * 任何逐轮变化都会击穿其后全部对话的缓存，而追加在 user 轮上的前缀只影响该轮之后的新增内容
+ * （本来就未缓存）。
  */
 class MemoryRecallSelector(
     private val agentContextDao: AgentContextRepository,
@@ -54,6 +55,45 @@ class MemoryRecallSelector(
         return renderBlock(selected)
     }
 
+    /**
+     * 用户轮前缀块：记忆召回 + 任务计划看板，合并为**同一段持久化字节**。
+     *
+     * 合成一个块而非两条 entry，是因为调用方（[ApiContextAssembler]）的幂等门控是按
+     * 「该用户轮是否已有前缀块」判定的——分两条会各自独立判定，反而更容易漂移。
+     */
+    suspend fun turnPrefixBlock(
+        projectOwnerId: String,
+        sessionId: String,
+        userMessage: String,
+    ): String {
+        val memory = recallBlock(projectOwnerId, sessionId, userMessage)
+        val plan = planBlock(sessionId)
+        return listOf(memory, plan).filter { it.isNotBlank() }.joinToString("\n\n")
+    }
+
+    /**
+     * 任务计划看板块（低权威背景资料层）。
+     *
+     * 计划随 plan 工具的每一步推进而变；放在 system prompt 里意味着「每推进一个步骤，
+     * 整段 system 前缀失效」。作为用户轮前缀块的一部分，它只在**该用户轮首次组装时**
+     * 取一次快照并冻结：轮内的步骤推进仍通过 plan 工具的返回文本体现，不再改写已发出的字节。
+     * 压缩后计划的可见性由「最新用户轮的后缀落在保留窗口内」保证。
+     */
+    suspend fun planBlock(sessionId: String): String {
+        if (sessionId.isBlank()) return ""
+        val plan = runCatching { agentContextDao.getActivePlan(sessionId) }.getOrNull() ?: return ""
+        if (plan.status != "active") return ""
+        val goal = plan.goal.trim().take(MAX_PLAN_GOAL_CHARS)
+        val steps = plan.stepsJson.trim().take(MAX_PLAN_STEPS_CHARS)
+        return buildString {
+            appendLine("<task_plan>")
+            appendLine("以下为本会话当前的活跃任务计划与进度（背景资料，供接续执行；实际进度以 plan 工具返回为准）：")
+            appendLine("目标：$goal")
+            appendLine("步骤与状态：$steps")
+            append("</task_plan>")
+        }
+    }
+
     companion object {
         private const val MAX_RECALL_CANDIDATES = 64
         /** 注入条数预算（对齐 Reasonix 的 ≤4 条口径，略放宽为 5）。 */
@@ -63,6 +103,10 @@ class MemoryRecallSelector(
 
         /** 单个召回后缀块的字符预算（含声明行）；持久化字节随轮累积，必须有界。 */
         internal const val MAX_RECALL_BLOCK_CHARS = 4_000
+
+        /** 计划看板的字符预算：stepsJson 是模型自产 JSON，必须有界以免撑大每轮请求。 */
+        internal const val MAX_PLAN_GOAL_CHARS = 200
+        internal const val MAX_PLAN_STEPS_CHARS = 1_200
 
         /**
          * 渲染为 user 轮后缀：XML 包裹 + 低权威声明，格式稳定（进入持久化字节，不可随意改版）。

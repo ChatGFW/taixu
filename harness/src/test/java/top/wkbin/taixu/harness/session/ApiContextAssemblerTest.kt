@@ -382,6 +382,72 @@ class ApiContextAssemblerTest {
         assertTrue(users[1].content!!.contains("room 迁移"))
     }
 
+    // ---------- 任务计划看板（prefix cache 稳定性） ----------
+
+    private suspend fun saveActivePlan(sessionId: String, goal: String, stepsJson: String) {
+        agentContextRepository.savePlan(
+            top.wkbin.taixu.core.database.AgentPlanEntity(
+                sessionId = sessionId,
+                goal = goal,
+                stepsJson = stepsJson,
+                status = "active",
+            ),
+        )
+    }
+
+    @Test
+    fun `plan board rides on user turn prefix block instead of system prompt`() = runBlocking {
+        saveActivePlan("s-plan", "重构认证模块", """["步骤1: 只读排查","步骤2: 实现"]""")
+        push("s-plan", UserMessage("u1", 1L, "继续推进计划"), AssistantText("a1", 2L, "好的"))
+
+        val out = assembler.assemble("s-plan", nativeModel(), "/ws")
+        val systemPrompt = out.first { it.role == "system" }.content.orEmpty()
+        val userMsg = out.last { it.role == "user" }.content.orEmpty()
+        // 计划看板挂在用户轮上；system prompt 不再含计划文本（否则每步推进都废掉整段前缀）
+        assertTrue(userMsg.contains("<task_plan>"))
+        assertTrue(userMsg.contains("重构认证模块"))
+        assertFalse(systemPrompt.contains("<task_plan>"))
+        assertFalse(systemPrompt.contains("重构认证模块"))
+    }
+
+    @Test
+    fun `plan alone can produce a prefix block even when no memory matches`() = runBlocking {
+        saveActivePlan("s-plan-only", "清理死代码", """["步骤1: 扫描"]""")
+        // "继续" 是泛化轮次，不触发任何记忆召回
+        push("s-plan-only", UserMessage("u1", 1L, "继续"), AssistantText("a1", 2L, "好的"))
+
+        val out = assembler.assemble("s-plan-only", nativeModel(), "/ws")
+        assertTrue(out.last { it.role == "user" }.content.orEmpty().contains("<task_plan>"))
+        assertTrue(compactionManager.project("s-plan-only").recallBlocks.containsKey("u1"))
+    }
+
+    @Test
+    fun `plan advance inside one turn does not rewrite the frozen prefix block`() = runBlocking {
+        saveActivePlan("s-plan-frozen", "重构认证模块", """["步骤1: 只读排查"]""")
+        push("s-plan-frozen", UserMessage("u1", 1L, "继续推进计划"), AssistantText("a1", 2L, "好的"))
+        val first = assembler.assemble("s-plan-frozen", nativeModel(), "/ws")
+
+        // 同一用户轮内推进计划（plan 工具的效果）：已发出的字节不得改写
+        saveActivePlan("s-plan-frozen", "重构认证模块", """["步骤1: 已排查","步骤2: 实现"]""")
+        val second = assembler.assemble("s-plan-frozen", nativeModel(), "/ws")
+        assertEquals(first, second)
+    }
+
+    @Test
+    fun `next user turn picks up the advanced plan`() = runBlocking {
+        saveActivePlan("s-plan-next", "目标A", """["a"]""")
+        push("s-plan-next", UserMessage("u1", 1L, "开始"), AssistantText("a1", 2L, "好的"))
+        assembler.assemble("s-plan-next", nativeModel(), "/ws")
+
+        saveActivePlan("s-plan-next", "目标A", """["a","b"]""")
+        push("s-plan-next", UserMessage("u2", 3L, "继续"), AssistantText("a2", 4L, "好的"))
+        val out = assembler.assemble("s-plan-next", nativeModel(), "/ws")
+
+        val users = out.filter { it.role == "user" }
+        assertEquals(2, users.size)
+        assertTrue(users[1].content.orEmpty().contains(""""b""""))
+    }
+
     @Test
     fun `routed rule blocks accumulate across the session instead of following latest message`() = runBlocking {
         val promptAssets = PromptAssetLoader(ApplicationProvider.getApplicationContext())

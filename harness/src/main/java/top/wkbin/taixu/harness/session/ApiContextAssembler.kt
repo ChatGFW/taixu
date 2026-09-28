@@ -23,7 +23,7 @@ import top.wkbin.taixu.harness.prompt.SystemPromptBuilder
  *
  * 从原 HarnessLoop.apiMessages 迁移而来，负责：
  * - 系统提示词注入（非纯净聊天模式；逐轮可变内容已全部外移，见下）
- * - 用户轮记忆召回后缀的持久化（recall_context entry，每轮只算一次）
+ * - 用户轮前缀块的持久化（recall_context entry：记忆召回 + 任务计划看板，每轮只算一次）
  * - 上下文压缩摘要的头部注入（预算驱动的滑动窗口折叠）
  * - NATIVE / JSON_TEXT 两种工具调用协议的消息形态转换（经 [ApiMessageProjector]）
  * - 视觉能力关闭时剥离图片输入
@@ -68,15 +68,16 @@ class ApiContextAssembler(
         var compactedContext = compactionManager.project(sessId)
         var msgs = compactedContext.messages
 
-        // 用户轮记忆召回后缀（低权威背景资料）：只对最新用户轮计算一次并持久化到
-        // 会话树（appendRecallBlock 幂等），此后该轮的投影永远携带同一段字节。
-        // 这取代了旧的「system prompt 尾部注入」——那种逐轮重算会击穿整个前缀缓存。
+        // 用户轮前缀块（低权威背景资料：记忆召回 + 任务计划看板）：只对最新用户轮计算一次并
+        // 持久化到会话树（appendRecallBlock 幂等），此后该轮的投影永远携带同一段字节。
+        // 这取代了旧的「system prompt 尾部注入」——记忆召回与计划看板都是逐轮变化的内容，
+        // 放在 system prompt 里会让整段前缀每轮/每步失效。
         // 持久化失败时放弃挂载：未持久化的字节进投影会导致下一轮组装漂移。
         if (!model.pureChatMode) {
             val latestUser = msgs.filterIsInstance<UserMessage>().lastOrNull()
             if (latestUser != null && latestUser.id !in compactedContext.recallBlocks) {
                 val block = try {
-                    memoryRecallSelector.recallBlock(
+                    memoryRecallSelector.turnPrefixBlock(
                         projectOwnerId = workspacePath.trim().trimEnd('/'),
                         sessionId = sessId,
                         userMessage = latestUser.text,

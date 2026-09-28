@@ -66,10 +66,12 @@ class SystemPromptBuilder(
     /**
      * 组装完整系统提示词（分层结构）；各分节缺失时自然留空并由 joinToString 过滤。
      *
-     * Prefix cache 契约：本方法产出的 system prompt 不含逐轮变化的内容——
-     * 相关记忆召回已外移为用户轮后缀（[MemoryRecallSelector]，每轮持久化）；
-     * 技能（按全会话累计的 mentionedNames）与路由规则块（全会话累计命中）只增不减，
-     * 相邻两轮 system prompt 字节级一致，除非发生用户显式事件或压缩（既定的缓存重置点）。
+     * Prefix cache 契约：本方法产出的 system prompt **不含逐轮变化的字节**——
+     * 记忆召回与任务计划看板都已外移为用户轮前缀块（[MemoryRecallSelector]，每轮只算一次
+     * 并持久化，轮内冻结）；技能（按全会话累计的 mentionedNames）与路由规则块（全会话累计
+     * 命中）只增不减；工作区章节由 [WORKSPACE_PROMPT_STAMP_FILES] 的字节级变化驱动，
+     * 目录 mtime 不参与。相邻两轮 system prompt 字节级一致，除非发生用户显式事件、
+     * 计划「首次出现」/「转为非 active」（路由布尔量翻转）或压缩（既定的缓存重置点）。
      */
     suspend fun build(
         workspacePath: String,
@@ -185,11 +187,12 @@ class SystemPromptBuilder(
                 }
         } else ""
 
-        val activePlan = runCatching { agentContextDao.getActivePlan(sessionId) }.getOrNull()
-        val activePlanExists = activePlan != null && activePlan.status == "active"
-        val planSection = if (activePlanExists) {
-            "\n\n## 当前任务多步骤执行规划与进度看板 (Active Plan)\n目标：${activePlan.goal}\n步骤与状态：\n${activePlan.stepsJson}"
-        } else ""
+        // 任务计划看板不在本方法内渲染：它随 plan 工具的每一步推进而变，放进 system prompt
+        // 等于「每推进一个步骤就重写整段前缀」。改由 MemoryRecallSelector.planBlock 承载，
+        // 挂在用户轮前缀块里（该块每用户轮只算一次并持久化，轮内字节冻结）。
+        // 此处仅保留 activePlanExists 这一布尔量，供路由规则判定。
+        val activePlanExists = runCatching { agentContextDao.getActivePlan(sessionId) }
+            .getOrNull()?.status == "active"
 
         val subagentSection = buildSubagentGuidance(toolCallMode)
 
@@ -287,7 +290,6 @@ class SystemPromptBuilder(
             installedToolsSection,
             mcpCapabilitySection,
             pinnedSection,
-            planSection,
             subagentSection,
             toolCallSection,
             workspaceGuidance,
@@ -335,7 +337,7 @@ class SystemPromptBuilder(
     ): WorkspacePromptParts {
         val key = "$workspacePath|$projectTypeOverride|$distroName"
         val stamp = runCatching {
-            fileAccess.changeStamp(workspacePath, listOf("app", "AGENTS.md", "CLAUDE.md", "README.md"))
+            fileAccess.changeStamp(workspacePath, WORKSPACE_PROMPT_STAMP_FILES)
         }.getOrDefault(Long.MIN_VALUE)
         workspacePartsCache[key]?.takeIf { it.stamp == stamp }?.let { return it }
         val projectType = detectProjectType(workspacePath, projectTypeOverride)
@@ -558,6 +560,23 @@ class SystemPromptBuilder(
         // Key/value memory is a compact RAG layer, not another copy of conversation history.
         private const val MAX_WORKSPACE_CACHE_ENTRIES = 16
         const val PROJECT_CONTEXT_MAX_BYTES = 16 * 1024
+
+        /**
+         * 决定工作区提示词字节的文件清单：`AGENTS.md`/`CLAUDE.md`/`README.md` 供
+         * project_context 与项目类型判定，其余是项目类型标记文件。
+         *
+         * 刻意不含工作区根目录自身与 `app/` 目录——目录 mtime 会被智能体的任意写入动作改变，
+         * 把它计入戳等于「模型每建一个文件就重算系统提示词」，前缀缓存随之整段失效。
+         * 代价：新标记文件在**本会话内**不再改变已生成的类型判定（下一会话生效）。
+         */
+        private val WORKSPACE_PROMPT_STAMP_FILES = listOf(
+            "AGENTS.md", "CLAUDE.md", "README.md",
+            "pubspec.yaml",
+            "settings.gradle.kts", "settings.gradle",
+            "build.gradle.kts", "build.gradle",
+            "apk-info.properties",
+            "app/build.gradle", "app/build.gradle.kts",
+        )
 
 
         /**

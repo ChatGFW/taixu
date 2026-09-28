@@ -251,16 +251,24 @@ class WorkspaceFileAccess(
         }
     }
 
-    /** Cheap cache stamp for prompt-relevant workspace metadata without reading file bodies. */
+    /**
+     * 「提示词相关元数据」的廉价缓存戳，不读取文件正文。
+     *
+     * 缩放口径刻意**排除工作区根目录自身的 mtime**：目录 mtime 会随任何条目的增删改而变，
+     * 而智能体每写一个新文件都会触发它，导致系统提示词逐轮重算、前缀缓存整段失效。
+     * 戳只由 [relativePaths] 里那些**真正决定提示词内容**的条目构成。
+     *
+     * 缺失条目也计入戳（占位 -1）：否则「会话进行中才出现的标记文件」永远无法触发重算，
+     * 项目类型会一直停留在首次判定结果。
+     */
     suspend fun changeStamp(path: String, relativePaths: List<String>): Long = withContext(Dispatchers.IO) {
         val base = resolveRequired(path)
-        var stamp = base.lastModified()
+        var stamp = 0L
         relativePaths.forEach { relative ->
             val child = File(base, relative).canonicalFile
-            if (isInside(base, child) && child.exists()) {
-                stamp = stamp * 31L + child.lastModified()
-                stamp = stamp * 31L + child.length()
-            }
+            val present = isInside(base, child) && child.exists()
+            stamp = stamp * 31L + if (present) child.lastModified() else -1L
+            if (present) stamp = stamp * 31L + child.length()
         }
         stamp
     }

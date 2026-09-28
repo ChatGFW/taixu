@@ -65,7 +65,10 @@ class SessionTreeStore(
     }
 
     /**
-     * 持久化某条用户消息的记忆召回后缀（recall_context entry，紧随该用户消息追加）。
+     * 持久化某条用户消息的前缀块（recall_context entry，紧随该用户消息追加）。
+     *
+     * 块内容 = 记忆召回 + 任务计划看板（见 [top.wkbin.taixu.harness.prompt.MemoryRecallSelector.turnPrefixBlock]）：
+     * 二者都是逐轮变化的内容，合并成同一段字节挂在该轮上，轮内冻结。
      *
      * entry id 由 userMessageId 确定性推导，幂等性由存储层语义保证（ensureUniqueStorageEntry）：
      * 同 id 同 payload 幂等复用（分支重放场景直接重新激活原 entry）；同 id 不同 payload
