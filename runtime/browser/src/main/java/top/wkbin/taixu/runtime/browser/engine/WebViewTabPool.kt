@@ -30,6 +30,8 @@ import top.wkbin.taixu.runtime.browser.hook.HookEventPipeline
 import top.wkbin.taixu.runtime.browser.hook.HookInstaller
 import top.wkbin.taixu.runtime.browser.hook.HookRuleStore
 import top.wkbin.taixu.runtime.browser.hook.NetworkBodyStore
+import top.wkbin.taixu.runtime.browser.inject.PageScriptInstaller
+import top.wkbin.taixu.runtime.browser.inject.VConsoleInstaller
 import top.wkbin.taixu.runtime.browser.snapshot.SnapshotBuilder
 
 /**
@@ -47,6 +49,9 @@ import top.wkbin.taixu.runtime.browser.snapshot.SnapshotBuilder
  * [hookStore]（规则）+ [hookPipeline]（页内事件管道）+ [hookBodies]（网络 body）+ [hookInstaller]（注入器）。
  * 与 desktopUserAgent 一样，切换开关需新 tab 或重启生效。
  *
+ * vConsole 调试面板（[vConsoleEnabled]=true 时注入，独立于 hooksEnabled）：
+ * 经 [scriptInstallers] 与 hook 注入器走同一套生命周期（创建注册 / 降级补种 / 验证 / 销毁摘除）。
+ *
  * CDP 栈（[cdpEnabled]=true 时创建）：[cdpManager]（断点 + Worker 级 Fetch 拦截）。
  * 规则存储与 body 存储在 hooksEnabled||cdpEnabled 任一开启时创建（同一规则双层生效）；
  * hookPipeline / hookInstaller 仍仅 hooksEnabled 创建。
@@ -59,6 +64,7 @@ class WebViewTabPool(
     private val desktopUserAgent: Boolean = false,
     hooksEnabled: Boolean = false,
     cdpEnabled: Boolean = false,
+    vConsoleEnabled: Boolean = false,
     maxCaptureBytes: Long = 6L * 1024 * 1024,
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -80,6 +86,15 @@ class WebViewTabPool(
         if (hookPipeline != null && hookStore != null) {
             HookInstaller(context, hookPipeline, hookStore).also { hookPipeline.start() }
         } else null
+
+    /**
+     * 启用中的 per-tab 脚本注入器（hook 运行时 + vConsole 面板），
+     * WebView 创建 / 导航 / 销毁时机统一经此列表分发生命周期。
+     */
+    val scriptInstallers: List<PageScriptInstaller> = buildList {
+        hookInstaller?.let { add(it) }
+        if (vConsoleEnabled) add(VConsoleInstaller(context))
+    }
 
     // ===== CDP 引擎栈（仅 cdpEnabled；真断点 + Worker 级 Fetch 拦截） =====
     val cdpManager: CdpManager? =
@@ -126,9 +141,9 @@ class WebViewTabPool(
         val builder = SnapshotBuilder(token, eventBus, scope) { byToken[token.tabId] != null }
         withContext(Dispatchers.Main.immediate) {
             val view = AndroidWebViewFactory.create(context, desktopUserAgent)
-            WebViewClients.attach(context, view, eventBus, token, this@WebViewTabPool, builder, scope, hookInstaller)
+            WebViewClients.attach(context, view, eventBus, token, this@WebViewTabPool, builder, scope, scriptInstallers)
             // 桥与 document-start 脚本必须在首个 loadUrl 之前装好，最早的请求才不会漏
-            hookInstaller?.onWebViewCreated(token.tabId, view)
+            scriptInstallers.forEach { it.onWebViewCreated(token.tabId, view) }
             if (cdpManager != null) installTabMarker(token.tabId, view)
             byToken[token.tabId] = Slot(token, view, scope, builder)
             view.loadUrl(effectiveUrl)
@@ -164,7 +179,7 @@ class WebViewTabPool(
         slot?.scope?.cancel()
         slot?.builder?.clear(token.tabId)
         slot?.let { s ->
-            hookInstaller?.onWebViewDestroyed(token.tabId, s.view)
+            scriptInstallers.forEach { it.onWebViewDestroyed(token.tabId, s.view) }
             hookPipeline?.clearForTab(token.tabId)
             removeTabMarker(token.tabId)
         }
@@ -185,7 +200,7 @@ class WebViewTabPool(
         slot?.scope?.cancel()
         slot?.builder?.clear(token.tabId)
         slot?.let { s ->
-            hookInstaller?.onWebViewDestroyed(token.tabId, s.view)
+            scriptInstallers.forEach { it.onWebViewDestroyed(token.tabId, s.view) }
             hookPipeline?.clearForTab(token.tabId)
             removeTabMarker(token.tabId)
         }
@@ -207,7 +222,7 @@ class WebViewTabPool(
             slot.scope.cancel()
             slot.builder.clear(slot.token.tabId)
             mainHandler.post {
-                hookInstaller?.onWebViewDestroyed(slot.token.tabId, slot.view)
+                scriptInstallers.forEach { it.onWebViewDestroyed(slot.token.tabId, slot.view) }
                 removeTabMarker(slot.token.tabId)
                 AndroidWebViewFactory.destroy(slot.view)
             }

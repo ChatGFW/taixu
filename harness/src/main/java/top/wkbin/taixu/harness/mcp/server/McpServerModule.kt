@@ -36,6 +36,7 @@ object McpServerModule {
                     allowEvalJs = browserPrefs.allowEvalJs().first(),
                     allowHooks = browserPrefs.allowHooks().first(),
                     allowCdp = browserPrefs.allowCdp().first(),
+                    allowVConsole = browserPrefs.allowVConsole().first(),
                     desktopUserAgent = browserPrefs.desktopUserAgent().first(),
                     maxCaptureBytes = browserPrefs.maxCaptureBytes().first(),
                 )

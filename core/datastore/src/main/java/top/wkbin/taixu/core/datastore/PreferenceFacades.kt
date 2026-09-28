@@ -268,6 +268,7 @@ class BrowserPreferences(private val store: SettingsDataStore) {
     fun allowEvalJs() = store.browserAllowEvalJs
     fun allowHooks() = store.browserAllowHooks
     fun allowCdp() = store.browserAllowCdp
+    fun allowVConsole() = store.browserAllowVConsole
     fun desktopUserAgent() = store.browserDesktopUserAgent
     fun maxCaptureBytes() = store.browserMaxCaptureBytes
     suspend fun setDefaultFamily(value: String) = store.setBrowserDefaultFamily(value)
@@ -277,6 +278,7 @@ class BrowserPreferences(private val store: SettingsDataStore) {
     suspend fun setAllowEvalJs(value: Boolean) = store.setBrowserAllowEvalJs(value)
     suspend fun setAllowHooks(value: Boolean) = store.setBrowserAllowHooks(value)
     suspend fun setAllowCdp(value: Boolean) = store.setBrowserAllowCdp(value)
+    suspend fun setAllowVConsole(value: Boolean) = store.setBrowserAllowVConsole(value)
     suspend fun setDesktopUserAgent(value: Boolean) = store.setBrowserDesktopUserAgent(value)
     suspend fun setMaxCaptureBytes(value: Int) = store.setBrowserMaxCaptureBytes(value)
 }

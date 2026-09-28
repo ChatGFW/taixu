@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 import top.wkbin.taixu.runtime.browser.BrowserEvent
 import top.wkbin.taixu.runtime.browser.BrowserEventBus
 import top.wkbin.taixu.runtime.browser.BrowserSessionToken
-import top.wkbin.taixu.runtime.browser.hook.HookInstaller
+import top.wkbin.taixu.runtime.browser.inject.PageScriptInstaller
 import top.wkbin.taixu.runtime.browser.network.NetworkInterceptor
 import top.wkbin.taixu.runtime.browser.snapshot.SnapshotBuilder
 
@@ -42,7 +42,7 @@ object WebViewClients {
         pool: WebViewTabPool,
         snapshotBuilder: SnapshotBuilder,
         scope: CoroutineScope,
-        hookInstaller: HookInstaller? = null,
+        scriptInstallers: List<PageScriptInstaller> = emptyList(),
     ): WebView {
         val networkInterceptor = NetworkInterceptor(token, eventBus, scope)
 
@@ -112,7 +112,7 @@ object WebViewClients {
                 // 导航开始：清空该 tab 的 ref→selector 映射，旧 ref 不得解析到上一页元素
                 snapshotBuilder.clear(token.tabId)
                 // hook 降级路径：无 document-start 支持的古董 WebView 在此补种（幂等）
-                hookInstaller?.injectFallback(view)
+                scriptInstallers.forEach { it.injectFallback(view) }
                 scope.launch {
                     eventBus.publish(BrowserEvent.PageChanged(token.tabId, url ?: "", view.title ?: ""))
                 }
@@ -122,8 +122,8 @@ object WebViewClients {
                 super.onPageFinished(view, url)
                 // tab 已被关闭 / 崩溃销毁（移出池）则不再触发刷新
                 if (pool.viewOf(token) !== view) return
-                // hook runtime 验证：缺失则补种（IIFE 幂等守卫使双注无害）
-                hookInstaller?.verifyInstalled(view)
+                // hook runtime / vConsole 验证：缺失则补种（各实现幂等守卫使双注无害）
+                scriptInstallers.forEach { it.verifyInstalled(view) }
                 scope.launch {
                     eventBus.publish(BrowserEvent.PageChanged(token.tabId, url ?: "", view.title ?: ""))
                     // refresh 内部还有 isAlive 守卫

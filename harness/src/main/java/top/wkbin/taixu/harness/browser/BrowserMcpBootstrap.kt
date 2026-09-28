@@ -46,12 +46,13 @@ class BrowserMcpBootstrap(
             } catch (e: Exception) {
                 Log.e(TAG, "初始化 WebView 调试开关失败", e)
             }
-            // hooksEnabled/cdpEnabled 与 desktopUserAgent 一样：池级开关，切换需重启（或新引擎注册）才生效
+            // hooksEnabled/cdpEnabled/vConsoleEnabled 与 desktopUserAgent 一样：池级开关，切换需重启（或新引擎注册）才生效
             val pool = WebViewTabPool(
                 context, registry.eventBus,
                 desktopUserAgent = prefs.desktopUserAgent,
                 hooksEnabled = prefs.allowHooks,
                 cdpEnabled = prefs.allowCdp,
+                vConsoleEnabled = prefs.allowVConsole,
                 maxCaptureBytes = prefs.maxCaptureBytes.toLong(),
             )
             val engine = AndroidInAppBrowserEngine(context, registry.eventBus, pool)
@@ -87,6 +88,7 @@ class BrowserMcpBootstrap(
                 allowEvalJs = browserPrefs.allowEvalJs().first(),
                 allowHooks = browserPrefs.allowHooks().first(),
                 allowCdp = browserPrefs.allowCdp().first(),
+                allowVConsole = browserPrefs.allowVConsole().first(),
                 desktopUserAgent = browserPrefs.desktopUserAgent().first(),
                 maxCaptureBytes = browserPrefs.maxCaptureBytes().first(),
             )

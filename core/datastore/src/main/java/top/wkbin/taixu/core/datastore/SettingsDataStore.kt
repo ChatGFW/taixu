@@ -44,6 +44,7 @@ class SettingsDataStore(
     private val browserAllowEvalJsKey = BrowserPreferencesKeys.AllowEvalJs
     private val browserAllowHooksKey = BrowserPreferencesKeys.AllowHooks
     private val browserAllowCdpKey = BrowserPreferencesKeys.AllowCdp
+    private val browserAllowVConsoleKey = BrowserPreferencesKeys.AllowVConsole
     private val browserDesktopUserAgentKey = BrowserPreferencesKeys.DesktopUserAgent
     private val browserMaxCaptureBytesKey = BrowserPreferencesKeys.MaxCaptureBytes
 
@@ -61,6 +62,8 @@ class SettingsDataStore(
     suspend fun setBrowserAllowHooks(value: Boolean) { context.settingsDataStore.edit { it[browserAllowHooksKey] = value } }
     val browserAllowCdp: Flow<Boolean> = context.settingsDataStore.data.map { it[browserAllowCdpKey] ?: false }
     suspend fun setBrowserAllowCdp(value: Boolean) { context.settingsDataStore.edit { it[browserAllowCdpKey] = value } }
+    val browserAllowVConsole: Flow<Boolean> = context.settingsDataStore.data.map { it[browserAllowVConsoleKey] ?: false }
+    suspend fun setBrowserAllowVConsole(value: Boolean) { context.settingsDataStore.edit { it[browserAllowVConsoleKey] = value } }
     val browserDesktopUserAgent: Flow<Boolean> = context.settingsDataStore.data.map { it[browserDesktopUserAgentKey] ?: false }
     suspend fun setBrowserDesktopUserAgent(value: Boolean) { context.settingsDataStore.edit { it[browserDesktopUserAgentKey] = value } }
     val browserMaxCaptureBytes: Flow<Int> = context.settingsDataStore.data.map { it[browserMaxCaptureBytesKey] ?: (6 * 1024 * 1024) }

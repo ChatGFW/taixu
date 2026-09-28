@@ -483,6 +483,12 @@ private fun BrowserGatesCard(gates: BrowserGateState, viewModel: SettingsViewMod
                 checked = gates.allowCdp,
                 onCheckedChange = viewModel::setBrowserAllowCdp,
             )
+            BrowserGateRow(
+                title = "页面调试面板（vConsole）",
+                description = "在每个页面注入 vConsole 浮动面板（console / 网络 / 存储），供人工浏览时排查；与 Agent 工具门禁无关，重启后对新开 tab 生效",
+                checked = gates.allowVConsole,
+                onCheckedChange = viewModel::setBrowserAllowVConsole,
+            )
         }
     }
 }

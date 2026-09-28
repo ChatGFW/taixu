@@ -491,14 +491,15 @@ class SettingsViewModel(
         }
     }
 
-    /** 浏览器 MCP 安全门禁快照（allowRemoteConnect / allowEvalJs / allowHooks / allowCdp）。 */
+    /** 浏览器 MCP 安全门禁快照（allowRemoteConnect / allowEvalJs / allowHooks / allowCdp / allowVConsole）。 */
     val browserGates: StateFlow<BrowserGateState> = combine(
         browserPrefs.allowRemoteConnect(),
         browserPrefs.allowEvalJs(),
         browserPrefs.allowHooks(),
         browserPrefs.allowCdp(),
-    ) { remote, evalJs, hooks, cdp ->
-        BrowserGateState(remote, evalJs, hooks, cdp)
+        browserPrefs.allowVConsole(),
+    ) { remote, evalJs, hooks, cdp, vConsole ->
+        BrowserGateState(remote, evalJs, hooks, cdp, vConsole)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, BrowserGateState())
 
     fun setBrowserAllowRemoteConnect(enabled: Boolean) {
@@ -515,6 +516,10 @@ class SettingsViewModel(
 
     fun setBrowserAllowCdp(enabled: Boolean) {
         viewModelScope.launch { browserPrefs.setAllowCdp(enabled) }
+    }
+
+    fun setBrowserAllowVConsole(enabled: Boolean) {
+        viewModelScope.launch { browserPrefs.setAllowVConsole(enabled) }
     }
 
     /** MCP 被控端（服务端）配置快照：开关 / 端口 / 局域网 / 写入层 / 持久化令牌。 */
@@ -1778,6 +1783,7 @@ data class BrowserGateState(
     val allowEvalJs: Boolean = false,
     val allowHooks: Boolean = false,
     val allowCdp: Boolean = false,
+    val allowVConsole: Boolean = false,
 )
 
 /** MCP 被控端配置快照（运行状态另由 AgentMcpAccess 提供）。 */
