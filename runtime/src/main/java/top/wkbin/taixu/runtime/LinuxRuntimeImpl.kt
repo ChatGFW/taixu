@@ -294,7 +294,7 @@ class LinuxRuntimeImpl(
 
                 val distroId = request.distributionId.lowercase().trim()
                 val distribution = DistributionCatalog.require(distroId)
-                updateInitializing("下载 ${distribution.displayName}", 0.2f, "通过 proot-distro 5.8.0 OCI 机制下载 linux/arm64 镜像")
+                updateInitializing("下载 ${distribution.displayName}", 0.2f, "通过 proot-distro 5.9.0 OCI 机制下载 linux/arm64 镜像")
                 val rootfsResult = rootfsInstaller.installOci(
                     distribution,
                     request.registryRoute,

@@ -32,7 +32,7 @@ This file tracks known issues and environment notes for the TaiXu Android projec
 
 ## 4. Phase 1 runtime payloads are downloaded on first initialization
 
-- Linux rootfs 不内置到 APK；首次引导通过 `proot-distro 5.8.0` OCI Registry 流程拉取用户选择的 ARM64 镜像。
+- Linux rootfs 不内置到 APK；首次引导通过 `proot-distro 5.9.0` OCI Registry 流程拉取用户选择的 ARM64 镜像。
 - 安装器选择 `linux/arm64` manifest，逐层校验 Registry 提供的 SHA-256 digest，并按 OCI whiteout 语义合并到 staging 目录后原子激活。
 - layer 缓存位于应用私有目录，支持 gzip 与 zstd OCI layer；不存在旧版 release tarball 兼容入口。
 - 如果设备不是 ARM64，初始化会在架构检测阶段停止；PRoot 导入后还会执行 `--version` 启动校验。

@@ -24,6 +24,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.ResponseBody
 
 class OciRegistryClient(
     private val http: OkHttpClient,
@@ -160,7 +161,7 @@ class OciRegistryClient(
             onProgress(DownloadProgress(total, total.takeIf { it > 0 }))
             logger.i("Applied OCI layer ${index + 1}/${layers.size}: ${blob.file.name.takeLast(16)}")
         }
-        return ImageInfo("oci-5.8.0-${distribution.id}-${parsed.tag}", digest ?: error("OCI manifest 未返回 digest"))
+        return ImageInfo("oci-5.9.0-${distribution.id}-${parsed.tag}", digest ?: error("OCI manifest 未返回 digest"))
     }
 
     private fun resolveFrom(endpoint: Endpoint, distribution: DistributionSpec): ImageInfo {
@@ -187,7 +188,22 @@ class OciRegistryClient(
             )
         }
         check(response.body["layers"]?.jsonArray != null) { "OCI manifest 没有文件系统层" }
-        return ImageInfo("oci-5.8.0-${distribution.id}-${parsed.tag}", digest ?: error("OCI manifest 未返回 digest"))
+        return ImageInfo("oci-5.9.0-${distribution.id}-${parsed.tag}", digest ?: error("OCI manifest 未返回 digest"))
+    }
+
+    /**
+     * 读取 registry 元数据（manifest / image config / token JSON）响应体并做截断检测：
+     * 实际收到的字节数少于 Content-Length 声明值时判定传输被截断，直接失败，
+     * 避免把半截元数据解析成脏数据（对齐 proot-distro 5.9.0 的 pull 行为）。
+     * chunked 等未声明 Content-Length 的响应（声明值 <= 0）跳过该校验。
+     */
+    private fun readMetadataBody(body: ResponseBody?, url: String): ByteArray {
+        val declared = body?.contentLength() ?: -1L
+        val raw = body?.bytes() ?: ByteArray(0)
+        check(declared <= 0L || raw.size.toLong() >= declared) {
+            "Registry 元数据响应被截断（$url）：Content-Length 声明 $declared 字节，实际收到 ${raw.size} 字节"
+        }
+        return raw
     }
 
     private fun getJson(url: String, token: String, accept: String, client: OkHttpClient): JsonObject {
@@ -195,7 +211,8 @@ class OciRegistryClient(
             .apply { if (token.isNotBlank()) header("Authorization", "Bearer $token") }.build()
         client.newCall(request).execute().use { response ->
             check(response.isSuccessful) { "Registry 请求失败 HTTP ${response.code}: $url" }
-            return json.parseToJsonElement(response.body.string()).jsonObject
+            val raw = readMetadataBody(response.body, url)
+            return json.parseToJsonElement(raw.toString(Charsets.UTF_8)).jsonObject
         }
     }
 
@@ -206,7 +223,7 @@ class OciRegistryClient(
             .apply { if (token.isNotBlank()) header("Authorization", "Bearer $token") }.build()
         client.newCall(request).execute().use { response ->
             check(response.isSuccessful) { "Registry 请求失败 HTTP ${response.code}: $url" }
-            val raw = response.body.bytes()
+            val raw = readMetadataBody(response.body, url)
             val headerDigest = response.header("Docker-Content-Digest")
             val digest = headerDigest ?: "sha256:" + MessageDigest.getInstance("SHA-256")
                 .digest(raw)
@@ -374,7 +391,7 @@ class OciRegistryClient(
     }
 
     private companion object {
-        const val USER_AGENT = "TaiXu/proot-distro-5.8.0"
+        const val USER_AGENT = "TaiXu/proot-distro-5.9.0"
         const val ACCEPT_MANIFESTS =
             "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json"
         /** OCI layer 并行下载并发数（移动网络单连接限速时多路并发可显著提速）。 */

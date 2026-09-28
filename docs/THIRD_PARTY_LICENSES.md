@@ -4,7 +4,7 @@
 
 | 组件 | 用途 | 来源/版本 | 许可证与分发备注 |
 |---|---|---|---|
-| Debian / Ubuntu ARM64 rootfs | Android Linux 用户态系统 | 使用 `proot-distro 5.8.0` OCI 机制从 Docker/OCI Registry 拉取 | 各发行版及其中的软件包分别遵循各自许可证；不内置 APK，发布前需要提供对应版权与许可证获取地址 |
+| Debian / Ubuntu ARM64 rootfs | Android Linux 用户态系统 | 使用 `proot-distro 5.9.0` OCI 机制从 Docker/OCI Registry 拉取 | 各发行版及其中的软件包分别遵循各自许可证；不内置 APK，发布前需要提供对应版权与许可证获取地址 |
 | Termux PRoot | Android ARM64 PRoot 启动器 | Termux 主仓库二进制包，版本和 SHA-256 见 `ProotInstaller` | 必须随对应二进制包核对许可证、NOTICE 和源码获取地址；APK 仅携带当前 ARM64 构建 |
 | `libandroid-shmem.so` / `libtalloc.so` | PRoot 动态库依赖 | 与 PRoot 构建匹配的 Termux 包 | 不能只因为文件是 `.so` 就假定可自由再分发；发布前核对上游包的许可证文本 |
 | `zstd-jni` | Android ARM64 `.tar.zst` 解压 | Maven Central，`1.5.5-4` AAR | 按上游 zstd-jni 的许可证和 NOTICE 分发 |

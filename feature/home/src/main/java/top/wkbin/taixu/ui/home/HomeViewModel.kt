@@ -55,7 +55,7 @@ data class SystemResourceMetrics(
     val runningServicesCount: Int = 0,
     val cpuArch: String = "aarch64",
     val linuxDistro: String = "Ubuntu 24.04 LTS",
-    val engineVersion: String = "proot-distro 5.8.0 · Link2Symlink",
+    val engineVersion: String = "proot-distro 5.9.0 · Link2Symlink",
     val hostAndroidVersion: String = "Android",
     val uptimeFormatted: String = "00:00",
 )
@@ -279,7 +279,7 @@ class HomeViewModel(
                     runningServicesCount = bgProcesses.count { it.type == top.wkbin.taixu.runtime.shell.ProcessType.SERVICE },
                     cpuArch = arch,
                     linuxDistro = distroDisplayName,
-                    engineVersion = "proot-distro 5.8.0 · Link2Symlink",
+                    engineVersion = "proot-distro 5.9.0 · Link2Symlink",
                     hostAndroidVersion = androidVer,
                     uptimeFormatted = uptime,
                 )
