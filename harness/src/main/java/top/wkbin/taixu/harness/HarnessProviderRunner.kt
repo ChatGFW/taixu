@@ -101,6 +101,7 @@ class HarnessProviderRunner(
             workspacePath = sessionWorkspace,
             projectTypeOverride = sessionEntity?.projectType.orEmpty(),
             thinkingMode = stateMirrors.requestThinkingMode(sessId),
+            sessionRunMode = sessionEntity?.runMode,
         )
         fun estimateTokens(messages: List<ApiMessage>) = messages.sumOf { message ->
             ContextWindowPolicy.estimateTokens(message.content.orEmpty()) +

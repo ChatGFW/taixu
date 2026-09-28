@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 52,
-    "identityHash": "1cc35dd88c7e7b824373e5415d9e8a25",
+    "version": 53,
+    "identityHash": "d6c9bcee27aa54851ec9656c0eb53ab5",
     "entities": [
       {
         "tableName": "tools",
@@ -275,7 +275,7 @@
       },
       {
         "tableName": "harness_sessions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `modelId` TEXT, `modelVariant` TEXT, `workspace` TEXT NOT NULL, `projectType` TEXT NOT NULL, `approvalMode` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `modelId` TEXT, `modelVariant` TEXT, `workspace` TEXT NOT NULL, `projectType` TEXT NOT NULL, `approvalMode` TEXT NOT NULL, `runMode` TEXT NOT NULL DEFAULT 'build', PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -328,6 +328,13 @@
             "columnName": "approvalMode",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "runMode",
+            "columnName": "runMode",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'build'"
           }
         ],
         "primaryKey": {
@@ -1476,7 +1483,7 @@
       },
       {
         "tableName": "agent_approval_settings",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `mode` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `mode` TEXT NOT NULL, `runMode` TEXT NOT NULL DEFAULT 'build', PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -1489,6 +1496,13 @@
             "columnName": "mode",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "runMode",
+            "columnName": "runMode",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'build'"
           }
         ],
         "primaryKey": {
@@ -2747,7 +2761,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1cc35dd88c7e7b824373e5415d9e8a25')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd6c9bcee27aa54851ec9656c0eb53ab5')"
     ]
   }
 }

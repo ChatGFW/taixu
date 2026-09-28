@@ -22,6 +22,8 @@ import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.datastore.SettingsDataStore
+import top.wkbin.taixu.core.model.RunMode
+import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.AgentSkillRepository
 import top.wkbin.taixu.core.database.AgentSubagentRepository
 import top.wkbin.taixu.core.database.AgencyAgentCatalogLoader
@@ -102,6 +104,7 @@ class ApiContextAssemblerTest {
             systemPromptBuilder = builder,
             sessionStore = store,
             memoryRecallSelector = MemoryRecallSelector(agentContextRepository),
+            agentApprovalRepository = AgentApprovalRepository(database.agentApprovalDao()),
         )
     }
 
@@ -446,6 +449,31 @@ class ApiContextAssemblerTest {
         val users = out.filter { it.role == "user" }
         assertEquals(2, users.size)
         assertTrue(users[1].content.orEmpty().contains(""""b""""))
+    }
+
+    // ---------- 运行意图（PLAN 只读规划） ----------
+
+    @Test
+    fun `plan run mode injects the read-only contract into the system prompt`() = runBlocking {
+        push("s-runmode", UserMessage("u1", 1L, "看看这个项目要怎么改"), AssistantText("a1", 2L, "好的"))
+
+        val build = assembler.assemble("s-runmode", nativeModel(), "", sessionRunMode = "build")
+        assertFalse(build.first { it.role == "system" }.content.orEmpty().contains("只读规划模式"))
+
+        val plan = assembler.assemble("s-runmode", nativeModel(), "", sessionRunMode = "plan")
+        val planPrompt = plan.first { it.role == "system" }.content.orEmpty()
+        assertTrue(planPrompt.contains("只读规划模式"))
+        // 与宿主侧硬拦截的文案对齐：不得重试、不得声称已完成
+        assertTrue(planPrompt.contains("不要重试"))
+    }
+
+    @Test
+    fun `missing session run mode falls back to the global default`() = runBlocking {
+        AgentApprovalRepository(database.agentApprovalDao()).setRunMode(RunMode.PLAN)
+        push("s-runmode-global", UserMessage("u1", 1L, "看看这个项目要怎么改"), AssistantText("a1", 2L, "好的"))
+
+        val out = assembler.assemble("s-runmode-global", nativeModel(), "", sessionRunMode = null)
+        assertTrue(out.first { it.role == "system" }.content.orEmpty().contains("只读规划模式"))
     }
 
     @Test

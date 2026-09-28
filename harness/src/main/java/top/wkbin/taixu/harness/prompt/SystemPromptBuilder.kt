@@ -13,6 +13,7 @@ import top.wkbin.taixu.core.database.McpServerRepository
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.model.AgentSkill
 import top.wkbin.taixu.core.model.BuiltinMcpPresets
+import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.core.tools.ToolRepository
 import top.wkbin.taixu.harness.MentionExtractor
 import top.wkbin.taixu.harness.R
@@ -71,7 +72,8 @@ class SystemPromptBuilder(
      * 并持久化，轮内冻结）；技能（按全会话累计的 mentionedNames）与路由规则块（全会话累计
      * 命中）只增不减；工作区章节由 [WORKSPACE_PROMPT_STAMP_FILES] 的字节级变化驱动，
      * 目录 mtime 不参与。相邻两轮 system prompt 字节级一致，除非发生用户显式事件、
-     * 计划「首次出现」/「转为非 active」（路由布尔量翻转）或压缩（既定的缓存重置点）。
+     * 计划「首次出现」/「转为非 active」（路由布尔量翻转）、运行模式切换（PLAN↔BUILD）
+     * 或压缩（既定的缓存重置点）。
      */
     suspend fun build(
         workspacePath: String,
@@ -80,6 +82,7 @@ class SystemPromptBuilder(
         sessionId: String = "",
         projectTypeOverride: String = "",
         userMessageTexts: List<String> = emptyList(),
+        runMode: RunMode = RunMode.BUILD,
     ): String {
         val distroId = runCatching { settingsDataStore.selectedDistribution.first() }.getOrDefault("debian")
         val distroName = DistroCatalog.displayName(distroId)
@@ -220,6 +223,13 @@ class SystemPromptBuilder(
             context.getString(R.string.harness_prompt_privilege_render_failed)
         }
 
+        // PLAN 只读规划的行为契约：宿主侧已有硬拦截（ToolExecutor → ApprovalPolicyEngine.planBlock），
+        // 这里只负责让模型**不要浪费调用**——被拦一次就转向整理方案，而不是反复重试。
+        // PLAN ↔ BUILD 切换是用户显式事件，属于既定的缓存重置点。
+        val runModeSection = if (runMode == RunMode.PLAN) {
+            promptAssets.read("prompts/system/run-mode-plan.md")
+        } else ""
+
         // L0 核心：自定义 prompt 或分层 core.md。
         val basePrompt = if (customPromptEnabled && customPrompt.isNotBlank()) {
             val resolvedTemplate = PromptVariableResolver.resolve(
@@ -286,6 +296,7 @@ class SystemPromptBuilder(
             toolsSection,
             prootSection,
             privilegeSection,
+            runModeSection,
             routedBlocks,
             installedToolsSection,
             mcpCapabilitySection,
@@ -299,8 +310,8 @@ class SystemPromptBuilder(
         if (sessionId.isNotBlank()) {
             val tokens: (String) -> Int = { ContextWindowPolicy.estimateTokens(it) }
             val skillsTokens = tokens(skillSection)
-            val rulesTokens = tokens(prootSection) + tokens(privilegeSection) + tokens(routedBlocks) +
-                tokens(workspaceGuidance) + tokens(workspaceParts?.projectContext.orEmpty())
+            val rulesTokens = tokens(prootSection) + tokens(privilegeSection) + tokens(runModeSection) +
+                tokens(routedBlocks) + tokens(workspaceGuidance) + tokens(workspaceParts?.projectContext.orEmpty())
             val mcpTokens = tokens(mcpCapabilitySection)
             val subagentTokens = tokens(subagentSection)
             val promptTokens = tokens(prompt)

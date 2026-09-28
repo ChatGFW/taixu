@@ -324,14 +324,44 @@ val MIGRATION_50_51 = object : Migration(50, 51) {
     }
 }
 
-/** Anthropic Prompt Caching：每模型开关与 1h TTL 扩展；外加运行意图 RunMode 的全局与会话级列。 */
+/** Anthropic Prompt Caching：每模型开关与 1h TTL 扩展。 */
 val MIGRATION_51_52 = object : Migration(51, 52) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `harness_models` ADD COLUMN `promptCachingEnabled` INTEGER NOT NULL DEFAULT 1")
         db.execSQL("ALTER TABLE `harness_models` ADD COLUMN `promptCacheTtl1h` INTEGER NOT NULL DEFAULT 0")
-        // DEFAULT 子句必须显式写出且与实体 @ColumnInfo(defaultValue = "build") 完全一致，
-        // 否则迁移后 schema 校验失败，会触发 fallbackToDestructiveMigration 清空整库。
-        db.execSQL("ALTER TABLE `agent_approval_settings` ADD COLUMN `runMode` TEXT NOT NULL DEFAULT 'build'")
-        db.execSQL("ALTER TABLE `harness_sessions` ADD COLUMN `runMode` TEXT NOT NULL DEFAULT 'build'")
     }
 }
+
+/**
+ * PLAN 只读规划：全局默认与会话级运行意图（BUILD / PLAN）。
+ *
+ * 默认值必须显式写出且与实体 `@ColumnInfo(defaultValue = "build")` 完全一致，否则迁移后
+ * schema 校验失败（无 fallback 时启动即崩）。
+ *
+ * 两列均做存在性判断：版本 52 在开发期存在过「已含 runMode」的中间构建，直接 ADD COLUMN
+ * 会因列重复使迁移失败。
+ */
+val MIGRATION_52_53 = object : Migration(52, 53) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        if (!db.hasColumn("agent_approval_settings", "runMode")) {
+            db.execSQL("ALTER TABLE `agent_approval_settings` ADD COLUMN `runMode` TEXT NOT NULL DEFAULT 'build'")
+        }
+        if (!db.hasColumn("harness_sessions", "runMode")) {
+            db.execSQL("ALTER TABLE `harness_sessions` ADD COLUMN `runMode` TEXT NOT NULL DEFAULT 'build'")
+        }
+    }
+}
+
+/** PRAGMA table_info 探测列是否已存在（幂等迁移用）。 */
+private fun SupportSQLiteDatabase.hasColumn(table: String, column: String): Boolean =
+    query("PRAGMA table_info(`$table`)").use { cursor ->
+        val nameIndex = cursor.getColumnIndexOrThrow("name")
+        var found = false
+        while (cursor.moveToNext()) {
+            if (cursor.getString(nameIndex) == column) {
+                found = true
+                break
+            }
+        }
+        found
+    }

@@ -2,7 +2,9 @@ package top.wkbin.taixu.harness.session
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.datastore.AgentPreferences
+import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.harness.ApiMessage
 import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.harness.ImagePayloadCompressor
@@ -38,6 +40,7 @@ class ApiContextAssembler(
     private val systemPromptBuilder: SystemPromptBuilder,
     private val sessionStore: SessionTreeStore,
     private val memoryRecallSelector: MemoryRecallSelector,
+    private val agentApprovalRepository: AgentApprovalRepository,
 ) {
     suspend fun assemble(
         sessId: String,
@@ -45,6 +48,7 @@ class ApiContextAssembler(
         workspacePath: String,
         projectTypeOverride: String = "",
         thinkingMode: Boolean = false,
+        sessionRunMode: String? = null,
     ): List<ApiMessage> {
         val compactionEnabled = runCatching { settingsDataStore.contextCompactionEnabled.first() }.getOrDefault(true)
         // 「历史折叠线比例」：让历史在预算的一部分处就开始折叠。
@@ -103,6 +107,10 @@ class ApiContextAssembler(
         val userMessageTexts = msgs.filterIsInstance<UserMessage>().map { it.text }
 
         val rawSystemPrompt = if (!model.pureChatMode) {
+            // 运行意图与 ToolExecutor 同口径解析：会话级优先，缺失才回落全局默认
+            // （RunMode.fromId 对 null 返回 BUILD，因此必须先做 null 判别再回落）。
+            val runMode = sessionRunMode?.let(RunMode::fromId)
+                ?: runCatching { agentApprovalRepository.currentRunMode() }.getOrDefault(RunMode.BUILD)
             systemPromptBuilder.build(
                 workspacePath,
                 toolCallMode,
@@ -110,6 +118,7 @@ class ApiContextAssembler(
                 sessId,
                 projectTypeOverride,
                 userMessageTexts,
+                runMode,
             )
         } else {
             ""

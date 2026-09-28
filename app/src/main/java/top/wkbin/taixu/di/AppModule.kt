@@ -26,6 +26,7 @@ import top.wkbin.taixu.core.database.MIGRATION_48_49
 import top.wkbin.taixu.core.database.MIGRATION_49_50
 import top.wkbin.taixu.core.database.MIGRATION_50_51
 import top.wkbin.taixu.core.database.MIGRATION_51_52
+import top.wkbin.taixu.core.database.MIGRATION_52_53
 import top.wkbin.taixu.core.database.WorkflowDao
 import top.wkbin.taixu.core.database.WorkflowScheduleDao
 import top.wkbin.taixu.core.database.BuildScriptDao
@@ -85,7 +86,7 @@ object AppModule {
 
     fun provideDatabase(context: Context): AppDatabase {
         return Room.databaseBuilder(context, AppDatabase::class.java, "taixu.db")
-            .addMigrations(MIGRATION_27_28, MIGRATION_28_29, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44, MIGRATION_44_45, MIGRATION_45_46, MIGRATION_46_47, MIGRATION_47_48, MIGRATION_48_49, MIGRATION_49_50, MIGRATION_50_51, MIGRATION_51_52)
+            .addMigrations(MIGRATION_27_28, MIGRATION_28_29, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44, MIGRATION_44_45, MIGRATION_45_46, MIGRATION_46_47, MIGRATION_47_48, MIGRATION_48_49, MIGRATION_49_50, MIGRATION_50_51, MIGRATION_51_52, MIGRATION_52_53)
             .build()
     }
 

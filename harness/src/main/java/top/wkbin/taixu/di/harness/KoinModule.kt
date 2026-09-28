@@ -479,6 +479,7 @@ val harnessModule = module {
             systemPromptBuilder = get(),
             sessionStore = get(),
             memoryRecallSelector = get(),
+            agentApprovalRepository = get(),
         )
     }
 
