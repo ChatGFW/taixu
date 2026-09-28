@@ -87,6 +87,7 @@ val featureSettingsModule = module {
             profileBackupCodec = get(),
             webChatBridgeServer = get(),
             browserPrefs = get(),
+            agentServerPreferences = get(),
             translationManager = get(),
             skillInstallationManager = getOrNull(),
             clawHubClient = getOrNull(),

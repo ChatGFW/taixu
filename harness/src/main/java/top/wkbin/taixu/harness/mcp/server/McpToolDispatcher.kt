@@ -8,10 +8,12 @@ import top.wkbin.taixu.runtime.browser.secret.SecretRedactingInterceptor
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
 
 /**
- * 把 `mcp__browser__<tool>` 转发到 [BrowserMcpTools] 实例。
+ * 把 `mcp__browser__<tool>` 转发到 [BrowserMcpTools] 实例，并把 [extraProviders]
+ * （如被控端的 Harness 工具）聚合进同一个 tools/list 与 tools/call 出口。
  */
 class McpToolDispatcher(
     private val browserTools: BrowserMcpTools,
+    private val extraProviders: List<McpToolProvider> = emptyList(),
 ) {
     fun listTools(): List<JsonObject> = browserTools.list().map { spec ->
         buildJsonObject {
@@ -21,9 +23,14 @@ class McpToolDispatcher(
             put("description", JsonPrimitive(spec.description))
             put("inputSchema", spec.inputSchema)
         }
-    }
+    } + extraProviders.flatMap { it.listTools() }
 
     suspend fun dispatch(toolName: String, args: JsonObject): JsonObject {
+        // 先让外部 provider 认领（其名称空间与 browser.* 不重叠，命中即转发）
+        extraProviders.firstOrNull { provider ->
+            provider.listTools().any { (it["name"] as? JsonPrimitive)?.content == toolName }
+        }?.let { return it.callTool(toolName, args) }
+
         val res = browserTools.invoke(toolName, args)
         // 统一脱敏出口：cookie/页面源码/console 等可能夹带敏感值，防止直接回灌 LLM
         val text = SecretRedactingInterceptor.apply(

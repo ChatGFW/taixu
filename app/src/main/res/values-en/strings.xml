@@ -23,5 +23,7 @@
     <string name="taixu_runtime_notification_channel">Linux Runtime</string>
     <string name="taixu_runtime_running">Linux Runtime is running</string>
     <string name="taixu_runtime_background_available">Background tools and local services remain available</string>
+    <string name="taixu_agent_mcp_notification_channel">MCP Agent Server</string>
+    <string name="taixu_agent_mcp_running_hint">External AI clients can connect at any time</string>
     <string name="taixu_gui_a11y_description">TaiXu GUI gesture service for taps/swipes/long-press. With Shizuku/Root it is auto-enabled; otherwise you can turn it on manually in Accessibility settings as a fallback.</string>
 </resources>

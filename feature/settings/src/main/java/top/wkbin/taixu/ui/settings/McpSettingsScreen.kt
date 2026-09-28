@@ -81,6 +81,7 @@ import top.wkbin.taixu.core.model.McpAuthState
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpToolInfo
 import top.wkbin.taixu.core.model.McpTransportType
+import top.wkbin.taixu.harness.mcp.server.AgentMcpAccess
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -241,6 +242,13 @@ fun McpSettingsScreen(
 
             item(key = "mcp_section_browser_gates") {
                 BrowserGatesCard(gates = browserGates, viewModel = viewModel)
+            }
+
+            item(key = "mcp_section_agent_server") {
+                AgentServerCard(
+                    state = viewModel.agentServerState.collectAsStateWithLifecycle().value,
+                    viewModel = viewModel,
+                )
             }
 
             item {
@@ -508,6 +516,234 @@ private fun BrowserGateRow(
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
+}
+
+/**
+ * MCP 被控端（服务端）卡片：让外部 AI 客户端（Claude Desktop / Cursor 等）通过 MCP 控制本 App。
+ *
+ * 与上面的浏览器门禁不同，被控端是**独立端点**（默认 8890）且使用**持久化令牌**，
+ * 配置变更由 AgentMcpBootstrap 监听偏好后即时重启，无需重启应用。
+ */
+@Composable
+private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewModel) {
+    val context = LocalContext.current
+    val lanIp = remember { detectLanIp() }
+    // 配置变更后 Bootstrap 异步重启，延迟一拍再读实际监听状态，避免刚切换时显示过期状态
+    var runtimeTick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(state.enabled, state.port, state.allowRemote, state.token) {
+        runtimeTick++
+        kotlinx.coroutines.delay(700)
+        runtimeTick++
+    }
+    val running = remember(runtimeTick) { AgentMcpAccess.running }
+    val boundPort = remember(runtimeTick) { AgentMcpAccess.port ?: state.port }
+
+    var portText by remember(state.port) { mutableStateOf(state.port.toString()) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp, bottom = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            "服务端（被控方）",
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            "让外部 AI 客户端（Claude Desktop / Cursor 等）通过 MCP 控制本机：读写工作区文件、执行沙箱命令、操作宿主应用",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    RuntimeCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            BrowserGateRow(
+                title = "启用被控端",
+                description = "在本机启动独立的 MCP 服务端点；关闭后立即停止监听",
+                checked = state.enabled,
+                onCheckedChange = viewModel::setAgentServerEnabled,
+            )
+
+            AnimatedVisibility(visible = state.enabled) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    BrowserGateRow(
+                        title = "允许局域网连接",
+                        description = "绑定 0.0.0.0，同网段设备可连接；关闭时仅限本机回环，两种模式均强制 Bearer 认证",
+                        checked = state.allowRemote,
+                        onCheckedChange = viewModel::setAgentServerAllowRemote,
+                    )
+                    BrowserGateRow(
+                        title = "允许写入与执行",
+                        description = "开放 write/edit/base/process/download 及 host 的写操作；关闭时仅提供 read 与只读 host/memory 动作",
+                        checked = state.allowWriteTools,
+                        onCheckedChange = viewModel::setAgentServerAllowWriteTools,
+                    )
+
+                    // 端口
+                    OutlinedTextField(
+                        value = portText,
+                        onValueChange = { input ->
+                            portText = input.filter { it.isDigit() }.take(5)
+                            portText.toIntOrNull()?.let(viewModel::setAgentServerPort)
+                        },
+                        label = { Text("监听端口") },
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                        ),
+                        supportingText = { Text("默认 8890；被占用时自动顺延 10 个相邻端口", style = MaterialTheme.typography.bodySmall) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    // 运行状态与连接地址
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(if (running) successStatusColor() else MaterialTheme.colorScheme.outline),
+                            )
+                            Text(
+                                if (running) "运行中 · 监听 ${boundPort}" else "已停止",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        val loopbackUrl = "http://127.0.0.1:$boundPort/mcp"
+                        val lanUrl = lanIp?.let { "http://$it:$boundPort/mcp" }
+                        CopyableLine(label = "本机地址", value = loopbackUrl, context = context)
+                        if (state.allowRemote && lanUrl != null) {
+                            CopyableLine(label = "局域网地址", value = lanUrl, context = context)
+                        }
+                    }
+
+                    // 持久化令牌
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            "访问令牌（Bearer）",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    text = state.token.ifBlank { "启用后自动生成" },
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                IconButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                                        clipboard?.setPrimaryClip(ClipData.newPlainText("mcp_agent_token", state.token))
+                                        Toast.makeText(context, "令牌已复制", Toast.LENGTH_SHORT).show()
+                                    },
+                                    enabled = state.token.isNotBlank(),
+                                    modifier = Modifier.size(24.dp),
+                                ) {
+                                    RuntimeIcon(RuntimeIconName.Copy, Modifier.size(14.dp), MaterialTheme.colorScheme.outline)
+                                }
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                "令牌持久保存，外部客户端可长期复用；重置后需同步更新客户端配置",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = viewModel::resetAgentServerToken) {
+                                Text("重置令牌", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+
+                    Text(
+                        "外部客户端配置示例：在 MCP 配置中填写上述地址，并在请求头带 Authorization: Bearer <令牌>。",
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    Text(
+                        "启用后会显示一条常驻通知用于后台保活，避免 App 退到后台时连接被系统掐断。",
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 一行「标签 + 等宽值 + 复制按钮」，用于展示连接地址。 */
+@Composable
+private fun CopyableLine(label: String, value: String, context: Context) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        IconButton(
+            onClick = {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                clipboard?.setPrimaryClip(ClipData.newPlainText("mcp_agent_url", value))
+                Toast.makeText(context, "地址已复制", Toast.LENGTH_SHORT).show()
+            },
+            modifier = Modifier.size(24.dp),
+        ) {
+            RuntimeIcon(RuntimeIconName.Copy, Modifier.size(14.dp), MaterialTheme.colorScheme.outline)
+        }
+    }
+}
+
+/** 探测本机局域网 IPv4（用于展示可被外部设备访问的连接地址）；失败返回 null。 */
+private fun detectLanIp(): String? = try {
+    java.net.NetworkInterface.getNetworkInterfaces()
+        ?.asSequence()
+        ?.filter { !it.isLoopback && it.isUp }
+        ?.flatMap { it.inetAddresses.asSequence() }
+        ?.firstOrNull { it is java.net.Inet4Address && !it.isLoopbackAddress }
+        ?.hostAddress
+        ?.takeIf { it.isNotBlank() && it != "127.0.0.1" }
+} catch (_: Exception) {
+    null
 }
 
 /**

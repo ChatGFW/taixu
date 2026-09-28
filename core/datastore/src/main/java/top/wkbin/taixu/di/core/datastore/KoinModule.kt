@@ -2,6 +2,7 @@ package top.wkbin.taixu.di.core.datastore
 
 import org.koin.dsl.module
 import top.wkbin.taixu.core.datastore.AgentPreferences
+import top.wkbin.taixu.core.datastore.AgentServerPreferences
 import top.wkbin.taixu.core.datastore.AppStatsPreferences
 import top.wkbin.taixu.core.datastore.AppearancePreferences
 import top.wkbin.taixu.core.datastore.BrowserPreferences
@@ -46,6 +47,8 @@ val coreDatastoreModule = module {
     single<ProviderPreferences> { ProviderPreferences(store = get()) }
 
     single<BrowserPreferences> { BrowserPreferences(store = get()) }
+
+    single<AgentServerPreferences> { AgentServerPreferences(store = get()) }
 
     single<SettingsDataStore> { SettingsDataStore(context = get(), secretManager = get()) }
 }

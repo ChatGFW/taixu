@@ -66,6 +66,24 @@ class SettingsDataStore(
     val browserMaxCaptureBytes: Flow<Int> = context.settingsDataStore.data.map { it[browserMaxCaptureBytesKey] ?: (6 * 1024 * 1024) }
     suspend fun setBrowserMaxCaptureBytes(value: Int) { context.settingsDataStore.edit { it[browserMaxCaptureBytesKey] = value } }
 
+    // ===== MCP 被控端（外部 AI 客户端控制本 App）偏好：数据源 =====
+    private val agentServerEnabledKey = AgentServerPreferencesKeys.Enabled
+    private val agentServerPortKey = AgentServerPreferencesKeys.Port
+    private val agentServerAllowRemoteKey = AgentServerPreferencesKeys.AllowRemote
+    private val agentServerTokenKey = AgentServerPreferencesKeys.Token
+    private val agentServerAllowWriteToolsKey = AgentServerPreferencesKeys.AllowWriteTools
+
+    val agentServerEnabled: Flow<Boolean> = context.settingsDataStore.data.map { it[agentServerEnabledKey] ?: false }
+    suspend fun setAgentServerEnabled(value: Boolean) { context.settingsDataStore.edit { it[agentServerEnabledKey] = value } }
+    val agentServerPort: Flow<Int> = context.settingsDataStore.data.map { it[agentServerPortKey] ?: AgentServerPreferences.DEFAULT_PORT }
+    suspend fun setAgentServerPort(value: Int) { context.settingsDataStore.edit { it[agentServerPortKey] = value } }
+    val agentServerAllowRemote: Flow<Boolean> = context.settingsDataStore.data.map { it[agentServerAllowRemoteKey] ?: false }
+    suspend fun setAgentServerAllowRemote(value: Boolean) { context.settingsDataStore.edit { it[agentServerAllowRemoteKey] = value } }
+    val agentServerToken: Flow<String> = context.settingsDataStore.data.map { it[agentServerTokenKey].orEmpty() }
+    suspend fun setAgentServerToken(value: String) { context.settingsDataStore.edit { it[agentServerTokenKey] = value } }
+    val agentServerAllowWriteTools: Flow<Boolean> = context.settingsDataStore.data.map { it[agentServerAllowWriteToolsKey] ?: false }
+    suspend fun setAgentServerAllowWriteTools(value: Boolean) { context.settingsDataStore.edit { it[agentServerAllowWriteToolsKey] = value } }
+
 
     val workshopAndroidSdkPath: Flow<String> = context.settingsDataStore.data.map { it[workshopAndroidSdkPathKey].orEmpty() }
     val workshopNdkPath: Flow<String> = context.settingsDataStore.data.map { it[workshopNdkPathKey].orEmpty() }

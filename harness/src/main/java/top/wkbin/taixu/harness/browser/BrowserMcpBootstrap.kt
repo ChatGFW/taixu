@@ -64,9 +64,13 @@ class BrowserMcpBootstrap(
         // 首选端口被占用时 start 内部会自动顺延尝试相邻端口，自环客户端经 BuiltinBrowserMcpAccess 感知实际端口
         val ok = server.start(loopbackOnly = !allowRemote, token = token, port = McpServerRuntime.defaultPort)
         if (ok) {
+            // 自环访问点由本类负责落盘（运行时类已解耦）：首选端口被占用顺延后，
+            // 自环客户端须以实际绑定端口为准替换静态预设 URL 中的端口。
+            BuiltinBrowserMcpAccess.port = server.port
             val host = if (allowRemote) "0.0.0.0" else McpServerRuntime.loopbackHost
             Log.i(TAG, "BrowserMcpServer 已启动 http://$host:${server.port}/mcp（Bearer 认证已启用）")
         } else {
+            BuiltinBrowserMcpAccess.port = null
             Log.w(TAG, "BrowserMcpServer 启动失败：候选端口 ${McpServerRuntime.defaultPort}..${McpServerRuntime.defaultPort + 9} 均不可用")
         }
         return ok
@@ -95,6 +99,7 @@ class BrowserMcpBootstrap(
         try {
             runtime.value.stop()
             BuiltinBrowserMcpAccess.token = null
+            BuiltinBrowserMcpAccess.port = null
         } catch (t: Throwable) { Log.w(TAG, "stop: ${t.message}") }
     }
 

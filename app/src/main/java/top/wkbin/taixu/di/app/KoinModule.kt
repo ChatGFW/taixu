@@ -78,6 +78,7 @@ import top.wkbin.taixu.di.AppModule.provideWorkspaceDao
 import top.wkbin.taixu.di.AppModule.provideWorkspaceFileAccess
 import top.wkbin.taixu.harness.AgentForegroundLauncher
 import top.wkbin.taixu.harness.WorkspaceFileAccess
+import top.wkbin.taixu.harness.agent.AgentMcpForegroundLauncher
 import top.wkbin.taixu.harness.checkpoint.CheckpointStore
 import top.wkbin.taixu.harness.workflow.WorkflowScheduleDispatcher
 import top.wkbin.taixu.lifecycle.RuntimeLifecycleSupervisor
@@ -91,6 +92,7 @@ import top.wkbin.taixu.runtime.tools.CodexToolInstaller
 import top.wkbin.taixu.runtime.tools.HelloToolInstaller
 import top.wkbin.taixu.runtime.webchat.WebChatAgentGateway
 import top.wkbin.taixu.service.AgentForegroundLauncherImpl
+import top.wkbin.taixu.service.AgentMcpForegroundLauncherImpl
 import top.wkbin.taixu.service.adb.AdbNotificationManager
 import top.wkbin.taixu.webchat.TaiXuWebChatAgentGateway
 import top.wkbin.taixu.workflow.AppForegroundTracker
@@ -185,6 +187,8 @@ val appModule = module {
     single<LocalServiceLauncher> { provideLocalServiceLauncher(impl = get()) }
 
     single<AgentForegroundLauncher> { provideAgentForegroundLauncher(impl = get()) }
+
+    single<AgentMcpForegroundLauncher> { AgentMcpForegroundLauncherImpl(context = get()) }
 
     single<WorkflowScheduleDispatcher> { provideDispatcher(context = get()) }
 

@@ -1,5 +1,8 @@
 package top.wkbin.taixu.core.datastore
 
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 
 /** Narrow preference views keep consumers from depending on the complete settings schema. */
@@ -276,4 +279,38 @@ class BrowserPreferences(private val store: SettingsDataStore) {
     suspend fun setAllowCdp(value: Boolean) = store.setBrowserAllowCdp(value)
     suspend fun setDesktopUserAgent(value: Boolean) = store.setBrowserDesktopUserAgent(value)
     suspend fun setMaxCaptureBytes(value: Int) = store.setBrowserMaxCaptureBytes(value)
+}
+
+/** MCP 被控端（外部 AI 客户端通过 MCP 控制本 App）的偏好键。 */
+internal object AgentServerPreferencesKeys {
+    val Enabled = booleanPreferencesKey("agent_server_enabled")
+    val Port = intPreferencesKey("agent_server_port")
+    val AllowRemote = booleanPreferencesKey("agent_server_allow_remote")
+    val Token = stringPreferencesKey("agent_server_token")
+    val AllowWriteTools = booleanPreferencesKey("agent_server_allow_write_tools")
+}
+
+/**
+ * MCP 被控端配置：设置页读写、[top.wkbin.taixu.harness.agent.AgentMcpBootstrap] 监听生效。
+ *
+ * - [token] 是**持久化** Bearer Token（与浏览器自环每次启动随机生成不同），外部客户端可长期复用；
+ * - [allowWriteTools] 默认关闭，写入/执行层工具需用户显式开启。
+ */
+class AgentServerPreferences(private val store: SettingsDataStore) {
+    companion object {
+        /** 被控端默认端口；首选被占用时由 server 顺延尝试相邻端口。 */
+        const val DEFAULT_PORT = 8890
+    }
+
+    val enabled: Flow<Boolean> = store.agentServerEnabled
+    val port: Flow<Int> = store.agentServerPort
+    val allowRemote: Flow<Boolean> = store.agentServerAllowRemote
+    val token: Flow<String> = store.agentServerToken
+    val allowWriteTools: Flow<Boolean> = store.agentServerAllowWriteTools
+
+    suspend fun setEnabled(value: Boolean) = store.setAgentServerEnabled(value)
+    suspend fun setPort(value: Int) = store.setAgentServerPort(value)
+    suspend fun setAllowRemote(value: Boolean) = store.setAgentServerAllowRemote(value)
+    suspend fun setToken(value: String) = store.setAgentServerToken(value)
+    suspend fun setAllowWriteTools(value: Boolean) = store.setAgentServerAllowWriteTools(value)
 }

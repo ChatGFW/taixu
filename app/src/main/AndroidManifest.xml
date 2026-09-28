@@ -13,6 +13,8 @@
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- MCP 被控端常驻：外部 AI 客户端需随时可连，长时间保活不适用 dataSync 的 6 小时硬超时 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Agent 执行期间持有 PARTIAL_WAKE_LOCK 进程锁，防止息屏后 CPU 休眠冻结推理/工具执行 -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -105,6 +107,17 @@
             android:exported="false"
             android:foregroundServiceType="dataSync"
             android:stopWithTask="false" />
+        <!-- MCP 被控端常驻：外部 AI 客户端可随时连接，需长期存活。
+             specialUse 而非 dataSync —— dataSync 在 Android 15+ 有 6 小时硬超时，会周期性掐断连接。 -->
+        <service
+            android:name=".service.AgentMcpForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Local MCP server kept alive so external AI clients can connect at any time" />
+        </service>
         <!-- 工作流后台执行保活：运行期间 dataSync 前台服务，结束自动退出 -->
         <service
             android:name=".service.WorkflowForegroundService"

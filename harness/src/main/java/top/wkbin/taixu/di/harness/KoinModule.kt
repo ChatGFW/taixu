@@ -17,6 +17,7 @@ import top.wkbin.taixu.harness.SubagentOrchestrator
 import top.wkbin.taixu.harness.ToolExecutor
 import top.wkbin.taixu.harness.ToolRoundDispatcher
 import top.wkbin.taixu.harness.TurnRunner
+import top.wkbin.taixu.harness.agent.AgentMcpBootstrap
 import top.wkbin.taixu.harness.approval.ApprovalResumePolicy
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
 import top.wkbin.taixu.harness.browser.BrowserMcpBootstrap
@@ -40,6 +41,7 @@ import top.wkbin.taixu.harness.mcp.McpStdioTransport
 import top.wkbin.taixu.harness.mcp.McpWorkspaceRecommender
 import top.wkbin.taixu.harness.mcp.oauth.McpOAuthCoordinator
 import top.wkbin.taixu.harness.mcp.oauth.McpOAuthTokenProvider
+import top.wkbin.taixu.harness.mcp.server.HarnessToolProvider
 import top.wkbin.taixu.harness.mcp.server.McpResourceDispatcher
 import top.wkbin.taixu.harness.mcp.server.McpServerModule.provideBrowserMcpResources
 import top.wkbin.taixu.harness.mcp.server.McpServerModule.provideBrowserMcpTools
@@ -88,6 +90,10 @@ import top.wkbin.taixu.harness.workflow.WorkflowSignalBus
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpResources
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
 import org.koin.core.qualifier.named
+
+/** 被控端（独立 MCP server）在 Koin 中的限定符：与浏览器自环的默认定义互不覆盖。 */
+private const val AGENT_MCP_DISPATCHER = "agentMcpToolDispatcher"
+private const val AGENT_MCP_RUNTIME = "agentMcpServerRuntime"
 
 /** Dependency registrations owned by the harness module. */
 val harnessModule = module {
@@ -373,6 +379,36 @@ val harnessModule = module {
     single<McpServerRuntime> { McpServerRuntime(toolDispatcher = get(), resourceDispatcher = get()) }
 
     single<McpToolDispatcher> { McpToolDispatcher(browserTools = get()) }
+
+    // ===== MCP 被控端（外部 AI 客户端控制本 App）：独立端点 + 独立 dispatcher =====
+    // 工具集复用 ProviderClient.TOOLS，经 HarnessToolProvider 按能力分层暴露；
+    // 写入/执行层开关由 AgentMcpBootstrap 从偏好实时刷新。
+    single<HarnessToolProvider> { HarnessToolProvider(executor = get()) }
+
+    single(named(AGENT_MCP_DISPATCHER)) {
+        McpToolDispatcher(
+            browserTools = get(),
+            extraProviders = listOf(get<HarnessToolProvider>()),
+        )
+    }
+
+    single(named(AGENT_MCP_RUNTIME)) {
+        McpServerRuntime(
+            toolDispatcher = get(named(AGENT_MCP_DISPATCHER)),
+            resourceDispatcher = get(),
+            serverName = McpServerRuntime.AGENT_SERVER_NAME,
+        )
+    }
+
+    // runtime/toolProvider 均为 Lazy：被控端默认关闭，其构造图（ToolExecutor 全家桶）不应在启动时展开
+    single<AgentMcpBootstrap> {
+        AgentMcpBootstrap(
+            runtime = lazy { get<McpServerRuntime>(named(AGENT_MCP_RUNTIME)) },
+            toolProvider = lazy { get<HarnessToolProvider>() },
+            prefs = get(),
+            foregroundLauncher = get(),
+        )
+    }
 
     single<OperationCoordinator> {
         OperationCoordinator(

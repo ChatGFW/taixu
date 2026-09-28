@@ -6,6 +6,7 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import top.wkbin.taixu.core.datastore.AgentPreferences
+import top.wkbin.taixu.core.datastore.AgentServerPreferences
 import top.wkbin.taixu.core.datastore.AppearancePreferences
 import top.wkbin.taixu.core.datastore.FirstUseGuidePreferences
 import top.wkbin.taixu.core.datastore.RuntimePreferences
@@ -93,6 +94,7 @@ class SettingsViewModel(
     private val profileBackupCodec: AiProfileBackupCodec,
     private val webChatBridgeServer: top.wkbin.taixu.runtime.webchat.WebChatBridgeServer? = null,
     private val browserPrefs: BrowserPreferences,
+    private val agentServerPreferences: AgentServerPreferences,
     private val translationManager: top.wkbin.taixu.core.common.translation.TranslationManager,
     private val skillInstallationManager: top.wkbin.taixu.core.tools.skill.SkillInstallationManager? = null,
     private val clawHubClient: top.wkbin.taixu.core.tools.skill.ClawHubClient? = null,
@@ -513,6 +515,40 @@ class SettingsViewModel(
 
     fun setBrowserAllowCdp(enabled: Boolean) {
         viewModelScope.launch { browserPrefs.setAllowCdp(enabled) }
+    }
+
+    /** MCP 被控端（服务端）配置快照：开关 / 端口 / 局域网 / 写入层 / 持久化令牌。 */
+    val agentServerState: StateFlow<AgentServerState> = combine(
+        agentServerPreferences.enabled,
+        agentServerPreferences.port,
+        agentServerPreferences.allowRemote,
+        agentServerPreferences.allowWriteTools,
+        agentServerPreferences.token,
+    ) { enabled, port, allowRemote, allowWriteTools, token ->
+        AgentServerState(enabled, port, allowRemote, allowWriteTools, token)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, AgentServerState())
+
+    fun setAgentServerEnabled(enabled: Boolean) {
+        viewModelScope.launch { agentServerPreferences.setEnabled(enabled) }
+    }
+
+    fun setAgentServerPort(port: Int) {
+        viewModelScope.launch { agentServerPreferences.setPort(port.coerceIn(1024, 65535)) }
+    }
+
+    fun setAgentServerAllowRemote(enabled: Boolean) {
+        viewModelScope.launch { agentServerPreferences.setAllowRemote(enabled) }
+    }
+
+    fun setAgentServerAllowWriteTools(enabled: Boolean) {
+        viewModelScope.launch { agentServerPreferences.setAllowWriteTools(enabled) }
+    }
+
+    /** 重置被控端令牌：外部客户端需同步更新配置。 */
+    fun resetAgentServerToken() {
+        viewModelScope.launch {
+            agentServerPreferences.setToken(UUID.randomUUID().toString().replace("-", ""))
+        }
     }
 
     fun saveMcpServer(server: top.wkbin.taixu.core.model.McpServerConfig) {
@@ -1733,4 +1769,13 @@ data class BrowserGateState(
     val allowEvalJs: Boolean = false,
     val allowHooks: Boolean = false,
     val allowCdp: Boolean = false,
+)
+
+/** MCP 被控端配置快照（运行状态另由 AgentMcpAccess 提供）。 */
+data class AgentServerState(
+    val enabled: Boolean = false,
+    val port: Int = AgentServerPreferences.DEFAULT_PORT,
+    val allowRemote: Boolean = false,
+    val allowWriteTools: Boolean = false,
+    val token: String = "",
 )

@@ -44,6 +44,8 @@ import top.wkbin.taixu.harness.mcp.MCP_PROTOCOL_VERSION
 class McpServerRuntime(
     private val toolDispatcher: McpToolDispatcher,
     private val resourceDispatcher: McpResourceDispatcher,
+    /** initialize 握手返回的 serverInfo.name；浏览器端与被控端各用各的名字便于客户端区分。 */
+    private val serverName: String = DEFAULT_SERVER_NAME,
 ) {
     @Volatile private var engine: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
     @Volatile var currentToken: String? = null
@@ -136,8 +138,9 @@ class McpServerRuntime(
                 if (bindOk) {
                     engine = srv
                     boundPort = candidate
-                    // 供自环客户端读取实际端口（首选端口被占用顺延后，静态预设的 URL 已过期）
-                    BuiltinBrowserMcpAccess.port = candidate
+                    // 实际绑定端口由调用方（BrowserMcpBootstrap / AgentMcpBootstrap）读取 [port] 后自行落盘，
+                    // 运行时类不再直接写自环访问点：同进程可能并存多个实例（浏览器 8787 / 被控 8890），
+                    // 在此处写死会互相覆盖。
                     if (attempt > 0) {
                         Log.w(TAG, "端口 $port 被占用，已顺延使用 $candidate")
                     }
@@ -163,7 +166,6 @@ class McpServerRuntime(
         currentToken = null
         currentAllowRemote = false
         boundPort = defaultPort
-        BuiltinBrowserMcpAccess.port = null
     }
 
     /**
@@ -184,7 +186,7 @@ class McpServerRuntime(
             "initialize" -> jsonrpcOk(id, buildJsonObject {
                 put("protocolVersion", JsonPrimitive(MCP_PROTOCOL_VERSION))
                 put("serverInfo", buildJsonObject {
-                    put("name", JsonPrimitive("TaiXu Browser MCP Server"))
+                    put("name", JsonPrimitive(serverName))
                     put("version", JsonPrimitive("0.1.0"))
                 })
                 put("capabilities", buildJsonObject {
@@ -250,7 +252,18 @@ class McpServerRuntime(
 
     companion object {
         private const val TAG = "TaiXuMcpServer"
+
+        /** initialize 握手默认 serverInfo.name（内置浏览器 MCP）。 */
+        const val DEFAULT_SERVER_NAME = "TaiXu Browser MCP Server"
+
+        /** 被控端（外部客户端控制本 App）的默认 serverInfo.name。 */
+        const val AGENT_SERVER_NAME = "TaiXu Agent MCP Server"
+
         const val defaultPort = 8787
+
+        /** 被控端默认端口段起点：与浏览器端 8787 段互不重叠。 */
+        const val agentDefaultPort = 8890
+
         const val loopbackHost = "127.0.0.1"
     }
 }

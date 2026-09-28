@@ -17,6 +17,7 @@ import top.wkbin.taixu.core.database.McpServerRepository
 import top.wkbin.taixu.service.AgentForegroundService
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.harness.browser.BrowserMcpBootstrap
+import top.wkbin.taixu.harness.agent.AgentMcpBootstrap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -60,6 +61,7 @@ class TaiXuApplication : Application(), Configuration.Provider {
     val pathManagerLazy: Lazy<RuntimePathManager> = inject()
     val privilegeManager: PrivilegeManager by inject()
     val browserMcpBootstrap: BrowserMcpBootstrap by inject()
+    val agentMcpBootstrap: AgentMcpBootstrap by inject()
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -82,6 +84,8 @@ class TaiXuApplication : Application(), Configuration.Provider {
                 launch { runCatching { privilegeManager.reconcilePersistedMode() } }
                 // 启动进程内 MCP HTTP server（loopback 127.0.0.1:8787）供 harness / 外部 IDE 接入浏览器工具
                 launch { runCatching { browserMcpBootstrap.bootstrap() } }
+                // 被控端：默认关闭，仅按偏好启用；start() 内部自持协程监听偏好，改配置无需重启 App
+                launch { runCatching { agentMcpBootstrap.start() } }
                 launch {
                     runCatching {
                         val skillRepository = agentSkillRepositoryLazy.value
