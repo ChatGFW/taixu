@@ -1,5 +1,6 @@
 package top.wkbin.taixu.core.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
@@ -9,6 +10,7 @@ import androidx.room.Index
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.RunMode
 
 /** Harness 会话：一条会话聚合一批消息，并记录使用的模型。 */
 @Entity(tableName = "harness_sessions", indices = [Index(value = ["updatedAt"])])
@@ -26,6 +28,8 @@ data class HarnessSessionEntity(
     val projectType: String = "",
     /** Tool approval authority for this session; new sessions inherit the global default. */
     val approvalMode: String = ApprovalMode.ASSISTED.id,
+    /** 运行意图（BUILD/PLAN），与 [approvalMode] 正交；新会话继承全局默认。 */
+    @ColumnInfo(defaultValue = "build") val runMode: String = RunMode.BUILD.id,
 )
 
 @Dao

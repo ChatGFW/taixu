@@ -324,10 +324,14 @@ val MIGRATION_50_51 = object : Migration(50, 51) {
     }
 }
 
-/** Anthropic Prompt Caching：每模型开关与 1h TTL 扩展。 */
+/** Anthropic Prompt Caching：每模型开关与 1h TTL 扩展；外加运行意图 RunMode 的全局与会话级列。 */
 val MIGRATION_51_52 = object : Migration(51, 52) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `harness_models` ADD COLUMN `promptCachingEnabled` INTEGER NOT NULL DEFAULT 1")
         db.execSQL("ALTER TABLE `harness_models` ADD COLUMN `promptCacheTtl1h` INTEGER NOT NULL DEFAULT 0")
+        // DEFAULT 子句必须显式写出且与实体 @ColumnInfo(defaultValue = "build") 完全一致，
+        // 否则迁移后 schema 校验失败，会触发 fallbackToDestructiveMigration 清空整库。
+        db.execSQL("ALTER TABLE `agent_approval_settings` ADD COLUMN `runMode` TEXT NOT NULL DEFAULT 'build'")
+        db.execSQL("ALTER TABLE `harness_sessions` ADD COLUMN `runMode` TEXT NOT NULL DEFAULT 'build'")
     }
 }

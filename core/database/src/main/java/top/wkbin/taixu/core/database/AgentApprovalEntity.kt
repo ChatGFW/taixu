@@ -1,5 +1,6 @@
 package top.wkbin.taixu.core.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
@@ -9,6 +10,7 @@ import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.RunMode
 
 @Entity(tableName = "agent_approval_requests")
 data class AgentApprovalRequestEntity(
@@ -45,6 +47,8 @@ data class AgentApprovalRequestEntity(
 data class AgentApprovalSettingsEntity(
     @PrimaryKey val id: Int = SINGLETON_ID,
     val mode: String = ApprovalMode.ASSISTED.id,
+    /** 全局默认运行意图（BUILD / PLAN）：新会话创建时的初始值。 */
+    @ColumnInfo(defaultValue = "build") val runMode: String = RunMode.BUILD.id,
 ) {
     companion object {
         const val SINGLETON_ID = 1
@@ -103,6 +107,7 @@ class AgentApprovalRepository(
     private val dao: AgentApprovalDao,
 ) {
     val mode: Flow<ApprovalMode> = dao.observeSettings().map { ApprovalMode.fromId(it?.mode) }
+    val runMode: Flow<RunMode> = dao.observeSettings().map { RunMode.fromId(it?.runMode) }
 
     fun pendingForSession(sessionId: String): Flow<List<AgentApprovalRequestEntity>> =
         dao.observePendingForSession(sessionId).map { requests ->
@@ -135,8 +140,18 @@ class AgentApprovalRepository(
 
     suspend fun currentMode(): ApprovalMode = ApprovalMode.fromId(dao.getSettings()?.mode)
 
+    suspend fun currentRunMode(): RunMode = RunMode.fromId(dao.getSettings()?.runMode)
+
+    /** 只改审批模式，保留既有运行意图（upsert 是 REPLACE 语义，必须显式回读另一列）。 */
     suspend fun setMode(mode: ApprovalMode) {
-        dao.upsertSettings(AgentApprovalSettingsEntity(mode = mode.id))
+        val existing = dao.getSettings()
+        dao.upsertSettings(AgentApprovalSettingsEntity(mode = mode.id, runMode = existing?.runMode ?: RunMode.BUILD.id))
+    }
+
+    /** 只改运行意图，保留既有审批模式。 */
+    suspend fun setRunMode(mode: RunMode) {
+        val existing = dao.getSettings()
+        dao.upsertSettings(AgentApprovalSettingsEntity(mode = existing?.mode ?: ApprovalMode.ASSISTED.id, runMode = mode.id))
     }
 
     suspend fun create(request: AgentApprovalRequestEntity) = dao.upsertRequest(request)

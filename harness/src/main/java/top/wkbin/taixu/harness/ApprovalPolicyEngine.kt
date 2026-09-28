@@ -146,6 +146,66 @@ class ApprovalPolicyEngine(
         }
     }
 
+    /**
+     * PLAN（只读规划）门禁：返回非 null 表示该调用在只读模式下被宿主硬拒绝，
+     * 直接以失败结果回执给模型，**不进入审批队列**（用户本就没打算执行，弹审批卡只是噪音）。
+     * 返回 null 表示放行，继续交给 [decide] 按审批模式判定。
+     *
+     * 与 [ApprovalMode] 正交：即便 `FULL_ACCESS + PLAN` 也只读——「我全权授权，但这次只让你看」。
+     * 这里刻意不复用 [isRoutineCommand]：它把 `./gradlew test`、`npm run build`
+     * 视为例常放行（会写构建产物、可能联网），在只读规划下必须当作写操作拦下。
+     */
+    fun planBlock(
+        tool: HarnessTool,
+        args: JsonObject,
+        rawToolName: String? = null,
+    ): String? = when (tool) {
+        // 只读检索与元操作：全放
+        HarnessTool.READ, HarnessTool.MEMORY, HarnessTool.PLAN, HarnessTool.SCRATCHPAD,
+        HarnessTool.HISTORY_SEARCH, HarnessTool.HISTORY_READ, HarnessTool.LOAD_RULE,
+        HarnessTool.LOAD_SKILL, HarnessTool.COMPRESS, HarnessTool.ASK_USER -> null
+        HarnessTool.BASE -> if (isReadOnlyCommand(args["command"]?.jsonPrimitive?.content.orEmpty())) {
+            null
+        } else {
+            "base 命令不是只读检索：只读规划模式仅允许 ls / cat / rg / grep / find / git status 等查看类命令，不允许安装、构建、测试或写文件。"
+        }
+        HarnessTool.PROCESS -> if (processAction(args) in setOf("status", "logs", "list")) {
+            null
+        } else {
+            "process 仅允许查看（status / logs / list），不允许启动或停止进程。"
+        }
+        HarnessTool.HOST -> {
+            val action = args["action"]?.jsonPrimitive?.content.orEmpty().trim().lowercase()
+            if (action in HOST_READ_ONLY_ACTIONS) {
+                null
+            } else {
+                "宿主操作仅允许只读查询（status / settings_get / package_list / app_list / logcat / device_status / screen_observe），不允许改动真实 Android 系统。"
+            }
+        }
+        HarnessTool.MCP -> if (isReadOnlyMcpCall(args, rawToolName)) {
+            null
+        } else {
+            "MCP 仅允许只读能力查询（use_capability 的 list / inspect / decline）与低风险浏览器只读工具。"
+        }
+        HarnessTool.BUILD_SCRIPT -> if (args["action"]?.jsonPrimitive?.content.orEmpty().trim().lowercase() in setOf("list", "get")) {
+            null
+        } else {
+            "build_script 仅允许查看（list / get），不允许创建、绑定或删除脚本。"
+        }
+        // 其余（write / edit / download / subagent 等）一律拦截。
+        else -> "该工具会写入文件、访问外部网络或改变状态，只读规划模式下不可用。"
+    }
+
+    /** MCP 只读判定：use_capability 的只读元操作，或内置浏览器风险矩阵中的 low 档工具。 */
+    private fun isReadOnlyMcpCall(args: JsonObject, rawToolName: String?): Boolean {
+        if (rawToolName == "use_capability" &&
+            args["action"]?.jsonPrimitive?.content.orEmpty().trim().lowercase() != "call"
+        ) {
+            return true
+        }
+        return mcpBrowserRisk(effectiveMcpToolName(HarnessTool.MCP, args, rawToolName)) == "low"
+    }
+
     fun createRequest(
         sessionId: String,
         toolCall: ToolCall,
@@ -229,6 +289,11 @@ class ApprovalPolicyEngine(
         private val ROUTINE_PRIMARY = Regex(
             """^(pwd|ls|find|rg|grep|head|tail|cat|git\s+(status|diff|log|show)|gradle(w)?\b.*(test|check|assemble)|npm\s+(test|run\s+(test|lint|build))|flutter\s+(test|analyze|build)|pytest\b|kotlinc\b|\./gradlew\b.*(test|check|assemble))""",
         )
+
+        /** PLAN 只读主命令白名单：纯查看，不含任何构建/测试/包管理入口。 */
+        private val READ_ONLY_PRIMARY = Regex(
+            """^(pwd|ls|find|rg|grep|head|tail|cat|wc|uniq|tr|cut|file|stat|du|df|git\s+(status|diff|log|show))\b""",
+        )
     }
 
     private fun summarize(tool: HarnessTool, args: JsonObject, rawToolName: String? = null): String = when (tool) {
@@ -299,8 +364,24 @@ class ApprovalPolicyEngine(
     private fun isWithinWorkspace(path: String, workspace: String): Boolean =
         pathResolver.isWithinWorkspace(path, workspace)
 
-    private fun isRoutineCommand(command: String): Boolean {
-        val normalized = command.trim().lowercase()
+    private fun isRoutineCommand(command: String): Boolean =
+        isSafeReadPipeline(command.trim().lowercase()) { isRoutinePrimaryCommand(it) }
+
+    /**
+     * PLAN 只读门禁专用的**更窄**白名单：只承认「查看」类主命令。
+     *
+     * 不复用 [isRoutineCommand]：后者把 `./gradlew test|assemble`、`npm run build`、
+     * `flutter build` 也当例常放行（会写构建产物、可能联网），在只读规划下都属于写操作。
+     */
+    private fun isReadOnlyCommand(command: String): Boolean =
+        isSafeReadPipeline(command.trim().lowercase()) { isReadOnlyPrimaryCommand(it) }
+
+    /**
+     * 管道/组合命令的统一安全解析（[primary] 决定主命令是否放行）：
+     * 仅一条主命令（允许一个 `cd <path> &&` 前缀），管道后续段只能是只读过滤器，
+     * 且先排除动态 shell 语法与文件重定向。
+     */
+    private fun isSafeReadPipeline(normalized: String, primary: (String) -> Boolean): Boolean {
         if (normalized.isBlank()) return false
         if (isDestructiveCommand(normalized)) return false
         // Block dynamic shell syntax before whitelist matching. Command substitution, backtick
@@ -329,7 +410,7 @@ class ApprovalPolicyEngine(
         }
         // Only one primary command after optional cd — further && chains need approval.
         if (leftParts.size - index != 1) return false
-        return isRoutinePrimaryCommand(leftParts[index])
+        return primary(leftParts[index])
     }
 
     private fun isRoutinePrimaryCommand(command: String): Boolean {
@@ -341,6 +422,15 @@ class ApprovalPolicyEngine(
         if (UNSAFE_EXEC_FEATURES.containsMatchIn(deobfuscated)) return false
         if (BLOCKED_NETWORK_OR_MUTATION.containsMatchIn(deobfuscated)) return false
         return ROUTINE_PRIMARY.containsMatchIn(command)
+    }
+
+    /** PLAN 只读主命令：与 [isRoutinePrimaryCommand] 同源防护，但白名单更窄（纯查看）。 */
+    private fun isReadOnlyPrimaryCommand(command: String): Boolean {
+        val deobfuscated = shellDeobfuscated(command)
+        if (FIND_WRITE_OR_EXEC.containsMatchIn(deobfuscated)) return false
+        if (UNSAFE_EXEC_FEATURES.containsMatchIn(deobfuscated)) return false
+        if (BLOCKED_NETWORK_OR_MUTATION.containsMatchIn(deobfuscated)) return false
+        return READ_ONLY_PRIMARY.containsMatchIn(command)
     }
 
     private fun isSafeReadFilter(command: String): Boolean {

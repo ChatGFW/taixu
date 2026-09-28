@@ -7,6 +7,7 @@ import top.wkbin.taixu.harness.skill.SkillResourceReader
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.core.network.DownloadEvent
 import top.wkbin.taixu.core.network.DownloadRequest
 import top.wkbin.taixu.core.network.FileDownloader
@@ -111,8 +112,32 @@ class ToolExecutor(
         val outcome = try {
             if (!bypassApproval && sessionId.isNotBlank()) {
                 val repository = approvalRepository
-                val sessionMode = sessionDao?.findById(sessionId)?.approvalMode?.let(ApprovalMode::fromId)
+                // 一次查询同时取审批模式与运行意图（两级：会话级优先，回落全局默认）。
+                val session = sessionDao?.findById(sessionId)
+                val sessionMode = session?.approvalMode?.let(ApprovalMode::fromId)
                 val mode = sessionMode ?: repository?.currentMode() ?: ApprovalMode.FULL_ACCESS
+                val runMode = session?.runMode?.let(RunMode::fromId) ?: repository?.currentRunMode() ?: RunMode.BUILD
+                // PLAN 只读模式与审批模式正交：命中即硬拒绝，不进审批队列（用户没打算执行，
+                // 弹审批卡只是噪音）。子智能体 Lane 复用父会话 id（见 SubagentLaneRunner），
+                // 因此这里同样约束后台并行子智能体，无需在 Lane 内重复判定。
+                if (runMode == RunMode.PLAN) {
+                    approvalPolicyEngine.planBlock(toolCall.tool, toolCall.args, toolCall.rawToolName)?.let { blocked ->
+                        val blockedName = toolCall.rawToolName ?: toolCall.tool.name.lowercase()
+                        return ToolResult(
+                            id = UUID.randomUUID().toString(),
+                            createdAt = now,
+                            toolCallId = toolCall.id,
+                            success = false,
+                            output = buildString {
+                                append("⛔ 只读规划模式（PLAN）已拦截本次调用：").append(blockedName).append('\n')
+                                append("原因：").append(blocked).append('\n')
+                                append("本次调用未执行，也未进入审批队列。\n")
+                                append("请不要重试同一调用，也不要声称该操作已完成：")
+                                append("把该动作写进规划结论的待办中，由用户切换到 BUILD（构建）模式后再执行。")
+                            },
+                        )
+                    }
+                }
                 val decision = approvalPolicyEngine.decide(mode, toolCall.tool, toolCall.args, workspace, toolCall.rawToolName)
                 // 「本会话内记住」授权表豁免：用户此前对该操作类别批准过并勾选了记住，
                 // 同类后续操作免审批直接执行。表只存内存、随会话销毁，无永久授权；
