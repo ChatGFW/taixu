@@ -277,7 +277,7 @@ private fun BrowserTabChip(
         Row(
             modifier = Modifier.padding(start = 4.dp, top = 1.dp, bottom = 1.dp, end = 1.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             RuntimeIcon(RuntimeIconName.Globe, Modifier.size(11.dp), tint = tint)
             Text(
@@ -391,7 +391,7 @@ private fun BrowserStatusItem(
         Row(
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             RuntimeIcon(
                 name = icon,

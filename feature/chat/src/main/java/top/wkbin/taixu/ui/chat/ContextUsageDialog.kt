@@ -254,7 +254,7 @@ private fun ContextUsageRow(
         Box(
             modifier = Modifier
                 .size(11.dp)
-                .background(spec.color, RoundedCornerShape(2.5.dp)),
+                .background(spec.color, RoundedCornerShape(2.dp)),
         )
         Spacer(modifier = Modifier.width(12.dp))
         // Category Label

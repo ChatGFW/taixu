@@ -264,7 +264,7 @@ private fun ModelProfilesContent(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     IconTile(RuntimeIconName.Model, color = MaterialTheme.colorScheme.primary, size = 42.dp)
-                    Text("暂无模型档案", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
+                    Text("暂无模型档案", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "点击上方新增或从右上角导入 OpenAI / DeepSeek / Claude / 本地模型配置",
                         style = MaterialTheme.typography.bodySmall,
@@ -319,7 +319,7 @@ private fun ModelProfileCard(
         ) {
             ProviderBadge(providerIdOrName = model.provider, size = 24.dp)
 
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = model.name,
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),

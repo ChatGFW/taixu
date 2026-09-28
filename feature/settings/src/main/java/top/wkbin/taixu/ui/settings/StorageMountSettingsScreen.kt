@@ -321,7 +321,7 @@ private fun MountToggleRow(
             RuntimeIcon(icon, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
         }
 
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),

@@ -88,6 +88,7 @@ import top.wkbin.taixu.core.model.DoctorStatus
 import top.wkbin.taixu.core.model.RepairProgress
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.ui.components.MainDestination
+import top.wkbin.taixu.ui.components.IconTile
 import top.wkbin.taixu.ui.components.NoticeBanner
 import top.wkbin.taixu.ui.components.RuntimeBottomBar
 import top.wkbin.taixu.ui.components.liquidGlassContent
@@ -279,7 +280,6 @@ fun HomeScreen(
                 isRepairing = isRepairing,
                 repairProgress = repairProgress,
                 runtimeReady = state is RuntimeState.Ready,
-                onRunCheck = viewModel::runDoctorCheck,
                 onStartAutoRepair = {
                     if (doctorReport?.items?.any { it.id == "host_all_files_access" && it.status != DoctorStatus.HEALTHY } == true) {
                         requestAllFilesAccess()
@@ -289,13 +289,6 @@ fun HomeScreen(
                 onCancelRepair = viewModel::cancelAutoRepair,
                 onRequestAllFilesAccess = requestAllFilesAccess,
                 onOpenToolCenter = onOpenToolCenter,
-            )
-
-            // 3. 核心指标看板 (Live Resource Metrics Grid)
-            Text(
-                text = stringResource(R.string.home_system_resources),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onBackground,
             )
 
             Row(
@@ -335,16 +328,8 @@ fun HomeScreen(
                 )
             }
 
-            // 4. 活跃任务与服务监控卡片
-            ActiveTasksStatusCard(
-                metrics = metrics,
-                onOpenTerminal = onOpenTerminal,
-            )
-
-            // 5. 运行环境与规格详情
+            // 4. 运行环境与规格详情（低频信息，默认折叠）
             SystemSpecsCard(metrics = metrics, modeStatus = modeStatus)
-
-            Spacer(Modifier.height(16.dp))
         }
     }
 }
@@ -358,7 +343,6 @@ private fun EnvironmentDoctorCard(
     isRepairing: Boolean,
     repairProgress: RepairProgress?,
     runtimeReady: Boolean,
-    onRunCheck: () -> Unit,
     onStartAutoRepair: () -> Unit,
     onCancelRepair: () -> Unit,
     onRequestAllFilesAccess: () -> Unit = {},
@@ -394,26 +378,15 @@ private fun EnvironmentDoctorCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                if (report?.isAllHealthy == true) healthyStatusColor().copy(alpha = 0.15f)
-                                else MaterialTheme.colorScheme.primaryContainer,
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        RuntimeIcon(
-                            name = if (report?.isAllHealthy == true) RuntimeIconName.Check else RuntimeIconName.Shield,
-                            modifier = Modifier.size(20.dp),
-                            tint = if (report?.isAllHealthy == true) healthyStatusColor() else MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
+                    IconTile(
+                        icon = if (report?.isAllHealthy == true) RuntimeIconName.Check else RuntimeIconName.Shield,
+                        size = 36.dp,
+                        color = if (report?.isAllHealthy == true) healthyStatusColor() else MaterialTheme.colorScheme.primary,
+                    )
                     Column(Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.home_doctor_title),
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
@@ -443,18 +416,6 @@ private fun EnvironmentDoctorCard(
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.primary,
                         )
-                    } else if (runtimeReady) {
-                        IconButton(
-                            onClick = { onRunCheck() },
-                            enabled = !isRepairing,
-                            modifier = Modifier.size(32.dp),
-                        ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Refresh,
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
                     }
 
                     RuntimeIcon(
@@ -476,12 +437,14 @@ private fun EnvironmentDoctorCard(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // 修复中状态展示
                     if (isRepairing && repairProgress != null) {
-                        RuntimeCard(
+                        // 去嵌套：卡内区块改用平面 Surface，避免玻璃主题下多层卡片材质冲突
+                        Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            contentPadding = PaddingValues(14.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
                         ) {
                             Column(
+                                modifier = Modifier.padding(14.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Row(
@@ -512,7 +475,7 @@ private fun EnvironmentDoctorCard(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(6.dp)
-                                        .clip(RoundedCornerShape(3.dp)),
+                                        .clip(RoundedCornerShape(4.dp)),
                                     color = MaterialTheme.colorScheme.primary,
                                 )
 
@@ -777,35 +740,29 @@ private fun AndroidEnvAcquisitionCard(
     onJoinQqGroup: () -> Unit,
     onOpenToolCenter: () -> Unit,
 ) {
-    RuntimeCard(
+    // 去嵌套：本卡嵌在体检卡展开区内，改用平面 Surface + 淡主色底，去掉描边
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-        borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-        contentPadding = PaddingValues(14.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
     ) {
         Column(
+            modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    RuntimeIcon(
-                        name = RuntimeIconName.Android,
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
+                IconTile(
+                    icon = RuntimeIconName.Android,
+                    size = 36.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = stringResource(R.string.home_android_env_title),
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
@@ -928,7 +885,7 @@ private fun RuntimeEngineStatusCard(
                                 initializing != null -> stringResource(R.string.home_runtime_initializing)
                                 else -> stringResource(R.string.home_runtime_uninitialized)
                             },
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
@@ -959,6 +916,26 @@ private fun RuntimeEngineStatusCard(
                 modeStatus = modeStatus,
                 onClick = onOpenModeSettings,
             )
+
+            // 活跃进程与运行时长（并入主状态卡，替代原独立卡片，避免与下方"打开控制台"按钮重复）
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                RuntimeIcon(
+                    name = RuntimeIconName.List,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "${stringResource(R.string.home_active_processes, metrics.activeProcessCount)} · ${stringResource(R.string.home_uptime, metrics.uptimeFormatted)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
 
             // 多系统快速切换 Chips（安装了 2 套及以上时展示，自动换行，避免横向滚动）
             if (ready && installedDistros.size > 1) {
@@ -1021,7 +998,7 @@ private fun RuntimeEngineStatusCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
+                            .clip(RoundedCornerShape(4.dp)),
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Row(
@@ -1240,7 +1217,7 @@ private fun ResourceMetricCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
+                    .clip(RoundedCornerShape(4.dp)),
                 color = effectiveAccent,
                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             )
@@ -1265,74 +1242,11 @@ private fun ResourceMetricCard(
 }
 
 /**
- * 活跃任务与后台服务卡片
- */
-@Composable
-private fun ActiveTasksStatusCard(
-    metrics: SystemResourceMetrics,
-    onOpenTerminal: () -> Unit,
-) {
-    RuntimeCard(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentPadding = PaddingValues(16.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.tertiaryContainer),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    RuntimeIcon(
-                        name = RuntimeIconName.List,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                    )
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = stringResource(R.string.home_active_processes, metrics.activeProcessCount),
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = stringResource(R.string.home_uptime, metrics.uptimeFormatted),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            Spacer(Modifier.width(8.dp))
-
-            RuntimeButton(
-                onClick = onOpenTerminal,
-                tonal = true,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-            ) {
-                Text(stringResource(R.string.home_view), style = MaterialTheme.typography.labelSmall)
-            }
-        }
-    }
-}
-
-/**
- * 宿主与运行环境规格卡片
+ * 宿主与运行环境规格卡片（低频信息，默认折叠）
  */
 @Composable
 private fun SystemSpecsCard(metrics: SystemResourceMetrics, modeStatus: ExecutionModeStatus) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -1341,21 +1255,40 @@ private fun SystemSpecsCard(metrics: SystemResourceMetrics, modeStatus: Executio
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                text = stringResource(R.string.home_environment_details),
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.home_environment_details),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                RuntimeIcon(
+                    name = RuntimeIconName.ChevronDown,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .rotate(if (expanded) 180f else 0f),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                )
+            }
 
-            SpecRow(label = stringResource(R.string.home_cpu_architecture), value = metrics.cpuArch)
-            SpecRow(label = stringResource(R.string.home_host_os), value = metrics.hostAndroidVersion)
-            SpecRow(label = stringResource(R.string.home_runtime_engine), value = metrics.engineVersion)
-            SpecRow(label = stringResource(R.string.home_guest_os), value = metrics.linuxDistro)
-            SpecRow(
-                label = stringResource(R.string.home_privilege_mode),
-                value = modeStatus.mode.shortLabel +
-                    if (modeStatus.active || modeStatus.checking) "" else " · ${stringResource(R.string.home_mode_inactive)}",
-            )
+            AnimatedVisibility(visible = expanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SpecRow(label = stringResource(R.string.home_cpu_architecture), value = metrics.cpuArch)
+                    SpecRow(label = stringResource(R.string.home_host_os), value = metrics.hostAndroidVersion)
+                    SpecRow(label = stringResource(R.string.home_runtime_engine), value = metrics.engineVersion)
+                    SpecRow(label = stringResource(R.string.home_guest_os), value = metrics.linuxDistro)
+                    SpecRow(
+                        label = stringResource(R.string.home_privilege_mode),
+                        value = modeStatus.mode.shortLabel +
+                            if (modeStatus.active || modeStatus.checking) "" else " · ${stringResource(R.string.home_mode_inactive)}",
+                    )
+                }
+            }
         }
     }
 }
@@ -1440,8 +1373,8 @@ private fun WebChatDashboardCard(
 
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
+        // 减强调：运行态仅保留容器色强调，不再叠加主色描边
         containerColor = if (status.isRunning) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.40f) else MaterialTheme.colorScheme.surfaceContainer,
-        borderColor = if (status.isRunning) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else Color.Transparent,
         contentPadding = PaddingValues(16.dp),
     ) {
         Column(
@@ -1457,23 +1390,15 @@ private fun WebChatDashboardCard(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.weight(1f),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(if (status.isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        RuntimeIcon(
-                            name = RuntimeIconName.Globe,
-                            modifier = Modifier.size(20.dp),
-                            tint = if (status.isRunning) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    IconTile(
+                        icon = RuntimeIconName.Globe,
+                        size = 36.dp,
+                        color = if (status.isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Column {
                         Text(
                             text = stringResource(R.string.home_webchat_title),
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
@@ -1494,7 +1419,7 @@ private fun WebChatDashboardCard(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
                 // 访问地址独立成行：统一 Monospace 等宽字体、颜色与大小
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = stringResource(R.string.home_webchat_url_label),
                         style = MaterialTheme.typography.labelSmall,
@@ -1513,7 +1438,7 @@ private fun WebChatDashboardCard(
                 }
 
                 // 配对码独立成行显示
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = stringResource(R.string.home_webchat_pin_label),
                         style = MaterialTheme.typography.labelSmall,
@@ -1541,18 +1466,12 @@ private fun WebChatDashboardCard(
                 ) {
                     RuntimeIcon(RuntimeIconName.Copy, Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.home_webchat_copy), fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.home_webchat_copy))
                 }
 
                 Text(
                     text = stringResource(R.string.home_webchat_hint, status.activeConnections),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                Text(
-                    text = stringResource(R.string.home_webchat_intro),
-                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

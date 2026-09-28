@@ -193,11 +193,11 @@ fun LocalLlmScreen(
                         containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                         borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     transfer.label,
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    style = MaterialTheme.typography.titleSmall,
                                     modifier = Modifier.weight(1f),
                                 )
                                 Text(
@@ -231,7 +231,7 @@ fun LocalLlmScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             RuntimeIcon(RuntimeIconName.Info, Modifier.size(23.dp), MaterialTheme.colorScheme.primary)
-                            Text("本地 LLM 推理", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                            Text("本地 LLM 推理", style = MaterialTheme.typography.titleMedium)
                         }
                         Text(
                             "通过 llama.cpp 在 Linux 沙箱内运行 GGUF 模型，推理数据不离开设备。支持 HTTPS / Hugging Face 直链断点下载，也可从手机文件选择器导入。",
@@ -258,7 +258,7 @@ fun LocalLlmScreen(
 
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("手机小模型推荐", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                    Text("手机小模型推荐", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "本机内存 ${formatBytes(deviceRamBytes)} · 默认推荐 Q4_K_M，兼顾体积、速度和效果",
                         style = MaterialTheme.typography.bodySmall,
@@ -286,7 +286,7 @@ fun LocalLlmScreen(
             }
 
             item {
-                Text("已导入模型", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                Text("已导入模型", style = MaterialTheme.typography.titleMedium)
             }
 
             if (models.isEmpty()) {
@@ -340,7 +340,7 @@ private fun MobileModelPresetCard(
             MaterialTheme.colorScheme.outlineVariant
         },
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RuntimeIcon(RuntimeIconName.Cpu, Modifier.size(22.dp), MaterialTheme.colorScheme.primary)
                 Text(
@@ -349,7 +349,7 @@ private fun MobileModelPresetCard(
                     modifier = Modifier.weight(1f),
                 )
                 Surface(
-                    shape = RoundedCornerShape(7.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = if (suitable) {
                         MaterialTheme.colorScheme.primaryContainer
                     } else {
@@ -372,7 +372,7 @@ private fun MobileModelPresetCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -406,7 +406,7 @@ private fun MobileModelPresetCard(
 @Composable
 private fun ModelSpecChip(text: String) {
     Surface(
-        shape = RoundedCornerShape(7.dp),
+        shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Text(
@@ -436,7 +436,7 @@ private fun ServiceStatusCard(
         borderColor = color.copy(alpha = 0.25f),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Surface(modifier = Modifier.size(10.dp), shape = RoundedCornerShape(50), color = color) {}
                 Text(
                     when (serviceState) {
@@ -445,7 +445,7 @@ private fun ServiceStatusCard(
                         is LocalLlmServiceState.Running -> "运行中 · ${serviceState.fileName}"
                         is LocalLlmServiceState.Failed -> "启动失败"
                     },
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium,
                 )
                 Spacer(Modifier.weight(1f))
                 if (running != null) {
@@ -484,9 +484,9 @@ private fun ModelCard(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         borderColor = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             RuntimeIcon(RuntimeIconName.Model, Modifier.size(28.dp), MaterialTheme.colorScheme.primary)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     model.fileName,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
@@ -634,7 +634,7 @@ private fun DeleteModelConfirmDialog(
         title = {
             Text(
                 text = "删除模型 $fileName？",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleMedium,
             )
         },
         text = {

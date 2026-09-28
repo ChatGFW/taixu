@@ -1,4 +1,4 @@
-﻿package top.wkbin.taixu.ui.components
+package top.wkbin.taixu.ui.components
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -939,7 +939,7 @@ private fun CodeBlock(block: MdCodeBlock) {
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                     ) {
                         RuntimeIcon(
@@ -1084,7 +1084,7 @@ private fun displayWidthOf(raw: String): Int {
 
 @Composable
 private fun ListBlock(block: MdList) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         block.items.forEachIndexed { index, item ->
             Row(Modifier.fillMaxWidth()) {
                 Text(

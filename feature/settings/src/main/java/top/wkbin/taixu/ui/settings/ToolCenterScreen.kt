@@ -441,7 +441,7 @@ fun ToolCenterScreen(
                                         ) {
                                             Text(
                                                 text = bundle.name,
-                                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                                style = MaterialTheme.typography.titleMedium,
                                                 color = MaterialTheme.colorScheme.onSurface,
                                                 modifier = Modifier.weight(1f, fill = false),
                                                 maxLines = 1,
@@ -490,7 +490,7 @@ fun ToolCenterScreen(
                                             Row(
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             ) {
                                                 if (comp.isRequired) {
                                                     RuntimeIcon(RuntimeIconName.Shield, Modifier.size(10.dp), tint = MaterialTheme.colorScheme.primary)
@@ -1070,9 +1070,9 @@ private fun ToolBrandAvatar(
     Box(
         modifier = modifier
             .size(size)
-            .clip(RoundedCornerShape(13.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(brandColor.copy(alpha = 0.12f))
-            .border(1.dp, brandColor.copy(alpha = 0.28f), RoundedCornerShape(13.dp)),
+            .border(1.dp, brandColor.copy(alpha = 0.28f), RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center,
     ) {
         if (logoRes != null) {
@@ -1158,7 +1158,7 @@ private fun ToolCard(
 
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -1291,7 +1291,7 @@ private fun ToolCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
+                            .clip(RoundedCornerShape(4.dp)),
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }

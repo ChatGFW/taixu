@@ -117,7 +117,7 @@ fun SystemDevSettingsScreen(
             item {
                 Text(
                     text = "进程保活与唤醒",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -174,7 +174,7 @@ fun SystemDevSettingsScreen(
             item {
                 Text(
                     text = "Android 系统调试与日志",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -192,7 +192,7 @@ fun SystemDevSettingsScreen(
             item {
                 Text(
                     text = "太墟自定义迭代与共建",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -209,7 +209,7 @@ fun SystemDevSettingsScreen(
             item {
                 Text(
                     text = "开发者调试与控制台",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -429,7 +429,7 @@ private fun PhantomProcessLimitDialog(
                     ) {
                         Column(
                             modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
                                 "最大幽灵进程数：${status.maxPhantomProcesses ?: "系统默认（通常为 32）"}",

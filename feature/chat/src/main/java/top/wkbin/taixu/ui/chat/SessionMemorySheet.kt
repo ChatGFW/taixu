@@ -76,7 +76,7 @@ internal fun SessionMemorySheet(
                 RuntimeIcon(RuntimeIconName.Brain, Modifier.size(20.dp), MaterialTheme.colorScheme.primary)
                 Text(
                     stringResource(R.string.chat_memory_sheet_title),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium,
                 )
             }
 
@@ -174,7 +174,7 @@ internal fun SessionMemorySheet(
                     text = stringResource(
                         if (isClear) R.string.chat_clear_scratchpad_title else R.string.chat_delete_memory_title,
                     ),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium,
                 )
             },
             text = {
@@ -229,7 +229,7 @@ private fun SectionHeader(
         RuntimeIcon(icon, Modifier.size(15.dp), MaterialTheme.colorScheme.primary)
         Text(
             title,
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+            style = MaterialTheme.typography.titleSmall,
         )
     }
 }

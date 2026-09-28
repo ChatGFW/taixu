@@ -127,7 +127,7 @@ fun LinuxEnvironmentSettingsScreen(
             item {
                 Text(
                     text = "容器系统与沙箱管理",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -199,7 +199,7 @@ fun LinuxEnvironmentSettingsScreen(
             item {
                 Text(
                     text = "系统底层特权",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )

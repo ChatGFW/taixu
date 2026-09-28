@@ -514,7 +514,7 @@ private fun DrawerHeader(
             TaiXuBrandBadge(size = 24.dp)
             Text(
                 text = stringResource(R.string.chat_title),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleMedium,
             )
             Surface(
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
@@ -792,7 +792,7 @@ private fun SessionDrawerItem(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

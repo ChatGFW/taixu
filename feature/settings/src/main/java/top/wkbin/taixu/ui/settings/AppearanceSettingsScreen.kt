@@ -119,7 +119,7 @@ fun AppearanceSettingsScreen(
             item {
                 Text(
                     text = stringResource(R.string.settings_terminal_preview),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -133,7 +133,7 @@ fun AppearanceSettingsScreen(
             item {
                 Text(
                     text = stringResource(R.string.settings_terminal_appearance),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -142,7 +142,7 @@ fun AppearanceSettingsScreen(
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
                             text = stringResource(R.string.settings_terminal_color_scheme),
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                            style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Row(
@@ -195,7 +195,7 @@ fun AppearanceSettingsScreen(
                         ) {
                             Text(
                                 text = stringResource(R.string.settings_terminal_font_size),
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
@@ -251,7 +251,7 @@ fun AppearanceSettingsScreen(
             item {
                 Text(
                     text = stringResource(R.string.settings_theme_style),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -296,7 +296,7 @@ fun AppearanceSettingsScreen(
                 item {
                     Text(
                         text = stringResource(R.string.settings_chengming_background),
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                     )
@@ -307,7 +307,7 @@ fun AppearanceSettingsScreen(
                         ) {
                             Text(
                                 text = stringResource(if (backgroundUri == null) R.string.settings_background_none else R.string.settings_background_custom),
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                style = MaterialTheme.typography.titleSmall,
                             )
                             backgroundUri?.let { uri -> ChengmingBackgroundPreview(uri) }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -329,7 +329,7 @@ fun AppearanceSettingsScreen(
             item {
                 Text(
                     text = stringResource(R.string.settings_color_mode),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -361,7 +361,7 @@ fun AppearanceSettingsScreen(
             item {
                 Text(
                     text = stringResource(R.string.settings_language_title),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -393,7 +393,7 @@ fun AppearanceSettingsScreen(
             item {
                 Text(
                     text = stringResource(R.string.settings_interface_scale),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -406,7 +406,7 @@ fun AppearanceSettingsScreen(
                         ) {
                             Text(
                                 text = stringResource(R.string.settings_scale),
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(

@@ -183,7 +183,7 @@ fun ToolActivityPill(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.weight(1f),
                 ) {
                     // 运行状态微光指示点（纯颜色补文本语义，TalkBack 可读）
@@ -279,7 +279,7 @@ fun ToolActivityPill(
                 ) {
                     Text(
                         text = stringResource(R.string.chat_tool_detail_title),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                     )
                     StatusBadge(
                         text = if (running) runningStatusText else readyStatusText,

@@ -208,7 +208,7 @@ fun AttachmentPreviewRow(
                         )
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
                             text = item.name,
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),

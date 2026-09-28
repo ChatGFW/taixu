@@ -68,7 +68,7 @@ internal fun ChatTopBar(
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding(),
-        verticalArrangement = Arrangement.spacedBy(1.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         // 第 1 行：品牌 Badge + 标题/工作区 + 右侧模型胶囊与操作按钮
         Row(

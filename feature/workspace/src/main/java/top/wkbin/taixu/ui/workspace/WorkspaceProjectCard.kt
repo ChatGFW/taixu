@@ -61,10 +61,11 @@ internal fun ProjectCard(
 ) {
     var moreExpanded by remember { mutableStateOf(false) }
 
+    // 颜色收敛：项目类型标识改用主题色轮替，不再引入主题外硬编码色
     val typeBadgeColor = when (project.projectType) {
-        ProjectType.ANDROID -> Color(0xFF2E7D32)
-        ProjectType.FLUTTER -> Color(0xFF0288D1)
-        ProjectType.REVERSE -> Color(0xFF6A1B9A)
+        ProjectType.ANDROID -> MaterialTheme.colorScheme.primary
+        ProjectType.FLUTTER -> MaterialTheme.colorScheme.secondary
+        ProjectType.REVERSE -> MaterialTheme.colorScheme.tertiary
         ProjectType.GENERAL -> MaterialTheme.colorScheme.primary
     }
 
@@ -77,7 +78,8 @@ internal fun ProjectCard(
 
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        borderColor = if (isBuilding) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+        // 减法：常态无边框，仅构建中保留主色描边作为状态提示
+        borderColor = if (isBuilding) MaterialTheme.colorScheme.primary else Color.Transparent,
         onClick = onOpenExplorer,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -89,7 +91,7 @@ internal fun ProjectCard(
                 IconTile(typeIcon, size = 40.dp, color = typeBadgeColor)
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -97,7 +99,7 @@ internal fun ProjectCard(
                     ) {
                         Text(
                             text = project.name,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false),
@@ -189,7 +191,7 @@ internal fun ProjectCard(
 
             if (isBuilding) {
                 LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(1.5.dp)),
+                    modifier = Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)),
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
@@ -213,7 +215,7 @@ internal fun ProjectCard(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             if (isBuilding) {
                                 RuntimeCircularProgressIndicator(

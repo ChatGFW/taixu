@@ -130,7 +130,7 @@ fun PermissionGuideScreen(
                                 )
                                 Text(
                                     text = "${selectedBrand.label} (${selectedBrand.osName})",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                             }
@@ -262,7 +262,7 @@ fun PermissionGuideScreen(
                                 )
                                 Text(
                                     text = selectedTopic.title,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    style = MaterialTheme.typography.titleMedium,
                                 )
                             }
 
@@ -310,7 +310,7 @@ fun PermissionGuideScreen(
             item {
                 Text(
                     text = "配置步骤详解",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, top = 4.dp),
                 )

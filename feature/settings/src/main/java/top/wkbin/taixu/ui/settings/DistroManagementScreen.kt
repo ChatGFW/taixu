@@ -261,7 +261,7 @@ private fun ResetDistroConfirmDialog(
         title = {
             Text(
                 text = "重置 ${distro.displayName} 沙箱？",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleMedium,
             )
         },
         text = {
@@ -321,7 +321,7 @@ private fun DeleteDistroConfirmDialog(
         title = {
             Text(
                 text = "删除 ${distro.displayName} 系统？",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleMedium,
             )
         },
         text = {
@@ -408,7 +408,7 @@ private fun DistroItemCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = distro.displayName,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )

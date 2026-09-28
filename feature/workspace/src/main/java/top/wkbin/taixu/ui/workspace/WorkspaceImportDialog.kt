@@ -184,7 +184,7 @@ internal fun ImportProjectDialog(
                             val clonePercent = githubImportProgress?.percent
                             LinearProgressIndicator(
                                 progress = clonePercent?.let { percent -> { percent / 100f } },
-                                modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(3.dp)),
+                                modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(4.dp)),
                             )
                             githubImportProgress?.let { progress ->
                                 Text(

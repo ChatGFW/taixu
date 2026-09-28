@@ -27,7 +27,7 @@ fun SnapshotSheet(state: SnapshotSheetState, onDismiss: () -> Unit) {
         title = {
             Text(
                 "Snapshot · ${state.title.ifBlank { state.url }}",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

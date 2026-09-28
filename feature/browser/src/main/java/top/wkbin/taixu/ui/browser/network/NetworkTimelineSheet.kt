@@ -66,13 +66,13 @@ fun NetworkTimelineSheet(
                     }
                     Text(
                         "请求详情",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                     )
                 }
             } else {
                 Text(
                     "网络时间线",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium,
                 )
             }
         },

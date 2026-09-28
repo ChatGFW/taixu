@@ -494,7 +494,7 @@ private fun FloatingChatPanel(
                                 is AssistantText -> {
                                     Column(
                                         modifier = Modifier.fillMaxWidth(),
-                                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp),
                                     ) {
                                         if (!msg.reasoning.isNullOrBlank()) {
                                             Surface(

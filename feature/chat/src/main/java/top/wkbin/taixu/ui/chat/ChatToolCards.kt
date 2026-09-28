@@ -561,7 +561,7 @@ internal fun DiffStatBadge(
             .clip(RoundedCornerShape(4.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
             .padding(horizontal = 4.dp, vertical = 1.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (added > 0) {

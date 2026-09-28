@@ -1541,10 +1541,10 @@ fun RuntimeCheckbox(
         modifier
             .size(24.dp)
             .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
-            .clip(RoundedCornerShape(7.dp))
+            .clip(RoundedCornerShape(8.dp))
             .drawBackdrop(
                 backdrop = backdrop,
-                shape = { RoundedCornerShape(7.dp) },
+                shape = { RoundedCornerShape(8.dp) },
                 effects = {
                     vibrancy()
                     blur(3.dp.toPx())
@@ -2011,8 +2011,7 @@ fun IconTile(
             modifier = modifier
                 .size(size)
                 .clip(shape)
-                .background(color.copy(alpha = 0.12f))
-                .border(1.dp, color.copy(alpha = 0.22f), shape),
+                .background(color.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center,
         ) {
             RuntimeIcon(icon, Modifier.size(size * 0.48f), tint = color)
@@ -2148,7 +2147,7 @@ fun EmptyPanel(
             IconTile(icon, color = MaterialTheme.colorScheme.primary, size = 48.dp)
             Text(
                 title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(

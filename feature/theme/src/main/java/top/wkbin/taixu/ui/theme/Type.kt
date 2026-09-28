@@ -93,7 +93,8 @@ val AppTypography = Typography(
         fontFamily = AppSans,
         fontSize = 11.sp,
         lineHeight = 16.sp,
-        fontWeight = FontWeight.Bold,
+        // 字重减负：M3 规范 labelSmall 为 Medium，避免全 App 小标签默认加粗
+        fontWeight = FontWeight.Medium,
         letterSpacing = 0.5.sp,
     ),
 )

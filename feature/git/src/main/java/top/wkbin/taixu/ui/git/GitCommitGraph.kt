@@ -102,7 +102,7 @@ internal fun CommitGraphRow(row: GitCommitRow) {
             modifier = Modifier
                 .weight(1f)
                 .padding(vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(1.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

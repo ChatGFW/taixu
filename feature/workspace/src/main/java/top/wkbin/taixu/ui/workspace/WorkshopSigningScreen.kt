@@ -144,7 +144,7 @@ private fun KeystoreRow(keystore: WorkshopKeystore, onDelete: () -> Unit) {
         Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.secondaryContainer) {
             RuntimeIcon(RuntimeIconName.Key, Modifier.padding(9.dp).size(20.dp), MaterialTheme.colorScheme.onSecondaryContainer)
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(keystore.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 "alias ${keystore.alias} · ${keystore.validityYears}y · ${formatDate(keystore.createdAtMillis)}",

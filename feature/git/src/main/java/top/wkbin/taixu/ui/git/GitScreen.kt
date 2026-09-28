@@ -824,7 +824,7 @@ private fun BranchRow(
                 ) {
                     Text(
                         branch.shortName,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.weight(1f, fill = false),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -976,7 +976,7 @@ private fun TagsTab(
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
                                 tag.name,
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                style = MaterialTheme.typography.titleSmall,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -1163,7 +1163,7 @@ private fun ChangesTab(
                                     stagedCount,
                                 )
                             },
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            style = MaterialTheme.typography.labelLarge,
                             color = if (canCommit) commitColor else MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             modifier = Modifier.padding(vertical = 10.dp),
@@ -1185,7 +1185,7 @@ private fun ChangesTab(
                             RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(15.dp), if (canCommit) pushColor else MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(
                                 stringResource(R.string.fgit_commit_push),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                style = MaterialTheme.typography.labelLarge,
                                 color = if (canCommit) pushColor else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }

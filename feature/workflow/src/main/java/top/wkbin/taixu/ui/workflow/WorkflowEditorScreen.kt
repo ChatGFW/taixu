@@ -1088,7 +1088,7 @@ private fun NodeInspectorCard(
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = "💡 节点作用：${meta.summary}",
                         style = MaterialTheme.typography.labelMedium,

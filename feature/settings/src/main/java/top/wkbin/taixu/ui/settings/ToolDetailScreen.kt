@@ -329,9 +329,9 @@ private fun DetailToolAvatar(
     Box(
         modifier = modifier
             .size(size)
-            .clip(RoundedCornerShape(15.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(brandColor.copy(alpha = 0.12f))
-            .border(1.dp, brandColor.copy(alpha = 0.28f), RoundedCornerShape(15.dp)),
+            .border(1.dp, brandColor.copy(alpha = 0.28f), RoundedCornerShape(16.dp)),
         contentAlignment = Alignment.Center,
     ) {
         if (logoRes != null) {
@@ -508,7 +508,7 @@ private fun GatewayManagementCard(
                     )
                     Text(
                         text = "网关服务",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleMedium,
                     )
                 }
                 Row(
@@ -611,7 +611,7 @@ private fun ServiceLogsCard(
                 )
                 Text(
                     text = "服务实时控制台日志",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.titleMedium,
                 )
             }
 
@@ -681,7 +681,7 @@ private fun ServiceLogsCard(
                         .fillMaxSize()
                         .padding(10.dp)
                         .verticalScroll(logScrollState),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     logs.forEach { line ->
                         val textColor = when {
@@ -733,7 +733,7 @@ private fun ModelApplyCard(
                 )
                 Text(
                     text = "模型配置",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.titleMedium,
                 )
             }
             Surface(
@@ -879,7 +879,7 @@ private fun AutoStartCard(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = "随应用自启动",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
                     text = "Linux 环境就绪后自动启动 $toolName 网关服务",
@@ -930,7 +930,7 @@ private fun AccessLinkCard(
                 )
                 Text(
                     text = "访问链接",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.titleMedium,
                 )
             }
 
@@ -1112,7 +1112,7 @@ private fun ToolMetadataCard(
             )
             Text(
                 text = "工具信息",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.titleMedium,
             )
         }
 
@@ -1190,7 +1190,7 @@ private fun ToolMetadataCard(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         manifest.environment.forEach { (key, value) ->
-                            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
                                     text = key,
                                     style = MaterialTheme.typography.labelSmall.copy(
@@ -1263,7 +1263,7 @@ private fun ToolActionsCard(
             )
             Text(
                 text = "操作",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.titleMedium,
             )
         }
 
@@ -1330,7 +1330,7 @@ internal fun UninstallToolConfirmDialog(
         title = {
             Text(
                 text = "卸载 $toolName？",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleMedium,
             )
         },
         text = {

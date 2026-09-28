@@ -413,7 +413,7 @@ internal fun AssistantBubble(
         Toast.makeText(context, context.getString(R.string.chat_response_copied), Toast.LENGTH_SHORT).show()
     }
 
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (!reasoning.isNullOrBlank()) {
             ThinkingBlock(
                 id = message.id,
@@ -1006,7 +1006,7 @@ internal fun ThinkingBlock(
             title = {
                 Text(
                     text = if (isDownloading) "离线翻译模型下载中" else "未下载离线翻译语种包",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.titleMedium,
                 )
             },
             text = {

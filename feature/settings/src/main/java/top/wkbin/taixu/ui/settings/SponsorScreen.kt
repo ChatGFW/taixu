@@ -142,7 +142,7 @@ fun SponsorScreen(
                             }
                             Text(
                                 "感谢你考虑赞助太墟",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.titleMedium,
                             )
                         }
                         Text(
@@ -158,7 +158,7 @@ fun SponsorScreen(
             item {
                 Text(
                     text = "赞助方式",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
@@ -190,7 +190,7 @@ fun SponsorScreen(
             item {
                 Text(
                     text = "回馈与鸣谢",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )

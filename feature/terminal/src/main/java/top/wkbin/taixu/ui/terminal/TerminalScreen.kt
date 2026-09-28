@@ -352,11 +352,11 @@ fun TerminalScreen(
                 var altActive by remember { mutableStateOf(false) }
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         ExtraKey("ESC", Modifier.weight(1f), isAccent = true, hapticsEnabled = hapticsEnabled) {
                             bridge.sendEscape()
@@ -385,7 +385,7 @@ fun TerminalScreen(
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         ExtraKey(
                             "CTRL",
@@ -860,7 +860,7 @@ private fun CloseSessionConfirmDialog(
         title = {
             Text(
                 text = stringResource(R.string.terminal_close_confirm_title),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleMedium,
             )
         },
         text = {
@@ -927,7 +927,7 @@ private fun ExtraKey(
         modifier = modifier
             // Fixed short height → wider-than-tall keys (not square), saves console space.
             .height(28.dp)
-            .clip(RoundedCornerShape(3.dp))
+            .clip(RoundedCornerShape(4.dp))
             .clickable(onClick = {
                 if (hapticsEnabled) {
                     haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
@@ -935,7 +935,7 @@ private fun ExtraKey(
                 onClick()
             }),
         color = bg,
-        shape = RoundedCornerShape(3.dp),
+        shape = RoundedCornerShape(4.dp),
         border = BorderStroke(1.dp, borderCol),
     ) {
         Box(

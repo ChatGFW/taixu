@@ -115,7 +115,7 @@ internal fun ChatComposer(
 ) {
     var showReasoningSlider by rememberSaveable { mutableStateOf(false) }
 
-    // 🌟 任务执行中的极光流光边框动效 (Aurora Glow Border Animation)
+    // 🌟 任务执行中的主题色流光边框动效（原霓虹三色已收敛为主题色单色呼吸）
     val infiniteTransition = rememberInfiniteTransition(label = "capsuleGlowTransition")
     val glowOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -125,15 +125,6 @@ internal fun ChatComposer(
             repeatMode = RepeatMode.Restart,
         ),
         label = "glowOffset",
-    )
-    val glowPulse by infiniteTransition.animateFloat(
-        initialValue = 0.65f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "glowPulse",
     )
 
     val focusRequester = remember { FocusRequester() }
@@ -255,14 +246,13 @@ internal fun ChatComposer(
     )
 
 
-    // 现代化一体化输入胶囊 (Unified Chat Input Capsule with Aurora Glow)
+    // 一体化输入胶囊：运行中用主题色单色流光描边（透明度渐变呼吸，替代原霓虹三色）
     val auroraBrush = if (running) {
         androidx.compose.ui.graphics.Brush.linearGradient(
             colors = listOf(
-                Color(0xFF00E5FF),
-                Color(0xFF7C4DFF),
-                Color(0xFFFF4081),
-                Color(0xFF00E5FF),
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
             ),
             start = androidx.compose.ui.geometry.Offset(glowOffset, 0f),
             end = androidx.compose.ui.geometry.Offset(glowOffset + 600f, 600f),
@@ -278,7 +268,7 @@ internal fun ChatComposer(
                 if (running && auroraBrush != null) {
                     Modifier.border(
                         androidx.compose.foundation.BorderStroke(
-                            (1.2f + 0.3f * glowPulse).dp,
+                            1.5.dp,
                             auroraBrush,
                         ),
                         RoundedCornerShape(20.dp),
@@ -296,7 +286,7 @@ internal fun ChatComposer(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 10.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             // 🌟 常驻/已钉选能力与临时挂载胶囊栏 (Pinned & Attached Capabilities Strip)
             val allDisplayItems = remember(pinnedCapabilities, attachedMentions) {
@@ -317,15 +307,12 @@ internal fun ChatComposer(
                         val isPinned = pinnedCapabilities.any { it.id == item.id }
                         val tagBg = if (isSkill) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
                                     else MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
-                        val tagBorder = if (isSkill) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                                        else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f)
                         val tagColor = if (isSkill) MaterialTheme.colorScheme.primary
                                        else MaterialTheme.colorScheme.tertiary
 
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = tagBg,
-                            border = androidx.compose.foundation.BorderStroke(0.8.dp, tagBorder),
                             modifier = Modifier.clickable {
                                 if (isAttached) {
                                     onRemoveMention(item)
@@ -381,7 +368,7 @@ internal fun ChatComposer(
                             Row(
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 RuntimeIcon(
                                     RuntimeIconName.Plus,

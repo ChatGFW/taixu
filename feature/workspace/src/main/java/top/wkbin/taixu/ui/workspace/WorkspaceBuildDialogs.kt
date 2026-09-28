@@ -201,7 +201,7 @@ internal fun BuildProgressDialog(
                 if (progress.isRunning) {
                     LinearProgressIndicator(
                         progress = { progress.progress },
-                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(4.dp)),
                     )
                 }
                 if (progress.currentDependency != null || progress.dependencyItemsObserved > 0) {
@@ -309,14 +309,14 @@ internal fun BuildProgressDialog(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .height(6.dp)
-                                                .clip(RoundedCornerShape(3.dp))
+                                                .clip(RoundedCornerShape(4.dp))
                                                 .background(MaterialTheme.colorScheme.surfaceVariant),
                                         ) {
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth(barRatio)
                                                     .height(6.dp)
-                                                    .clip(RoundedCornerShape(3.dp))
+                                                    .clip(RoundedCornerShape(4.dp))
                                                     .background(barColor),
                                             )
                                         }
@@ -376,7 +376,7 @@ internal fun BuildProgressDialog(
                                 },
                                 contentPadding = PaddingValues(0.dp),
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     RuntimeIcon(RuntimeIconName.Copy, Modifier.size(12.dp))
                                     Text(stringResource(R.string.workspace_copy_log), style = MaterialTheme.typography.labelSmall)
                                 }
