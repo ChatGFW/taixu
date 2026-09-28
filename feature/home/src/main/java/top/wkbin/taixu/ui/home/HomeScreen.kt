@@ -594,8 +594,10 @@ private fun EnvironmentDoctorCard(
                             }
 
                             // Android 环境未安装：展示离线包 / 在线插件两条获取路径
+                            // UNKNOWN（沙箱正忙探测不可达）不算未安装，不弹引导卡
                             val missingAndroidEnv = report.items.any {
-                                it.id == "android_environment" && it.status != DoctorStatus.HEALTHY
+                                it.id == "android_environment" &&
+                                    (it.status == DoctorStatus.WARNING || it.status == DoctorStatus.ERROR)
                             }
                             if (missingAndroidEnv) {
                                 AndroidEnvAcquisitionCard(
@@ -669,6 +671,7 @@ private fun DoctorItemRow(
         DoctorStatus.HEALTHY -> healthyStatusColor()
         DoctorStatus.WARNING -> warningStatusColor()
         DoctorStatus.ERROR -> MaterialTheme.colorScheme.error
+        DoctorStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
         DoctorStatus.CHECKING -> MaterialTheme.colorScheme.tertiary
     }
 
@@ -676,6 +679,7 @@ private fun DoctorItemRow(
         DoctorStatus.HEALTHY -> RuntimeIconName.Check
         DoctorStatus.WARNING -> RuntimeIconName.Alert
         DoctorStatus.ERROR -> RuntimeIconName.Alert
+        DoctorStatus.UNKNOWN -> RuntimeIconName.Info
         DoctorStatus.CHECKING -> RuntimeIconName.Refresh
     }
 

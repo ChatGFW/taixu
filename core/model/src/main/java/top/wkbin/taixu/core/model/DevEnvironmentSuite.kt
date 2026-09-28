@@ -211,7 +211,9 @@ object BuiltinPluginBundles {
             val packageArg = allAptPackages.joinToString(" ")
             // Runtime configures TUNA ubuntu-ports/debian mirrors. Keep apt
             // retries bounded so a slow mirror does not stall the whole suite.
-            val aptOpts = "-o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+            // ForceIPv4/Languages=en：手机 IPv6 半残防假死 + 跳过 Translation 下载（真机实测）。
+            val aptOpts = "-o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 " +
+                "-o Acquire::ForceIPv4=true -o Acquire::Languages=en"
             steps.add("DEBIAN_FRONTEND=noninteractive apt-get $aptOpts update -y || true")
             steps.add("DEBIAN_FRONTEND=noninteractive apt-get $aptOpts install -y --no-install-recommends $packageArg || DEBIAN_FRONTEND=noninteractive apt-get $aptOpts -f install -y --no-install-recommends && DEBIAN_FRONTEND=noninteractive apt-get $aptOpts install -y --no-install-recommends $packageArg")
         }

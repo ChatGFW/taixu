@@ -76,6 +76,10 @@ class DistroConfigurator(
 
     /**
      * 配置 apt 超时重试以及非交互默认选项，避免后台安装任务被挂起。
+     *
+     * 额外加固（来自真机用户网络环境实测）：
+     * - ForceIPv4：手机 IPv6 半残（能配 v6 路由但出不去）是 apt 卡慢/探测假死的头号元凶；
+     * - Languages=en：跳过约 24MB 的 Translation 翻译文件下载，显著加速 apt update。
      */
     private fun configureAptSettings(distroId: String = "ubuntu") {
         val hookDir = File(pathManager.rootfsDir(distroId), "etc/apt/apt.conf.d")
@@ -86,6 +90,10 @@ class DistroConfigurator(
             Acquire::Retries "3";
             Acquire::http::Timeout "60";
             Acquire::https::Timeout "60";
+            // 手机网络 IPv6 半残时 apt 会长时间假死，强制 IPv4
+            Acquire::ForceIPv4 "true";
+            // 跳过 Translation 翻译文件下载（省约 24MB / 次 apt update）
+            Acquire::Languages "en";
             DPkg::Options {
                "--force-confdef";
                "--force-confold";
