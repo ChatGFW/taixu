@@ -41,7 +41,7 @@ class EnvironmentDoctorTest {
             CommandResult(0, "", "", 1)
         runtime.commandResults["cat /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true"] =
             CommandResult(0, "deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports noble main", "", 1)
-        runtime.commandResults["for t in curl git tar xz; do which \$t >/dev/null 2>&1 || echo \$t; done"] =
+        runtime.commandResults["for t in curl git tar xz file; do which \$t >/dev/null 2>&1 || echo \$t; done"] =
             CommandResult(0, "", "", 1)
         runtime.commandResults["node --version 2>/dev/null || /opt/taixu/bin/node --version 2>/dev/null || /usr/bin/node --version 2>/dev/null"] =
             CommandResult(0, "v22.22.3\n", "", 1)
@@ -76,7 +76,7 @@ class EnvironmentDoctorTest {
             CommandResult(1, "", "not found", 1) // 缺失 CA
         runtime.commandResults["cat /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true"] =
             CommandResult(0, "deb http://ports.ubuntu.com/ubuntu-ports noble main", "", 1) // 官方海外源
-        runtime.commandResults["for t in curl git tar xz; do which \$t >/dev/null 2>&1 || echo \$t; done"] =
+        runtime.commandResults["for t in curl git tar xz file; do which \$t >/dev/null 2>&1 || echo \$t; done"] =
             CommandResult(0, "git\nxz\n", "", 1) // 缺失 git, xz
         runtime.commandResults["node --version 2>/dev/null || /opt/taixu/bin/node --version 2>/dev/null || /usr/bin/node --version 2>/dev/null"] =
             CommandResult(1, "", "not found", 1) // 缺失 node
@@ -104,7 +104,7 @@ class EnvironmentDoctorTest {
         // 错误的 x86 镜像（未带 -ports）
         runtime.commandResults["cat /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true"] =
             CommandResult(0, "deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu noble main restricted", "", 1)
-        runtime.commandResults["for t in curl git tar xz; do which \$t >/dev/null 2>&1 || echo \$t; done"] =
+        runtime.commandResults["for t in curl git tar xz file; do which \$t >/dev/null 2>&1 || echo \$t; done"] =
             CommandResult(0, "", "", 1)
         runtime.commandResults["node --version 2>/dev/null || /opt/taixu/bin/node --version 2>/dev/null || /usr/bin/node --version 2>/dev/null"] =
             CommandResult(0, "v22.22.3\n", "", 1)
@@ -157,7 +157,7 @@ class EnvironmentDoctorTest {
             CommandResult(0, "", "", 1)
         runtime.commandResults["cat /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true"] =
             CommandResult(0, "", "", 1)
-        runtime.commandResults["for t in curl git tar xz; do which \$t >/dev/null 2>&1 || echo \$t; done"] =
+        runtime.commandResults["for t in curl git tar xz file; do which \$t >/dev/null 2>&1 || echo \$t; done"] =
             CommandResult(0, "", "", 1)
         runtime.commandResults["node --version 2>/dev/null || /opt/taixu/bin/node --version 2>/dev/null || /usr/bin/node --version 2>/dev/null"] =
             CommandResult(0, "v22.22.3\n", "", 1)
@@ -205,7 +205,7 @@ class EnvironmentDoctorTest {
             CommandResult(0, "", "", 1)
         runtime.commandResults["cat /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true"] =
             CommandResult(0, "deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports noble main", "", 1)
-        runtime.commandResults["for t in curl git tar xz; do which \$t >/dev/null 2>&1 || echo \$t; done"] =
+        runtime.commandResults["for t in curl git tar xz file; do which \$t >/dev/null 2>&1 || echo \$t; done"] =
             CommandResult(0, "", "", 1)
         runtime.commandResults["node --version 2>/dev/null || /opt/taixu/bin/node --version 2>/dev/null || /usr/bin/node --version 2>/dev/null"] =
             CommandResult(0, "v22.22.3\n", "", 1)

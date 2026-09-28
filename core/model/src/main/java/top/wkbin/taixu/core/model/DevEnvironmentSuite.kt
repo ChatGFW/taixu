@@ -35,7 +35,7 @@ data class PluginBundle(
 object BuiltinPluginBundles {
     /** 基础核心包：始终隐式自动预装，保证 Linux 基础终端与工具可用 */
     val baseRequiredPackages: List<String> = listOf(
-        "curl", "wget", "git", "python3", "ca-certificates", "ripgrep", "fd-find", "fzf", "bat", "jq", "tmux", "tar", "gzip", "xz-utils",
+        "curl", "wget", "git", "python3", "ca-certificates", "ripgrep", "fd-find", "fzf", "bat", "jq", "tmux", "tar", "gzip", "xz-utils", "file",
     )
 
     /** 核心聚合大插件清单 */

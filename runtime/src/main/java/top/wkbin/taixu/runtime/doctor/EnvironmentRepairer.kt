@@ -171,8 +171,8 @@ class EnvironmentRepairer(
                     logs = logs.toList(),
                 ),
             )
-            addLog("[Step 4/5] 安装 ca-certificates, curl, git, tar, xz-utils, procps")
-            val installToolsCmd = "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl git tar xz-utils procps"
+            addLog("[Step 4/5] 安装 ca-certificates, curl, git, tar, xz-utils, procps, file")
+            val installToolsCmd = "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl git tar xz-utils procps file"
             val installToolsRes = executeCommand(installToolsCmd, logs, timeoutMs = 180_000L)
             if (!installToolsRes.isSuccess) {
                 addLog("警告: 基础工具链安装异常: ${installToolsRes.stderr.ifBlank { installToolsRes.stdout }}")

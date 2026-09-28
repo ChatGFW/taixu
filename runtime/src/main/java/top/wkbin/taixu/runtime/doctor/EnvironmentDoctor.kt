@@ -324,7 +324,7 @@ class EnvironmentDoctor(
 
     private suspend fun checkBaseDevTools(): DoctorItem {
         val toolsCheck = probe(
-            commandLine = "for t in curl git tar xz; do which \$t >/dev/null 2>&1 || echo \$t; done",
+            commandLine = "for t in curl git tar xz file; do which \$t >/dev/null 2>&1 || echo \$t; done",
             timeoutMs = 4000L,
         )
 
@@ -345,7 +345,7 @@ class EnvironmentDoctor(
                 category = DoctorCategory.DEV_RUNTIMES,
                 title = "核心基础工具链",
                 status = DoctorStatus.HEALTHY,
-                summary = "Git, Curl, Tar, XZ 等常用工具已就绪",
+                summary = "Git, Curl, Tar, XZ, File 等常用工具已就绪",
             )
         } else {
             DoctorItem(
