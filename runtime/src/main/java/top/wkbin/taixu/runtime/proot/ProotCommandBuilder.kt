@@ -1,6 +1,7 @@
 package top.wkbin.taixu.runtime.proot
 
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.model.StorageMountBinding
 import top.wkbin.taixu.runtime.EnvironmentResolver
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import java.io.File
@@ -28,7 +29,7 @@ class ProotCommandBuilder private constructor(
         tmpDir: File = File(rootfsDir.parentFile, "tmp"),
         attachmentsDir: File = File(rootfsDir.parentFile, "attachments"),
         command: ShellCommand,
-        mounts: List<top.wkbin.taixu.core.model.StorageMountBinding> = emptyList(),
+        mounts: List<StorageMountBinding> = emptyList(),
         emulatorBinary: File? = null,
     ): List<String> = buildList {
         add(prootBinary.absolutePath)
@@ -83,7 +84,7 @@ class ProotCommandBuilder private constructor(
         config: top.wkbin.taixu.runtime.shell.SessionConfig,
         ptyMarker: String? = null,
         nativePty: Boolean = false,
-        mounts: List<top.wkbin.taixu.core.model.StorageMountBinding> = emptyList(),
+        mounts: List<StorageMountBinding> = emptyList(),
         emulatorBinary: File? = null,
     ): List<String> = buildList {
         val columns = config.columns.coerceIn(20, 400)
@@ -220,7 +221,7 @@ class ProotCommandBuilder private constructor(
 
     /** 宿主外部存储映射绑定 (如 /storage/emulated/0/Download -> /sdcard/Download) */
     private fun MutableList<String>.addStorageMountBindings(
-        mounts: List<top.wkbin.taixu.core.model.StorageMountBinding>,
+        mounts: List<StorageMountBinding>,
     ) {
         if (mounts.isNotEmpty()) {
             mounts.filter { it.enabled }.forEach { binding ->
@@ -232,35 +233,21 @@ class ProotCommandBuilder private constructor(
     }
 
     private fun validateStorageMount(
-        binding: top.wkbin.taixu.core.model.StorageMountBinding,
+        binding: StorageMountBinding,
     ): String? {
-        require(':' !in binding.hostPath && '\u0000' !in binding.hostPath) { "宿主挂载路径包含非法字符" }
-        require(':' !in binding.guestPath && '\u0000' !in binding.guestPath) { "容器挂载路径包含非法字符" }
+        // 规则统一收敛在 StorageMountBinding.validationError，与运行时过滤、设置页校验共用。
+        // 此处 require 是防挂载逃逸的最后安全防线：即使 DB 被篡改也不允许越界绑定进入 PRoot。
+        val error = StorageMountBinding.validationError(binding)
+        require(error == null) { error ?: "存储挂载绑定不合法" }
 
-        val guest = normalizeGuestPath(binding.guestPath)
-        require(ALLOWED_GUEST_MOUNT_ROOTS.any { guest == it || guest.startsWith("$it/") }) {
-            "容器挂载仅允许位于 /mnt 或 /sdcard 内"
-        }
-
-        val sharedRoot = File(SHARED_STORAGE_ROOT).canonicalFile
+        val guest = checkNotNull(StorageMountBinding.normalizeGuestPath(binding.guestPath))
         val host = File(binding.hostPath).canonicalFile
-        require(isInside(sharedRoot, host)) { "宿主挂载仅允许位于 $SHARED_STORAGE_ROOT 内" }
         if (!host.isDirectory || !host.canRead()) {
             logWarning("宿主挂载目录不可访问（不存在/非目录/不可读），已跳过绑定：${binding.hostPath}")
             return null
         }
         return "${host.absolutePath}:$guest"
     }
-
-    private fun normalizeGuestPath(path: String): String {
-        require(path.startsWith('/')) { "容器挂载路径必须是绝对路径" }
-        val segments = path.split('/').filter { it.isNotBlank() && it != "." }
-        require(segments.none { it == ".." }) { "容器挂载路径不允许包含 .." }
-        return "/${segments.joinToString("/")}".trimEnd('/').ifBlank { "/" }
-    }
-
-    private fun isInside(root: File, candidate: File): Boolean =
-        candidate == root || candidate.absolutePath.startsWith(root.absolutePath + File.separator)
 
     private companion object {
         const val GUEST_SHELL = "/bin/sh"
@@ -269,8 +256,6 @@ class ProotCommandBuilder private constructor(
         const val LINK2SYMLINK_DIRECTORY = ".l2s"
         val PTY_MARKER = Regex("/opt/taixu/\\.pty-[A-Za-z0-9-]{8,64}")
         val ENVIRONMENT_KEY = Regex("[A-Za-z_][A-Za-z0-9_]*")
-        const val SHARED_STORAGE_ROOT = "/storage/emulated/0"
-        val ALLOWED_GUEST_MOUNT_ROOTS = setOf("/mnt", "/sdcard")
         private val hostBindingsWarningLogged = AtomicBoolean(false)
     }
 }

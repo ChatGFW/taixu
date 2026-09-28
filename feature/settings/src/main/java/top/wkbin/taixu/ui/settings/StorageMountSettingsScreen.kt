@@ -224,6 +224,15 @@ fun StorageMountSettingsScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
+                                // 历史版本可能存入越界路径：运行时会忽略该绑定，这里明确告知用户原因
+                                val bindingError = remember(binding) { StorageMountBinding.validationError(binding) }
+                                if (bindingError != null) {
+                                    Text(
+                                        text = "无效挂载：$bindingError（删除后重新添加）",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
                             }
 
                             Switch(
@@ -356,9 +365,19 @@ private fun AddMountDialog(
     var guestPath by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("/mnt/") }
 
     val nameValid = name.isNotBlank()
-    val hostPathValid = hostPath.startsWith("/")
-    val guestDuplicate = guestPath.trim() in existingGuestPaths
-    val guestPathValid = guestPath.startsWith("/") && !guestDuplicate
+    val trimmedHost = hostPath.trim()
+    val hostCharInvalid = ':' in trimmedHost
+    val hostRootAllowed = StorageMountBinding.isHostPathAllowed(trimmedHost)
+    val hostPathValid = hostPath.isNotBlank() && !hostCharInvalid && hostRootAllowed
+
+    // 与 SettingsViewModel.addCustomMountBinding 的入参归一保持一致：无前导 / 自动补
+    val trimmedGuest = guestPath.trim().let { if (it.startsWith("/")) it else "/$it" }
+    val guestDuplicate = trimmedGuest in existingGuestPaths
+    val guestNormalized = StorageMountBinding.normalizeGuestPath(trimmedGuest)
+    val guestCharInvalid = ':' in trimmedGuest
+    val guestRootAllowed = guestNormalized != null && StorageMountBinding.isGuestPathAllowed(trimmedGuest)
+    val guestPathValid = guestPath.isNotBlank() && guestNormalized != null &&
+        guestRootAllowed && !guestCharInvalid && !guestDuplicate
 
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
@@ -382,7 +401,12 @@ private fun AddMountDialog(
                     placeholder = { Text("/storage/emulated/0/...") },
                     isError = hostPath.isNotBlank() && !hostPathValid,
                     supportingText = {
-                        if (hostPath.isNotBlank() && !hostPathValid) Text("路径必须以 / 开头")
+                        when {
+                            hostPath.isNotBlank() && hostCharInvalid -> Text("宿主路径不能包含冒号等非法字符")
+                            hostPath.isNotBlank() && !hostRootAllowed ->
+                                Text("宿主路径必须位于 /storage/emulated/0 内")
+                            else -> {}
+                        }
                     },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -395,7 +419,11 @@ private fun AddMountDialog(
                     isError = guestPath.isNotBlank() && !guestPathValid,
                     supportingText = {
                         when {
-                            guestPath.isNotBlank() && !guestPath.startsWith("/") -> Text("路径必须以 / 开头")
+                            guestPath.isNotBlank() && !guestPath.trim().startsWith("/") -> Text("路径必须以 / 开头")
+                            guestPath.isNotBlank() && guestNormalized == null -> Text("容器路径不允许包含 ..")
+                            guestPath.isNotBlank() && guestCharInvalid -> Text("容器路径不能包含冒号等非法字符")
+                            guestPath.isNotBlank() && !guestRootAllowed ->
+                                Text("容器路径必须位于 /mnt 或 /sdcard 内")
                             guestDuplicate -> Text("该容器路径已被其他挂载点使用")
                             else -> {}
                         }

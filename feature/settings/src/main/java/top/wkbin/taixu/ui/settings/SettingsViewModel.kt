@@ -1658,7 +1658,12 @@ class SettingsViewModel(
         viewModelScope.launch { runtimePreferences.setMountSharedStorageEnabled(enabled) }
     }
 
-    fun addCustomMountBinding(name: String, hostPath: String, guestPath: String) {
+    /**
+     * 新增自定义挂载绑定。保存前做与运行时一致的安全校验（StorageMountBinding.validationError），
+     * 拒绝越界路径（容器路径必须在 /mnt 或 /sdcard 内、宿主路径必须在共享存储内），
+     * 避免历史版本"先入库、会话启动时才崩"的问题再次发生。
+     */
+    fun addCustomMountBinding(name: String, hostPath: String, guestPath: String): Result<Unit> {
         val binding = top.wkbin.taixu.core.model.StorageMountBinding(
             id = java.util.UUID.randomUUID().toString(),
             name = name.trim().ifBlank { "自定义挂载" },
@@ -1667,7 +1672,12 @@ class SettingsViewModel(
             enabled = true,
             isSystemDefault = false,
         )
+        val error = top.wkbin.taixu.core.model.StorageMountBinding.validationError(binding)
+        if (error != null) {
+            return Result.failure(IllegalArgumentException(error))
+        }
         viewModelScope.launch { storageMountBindingRepository.add(binding) }
+        return Result.success(Unit)
     }
 
     fun removeCustomMountBinding(bindingId: String) {

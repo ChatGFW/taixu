@@ -702,7 +702,19 @@ class LinuxRuntimeImpl(
         if (!sharedEnabled && settingsDataStore.mountDocumentsEnabled.first() && documentsDir.isDirectory && documentsDir.canRead()) {
             add(StorageMountBinding("system-documents", "文档", "/storage/emulated/0/Documents", "/sdcard/Documents", true, true))
         }
-        addAll(storageMountBindingRepository.bindings.first().filter { it.enabled })
+        // 自定义绑定来自用户可编辑的 Room 表，历史版本可能存入越界路径。
+        // 这里必须先行过滤并告警，绝不能让非法绑定流入 ProotCommandBuilder 导致会话启动崩溃；
+        // ProotCommandBuilder 内的 require 仅作为防挂载逃逸的最后安全防线。
+        storageMountBindingRepository.bindings.first().forEach { binding ->
+            if (!binding.enabled) return@forEach
+            val error = StorageMountBinding.validationError(binding)
+            if (error == null) {
+                add(binding)
+            } else {
+                logger.w("忽略非法存储挂载绑定（请在存储挂载设置中删除后重建） id=${binding.id} " +
+                    "host=${binding.hostPath} guest=${binding.guestPath}: $error")
+            }
+        }
     }
 
     private suspend fun resizePty(markerPath: String, columns: Int, rows: Int, distroId: String = "ubuntu") {
