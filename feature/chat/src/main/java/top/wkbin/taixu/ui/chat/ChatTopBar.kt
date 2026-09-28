@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -45,6 +46,7 @@ internal fun ChatTopBar(
     distroDisplayName: String,
     activeModel: AiModelEntity?,
     approvalMode: ApprovalMode,
+    runMode: RunMode,
     currentBranch: ConversationBranch?,
     runtimeEvents: List<HarnessEvent>,
     running: Boolean,
@@ -52,6 +54,7 @@ internal fun ChatTopBar(
     onOpenSessions: () -> Unit,
     onOpenModels: () -> Unit,
     onOpenApprovalModes: () -> Unit,
+    onOpenRunModes: () -> Unit,
     onOpenBranches: () -> Unit,
     onOpenRuntime: () -> Unit,
     onOpenBrowser: (() -> Unit)? = null,
@@ -144,11 +147,13 @@ internal fun ChatTopBar(
         CollapsibleChatWorkbenchStrip(
             activeModel = activeModel,
             approvalMode = approvalMode,
+            runMode = runMode,
             currentBranch = currentBranch,
             runtimeEvents = runtimeEvents,
             running = running,
             onOpenModels = onOpenModels,
             onOpenApprovalModes = onOpenApprovalModes,
+            onOpenRunModes = onOpenRunModes,
             onOpenBranches = onOpenBranches,
             onOpenRuntime = onOpenRuntime,
             onOpenBrowser = onOpenBrowser,

@@ -323,6 +323,7 @@ class HarnessLoop(
                 workspace = workspace,
                 projectType = projectType,
                 approvalMode = approvalRepository.currentMode().id,
+                runMode = approvalRepository.currentRunMode().id,
             ),
         )
         messageProjector.seedEmpty(id)

@@ -6,6 +6,7 @@ import top.wkbin.taixu.core.tools.AiProfileWriter
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.core.model.McpConnectionState
 import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
@@ -458,6 +459,15 @@ class ChatViewModel(
         if (sessionId.isBlank()) return
         viewModelScope.launch {
             sessionDao.setApprovalMode(sessionId, mode.id, System.currentTimeMillis())
+        }
+    }
+
+    /** 切换当前会话的运行意图（BUILD / PLAN）；下次工具调用即按新模式门禁。 */
+    fun setCurrentSessionRunMode(mode: RunMode) {
+        val sessionId = currentSessionId.value
+        if (sessionId.isBlank()) return
+        viewModelScope.launch {
+            sessionDao.setRunMode(sessionId, mode.id, System.currentTimeMillis())
         }
     }
 

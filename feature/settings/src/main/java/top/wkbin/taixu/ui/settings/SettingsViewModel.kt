@@ -807,6 +807,9 @@ class SettingsViewModel(
     val approvalMode: StateFlow<top.wkbin.taixu.core.model.ApprovalMode> = approvalRepository.mode
         .stateIn(viewModelScope, SharingStarted.Eagerly, top.wkbin.taixu.core.model.ApprovalMode.ASSISTED)
 
+    val runMode: StateFlow<top.wkbin.taixu.core.model.RunMode> = approvalRepository.runMode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, top.wkbin.taixu.core.model.RunMode.BUILD)
+
     val contextBudgetTokens: StateFlow<Int> = agentPreferences.contextBudgetTokens
         .stateIn(viewModelScope, SharingStarted.Eagerly, 128_000)
 
@@ -1033,6 +1036,12 @@ class SettingsViewModel(
             // 否则执行层（ToolExecutor 优先读会话模式）仍按旧模式要求审批。
             sessionDao.setApprovalModeForAll(mode.id, System.currentTimeMillis())
         }
+    }
+
+    fun setRunMode(mode: top.wkbin.taixu.core.model.RunMode) {
+        // 仅作为新建会话的初始值，不传导到已有会话：运行意图是会话内的临时选择，
+        // 聊天顶部可随时单独切换，全局改动若覆盖会丢失用户的显式设置。
+        viewModelScope.launch { approvalRepository.setRunMode(mode) }
     }
 
     fun setContextBudgetTokens(value: Int) {

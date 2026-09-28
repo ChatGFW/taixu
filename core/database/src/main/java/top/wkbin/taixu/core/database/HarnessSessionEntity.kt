@@ -55,6 +55,9 @@ interface HarnessSessionDao {
     @Query("UPDATE harness_sessions SET approvalMode = :approvalMode, updatedAt = :updatedAt")
     suspend fun setApprovalModeForAll(approvalMode: String, updatedAt: Long)
 
+    @Query("UPDATE harness_sessions SET runMode = :runMode, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun setRunMode(id: String, runMode: String, updatedAt: Long)
+
     @Query("UPDATE harness_sessions SET modelId = :modelId, modelVariant = :modelVariant, updatedAt = :updatedAt WHERE id = :id")
     suspend fun setModelSelection(id: String, modelId: String?, modelVariant: String?, updatedAt: Long)
 

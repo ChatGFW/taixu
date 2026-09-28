@@ -74,6 +74,7 @@ import top.wkbin.taixu.core.model.AgentSkill
 import top.wkbin.taixu.core.model.AgentSubagent
 import top.wkbin.taixu.core.model.AgentDepartments
 import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -102,6 +103,7 @@ fun AgentSettingsScreen(
     val commandOutputCompressionEnabled by viewModel.commandOutputCompressionEnabled.collectAsStateWithLifecycle()
     val baseCommandTimeoutSeconds by viewModel.baseCommandTimeoutSeconds.collectAsStateWithLifecycle()
     val approvalMode by viewModel.approvalMode.collectAsStateWithLifecycle()
+    val runMode by viewModel.runMode.collectAsStateWithLifecycle()
     val maxToolsPerRound by viewModel.maxToolsPerRound.collectAsStateWithLifecycle()
     val maxConsecutiveFailures by viewModel.maxConsecutiveFailures.collectAsStateWithLifecycle()
     val contextBudgetTokens by viewModel.contextBudgetTokens.collectAsStateWithLifecycle()
@@ -251,6 +253,11 @@ fun AgentSettingsScreen(
                     ApprovalModeSelectorRow(
                         mode = approvalMode,
                         onModeChange = viewModel::setApprovalMode,
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    RunModeSelectorRow(
+                        mode = runMode,
+                        onModeChange = viewModel::setRunMode,
                     )
                 }
             }
@@ -886,9 +893,9 @@ private fun ApprovalModeSelectorRow(
                 RuntimeIcon(RuntimeIconName.Shield, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("新会话默认工具权限", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                Text("全局工具权限", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
                 Text(
-                    "仅作为新建会话初始值，已存在会话可在聊天顶部单独切换。",
+                    "修改后立即同步覆盖所有会话；聊天顶部的单独切换会被下一次全局修改覆盖。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -899,6 +906,48 @@ private fun ApprovalModeSelectorRow(
                 ApprovalMode.REQUEST to "请求批准",
                 ApprovalMode.ASSISTED to "帮我批准",
                 ApprovalMode.FULL_ACCESS to "完全访问",
+            ).forEach { (value, label) ->
+                FilterChip(
+                    selected = mode == value,
+                    onClick = { onModeChange(value) },
+                    label = { Text(label) },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RunModeSelectorRow(
+    mode: RunMode,
+    onModeChange: (RunMode) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                RuntimeIcon(RuntimeIconName.Code, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("新会话默认运行意图", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                Text(
+                    "仅作为新建会话初始值，已存在会话可在聊天顶部单独切换。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(
+                RunMode.BUILD to "构建",
+                RunMode.PLAN to "规划",
             ).forEach { (value, label) ->
                 FilterChip(
                     selected = mode == value,

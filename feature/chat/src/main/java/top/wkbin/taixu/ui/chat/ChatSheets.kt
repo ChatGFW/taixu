@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.core.model.McpConnectionState
@@ -741,5 +742,104 @@ internal fun ApprovalModeSheet(
             }
         }
     }
+}
+
+/**
+ * 运行意图选择底部弹层（构建 / 规划）。
+ *
+ * 与审批权限模式正交：本层决定「这一轮动手还是只看」，审批模式决定「要不要问」。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun RunModeSheet(
+    currentRunMode: RunMode,
+    onSelect: (RunMode) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = stringResource(R.string.chat_menu_run_mode),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                IconButton(
+                    onClick = onDismiss,
+                    contentDescription = stringResource(R.string.chat_close),
+                ) {
+                    RuntimeIcon(RuntimeIconName.Close, Modifier.size(20.dp))
+                }
+            }
+
+            Text(
+                text = stringResource(R.string.chat_run_mode_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            listOf(
+                Triple(RunMode.BUILD, stringResource(R.string.chat_run_mode_build_title), stringResource(R.string.chat_run_mode_build_description)),
+                Triple(RunMode.PLAN, stringResource(R.string.chat_run_mode_plan_title), stringResource(R.string.chat_run_mode_plan_description)),
+            ).forEach { (mode, title, desc) ->
+                val isSelected = mode == currentRunMode
+                Surface(
+                    onClick = { onSelect(mode) },
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(
+                        1.dp,
+                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        RuntimeIcon(
+                            name = if (isSelected) RuntimeIconName.Check else runModeIcon(mode),
+                            modifier = Modifier.size(22.dp),
+                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = desc,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 运行意图图标：构建=写代码，规划=只读检索。 */
+internal fun runModeIcon(mode: RunMode): RuntimeIconName = when (mode) {
+    RunMode.BUILD -> RuntimeIconName.Code
+    RunMode.PLAN -> RuntimeIconName.Search
 }
 

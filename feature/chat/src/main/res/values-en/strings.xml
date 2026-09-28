@@ -27,6 +27,8 @@
     <string name="chat_approval_request">Request approval</string>
     <string name="chat_approval_assisted">Assisted</string>
     <string name="chat_approval_full_access">Full access</string>
+    <string name="chat_run_mode_build">Build</string>
+    <string name="chat_run_mode_plan">Plan</string>
     <string name="chat_title">Agent</string>
     <string name="chat_default_workspace">Default workspace</string>
     <string name="chat_status">%1$s · %2$s</string>
@@ -34,6 +36,8 @@
     <string name="chat_approval_request_description">Ask before all writes, commands, and external tool calls</string>
     <string name="chat_approval_assisted_description">Run routine development actions automatically and ask for risky operations</string>
     <string name="chat_approval_full_access_description">Run tools without approval prompts</string>
+    <string name="chat_run_mode_build_description">Execute normally; tools follow the approval mode</string>
+    <string name="chat_run_mode_plan_description">Read-only planning; state-changing tools are blocked</string>
     <string name="chat_attachment_files_prompt">Analyze the following attached files:</string>
     <string name="chat_attachment_images_prompt">Analyze the attached images:</string>
     <string name="chat_attachment_mount_header">\n\n[Attachments copied and mounted in the Linux sandbox]\n</string>
@@ -347,6 +351,11 @@
     <string name="chat_approval_request_title">Ask mode (safe)</string>
     <string name="chat_approval_assisted_title">Assisted mode (semi-auto)</string>
     <string name="chat_approval_full_access_title">Full access (fastest)</string>
+    <!-- Run intent selection -->
+    <string name="chat_menu_run_mode">Run intent</string>
+    <string name="chat_run_mode_hint">Decides whether the agent acts or only plans this round. Orthogonal to the approval mode above — they can combine, e.g. "Full access + Plan":</string>
+    <string name="chat_run_mode_build_title">Build mode (act)</string>
+    <string name="chat_run_mode_plan_title">Plan mode (read-only)</string>
     <!-- Capability chips & badges -->
     <string name="chat_pinned_badge">Pinned</string>
     <string name="chat_attach_button">Mount</string>

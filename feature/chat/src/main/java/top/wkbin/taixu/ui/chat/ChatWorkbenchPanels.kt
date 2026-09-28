@@ -65,6 +65,7 @@ import top.wkbin.taixu.core.database.AgentMemoryEntity
 import top.wkbin.taixu.core.database.AgentScratchpadEntity
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.QueuedPrompt
 import top.wkbin.taixu.harness.AssistantText
@@ -88,11 +89,13 @@ import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 internal fun CollapsibleChatWorkbenchStrip(
     activeModel: AiModelEntity?,
     approvalMode: ApprovalMode,
+    runMode: RunMode,
     currentBranch: ConversationBranch?,
     runtimeEvents: List<HarnessEvent>,
     running: Boolean,
     onOpenModels: () -> Unit,
     onOpenApprovalModes: () -> Unit,
+    onOpenRunModes: () -> Unit,
     onOpenBranches: () -> Unit,
     onOpenRuntime: () -> Unit,
     modifier: Modifier = Modifier,
@@ -110,6 +113,12 @@ internal fun CollapsibleChatWorkbenchStrip(
         ApprovalMode.FULL_ACCESS -> R.string.chat_approval_full_access to Color(0xFFE65100)
         ApprovalMode.ASSISTED -> R.string.chat_approval_assisted to Color(0xFF1976D2)
         ApprovalMode.REQUEST -> R.string.chat_approval_request to Color(0xFF388E3C)
+    }
+
+    val (runModeLabelRes, runModeColor) = when (runMode) {
+        RunMode.BUILD -> R.string.chat_run_mode_build to Color(0xFF546E7A)
+        // 规划模式用紫色以区别于审批模式的三色，并提示"当前只看不动"
+        RunMode.PLAN -> R.string.chat_run_mode_plan to Color(0xFF7B1FA2)
     }
 
     Surface(
@@ -141,6 +150,16 @@ internal fun CollapsibleChatWorkbenchStrip(
                 label = stringResource(modeLabelRes),
                 tint = modeColor,
                 onClick = onOpenApprovalModes,
+            )
+
+            StatusDivider()
+
+            // 2b. 运行意图项（构建 / 规划），与审批模式正交
+            WorkbenchStatusItem(
+                icon = runModeIcon(runMode),
+                label = stringResource(runModeLabelRes),
+                tint = runModeColor,
+                onClick = onOpenRunModes,
             )
 
             StatusDivider()

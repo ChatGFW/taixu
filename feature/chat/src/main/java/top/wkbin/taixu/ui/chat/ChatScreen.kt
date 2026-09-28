@@ -75,6 +75,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ToolCall
@@ -192,6 +193,7 @@ fun ChatScreen(
     var showNewSession by rememberSaveable { mutableStateOf(false) }
     var showModels by rememberSaveable { mutableStateOf(false) }
     var showApprovalModes by rememberSaveable { mutableStateOf(false) }
+    var showRunModes by rememberSaveable { mutableStateOf(false) }
     var showSkillsMcpSheet by rememberSaveable { mutableStateOf(false) }
     var showBranches by rememberSaveable { mutableStateOf(false) }
     var showRuntimeTimeline by rememberSaveable { mutableStateOf(false) }
@@ -221,6 +223,7 @@ fun ChatScreen(
         )
     }
     val currentApprovalMode = remember(currentSession?.approvalMode) { ApprovalMode.fromId(currentSession?.approvalMode) }
+    val currentRunMode = remember(currentSession?.runMode) { RunMode.fromId(currentSession?.runMode) }
     val activeWorkspaceProject = remember(workspace, workspaces) {
         workspaces.firstOrNull { it.linuxPath == workspace }
     }
@@ -387,6 +390,7 @@ fun ChatScreen(
                 distroDisplayName = distroDisplayName,
                 activeModel = activeModel,
                 approvalMode = currentApprovalMode,
+                runMode = currentRunMode,
                 currentBranch = currentBranch,
                 runtimeEvents = runtimeEvents,
                 running = running,
@@ -394,6 +398,7 @@ fun ChatScreen(
                 onOpenSessions = { showSessions = true },
                 onOpenModels = { showModels = true },
                 onOpenApprovalModes = { showApprovalModes = true },
+                onOpenRunModes = { showRunModes = true },
                 onOpenBranches = { showBranches = true },
                 onOpenRuntime = { showRuntimeTimeline = true },
                 onOpenBrowser = onOpenBrowser,
@@ -875,6 +880,17 @@ fun ChatScreen(
                 showApprovalModes = false
             },
             onDismiss = { showApprovalModes = false },
+        )
+    }
+
+    if (showRunModes) {
+        RunModeSheet(
+            currentRunMode = currentRunMode,
+            onSelect = { mode ->
+                viewModel.setCurrentSessionRunMode(mode)
+                showRunModes = false
+            },
+            onDismiss = { showRunModes = false },
         )
     }
 

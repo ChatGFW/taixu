@@ -34,6 +34,8 @@
     <string name="chat_approval_request">请求批准</string>
     <string name="chat_approval_assisted">帮我批准</string>
     <string name="chat_approval_full_access">完全访问</string>
+    <string name="chat_run_mode_build">构建</string>
+    <string name="chat_run_mode_plan">规划</string>
     <string name="chat_title">智枢</string>
     <string name="chat_default_workspace">默认工作区</string>
     <string name="chat_status">%1$s · %2$s</string>
@@ -41,6 +43,8 @@
     <string name="chat_approval_request_description">所有写入、命令和外部工具调用先询问</string>
     <string name="chat_approval_assisted_description">常规开发自动执行，高风险操作询问</string>
     <string name="chat_approval_full_access_description">直接执行工具，不弹出审批</string>
+    <string name="chat_run_mode_build_description">正常执行，工具按审批权限模式走</string>
+    <string name="chat_run_mode_plan_description">只读规划，改状态的工具一律拦截</string>
     <string name="chat_attachment_files_prompt">请分析并处理以下附带的文件：</string>
     <string name="chat_attachment_images_prompt">请分析附带的图片：</string>
     <string name="chat_attachment_mount_header">\n\n[附件：已复制并挂载到 Linux 沙箱]\n</string>
@@ -400,6 +404,11 @@
     <string name="chat_approval_request_title">询问模式 (安全严谨)</string>
     <string name="chat_approval_assisted_title">辅助模式 (半自动)</string>
     <string name="chat_approval_full_access_title">全自动模式 (极速通行)</string>
+    <!-- 运行意图选择 -->
+    <string name="chat_menu_run_mode">运行意图</string>
+    <string name="chat_run_mode_hint">决定 Agent 这一轮是动手执行还是只做规划，与上方的审批权限模式互不影响（可叠加，如「完全访问 + 规划」）：</string>
+    <string name="chat_run_mode_build_title">构建模式 (动手执行)</string>
+    <string name="chat_run_mode_plan_title">规划模式 (只看不动)</string>
     <!-- 能力胶囊与徽章 -->
     <string name="chat_pinned_badge">常驻</string>
     <string name="chat_attach_button">挂载</string>
