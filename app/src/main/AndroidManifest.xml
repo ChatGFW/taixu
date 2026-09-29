@@ -141,6 +141,15 @@
         <receiver
             android:name=".service.adb.AdbNotificationReceiver"
             android:exported="false" />
+        <!-- Shower 虚拟屏：接收 shower-server（shell uid 独立进程）广播交出的 IShowerService Binder，
+             必须 exported=true（发送方不在本应用进程）；action 与预编译 shower-server.jar 内协议绑定，不可改名 -->
+        <receiver
+            android:name="top.wkbin.taixu.runtime.virtualdisplay.ShowerBinderReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.ai.assistance.operit.action.SHOWER_BINDER_READY" />
+            </intent-filter>
+        </receiver>
         <service
             android:name="top.wkbin.taixu.ui.chat.floating.FloatingChatService"
             android:exported="false" />

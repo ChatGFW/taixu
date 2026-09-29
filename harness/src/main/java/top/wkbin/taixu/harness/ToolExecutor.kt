@@ -27,6 +27,11 @@ import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.runtime.privilege.ShizukuSystemApis
 import top.wkbin.taixu.runtime.apps.AndroidAppManager
 import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
+import top.wkbin.taixu.runtime.gui.GuiKey
+import top.wkbin.taixu.runtime.gui.GuiPrimitive
+import top.wkbin.taixu.runtime.gui.ScrollDirection
+import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayCoordinator
+import top.wkbin.taixu.runtime.virtualdisplay.VirtualScreenToolkit
 import top.wkbin.taixu.core.database.AndroidAppRepository
 import top.wkbin.taixu.core.model.ExecutionMode
 import java.io.File
@@ -37,6 +42,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
@@ -68,6 +75,8 @@ class ToolExecutor(
     private val androidAppRepository: AndroidAppRepository? = null,
     private val shizukuApis: ShizukuSystemApis? = null,
     private val hostGuiController: top.wkbin.taixu.runtime.gui.HostGuiController? = null,
+    private val virtualDisplayCoordinator: VirtualDisplayCoordinator? = null,
+    private val virtualScreenToolkit: VirtualScreenToolkit? = null,
     private val buildScriptToolExecutor: BuildScriptToolExecutor? = null,
     private val promptRouter: top.wkbin.taixu.harness.prompt.PromptRouter? = null,
     private val checkpointStore: top.wkbin.taixu.harness.checkpoint.CheckpointStore? = null,
@@ -643,6 +652,104 @@ class ToolExecutor(
                     onSuccess = { msg -> true to msg },
                     onFailure = { err -> false to err.message.orEmpty() }
                 )
+            }
+            "virtual_screen_ensure" -> {
+                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
+                val session = optionalSession(args)
+                val displayId = coordinator.ensureVirtualDisplay(session)
+                if (displayId == null) {
+                    false to "虚拟屏创建失败（session=$session）：需要 Shizuku 或 Root 模式，请先在设置中授权"
+                } else {
+                    true to "虚拟屏已就绪：session=$session displayId=$displayId（尺寸与主屏一致）；" +
+                        "接下来用 virtual_screen_launch 启动应用，virtual_screen_screenshot 截图识图"
+                }
+            }
+            "virtual_screen_launch" -> {
+                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
+                val session = optionalSession(args)
+                val packageName = requireHostIdentifier(args, "package", PACKAGE_NAME)
+                if (coordinator.getDisplayId(session) == null &&
+                    coordinator.ensureVirtualDisplay(session) == null
+                ) {
+                    return false to "虚拟屏创建失败（session=$session）：需要 Shizuku 或 Root 模式"
+                }
+                val res = coordinator.launchApp(session, packageName)
+                if (res) {
+                    true to "已在虚拟屏启动应用：$packageName（session=$session " +
+                        "displayId=${coordinator.getDisplayId(session)}）；应用画面不会出现在主屏"
+                } else {
+                    false to "虚拟屏启动应用失败：$packageName（检查包名是否为已安装应用）"
+                }
+            }
+            "virtual_screen_screenshot" -> {
+                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
+                val session = optionalSession(args)
+                if (coordinator.getDisplayId(session) == null) {
+                    return false to "虚拟屏未创建（session=$session）：先调用 virtual_screen_ensure"
+                }
+                val targetPath = requireString(args, "path")
+                val png = coordinator.requestScreenshot(session)
+                    ?: return false to "虚拟屏截图失败（session=$session）：server 未响应或已退出"
+                runCatching {
+                    val file = File(targetPath)
+                    file.parentFile?.mkdirs()
+                    file.writeBytes(png)
+                }.fold(
+                    onSuccess = { true to "虚拟屏截图已保存至 $targetPath（${png.size} 字节），可用 read 查看图片" },
+                    onFailure = { err -> false to "截图写入失败：${err.message}" }
+                )
+            }
+            "virtual_screen_click",
+            "virtual_screen_double_click",
+            "virtual_screen_long_press",
+            "virtual_screen_swipe",
+            "virtual_screen_scroll",
+            "virtual_screen_key",
+            -> {
+                val toolkit = virtualScreenToolkit ?: return false to "未初始化虚拟屏工具"
+                val session = optionalSession(args)
+                val primitive = when (action) {
+                    "virtual_screen_click" ->
+                        GuiPrimitive.Tap(requireInt(args, "x"), requireInt(args, "y"))
+                    "virtual_screen_double_click" ->
+                        GuiPrimitive.DoubleTap(requireInt(args, "x"), requireInt(args, "y"))
+                    "virtual_screen_long_press" -> GuiPrimitive.LongPress(
+                        x = requireInt(args, "x"),
+                        y = requireInt(args, "y"),
+                        durationMs = optionalLong(args, "duration_ms", 800L, 200L, 5_000L),
+                    )
+                    "virtual_screen_swipe" -> GuiPrimitive.Swipe(
+                        x1 = requireInt(args, "x1"),
+                        y1 = requireInt(args, "y1"),
+                        x2 = requireInt(args, "x2"),
+                        y2 = requireInt(args, "y2"),
+                        durationMs = optionalLong(args, "duration_ms", 300L, 50L, 5_000L),
+                    )
+                    "virtual_screen_scroll" -> GuiPrimitive.Scroll(
+                        direction = when (args["direction"]?.jsonPrimitive?.contentOrNull?.lowercase()) {
+                            "up" -> ScrollDirection.UP
+                            "down" -> ScrollDirection.DOWN
+                            "left" -> ScrollDirection.LEFT
+                            "right" -> ScrollDirection.RIGHT
+                            else -> return false to "screen_scroll 需要 direction: up/down/left/right"
+                        },
+                        distanceRatio = args["distance_ratio"]?.jsonPrimitive?.doubleOrNull?.toFloat() ?: 0.45f,
+                        durationMs = optionalLong(args, "duration_ms", 350L, 50L, 5_000L),
+                    )
+                    else -> {
+                        val key = GuiKey.parse(requireString(args, "key"))
+                            ?: return false to "未知按键：支持 back/home/recents/enter/delete/paste/power"
+                        GuiPrimitive.Key(key)
+                    }
+                }
+                val result = toolkit.execute(session, primitive)
+                result.success to result.message
+            }
+            "virtual_screen_close" -> {
+                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
+                val session = optionalSession(args)
+                coordinator.closeSession(session)
+                true to "已关闭虚拟屏会话：$session"
             }
             else -> {
                 val packageName = if (action in APP_DATABASE_GUARDED_ACTIONS || action == "app_grant_permission") {
@@ -1424,8 +1531,14 @@ class ToolExecutor(
         return value
     }
 
+    /** virtual_screen_* 的可选会话 ID（默认 default，不同会话对应独立虚拟屏）。 */
+    private fun optionalSession(args: JsonObject): String =
+        args["session"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: VIRTUAL_SCREEN_DEFAULT_SESSION
+
     companion object {
         const val MIN_BASE_TIMEOUT_SECONDS = 1L
+        /** virtual_screen_* 的默认会话 ID。 */
+        const val VIRTUAL_SCREEN_DEFAULT_SESSION = "default"
         // 前台单命令上限 15min：防模型把 timeout_seconds 拉到 1h 导致界面长时间"像卡死"；
         // 超过 15min 的全量编译/长构建应走后台 process（其 Long.MAX_VALUE 有 stop 管理，属合理设计）。
         const val MAX_BASE_TIMEOUT_SECONDS = 900L

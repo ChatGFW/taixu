@@ -32,6 +32,8 @@ import top.wkbin.taixu.runtime.gui.WorkflowGuiHudBridge
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.runtime.privilege.ShizukuHostServiceClient
 import top.wkbin.taixu.runtime.privilege.ShizukuSystemApis
+import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayCoordinator
+import top.wkbin.taixu.runtime.virtualdisplay.VirtualScreenToolkit
 import top.wkbin.taixu.runtime.proot.ProotInstaller
 import top.wkbin.taixu.runtime.pty.NativePtyManager
 import top.wkbin.taixu.runtime.pty.ScriptPtyManager
@@ -228,6 +230,23 @@ val runtimeModule = module {
             settingsDataStore = get(),
             logger = get(),
             shizukuHostServiceClient = get(),
+        )
+    }
+
+    // 虚拟屏门面：首次 get 时把 ShellRunner 装配进 ShowerEnvironment（showerclient 注入点）
+    single<VirtualDisplayCoordinator> {
+        VirtualDisplayCoordinator(
+            context = get(),
+            privilegeManager = get(),
+            logger = get(),
+        )
+    }
+
+    // 虚拟屏 GUI 原语执行器：复用 GuiPrimitive，定向到指定会话的 Shower 虚拟屏
+    single<VirtualScreenToolkit> {
+        VirtualScreenToolkit(
+            context = get(),
+            coordinator = get(),
         )
     }
 

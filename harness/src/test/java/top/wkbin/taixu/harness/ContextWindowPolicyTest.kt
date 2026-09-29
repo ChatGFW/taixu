@@ -636,7 +636,10 @@ class ContextWindowPolicyTest {
 
     @Test
     fun `foldingLimitFor subtracts system reserve and schema like the engine`() {
-        val budget = 18_000
+        // budget 需满足：折叠线 = budget*ratio - systemTokens - OUTPUT_RESERVE - SCHEMA_RESERVE
+        // 放得下最新一两轮历史、又放不下全部 24 对消息（保证 keepFrom > 0）。
+        // SCHEMA_RESERVE 抬至 5,900 后 18k 样本的折叠线仅剩 108（低于最小保留单元），故用 20k。
+        val budget = 20_000
         val ratio = 80
         val systemTokens = 200
         val limit = ContextWindowPolicy.foldingLimitFor(budget, ratio, systemTokens)

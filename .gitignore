@@ -39,6 +39,9 @@ Desktop.ini
 .env.*
 !.env.example
 
+# Temporary third-party repo clones (Operit analysis workspace)
+.tmp_operit_analysis/
+
 # Locally downloaded offline-plugin SDK archives (about 1.6 GiB).
 # Keep manifests, scripts, checksums and download instructions versioned.
 assets/plugins/android-suite-offline/payload/archives/
