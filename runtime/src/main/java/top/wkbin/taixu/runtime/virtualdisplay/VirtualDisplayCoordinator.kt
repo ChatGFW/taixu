@@ -1,6 +1,7 @@
 package top.wkbin.taixu.runtime.virtualdisplay
 
 import android.content.Context
+import android.provider.Settings
 import com.ai.assistance.showerclient.ShowerBinderRegistry
 import com.ai.assistance.showerclient.ShowerController
 import com.ai.assistance.showerclient.ShowerEnvironment
@@ -95,9 +96,30 @@ class VirtualDisplayCoordinator(
     ): ByteArray? = controller(sessionId).requestScreenshot(timeoutMs)
 
     /**
+     * 显示指定会话的虚拟屏可视化悬浮窗（视频流 + 触摸回传）。
+     *
+     * @return false 表示缺少「显示在其他应用上层」权限（Settings.canDrawOverlays），
+     *         调用方应引导用户到系统设置开启后重试
+     */
+    fun showOverlay(sessionId: String = DEFAULT_SESSION_ID): Boolean {
+        if (!Settings.canDrawOverlays(context)) return false
+        if (getDisplayId(sessionId) == null) return false
+        VirtualDisplayHud.show(context, sessionId, this)
+        return true
+    }
+
+    /** 隐藏虚拟屏可视化悬浮窗（未显示时为幂等空操作）。 */
+    fun hideOverlay() {
+        VirtualDisplayHud.hide()
+    }
+
+    /**
      * 销毁指定会话的虚拟屏并释放本地状态；server 进程由其空闲看护（15s 无客户端）自行退出。
      */
     suspend fun closeSession(sessionId: String) {
+        if (VirtualDisplayHud.showingSessionId == sessionId) {
+            hideOverlay()
+        }
         val controller = sessions.remove(sessionId) ?: return
         runCatching { controller.shutdown() }
             .onFailure { logger.w("关闭虚拟屏会话失败 (session=$sessionId): ${it.message}") }

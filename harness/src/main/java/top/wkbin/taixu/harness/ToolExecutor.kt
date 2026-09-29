@@ -751,6 +751,25 @@ class ToolExecutor(
                 coordinator.closeSession(session)
                 true to "已关闭虚拟屏会话：$session"
             }
+            "virtual_screen_show" -> {
+                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
+                val session = optionalSession(args)
+                if (coordinator.getDisplayId(session) == null &&
+                    coordinator.ensureVirtualDisplay(session) == null
+                ) {
+                    return false to "虚拟屏创建失败（session=$session）：需要 Shizuku 或 Root 模式"
+                }
+                if (coordinator.showOverlay(session)) {
+                    true to "已显示虚拟屏实时悬浮窗（session=$session）：用户可观看画面并直接触摸干预"
+                } else {
+                    false to "悬浮窗权限未授予：请引导用户在系统设置中允许「显示在其他应用上层」后重试"
+                }
+            }
+            "virtual_screen_hide" -> {
+                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
+                coordinator.hideOverlay()
+                true to "已隐藏虚拟屏悬浮窗（虚拟屏会话不受影响，仍可继续操作）"
+            }
             else -> {
                 val packageName = if (action in APP_DATABASE_GUARDED_ACTIONS || action == "app_grant_permission") {
                     requireHostIdentifier(args, "package", PACKAGE_NAME)
