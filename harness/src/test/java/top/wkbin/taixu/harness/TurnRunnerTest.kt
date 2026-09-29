@@ -203,4 +203,52 @@ class TurnRunnerTest {
         assertTrue(published)
         assertFalse(consumed)
     }
+
+    @Test
+    fun `near blank response with residual reasoning fails instead of completing silently`() = runBlocking {
+        var consumed = false
+        val outcome = runner.run(
+            toolsEnabled = true,
+            callProvider = {
+                // 复现线上事故：中转截断产生的空壳响应——正文与工具全空，reasoning 只剩 2~3 字符残渣。
+                TurnProviderOutcome.Success(
+                    ChatResult(content = null, toolCalls = emptyList(), reasoningContent = "\n\n"),
+                    "",
+                )
+            },
+            observeResponse = {},
+            persistAssistant = {},
+            consumeFollowUps = { consumed = true; 0 },
+            enforceToolLimit = { calls, _ -> calls },
+            executeTools = { _, _ -> error("must not execute") },
+        )
+
+        // 残渣级思考不能算"有内容"：否则会走"无工具调用 → Complete"，把静默失败记成完成。
+        assertEquals(TurnOutcome.Failed(ProviderClient.EMPTY_RESPONSE_MESSAGE), outcome)
+        assertFalse(consumed)
+    }
+
+    @Test
+    fun `substantive reasoning alone is not treated as blank`() = runBlocking {
+        val outcome = runner.run(
+            toolsEnabled = true,
+            callProvider = {
+                // 成段思考 + 无正文 + 无工具是模型自主收束的合法形态，不得被残渣阈值误杀。
+                TurnProviderOutcome.Success(
+                    ChatResult(
+                        content = null,
+                        toolCalls = emptyList(),
+                        reasoningContent = "这是一段明显超过残渣阈值长度的正常推理内容，应当被视为有效产出",
+                    ),
+                    "",
+                )
+            },
+            persistAssistant = {},
+            consumeFollowUps = { 0 },
+            enforceToolLimit = { calls, _ -> calls },
+            executeTools = { _, _ -> error("must not execute") },
+        )
+
+        assertEquals(TurnOutcome.Complete, outcome)
+    }
 }

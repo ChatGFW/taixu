@@ -632,6 +632,17 @@ enum class ApiProtocol { OPENAI, ANTHROPIC }
 /** 工具调用模式：NATIVE = 标准函数调用；JSON_TEXT = 文本 JSON 标记；DISABLED = 禁用。 */
 enum class ToolCallMode { NATIVE, JSON_TEXT, DISABLED }
 
+/**
+ * 残渣级思考的长度上限（字符，trim 后）：正文与工具调用全空时，思考字段只剩低于该阈值的
+ * 截断残渣（空壳 think、换行、半截标签）不算"有内容"。真实推理是成段文字，起点远高于此；
+ * 而放行这类残渣会落进"无工具调用 → Complete"分支，把中转截断产生的空壳响应记成任务完成。
+ */
+internal const val BLANK_REASONING_RESIDUAL_CHARS = 16
+
+/** null/空白，或 trim 后低于 [BLANK_REASONING_RESIDUAL_CHARS] 的残渣级思考，均视为"没有思考内容"。 */
+internal fun String?.isNullOrResidualReasoning(): Boolean =
+    isNullOrBlank() || trim().length < BLANK_REASONING_RESIDUAL_CHARS
+
 /** LLM 返回的一轮结果：纯文本 或 一个/多个工具调用。 */
 data class ChatResult(
     val content: String?,
@@ -649,12 +660,17 @@ data class ChatResult(
     val hasToolCalls: Boolean get() = toolCalls.isNotEmpty()
 
     /**
-     * 完全空的一轮：没有正文、没有推理、也没有任何工具调用。
-     * 用于把"上游空响应"与"模型只想调工具/只给了思考"区分开：前者必须显式报错，
-     * 后者是正常形态（如 reasoning 后直接调工具）。
+     * 空的一轮：没有正文、没有（有效）推理、也没有任何工具调用。
+     * 判定覆盖两类形态：三者全空的"干净空响应"，以及正文/工具全空、思考只剩
+     * 残渣级字符（[BLANK_REASONING_RESIDUAL_CHARS] 以下）的"准空响应"——后者是
+     * 中转/网关在长上下文或不稳定时静默截断的典型产物，必须同样显式报错可重试，
+     * 而不是被上层"无工具调用 → Complete"记成任务完成。
+     * 真正的推理-only 轮次（成段思考 + 无正文 + 无工具）仍不算空：那是模型自主收束的合法形态。
      */
     val isBlankResponse: Boolean
-        get() = content.isNullOrBlank() && reasoningContent.isNullOrBlank() && toolCalls.isEmpty()
+        get() = content.isNullOrBlank() &&
+            reasoningContent.isNullOrResidualReasoning() &&
+            toolCalls.isEmpty()
 }
 
 /**
@@ -1087,12 +1103,13 @@ class ProviderClient(
 
         /**
          * 空响应的用户可见文案（唯一来源：流式层报错与 turn 层兜底共用同一句）。
+         * 覆盖两类形态：三者全空，以及正文/工具全空、思考只剩截断残渣。
          * 只描述可观察现象与可执行动作，不猜测具体厂商原因。
          */
         internal const val EMPTY_RESPONSE_MESSAGE =
-            "模型返回了空响应（HTTP 200，正文、推理与工具调用均为空）。" +
-                "常见原因是该模型名在服务端不可用、被网关/风控拦截，或上游临时异常。" +
-                "请检查模型配置，或切换其他模型后重试。"
+            "模型返回了空响应（HTTP 200，正文与工具调用均为空，或思考字段只剩无意义的截断残渣）。" +
+                "常见原因是该模型名在服务端不可用、被网关/风控拦截、长上下文被中转截断，或上游临时异常。" +
+                "请检查模型配置，必要时压缩上下文或切换其他模型后重试。"
 
         /** 空响应诊断时缓冲的原始响应首部上限（字符）：只用于报错与兜底判定，不参与正文累积。 */
         internal const val RESPONSE_HEAD_CAPTURE_CHARS = 2_000
@@ -1418,9 +1435,9 @@ class ProviderClient(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "host",
-                    description = "在 Android 宿主侧执行系统设置、应用管理、Logcat 或屏幕 GUI 自动化。抓取日志（logcat）首选内置无线 ADB（无需 Shizuku/Root 授权，支持可选指定 port），其余特权操作需 Shizuku 或 Root。GUI 原语（screen_click/double_click/long_press/swipe/scroll/input_text/key）走 HostGuiToolkit：无障碍全局手势 → cmd input → bin input 自动降级；中文输入走剪贴板粘贴。虚拟屏系列（virtual_screen_*）在一块独立的 Shower 虚拟屏上隔离启动并操控第三方应用（需 Shizuku 或 Root），完全不影响主屏：先 virtual_screen_ensure 建屏，再 virtual_screen_launch 启动目标应用，用 virtual_screen_screenshot 截图识图后按虚拟屏坐标系操作，完成后 virtual_screen_close 释放。",
+                    description = "在 Android 宿主侧执行系统设置、应用管理、Logcat 或屏幕 GUI 自动化。抓取日志（logcat）首选内置无线 ADB（无需 Shizuku/Root 授权，支持可选指定 port），其余特权操作需 Shizuku 或 Root。GUI 原语（screen_click/double_click/long_press/swipe/scroll/input_text/key）走 HostGuiToolkit：无障碍全局手势 → cmd input → bin input 自动降级；中文输入走剪贴板粘贴。虚拟屏系列（virtual_screen_*）在一块独立的 Shower 虚拟屏上隔离启动并操控第三方应用（需 Shizuku 或 Root），完全不影响主屏：先 virtual_screen_ensure 建屏，再 virtual_screen_launch 启动目标应用，用 virtual_screen_screenshot 截图识图后按虚拟屏坐标系操作，virtual_screen_show/hide 可为用户显示/隐藏该虚拟屏的实时视频悬浮窗（可手动触摸干预），完成后 virtual_screen_close 释放。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"action":{"type":"string","enum":["status","exec","settings_get","settings_put","package_list","package_disable","package_enable","package_uninstall_user","app_list","app_freeze","app_unfreeze","app_grant_permission","logcat","device_status","screen_observe","screen_click","screen_double_click","screen_long_press","screen_swipe","screen_scroll","screen_input_text","paste_text","screen_key","app_launch","screen_capture","virtual_screen_ensure","virtual_screen_launch","virtual_screen_screenshot","virtual_screen_click","virtual_screen_double_click","virtual_screen_long_press","virtual_screen_swipe","virtual_screen_scroll","virtual_screen_key","virtual_screen_close"]},"command":{"type":"string","description":"仅 exec 使用的原始宿主命令"},"namespace":{"type":"string","enum":["system","secure","global"],"description":"settings_get/settings_put 的设置命名空间"},"key":{"type":"string","description":"系统设置键名，或 screen_key 的按键名(back/home/recents/enter/delete/paste/power)"},"value":{"type":"string","description":"settings_put 的值"},"text":{"type":"string","description":"screen_input_text/paste_text 要粘贴的文本"},"x":{"type":"integer","description":"screen_click/double_click/long_press 的点击 X 坐标"},"y":{"type":"integer","description":"screen_click/double_click/long_press 的点击 Y 坐标"},"x1":{"type":"integer","description":"screen_swipe 起点 X 坐标"},"y1":{"type":"integer","description":"screen_swipe 起点 Y 坐标"},"x2":{"type":"integer","description":"screen_swipe 终点 X 坐标"},"y2":{"type":"integer","description":"screen_swipe 终点 Y 坐标"},"duration_ms":{"type":"integer","description":"swipe/long_press/scroll 持续时间毫秒"},"direction":{"type":"string","enum":["up","down","left","right"],"description":"screen_scroll 方向"},"distance_ratio":{"type":"number","description":"screen_scroll 幅度 0.15-0.8"},"package":{"type":"string","description":"应用操作或 logcat PID 过滤的 Android 包名（如 com.tencent.mm）"},"path":{"type":"string","description":"screen_capture 保存截图的目标绝对路径"},"permission":{"type":"string","description":"app_grant_permission 的 Android 权限名"},"query":{"type":"string","description":"app_list 的包名或应用名搜索词"},"include_system":{"type":"boolean","description":"app_list 是否显示系统应用，默认 false"},"limit":{"type":"integer","minimum":1,"maximum":200,"description":"app_list 返回数量，默认 50"},"user":{"type":"integer","minimum":0,"maximum":999,"description":"Android 用户 ID，默认 0"},"filter":{"type":"string","description":"package_list 的可选字面量过滤词"},"tail_lines":{"type":"integer","minimum":1,"maximum":2000,"description":"logcat 返回行数，默认 200"},"tag":{"type":"string","description":"logcat 的可选 tag"},"priority":{"type":"string","enum":["V","D","I","W","E","F"],"description":"logcat 最低优先级，默认 V"},"keyword":{"type":"string","description":"logcat 可选关键词（忽略大小写）"},"port":{"type":"integer","minimum":1,"maximum":65535,"description":"无线 ADB 端口（如 12345），logcat 时可选显式指定"},"session":{"type":"string","description":"virtual_screen_* 使用的会话 ID，默认 default；不同会话对应相互独立的虚拟屏，可并行操控多个应用"}},"required":["action"]}""",
+                        """{"type":"object","properties":{"action":{"type":"string","enum":["status","exec","settings_get","settings_put","package_list","package_disable","package_enable","package_uninstall_user","app_list","app_freeze","app_unfreeze","app_grant_permission","logcat","device_status","screen_observe","screen_click","screen_double_click","screen_long_press","screen_swipe","screen_scroll","screen_input_text","paste_text","screen_key","app_launch","screen_capture","virtual_screen_ensure","virtual_screen_launch","virtual_screen_screenshot","virtual_screen_click","virtual_screen_double_click","virtual_screen_long_press","virtual_screen_swipe","virtual_screen_scroll","virtual_screen_key","virtual_screen_close","virtual_screen_show","virtual_screen_hide"]},"command":{"type":"string","description":"仅 exec 使用的原始宿主命令"},"namespace":{"type":"string","enum":["system","secure","global"],"description":"settings_get/settings_put 的设置命名空间"},"key":{"type":"string","description":"系统设置键名，或 screen_key 的按键名(back/home/recents/enter/delete/paste/power)"},"value":{"type":"string","description":"settings_put 的值"},"text":{"type":"string","description":"screen_input_text/paste_text 要粘贴的文本"},"x":{"type":"integer","description":"screen_click/double_click/long_press 的点击 X 坐标"},"y":{"type":"integer","description":"screen_click/double_click/long_press 的点击 Y 坐标"},"x1":{"type":"integer","description":"screen_swipe 起点 X 坐标"},"y1":{"type":"integer","description":"screen_swipe 起点 Y 坐标"},"x2":{"type":"integer","description":"screen_swipe 终点 X 坐标"},"y2":{"type":"integer","description":"screen_swipe 终点 Y 坐标"},"duration_ms":{"type":"integer","description":"swipe/long_press/scroll 持续时间毫秒"},"direction":{"type":"string","enum":["up","down","left","right"],"description":"screen_scroll 方向"},"distance_ratio":{"type":"number","description":"screen_scroll 幅度 0.15-0.8"},"package":{"type":"string","description":"应用操作或 logcat PID 过滤的 Android 包名（如 com.tencent.mm）"},"path":{"type":"string","description":"screen_capture 保存截图的目标绝对路径"},"permission":{"type":"string","description":"app_grant_permission 的 Android 权限名"},"query":{"type":"string","description":"app_list 的包名或应用名搜索词"},"include_system":{"type":"boolean","description":"app_list 是否显示系统应用，默认 false"},"limit":{"type":"integer","minimum":1,"maximum":200,"description":"app_list 返回数量，默认 50"},"user":{"type":"integer","minimum":0,"maximum":999,"description":"Android 用户 ID，默认 0"},"filter":{"type":"string","description":"package_list 的可选字面量过滤词"},"tail_lines":{"type":"integer","minimum":1,"maximum":2000,"description":"logcat 返回行数，默认 200"},"tag":{"type":"string","description":"logcat 的可选 tag"},"priority":{"type":"string","enum":["V","D","I","W","E","F"],"description":"logcat 最低优先级，默认 V"},"keyword":{"type":"string","description":"logcat 可选关键词（忽略大小写）"},"port":{"type":"integer","minimum":1,"maximum":65535,"description":"无线 ADB 端口（如 12345），logcat 时可选显式指定"},"session":{"type":"string","description":"virtual_screen_* 使用的会话 ID，默认 default；不同会话对应相互独立的虚拟屏，可并行操控多个应用"}},"required":["action"]}""",
                     ).jsonObject,
                 ),
             ),
