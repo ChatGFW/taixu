@@ -43,14 +43,17 @@ class WorkflowScheduleWorker(
             workspacePath = schedule.workspacePath.ifBlank { "/workspace" },
             trigger = WorkflowRunTrigger.Schedule(scheduleId),
         )
-        scheduleRepository.updateRunInfo(scheduleId, result.executionId, System.currentTimeMillis())
         if (!result.accepted) {
-            Log.w(TAG, "定时计划 ${schedule.name} 启动失败：${result.failureReason}")
+            // 启动失败（典型：awaitRuntimeReady 超时——刚开机/沙箱未就绪）**不能**当成「已执行」。
+            // updateRunInfo 会把 ONCE 计划 setEnabled(false) + cancel，若此处照样调用，
+            // 一次性计划会在一次失败后被永久停用且不再重试，而用户只会看到计划「消失」。
+            // 故失败时只记日志、不推进 nextRunAt；由 WorkManager 按重试策略再次投递。
+            Log.w(TAG, "定时计划 ${schedule.name} 启动失败：${result.failureReason}（保留下次触发，不回写运行信息）")
+            return Result.retry()
         }
+        scheduleRepository.updateRunInfo(scheduleId, result.executionId, System.currentTimeMillis())
         // 双保险：Application 的 running 联动可能慢于 Worker 结束，这里直接拉起前台保活
-        if (result.accepted) {
-            WorkflowForegroundService.start(applicationContext)
-        }
+        WorkflowForegroundService.start(applicationContext)
         return Result.success()
     }
 
