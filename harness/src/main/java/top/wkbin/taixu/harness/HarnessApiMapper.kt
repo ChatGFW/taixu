@@ -55,6 +55,7 @@ internal object HarnessApiMapper {
             lower == "load_skill" -> HarnessTool.LOAD_SKILL
             lower == "compress" -> HarnessTool.COMPRESS
             lower == "ask_user" -> HarnessTool.ASK_USER
+            lower == "render_surface" -> HarnessTool.RENDER_SURFACE
             lower == "use_capability" -> HarnessTool.MCP
             trimmed.startsWith("mcp__") -> HarnessTool.MCP
             else -> HarnessTool.BASE
@@ -81,5 +82,6 @@ internal object HarnessApiMapper {
         HarnessTool.LOAD_SKILL -> "load_skill"
         HarnessTool.COMPRESS -> "compress"
         HarnessTool.ASK_USER -> "ask_user"
+        HarnessTool.RENDER_SURFACE -> "render_surface"
     }
 }

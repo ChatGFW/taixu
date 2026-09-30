@@ -98,6 +98,7 @@ sealed interface AppDestination : NavKey
 @Serializable data object DeveloperDestination : AppDestination
 @Serializable data object LiquidGlassCatalogDestination : AppDestination
 @Serializable data object AdbLogcatDestination : AppDestination
+@Serializable data object A2uiPocDestination : AppDestination
 @Serializable data object CustomIterationDestination : AppDestination
 @Serializable data class TerminalDestination(val toolId: String = "", val project: String = "") : AppDestination
 @Serializable data object BrowserDestination : AppDestination
@@ -145,9 +146,7 @@ fun TaiXuNavHost(
     LaunchedEffect(chatViewModel) {
         chatViewModel.workflowLaunchRequests.collect { request ->
             selectedMain = MainDestination.Agent
-            agentStack.pushRaw(
-                WorkflowDestination(request.projectName, request.workflowId, request.initialVariables),
-            )
+            agentStack.pushRaw(WorkflowDestination(request.projectName, request.workflowId, request.initialVariables))
         }
     }
 
@@ -171,9 +170,7 @@ fun TaiXuNavHost(
                 is top.wkbin.taixu.core.common.navigation.AppNavigationTarget.WorkflowRun -> {
                     // 工作流通知点入：切到智枢栈并打开运行页
                     selectedMain = MainDestination.Agent
-                    agentStack.pushRaw(
-                        WorkflowDestination(executionId = target.executionId),
-                    )
+                    agentStack.pushRaw(WorkflowDestination(executionId = target.executionId))
                     globalNavigationBus.clearLatest(target)
                 }
                 top.wkbin.taixu.core.common.navigation.AppNavigationTarget.AgentSettings -> {
@@ -362,6 +359,7 @@ fun TaiXuNavHost(
                         onOpenSystemDev = { settingsStack.push(SettingsDestination, SystemDevSettingsDestination) },
                         onOpenAboutCommunity = { settingsStack.push(SettingsDestination, AboutCommunityDestination) },
                         onOpenSearch = { settingsStack.push(SettingsDestination, SettingsSearchDestination) },
+                        onOpenA2uiPoc = { settingsStack.push(SettingsDestination, A2uiPocDestination) },
                         viewModel = settingsViewModel,
                     )
                 }
@@ -722,6 +720,11 @@ fun TaiXuNavHost(
                     AdbLogcatScreen(onBack = ::popBack)
                 }
             }
+            entry<A2uiPocDestination> {
+                GuardedEntry(A2uiPocDestination) {
+                    top.wkbin.taixu.feature.a2uipoc.A2uiPocScreen(onBack = ::popBack)
+                }
+            }
             entry<CustomIterationDestination> {
                 GuardedEntry(CustomIterationDestination) {
                     CustomIterationScreen(
@@ -760,10 +763,7 @@ fun TaiXuNavHost(
         WindowInsets.ime.getBottom(density) == 0
     // Hoist decorators so tab switches (key below) do not drop entry Saveable/ViewModel state.
     // Explicit <NavKey>: outside NavDisplay's parameter context, listOf cannot infer T.
-    val entryDecorators = listOf(
-        rememberSaveableStateHolderNavEntryDecorator<NavKey>(),
-        rememberViewModelStoreNavEntryDecorator<NavKey>(),
-    )
+    val entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator<NavKey>(), rememberViewModelStoreNavEntryDecorator<NavKey>())
     Box(modifier = Modifier.fillMaxSize()) {
         // App background under NavDisplay so a rare uncovered frame never shows window black.
         Surface(

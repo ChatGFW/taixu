@@ -52,6 +52,7 @@ fun SettingsScreen(
     onOpenSystemDev: () -> Unit,
     onOpenAboutCommunity: () -> Unit,
     onOpenSearch: () -> Unit = {},
+    onOpenA2uiPoc: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val models by viewModel.models.collectAsStateWithLifecycle()
@@ -184,6 +185,20 @@ fun SettingsScreen(
                     badge = if (developer) "诊断模式已开启" else "运行平稳",
                     onClick = onOpenSystemDev,
                 )
+            }
+
+            // 4.5 开发者实验功能：A2UI 渲染器 PoC（仅诊断模式可见）
+            if (developer) {
+                item {
+                    SettingsCategoryCard(
+                        icon = RuntimeIconName.Sparkles,
+                        accent = MaterialTheme.colorScheme.tertiary,
+                        title = "A2UI 渲染器 PoC",
+                        subtitle = "render_surface：智能体 JSON 界面 → 原生组件",
+                        badge = "实验功能",
+                        onClick = onOpenA2uiPoc,
+                    )
+                }
             }
 
             // 5. 关于、更新与官方社区

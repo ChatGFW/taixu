@@ -27,7 +27,8 @@
       "feature.theme", "feature.components", "feature.home", "feature.chat",
       "feature.terminal", "feature.workspace", "feature.workflow", "feature.settings",
       "feature.developer", "feature.custom_iteration", "feature.onboarding",
-      "feature.navigation", "feature.browser", "feature.git", "feature.preview"
+      "feature.navigation", "feature.browser", "feature.git", "feature.preview",
+      "feature.a2uipoc"
     ]
   },
   "importBans": [
@@ -109,12 +110,14 @@
     },
     { "id": "feature.home", "path": "feature/home", "requires": ["core.datastore", "runtime"] },
     {
-      "id": "feature.chat", "path": "feature/chat",
-      "requires": ["core.common", "core.database", "core.datastore", "runtime", "harness", "tools", "feature.theme"]
+      "id": "feature.chat",
+      "path": "feature/chat",
+      "requires": ["core.common", "core.database", "core.datastore", "runtime", "harness", "tools", "feature.theme", "feature.a2uipoc"]
     },
     { "id": "feature.terminal", "path": "feature/terminal", "requires": ["core.datastore", "runtime"] },
     {
-      "id": "feature.workspace", "path": "feature/workspace",
+      "id": "feature.workspace",
+      "path": "feature/workspace",
       "requires": ["core.database", "core.datastore", "project-template", "runtime", "tools", "harness", "feature.theme"]
     },
     {
@@ -135,12 +138,14 @@
       "requires": ["core.datastore", "runtime", "tools"]
     },
     {
-      "id": "feature.navigation", "path": "feature/navigation",
+      "id": "feature.navigation",
+      "path": "feature/navigation",
       "_doc": "顶层装配层：唯一允许依赖全部业务 feature 的模块",
       "requires": [
         "feature.theme", "feature.home", "feature.chat", "feature.terminal",
         "feature.workspace", "feature.workflow", "feature.settings", "feature.developer",
-        "feature.custom_iteration", "feature.browser", "feature.git", "feature.preview"
+        "feature.custom_iteration", "feature.browser", "feature.git", "feature.preview",
+        "feature.a2uipoc"
       ]
     },
     {
@@ -151,6 +156,12 @@
       "id": "feature.git", "path": "feature/git",
       "requires": ["core.security", "runtime", "harness", "feature.theme"]
     },
-    { "id": "feature.preview", "path": "feature/preview", "requires": ["feature.theme"] }
+    { "id": "feature.preview", "path": "feature/preview", "requires": ["feature.theme"] },
+    {
+      "id": "feature.a2uipoc",
+      "path": "feature/a2uipoc",
+      "_doc": "A2UI（Agent-to-UI）渲染器 PoC：官方 androidx.a2ui 1.0.0-alpha01 仅允许在本模块使用，对外只暴露 A2uiPocSurfaceCard / A2uiPocScreen",
+      "requires": ["harness", "feature.theme"]
+    }
   ]
 }

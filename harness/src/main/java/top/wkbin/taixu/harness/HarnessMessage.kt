@@ -26,6 +26,7 @@ enum class HarnessTool {
     @SerialName("load_skill") LOAD_SKILL,
     @SerialName("compress") COMPRESS,
     @SerialName("ask_user") ASK_USER,
+    @SerialName("render_surface") RENDER_SURFACE,
 }
 
 /**

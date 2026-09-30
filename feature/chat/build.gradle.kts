@@ -14,6 +14,8 @@ dependencies {
     implementation(project(":runtime"))
     implementation(project(":harness"))
     implementation(project(":tools"))
+    // A2UI PoC：render_surface 工具结果在聊天流内嵌渲染原生界面
+    implementation(project(":feature:a2uipoc"))
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.serialization.json)
     // LocalLiquidGlassBackdrop 的类型 LayerBackdrop 来自该库，类型推断需要它在 classpath 上

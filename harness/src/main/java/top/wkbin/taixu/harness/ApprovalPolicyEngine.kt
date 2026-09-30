@@ -91,8 +91,7 @@ class ApprovalPolicyEngine(
             return ApprovalDecision(false)
         }
         if (tool == HarnessTool.READ || tool == HarnessTool.MEMORY || tool == HarnessTool.PLAN ||
-            tool == HarnessTool.SCRATCHPAD || tool == HarnessTool.HISTORY_SEARCH || tool == HarnessTool.HISTORY_READ ||
-            tool == HarnessTool.LOAD_RULE || tool == HarnessTool.LOAD_SKILL || tool == HarnessTool.COMPRESS || tool == HarnessTool.ASK_USER
+            tool == HarnessTool.SCRATCHPAD || tool == HarnessTool.HISTORY_SEARCH || tool == HarnessTool.HISTORY_READ || tool == HarnessTool.LOAD_RULE || tool == HarnessTool.LOAD_SKILL || tool == HarnessTool.COMPRESS || tool == HarnessTool.ASK_USER || tool == HarnessTool.RENDER_SURFACE
         ) {
             return ApprovalDecision(false)
         }
@@ -141,7 +140,7 @@ class ApprovalPolicyEngine(
             }
             HarnessTool.READ, HarnessTool.MEMORY, HarnessTool.PLAN, HarnessTool.SCRATCHPAD,
             HarnessTool.HISTORY_SEARCH, HarnessTool.HISTORY_READ, HarnessTool.SUBAGENT, HarnessTool.LOAD_RULE,
-            HarnessTool.LOAD_SKILL,
+            HarnessTool.LOAD_SKILL, HarnessTool.RENDER_SURFACE,
             HarnessTool.ASK_USER -> ApprovalDecision(false)
         }
     }

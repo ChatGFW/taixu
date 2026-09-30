@@ -57,6 +57,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
+import top.wkbin.taixu.feature.a2uipoc.A2uiPocSurfaceCard
 import top.wkbin.taixu.harness.AskUserQuestions
 
 /** 工具调用卡与审批请求卡。 */
@@ -120,9 +121,7 @@ internal fun ToolCard(
                     modifier = Modifier.size(16.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    val dotModifier = if (dotDesc != null) {
-                        Modifier.semantics { contentDescription = dotDesc }
-                    } else Modifier
+                    val dotModifier = if (dotDesc != null) Modifier.semantics { contentDescription = dotDesc } else Modifier
                     Box(dotModifier.size(6.dp).clip(CircleShape).background(dotColor))
                 }
                 Text(
@@ -150,16 +149,13 @@ internal fun ToolCard(
                 )
                 // 代码改动统计徽章 (+N -M)
                 val diffStat = remember(call, result) {
-                    if (call.tool == HarnessTool.WRITE || call.tool == HarnessTool.EDIT) {
-                        parseDiffStat(call, result)
-                    } else null
+                    if (call.tool == HarnessTool.WRITE || call.tool == HarnessTool.EDIT) parseDiffStat(call, result) else null
                 }
                 diffStat?.let { (added, deleted) ->
                     DiffStatBadge(added = added, deleted = deleted)
                 }
                 val durationText = if (result != null) {
-                    val duration = result.durationMs ?: (result.createdAt - call.createdAt).coerceAtLeast(0L)
-                    formatChatDuration(duration)
+                    formatChatDuration(result.durationMs ?: (result.createdAt - call.createdAt).coerceAtLeast(0L))
                 } else if (running) {
                     var elapsed by remember(call.id) { mutableStateOf(0L) }
                     LaunchedEffect(call.id) {
@@ -206,17 +202,20 @@ internal fun ToolCard(
                 if (percent == null) {
                     LinearProgressIndicator(
                         modifier = Modifier.fillMaxWidth().height(2.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     )
                 } else {
                     LinearProgressIndicator(
                         progress = { percent },
                         modifier = Modifier.fillMaxWidth().height(2.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     )
                 }
+            }
+
+            // A2UI PoC：render_surface 生成的界面直接内嵌聊天流
+            if (call.tool == HarnessTool.RENDER_SURFACE && result?.success == true) {
+                A2uiPocSurfaceCard(call = call, modifier = Modifier.fillMaxWidth())
             }
 
             // 展开 Diff 与输出详情视图
@@ -536,6 +535,7 @@ internal fun toolName(tool: HarnessTool, rawToolName: String? = null): String {
         HarnessTool.LOAD_SKILL -> "load_skill"
         HarnessTool.COMPRESS -> "compress"
         HarnessTool.ASK_USER -> "ask_user"
+        HarnessTool.RENDER_SURFACE -> "render_surface"
     }
 }
 

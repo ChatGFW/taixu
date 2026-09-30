@@ -343,8 +343,7 @@ class ToolExecutor(
                 val content = requireString(args, "content")
                 captureBeforeWrite(sessionId, activeFileAccess, path)
                 val linesAdded = content.lines().size
-                val output = activeFileAccess.write(path, content)
-                    .toToolOutput("已写入 $path\nDIFF_STAT: +$linesAdded -0", actionName = "write")
+                val output = activeFileAccess.write(path, content).toToolOutput("已写入 $path\nDIFF_STAT: +$linesAdded -0", actionName = "write")
                 if (output.first) captureAfterWrite(sessionId, activeFileAccess, path, knownContent = content)
                 output
             }
@@ -386,6 +385,7 @@ class ToolExecutor(
             HarnessTool.COMPRESS -> executeCompress(args, sessionId)
             // ask_user 在 execute() 入口特判（不走审批门控）；此处仅为 when 穷尽兜底
             HarnessTool.ASK_USER -> false to "ask_user 应在执行入口处理，不应到达工具分派"
+            HarnessTool.RENDER_SURFACE -> A2uiSurfaceBus.publishFromTool(args)
             HarnessTool.BUILD_SCRIPT -> buildScriptToolExecutor?.execute(args, workspace) ?: (false to "未初始化构建脚本管理器")
             HarnessTool.SUBAGENT -> if (rawToolName.equals("invoke_dual_agent", ignoreCase = true)) {
                 dualAgentCoordinator?.executeFromTool(args, sessionId, workspace) ?: (false to "未初始化双智能体编排器")
