@@ -12,6 +12,7 @@ interface AiModelRepository {
     suspend fun upsert(model: AiModelEntity)
     suspend fun clearActive()
     suspend fun setActive(id: String)
+    suspend fun activate(id: String) // 唯一激活切换：clearActive + setActive 必须单事务（转发 AiModelDao.activate）
     suspend fun updateReasoning(id: String, mode: String?, effort: String?)
     suspend fun delete(id: String)
 }
@@ -93,8 +94,7 @@ class RoomBuildScriptRepository(
         return script
     }
     override suspend fun findBinding(projectName: String) = dao.findBinding(projectName)
-    override suspend fun resolvedScript(projectName: String): BuildScriptEntity? =
-        dao.findBinding(projectName)?.let { findScript(it.scriptId) }
+    override suspend fun resolvedScript(projectName: String): BuildScriptEntity? = dao.findBinding(projectName)?.let { findScript(it.scriptId) }
     override suspend fun upsertScript(script: BuildScriptEntity) = dao.upsertScript(script)
     override suspend fun deleteScript(id: String) = dao.deleteScriptAndBindings(id)
     override suspend fun bind(projectName: String, scriptId: String) {
@@ -138,10 +138,9 @@ class RoomBuildScriptRepository(
         }
     }
 
-    private fun isLegacyBrokenStub(content: String): Boolean {
-        return content.contains("elif [ -x /opt/taixu/bin/gradle ]; then") ||
+    private fun isLegacyBrokenStub(content: String): Boolean =
+        content.contains("elif [ -x /opt/taixu/bin/gradle ]; then") ||
             (content.contains("TARGET=\"\${2:-apk --debug}\"") && content.contains("flutter pub get"))
-    }
 
     companion object {
         const val DEFAULT_BUILTIN_ANDROID_SCRIPT =
@@ -192,6 +191,7 @@ class RoomAiModelRepository(private val dao: AiModelDao) : AiModelRepository {
     override suspend fun upsert(model: AiModelEntity) = dao.upsert(model)
     override suspend fun clearActive() = dao.clearActive()
     override suspend fun setActive(id: String) = dao.setActive(id)
+    override suspend fun activate(id: String) = dao.activate(id)
     override suspend fun updateReasoning(id: String, mode: String?, effort: String?) = dao.updateReasoning(id, mode, effort)
     override suspend fun delete(id: String) = dao.delete(id)
 }
