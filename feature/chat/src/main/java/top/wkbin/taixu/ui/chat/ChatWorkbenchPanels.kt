@@ -32,7 +32,6 @@ import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -277,7 +276,7 @@ internal fun BranchBrowserSheet(
     }
     val subagents = remember(branches) { stableSubagentBranches(branches) }
 
-    ModalBottomSheet(
+    PlainBackdropModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
@@ -438,7 +437,7 @@ internal fun SubagentResultSheet(
         .any { it.id !in toolResults.keys }
     var processExpanded by rememberSaveable(branchUiKey(branch)) { mutableStateOf(false) }
 
-    ModalBottomSheet(
+    PlainBackdropModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
@@ -655,7 +654,7 @@ internal fun RuntimeTimelineSheet(
     onNavigateToMessage: (String) -> Unit = {},
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(
+    PlainBackdropModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
