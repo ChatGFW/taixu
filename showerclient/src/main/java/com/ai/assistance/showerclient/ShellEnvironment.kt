@@ -60,8 +60,10 @@ object ShowerEnvironment {
      * 且因 `/data/local` 属 root 0751，shell 无权重建。旧实现硬编码单一目录，
      * 一旦缺失就 `cp` 失败、虚拟屏完全起不来（且无任何回退）。
      *
-     * 宿主可向本列表追加自己确保可写的目录（如 `context.filesDir.absolutePath`）
-     * 作为最终回退；`/data/data/com.android.shell/files` 对 adb/Shizuku 授权天然可写。
+     * 注意：目录探测、jar 拷贝与 server 启动均在 [ShellIdentity.SHELL] 身份下执行，候选目录必须是
+     * **shell 可写** 的目录。宿主私有目录（如 `context.filesDir`，属 app uid）对 shell 不可写，
+     * 追加进来只会探测失败；仅当宿主自定义 ShellRunner 把 SHELL 映射到更高权限时才可按需追加。
+     * `/data/data/com.android.shell/files` 对 adb/Shizuku 授权天然可写，是可靠兜底。
      */
     @Volatile
     var workDirCandidates: List<String> = listOf(

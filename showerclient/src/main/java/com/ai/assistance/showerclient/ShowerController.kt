@@ -265,17 +265,17 @@ class ShowerController {
                 return true
             }
 
-            if (existingId != null) {
+            // displayId 0=主屏（prepareMainDisplay）为全会话共享，绝不销毁（守卫同 shutdown/doPrepare 的 id>0）
+            if (existingId != null && existingId > 0) {
                 try {
                     service.destroyDisplay(existingId)
                     ShowerLog.d(TAG, "ensureDisplay: destroyed previous displayId=$existingId before recreate")
                 } catch (e: Exception) {
                     ShowerLog.w(TAG, "ensureDisplay: failed to destroy previous displayId=$existingId before recreate", e)
                 }
-                resetLocalDisplayState()
             }
-
-            // Changed: ensureDisplay now returns the ID and doesn't destroy existing ones.
+            resetLocalDisplayState()
+            // server 的 ensureDisplay 只建新屏并返回 ID，不会销毁已有虚拟屏。
             val id = service.ensureDisplay(targetWidth, targetHeight, dpi, bitrate)
             if (id < 0) {
                 resetLocalDisplayState()
