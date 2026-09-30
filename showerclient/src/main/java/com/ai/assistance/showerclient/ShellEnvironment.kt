@@ -21,6 +21,9 @@ data class ShellCommandResult(
     val exitCode: Int,
 )
 
+/** 目录探测成功标记；由 shell 侧回显，用于区分「命令跑通」与「目录真的可写」。 */
+internal const val SHOWER_WORKDIR_PROBE_MARK = "SHOWER_WORKDIR_OK"
+
 /**
  * Minimal abstraction for running shell commands with an identity.
  *
@@ -48,6 +51,23 @@ object ShowerEnvironment {
 
     @Volatile
     var shellRunner: ShellRunner? = null
+
+    /**
+     * shower-server.jar 的存放目录候选，**按顺序探测第一个「存在且可写」的**。
+     *
+     * 为什么需要候选：`/data/local/tmp` 虽是 AOSP `init.rc` 默认创建的目录，但
+     * **并非所有设备上都存在**。实测小米 Android 16（shell uid 2000）上该目录缺失，
+     * 且因 `/data/local` 属 root 0751，shell 无权重建。旧实现硬编码单一目录，
+     * 一旦缺失就 `cp` 失败、虚拟屏完全起不来（且无任何回退）。
+     *
+     * 宿主可向本列表追加自己确保可写的目录（如 `context.filesDir.absolutePath`）
+     * 作为最终回退；`/data/data/com.android.shell/files` 对 adb/Shizuku 授权天然可写。
+     */
+    @Volatile
+    var workDirCandidates: List<String> = listOf(
+        "/data/local/tmp",
+        "/data/data/com.android.shell/files",
+    )
 
     /**
      * Optional sink used to mirror Shower client logs into host logging systems.

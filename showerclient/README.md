@@ -54,7 +54,9 @@ class YourApplication : Application() {
 本库已经在自身模块内置了 `shower-server.jar`：
 
 - 宿主 App **不需要** 再手动打包或拷贝任何 JAR 文件；
-- 运行时库会自动从自身 `assets` 中读取，并复制到 `/sdcard/Download/Operit/shower-server.jar`，再拷贝到 `/data/local/tmp/shower-server.jar`。
+- 运行时库会自动从自身 `assets` 中读取，并先复制到 `/sdcard/Download/TaiXu/shower-server.jar`
+  （需存储权限），再拷贝到**探测得到的可写工作目录**（依次尝试
+  `ShowerEnvironment.workDirCandidates`，默认 `/data/local/tmp` → `/data/data/com.android.shell/files`）。
 
 ---
 
@@ -101,7 +103,8 @@ class ShowerBinderReceiver : BroadcastReceiver() {
 
 说明：
 
- - `ShowerServerManager` 启动命令会附带宿主包名参数：`CLASSPATH=/data/local/tmp/shower-server.jar app_process / com.ai.assistance.shower.Main <hostPackage> &`。
+ - `ShowerServerManager` 启动命令会附带宿主包名参数：`CLASSPATH=<workDir>/shower-server.jar app_process / com.ai.assistance.shower.Main <hostPackage> &`；
+   `<workDir>` 为运行时探测到的可写目录（见上节）。
  - shower-server 读取该参数后，会通过 `IActivityManager.broadcastIntent(...)` 发送 `SHOWER_BINDER_READY`，并用 `Intent.setPackage(<hostPackage>)` 只投递给目标宿主包。
  - 因此宿主 App 侧的关键是：**Manifest 里声明 intent-filter 的 action 必须匹配**，并在 `onReceive()` 里把 `ShowerBinderContainer` 交给 `ShowerBinderRegistry.setService()`。
 
