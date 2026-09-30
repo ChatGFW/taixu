@@ -10,6 +10,8 @@ import android.app.Application
 import android.util.Log
 import androidx.work.Configuration
 import top.wkbin.taixu.core.common.logging.CrashReporter
+import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.common.memory.MemoryWatchdog
 import top.wkbin.taixu.harness.HarnessLoop
 import top.wkbin.taixu.core.datastore.AppStatsPreferences
 import top.wkbin.taixu.core.database.AgentSkillRepository
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.harness.workflow.WorkflowRunManager
 import top.wkbin.taixu.runtime.RuntimePathManager
+import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayCoordinator
 import top.wkbin.taixu.workflow.AppForegroundTracker
 import top.wkbin.taixu.workflow.WorkflowApprovalNotifier
 import top.wkbin.taixu.workflow.WorkflowRunUiController
@@ -63,6 +66,15 @@ class TaiXuApplication : Application(), Configuration.Provider {
     val browserMcpBootstrap: BrowserMcpBootstrap by inject()
     val agentMcpBootstrap: AgentMcpBootstrap by inject()
 
+    private val appLoggerLazy: Lazy<AppLogger> = inject()
+    private val virtualDisplayCoordinatorLazy: Lazy<VirtualDisplayCoordinator> = inject()
+
+    /**
+     * 内存水位哨兵：低频采样堆水位，越过 85% 时先释放"可再生数据"（视频等待缓冲等）
+     * 并写运行日志留痕，把慢性内存增长拦截在 OOM 闪退之前。释放钩子必须是丢了能自动重建的数据。
+     */
+    private val memoryWatchdog = MemoryWatchdog(log = { message -> appLoggerLazy.value.w(message) })
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate() {
@@ -74,6 +86,7 @@ class TaiXuApplication : Application(), Configuration.Provider {
         }
         configureCursorWindowSize()
         crashReporter.install()
+        installMemoryWatchdog()
         appScope.launch(Dispatchers.IO) {
             // 并发执行互不依赖的启动任务（crash 导出 / 特权恢复 / 浏览器 MCP bootstrap /
             // 技能入库 / MCP 预设入库），单任务失败不拖垮其他任务。
@@ -155,8 +168,22 @@ class TaiXuApplication : Application(), Configuration.Provider {
     }
 
     override fun onTerminate() {
+        memoryWatchdog.stop()
         appScope.cancel()
         super.onTerminate()
+    }
+
+    /**
+     * 🌟 内存水位哨兵装配：注册"可再生数据"释放钩子并启动低频采样（30s 一次，85% 触发）。
+     * - shower-video-pending-frames：虚拟屏视频流等待 SPS/PPS 的包缓冲（历史 OOM 根因），
+     *   丢弃后画面随下一个 IDR 自动恢复；
+     * 触发与释放效果统一写入 AppLogger（runtime.log，磁盘轮转），崩溃时可对照时间线定位增长源。
+     */
+    private fun installMemoryWatchdog() {
+        memoryWatchdog.registerReleaser("shower-video-pending-frames") {
+            virtualDisplayCoordinatorLazy.value.trimVideoBuffers()
+        }
+        memoryWatchdog.start()
     }
 
     /**

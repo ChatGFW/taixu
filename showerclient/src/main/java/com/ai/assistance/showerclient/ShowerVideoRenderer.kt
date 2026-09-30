@@ -10,7 +10,9 @@ import android.os.Looper
 import android.view.PixelCopy
 import android.view.Surface
 import java.io.ByteArrayOutputStream
+import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -24,9 +26,31 @@ class ShowerVideoRenderer {
 
     companion object {
         private const val TAG = "ShowerVideoRenderer"
+
+        /**
+         * 等待 SPS/PPS 期间最多缓存的包数（约 1–2s 码率）。解码器未初始化的等待路径
+         * 没有输入缓冲那样的天然背压：中途接入流 / 长 GOP 场景下参数集迟迟不到，
+         * 视频包会以每秒数百 KB 的速度无限堆积，直到拖爆 Java 堆（历史 OOM 闪退根因）。
+         */
+        internal const val MAX_PENDING_FRAMES = 60
+
+        /** 活实例弱引用表：供 [trimAllPending] 遍历；弱引用避免延长 SurfaceView 生命周期。 */
+        private val activeRenderers = CopyOnWriteArrayList<WeakReference<ShowerVideoRenderer>>()
+
+        /** 内存水位哨兵入口：丢弃所有活实例的等待缓冲（可再生数据，画面随下一个 IDR 恢复）。 */
+        @JvmStatic
+        fun trimAllPending() {
+            activeRenderers.removeAll { it.get() == null }
+            activeRenderers.forEach { it.get()?.trimPendingFrames() }
+        }
     }
 
     private val lock = Any()
+
+    init {
+        activeRenderers.removeAll { it.get() == null }
+        activeRenderers.add(WeakReference(this))
+    }
 
     @Volatile
     private var decoder: MediaCodec? = null
@@ -86,6 +110,14 @@ class ShowerVideoRenderer {
         }
     }
 
+    /**
+     * 丢弃等待 SPS/PPS 的缓冲帧（内存水位哨兵联动）：属可再生数据，
+     * 画面会在下一个 IDR + 参数集到达后自动恢复。
+     */
+    fun trimPendingFrames() {
+        synchronized(lock) { pendingFrames.clear() }
+    }
+
     /** Called for each H.264 packet. */
     fun onFrame(data: ByteArray) {
         synchronized(lock) {
@@ -110,6 +142,9 @@ class ShowerVideoRenderer {
                         csd1 = packet
                     }
                 } else {
+                    // 与 queueFrameToDecoder 的丢包背压对齐：等待参数集期间最多缓存
+                    // [MAX_PENDING_FRAMES] 包，超限丢最旧，防止无限堆积拖爆 Java 堆。
+                    while (pendingFrames.size >= MAX_PENDING_FRAMES) pendingFrames.removeAt(0)
                     pendingFrames.add(packet)
                 }
 

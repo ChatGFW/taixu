@@ -6,6 +6,7 @@ import com.ai.assistance.showerclient.ShowerBinderRegistry
 import com.ai.assistance.showerclient.ShowerController
 import com.ai.assistance.showerclient.ShowerEnvironment
 import com.ai.assistance.showerclient.ShowerServerManager
+import com.ai.assistance.showerclient.ShowerVideoRenderer
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import java.util.concurrent.ConcurrentHashMap
@@ -130,6 +131,14 @@ class VirtualDisplayCoordinator(
         for (sessionId in sessions.keys.toList()) {
             closeSession(sessionId)
         }
+    }
+
+    /**
+     * 内存水位哨兵联动：丢弃所有会话视频链路的等待缓冲（可再生数据）。
+     * 真正的缓冲在 showerclient 渲染器内，此处仅转发，避免 app 层直接依赖 showerclient。
+     */
+    fun trimVideoBuffers() {
+        ShowerVideoRenderer.trimAllPending()
     }
 
     private companion object {
