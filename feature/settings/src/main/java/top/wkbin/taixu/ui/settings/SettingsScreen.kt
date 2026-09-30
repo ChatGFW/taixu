@@ -194,7 +194,7 @@ fun SettingsScreen(
                         icon = RuntimeIconName.Sparkles,
                         accent = MaterialTheme.colorScheme.tertiary,
                         title = "A2UI 渲染器 PoC",
-                        subtitle = "render_surface：智能体 JSON 界面 → 原生组件",
+                        subtitle = "智能体把回答画成原生界面卡片 · 点开可体验示例",
                         badge = "实验功能",
                         onClick = onOpenA2uiPoc,
                     )

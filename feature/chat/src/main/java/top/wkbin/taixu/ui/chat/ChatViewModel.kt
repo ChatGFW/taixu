@@ -154,7 +154,6 @@ class ChatViewModel(
             }
             .stateIn(viewModelScope, SharingStarted.Lazily, null)
 
-
     private val _eventHistory = MutableStateFlow<Map<String, List<HarnessEvent>>>(emptyMap())
     private val _permissionRequests = kotlinx.coroutines.flow.MutableSharedFlow<HarnessEvent.PermissionRequired>(
         extraBufferCapacity = 8,
@@ -163,6 +162,7 @@ class ChatViewModel(
     val permissionRequests: kotlinx.coroutines.flow.SharedFlow<HarnessEvent.PermissionRequired> = _permissionRequests
 
     init {
+        A2uiChatBridge.bind(harnessLoop)
         viewModelScope.launch {
             quickPhraseRepository.ensureInitialized()
             workflowRepository.ensureBuiltins()

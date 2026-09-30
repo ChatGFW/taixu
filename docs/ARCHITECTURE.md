@@ -6,7 +6,7 @@
 
 - **核心定位**：在 **Android 无 Root 用户态** 下，基于 **PRoot** 运行完整的 **Linux 沙箱**，并深度集成 **AI Agent Harness 智能体引擎**、**原生 PTY 终端**、**工作区文件管理** 与 **Material 3 Expressive UI**。
 - **Android / UI 层**：
-  - **主工程构建链**：Gradle 9.7.0 / AGP 9.3.1 / Kotlin 2.4.10 / compileSdk & targetSdk 37 / NDK 30.0.15729638
+  - **主工程构建链**：Gradle 9.7.0 / AGP 9.3.1 / Kotlin 2.4.10 / compileSdk 37.1 / targetSdk 37 / NDK 30.0.15729638
   - **语言**：Kotlin（100% Kotlin + Jetpack Compose）
   - **UI 风格**：Material 3 Expressive (M3 动态表面、Haptic 触觉反馈、双栏自适应 Dual-Pane)
   - **依赖注入**：Koin 4.2.2（显式 Kotlin DSL）

@@ -3,16 +3,15 @@ package top.wkbin.taixu.feature.a2uipoc
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -20,7 +19,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -34,6 +32,7 @@ import top.wkbin.taixu.harness.A2uiSurfaceBus
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.components.RuntimeTopBar
 
 /**
  * A2UI PoC 的两个复用入口：
@@ -47,7 +46,11 @@ import top.wkbin.taixu.ui.components.RuntimeTextButton
 @Composable
 fun A2uiPocSurfaceCard(call: ToolCall, modifier: Modifier = Modifier) {
     val surfaceId = call.args["surfaceId"]?.toString()?.trim('"', ' ')?.trim().orEmpty()
-    val messagesJson = call.args["messages"]?.toString()?.trim('"', ' ')?.trim().orEmpty()
+    val rawMessages = call.args["messages"]?.toString()?.trim('"', ' ')?.trim().orEmpty()
+    // 与工具执行路径共用同一份归一化（双转义自动修复）；失败时保留原文供回退展示
+    val messagesJson = remember(rawMessages) {
+        A2uiSurfaceBus.normalizeMessagesJson(rawMessages) ?: rawMessages
+    }
     A2uiSurfaceHost(surfaceId = surfaceId, messagesJson = messagesJson, modifier = modifier)
 }
 
@@ -109,64 +112,63 @@ private fun A2uiFallbackCard(renderError: String?, messagesJson: String, modifie
 fun A2uiPocScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
     val surfaces by A2uiSurfaceBus.surfaces.collectAsStateWithLifecycle()
     var lastInjectedAt by rememberSaveable { mutableStateOf(0L) }
-    Column(modifier.fillMaxWidth().statusBarsPadding()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (onBack != null) {
-                RuntimeTextButton(onClick = onBack) { Text(stringResource(R.string.fa2ui_back)) }
-                Spacer(Modifier.width(8.dp))
-            }
-            Text(
-                stringResource(R.string.fa2ui_poc_title),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                modifier = Modifier.weight(1f),
+    // 与其他二级页一致：RuntimeTopBar（返回箭头/状态栏间距/单行标题）+ 不透明底色
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            RuntimeTopBar(
+                title = stringResource(R.string.fa2ui_poc_title),
+                onBack = onBack,
+                actions = {
+                    RuntimeTextButton(onClick = {
+                        lastInjectedAt = System.currentTimeMillis()
+                        A2uiSurfaceBus.publishFromTool(sampleToolArgs(lastInjectedAt))
+                    }) { Text(stringResource(R.string.fa2ui_inject_sample)) }
+                    Spacer(Modifier.width(8.dp))
+                    RuntimeTextButton(onClick = { A2uiSurfaceBus.clear() }) {
+                        Text(stringResource(R.string.fa2ui_clear))
+                    }
+                },
             )
-            RuntimeTextButton(onClick = {
-                lastInjectedAt = System.currentTimeMillis()
-                A2uiSurfaceBus.publishFromTool(sampleToolArgs(lastInjectedAt))
-            }) { Text(stringResource(R.string.fa2ui_inject_sample)) }
-            Spacer(Modifier.width(8.dp))
-            RuntimeTextButton(onClick = { A2uiSurfaceBus.clear() }) {
-                Text(stringResource(R.string.fa2ui_clear))
-            }
-        }
-        if (surfaces.isEmpty()) {
-            RuntimeCard(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                Text(
-                    stringResource(R.string.fa2ui_empty_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                items(surfaces, key = { it.surfaceId }) { payload ->
-                    Surface(
-                        shape = MaterialTheme.shapes.medium,
-                        tonalElevation = 1.dp,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                payload.title,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            A2uiSurfaceHost(
-                                surfaceId = payload.surfaceId,
-                                messagesJson = payload.messagesJson,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+        },
+    ) { padding ->
+        Column(modifier.fillMaxWidth().padding(padding)) {
+            if (surfaces.isEmpty()) {
+                RuntimeCard(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    Text(
+                        stringResource(R.string.fa2ui_empty_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(surfaces, key = { it.surfaceId }) { payload ->
+                        Surface(
+                            shape = MaterialTheme.shapes.medium,
+                            tonalElevation = 1.dp,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    payload.title,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                A2uiSurfaceHost(
+                                    surfaceId = payload.surfaceId,
+                                    messagesJson = payload.messagesJson,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                         }
                     }
+                    item { Spacer(Modifier.height(8.dp)) }
                 }
-                item { Spacer(Modifier.height(8.dp)) }
             }
         }
     }
@@ -174,7 +176,9 @@ fun A2uiPocScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
 
 /** 演示屏注入示例时模拟一次 render_surface 工具调用（与真实工具共用同一校验/发布链路）。 */
 private fun sampleToolArgs(timestamp: Long) = kotlinx.serialization.json.buildJsonObject {
-    put("surfaceId", kotlinx.serialization.json.JsonPrimitive("demo-$timestamp"))
+    val surfaceId = "demo-$timestamp"
+    put("surfaceId", kotlinx.serialization.json.JsonPrimitive(surfaceId))
     put("title", kotlinx.serialization.json.JsonPrimitive("内置示例"))
-    put("messages", kotlinx.serialization.json.JsonPrimitive(A2uiSurfaceBus.sampleMessagesJson()))
+    // createSurface 里的 surfaceId 必须与入参一致，否则卡片按入参 id 找不到已渲染的 surface
+    put("messages", kotlinx.serialization.json.JsonPrimitive(A2uiSurfaceBus.sampleMessagesJson(surfaceId)))
 }

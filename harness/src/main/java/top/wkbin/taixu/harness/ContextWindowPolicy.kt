@@ -16,7 +16,7 @@ object ContextWindowPolicy {
      * 旧值 4,096 低于实测约 1,400，这段缺口会直接从折叠线余量里挖走（溢出风险）。
      * 增删或放大工具后须用 ContextWindowPolicyTest 的一致性测试重新校准（低于实测即失败）。
      */
-    internal const val TOOL_SCHEMA_RESERVE_TOKENS = 5_900
+    internal const val TOOL_SCHEMA_RESERVE_TOKENS = 6_300
     private const val MAX_SYSTEM_PROMPT_FRACTION = 0.60
     private const val MIN_SYSTEM_PROMPT_TOKENS = 512
     /** 超过此 token 数的用户消息才参与巨型消息截断（普通消息交给折叠线，避免误伤）。 */

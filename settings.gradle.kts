@@ -42,6 +42,15 @@ dependencyResolutionManagement {
         maven {
             url = uri(rootDir.resolve("repo"))
         }
+        // A2UI alpha 的元数据与 AAR 在镜像上可能不同步；整个组固定走官方源，
+        // 避免 Gradle 选中镜像元数据后因缺少 AAR 而无法回退到 google()。
+        exclusiveContent {
+            forRepository { google() }
+            filter {
+                includeGroupByRegex("androidx\\.a2ui(\\..*)?")
+                includeModule("androidx.compose.material3", "material3-a2ui")
+            }
+        }
         if (useOfficialRepos) {
             google()
             mavenCentral()

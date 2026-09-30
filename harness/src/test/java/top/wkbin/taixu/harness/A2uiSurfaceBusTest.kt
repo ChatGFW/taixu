@@ -1,21 +1,30 @@
 package top.wkbin.taixu.harness
 
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
 /**
  * A2uiSurfaceBus 单测：覆盖 render_surface 工具入参校验、载荷发布、
- * 同 surfaceId 覆盖与缓存上限淘汰（与 ToolExecutor 的对接契约一致）。
+ * 同 surfaceId 覆盖与缓存上限淘汰、双转义自动修复、深度校验钩子、
+ * sessionId 记录与用户事件格式化（与 ToolExecutor 的对接契约一致）。
  */
 class A2uiSurfaceBusTest {
 
     @Before
-    fun reset() = A2uiSurfaceBus.clear()
+    fun reset() {
+        A2uiSurfaceBus.clear()
+        A2uiSurfaceBus.installDeepValidator(null)
+        A2uiSurfaceBus.userEventSink = null
+        A2uiSurfaceBus.errorEventSink = null
+    }
 
     @Test
     fun `合法参数发布成功并进入总线`() {
@@ -57,6 +66,61 @@ class A2uiSurfaceBusTest {
     }
 
     @Test
+    fun `协议版本不在白名单时校验失败`() {
+        val args = buildJsonObject {
+            put("surfaceId", "s1")
+            put("messages", A2uiSurfaceBus.sampleMessagesJson().replace("\"v0.9\"", "\"0.9\""))
+        }
+        val (success, output) = A2uiSurfaceBus.publishFromTool(args)
+        assertFalse(success)
+        assertTrue(output.contains("version"))
+        assertTrue(A2uiSurfaceBus.surfaces.value.isEmpty())
+    }
+
+    @Test
+    fun `双重编码字符串自动解包`() {
+        // 模型把整个数组包成一层 JSON 字符串：messages 内容是带引号转义的数组字面量
+        val wrapped = JsonPrimitive(A2uiSurfaceBus.sampleMessagesJson()).toString()
+        val args = buildJsonObject {
+            put("surfaceId", "s1")
+            put("messages", JsonPrimitive(wrapped))
+        }
+        val (success, output) = A2uiSurfaceBus.publishFromTool(args, "session-1")
+        assertTrue("解包后应发布成功：$output", success)
+        assertEquals(1, A2uiSurfaceBus.surfaces.value.size)
+        assertTrue(A2uiSurfaceBus.surfaces.value.first().sessionId == "session-1")
+    }
+
+    @Test
+    fun `引号二次转义自动修复`() {
+        // 模型对整个数组做了 \" 转义（真机截图出现的错误模式）
+        val escaped = A2uiSurfaceBus.sampleMessagesJson().replace("\"", "\\\"")
+        val args = buildJsonObject {
+            put("surfaceId", "s1")
+            put("messages", JsonPrimitive(escaped))
+        }
+        val (success, output) = A2uiSurfaceBus.publishFromTool(args)
+        assertTrue("修复后应发布成功：$output", success)
+        assertEquals(1, A2uiSurfaceBus.surfaces.value.size)
+    }
+
+    @Test
+    fun `deepValidator 失败原因回传且不入总线`() {
+        A2uiSurfaceBus.installDeepValidator { "组件 Foo 不在 Catalog 中" }
+        val (success, output) = A2uiSurfaceBus.publishFromTool(validArgs("s1", "标题"))
+        assertFalse(success)
+        assertTrue(output.contains("组件 Foo 不在 Catalog 中"))
+        assertTrue(A2uiSurfaceBus.surfaces.value.isEmpty())
+    }
+
+    @Test
+    fun `deepValidator 通过时正常发布`() {
+        A2uiSurfaceBus.installDeepValidator { null }
+        val (success, _) = A2uiSurfaceBus.publishFromTool(validArgs("s1", "标题"))
+        assertTrue(success)
+    }
+
+    @Test
     fun `超过缓存上限丢最旧`() {
         repeat(A2uiSurfaceBus.MAX_CACHED_SURFACES + 2) { index ->
             A2uiSurfaceBus.publishFromTool(validArgs("s$index", "界面$index"))
@@ -73,6 +137,51 @@ class A2uiSurfaceBusTest {
         A2uiSurfaceBus.publishFromTool(validArgs("s1", "标题"))
         A2uiSurfaceBus.clear()
         assertTrue(A2uiSurfaceBus.surfaces.value.isEmpty())
+    }
+
+    @Test
+    fun `normalizeMessagesJson 归一化非法输入返回 null`() {
+        assertNotNull(A2uiSurfaceBus.normalizeMessagesJson(A2uiSurfaceBus.sampleMessagesJson()))
+        assertNull(A2uiSurfaceBus.normalizeMessagesJson("not json"))
+        assertNull(A2uiSurfaceBus.normalizeMessagesJson(""))
+    }
+
+    @Test
+    fun `用户事件格式化包含路由字段`() {
+        val text = A2uiSurfaceBus.formatUserEvent(
+            A2uiSurfaceBus.A2uiUserEvent(
+                surfaceId = "s1",
+                surfaceTitle = "对比表",
+                sessionId = "session-9",
+                componentId = "btnConfirm",
+                eventName = "on_click",
+                context = mapOf("row" to 3),
+                timestamp = 123L,
+            ),
+        )
+        assertTrue(text.contains("[A2UI 界面事件]"))
+        assertTrue(text.contains("s1"))
+        assertTrue(text.contains("btnConfirm"))
+        assertTrue(text.contains("on_click"))
+        assertTrue(text.contains("row"))
+    }
+
+    @Test
+    fun `引擎错误事件格式化包含修复指引`() {
+        val text = A2uiSurfaceBus.formatErrorEvent(
+            A2uiSurfaceBus.A2uiErrorEvent(
+                surfaceId = "s1",
+                surfaceTitle = "方块",
+                sessionId = "session-9",
+                code = "validation_failed",
+                message = "组件 box 校验失败",
+            ),
+        )
+        assertTrue(text.contains("[A2UI 界面错误]"))
+        assertTrue(text.contains("s1"))
+        assertTrue(text.contains("validation_failed"))
+        assertTrue(text.contains("组件 box 校验失败"))
+        assertTrue(text.contains("id=root"))
     }
 
     private fun validArgs(surfaceId: String, title: String) = buildJsonObject {

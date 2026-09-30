@@ -4,6 +4,8 @@
 
 ## 1. 构建环境要求 (Prerequisites)
 
+- **Android SDK**：主工程需要 Android SDK Platform 37.1（A2UI alpha 依赖要求）；targetSdk 仍为 37。已接受 SDK 许可证时，Gradle 可自动安装缺失的平台。
+
 - **JDK 环境变量设置（Windows PowerShell）**：
   必须通过设置 `JAVA_HOME` 指向 Android Studio 自带的 JBR（支持 Java 25 / 17+）执行 Gradle 任务：
   ```powershell
