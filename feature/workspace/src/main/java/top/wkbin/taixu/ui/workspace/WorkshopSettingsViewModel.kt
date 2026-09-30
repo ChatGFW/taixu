@@ -263,30 +263,38 @@ class WorkshopSettingsViewModel(
         buildScripts.ensureBuiltinScripts(defaults.androidScript, defaults.flutterScript)
     }
 
+    /**
+     * 保存托管构建脚本；返回 null 表示已受理，非 null 为校验错误文案。
+     * 校验必须在协程外同步完成：require 抛在 viewModelScope.launch 内会击穿
+     * 未捕获异常处理器直接崩溃 App（例如粘贴超 200KB 内容后点保存）。
+     */
     fun saveManagedScript(
         id: String?,
         name: String,
         description: String,
         projectType: ProjectType,
         content: String,
-    ) = viewModelScope.launch {
-        require(name.isNotBlank()) { "脚本名称不能为空" }
-        require(content.isNotBlank()) { "脚本内容不能为空" }
-        require(content.length <= 200_000) { "脚本不能超过 200 KB" }
-        val old = id?.let { buildScripts.findScript(it) }
-        val now = System.currentTimeMillis()
-        buildScripts.upsertScript(
-            BuildScriptEntity(
-                id = old?.id ?: UUID.randomUUID().toString(),
-                name = name.trim(),
-                description = description.trim(),
-                projectType = projectType.name,
-                content = content.removePrefix("\uFEFF").replace("\r\n", "\n"),
-                isBuiltin = old?.isBuiltin ?: false,
-                createdAt = old?.createdAt ?: now,
-                updatedAt = now,
-            ),
-        )
+    ): String? {
+        if (name.isBlank()) return "脚本名称不能为空"
+        if (content.isBlank()) return "脚本内容不能为空"
+        if (content.length > 200_000) return "脚本不能超过 200 KB"
+        viewModelScope.launch {
+            val old = id?.let { buildScripts.findScript(it) }
+            val now = System.currentTimeMillis()
+            buildScripts.upsertScript(
+                BuildScriptEntity(
+                    id = old?.id ?: UUID.randomUUID().toString(),
+                    name = name.trim(),
+                    description = description.trim(),
+                    projectType = projectType.name,
+                    content = content.removePrefix("\uFEFF").replace("\r\n", "\n"),
+                    isBuiltin = old?.isBuiltin ?: false,
+                    createdAt = old?.createdAt ?: now,
+                    updatedAt = now,
+                ),
+            )
+        }
+        return null
     }
 
     fun cloneScript(script: BuildScriptEntity) = viewModelScope.launch {

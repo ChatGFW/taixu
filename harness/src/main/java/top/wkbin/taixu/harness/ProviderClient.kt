@@ -167,6 +167,11 @@ internal class ChatApi(
                 val source = response.body.source()
                 val demuxer = ThinkTagStreamDemuxer(onReasoning, onDelta)
                 val toolCalls = mutableMapOf<Int, ToolCallAccumulator>()
+                // 网关不分发 index 时的流式调用归并状态：id → 槽位、下一个可用的合成槽、
+                // 最近活跃槽（承接无 id 的 arguments 延续分片）
+                val slotByCallId = mutableMapOf<String, Int>()
+                var nextSyntheticSlot = 0
+                var lastActiveSlot: Int? = null
                 var usage = ChatUsage()
                 // 空响应诊断首部：只缓冲到出现首个 data: 行为止（或到上限），
                 // 既不把整段流式正文留在内存，又能在"什么都没收到"时把上游真实返回写进错误。
@@ -224,16 +229,37 @@ internal class ChatApi(
                             demuxer.onExplicitReasoningChunk(chunk)
                         }
                     }
-                    // index 缺失时的 fallback 用元素在 tool_calls 数组中的迭代序号，
-                    // 而不是固定 0——部分 OpenAI 兼容网关不分发 index，固定 0 会让
-                    // 同一 chunk 内的多个并行工具调用相互覆盖、arguments 拼成非法 JSON。
+                    // 调用边界判据：显式 index 优先；网关不分发 index 时以「id 变化」识别新调用
+                    // ——tool call 首个分片必带非空 id，后续 arguments 分片不带 id。若按元素
+                    // 迭代序号 fallback（每个 chunk 恒为 0），跨 chunk 的多个并行调用会全部
+                    // 落进同一槽位：id 相互覆盖、arguments 拼成非法 JSON、其中一个调用静默丢失。
                     delta?.get("tool_calls")?.let { it as? JsonArray }?.forEachIndexed { position, call2 ->
                         val callObj = call2 as? JsonObject ?: return@forEachIndexed
-                        val index = callObj["index"]?.let { it as? JsonPrimitive }?.contentOrNull?.toIntOrNull()
-                            ?: position
-                        val accum = toolCalls.getOrPut(index) { ToolCallAccumulator() }
-                        callObj["id"]?.let { it as? JsonPrimitive }?.contentOrNull
-                            ?.takeIf { it.isNotEmpty() }?.let { accum.id = it }
+                        val explicitIndex = callObj["index"]?.let { it as? JsonPrimitive }?.contentOrNull?.toIntOrNull()
+                        val callId = callObj["id"]?.let { it as? JsonPrimitive }?.contentOrNull
+                            ?.takeIf { it.isNotEmpty() }
+                        val slot: Int = when {
+                            explicitIndex != null -> explicitIndex
+                            callId != null -> slotByCallId[callId] ?: run {
+                                var candidate = nextSyntheticSlot++
+                                while (candidate in toolCalls) candidate = nextSyntheticSlot++
+                                slotByCallId[callId] = candidate
+                                candidate
+                            }
+                            // 无 index 无 id 的分片：延续最近活跃调用（arguments 增量）
+                            lastActiveSlot != null -> lastActiveSlot!!
+                            else -> {
+                                var candidate = nextSyntheticSlot++
+                                while (candidate in toolCalls) candidate = nextSyntheticSlot++
+                                candidate
+                            }
+                        }
+                        lastActiveSlot = slot
+                        val accum = toolCalls.getOrPut(slot) { ToolCallAccumulator() }
+                        callId?.let {
+                            accum.id = it
+                            slotByCallId.putIfAbsent(callId, slot)
+                        }
                         val function = callObj["function"] as? JsonObject
                         function?.get("name")?.let { it as? JsonPrimitive }?.contentOrNull
                             ?.takeIf { it.isNotEmpty() }?.let { accum.name = it }

@@ -292,8 +292,8 @@ class RoomQuickPhraseRepository(
         dao.delete(id)
 
     override suspend fun resetToDefault() {
-        dao.clearAll()
-        dao.upsertAll(defaultQuickPhrases.map { QuickPhraseEntity.fromDomain(it) })
+        // 单事务重置：clearAll 与 upsertAll 分离时，崩溃窗口内自建短语已删、默认未写入
+        dao.resetToDefault(defaultQuickPhrases.map { QuickPhraseEntity.fromDomain(it) })
     }
 
     override suspend fun ensureInitialized() {

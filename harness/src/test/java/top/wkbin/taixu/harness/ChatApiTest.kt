@@ -227,6 +227,42 @@ class ChatApiTest {
     }
 
     @Test
+    fun `accumulates parallel tool calls across chunks without explicit index`() = runBlocking {
+        // 网关不分发 index：每个调用的首个分片带非空 id，延续分片不带 id。
+        // 新调用判据必须是 id 变化——按 chunk 内迭代序号 fallback（恒为 0）会把
+        // 跨 chunk 的并行调用合并成一个畸形调用。
+        val body = """
+            data: {"choices":[{"delta":{"tool_calls":[{"id":"c1","function":{"name":"base","arguments":"{\"command\":\"ls\"}"}}]}}]}
+            data: {"choices":[{"delta":{"tool_calls":[{"id":"c2","function":{"name":"read","arguments":"{\"path\":\"a.md\"}"}}]}}]}
+            data: [DONE]
+        """.trimIndent()
+        server.enqueue(MockResponse().setBody(body))
+        val result = api.chatStream(model(), emptyList()) { }
+        assertEquals(2, result.toolCalls.size)
+        val first = result.toolCalls.first { it.id == "c1" }
+        val second = result.toolCalls.first { it.id == "c2" }
+        assertEquals("base", first.name)
+        assertEquals("""{"command":"ls"}""", first.argumentsJson)
+        assertEquals("read", second.name)
+        assertEquals("""{"path":"a.md"}""", second.argumentsJson)
+    }
+
+    @Test
+    fun `continuation chunk without id or index extends the last active call`() = runBlocking {
+        val body = """
+            data: {"choices":[{"delta":{"tool_calls":[{"id":"c1","function":{"name":"base","arguments":"{\"command\":\""}}]}}]}
+            data: {"choices":[{"delta":{"tool_calls":[{"function":{"arguments":"ls\"}"}}]}}]}
+            data: [DONE]
+        """.trimIndent()
+        server.enqueue(MockResponse().setBody(body))
+        val result = api.chatStream(model(), emptyList()) { }
+        val call = result.toolCalls.single()
+        assertEquals("c1", call.id)
+        assertEquals("base", call.name)
+        assertEquals("""{"command":"ls"}""", call.argumentsJson)
+    }
+
+    @Test
     fun `parses usage from non-stream response`() = runBlocking {
         server.enqueue(
             MockResponse().setBody(

@@ -1363,6 +1363,8 @@ class SettingsViewModel(
     val discoveringModels: StateFlow<Boolean> = _discoveringModels.asStateFlow()
     private val _modelDiscoveryError = MutableStateFlow<String?>(null)
     val modelDiscoveryError: StateFlow<String?> = _modelDiscoveryError.asStateFlow()
+    private val _profileSaveError = MutableStateFlow<String?>(null)
+    val profileSaveError: StateFlow<String?> = _profileSaveError.asStateFlow()
     private val _testingConnection = MutableStateFlow(false)
     val testingConnection: StateFlow<Boolean> = _testingConnection.asStateFlow()
     private val _connectionResult = MutableStateFlow<String?>(null)
@@ -1511,7 +1513,13 @@ class SettingsViewModel(
         responseApiEnabled: Boolean = false,
         promptCachingEnabled: Boolean = true,
         promptCacheTtl1h: Boolean = false,
-    ) {
+    ): Boolean {
+        val cleanUrl = ProviderEndpointPolicy.normalizeUrl(baseUrl)
+        if (!ProviderEndpointPolicy.isSafeBaseUrl(cleanUrl)) {
+            _profileSaveError.value = "Base URL 无效：请填写合法的 http(s) 接口地址，且不能内嵌账号密码"
+            return false
+        }
+        _profileSaveError.value = null
         viewModelScope.launch {
             profileWriter.upsertProfile(
                 AiProfileWriter.UpsertRequest(
@@ -1519,7 +1527,7 @@ class SettingsViewModel(
                     name = name,
                     provider = provider,
                     model = model,
-                    baseUrl = baseUrl,
+                    baseUrl = cleanUrl,
                     apiKey = apiKey,
                     requestsPerMinutePerKey = requestsPerMinutePerKey,
                     temperature = temperature,
@@ -1541,6 +1549,7 @@ class SettingsViewModel(
                 ),
             )
         }
+        return true
     }
 
     fun saveModels(
@@ -1567,7 +1576,15 @@ class SettingsViewModel(
         responseApiEnabled: Boolean = false,
         promptCachingEnabled: Boolean = true,
         promptCacheTtl1h: Boolean = false,
-    ) {
+    ): Boolean {
+        // 与 discoverModels 同源的端点策略：不安全的 Base URL（非 http(s)、内嵌凭据、
+        // 无法解析）拒绝落库，否则请求期才在 OkHttp 解析处崩溃。
+        val cleanUrl = ProviderEndpointPolicy.normalizeUrl(baseUrl)
+        if (!ProviderEndpointPolicy.isSafeBaseUrl(cleanUrl)) {
+            _profileSaveError.value = "Base URL 无效：请填写合法的 http(s) 接口地址，且不能内嵌账号密码"
+            return false
+        }
+        _profileSaveError.value = null
         viewModelScope.launch {
             val cleanModels = models.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
             val profileName = name.trim().ifBlank {
@@ -1579,7 +1596,7 @@ class SettingsViewModel(
                     name = profileName,
                     provider = provider,
                     model = cleanModels.joinToString(", "),
-                    baseUrl = baseUrl,
+                    baseUrl = cleanUrl,
                     apiKey = apiKey,
                     requestsPerMinutePerKey = requestsPerMinutePerKey,
                     temperature = temperature,
@@ -1601,6 +1618,7 @@ class SettingsViewModel(
                 ),
             )
         }
+        return true
     }
 
     suspend fun readModelApiKey(secretRef: String): String {
@@ -1609,8 +1627,8 @@ class SettingsViewModel(
 
     fun setActiveModel(id: String) {
         viewModelScope.launch {
-            aiModelDao.clearActive()
-            aiModelDao.setActive(id)
+            // 单事务切换唯一激活，避免两步 UPDATE 之间被杀留下 0 激活模型
+            aiModelDao.activate(id)
         }
     }
 

@@ -670,17 +670,7 @@ class ToolManager(
                     is InstallEvent.Progress -> {
                         notificationNotifier.showProgress(toolId, toolName, safeEvent.message, safeEvent.progress)
                     }
-                    is InstallEvent.Completed -> {
-                        val installedVer = safeEvent.version?.trim()?.takeIf { it.isNotBlank() }
-                            ?: toolRepository.findById(distroId, toolId)?.manifestVersion
-                        toolRepository.updateStateAndInstalledVersion(
-                            distroId = distroId,
-                            id = toolId,
-                            state = ToolState.INSTALLED.name,
-                            installedVersion = installedVer,
-                        )
-                        notificationNotifier.showSuccess(toolId, toolName, installedVer)
-                    }
+                    is InstallEvent.Completed -> Unit
                     is InstallEvent.Failed -> {
                         transaction?.let { installTransactionManager.rollback(it) }
                         transaction = null
@@ -699,13 +689,27 @@ class ToolManager(
                     else -> Unit
                 }
                 when (safeEvent) {
-                    is InstallEvent.Completed -> updateTask(distroId, toolId, TASK_COMPLETED, "安装完成")
                     is InstallEvent.Failed -> updateTask(distroId, toolId, TASK_FAILED, safeEvent.message)
                     else -> Unit
                 }
                 if (safeEvent is InstallEvent.Completed) {
+                    // 顺序关键：先 commit（删快照 = 磁盘落定），再把 INSTALLED + 新版本写入 DB。
+                    // 若反过来（先落库再 commit），进程在窗口期被杀时恢复侧会用旧快照覆盖磁盘，
+                    // 而 DB 已记新版本且状态 INSTALLED——磁盘回旧版却永不提示更新，无法自愈。
+                    // commit 后落库则任一时刻被杀都可恢复：快照在 → 按旧快照回滚、DB 版本号仍是
+                    // 旧值（一致）；快照已删 → 磁盘即新版，最坏多提示一次更新（无害）。
                     transaction?.let { installTransactionManager.commit(it) }
                     transaction = null
+                    val installedVer = safeEvent.version?.trim()?.takeIf { it.isNotBlank() }
+                        ?: toolRepository.findById(distroId, toolId)?.manifestVersion
+                    toolRepository.updateStateAndInstalledVersion(
+                        distroId = distroId,
+                        id = toolId,
+                        state = ToolState.INSTALLED.name,
+                        installedVersion = installedVer,
+                    )
+                    notificationNotifier.showSuccess(toolId, toolName, installedVer)
+                    updateTask(distroId, toolId, TASK_COMPLETED, "安装完成")
                 }
                 emit(safeEvent)
             }

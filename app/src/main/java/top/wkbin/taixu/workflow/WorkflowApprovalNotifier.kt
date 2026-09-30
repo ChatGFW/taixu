@@ -54,10 +54,11 @@ class WorkflowApprovalNotifier(
                         notifyApproval(appContext, executionId, request.nodeId, request.title)
                     }
                 }
-                // 已处理的审批撤通知
-                approvals.keys
-                    .map { executionId -> notifiedKeys.filter { it.startsWith("$executionId:") } }
-                    .flatten()
+                // 已处理的审批撤通知：遍历已发布标记（快照，避免边遍历边删），
+                // executionId 已不在 pending 集合中的说明审批已被处理，撤销其通知。
+                // 注意不能遍历 approvals.keys——那里面全是仍待审批的 execution，
+                // 旧实现导致撤销分支恒不可达，通知处理完仍常驻。
+                notifiedKeys.toList()
                     .forEach { key ->
                         val executionId = key.substringBefore(':')
                         if (executionId !in approvals.keys) {

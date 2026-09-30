@@ -490,7 +490,9 @@ internal fun AssistantBubble(
             }
         }
 
-        // 底部动作栏：耗时信息 + 复制按钮
+        // 底部动作栏：耗时信息 + 复制按钮。
+        // 两个信息 Text 必须可收缩（weight 上限 + 单行省略），否则长 token 明细会把
+        // Spacer 压成 0 宽并把「重新生成/分支/复制」挤出气泡右缘，功能点不到。
         if (!live && message.text.isNotBlank()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -500,9 +502,12 @@ internal fun AssistantBubble(
                 message.totalMs?.let {
                     Text(
                         stringResource(R.string.chat_elapsed, formatChatDuration(it)),
+                        modifier = Modifier.weight(1f, fill = false),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
 
@@ -524,9 +529,12 @@ internal fun AssistantBubble(
                 if (tokenParts.isNotEmpty()) {
                     Text(
                         tokenParts.joinToString(" "),
+                        modifier = Modifier.weight(1f, fill = false),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                         fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
 

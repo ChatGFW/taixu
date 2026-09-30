@@ -810,7 +810,15 @@ internal fun AddModelDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.chat_add_model), fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 玻璃弹窗容器限高 + clip：4 个固定高度输入框在窄屏/大字号下会把第 4 项
+            // （Model ID）裁掉，而确认按钮恰好依赖它——必须允许内容滚动。
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.chat_optional_name)) }, singleLine = true)
                 OutlinedTextField(value = provider, onValueChange = { provider = it }, label = { Text(stringResource(R.string.chat_provider_label)) }, singleLine = true)
                 OutlinedTextField(

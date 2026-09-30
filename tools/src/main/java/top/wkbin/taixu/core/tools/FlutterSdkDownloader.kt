@@ -121,7 +121,14 @@ class FlutterSdkDownloader(
         onProgress: (downloadedBytes: Long, totalBytes: Long?) -> Unit,
     ) {
         var lastError: Throwable? = null
-        val bases = if (release.absoluteUrl) GITHUB_ARCHIVE_PROXIES else ARCHIVE_BASE_URLS
+        // ARM64 资产（GitHub release 直链）拿不到官方 sha256；此时必须禁用第三方镜像——
+        // 镜像站可篡改字节流且无完整性兜底，"无校验 + 不可信通道"等于盲装。
+        // 只保留 GitHub 直连（HTTPS 保障传输完整与来源一致），直连失败如实报错。
+        val bases = when {
+            !release.absoluteUrl -> ARCHIVE_BASE_URLS
+            release.sha256.isNotBlank() -> GITHUB_ARCHIVE_PROXIES
+            else -> listOf("")
+        }
         for (base in bases) {
             val url = if (release.absoluteUrl) "${base}${release.archive}" else "${base.trimEnd('/')}/${release.archive}"
             try {

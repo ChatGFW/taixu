@@ -82,8 +82,17 @@ class SettingsDataStore(
     suspend fun setAgentServerPort(value: Int) { context.settingsDataStore.edit { it[agentServerPortKey] = value } }
     val agentServerAllowRemote: Flow<Boolean> = context.settingsDataStore.data.map { it[agentServerAllowRemoteKey] ?: false }
     suspend fun setAgentServerAllowRemote(value: Boolean) { context.settingsDataStore.edit { it[agentServerAllowRemoteKey] = value } }
-    val agentServerToken: Flow<String> = context.settingsDataStore.data.map { it[agentServerTokenKey].orEmpty() }
-    suspend fun setAgentServerToken(value: String) { context.settingsDataStore.edit { it[agentServerTokenKey] = value } }
+    val agentServerToken: Flow<String> = context.settingsDataStore.data.map {
+        // 与其他凭据一致走 Keystore 密文；decode 兼容历史明文值，下次保存自动升级为密文
+        it[agentServerTokenKey]?.let(::decodeProtectedValue).orEmpty()
+    }
+    suspend fun setAgentServerToken(value: String) {
+        if (value.isBlank()) {
+            context.settingsDataStore.edit { it.remove(agentServerTokenKey) }
+        } else {
+            context.settingsDataStore.edit { it[agentServerTokenKey] = encodeProtectedValue(value) }
+        }
+    }
     val agentServerAllowWriteTools: Flow<Boolean> = context.settingsDataStore.data.map { it[agentServerAllowWriteToolsKey] ?: false }
     suspend fun setAgentServerAllowWriteTools(value: Boolean) { context.settingsDataStore.edit { it[agentServerAllowWriteToolsKey] = value } }
 

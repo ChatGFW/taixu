@@ -110,12 +110,14 @@ fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, on
         }
     }
     if (creating) ManagedScriptEditorDialog(null, onDismiss = { creating = false }) { name, description, type, content ->
-        viewModel.saveManagedScript(null, name, description, type, content)
-        creating = false
+        val error = viewModel.saveManagedScript(null, name, description, type, content)
+        if (error == null) creating = false
+        error
     }
     editing?.let { script -> ManagedScriptEditorDialog(script, onDismiss = { editing = null }) { name, description, type, content ->
-        viewModel.saveManagedScript(script.id, name, description, type, content)
-        editing = null
+        val error = viewModel.saveManagedScript(script.id, name, description, type, content)
+        if (error == null) editing = null
+        error
     } }
     // 删除构建脚本二次确认（破坏性操作）
     deleteScriptTarget?.let { script ->
@@ -202,7 +204,7 @@ private fun ProjectScriptBindingRow(projectName: String, projectType: ProjectTyp
 }
 
 @Composable
-private fun ManagedScriptEditorDialog(script: BuildScriptEntity?, onDismiss: () -> Unit, onSave: (String, String, ProjectType, String) -> Unit) {
+private fun ManagedScriptEditorDialog(script: BuildScriptEntity?, onDismiss: () -> Unit, onSave: (String, String, ProjectType, String) -> String?) {
     val defaultAndroidTemplate = "#!/bin/sh\n# 太墟标准 Android 构建脚本入口\nset -eu\nPROJECT_DIR=\"\${1:-.}\"\nTASK=\"\${2:-assembleDebug}\"\nexec /bin/sh /opt/taixu/scripts/taixu-build.sh android \"\$PROJECT_DIR\" \"\$TASK\"\n"
     val defaultFlutterTemplate = "#!/bin/sh\n# 太墟标准 Flutter 构建脚本入口\nset -eu\nPROJECT_DIR=\"\${1:-.}\"\nTARGET=\"\${2:-apk --debug --target-platform android-arm64}\"\nexec /bin/sh /opt/taixu/scripts/taixu-build.sh flutter \"\$PROJECT_DIR\" \$TARGET\n"
     var name by remember(script) { mutableStateOf(script?.name.orEmpty()) }
@@ -210,6 +212,7 @@ private fun ManagedScriptEditorDialog(script: BuildScriptEntity?, onDismiss: () 
     var type by remember(script) { mutableStateOf(runCatching { ProjectType.valueOf(script?.projectType ?: ProjectType.ANDROID.name) }.getOrDefault(ProjectType.ANDROID)) }
     var content by remember(script) { mutableStateOf(script?.content ?: if (type == ProjectType.FLUTTER) defaultFlutterTemplate else defaultAndroidTemplate) }
     var typeExpanded by remember { mutableStateOf(false) }
+    var saveError by remember(script) { mutableStateOf<String?>(null) }
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(if (script == null) R.string.workshop_script_editor_new else R.string.workshop_script_editor_edit), fontWeight = FontWeight.Bold) },
@@ -239,9 +242,10 @@ private fun ManagedScriptEditorDialog(script: BuildScriptEntity?, onDismiss: () 
                 }
                 CodeEditorPanel(content, { content = it }, "build.sh", Modifier.fillMaxWidth().height(260.dp))
                 Text(stringResource(R.string.workshop_script_api_note, "\$1", "\$2"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                saveError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
             }
         },
-        confirmButton = { RuntimeButton(onClick = { onSave(name, description, type, content) }, enabled = name.isNotBlank() && content.isNotBlank()) { Text(stringResource(R.string.workshop_action_save)) } },
+        confirmButton = { RuntimeButton(onClick = { saveError = onSave(name, description, type, content) }, enabled = name.isNotBlank() && content.isNotBlank()) { Text(stringResource(R.string.workshop_action_save)) } },
         dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.workspace_cancel)) } },
     )
 }

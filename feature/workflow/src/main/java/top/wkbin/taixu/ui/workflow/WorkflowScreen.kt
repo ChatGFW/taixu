@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.model.workflow.NodeRunStatus
 import top.wkbin.taixu.core.database.WorkflowScheduleEntity
 import top.wkbin.taixu.core.model.workflow.WorkflowApprovalRequest
@@ -178,15 +180,20 @@ fun WorkflowScreen(
         ApprovalDialog(request, onDecision = { approved, variables -> viewModel.decide(request.nodeId, approved, variables) })
     }
     pendingRun?.let { definition ->
-        var apks by remember(definition.id, projectName) {
-            mutableStateOf(viewModel.scanWorkspaceApks(projectName))
+        // APK 扫描是全盘 walkTopDown，必须在协程里异步加载，禁止在组合期间同步执行
+        var apks by remember(definition.id, projectName) { mutableStateOf<List<DiscoveredApk>>(emptyList()) }
+        val apkScope = rememberCoroutineScope()
+        LaunchedEffect(definition.id, projectName) {
+            apks = viewModel.scanWorkspaceApks(projectName)
         }
         WorkflowStartDialog(
             definition = definition,
             supplied = initialVariables,
             models = models,
             availableApks = apks,
-            onRefreshApks = { apks = viewModel.scanWorkspaceApks(projectName) },
+            onRefreshApks = {
+                apkScope.launch { apks = viewModel.scanWorkspaceApks(projectName) }
+            },
             onDismiss = { pendingRun = null },
         ) { variables ->
             pendingRun = null

@@ -40,23 +40,33 @@ class ProcessShellExecutor(
         runCatching { process.outputStream.close() }
 
         val stdoutDeferred = async(Dispatchers.IO) {
-            readFully(process.inputStream, onOutput)
+            runInterruptible { readFully(process.inputStream, onOutput) }
         }
         val stderrDeferred = async(Dispatchers.IO) {
-            readFully(process.errorStream, onOutput)
+            runInterruptible { readFully(process.errorStream, onOutput) }
         }
 
         try {
             val exitCode = withTimeout(timeoutMs) {
                 runInterruptible(Dispatchers.IO) { process.waitFor() }
             }
-            val (stdout, stderr) = listOf(stdoutDeferred, stderrDeferred).awaitAll().let { values ->
-                values[0] to values[1]
+            // 成功路径同样必须给排水加超时：`sh -c 'server &'` 这类命令会让孙进程
+            // 继承 stdout/stderr 管道写端，主进程退出后 EOF 永不到来，awaitAll 无限
+            // 挂起、Agent 卡死。宽限期内 EOF 正常到达则返回完整输出；超时则取消读取
+            // 协程（runInterruptible 将取消映射为线程中断，阻塞 read 抛
+            // InterruptedIOException 被 readFully 兜底为 EOF），保留已读输出。
+            // 不取消的话 withContext 退出前 join 阻塞中的 reader 仍会永久挂起。
+            val drained = withTimeoutOrNull(OUTPUT_DRAIN_TIMEOUT_MS) {
+                listOf(stdoutDeferred, stderrDeferred).awaitAll()
+            }
+            if (drained == null) {
+                stdoutDeferred.cancel()
+                stderrDeferred.cancel()
             }
             CommandResult(
                 exitCode = exitCode,
-                stdout = stdout,
-                stderr = stderr,
+                stdout = drained?.get(0).orEmpty(),
+                stderr = drained?.get(1).orEmpty(),
                 durationMs = System.currentTimeMillis() - startedAt,
             )
         } catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
@@ -76,6 +86,10 @@ class ProcessShellExecutor(
             val partialStderr = runCatching {
                 withTimeoutOrNull(PROCESS_TEARDOWN_TIMEOUT_MS) { stderrDeferred.await() }.orEmpty()
             }.getOrDefault("")
+            // 读取协程可能仍阻塞在孙进程持有的管道上：中断并放弃，否则 withContext
+            // 退出前 join 它们会无限挂起。
+            stdoutDeferred.cancel()
+            stderrDeferred.cancel()
             CommandResult(
                 exitCode = TIMEOUT_EXIT_CODE,
                 stdout = partialStdout,
@@ -97,7 +111,12 @@ class ProcessShellExecutor(
         }
     }
 
-    private suspend fun readFully(
+    /**
+     * 排水读取整个流。必须保持非 suspend 且运行在 [runInterruptible] 内：
+     * 管道可能被未退出的孙进程持有导致 EOF 永不到来，只有线程中断才能
+     * 打破阻塞中的 `read()`（InterruptedIOException，视为 EOF 兜底）。
+     */
+    private fun readFully(
         stream: java.io.InputStream,
         onOutput: ((String) -> Unit)? = null,
     ): String = try {
@@ -160,6 +179,9 @@ class ProcessShellExecutor(
     private companion object {
         const val TIMEOUT_EXIT_CODE = 124
         const val PROCESS_TEARDOWN_TIMEOUT_MS = 1_000L
+
+        /** 成功退出后等待输出管道 EOF 的排水宽限期：正常毫秒级，超时即放弃（孙进程持管道场景）。 */
+        const val OUTPUT_DRAIN_TIMEOUT_MS = 5_000L
         const val MAX_CAPTURE_BYTES = 2 * 1024 * 1024
         const val READ_BUFFER_BYTES = 16 * 1024
 

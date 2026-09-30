@@ -49,28 +49,14 @@ class CodexToolInstaller(
             }.getOrElse { CommandResult(exitCode = 1, stdout = "", stderr = it.message ?: "网络超时", durationMs = 0L) }
 
             if (!install.isSuccess) {
-                emit(InstallEvent.Output(toolId, "提示: 远程源网络受限，正在切换至太墟 Codex CLI 沙箱就绪通道..."))
-                val localSetup = """
-                    mkdir -p "${ToolLayout.toolDirectory(toolId)}/.local/bin"
-                    cat << 'EOF' > "${ToolLayout.toolDirectory(toolId)}/.local/bin/codex"
-#!/usr/bin/env sh
-if [ "${'$'}1" = "--version" ] || [ "${'$'}1" = "-v" ]; then
-    echo "codex 0.1.0 (OpenAI Codex CLI)"
-    exit 0
-fi
-echo "🤖 OpenAI Codex CLI (TaiXu Runtime Sandbox)"
-echo "=========================================="
-if [ -n "${'$'}OPENAI_API_KEY" ]; then
-    echo "🔑 API Key: 已挂载"
-else
-    echo "💡 提示: 可在太墟【设置中心】配置 OpenAI / DeepSeek API Key"
-fi
-echo "正在启动交互式编码与 Agent 终端环境..."
-exec /bin/bash
-EOF
-                    chmod +x "${ToolLayout.toolDirectory(toolId)}/.local/bin/codex"
-                """.trimIndent()
-                executeAndReport(linuxRuntime.execute(ShellCommand(localSetup, environment = installEnvironment)))
+                // 失败必须如实上抛。此前这里会写入一个只会打印 "codex 0.1.0" 的 stub
+                // 脚本充当伪 CLI，导致下方 verify 必过、安装被记为 Completed/INSTALLED——
+                // 真实 CLI 从未落盘却被掩盖，网络恢复后也不会触发重装。
+                val reason = install.stderr.ifBlank { install.stdout }.trim()
+                error(
+                    "Codex 远程安装脚本执行失败（exit=${install.exitCode}）：" +
+                        reason.lineSequence().firstOrNull().orEmpty().ifBlank { "网络受限或脚本下载失败" },
+                )
             }
             val link = toolCommandLinker.link(
                 command = "codex",

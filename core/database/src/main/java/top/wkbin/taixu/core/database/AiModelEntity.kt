@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -86,6 +87,16 @@ interface AiModelDao {
 
     @Query("UPDATE harness_models SET isActive = 1 WHERE id = :id")
     suspend fun setActive(id: String)
+
+    /**
+     * 唯一激活切换必须单事务：clearActive 与 setActive 分两步提交时，崩溃窗口内
+     * 会留下 0 激活模型，而 activeModel() 是 LIMIT 1 无排序，恢复行为不确定。
+     */
+    @Transaction
+    suspend fun activate(id: String) {
+        clearActive()
+        setActive(id)
+    }
 
     @Query("UPDATE harness_models SET reasoningMode = :mode, reasoningEffort = :effort WHERE id = :id")
     suspend fun updateReasoning(id: String, mode: String?, effort: String?)

@@ -4,6 +4,7 @@ import android.content.Context
 import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.database.AiModelRepository
@@ -139,9 +141,12 @@ class WorkflowViewModel(
 
     /**
      * 自动扫描工程目录或工作区下的 APK 构建产物，按最后修改时间倒序排列（最新在前）。
+     * 全盘 walkTopDown 开销不可控，必须挂起并切到 IO 执行，禁止在组合/主线程同步调用。
      */
-    fun scanWorkspaceApks(projectName: String): List<DiscoveredApk> =
-        scanApksInWorkspace(pathManager.workspaceDir, projectName)
+    suspend fun scanWorkspaceApks(projectName: String): List<DiscoveredApk> =
+        withContext(Dispatchers.IO) {
+            scanApksInWorkspace(pathManager.workspaceDir, projectName)
+        }
 
     fun start(definition: WorkflowDefinition, projectName: String, variables: Map<String, String> = emptyMap()) {
         val safeProject = projectName.trim().trim('/').takeIf { it.isNotEmpty() }

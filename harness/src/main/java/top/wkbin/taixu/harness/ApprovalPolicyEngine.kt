@@ -284,7 +284,7 @@ class ApprovalPolicyEngine(
             "\\bfind\\b.*\\s(-delete|-exec|-execdir|-ok|-okdir|-fprint|-fprint0|-fprintf|-fls)\\b",
         )
         private val BLOCKED_NETWORK_OR_MUTATION = Regex(
-            """\b(curl|wget|nc|ssh|scp|adb|taixu-host|mount|umount|kill|pkill|chmod|chown|apt(-get)?|apk|dnf|pacman|npm\s+(install|publish)|pip\s+install|git\s+(push|reset|clean))\b""",
+            """\b(curl|wget|nc|ssh|scp|adb|taixu-host|mount|umount|kill|pkill|chmod|chown|rm|mv|cp|tee|apt(-get)?|apk|dnf|pacman|npm\s+(install|publish)|pip\s+install|git\s+(push|reset|clean))\b""",
         )
         private val ROUTINE_PRIMARY = Regex(
             """^(pwd|ls|find|rg|grep|head|tail|cat|git\s+(status|diff|log|show)|gradle(w)?\b.*(test|check|assemble)|npm\s+(test|run\s+(test|lint|build))|flutter\s+(test|analyze|build)|pytest\b|kotlinc\b|\./gradlew\b.*(test|check|assemble))""",
@@ -397,6 +397,10 @@ class ApprovalPolicyEngine(
             .replace(Regex("""\s+\d*>&\d+\b"""), " ")
             .replace(Regex("""\s+>&\d+\b"""), " ")
             .trim()
+        // 裸 `&`（后台执行符）不可自动放行：`cat pom.xml & rm x` 的后半段会在 shell
+        // 后台直接执行并完全绕过前缀白名单。必须先剥 `2>&1` 类 fd 重定向、拆掉 `&&`
+        // 连接符（两者安全且有专门处理），剩余任何 `&` 都是未覆盖的组合语法，一律审批。
+        if ("&" in withoutSafeRedirects.replace("&&", " ")) return false
         val pipeParts = withoutSafeRedirects.split("|").map { it.trim() }.filter { it.isNotEmpty() }
         if (pipeParts.isEmpty()) return false
         if (pipeParts.drop(1).any { !isSafeReadFilter(it) }) return false

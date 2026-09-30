@@ -120,6 +120,14 @@ fun ModelEditorScreen(
             initialApiKey = viewModel.readModelApiKey(secretRef)
         }
     }
+    // 保存被端点策略拒绝时留在编辑页并提示，避免静默丢档
+    LaunchedEffect(Unit) {
+        viewModel.profileSaveError.collect { error ->
+            if (!error.isNullOrBlank()) {
+                Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     var showImportJsonDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -158,7 +166,7 @@ fun ModelEditorScreen(
             discover = { provider, url, key -> viewModel.discoverModels(provider, url, key) },
             test = { url, model, key, respApi, providerId -> viewModel.testConnection(url, model, key, respApi, providerId) },
             save = { name, provider, modelsList, url, key, rpmLimit, temperature, maxTokens, topP, reasoningMode, reasoningEffort, toolCallMode, contextTokens, compactionKeepRecent, compactionReserve, customHeaders, pureChatMode, visionEnabled, imageGenerationEnabled, responseApiEnabled, promptCachingEnabled, promptCacheTtl1h ->
-                viewModel.saveModels(
+                val saved = viewModel.saveModels(
                     id = modelId,
                     models = modelsList,
                     name = name,
@@ -183,7 +191,7 @@ fun ModelEditorScreen(
                     promptCachingEnabled = promptCachingEnabled,
                     promptCacheTtl1h = promptCacheTtl1h,
                 )
-                onSaved()
+                if (saved) onSaved()
             },
             onFillFromJson = { jsonStr ->
                 val result = viewModel.parseProfilesFromJson(jsonStr)

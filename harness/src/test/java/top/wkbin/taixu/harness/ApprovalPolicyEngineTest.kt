@@ -319,5 +319,51 @@ class ApprovalPolicyEngineTest {
             ).required,
         )
     }
+
+    @Test
+    fun `bare ampersand background composition requires approval`() {
+        // `&` 后台执行符串联的第二段命令完全绕过前缀白名单，必须审批
+        assertTrue(
+            policy.decide(
+                ApprovalMode.ASSISTED,
+                HarnessTool.BASE,
+                args("command" to "cat pom.xml & rm build/output.apk"),
+                workspace,
+            ).required,
+        )
+        // 后半段即使是无害白名单命令，裸 `&` 本身也超出管线白名单的表达范围
+        assertTrue(
+            policy.decide(
+                ApprovalMode.ASSISTED,
+                HarnessTool.BASE,
+                args("command" to "cat pom.xml & ls"),
+                workspace,
+            ).required,
+        )
+        // fd 重定向不能掩护裸 `&`
+        assertTrue(
+            policy.decide(
+                ApprovalMode.ASSISTED,
+                HarnessTool.BASE,
+                args("command" to "cat pom.xml 2>&1 & rm build/output.apk"),
+                workspace,
+            ).required,
+        )
+        // 对照：`2>&1 | head` 与 `cd x && rg` 合法组合不受影响
+        assertFalse(
+            policy.decide(
+                ApprovalMode.ASSISTED,
+                HarnessTool.BASE,
+                args("command" to "cat build.log 2>&1 | head -5"),
+                workspace,
+            ).required,
+        )
+    }
+
+    @Test
+    fun `mutation commands as bare primaries require approval even with routine prefix`() {
+        // rm/mv/cp/tee 加入黑名单后的纵深防御：即使前缀锚定命中也不放行
+        assertTrue(policy.decide(ApprovalMode.ASSISTED, HarnessTool.BASE, args("command" to "cat pom.xml | tee /etc/hosts"), workspace).required)
+    }
 }
 

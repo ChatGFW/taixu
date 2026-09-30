@@ -116,8 +116,7 @@ class AiProfileBackupCodec(
 
         // 与既有行为一致：仅当原本没有任何活跃档案时，才把第一条导入设为活跃
         if (existing.none { it.isActive } && importedIds.isNotEmpty()) {
-            aiModelDao.clearActive()
-            aiModelDao.setActive(importedIds.first())
+            aiModelDao.activate(importedIds.first())
         }
 
         return if (importedIds.isNotEmpty()) Result.success(importedIds.size)

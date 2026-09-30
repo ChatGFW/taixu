@@ -63,23 +63,28 @@ fun moduleGradlePath(module: Map<*, *>): String =
 fun moduleSourceRoot(module: Map<*, *>): java.io.File =
     rootDir.resolve(module["path"] as String).resolve("src/main")
 
+// 配置期解析一次 policy，供两个验证任务登记精确输入。
+// 输入必须显式枚举到「policy json + 各模块 build.gradle.kts + src/main/**/*.kt」，
+// 不能用 fileTree(rootDir)：其根覆盖各模块 build/ 输出目录，Gradle 9 会把
+// architectureCheck 判定为隐式依赖 ':x:compileKotlin' 的输出（uses this output
+// without declaring an explicit dependency），与编译任务同图时直接构建失败。
+val architecturePolicyData = parseJsonMap(architecturePolicyFile)
+val architectureBaselineFile = rootProject.file(
+    (architecturePolicyData["global"] as Map<*, *>)["baselineFile"] as String,
+)
+val architectureModuleDirs = policyModules(architecturePolicyData)
+    .map { rootDir.resolve(it["path"] as String) }
+
 tasks.register("architectureCheck") {
     group = "verification"
     description = "Policy-driven checks: dependency whitelist, cycles, import bans, size ratchet."
 
-    inputs.files(
-        // build 脚本单独成树：可安全排除 Gradle build/ 输出目录；
-        // 源码树不做该排除，避免误伤合法的源码包目录（如 top.wkbin.taixu.runtime.build）
-        fileTree(rootDir) {
-            include("**/build.gradle.kts")
-            exclude("**/build/**")
-        },
-        fileTree(rootDir) {
-            include("architecture-policy.json", ".architecture-baseline.json")
-            include("**/src/main/**/*.kt")
-            exclude(".git/**", ".tmp_operit_analysis/**", "build-logic/**")
-        }
-    )
+    inputs.files(architecturePolicyFile)
+    if (architectureBaselineFile.isFile) inputs.files(architectureBaselineFile)
+    architectureModuleDirs.forEach { moduleDir ->
+        inputs.files(moduleDir.resolve("build.gradle.kts"))
+        inputs.files(fileTree(moduleDir.resolve("src/main")) { include("**/*.kt") })
+    }
 
     doLast {
         val policy = parseJsonMap(architecturePolicyFile)
@@ -220,13 +225,11 @@ tasks.register("architectureBaselineSync") {
     group = "verification"
     description = "同步文件尺寸棘轮基线：收缩下调 / 拒绝上涨 / 清理失效条目。"
 
-    inputs.files(
-        fileTree(rootDir) {
-            include("architecture-policy.json", ".architecture-baseline.json")
-            include("**/src/main/**/*.kt")
-            exclude(".git/**", ".tmp_operit_analysis/**", "build-logic/**")
-        }
-    )
+    inputs.files(architecturePolicyFile)
+    if (architectureBaselineFile.isFile) inputs.files(architectureBaselineFile)
+    architectureModuleDirs.forEach { moduleDir ->
+        inputs.files(fileTree(moduleDir.resolve("src/main")) { include("**/*.kt") })
+    }
     outputs.file(rootProject.file(".architecture-baseline.json"))
 
     doLast {

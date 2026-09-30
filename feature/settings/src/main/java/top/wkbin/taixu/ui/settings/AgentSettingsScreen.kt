@@ -760,15 +760,6 @@ fun AgentSettingsScreen(
             },
         )
     }
-
-    pendingSkillInspection?.let { inspection ->
-        top.wkbin.taixu.ui.settings.skill.SkillSecurityAuditDialog(
-            inspection = inspection,
-            isCommitting = isCommittingInstallation,
-            onConfirmInstall = viewModel::confirmSkillInstallation,
-            onDismiss = viewModel::dismissSkillInspection,
-        )
-    }
 }
 
 @Composable
