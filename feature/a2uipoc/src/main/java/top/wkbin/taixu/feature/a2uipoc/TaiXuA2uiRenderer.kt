@@ -51,6 +51,10 @@ object TaiXuA2uiRenderer {
         video = TaiXuVideoComponent(),
         audioPlayer = TaiXuAudioPlayerComponent(),
         urlOpener = TaiXuUrlOpener,
+        // 覆写 List：官方实现用 LazyColumn/LazyRow，内嵌聊天流（同为纵向 LazyColumn）
+        // 会因「同向嵌套滚动容器 + 无限高约束」抛 IllegalStateException 并杀死进程，
+        // 这里改用普通 Column/Row 逐项展平，见 TaiXuNonLazyList.kt。
+        list = TaiXuNonLazyList,
         messageFormatter = TaiXuMessageFormatter,
         localeProvider = A2uiLocaleProvider.Default,
     )
