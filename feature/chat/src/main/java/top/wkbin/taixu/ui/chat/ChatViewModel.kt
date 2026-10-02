@@ -495,12 +495,12 @@ class ChatViewModel(
     val thinkingExpanded: StateFlow<Boolean> = settingsDataStore.thinkingExpanded
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    fun setThinkingExpanded(value: Boolean) {
-        viewModelScope.launch { settingsDataStore.setThinkingExpanded(value) }
-    }
-
+    fun setThinkingExpanded(value: Boolean) { viewModelScope.launch { settingsDataStore.setThinkingExpanded(value) } }
     /** 思考过程是否在展开时自动翻译为中文。 */
     val thinkingAutoTranslate: StateFlow<Boolean> = settingsDataStore.thinkingAutoTranslate
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    /** 历史轮次中间过程自动折叠（默认关闭；仅用户主动开启后生效）。 */
+    val chatRoundCollapse: StateFlow<Boolean> = settingsDataStore.chatRoundCollapse
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun navigateToAgentSettings() {
@@ -1524,7 +1524,6 @@ data class ContextUsage(
     val cacheHitRatePercent: Int? = null,
     val breakdown: ContextUsageBreakdown = ContextUsageBreakdown(),
 )
-
 
 data class MentionItem(
     val id: String,

@@ -92,6 +92,7 @@ fun AgentSettingsScreen(
     val thinkingExpanded by viewModel.thinkingExpanded.collectAsStateWithLifecycle()
     val translationModelStatus by viewModel.translationModelStatus.collectAsStateWithLifecycle()
     val thinkingAutoTranslate by viewModel.thinkingAutoTranslate.collectAsStateWithLifecycle()
+    val chatRoundCollapse by viewModel.chatRoundCollapse.collectAsStateWithLifecycle()
     val customSystemPromptEnabled by viewModel.customSystemPromptEnabled.collectAsStateWithLifecycle()
     val customSystemPrompt by viewModel.customSystemPrompt.collectAsStateWithLifecycle()
     val agentCharName by viewModel.agentCharName.collectAsStateWithLifecycle()
@@ -213,6 +214,14 @@ fun AgentSettingsScreen(
                         subtitle = if (thinkingAutoTranslate) "展开思考块时若检测为英文将自动调用本地离线模型翻译呈现" else "仅在点击思考块上的翻译按钮时进行翻译",
                         checked = thinkingAutoTranslate,
                         onCheckedChange = viewModel::setThinkingAutoTranslate,
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    AgentToggleRow(
+                        icon = RuntimeIconName.Compress,
+                        title = "自动收拢历史轮次的思考与工具过程",
+                        subtitle = if (chatRoundCollapse) "已结束的历史轮次中，超过 2 步的思考与工具调用将收拢为「展开更多」摘要，点击即可展开；当前进行中的轮次始终完整呈现" else "关闭时保持自然单行流：全部思考过程与工具调用逐条平铺呈现",
+                        checked = chatRoundCollapse,
+                        onCheckedChange = viewModel::setChatRoundCollapse,
                     )
                 }
             }

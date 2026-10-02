@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 
-private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+internal val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class SettingsDataStore(
     private val context: Context,
@@ -628,16 +628,16 @@ class SettingsDataStore(
     /** 聊天里“思考过程”块是否默认展开（记忆用户上次的选择）。 */
     val thinkingExpanded: Flow<Boolean> = context.settingsDataStore.data.map { it[thinkingExpandedKey] ?: false }
 
-    suspend fun setThinkingExpanded(value: Boolean) {
-        context.settingsDataStore.edit { it[thinkingExpandedKey] = value }
-    }
+    suspend fun setThinkingExpanded(value: Boolean) { context.settingsDataStore.edit { it[thinkingExpandedKey] = value } }
 
     /** 是否在展开思考过程时自动翻译为中文（需下载本地语种模型）。 */
     val thinkingAutoTranslate: Flow<Boolean> = context.settingsDataStore.data.map { it[thinkingAutoTranslateKey] ?: false }
 
-    suspend fun setThinkingAutoTranslate(value: Boolean) {
-        context.settingsDataStore.edit { it[thinkingAutoTranslateKey] = value }
-    }
+    suspend fun setThinkingAutoTranslate(value: Boolean) { context.settingsDataStore.edit { it[thinkingAutoTranslateKey] = value } }
+
+    /** 历史轮次中间过程自动折叠（默认关闭）。实现见 ChatRoundCollapsePreferences.kt。 */
+    val chatRoundCollapse: Flow<Boolean> = context.chatRoundCollapsePreference
+    suspend fun setChatRoundCollapse(value: Boolean) { context.setChatRoundCollapsePreference(value) }
 
     /** 全局推理深度：auto / disabled / low / medium / high（作用于未单独设置强度的模型）。 */
     val defaultReasoningDepth: Flow<String> = context.settingsDataStore.data.map { it[defaultReasoningDepthKey] ?: "auto" }
