@@ -759,6 +759,9 @@ class SettingsViewModel(
             agentPreferences.setThinkingAutoTranslate(value)
         }
     }
+    val chatRoundCollapse: StateFlow<Boolean> = agentPreferences.chatRoundCollapse
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    fun setChatRoundCollapse(value: Boolean) { viewModelScope.launch { agentPreferences.setChatRoundCollapse(value) } }
 
     val customSystemPromptEnabled: StateFlow<Boolean> = agentPreferences.customSystemPromptEnabled
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
@@ -1002,17 +1005,13 @@ class SettingsViewModel(
         viewModelScope.launch { agentPreferences.setSkillEvolutionSuggestions(enabled) }
     }
 
-    fun setThinkingExpanded(value: Boolean) {
-        viewModelScope.launch { agentPreferences.setThinkingExpanded(value) }
-    }
+    fun setThinkingExpanded(value: Boolean) { viewModelScope.launch { agentPreferences.setThinkingExpanded(value) } }
 
     fun setDefaultReasoningDepth(value: String) {
         viewModelScope.launch { agentPreferences.setDefaultReasoningDepth(value) }
     }
 
-    fun setContextCompactionEnabled(value: Boolean) {
-        viewModelScope.launch { agentPreferences.setContextCompactionEnabled(value) }
-    }
+    fun setContextCompactionEnabled(value: Boolean) { viewModelScope.launch { agentPreferences.setContextCompactionEnabled(value) } }
 
     fun setMaxToolRounds(value: Int) {
         viewModelScope.launch { agentPreferences.setMaxToolRounds(value) }

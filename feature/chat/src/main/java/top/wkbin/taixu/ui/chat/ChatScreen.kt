@@ -147,6 +147,7 @@ fun ChatScreen(
     val thinkingLive by viewModel.thinkingLive.collectAsStateWithLifecycle()
     val thinkingExpanded by viewModel.thinkingExpanded.collectAsStateWithLifecycle()
     val thinkingAutoTranslate by viewModel.thinkingAutoTranslate.collectAsStateWithLifecycle()
+    val chatRoundCollapse by viewModel.chatRoundCollapse.collectAsStateWithLifecycle()
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
     val workspaces by viewModel.workspaces.collectAsStateWithLifecycle()
     val models by viewModel.models.collectAsStateWithLifecycle()
@@ -205,7 +206,6 @@ fun ChatScreen(
     val editTargetMessage = remember(messages, editTargetMessageId) {
         messages.filterIsInstance<UserMessage>().firstOrNull { it.id == editTargetMessageId }
     }
-
 
     val listState = rememberLazyListState()
     val context = LocalContext.current
@@ -450,6 +450,7 @@ fun ChatScreen(
                     status = status,
                     thinkingExpanded = thinkingExpanded,
                     thinkingAutoTranslate = thinkingAutoTranslate,
+                    chatRoundCollapse = chatRoundCollapse,
                     thinkingLive = thinkingLive,
                     liveThinkingMessageId = liveThinkingMessageId,
                     onNavigateToSettings = viewModel::navigateToAgentSettings,
@@ -849,13 +850,10 @@ fun ChatScreen(
             onNavigateToMessage = { messageId ->
                 showRuntimeTimeline = false
                 coroutineScope.launch {
-                    // 关键修复：旧的 targetIndex 用 (messages.filter { ToolResult }).indexOfFirst
-                    // 计算，没有 LazyColumn 实际头部结构（init / empty / compaction）的偏移补偿，
-                    // 也没有上界保护 —— 当消息在 sheet 打开后发生变化（流式新增 / 删除）时，
-                    // 可能传入越界索引，触发 LazyListState 的 IllegalArgumentException。
-                    // 这里改用与 ChatMessageList 完全一致的 projectChatMessages 投影，
-                    // 并 clamp 到合法区间。
-                    val renderItems = projectChatMessages(messages, toolResults)
+                    // 关键修复：旧实现用过滤后的 messages.indexOfFirst，缺少 LazyColumn 头部偏移补偿
+                    // 与上界保护，sheet 打开后消息变化时可能传入越界索引（LazyListState 抛
+                    // IllegalArgumentException）。此处改用与 ChatMessageList 完全一致的投影（含折叠开关）。
+                    val renderItems = projectChatMessages(messages, toolResults, collapseEnabled = chatRoundCollapse)
                     val targetIndex = renderItems.indexOfFirst { item ->
                         item is ChatRenderItem.MessageItem && item.message.id == messageId
                     }
@@ -928,6 +926,7 @@ private fun ChatPaneContent(
     status: String?,
     thinkingExpanded: Boolean,
     thinkingAutoTranslate: Boolean = false,
+    chatRoundCollapse: Boolean = false,
     thinkingLive: Boolean,
     liveThinkingMessageId: String?,
     onNavigateToSettings: (() -> Unit)? = null,
@@ -1006,6 +1005,7 @@ private fun ChatPaneContent(
             onboardingPrivilege = onboardingPrivilege,
             thinkingExpanded = thinkingExpanded,
             thinkingAutoTranslate = thinkingAutoTranslate,
+            chatRoundCollapse = chatRoundCollapse,
             thinkingLive = thinkingLive,
             liveThinkingMessageId = liveThinkingMessageId,
             lastAssistantMessageId = lastAssistantMessageId,

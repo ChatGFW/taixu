@@ -160,6 +160,8 @@ class AgentPreferences(private val store: SettingsDataStore) {
     val selectedDistribution get() = store.selectedDistribution
     val thinkingExpanded get() = store.thinkingExpanded
     val thinkingAutoTranslate get() = store.thinkingAutoTranslate
+    val chatRoundCollapse get() = store.chatRoundCollapse
+    suspend fun setChatRoundCollapse(value: Boolean) = store.setChatRoundCollapse(value)
     val defaultReasoningDepth get() = store.defaultReasoningDepth
     val contextCompactionEnabled get() = store.contextCompactionEnabled
     val maxToolRounds get() = store.maxToolRounds

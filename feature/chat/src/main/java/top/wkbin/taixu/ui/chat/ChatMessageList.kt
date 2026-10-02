@@ -99,6 +99,7 @@ internal fun ChatMessageList(
     onboardingPrivilege: OnboardingPrivilege?,
     thinkingExpanded: Boolean,
     thinkingAutoTranslate: Boolean = false,
+    chatRoundCollapse: Boolean = false,
     thinkingLive: Boolean,
     liveThinkingMessageId: String?,
     lastAssistantMessageId: String?,
@@ -129,13 +130,10 @@ internal fun ChatMessageList(
     // 折叠状态用自定义 Saver：Map 不能直接存入 Bundle（会抛 IllegalArgumentException）
     var expandedOverrides by rememberSaveable(stateSaver = ExpandedOverridesSaver) { mutableStateOf(mapOf<String, Boolean>()) }
 
-    val renderItems = remember(messages, expandedOverrides) {
-        // 注意：不把 toolResults 列为依赖——projectChatMessages 的实现并不读取它
-        // （仅保留形参以兼容既有调用），列为依赖只会在工具结果变化时白白让投影失效重建一次。
-        projectChatMessages(
-            messages = messages,
-            expandedOverrides = expandedOverrides,
-        )
+    // 折叠关闭（默认）时投影不读取 toolResults，故也不把它列为 remember 键。
+    val projectionToolResults = if (chatRoundCollapse) toolResults else emptyMap()
+    val renderItems = remember(messages, expandedOverrides, chatRoundCollapse, projectionToolResults) {
+        projectChatMessages(messages, projectionToolResults, expandedOverrides, chatRoundCollapse)
     }
     val waitingForFirstOutput = remember(
         // 只依赖「末条消息的 id + 其内容签名」：流式期间末条内容变化会改变签名（真正需要重算），
