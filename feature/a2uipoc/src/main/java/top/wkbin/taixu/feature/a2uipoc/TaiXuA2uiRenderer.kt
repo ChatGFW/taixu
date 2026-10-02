@@ -10,11 +10,14 @@ import androidx.compose.material3.a2ui.catalog.materialA2uiBasicCatalogV1
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import java.security.MessageDigest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -51,6 +54,10 @@ object TaiXuA2uiRenderer {
         video = TaiXuVideoComponent(),
         audioPlayer = TaiXuAudioPlayerComponent(),
         urlOpener = TaiXuUrlOpener,
+        // 覆写 List：官方实现用 LazyColumn/LazyRow，内嵌聊天流（同为纵向 LazyColumn）
+        // 会因「同向嵌套滚动容器 + 无限高约束」抛 IllegalStateException 并杀死进程，
+        // 这里改用普通 Column/Row 逐项展平，见 TaiXuNonLazyList.kt。
+        list = TaiXuNonLazyList,
         messageFormatter = TaiXuMessageFormatter,
         localeProvider = A2uiLocaleProvider.Default,
     )
@@ -68,7 +75,14 @@ object TaiXuA2uiRenderer {
     private val errorReportedAt = mutableMapOf<String, Long>()
     private val errorReportLock = Any()
 
-    /** 已成功投喂的载荷指纹 → surfaceId（LRU 上限 [MAX_PROCESSED_PAYLOADS]），防滚动重组/历史恢复时重复投喂；surface 报错时按值剔除以放行模型重试。 */
+    /**
+     * 已成功投喂的载荷指纹 → surfaceId（LRU 上限 [MAX_PROCESSED_PAYLOADS]）。
+     *
+     * 组合销毁重建（滚动出屏再回看）会再次触发投喂：processor 仍持有 surface 状态，重复投喂不但
+     * 白做一遍主线程解析，还会撞出 `[RUNTIME_ERROR] Surface already exists`。指纹命中即直接放行。
+     * 容量必须覆盖「一次会话里出现过的 A2UI 卡片数」——实测单会话可产生 80+ 张卡片，旧上限 32
+     * 会在滚动回看时被淘汰，导致重复投喂与假报错。投喂失败不记指纹，模型修正后可重试。
+     */
     private val processedPayloads = object : LinkedHashMap<String, String>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>): Boolean =
             size > MAX_PROCESSED_PAYLOADS
@@ -191,12 +205,23 @@ object TaiXuA2uiRenderer {
         }
     }
 
-    /** 渲染指定 surface；尚未收到该 surface 的组件数据时返回 false（调用方可回退展示原文）。 */
+    /**
+     * 渲染指定 surface；尚未收到该 surface 的组件数据时返回 false（调用方可回退展示原文）。
+     *
+     * 只订阅「本卡片对应的那一个 surface」：`activeSurfaces` 每次发射都比对本项，命中同一实例时
+     * 直接跳过重组。若订阅整张表（旧写法），任一表面的更新都会让聊天流里**所有** A2UI 卡片一起
+     * 重组；而 [A2uiSurface] 的入参 `A2uiSurfaceModel` 是接口类型，Compose 视为不稳定参数无法
+     * 跳过，于是大列表表面会被反复重新组合与重新测量——这是长会话多卡片场景最明显的卡顿来源。
+     */
     @Composable
     fun SurfaceView(surfaceId: String, modifier: Modifier = Modifier): Boolean {
-        val surfaces by processor.activeSurfaces.collectAsState()
-        val surface = surfaces.firstOrNull { it.id == surfaceId } ?: return false
-        A2uiSurface(surfaceModel = surface, modifier = modifier)
+        val surface by remember(surfaceId) {
+            processor.activeSurfaces
+                .map { surfaces -> surfaces.firstOrNull { it.id == surfaceId } }
+                .distinctUntilChanged()
+        }.collectAsState(initial = null)
+        val current = surface ?: return false
+        A2uiSurface(surfaceModel = current, modifier = modifier)
         return true
     }
 
@@ -213,6 +238,7 @@ object TaiXuA2uiRenderer {
     private fun sha256(text: String): String =
         MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
 
-    private const val MAX_PROCESSED_PAYLOADS = 32
+    /** 去重表容量：须覆盖单次会话出现过的 A2UI 卡片数（实测 80+，留足余量）。每条约 150 B。 */
+    private const val MAX_PROCESSED_PAYLOADS = 1024
     private const val ERROR_REPORT_COOLDOWN_MS = 15_000L
 }
