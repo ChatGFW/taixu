@@ -34,6 +34,11 @@ sealed interface ChatRenderItem {
         val totalSteps: Int,
         val hiddenDurationMs: Long,
         val isExpanded: Boolean,
+        /**
+         * 「隐藏段」渲染条目数：折叠时会消失、展开后会出现的非用户消息条数。
+         * 收拢态与展开态上报同一数值；UI 在展开且该值大于每帧上限时启动分帧揭示。
+         */
+        val hiddenItemCount: Int = 0,
     ) : ChatRenderItem {
         override val stableKey: String get() = "collapse_btn_$roundKey"
     }
@@ -68,6 +73,7 @@ fun projectChatMessages(
     toolResults: Map<String, ToolResult> = emptyMap(),
     expandedOverrides: Map<String, Boolean> = emptyMap(),
     collapseEnabled: Boolean = false,
+    revealLimits: Map<String, Int> = emptyMap(),
 ): List<ChatRenderItem> {
     if (messages.isEmpty()) return emptyList()
 
@@ -111,7 +117,15 @@ fun projectChatMessages(
         }
 
         if (!shouldCollapse) {
-            // 摊开态：若该轮本处于折叠态且被手动展开，在轮顶补一个「收起」按钮
+            // 摊开态：若该轮本处于折叠态且被手动展开，在轮顶补一个「收起」按钮。
+            // 隐藏段（= 折叠时会消失的那些条目）用于「分帧揭示」：一次性插入 N 张重卡
+            // 会在同一帧内完成组合，长轮次必然掉帧，故按帧逐批放出（见 revealLimits）。
+            val revealLimit = revealLimits[round.roundKey] ?: Int.MAX_VALUE
+            val hiddenToolCallIdSet: Set<String> =
+                if (totalSteps > 2) round.toolCalls.take(totalSteps - 2).map { it.id }.toSet() else emptySet()
+            // 仅手动展开的轮次需要隐藏段；定义与收拢态 hiddenItemCount 共用 hiddenItemIds。
+            val hiddenItemIdSet: Set<String> =
+                if (manualOverride == true) hiddenItemIds(round, hiddenToolCallIdSet) else emptySet()
             if (totalSteps > 2 && manualOverride == true) {
                 result.add(
                     ChatRenderItem.CollapseButtonItem(
@@ -120,13 +134,18 @@ fun projectChatMessages(
                         totalSteps = totalSteps,
                         hiddenDurationMs = 0L,
                         isExpanded = true,
+                        hiddenItemCount = hiddenItemIdSet.size,
                     ),
                 )
             }
+            var revealedItems = 0
             for (msg in round.nonResultMessages) {
-                if (msg !is UserMessage) {
-                    result.add(ChatRenderItem.MessageItem(msg, rawIndex = rawIndexOf[msg.id] ?: -1))
+                if (msg is UserMessage) continue
+                if (msg.id in hiddenItemIdSet) {
+                    if (revealedItems >= revealLimit) continue
+                    revealedItems++
                 }
+                result.add(ChatRenderItem.MessageItem(msg, rawIndex = rawIndexOf[msg.id] ?: -1))
             }
         } else {
             // 收拢态：隐藏最旧的 (totalSteps - 2) 步，保留最新 2 步
@@ -144,6 +163,9 @@ fun projectChatMessages(
                     totalSteps = totalSteps,
                     hiddenDurationMs = hiddenDurationMs,
                     isExpanded = false,
+                    // 点击「展开更多」时 UI 读的是切换前的收拢按钮，必须在这里带上真实条数，
+                    // 否则 RoundRevealState 看到 0，分帧揭示不会启动。
+                    hiddenItemCount = hiddenItemIds(round, hiddenToolCallIds).size,
                 ),
             )
 
@@ -224,6 +246,23 @@ private fun splitIntoRounds(messages: List<HarnessMessage>): List<ChatRound> {
     }
 
     return rounds
+}
+
+/**
+ * 折叠时会从本轮渲染流中消失的条目 id。
+ *
+ * 与展开后会出现的条目同一集合：`round.nonResultMessages` 里的非 [UserMessage]，
+ * 且不在 [filterVisibleMessagesByFollowRule] 的可见集中。收拢按钮的
+ * [ChatRenderItem.CollapseButtonItem.hiddenItemCount] 与展开态隐藏段必须共用它，
+ * 否则两边计数会漂移，分帧揭示读到收拢态的 0。
+ */
+private fun hiddenItemIds(round: ChatRound, hiddenToolCallIds: Set<String>): Set<String> {
+    if (hiddenToolCallIds.isEmpty()) return emptySet()
+    val stillVisible = filterVisibleMessagesByFollowRule(round.nonResultMessages, hiddenToolCallIds)
+        .mapTo(HashSet()) { it.id }
+    return round.nonResultMessages
+        .filter { it !is UserMessage && it.id !in stillVisible }
+        .mapTo(HashSet()) { it.id }
 }
 
 /**
