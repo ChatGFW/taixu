@@ -20,6 +20,21 @@ object ShowerServerManager {
     private const val TAG = "ShowerServerManager"
     private const val ASSET_JAR_NAME = "shower-server.jar"
     private const val LOCAL_JAR_NAME = "shower-server.jar"
+    private const val SERVER_MAIN_CLASS = "com.ai.assistance.shower.Main"
+
+    /**
+     * 终止旧 server。模式里用 `[c]` 字符类把首字母拆开，避免 `pkill -f` 匹配到
+     * **执行它的那条 `sh -c` 命令行本身**（原写法会自杀，exit=143/SIGTERM，
+     * 且 `|| true` 永远没机会执行）。
+     */
+    private const val KILL_SERVER_CMD = "pkill -f \"[c]om.ai.assistance.shower.Main\" || true"
+
+    /** 启动命令里用于判定 app_process 是否存活的自标记。 */
+    private const val START_OK_MARK = "SHOWER_START_OK"
+    private const val START_DEAD_MARK = "SHOWER_START_DEAD"
+
+    /** 读回 server 落盘日志的尾部字节数。 */
+    private const val SERVER_LOG_TAIL_BYTES = 4096
 
     @Volatile
     var additionalTargetPackages: Set<String> = emptySet()
@@ -51,7 +66,7 @@ object ShowerServerManager {
         }
 
         // 1) Kill existing server (ignore errors about missing process).
-        val killCmd = "pkill -f com.ai.assistance.shower.Main || true"
+        val killCmd = KILL_SERVER_CMD
         ShowerLog.d(TAG, "Stopping existing Shower server (if any) with command: $killCmd")
         runner.run(killCmd, ShellIdentity.DEFAULT)
 
@@ -94,10 +109,26 @@ object ShowerServerManager {
         }
 
         // 5) Start app_process with CLASSPATH pointing to the copied jar, in background.
+        //    输出重定向到 $remoteLogPath：后台进程会一直持有管道写端，HostProcessRunner 的
+        //    排空超时会丢弃捕获内容；不落盘的话，启动失败（app_process 不存在 / ClassNotFound /
+        //    SELinux 拒绝）将完全不可见，只表现为「Binder 一直收不到」。
+        //    末尾 sleep 1 + kill -0 给出一个明确的存活判定标记。
         val targetPackagesArg = appContext.packageName
-        val startCmd = "CLASSPATH=$remoteJarPath app_process / com.ai.assistance.shower.Main $targetPackagesArg &"
+        val startCmd = "CLASSPATH=$remoteJarPath app_process / $SERVER_MAIN_CLASS $targetPackagesArg " +
+            "> $remoteLogPath 2>&1 & " +
+            "SERVER_PID=\$!; sleep 1; " +
+            "if kill -0 \$SERVER_PID 2>/dev/null; then echo $START_OK_MARK; else echo $START_DEAD_MARK; fi"
         ShowerLog.d(TAG, "Starting Shower server with command: $startCmd")
         val startResult = runner.run(startCmd, ShellIdentity.SHELL)
+        if (startResult.stdout.contains(START_DEAD_MARK)) {
+            // 仅记录、不提前返回：个别 ROM 上 app_process 可能 fork/自后台化导致误判，
+            // 真正结果仍以后面的 Binder 轮询为准。
+            ShowerLog.w(
+                TAG,
+                "Shower server 进程 1s 内即退出（可能 app_process 失败）。\n" +
+                    "--- $remoteLogPath ---\n${readServerLog(runner, remoteLogPath)}"
+            )
+        }
         if (!startResult.success) {
             ShowerLog.e(
                 TAG,
@@ -118,8 +149,23 @@ object ShowerServerManager {
             }
         }
 
-        ShowerLog.e(TAG, "Shower Binder was not received within the expected time")
+        val processAlive = startResult.stdout.contains(START_OK_MARK)
+        ShowerLog.e(
+            TAG,
+            "Shower Binder was not received within the expected time (app_process 存活=$processAlive)。\n" +
+                "--- $remoteLogPath ---\n${readServerLog(runner, remoteLogPath)}"
+        )
         return false
+    }
+
+    /** 读回 server 落盘日志的尾部，用于定位启动失败原因；本身绝不抛异常。 */
+    private suspend fun readServerLog(runner: ShellRunner, path: String): String {
+        val result = runner.run("tail -c $SERVER_LOG_TAIL_BYTES $path 2>/dev/null", ShellIdentity.DEFAULT)
+        return when {
+            !result.success -> "(读取失败 exit=${result.exitCode})"
+            result.stdout.isBlank() -> "(空)"
+            else -> result.stdout
+        }
     }
 
     /**
@@ -131,7 +177,7 @@ object ShowerServerManager {
             ShowerLog.e(TAG, "No ShellRunner configured in ShowerEnvironment; cannot stop server")
             return false
         }
-        val cmd = "pkill -f com.ai.assistance.shower.Main || true"
+        val cmd = KILL_SERVER_CMD
         val result = runner.run(cmd, ShellIdentity.DEFAULT)
         if (!result.success) {
             ShowerLog.e(TAG, "Failed to stop Shower server: ${result.stderr}")

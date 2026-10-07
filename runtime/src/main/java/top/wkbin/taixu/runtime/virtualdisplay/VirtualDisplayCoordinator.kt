@@ -2,13 +2,18 @@ package top.wkbin.taixu.runtime.virtualdisplay
 
 import android.content.Context
 import android.provider.Settings
+import android.util.Log
+import com.ai.assistance.showerclient.ShellIdentity
+import com.ai.assistance.showerclient.ShellRunner
 import com.ai.assistance.showerclient.ShowerBinderRegistry
 import com.ai.assistance.showerclient.ShowerController
 import com.ai.assistance.showerclient.ShowerEnvironment
+import com.ai.assistance.showerclient.ShowerLogSink
 import com.ai.assistance.showerclient.ShowerServerManager
 import com.ai.assistance.showerclient.ShowerVideoRenderer
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -35,6 +40,18 @@ class VirtualDisplayCoordinator(
 
     init {
         ShowerEnvironment.shellRunner = TaixuShowerShellRunner(privilegeManager, logger)
+        // 把 showerclient 的日志镜像进 runtime.log，否则虚拟屏失败的**真实原因**
+        // （server 落盘日志 / 工作目录不可写 / Binder 未回传）只存在于 logcat，
+        // 宿主侧只剩一句笼统的「server 启动失败」。
+        // DEBUG/INFO 仍只走 logcat，避免 hasAliveService 轮询把 runtime.log 刷爆。
+        ShowerEnvironment.logSink = ShowerLogSink { priority, tag, message, throwable ->
+            val text = "[Shower][$tag] $message"
+            when {
+                priority >= Log.ERROR -> logger.e(text, throwable)
+                priority >= Log.WARN -> logger.w(text, throwable)
+                else -> Unit
+            }
+        }
     }
 
     /** shower-server Binder 是否已就绪（收到 SHOWER_BINDER_READY 广播且未死亡） */
@@ -90,11 +107,104 @@ class VirtualDisplayCoordinator(
     suspend fun launchApp(sessionId: String = DEFAULT_SESSION_ID, packageName: String): Boolean =
         controller(sessionId).launchApp(packageName)
 
-    /** 指定会话虚拟屏整屏截图（PNG 字节；server 内部为 scrcpy 式临时镜像抓帧） */
+    /**
+     * 指定会话虚拟屏整屏截图（PNG 字节）。
+     *
+     * **为什么不直接用 server 的 Binder 截图**：`IShowerService.requestScreenshot` 把整张位图
+     * 塞进**一次 Binder 事务**回传，而 Binder 事务缓冲区按进程共享、上限 1MB；1216×2640 的
+     * 原始位图 ≈ 2.7MB+，必然触发事务写回失败。调用侧只会拿到一个 DEAD_OBJECT 兜底文案
+     * （「remote process probably died … out of binder buffer space」），把「数据太大」误报成
+     * 「进程死了」——服务端其实采集成功（见 runtime.log 的 [Shower] 行）。
+     *
+     * 故改走 shell `screencap -d <物理屏 id> -p <文件>` 落盘，再由 App 本地读文件，全程不经过
+     * Binder 大包。screencap 不可用（拿不到物理屏 id 等）时回退旧的 Binder 通道。
+     */
     suspend fun requestScreenshot(
         sessionId: String = DEFAULT_SESSION_ID,
         timeoutMs: Long = SCREENSHOT_TIMEOUT_MS,
-    ): ByteArray? = controller(sessionId).requestScreenshot(timeoutMs)
+    ): ByteArray? {
+        screencapToBytes(sessionId)?.let { return it }
+        logger.w("虚拟屏截图回退 Binder 通道（session=$sessionId）：screencap 不可用或失败")
+        return controller(sessionId).requestScreenshot(timeoutMs)
+    }
+
+    /**
+     * 用 shell `screencap -d <物理屏 id>` 截图并本地读取，绕开 Binder 1MB 事务上限。
+     * 失败（拿不到物理屏 id / 设备不允许 / 读取失败）返回 null，由调用方决定回退策略。
+     */
+    private suspend fun screencapToBytes(sessionId: String): ByteArray? {
+        val logicalDisplayId = getDisplayId(sessionId) ?: return null
+        val runner = ShowerEnvironment.shellRunner ?: return null
+        // 路径必须同时满足「shell 可写」与「App 可读」：App 外部私有目录两者都满足且无需存储权限
+        // （/data/local/tmp 因 SELinux shell_data_file 标签 App 读不了，不能用）。
+        val dir = context.getExternalFilesDir(null) ?: return null
+        val physicalDisplayId = resolvePhysicalDisplayId(runner, logicalDisplayId) ?: return null
+        // sessionId 来自 Agent 入参，做文件名净化以避免路径穿越
+        val safeName = sessionId.replace(Regex("[^A-Za-z0-9_-]"), "_")
+        val file = File(dir, "vs_screenshot_$safeName.png")
+        val result = runner.run(
+            // chmod 644：文件由 shell 创建（属 shell:ext_data_rw），显式放开「其它」读位，
+            // 保证另一 uid 的 App 进程能读到，不单纯依赖 FUSE 的按包可见性。
+            "screencap -d $physicalDisplayId -p \"${file.absolutePath}\" && " +
+                "chmod 644 \"${file.absolutePath}\"",
+            ShellIdentity.SHELL,
+        )
+        if (!result.success || !file.exists() || file.length() == 0L) {
+            logger.w(
+                "screencap 截图失败（session=$sessionId, display=$logicalDisplayId, " +
+                    "physical=$physicalDisplayId, exit=${result.exitCode}, " +
+                    "err=${result.stderr.trim().take(LOG_PREVIEW_LIMIT)}）",
+            )
+            return null
+        }
+        val bytes = runCatching { file.readBytes() }
+            .onFailure { logger.w("读取截图文件失败（${file.absolutePath}）：${it.message}") }
+            .getOrNull()
+        file.delete()
+        return bytes
+    }
+
+    /**
+     * 把逻辑 displayId 解析为 `screencap -d` 需要的**物理** display id（`dumpsys SurfaceFlinger
+     * --display-id` 中列出的那个）。
+     *
+     * 该 id 是 64 位无符号数（实测虚拟屏为 11529215046613627067，已超出 Long.MAX_VALUE），
+     * **必须按字符串原样传递**，任何 toLong()/toInt() 都会溢出成非法值。
+     *
+     * 输出格式因设备/版本而异，这里只做保守过滤：优先取带 `ShowerVirtualDisplay` 名称的行，
+     * 其次取不含物理口信息（`pnpId=`/`port=`）的行，最后退化为取最后一行。候选与选择结果会
+     * 写入日志，便于在设备上核对。
+     */
+    private suspend fun resolvePhysicalDisplayId(runner: ShellRunner, logicalDisplayId: Int): String? {
+        val dump = runner.run("dumpsys SurfaceFlinger --display-id", ShellIdentity.SHELL)
+        if (!dump.success) {
+            logger.w(
+                "读取 SurfaceFlinger 显示器列表失败（exit=${dump.exitCode}）：" +
+                    dump.stderr.trim().take(LOG_PREVIEW_LIMIT),
+            )
+            return null
+        }
+        val candidates = dump.stdout.lineSequence()
+            .filter { it.contains("Display ") }
+            .mapNotNull { line -> Regex("""\d{6,}""").find(line)?.value?.let { it to line.trim() } }
+            .toList()
+        val chosen = candidates.firstOrNull { it.second.contains("ShowerVirtualDisplay") }
+            ?: candidates.filterNot { it.second.contains("pnpId=") || it.second.contains("port=") }
+                .lastOrNull()
+            ?: candidates.lastOrNull()
+        if (chosen == null) {
+            logger.w(
+                "未从 SurfaceFlinger 解析出物理屏 id（logical=$logicalDisplayId）：" +
+                    dump.stdout.trim().take(LOG_PREVIEW_LIMIT),
+            )
+            return null
+        }
+        logger.d(
+            "resolvePhysicalDisplayId: logical=$logicalDisplayId -> ${chosen.first}；" +
+                "候选=${candidates.joinToString { it.first }}",
+        )
+        return chosen.first
+    }
 
     /**
      * 显示指定会话的虚拟屏可视化悬浮窗（视频流 + 触摸回传）。
@@ -144,5 +254,7 @@ class VirtualDisplayCoordinator(
     private companion object {
         const val SCREENSHOT_TIMEOUT_MS = 3000L
         const val DEFAULT_SESSION_ID = "default"
+        /** 日志中命令 stderr/stdout 的截断长度，避免异常输出刷爆 runtime.log */
+        const val LOG_PREVIEW_LIMIT = 200
     }
 }

@@ -22,14 +22,32 @@ class ShowerBinderReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_SHOWER_BINDER_READY) return
+        // exported=true 的接收器可能收到任意应用伪造/畸形的广播：反序列化失败会抛
+        // BadParcelableException（例如 release 构建下 Parcelable 类名被 R8 重命名，
+        // 表现为 ClassNotFoundException 解不出 com.ai.assistance.shower.ShowerBinderContainer）。
+        // 未捕获时会让宿主进程直接崩溃，等同于被一条伪造广播 DoS，故整体兜底。
+        try {
+            handleBinderHandoff(intent)
+        } catch (t: Throwable) {
+            ShowerLog.w(TAG, "处理 Binder 交接广播失败，已忽略", t)
+        }
+    }
 
+    private fun handleBinderHandoff(intent: Intent) {
         // 来源校验：shower-server 经 IActivityManager 发广播，原始调用者是 shell(2000)
         // 或 root(0)。exported=true 无法避免广播可发，但至少拒绝普通三方应用的伪造
         // Binder（防止恶意 App 抢先注册失效/误导性的 IShowerService）。
         // getSentFromUid 为 API 34+；低版本 system_server 中转后无法可靠还原来源，放行。
+        //
+        // UID_UNKNOWN(-1)：实测 Android 16 真机（vivo V2419A）下，server 经 IActivityManager
+        // 转发到达时 sentFromUid 恒为 -1（server 侧日志显示广播已正常发出）。若把 -1 一并
+        // 拒绝，会把**合法交接**丢弃，表现为「server 已启动却永远等不到 Binder」。
+        // 因此仅当能确认为非特权 uid（普通三方应用 >= 10000）时才拒绝。
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            // 注意：这里必须保持裸属性名写法——Intent.getSentFromUid() 是 @hide API，
+            // 写成 intent.sentFromUid 会编译失败（Unresolved reference）。
             val sentFromUid = sentFromUid
-            if (sentFromUid !in setOf(ROOT_UID, SHELL_UID)) {
+            if (sentFromUid != UID_UNKNOWN && sentFromUid !in setOf(ROOT_UID, SHELL_UID)) {
                 ShowerLog.w(TAG, "拒绝来源不明的 Binder 广播：sentFromUid=$sentFromUid")
                 return
             }
@@ -56,6 +74,8 @@ class ShowerBinderReceiver : BroadcastReceiver() {
         private const val SHELL_UID = 2000
         /** Linux root uid：Root 模式下 server 可能以 root 身份运行。 */
         private const val ROOT_UID = 0
+        /** Intent.sentFromUid 未回填时的占位值（android.os.Process.INVALID_UID）。 */
+        private const val UID_UNKNOWN = -1
 
         const val ACTION_SHOWER_BINDER_READY =
             "com.ai.assistance.operit.action.SHOWER_BINDER_READY"

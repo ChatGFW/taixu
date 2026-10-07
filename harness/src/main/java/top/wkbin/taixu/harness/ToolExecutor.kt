@@ -658,7 +658,7 @@ class ToolExecutor(
                 val session = optionalSession(args)
                 val displayId = coordinator.ensureVirtualDisplay(session)
                 if (displayId == null) {
-                    false to "虚拟屏创建失败（session=$session）：需要 Shizuku 或 Root 模式，请先在设置中授权"
+                    false to "虚拟屏创建失败（session=$session）：Shower 服务未启动或建屏失败，详见 runtime.log 中的 [Shower] 日志（不一定是授权问题）"
                 } else {
                     true to "虚拟屏已就绪：session=$session displayId=$displayId（尺寸与主屏一致）；" +
                         "接下来用 virtual_screen_launch 启动应用，virtual_screen_screenshot 截图识图"
@@ -671,7 +671,7 @@ class ToolExecutor(
                 if (coordinator.getDisplayId(session) == null &&
                     coordinator.ensureVirtualDisplay(session) == null
                 ) {
-                    return false to "虚拟屏创建失败（session=$session）：需要 Shizuku 或 Root 模式"
+                    return false to "虚拟屏创建失败（session=$session）：Shower 服务未启动或建屏失败，详见 runtime.log 中的 [Shower] 日志（不一定是授权问题）"
                 }
                 val res = coordinator.launchApp(session, packageName)
                 if (res) {
@@ -689,7 +689,7 @@ class ToolExecutor(
                 }
                 val targetPath = requireString(args, "path")
                 val png = coordinator.requestScreenshot(session)
-                    ?: return false to "虚拟屏截图失败（session=$session）：server 未响应或已退出"
+                    ?: return false to "虚拟屏截图失败（session=$session）：screencap/Binder 通道均不可用，详见 runtime.log 的 [Shower] 日志"
                 runCatching {
                     val file = File(targetPath)
                     file.parentFile?.mkdirs()
@@ -757,7 +757,7 @@ class ToolExecutor(
                 if (coordinator.getDisplayId(session) == null &&
                     coordinator.ensureVirtualDisplay(session) == null
                 ) {
-                    return false to "虚拟屏创建失败（session=$session）：需要 Shizuku 或 Root 模式"
+                    return false to "虚拟屏创建失败（session=$session）：Shower 服务未启动或建屏失败，详见 runtime.log 中的 [Shower] 日志（不一定是授权问题）"
                 }
                 if (coordinator.showOverlay(session)) {
                     true to "已显示虚拟屏实时悬浮窗（session=$session）：用户可观看画面并直接触摸干预"
