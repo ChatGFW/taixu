@@ -47,6 +47,11 @@ object A2uiSurfaceBus {
         val eventName: String,
         val context: Map<String, Any?>,
         val timestamp: Long,
+        /**
+         * 本事件所属 surface 的数据模型快照（表单提交值在这里，不在 [context]）。
+         * 缺省 null：旧调用方与单测不用改；类型保持 Map，harness 不依赖 a2ui。
+         */
+        val dataModel: Map<String, Any?>? = null,
     )
 
     /** A2UI 引擎运行时错误（组件被目录校验拒绝、surface 状态异常等），同样回传给智能体。 */
@@ -120,13 +125,22 @@ object A2uiSurfaceBus {
         errorEventSink?.invoke(event)
     }
 
-    /** 把用户交互事件格式化为注入 agent 会话的消息文本。 */
+    /** 把用户交互事件格式化为注入 agent 会话的消息文本。表单值在 dataModel，不在 context。 */
     fun formatUserEvent(event: A2uiUserEvent): String = buildString {
         append("[A2UI 界面事件] 用户在界面「${event.surfaceTitle}」（surfaceId=${event.surfaceId}）")
         append("上触发了交互：组件 componentId=${event.componentId}，事件 eventName=${event.eventName}")
         if (event.context.isNotEmpty()) append("，携带 context=${event.context}")
+        val model = event.dataModel
+        if (model != null && model.isNotEmpty()) append("，表单数据 dataModel=${compactDataModel(model)}")
         append("。这是 A2UI 界面的用户交互回传，请根据事件语义继续处理；")
         append("如需更新界面，用相同 surfaceId 调用 render_surface 并只携带 updateComponents 消息。")
+    }
+
+    /** 数据模型可能整棵带回；超长时截断，避免一条界面事件撑爆会话。 */
+    private fun compactDataModel(model: Map<String, Any?>): String {
+        val text = model.toString()
+        if (text.length <= MAX_DATA_MODEL_CHARS) return text
+        return text.take(MAX_DATA_MODEL_CHARS) + "…(已截断)"
     }
 
     /** 把引擎运行时错误格式化为注入 agent 会话的消息文本（否则界面只会静默转圈）。 */
@@ -214,6 +228,9 @@ object A2uiSurfaceBus {
     internal const val MIN_JSON_CHARS = 8
     internal const val MAX_JSON_CHARS = 200_000
     internal const val MAX_CACHED_SURFACES = 8
+
+    /** formatUserEvent 里 dataModel 文本的上限（字符）。 */
+    internal const val MAX_DATA_MODEL_CHARS = 2_000
     internal val SURFACE_ID_REGEX = Regex("[A-Za-z0-9_.:-]+")
 
     /** 与官方 A2uiJsonMessageParser.SUPPORTED_VERSIONS 对齐，库升级时需联动核对。 */

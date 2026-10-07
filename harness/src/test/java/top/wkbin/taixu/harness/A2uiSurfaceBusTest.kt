@@ -164,6 +164,44 @@ class A2uiSurfaceBusTest {
         assertTrue(text.contains("btnConfirm"))
         assertTrue(text.contains("on_click"))
         assertTrue(text.contains("row"))
+        assertFalse(text.contains("表单数据"))
+    }
+
+    @Test
+    fun `用户事件格式化包含表单数据且过长时截断`() {
+        val text = A2uiSurfaceBus.formatUserEvent(
+            A2uiSurfaceBus.A2uiUserEvent(
+                surfaceId = "s1",
+                surfaceTitle = "报名表",
+                sessionId = "session-9",
+                componentId = "submit",
+                eventName = "click",
+                context = emptyMap(),
+                timestamp = 1L,
+                dataModel = mapOf("__taixu_inputs" to mapOf("name" to "Ada")),
+            ),
+        )
+        assertTrue(text.contains("，表单数据 dataModel="))
+        assertTrue(text.contains("__taixu_inputs"))
+        assertTrue(text.contains("Ada"))
+        assertFalse(text.contains("已截断"))
+
+        val blob = "x".repeat(A2uiSurfaceBus.MAX_DATA_MODEL_CHARS + 500)
+        val truncated = A2uiSurfaceBus.formatUserEvent(
+            A2uiSurfaceBus.A2uiUserEvent(
+                surfaceId = "s1",
+                surfaceTitle = "报名表",
+                sessionId = "session-9",
+                componentId = "submit",
+                eventName = "click",
+                context = emptyMap(),
+                timestamp = 1L,
+                dataModel = mapOf("blob" to blob),
+            ),
+        )
+        assertTrue(truncated.contains("，表单数据 dataModel="))
+        assertTrue(truncated.contains("…(已截断)"))
+        assertFalse(truncated.contains(blob))
     }
 
     @Test

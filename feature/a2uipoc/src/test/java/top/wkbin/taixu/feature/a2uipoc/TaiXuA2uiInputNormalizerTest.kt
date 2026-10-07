@@ -87,4 +87,32 @@ class TaiXuA2uiInputNormalizerTest {
         assertEquals(0, result.fixedCount)
         assertEquals("keep", component(result.messagesJson)["value"]!!.jsonPrimitive.content)
     }
+
+    @Test
+    fun `component id is escaped per RFC 6901 in the proxy path`() {
+        val result = TaiXuA2uiInputNormalizer.normalize(payload("TextField", "\"v\"", id = "a/b~c"))
+        // `~` 先于 `/`：a/b~c → a/b~0c → a~1b~0c。先替换 `/` 会得到 a~01b~0c。
+        val path = "/__taixu_inputs/a~1b~0c"
+
+        assertEquals(path, component(result.messagesJson)["value"]!!.jsonObject["path"]!!.jsonPrimitive.content)
+        assertEquals(path, seed(result.messagesJson)["path"]!!.jsonPrimitive.content)
+        assertEquals("a/b~c", component(result.messagesJson)["id"]!!.jsonPrimitive.content)
+        assertEquals(path, result.paths["s1"]!!["a/b~c"])
+    }
+
+    @Test
+    fun `malformed payload is returned unchanged and does not throw`() {
+        listOf(
+            "not json",
+            """{"not":"array"}""",
+            "[1]",
+            """[{"updateComponents":{"surfaceId":{"nested":true},"components":[]}}]""",
+        ).forEach { raw ->
+            val result = TaiXuA2uiInputNormalizer.normalize(raw)
+            assertEquals(raw, result.messagesJson)
+            assertEquals(0, result.fixedCount)
+            assertTrue(result.paths.isEmpty())
+            assertFalse(result.dataModelForced)
+        }
+    }
 }
