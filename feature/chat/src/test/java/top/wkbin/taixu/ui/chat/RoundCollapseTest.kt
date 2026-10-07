@@ -394,10 +394,26 @@ class RoundCollapseTest {
     }
 
     @Test
-    fun `collapsed round reports zero hidden item count`() {
+    fun `collapsed round reports hidden item count of items revealed on expand`() {
         val items = projectChatMessages(revealFixtures(), emptyMap(), emptyMap(), collapseEnabled = true)
         val button = buttons(items).single()
         assertFalse(button.isExpanded)
-        assertEquals("收拢态不参与分帧揭示，条目数恒为 0", 0, button.hiddenItemCount)
+        assertEquals("收拢态必须上报展开后会出现的隐藏条目数，供分帧揭示启动", 2, button.hiddenItemCount)
+    }
+
+    @Test
+    fun `collapsed and expanded rounds report the same hidden item count`() {
+        val fixtures = revealFixtures()
+        val collapsed = projectChatMessages(fixtures, emptyMap(), emptyMap(), collapseEnabled = true)
+        val expanded = projectChatMessages(
+            fixtures,
+            emptyMap(),
+            mapOf("u1" to true),
+            collapseEnabled = true,
+        )
+        val collapsedCount = buttons(collapsed).single().hiddenItemCount
+        val expandedCount = buttons(expanded).single().hiddenItemCount
+        assertEquals("同一轮次收拢与展开的隐藏条目数必须一致", expandedCount, collapsedCount)
+        assertEquals(2, collapsedCount)
     }
 }
