@@ -216,6 +216,59 @@ class ToolSchemaValidatorTest {
     }
 
     @Test
+    fun `normalizeArgs unwraps multiple levels of arguments wrapper`() {
+        // 回归：模型/兼容网关可能多层包裹参数，只解一层会残留 arguments 导致
+        // 「缺少必填参数 command / 不接受参数 arguments」（跨模型反复出现的根因）。
+        val single = buildJsonObject {
+            put("arguments", buildJsonObject { put("command", "ls -la") })
+        }
+        assertEquals("ls -la", (ToolSchemaValidator.normalizeArgs(single)["command"] as? kotlinx.serialization.json.JsonPrimitive)?.content)
+
+        val double = buildJsonObject {
+            put("arguments", buildJsonObject {
+                put("arguments", buildJsonObject { put("command", "ls -la") })
+            })
+        }
+        val doubleNormalized = ToolSchemaValidator.normalizeArgs(double)
+        assertEquals("ls -la", (doubleNormalized["command"] as? kotlinx.serialization.json.JsonPrimitive)?.content)
+        assertTrue(!doubleNormalized.containsKey("arguments"))
+
+        val deep = buildJsonObject {
+            put("arguments", buildJsonObject {
+                put("arguments", buildJsonObject {
+                    put("arguments", buildJsonObject { put("arguments", buildJsonObject { put("command", "pwd") }) })
+                })
+            })
+        }
+        assertEquals("pwd", (ToolSchemaValidator.normalizeArgs(deep)["command"] as? kotlinx.serialization.json.JsonPrimitive)?.content)
+    }
+
+    @Test
+    fun `deeply wrapped builtin tool arguments pass validation`() {
+        // 端到端：base 的多层包裹参数应通过校验，不再报「缺少必填参数 command」。
+        val double = buildJsonObject {
+            put("arguments", buildJsonObject {
+                put("arguments", buildJsonObject { put("command", "ls -la") })
+            })
+        }
+        assertTrue(
+            "多层包裹的 base 参数应通过校验: " +
+                ToolSchemaValidator.problemsFor("base", double),
+            ToolSchemaValidator.problemsFor("base", double).isEmpty(),
+        )
+    }
+
+    @Test
+    fun `single-key object whose only key is a legit parameter is preserved`() {
+        // 防误伤：单键对象的键是真实参数名（而非包裹名）时必须原样保留。
+        val readArgs = buildJsonObject { put("path", "/workspace/a.kt") }
+        assertEquals(readArgs, ToolSchemaValidator.normalizeArgs(readArgs))
+        // 包裹名对应非对象值（标量）时不解包，交回 schema 校验。
+        val scalarWrap = buildJsonObject { put("input", "raw text") }
+        assertEquals(scalarWrap, ToolSchemaValidator.normalizeArgs(scalarWrap))
+    }
+
+    @Test
     fun `validate passes nested schema when model emits flattened keys`() {
         val nestedSchema = schema(
             """{"type":"object","properties":{

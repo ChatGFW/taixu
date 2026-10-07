@@ -40,9 +40,15 @@ object ToolSchemaValidator {
      */
     fun normalizeArgs(raw: JsonObject, applyAliases: Boolean = true, isMcpTool: Boolean = false): JsonObject {
         if (isMcpTool) return raw
-        val base = if (raw.size == 1 && (raw.containsKey("params") || raw.containsKey("arguments") || raw.containsKey("input"))) {
-            (raw["params"] as? JsonObject) ?: (raw["arguments"] as? JsonObject) ?: (raw["input"] as? JsonObject) ?: raw
-        } else raw
+        // Unwrap multi-level params/arguments/input wrappers (up to 8 levels).
+        var base = raw
+        var wrapDepth = 0
+        while (wrapDepth < 8 && base.size == 1) {
+            val inner = base["params"] ?: base["arguments"] ?: base["input"]
+            val innerObj = inner as? JsonObject ?: break
+            base = innerObj
+            wrapDepth++
+        }
 
         val unflattened = unflattenObject(base)
         // MCP 的 target/script/timeout 有自己的协议语义，不能套用内置文件/命令工具别名。
