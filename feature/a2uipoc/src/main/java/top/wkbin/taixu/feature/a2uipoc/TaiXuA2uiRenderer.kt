@@ -100,8 +100,15 @@ object TaiXuA2uiRenderer {
         synchronized(processedPayloads) {
             if (processedPayloads.containsKey(fingerprint)) return null
         }
+        // 归一化放在 runCatching 内：畸形载荷（非 JSON / 非数组 / 元素非对象 / surfaceId 非原始值）
+        // 必须仍返回错误文案。归一化器自身也会吞掉异常并原样退回，这里再兜一层。
         val error = runCatching {
-            Json.parseToJsonElement(messagesJson).jsonArray.forEach { element ->
+            // 值型组件（TextField/CheckBox/ChoicePicker/Slider/DateTimeInput）写常量 value 时，
+            // 官方 bindUpdater 判定非 {"path"} 即返回 null → isEnabled=false → 组件被静默禁用
+            // （能渲染、不能输入、不回传、无提示）。这里统一归一化为数据绑定并种值，
+            // 使这五类组件真正可用；已是数据绑定的载荷幂等不变。见 TaiXuA2uiInputNormalizer。
+            val normalized = TaiXuA2uiInputNormalizer.normalize(messagesJson)
+            Json.parseToJsonElement(normalized.messagesJson).jsonArray.forEach { element ->
                 processor.processMessage(parser.parse(element.toString()))
             }
         }.fold(
@@ -170,6 +177,10 @@ object TaiXuA2uiRenderer {
                                 eventName = message.type,
                                 context = message.context,
                                 timestamp = message.timestamp,
+                                // 官方把表单值放在 clientDataModel.surfaces，不在 context。只取本事件的 surface。
+                                dataModel = surfaceDataModel(
+                                    message.clientDataModel?.surfaces?.get(message.surfaceId),
+                                ),
                             ),
                         )
                     }
@@ -223,6 +234,16 @@ object TaiXuA2uiRenderer {
         val current = surface ?: return false
         A2uiSurface(surfaceModel = current, modifier = modifier)
         return true
+    }
+
+    /**
+     * 出站事件里该 surface 的数据模型根。官方类型是 `Any?`（对象 / 数组 / 标量）；
+     * harness 只收 [Map]，避免依赖 a2ui 类型。非对象根包进 `value`，避免数组或标量被丢掉。
+     */
+    private fun surfaceDataModel(raw: Any?): Map<String, Any?>? = when (raw) {
+        null -> null
+        is Map<*, *> -> raw.entries.associate { (key, value) -> key.toString() to value }
+        else -> mapOf("value" to raw)
     }
 
     private fun availableComponentNames(): String =
