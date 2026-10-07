@@ -5,6 +5,7 @@ import top.wkbin.taixu.core.model.StorageMountBinding
 import top.wkbin.taixu.runtime.EnvironmentResolver
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 class ProotCommandBuilder private constructor(
@@ -243,7 +244,11 @@ class ProotCommandBuilder private constructor(
         val guest = checkNotNull(StorageMountBinding.normalizeGuestPath(binding.guestPath))
         val host = File(binding.hostPath).canonicalFile
         if (!host.isDirectory || !host.canRead()) {
-            logWarning("宿主挂载目录不可访问（不存在/非目录/不可读），已跳过绑定：${binding.hostPath}")
+            // 同一进程内同一路径只告警一次：无效挂载会在每次构建 proot 命令时被重复校验，
+            // 不去重会把 runtime.log 刷成一片噪声、淹没真正的内存/崩溃线索。
+            if (storageMountWarningsLogged.add(binding.hostPath)) {
+                logWarning("宿主挂载目录不可访问（不存在/非目录/不可读），已跳过绑定：${binding.hostPath}")
+            }
             return null
         }
         return "${host.absolutePath}:$guest"
@@ -257,5 +262,8 @@ class ProotCommandBuilder private constructor(
         val PTY_MARKER = Regex("/opt/taixu/\\.pty-[A-Za-z0-9-]{8,64}")
         val ENVIRONMENT_KEY = Regex("[A-Za-z_][A-Za-z0-9_]*")
         private val hostBindingsWarningLogged = AtomicBoolean(false)
+
+        /** 同一进程内已告警过的无效存储挂载路径，避免每次构建命令都刷屏。 */
+        private val storageMountWarningsLogged = ConcurrentHashMap.newKeySet<String>()
     }
 }

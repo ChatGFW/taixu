@@ -152,6 +152,32 @@ class SessionMessageProjectorTest {
     }
 
     @Test
+    fun `live window also honors a byte budget for heavy messages`() = runBlocking {
+        tracker.setCurrent("heavy")
+        projector.seedEmpty("heavy")
+
+        // 12 条各 1M 字符的 tool_result：条数远未到 MAX_LIVE_ENTRIES，但字符总量 12M 超过预算。
+        val big = "x".repeat(1024 * 1024)
+        val messages = (0 until 12).map { index ->
+            ToolResult(
+                id = "r$index",
+                createdAt = index.toLong(),
+                toolCallId = "c$index",
+                success = true,
+                output = big,
+            )
+        }
+        projector.replaceAll("heavy", messages)
+
+        val live = projector.snapshot("heavy")
+        assertTrue(live.size < messages.size)
+        // 永远保留最新一条，且窗口总量不超预算。
+        assertEquals("r11", live.last().id)
+        val retainedChars = live.sumOf { (it as ToolResult).output.length }
+        assertTrue(retainedChars <= SessionMessageProjector.MAX_LIVE_CHARS)
+    }
+
+    @Test
     fun `history search matches unordered terms across a tool exchange`() = runBlocking {
         store.append("history", ToolCall(
             id = "call-install",

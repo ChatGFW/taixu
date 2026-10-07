@@ -11,8 +11,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import top.wkbin.taixu.harness.AssistantText
+import top.wkbin.taixu.harness.CapabilityEvent
 import top.wkbin.taixu.harness.HarnessMessage
+import top.wkbin.taixu.harness.ModelSwitchEvent
+import top.wkbin.taixu.harness.SkillSuggestion
+import top.wkbin.taixu.harness.ToolCall
+import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.session.SessionTreeStore
 
 /**
@@ -248,12 +258,52 @@ class SessionMessageProjector(
         lastAccess[sessionId] = accessCounter.incrementAndGet()
     }
 
-    private fun boundLiveWindow(messages: List<HarnessMessage>): List<HarnessMessage> =
-        if (messages.size > SessionTreeStore.MAX_LIVE_ENTRIES) {
+    private fun boundLiveWindow(messages: List<HarnessMessage>): List<HarnessMessage> {
+        val byCount = if (messages.size > SessionTreeStore.MAX_LIVE_ENTRIES) {
             messages.takeLast(SessionTreeStore.MAX_LIVE_ENTRIES)
         } else {
             messages
         }
+        // 条数上限挡不住单条大载荷（tool_result 正文 ≤64KB、内嵌 base64 图片、edit 的 diff）：
+        // 工具/图片密集的长会话里 600 条能叠到数百 MB，是 OOM 峰值主因。这里再从最新往回累计
+        // 字符数，超过 [MAX_LIVE_CHARS] 即丢弃更旧的前缀，保证单会话常驻窗口有硬字节上限。
+        if (byCount.isEmpty()) return byCount
+        var total = 0L
+        var start = 0
+        for (index in byCount.indices.reversed()) {
+            total += messageWeight(byCount[index])
+            if (total > MAX_LIVE_CHARS) {
+                // 至少保留最新一条：单条超预算也不至于把窗口清空。
+                start = (index + 1).coerceAtMost(byCount.lastIndex)
+                break
+            }
+        }
+        return if (start == 0) byCount else byCount.subList(start, byCount.size).toList()
+    }
+
+    /**
+     * 单条消息的近似字符量（UTF-16，1 字符≈2 字节），仅用于窗口字节预算，不做序列化。
+     * 覆盖承载大载荷的字段；未计入的字段（id/枚举/时间戳）量级可忽略。
+     */
+    private fun messageWeight(message: HarnessMessage): Int = when (message) {
+        is UserMessage -> message.text.length + message.imageUrls.sumOf { it.length }
+        is AssistantText -> message.text.length + (message.reasoning?.length ?: 0)
+        is ToolCall -> jsonWeight(message.args) + (message.reasoning?.length ?: 0)
+        is ToolResult -> message.output.length +
+            (message.imageDataUrl?.length ?: 0) +
+            message.metadata.values.sumOf { it.length }
+        is CapabilityEvent -> message.name.length + message.details.length
+        is SkillSuggestion ->
+            message.description.length + message.systemPrompt.length + message.reason.length
+        is ModelSwitchEvent -> message.fromLabel.length + message.toLabel.length
+    }
+
+    /** JsonElement 的字符量：JsonPrimitive 直接取 content 长度（O(1)），容器递归求和。 */
+    private fun jsonWeight(element: JsonElement): Int = when (element) {
+        is JsonPrimitive -> element.content.length
+        is JsonObject -> element.values.sumOf(::jsonWeight)
+        is JsonArray -> element.sumOf(::jsonWeight)
+    }
 
     private fun evictLeastRecentlyUsed(protectedSessionId: String) {
         var excess = liveFlows.size - MAX_CACHED_SESSIONS
@@ -280,15 +330,24 @@ class SessionMessageProjector(
             }
     }
 
-    private companion object {
+    companion object {
         /**
          * 内存中最多缓存的会话实时消息流数量。
          * 降至 4：每个缓存会话在长对话场景下驻留的 List<HarnessMessage> 可达数 MB，
          * 256MB 堆上 8 个并发会话容易触发 OOM；4 可覆盖常见多会话工作流且安全余量更充足。
          */
-        const val MAX_CACHED_SESSIONS = 4
+        private const val MAX_CACHED_SESSIONS = 4
+
+        /**
+         * 单会话实时窗口的字符预算（UTF-16，1 字符≈2 字节）：条数上限 [SessionTreeStore.MAX_LIVE_ENTRIES]
+         * 挡不住单条大载荷（tool_result 正文、内嵌 base64 图片、edit 的 diff），长会话可叠到数百 MB。
+         * 8M 字符≈16MB，4 个缓存会话合计常驻 ≤64MB，把 OOM 峰值拦截在窗口层。
+         *
+         * internal 供单元测试断言窗口预算生效。
+         */
+        internal const val MAX_LIVE_CHARS = 8 * 1024 * 1024
 
         /** 流式登记的兜底过期阈值：超过该时长无任何流式增量视为异常终止的死流。 */
-        const val STREAM_STALE_MS = 10 * 60 * 1000L
+        private const val STREAM_STALE_MS = 10 * 60 * 1000L
     }
 }
