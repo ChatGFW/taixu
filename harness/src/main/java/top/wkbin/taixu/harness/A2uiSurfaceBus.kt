@@ -11,14 +11,14 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * render_surface（A2UI PoC）工具的界面载荷总线。
+ * render_surface 工具的界面载荷总线。
  *
  * A2UI = Agent-to-UI：智能体不写代码，而是输出 JSON Lines 协议消息描述界面，
  * 客户端用 Compose 渲染器（feature:a2uipoc 模块）映射为原生组件。安全边界来自
  * Component Catalog：智能体只能使用目录里声明的组件，与工具白名单同构。
  *
- * PoC 简化说明：总线用 object 单例而非 Koin 注入，避免给 ToolExecutor/KoinModule
- * 两个棘轮基线文件增行；转正式实现时应改为接口 + 注入，并把总线收敛进会话生命周期。
+ * 进程级入口仍是这个 object：ToolExecutor 与 Koin 模块都已顶着行数棘轮，不再为注入加行。
+ * 会话绑定不靠那份最多 8 条的预览缓存——每条 surface 另有路由，直到所属会话被删除。
  *
  * 深度校验走钩子注入（[installDeepValidator]）：官方 A2UI parser 只允许在
  * feature:a2uipoc 使用（architecture-policy），harness 保持零 a2ui 依赖，
@@ -68,6 +68,11 @@ object A2uiSurfaceBus {
     /** 最近发布的界面载荷（新的在前，最多 [MAX_CACHED_SURFACES] 条，同 surfaceId 覆盖旧条目）。 */
     val surfaces: StateFlow<List<A2uiSurfacePayload>> = _surfaces.asStateFlow()
 
+    /** 预览列表淘汰后仍要能把点击送回原会话。surfaceId → 会话与标题。 */
+    data class A2uiSurfaceRoute(val sessionId: String, val title: String)
+
+    private val routes = LinkedHashMap<String, A2uiSurfaceRoute>(16, 0.75f, true)
+
     /** 引擎出站消息出口（用户交互/运行时错误）；由装配层（ChatViewModel）注册，路由回原会话。 */
     @Volatile
     var userEventSink: ((A2uiUserEvent) -> Unit)? = null
@@ -86,12 +91,83 @@ object A2uiSurfaceBus {
         deepValidator = validator
     }
 
-    fun clear() {
+    /**
+     * 设置页「清空」：页面上的预览收起。注入示例属于 [PREVIEW_SESSION_ID]，从引擎拆掉；
+     * 聊天卡片的会话路由保留，点击还能回到原会话。
+     */
+    fun clearPreview() {
+        releaseSession(PREVIEW_SESSION_ID)
         _surfaces.value = emptyList()
     }
 
+    /** 设置页注入的示例界面。不属于任何聊天会话，清空时整批释放。 */
+    const val PREVIEW_SESSION_ID = "a2ui-preview"
+
+    fun clear() {
+        clearPreview()
+        synchronized(routes) { routes.clear() }
+    }
+
+    /**
+     * 会话结束时丢掉该会话的界面（含已从预览列表淘汰、仍占着路由的），
+     * 并通知渲染器释放引擎里的 surface。其他会话的界面保留。
+     */
+    fun releaseSession(sessionId: String) {
+        if (sessionId.isBlank()) return
+        val fromList = _surfaces.value.filter { it.sessionId == sessionId }
+            .map { engineSurfaceId(it.sessionId, it.surfaceId) }
+        val surfaceIds = synchronized(routes) {
+            val fromRoutes = routes.filterValues { it.sessionId == sessionId }.keys.toList()
+            fromRoutes.forEach { routes.remove(it) }
+            (fromList + fromRoutes).distinct()
+        }
+        if (surfaceIds.isEmpty()) return
+        if (fromList.isNotEmpty()) {
+            _surfaces.value = _surfaces.value.filterNot { it.sessionId == sessionId }
+        }
+        onSurfacesReleased?.invoke(surfaceIds)
+    }
+
+    /**
+     * 点击与运行时错误用它找回会话。预览列表里有就用列表；被 8 条上限淘汰后仍走路由表。
+     */
+    fun routeFor(surfaceId: String): A2uiSurfaceRoute? {
+        synchronized(routes) {
+            routes[surfaceId]?.let { route ->
+                routes[surfaceId] = route
+                return route
+            }
+        }
+        val listed = _surfaces.value.firstOrNull {
+            engineSurfaceId(it.sessionId, it.surfaceId) == surfaceId
+        } ?: return null
+        val route = A2uiSurfaceRoute(listed.sessionId, listed.title)
+        synchronized(routes) {
+            routes[surfaceId] = route
+            trimRoutes()
+            return routes[surfaceId]
+        }
+    }
+
+    /** 引擎内部 id。空会话保持原 id，便于旧调用方和设置页示例以外的空白路径。 */
+    fun engineSurfaceId(sessionId: String, surfaceId: String): String =
+        if (sessionId.isBlank() || surfaceId.isBlank()) surfaceId else "$sessionId:$surfaceId"
+
+    /** 渲染器注册：会话释放后按 surfaceId 拆掉引擎状态。harness 不依赖 a2ui。 */
+    @Volatile
+    var onSurfacesReleased: ((List<String>) -> Unit)? = null
+
     fun findSurface(surfaceId: String): A2uiSurfacePayload? =
         _surfaces.value.firstOrNull { it.surfaceId == surfaceId }
+
+    /** 协议 deleteSurface 之后：预览列表和点击路由都丢掉，引擎里的界面已经不在了。 */
+    fun forgetEngineSurface(engineSurfaceId: String) {
+        if (engineSurfaceId.isBlank()) return
+        synchronized(routes) { routes.remove(engineSurfaceId) }
+        _surfaces.value = _surfaces.value.filterNot {
+            engineSurfaceId(it.sessionId, it.surfaceId) == engineSurfaceId
+        }
+    }
 
     /**
      * render_surface 工具执行入口：校验参数 → 登记载荷 → 返回给模型的结果文本。
@@ -112,8 +188,21 @@ object A2uiSurfaceBus {
     }
 
     private fun publish(payload: A2uiSurfacePayload) {
-        _surfaces.value = (listOf(payload) + _surfaces.value.filterNot { it.surfaceId == payload.surfaceId })
-            .take(MAX_CACHED_SURFACES)
+        val key = engineSurfaceId(payload.sessionId, payload.surfaceId)
+        synchronized(routes) {
+            routes[key] = A2uiSurfaceRoute(payload.sessionId, payload.title)
+            trimRoutes()
+        }
+        _surfaces.value = (listOf(payload) + _surfaces.value.filterNot {
+            it.sessionId == payload.sessionId && it.surfaceId == payload.surfaceId
+        }).take(MAX_CACHED_SURFACES)
+    }
+
+    private fun trimRoutes() {
+        while (routes.size > MAX_SURFACE_ROUTES) {
+            val eldest = routes.entries.iterator().next().key
+            routes.remove(eldest)
+        }
     }
 
     /** 渲染器转发引擎出站消息的入口（用户交互 → userEventSink，运行时错误 → errorEventSink）。 */
@@ -229,6 +318,9 @@ object A2uiSurfaceBus {
     internal const val MAX_JSON_CHARS = 200_000
     internal const val MAX_CACHED_SURFACES = 8
 
+    /** 与渲染器去重表同量级：长会话里被预览列表淘汰的卡片仍要能把点击送回。 */
+    internal const val MAX_SURFACE_ROUTES = 1024
+
     /** formatUserEvent 里 dataModel 文本的上限（字符）。 */
     internal const val MAX_DATA_MODEL_CHARS = 2_000
     internal val SURFACE_ID_REGEX = Regex("[A-Za-z0-9_.:-]+")
@@ -240,10 +332,8 @@ object A2uiSurfaceBus {
     private fun buildSampleMessages(surfaceId: String): String =
         """[{"version":"v0.9","createSurface":{"surfaceId":"$surfaceId","catalogId":"${A2uiSurfaceContract.CATALOG_ID}"}},
 {"version":"v0.9","updateComponents":{"surfaceId":"$surfaceId","components":[
-{"id":"root","component":"Column","children":["title","card","hint"]},
-{"id":"title","component":"Text","text":"太墟 A2UI PoC"},
-{"id":"card","component":"Card","child":"cardText"},
-{"id":"cardText","component":"Text","text":"这段界面由智能体通过 render_surface 生成，渲染为原生 Compose 组件。"},
-{"id":"hint","component":"Text","text":"组件范围由 Catalog 声明，智能体无法执行任意代码。"}
+{"id":"root","component":"Column","children":["title","table"]},
+{"id":"title","component":"Text","text":"太墟 A2UI"},
+{"id":"table","component":"Table","columns":["项","值"],"rows":[{"cells":["协议","v0.9"]},{"cells":["目录","Basic + Table"]}]}
 ]}}]"""
 }

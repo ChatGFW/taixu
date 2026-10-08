@@ -43,6 +43,8 @@ uiautomator = "2.4.0"
 jgit = "6.10.1.202505221210-r"
 # A2UI（Agent-to-UI）：智能体以 JSON Lines 描述界面、客户端渲染原生 Compose 组件的官方协议实现
 a2ui = "1.0.0-alpha01"
+# Media3：A2UI Video / AudioPlayer 的原生播放器（控件与拖动进度）
+media3 = "1.8.0"
 termux = "0.118.0"
 # WorkManager：工作流定时计划的到点触发（进程被杀也能拉起）；周期最小 15 分钟、Doze 下允许分钟级延迟
 work = "2.11.2"
@@ -117,6 +119,8 @@ a2ui-model = { group = "androidx.a2ui", name = "a2ui-model", version.ref = "a2ui
 a2ui-compose-runtime = { group = "androidx.a2ui.compose", name = "compose-runtime", version.ref = "a2ui" }
 a2ui-compose-ui = { group = "androidx.a2ui.compose", name = "compose-ui", version.ref = "a2ui" }
 a2ui-material3 = { group = "androidx.compose.material3", name = "material3-a2ui", version.ref = "a2ui" }
+media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 termux-terminal-emulator = { group = "com.termux", name = "terminal-emulator", version.ref = "termux" }
 termux-terminal-view = { group = "com.termux", name = "terminal-view", version.ref = "termux" }
 mlkit-translate = { group = "com.google.mlkit", name = "translate", version.ref = "mlkitTranslate" }

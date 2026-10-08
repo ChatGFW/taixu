@@ -420,7 +420,7 @@ fun ChatScreen(
 
     // 模型回复里的 /workspace、/attachments 等沙箱路径在此翻译为宿主真实文件，
     // 否则 Coil 会按 Android 根文件系统路径加载而必然失败。
-    CompositionLocalProvider(LocalSandboxHostRoots provides viewModel.sandboxHostRoots) {
+    CompositionLocalProvider(LocalSandboxHostRoots provides viewModel.sandboxHostRoots, top.wkbin.taixu.feature.a2uipoc.LocalA2uiSessionId provides currentSessionId) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },

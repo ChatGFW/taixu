@@ -24,6 +24,7 @@ class A2uiSurfaceBusTest {
         A2uiSurfaceBus.installDeepValidator(null)
         A2uiSurfaceBus.userEventSink = null
         A2uiSurfaceBus.errorEventSink = null
+        A2uiSurfaceBus.onSurfacesReleased = null
     }
 
     @Test
@@ -133,10 +134,72 @@ class A2uiSurfaceBusTest {
     }
 
     @Test
+    fun `预览列表淘汰后仍能路由回会话，删会话时一并释放`() {
+        repeat(A2uiSurfaceBus.MAX_CACHED_SURFACES + 1) { index ->
+            A2uiSurfaceBus.publishFromTool(validArgs("s$index", "界面$index"), "session-a")
+        }
+        assertNull(A2uiSurfaceBus.surfaces.value.firstOrNull { it.surfaceId == "s0" })
+        assertEquals("session-a", A2uiSurfaceBus.routeFor(A2uiSurfaceBus.engineSurfaceId("session-a", "s0"))?.sessionId)
+        assertEquals("界面0", A2uiSurfaceBus.routeFor(A2uiSurfaceBus.engineSurfaceId("session-a", "s0"))?.title)
+        val released = mutableListOf<String>()
+        A2uiSurfaceBus.onSurfacesReleased = { released += it }
+        A2uiSurfaceBus.releaseSession("session-a")
+        assertTrue(A2uiSurfaceBus.surfaces.value.isEmpty())
+        assertNull(A2uiSurfaceBus.routeFor(A2uiSurfaceBus.engineSurfaceId("session-a", "s0")))
+        assertTrue(released.contains(A2uiSurfaceBus.engineSurfaceId("session-a", "s0")))
+        assertEquals(A2uiSurfaceBus.MAX_CACHED_SURFACES + 1, released.distinct().size)
+    }
+
+    @Test
     fun `clear 清空总线`() {
-        A2uiSurfaceBus.publishFromTool(validArgs("s1", "标题"))
+        A2uiSurfaceBus.publishFromTool(validArgs("s1", "标题"), "session-a")
         A2uiSurfaceBus.clear()
         assertTrue(A2uiSurfaceBus.surfaces.value.isEmpty())
+        assertNull(A2uiSurfaceBus.routeFor("s1"))
+    }
+
+    @Test
+    fun `clearPreview 收起列表并释放示例，聊天路由保留`() {
+        A2uiSurfaceBus.publishFromTool(validArgs("s1", "标题"), "session-a")
+        A2uiSurfaceBus.publishFromTool(validArgs("demo", "示例"), A2uiSurfaceBus.PREVIEW_SESSION_ID)
+        val released = mutableListOf<String>()
+        A2uiSurfaceBus.onSurfacesReleased = { released += it }
+        A2uiSurfaceBus.clearPreview()
+        assertTrue(A2uiSurfaceBus.surfaces.value.isEmpty())
+        assertEquals("session-a", A2uiSurfaceBus.routeFor(A2uiSurfaceBus.engineSurfaceId("session-a", "s1"))?.sessionId)
+        assertNull(A2uiSurfaceBus.routeFor(A2uiSurfaceBus.engineSurfaceId(A2uiSurfaceBus.PREVIEW_SESSION_ID, "demo")))
+        assertEquals(listOf(A2uiSurfaceBus.engineSurfaceId(A2uiSurfaceBus.PREVIEW_SESSION_ID, "demo")), released)
+    }
+
+    @Test
+    fun `不同会话的相同 surfaceId 各自保留路由`() {
+        A2uiSurfaceBus.publishFromTool(validArgs("s1", "甲"), "session-a")
+        A2uiSurfaceBus.publishFromTool(validArgs("s1", "乙"), "session-b")
+        assertEquals("甲", A2uiSurfaceBus.routeFor(A2uiSurfaceBus.engineSurfaceId("session-a", "s1"))?.title)
+        assertEquals("乙", A2uiSurfaceBus.routeFor(A2uiSurfaceBus.engineSurfaceId("session-b", "s1"))?.title)
+        assertEquals(listOf("s1", "s1"), A2uiSurfaceBus.surfaces.value.map { it.surfaceId }.sorted())
+    }
+
+    @Test
+    fun `forgetEngineSurface 丢掉该界面的预览和路由`() {
+        A2uiSurfaceBus.publishFromTool(validArgs("s1", "甲"), "session-a")
+        A2uiSurfaceBus.publishFromTool(validArgs("s2", "乙"), "session-a")
+        A2uiSurfaceBus.forgetEngineSurface(A2uiSurfaceBus.engineSurfaceId("session-a", "s1"))
+        assertEquals(listOf("s2"), A2uiSurfaceBus.surfaces.value.map { it.surfaceId })
+        assertNull(A2uiSurfaceBus.routeFor(A2uiSurfaceBus.engineSurfaceId("session-a", "s1")))
+        assertEquals("乙", A2uiSurfaceBus.routeFor(A2uiSurfaceBus.engineSurfaceId("session-a", "s2"))?.title)
+    }
+
+    @Test
+    fun `releaseSession 只移除该会话并通知渲染器`() {
+        A2uiSurfaceBus.publishFromTool(validArgs("s1", "甲"), "session-a")
+        A2uiSurfaceBus.publishFromTool(validArgs("s2", "乙"), "session-b")
+        val released = mutableListOf<String>()
+        A2uiSurfaceBus.onSurfacesReleased = { released += it }
+        A2uiSurfaceBus.releaseSession("session-a")
+        A2uiSurfaceBus.releaseSession("missing")
+        assertEquals(listOf("s2"), A2uiSurfaceBus.surfaces.value.map { it.surfaceId })
+        assertEquals(listOf(A2uiSurfaceBus.engineSurfaceId("session-a", "s1")), released)
     }
 
     @Test

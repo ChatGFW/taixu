@@ -187,18 +187,15 @@ fun SettingsScreen(
                 )
             }
 
-            // 4.5 开发者实验功能：A2UI 渲染器 PoC（仅诊断模式可见）
-            if (developer) {
-                item {
-                    SettingsCategoryCard(
-                        icon = RuntimeIconName.Sparkles,
-                        accent = MaterialTheme.colorScheme.tertiary,
-                        title = "A2UI 渲染器 PoC",
-                        subtitle = "智能体把回答画成原生界面卡片 · 点开可体验示例",
-                        badge = "实验功能",
-                        onClick = onOpenA2uiPoc,
-                    )
-                }
+            item {
+                SettingsCategoryCard(
+                    icon = RuntimeIconName.Sparkles,
+                    accent = MaterialTheme.colorScheme.tertiary,
+                    title = "A2UI 界面",
+                    subtitle = "智能体把回答画成原生界面 · 查看最近界面或注入示例",
+                    badge = "聊天内嵌",
+                    onClick = onOpenA2uiPoc,
+                )
             }
 
             // 5. 关于、更新与官方社区
