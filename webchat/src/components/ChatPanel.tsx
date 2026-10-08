@@ -7,6 +7,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { isRecord } from "../api";
+import { diffLines, type DiffRow } from "../diff";
 import { formatBytes, markdownToHtml, messageContent, messageTime } from "../format";
 import type { ApprovalRequest, Attachment, ChatMessage, Conversation, QuickPhrase } from "../types";
 import {
@@ -180,6 +181,33 @@ function toolIcon(card: Record<string, unknown>): "terminal" | "search" | "file"
   return "workspace";
 }
 
+/** 从文件类工具调用参数提取 diff 行；无法解析时返回 null，回退到 JSON 展示。 */
+function toolDiffRows(card: Record<string, unknown>): DiffRow[] | null {
+  const raw = card.arguments;
+  let args: Record<string, unknown> | null = null;
+  if (typeof raw === "string") {
+    try {
+      args = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      args = null;
+    }
+  } else if (isRecord(raw)) {
+    args = raw;
+  }
+  if (!args) return null;
+  const before = args.old_string ?? args.old_str ?? args.oldText;
+  const after = args.new_string ?? args.new_str ?? args.newText;
+  if (typeof before === "string" && typeof after === "string") {
+    return diffLines(before, after);
+  }
+  const toolType = String(card.toolType ?? "").toLowerCase();
+  const written = args.content ?? args.file_text;
+  if (typeof written === "string" && /file|write|edit|replace/.test(toolType)) {
+    return diffLines("", written);
+  }
+  return null;
+}
+
 function Message({
   message,
   active = false,
@@ -197,6 +225,7 @@ function Message({
   const reasoning = String(message.reasoning_content ?? message.reasoningContent ?? "").trim();
   const classes = `message-row ${isUser ? "user" : "assistant"}${message.isError ? " error" : ""}`;
   const isCard = Number(message.type) === 2 || rawCard;
+  const diffRows = isCard ? toolDiffRows(card) : null;
 
   // 太墟 Harness 的工具调用、工具结果与能力事件。
   if (isCard) {
@@ -218,7 +247,18 @@ function Message({
               </span>
             </summary>
             <div className="tool-detail">
-              <pre>{JSON.stringify(card, null, 2)}</pre>
+              {diffRows ? (
+                <div className="tool-diff">
+                  {diffRows.map((row, index) => (
+                    <div className={`diff-row ${row.kind}`} key={index}>
+                      <span className="diff-sign">{row.kind === "add" ? "+" : row.kind === "del" ? "-" : "\u00A0"}</span>
+                      <span className="diff-text">{row.text || "\u00A0"}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <pre>{JSON.stringify(card, null, 2)}</pre>
+              )}
             </div>
           </details>
         </div>

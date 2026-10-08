@@ -248,7 +248,9 @@ internal class AndroidHttpServer private constructor(
         private const val READ_TIMEOUT_MS = 15_000
         private const val MAX_LINE_BYTES = 8 * 1024
         private const val MAX_HEADER_BYTES = 32 * 1024
-        private const val MAX_BODY_BYTES = 2 * 1024 * 1024
+        // 32MB：容纳 WebChat 工作区上传（WorkspaceFileService.MAX_UPLOAD_BYTES 同值）。
+        // 请求体按 Content-Length 一次性预读进内存，只有实际达到该大小的请求才会分配。
+        private const val MAX_BODY_BYTES = 32 * 1024 * 1024
         private const val INITIAL_LINE_BYTES = 128
         private const val MAX_WORKER_THREADS = 8
         private const val WORKER_KEEP_ALIVE_SECONDS = 30L

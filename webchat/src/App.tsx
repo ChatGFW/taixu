@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { request, setAuthToken } from "./api";
+import { request, setAuthToken, uploadWorkspaceFile, workspaceItemAction } from "./api";
 import { ChatPanel } from "./components/ChatPanel";
+import { TerminalPane } from "./components/TerminalPane";
 import { ContextPane } from "./components/ContextPane";
 import { ConversationSidebar } from "./components/ConversationSidebar";
 import { Icon } from "./components/Icon";
@@ -35,6 +36,7 @@ import type {
 const TOKEN_STORAGE_KEY = "taixu_webchat_token";
 const MOBILE_SECTION_ICON = {
   chat: "agent",
+  terminal: "terminal",
   workspace: "workspace",
 } as const;
 const CONVERSATION_MODES = new Set<ConversationMode>(["normal"]);
@@ -79,6 +81,7 @@ export default function App() {
   const [workspaceDirty, setWorkspaceDirty] = useState(false);
   const [quickPhrases, setQuickPhrases] = useState<QuickPhrase[]>([]);
   const [mobileSection, setMobileSectionState] = useState<MobileSection>("chat");
+  const [desktopView, setDesktopView] = useState<"chat" | "terminal">("chat");
   const [conversationsOpen, setConversationsOpen] = useState(false);
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
@@ -484,6 +487,72 @@ export default function App() {
     }
   }
 
+  async function uploadWorkspaceFiles(files: FileList) {
+    const dir = workspacePath.replace(/\/$/, "");
+    if (dir === "/workspace") {
+      showToast("请先进入一个项目目录再上传");
+      return;
+    }
+    try {
+      for (const file of Array.from(files)) {
+        await uploadWorkspaceFile(`${dir}/${file.name}`, file);
+      }
+      showToast("文件已上传");
+      await loadWorkspace();
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  async function createWorkspaceItem(kind: "file" | "dir") {
+    const dir = workspacePath.replace(/\/$/, "");
+    if (dir === "/workspace") {
+      showToast("请先进入一个项目目录再新建");
+      return;
+    }
+    const name = window.prompt(kind === "dir" ? "输入新文件夹名称" : "输入新文件名称");
+    if (!name?.trim()) return;
+    try {
+      await workspaceItemAction({
+        path: `${dir}/${name.trim()}`,
+        action: kind === "dir" ? "create_dir" : "create_file",
+      });
+      showToast(kind === "dir" ? "文件夹已创建" : "文件已创建");
+      await loadWorkspace();
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  async function renameWorkspaceItem(item: WorkspaceItem) {
+    const name = window.prompt("输入新名称", item.name);
+    if (!name?.trim() || name.trim() === item.name) return;
+    try {
+      await workspaceItemAction({ path: item.path, action: "rename", newName: name.trim() });
+      showToast("已重命名");
+      await loadWorkspace();
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  async function deleteWorkspaceItem(item: WorkspaceItem) {
+    const label = item.isDirectory ? `文件夹“${item.name}”及其全部内容` : `文件“${item.name}”`;
+    if (!window.confirm(`删除${label}？此操作无法撤销。`)) return;
+    try {
+      await workspaceItemAction({ path: item.path, action: "delete" });
+      if (workspaceFilePath === item.path) {
+        setWorkspaceFilePath(null);
+        setWorkspaceContent("");
+        setWorkspaceDirty(false);
+      }
+      showToast("已删除");
+      await loadWorkspace();
+    } catch (error) {
+      showError(error);
+    }
+  }
+
   function workspaceParentPath(): string {
     const root = String(workspaceInfo?.rootPath ?? "").replace(/\/$/, "");
     const current = String(workspacePathRef.current).replace(/\/$/, "");
@@ -555,6 +624,9 @@ export default function App() {
 
   function selectMobileSection(section: MobileSection) {
     setMobileSectionState(section);
+    // 移动端切到终端时同步桌面视图，保证 TerminalPane 已渲染；切回时还原。
+    if (section === "terminal") setDesktopView("terminal");
+    else if (desktopView === "terminal") setDesktopView("chat");
   }
 
   useEffect(() => {
@@ -631,6 +703,16 @@ export default function App() {
             >
               <Icon name="arrow-right" size={18} />
             </button>
+            <button
+              className={`topbar-icon${desktopView === "terminal" ? " active" : ""}`}
+              type="button"
+              aria-label={desktopView === "terminal" ? "返回对话" : "打开远程终端"}
+              title={desktopView === "terminal" ? "返回对话" : "打开远程终端"}
+              aria-pressed={desktopView === "terminal"}
+              onClick={() => setDesktopView(desktopView === "terminal" ? "chat" : "terminal")}
+            >
+              <Icon name="terminal" size={18} />
+            </button>
           </nav>
           <div className="desktop-navigation-group desktop-navigation-end">
             <button
@@ -663,22 +745,26 @@ export default function App() {
           onSelect={(conversation) => void selectConversation(conversation)}
           onDelete={(conversation) => deleteConversation(conversation)}
         />
-        <ChatPanel
-          conversation={selectedConversation}
-          messages={messages}
-          approvals={approvals}
-          globalError={globalError}
-          sending={sending}
-          activeTaskId={activeRenderTaskId ?? activeTaskId}
-          onOpenConversations={() => setConversationsOpen(true)}
-          onDelete={() => void deleteConversation()}
-          onSend={sendMessage}
-          onCancel={() => void cancelRun()}
-          onResolveApproval={resolveApproval}
-          onClearError={() => setGlobalError("")}
-          onAttachmentError={showError}
-          quickPhrases={quickPhrases}
-        />
+        {desktopView === "terminal" ? (
+          <TerminalPane active />
+        ) : (
+          <ChatPanel
+            conversation={selectedConversation}
+            messages={messages}
+            approvals={approvals}
+            globalError={globalError}
+            sending={sending}
+            activeTaskId={activeRenderTaskId ?? activeTaskId}
+            onOpenConversations={() => setConversationsOpen(true)}
+            onDelete={() => void deleteConversation()}
+            onSend={sendMessage}
+            onCancel={() => void cancelRun()}
+            onResolveApproval={resolveApproval}
+            onClearError={() => setGlobalError("")}
+            onAttachmentError={showError}
+            quickPhrases={quickPhrases}
+          />
+        )}
         <ContextPane
           workspacePath={workspacePath}
           workspaceItems={workspaceItems}
@@ -700,10 +786,14 @@ export default function App() {
             setWorkspaceDirty(true);
           }}
           onWorkspaceSave={() => void saveWorkspaceFile()}
+          onWorkspaceUpload={(files) => void uploadWorkspaceFiles(files)}
+          onWorkspaceCreate={(kind) => void createWorkspaceItem(kind)}
+          onWorkspaceRename={(item) => void renameWorkspaceItem(item)}
+          onWorkspaceDelete={(item) => void deleteWorkspaceItem(item)}
         />
 
         <nav className="mobile-nav" aria-label="Web Chat 区域">
-          {(["chat", "workspace"] as MobileSection[]).map((section) => (
+          {(["chat", "terminal", "workspace"] as MobileSection[]).map((section) => (
             <button
               className={mobileSection === section ? "active" : ""}
               type="button"
@@ -711,7 +801,7 @@ export default function App() {
               key={section}
             >
               <Icon name={MOBILE_SECTION_ICON[section]} size={18} />
-              <span>{{ chat: "智枢", workspace: "工作区" }[section]}</span>
+              <span>{{ chat: "智枢", terminal: "终端", workspace: "工作区" }[section]}</span>
             </button>
           ))}
         </nav>

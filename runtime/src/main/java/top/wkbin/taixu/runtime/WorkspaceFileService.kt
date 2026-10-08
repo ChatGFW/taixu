@@ -55,6 +55,24 @@ class WorkspaceFileService(
         }
     }
 
+    /** 二进制写入（WebChat 上传等场景）：临时文件 + rename 的原子落盘与 [writeFile] 一致。 */
+    suspend fun writeBytes(projectName: String, relativePath: String, bytes: ByteArray): AppResult<Unit> = ioResult("写入文件失败") {
+        require(bytes.isNotEmpty()) { "内容为空" }
+        require(bytes.size <= MAX_UPLOAD_BYTES) {
+            "文件过大（${bytes.size} 字节，上限 ${MAX_UPLOAD_BYTES / 1024 / 1024} MB）"
+        }
+        val file = resolve(projectName, relativePath, allowMissing = true)
+        require(!file.isDirectory) { "目标是目录：${displayPath(projectName, relativePath)}" }
+        file.parentFile?.mkdirs()
+        val temporary = File(file.parentFile, ".${file.name}.tmp-${System.nanoTime()}")
+        try {
+            temporary.writeBytes(bytes)
+            if (!temporary.renameTo(file)) temporary.copyTo(file, overwrite = true)
+        } finally {
+            temporary.delete()
+        }
+    }
+
     suspend fun createFile(projectName: String, relativePath: String): AppResult<Unit> = ioResult("创建文件失败") {
         val file = resolve(projectName, relativePath, allowMissing = true)
         check(!file.exists()) { "文件已存在：${file.name}" }
@@ -130,5 +148,10 @@ class WorkspaceFileService(
         } catch (throwable: Throwable) {
             AppResult.Failure(AppError(ErrorCode.IO, throwable.message ?: fallback, throwable))
         }
+    }
+
+    companion object {
+        /** WebChat 上传单文件上限；服务端请求体预读进内存，更大文件走 FTP。 */
+        const val MAX_UPLOAD_BYTES = 32 * 1024 * 1024
     }
 }

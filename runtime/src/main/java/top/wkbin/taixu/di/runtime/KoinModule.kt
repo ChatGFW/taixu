@@ -310,6 +310,7 @@ val runtimeModule = module {
             workspaces = get(),
             workspaceManager = get(),
             workspaceFiles = get(),
+            linuxRuntime = get(),
             agentGateway = get(),
             logger = get(),
         )

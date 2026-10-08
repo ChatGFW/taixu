@@ -61,7 +61,8 @@ class WebChatBridgeServer(
     private val quickPhrases: QuickPhraseRepository,
     private val workspaces: WorkspaceRepository,
     private val workspaceManager: WorkspaceManager,
-    private val workspaceFiles: WorkspaceFileService,
+    internal val workspaceFiles: WorkspaceFileService,
+    private val linuxRuntime: top.wkbin.taixu.runtime.LinuxRuntime,
     private val agentGateway: WebChatAgentGateway,
     private val logger: AppLogger,
 ) {
@@ -70,6 +71,11 @@ class WebChatBridgeServer(
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; explicitNulls = false }
     private val _status = MutableStateFlow(WebChatServerStatus())
     val status: StateFlow<WebChatServerStatus> = _status.asStateFlow()
+
+    // 远程终端桥与主桥共享 scope 与 PIN；服务停止时一并回收全部 PTY。
+    private val terminalBridge by lazy {
+        WebTerminalBridge(linuxRuntime, logger, scope) { _status.value.pinCode }
+    }
 
     private val sseEmitters = ConcurrentHashMap.newKeySet<AndroidHttpExchange>()
     private val taskSessions = ConcurrentHashMap<String, String>()
@@ -91,6 +97,8 @@ class WebChatBridgeServer(
             server.createContext("/webchat/api/tasks", TasksHandler())
             server.createContext("/webchat/api/events", SseEventsHandler())
             server.createContext("/webchat/api/workspaces", WorkspacesHandler())
+            // 远程终端桥：/webchat/api/terminal*（列表/创建/SSE 输出/输入/缩放/关闭）。
+            terminalBridge.registerRoutes(server)
             server.createContext("/", StaticAssetHandler())
             server.start()
             httpServer = server
@@ -118,6 +126,8 @@ class WebChatBridgeServer(
 
     fun stop() {
         runCatching {
+            // 先回收终端 PTY（会向订阅者发 exit），再关 HTTP 与其余资源。
+            terminalBridge.shutdown()
             heartbeatJob?.cancel()
             heartbeatJob = null
             releaseLocks()
@@ -406,6 +416,8 @@ class WebChatBridgeServer(
                     suffix == "file" && exchange.requestMethod == "GET" -> readWorkspaceFile(exchange)
                     suffix == "file" && exchange.requestMethod == "PUT" -> writeWorkspaceFile(exchange)
                     suffix == "download" && exchange.requestMethod == "GET" -> downloadWorkspaceFile(exchange)
+                    suffix == "upload" && exchange.requestMethod == "POST" -> uploadWorkspaceFile(exchange)
+                    suffix == "item" && exchange.requestMethod == "POST" -> workspaceItemAction(exchange)
                     else -> sendText(exchange, 404, "工作区接口不存在")
                 }
             } catch (throwable: Throwable) {
@@ -504,11 +516,6 @@ class WebChatBridgeServer(
         if (approvals.isNotEmpty()) put("approvals", approvalArray(approvals))
     }.toString()
 
-    private fun requestJson(exchange: AndroidHttpExchange): JsonObject {
-        val raw = exchange.requestBody.bufferedReader().readText()
-        return if (raw.isBlank()) JsonObject(emptyMap()) else json.parseToJsonElement(raw).jsonObject
-    }
-
     private fun handlePreflight(exchange: AndroidHttpExchange): Boolean {
         if (exchange.requestMethod.equals("OPTIONS", ignoreCase = true)) {
             sendResponse(exchange, 204, "text/plain", ByteArray(0))
@@ -529,52 +536,10 @@ class WebChatBridgeServer(
         return false
     }
 
-    private fun parseWorkspacePath(path: String): Pair<String, String> {
-        val normalized = path.replace('\\', '/').trim().removeSuffix("/")
-        require(normalized.startsWith("/workspace/")) { "仅允许访问已注册的 /workspace 工程" }
-        val tail = normalized.removePrefix("/workspace/")
-        val project = tail.substringBefore('/')
-        val relative = tail.substringAfter('/', "")
-        require(project.isNotBlank() && relative.split('/').none { it == ".." }) { "工作区路径无效" }
-        return project to relative
-    }
-
     private suspend fun isRegisteredWorkspacePath(path: String): Boolean = runCatching {
         val (project, _) = parseWorkspacePath(path)
         workspaces.findByName(project) != null
     }.getOrDefault(false)
-
-    private fun workspacePath(project: String, relative: String): String =
-        "/workspace/$project" + relative.trim('/').takeIf(String::isNotEmpty)?.let { "/$it" }.orEmpty()
-
-    private fun <T> AppResult<T>.orThrow(): T = when (this) {
-        is AppResult.Success -> data
-        is AppResult.Failure -> throw IllegalArgumentException(error.message)
-    }
-
-    private fun errorJson(message: String) = buildJsonObject { put("error", message) }
-
-    private fun sendJson(exchange: AndroidHttpExchange, code: Int, payload: kotlinx.serialization.json.JsonElement) =
-        sendResponse(exchange, code, "application/json; charset=utf-8", payload.toString().toByteArray())
-
-    private fun sendText(exchange: AndroidHttpExchange, code: Int, text: String) =
-        sendResponse(exchange, code, "text/plain; charset=utf-8", text.toByteArray())
-
-    private fun sendResponse(exchange: AndroidHttpExchange, code: Int, contentType: String, bytes: ByteArray) {
-        exchange.responseHeaders.add("Content-Type", contentType)
-        exchange.responseHeaders.add("Access-Control-Allow-Origin", "*")
-        exchange.responseHeaders.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
-        exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        exchange.sendResponseHeaders(code, bytes.size.toLong())
-        if (bytes.isNotEmpty()) exchange.responseBody.write(bytes)
-        exchange.close()
-    }
-
-    private fun getQueryParam(exchange: AndroidHttpExchange, key: String): String? {
-        val raw = exchange.requestURI.query.orEmpty().split('&').firstOrNull { it.substringBefore('=') == key }
-            ?.substringAfter('=', "") ?: return null
-        return URLDecoder.decode(raw, Charsets.UTF_8.name())
-    }
 
     private suspend fun <T> kotlinx.coroutines.flow.Flow<T>.firstValue(): T = first()
 
