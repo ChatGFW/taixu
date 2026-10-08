@@ -129,35 +129,33 @@ class ShowerVideoRenderer {
                 return
             }
 
-            val packet = maybeAvccToAnnexb(data)
-
-            if (decoder == null) {
-                val nalType = findNalUnitType(packet)
-                if (nalType == 7) { // SPS
-                    if (csd0 == null) {
-                        csd0 = packet
+            // server 把 MediaFormat 的 csd-0/csd-1 原样回传。有的机型没有 Annex-B 起始码，
+            // 有的把 SPS 和 PPS 粘在同一个包里。认不出这两类参数集时解码器永远不初始化，
+            // 悬浮窗就是一块黑的。
+            for (nal in splitAnnexB(ensureAnnexB(data))) {
+                if (decoder == null) {
+                    val nalType = findNalUnitType(nal)
+                    if (nalType == 7) { // SPS
+                        if (csd0 == null) csd0 = nal
+                    } else if (nalType == 8) { // PPS
+                        if (csd1 == null) csd1 = nal
+                    } else {
+                        // 与 queueFrameToDecoder 的丢包背压对齐：等待参数集期间最多缓存
+                        // [MAX_PENDING_FRAMES] 包，超限丢最旧，防止无限堆积拖爆 Java 堆。
+                        while (pendingFrames.size >= MAX_PENDING_FRAMES) pendingFrames.removeAt(0)
+                        pendingFrames.add(nal)
                     }
-                } else if (nalType == 8) { // PPS
-                    if (csd1 == null) {
-                        csd1 = packet
+
+                    if (csd0 != null && csd1 != null) {
+                        initDecoderLocked()
+                        val framesToProcess = pendingFrames.toList()
+                        pendingFrames.clear()
+                        framesToProcess.forEach { frame -> queueFrameToDecoder(frame) }
                     }
                 } else {
-                    // 与 queueFrameToDecoder 的丢包背压对齐：等待参数集期间最多缓存
-                    // [MAX_PENDING_FRAMES] 包，超限丢最旧，防止无限堆积拖爆 Java 堆。
-                    while (pendingFrames.size >= MAX_PENDING_FRAMES) pendingFrames.removeAt(0)
-                    pendingFrames.add(packet)
+                    queueFrameToDecoder(nal)
                 }
-
-                if (csd0 != null && csd1 != null) {
-                    initDecoderLocked()
-                    val framesToProcess = pendingFrames.toList()
-                    pendingFrames.clear()
-                    framesToProcess.forEach { frame -> queueFrameToDecoder(frame) }
-                }
-                return
             }
-
-            queueFrameToDecoder(packet)
         }
     }
 
@@ -206,6 +204,57 @@ class ShowerVideoRenderer {
                 pendingFrames.clear()
             }
         }
+    }
+
+    /** 按 Annex-B 起始码切开。没有起始码时整包当作一个 NAL。 */
+    private fun splitAnnexB(packet: ByteArray): List<ByteArray> {
+        val starts = ArrayList<Int>(4)
+        var i = 0
+        while (i < packet.size - 3) {
+            if (packet[i] == 0.toByte() && packet[i + 1] == 0.toByte()) {
+                if (packet[i + 2] == 1.toByte()) {
+                    starts += i
+                    i += 3
+                    continue
+                }
+                if (i + 3 < packet.size && packet[i + 2] == 0.toByte() && packet[i + 3] == 1.toByte()) {
+                    starts += i
+                    i += 4
+                    continue
+                }
+            }
+            i++
+        }
+        if (starts.size <= 1) return listOf(packet)
+        return starts.indices.map { index ->
+            val end = if (index + 1 < starts.size) starts[index + 1] else packet.size
+            packet.copyOfRange(starts[index], end)
+        }
+    }
+
+    /**
+     * 统一成 Annex-B。已经带起始码的包原样返回；AVCC 长度前缀转成起始码；
+     * 剩下的裸 NAL（csd-0 常见以 0x67 开头）补上 00 00 00 01。
+     */
+    private fun ensureAnnexB(packet: ByteArray): ByteArray {
+        if (hasStartCode(packet)) return packet
+        val avcc = maybeAvccToAnnexb(packet)
+        if (avcc !== packet && hasStartCode(avcc)) return avcc
+        val nalType = packet.firstOrNull()?.toInt()?.and(0x1F) ?: return packet
+        if (nalType !in 1..23) return packet
+        val out = ByteArray(packet.size + 4)
+        out[3] = 1
+        System.arraycopy(packet, 0, out, 4, packet.size)
+        return out
+    }
+
+    private fun hasStartCode(packet: ByteArray): Boolean {
+        if (packet.size < 4) return false
+        val b0 = packet[0].toInt() and 0xFF
+        val b1 = packet[1].toInt() and 0xFF
+        val b2 = packet[2].toInt() and 0xFF
+        val b3 = packet[3].toInt() and 0xFF
+        return b0 == 0 && b1 == 0 && ((b2 == 0 && b3 == 1) || b2 == 1)
     }
 
     private fun maybeAvccToAnnexb(packet: ByteArray): ByteArray {

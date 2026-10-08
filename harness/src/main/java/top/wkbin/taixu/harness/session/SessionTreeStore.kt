@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness.session
 
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.common.logging.AppLogger
@@ -64,18 +65,21 @@ class SessionTreeStore(
 
     /** 当前 lane 的叶子条目 id（无 lane 或空 lane 时为 null）。 */
     suspend fun laneLeafId(sessionId: String, laneName: String = MAIN_LANE): String? =
-        runCatching { repository.findLane(sessionId, laneName)?.leafId }.getOrNull()
+        runCatching { repository.findLane(sessionId, laneName)?.leafId }
+            .onFailure { if (it is CancellationException) throw it }.getOrNull()
 
     suspend fun load(sessionId: String, laneName: String = MAIN_LANE): List<HarnessMessage> = runCatching {
         val lane = repository.ensureLane(sessionId, laneName)
         repository.branchTail(sessionId, lane.leafId, MAX_LIVE_ENTRIES).mapNotNull(::decode)
     }.onFailure { throwable ->
+        if (throwable is CancellationException) throw throwable
         logger.e("Failed to load harness branch for $sessionId/$laneName: ${throwable.message}", throwable)
     }.getOrDefault(emptyList())
 
     suspend fun loadAt(sessionId: String, leafId: String?): List<HarnessMessage> = runCatching {
         repository.branchTail(sessionId, leafId, MAX_LIVE_ENTRIES).mapNotNull(::decode)
     }.onFailure { throwable ->
+        if (throwable is CancellationException) throw throwable
         logger.e("Failed to load harness branch at $sessionId/$leafId: ${throwable.message}", throwable)
     }.getOrDefault(emptyList())
 
@@ -131,6 +135,7 @@ class SessionTreeStore(
                 )
                 repository.appendToLane(sessionId, laneName, entry)
             }.onFailure {
+                if (it is CancellationException) throw it
                 logger.w("Failed to persist recall block for $userMessageId: ${it.message}")
             }.isSuccess
         }

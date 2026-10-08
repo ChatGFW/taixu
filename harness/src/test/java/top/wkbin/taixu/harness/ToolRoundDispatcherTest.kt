@@ -14,6 +14,46 @@ import org.junit.Test
 class ToolRoundDispatcherTest {
 
     @Test
+    fun `cancelled waiter retains shared lock until remaining callers finish`() = runBlocking {
+        val dispatcher = ToolRoundDispatcher()
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val holder = launch {
+            dispatcher.withMutationLock("workspace") {
+                entered.complete(Unit)
+                release.await()
+            }
+        }
+        entered.await()
+        val cancelled = launch { dispatcher.withMutationLock("workspace") { error("cancelled waiter ran") } }
+        yield()
+        cancelled.cancel()
+        cancelled.join()
+        var ran = false
+        val remaining = launch { dispatcher.withMutationLock("workspace") { ran = true } }
+        yield()
+        assertEquals(1, dispatcher.retainedMutationScopeCount)
+        assertTrue(!ran)
+        release.complete(Unit)
+        holder.join()
+        remaining.join()
+        assertTrue(ran)
+        assertEquals(0, dispatcher.retainedMutationScopeCount)
+    }
+
+    @Test
+    fun `completed workspace rounds reclaim locks and read-only rounds allocate none`() = runBlocking {
+        val dispatcher = ToolRoundDispatcher()
+        repeat(100) { index ->
+            dispatcher.dispatch(listOf(index), mutationScope = "workspace-$index", isParallelSafe = { false }) { _, _ -> }
+        }
+        dispatcher.dispatch(listOf(1, 2), isParallelSafe = { true }) { _, _ ->
+            assertEquals(0, dispatcher.retainedMutationScopeCount)
+        }
+        assertEquals(0, dispatcher.retainedMutationScopeCount)
+    }
+
+    @Test
     fun `mutations across independent single and parallel rounds do not overlap`() = runBlocking {
         val dispatcher = ToolRoundDispatcher()
         val entered = CompletableDeferred<Unit>()

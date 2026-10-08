@@ -42,12 +42,12 @@ class ShowerBinderReceiver : BroadcastReceiver() {
         // UID_UNKNOWN(-1)：实测 Android 16 真机（vivo V2419A）下，server 经 IActivityManager
         // 转发到达时 sentFromUid 恒为 -1（server 侧日志显示广播已正常发出）。若把 -1 一并
         // 拒绝，会把**合法交接**丢弃，表现为「server 已启动却永远等不到 Binder」。
-        // 因此仅当能确认为非特权 uid（普通三方应用 >= 10000）时才拒绝。
+        // SYSTEM(1000) 同样要放行：不少 ROM 把这次广播的发送者记成 system_server，而不是
+        // 真正调用 broadcastIntent 的 shell。只拒绝能确认是普通三方应用（uid >= 10000）的来源。
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            // 注意：这里必须保持裸属性名写法——Intent.getSentFromUid() 是 @hide API，
-            // 写成 intent.sentFromUid 会编译失败（Unresolved reference）。
-            val sentFromUid = sentFromUid
-            if (sentFromUid != UID_UNKNOWN && sentFromUid !in setOf(ROOT_UID, SHELL_UID)) {
+            // getSentFromUid 在公开 SDK 里被标成 @hide，直接写 intent.sentFromUid 编译不过。
+            val sentFromUid = readSentFromUid(intent)
+            if (sentFromUid != null && sentFromUid != UID_UNKNOWN && sentFromUid !in PRIVILEGED_SENDER_UIDS) {
                 ShowerLog.w(TAG, "拒绝来源不明的 Binder 广播：sentFromUid=$sentFromUid")
                 return
             }
@@ -67,6 +67,10 @@ class ShowerBinderReceiver : BroadcastReceiver() {
         ShowerBinderRegistry.setService(service)
     }
 
+    private fun readSentFromUid(intent: Intent): Int? = runCatching {
+        intent.javaClass.getMethod("getSentFromUid").invoke(intent) as Int
+    }.getOrNull()
+
     companion object {
         private const val TAG = "TaixuShowerReceiver"
 
@@ -74,8 +78,11 @@ class ShowerBinderReceiver : BroadcastReceiver() {
         private const val SHELL_UID = 2000
         /** Linux root uid：Root 模式下 server 可能以 root 身份运行。 */
         private const val ROOT_UID = 0
+        /** system_server：部分 ROM 把 IActivityManager 广播的来源记成系统 uid。 */
+        private const val SYSTEM_UID = 1000
         /** Intent.sentFromUid 未回填时的占位值（android.os.Process.INVALID_UID）。 */
         private const val UID_UNKNOWN = -1
+        private val PRIVILEGED_SENDER_UIDS = setOf(ROOT_UID, SYSTEM_UID, SHELL_UID)
 
         const val ACTION_SHOWER_BINDER_READY =
             "com.ai.assistance.operit.action.SHOWER_BINDER_READY"

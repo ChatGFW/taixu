@@ -2,7 +2,9 @@ package top.wkbin.taixu.runtime.virtualdisplay
 
 import android.content.Context
 import android.provider.Settings
+import android.util.DisplayMetrics
 import android.util.Log
+import android.view.WindowManager
 import com.ai.assistance.showerclient.ShellIdentity
 import com.ai.assistance.showerclient.ShellRunner
 import com.ai.assistance.showerclient.ShowerBinderRegistry
@@ -88,7 +90,9 @@ class VirtualDisplayCoordinator(
             logger.w("虚拟屏 server 启动失败：请检查 Shizuku/Root 特权状态（PRoot 模式不支持虚拟屏）")
             return null
         }
-        val metrics = context.resources.displayMetrics
+        // Application 的 displayMetrics 在分屏/折叠屏上常常不是物理屏尺寸。
+        // 编码器按这个尺寸建屏，和真实面板不一致时虚拟屏会是一块空的。
+        val metrics = realDisplayMetrics()
         val ok = controller.ensureDisplay(
             context = context,
             width = metrics.widthPixels,
@@ -249,6 +253,14 @@ class VirtualDisplayCoordinator(
      */
     fun trimVideoBuffers() {
         ShowerVideoRenderer.trimAllPending()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun realDisplayMetrics(): DisplayMetrics {
+        val metrics = DisplayMetrics()
+        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        windowManager.defaultDisplay.getRealMetrics(metrics)
+        return metrics
     }
 
     private companion object {

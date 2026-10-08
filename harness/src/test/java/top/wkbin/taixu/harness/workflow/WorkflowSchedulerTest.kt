@@ -21,6 +21,20 @@ import top.wkbin.taixu.core.model.workflow.previousOutput
 
 class WorkflowSchedulerTest {
     @Test
+    fun immediateCompletionDoesNotRecreateApprovalFlow() = runBlocking {
+        val broker = WorkflowApprovalBroker()
+        val scheduler = WorkflowScheduler(emptySet(), broker)
+        // Unconfined executes validation and completion before execute returns a handle.
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined)
+        val handle = scheduler.execute(
+            definition(nodes = listOf(node("a"), node("b")), edges = listOf(edge("a", "b"), edge("b", "a"))),
+            emptyMap(), "/workspace/test", scope,
+        )
+        assertEquals(WorkflowRunStatus.FAILED, handle.state.value.status)
+        assertEquals(null, handle.approvalRequest.value)
+        assertEquals(0, broker.retainedExecutionCount)
+    }
+    @Test
     fun rejectsCycles() {
         val workflow = definition(
             nodes = listOf(node("a"), node("b")),

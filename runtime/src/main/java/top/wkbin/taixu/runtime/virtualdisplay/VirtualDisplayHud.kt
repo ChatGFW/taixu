@@ -226,7 +226,8 @@ object VirtualDisplayHud {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -249,6 +250,13 @@ object VirtualDisplayHud {
      * 等比映射后经 Binder 注入虚拟屏。
      */
     private class TouchForwardSurfaceView(context: Context) : ShowerSurfaceView(context) {
+
+        init {
+            // 悬浮窗是半透明窗口。SurfaceView 默认画在窗口下面，洞穿失败时整块视频是黑的。
+            // 媒体层叠在本窗口之上、其它窗口之下，解码出的画面才能露出来。
+            setZOrderMediaOverlay(true)
+            holder.setFormat(PixelFormat.OPAQUE)
+        }
 
         var forwardController: ShowerController? = null
         var forwardScopeSupplier: (() -> CoroutineScope?)? = null
