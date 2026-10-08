@@ -660,8 +660,10 @@ class ToolExecutor(
                 if (displayId == null) {
                     false to "虚拟屏创建失败（session=$session）：Shower 服务未启动或建屏失败，详见 runtime.log 中的 [Shower] 日志（不一定是授权问题）"
                 } else {
-                    true to "虚拟屏已就绪：session=$session displayId=$displayId（尺寸与主屏一致）；" +
-                        "接下来用 virtual_screen_launch 启动应用，virtual_screen_screenshot 截图识图"
+                    val hidden = coordinator.reveal(session, "等待打开应用")
+                    true to "虚拟屏已就绪：session=$session displayId=$displayId。" +
+                        (hidden ?: "悬浮窗已弹出。刚建好的屏上没有应用，画面是黑的。") +
+                        "用 virtual_screen_launch 打开应用后才会有画面，再用 virtual_screen_screenshot 截图识图"
                 }
             }
             "virtual_screen_launch" -> {
@@ -675,9 +677,12 @@ class ToolExecutor(
                 }
                 val res = coordinator.launchApp(session, packageName)
                 if (res) {
+                    val hidden = coordinator.reveal(session, "启动 $packageName")
                     true to "已在虚拟屏启动应用：$packageName（session=$session " +
-                        "displayId=${coordinator.getDisplayId(session)}）；应用画面不会出现在主屏"
+                        "displayId=${coordinator.getDisplayId(session)}）。" +
+                        (hidden ?: "悬浮窗上能看到这个应用，标题栏是当前步骤。")
                 } else {
+                    coordinator.reveal(session, "启动失败 $packageName")
                     false to "虚拟屏启动应用失败：$packageName（检查包名是否为已安装应用）"
                 }
             }
@@ -687,6 +692,7 @@ class ToolExecutor(
                 if (coordinator.getDisplayId(session) == null) {
                     return false to "虚拟屏未创建（session=$session）：先调用 virtual_screen_ensure"
                 }
+                val hiddenShot = coordinator.reveal(session, "正在截图")
                 val targetPath = requireString(args, "path")
                 val png = coordinator.requestScreenshot(session)
                     ?: return false to "虚拟屏截图失败（session=$session）：screencap/Binder 通道均不可用，详见 runtime.log 的 [Shower] 日志"
@@ -695,7 +701,10 @@ class ToolExecutor(
                     file.parentFile?.mkdirs()
                     file.writeBytes(png)
                 }.fold(
-                    onSuccess = { true to "虚拟屏截图已保存至 $targetPath（${png.size} 字节），可用 read 查看图片" },
+                    onSuccess = {
+                        true to "虚拟屏截图已保存至 $targetPath（${png.size} 字节），可用 read 查看图片" +
+                            (hiddenShot?.let { " $it" } ?: "")
+                    },
                     onFailure = { err -> false to "截图写入失败：${err.message}" }
                 )
             }
@@ -707,6 +716,7 @@ class ToolExecutor(
             "virtual_screen_key",
             -> {
                 val toolkit = virtualScreenToolkit ?: return false to "未初始化虚拟屏工具"
+                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
                 val session = optionalSession(args)
                 val primitive = when (action) {
                     "virtual_screen_click" ->
@@ -743,7 +753,8 @@ class ToolExecutor(
                     }
                 }
                 val result = toolkit.execute(session, primitive)
-                result.success to result.message
+                val hiddenStep = coordinator.reveal(session, result.message)
+                result.success to if (hiddenStep == null) result.message else "${result.message} $hiddenStep"
             }
             "virtual_screen_close" -> {
                 val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
@@ -760,7 +771,8 @@ class ToolExecutor(
                     return false to "虚拟屏创建失败（session=$session）：Shower 服务未启动或建屏失败，详见 runtime.log 中的 [Shower] 日志（不一定是授权问题）"
                 }
                 if (coordinator.showOverlay(session)) {
-                    true to "已显示虚拟屏实时悬浮窗（session=$session）：用户可观看画面并直接触摸干预"
+                    coordinator.reveal(session, "正在显示画面")
+                    true to "已显示虚拟屏实时悬浮窗（session=$session）：用户可观看画面并直接触摸干预，标题栏是当前步骤"
                 } else {
                     false to "悬浮窗权限未授予：请引导用户在系统设置中允许「显示在其他应用上层」后重试"
                 }

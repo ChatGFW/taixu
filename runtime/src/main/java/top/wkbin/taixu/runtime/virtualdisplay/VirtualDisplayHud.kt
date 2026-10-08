@@ -4,11 +4,15 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.SurfaceTexture
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
+import android.text.TextUtils
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.Surface
+import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -16,11 +20,13 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.ai.assistance.showerclient.ShowerController
 import com.ai.assistance.showerclient.ShowerLog
-import com.ai.assistance.showerclient.ui.ShowerSurfaceView
+import com.ai.assistance.showerclient.ShowerVideoRenderer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -32,8 +38,8 @@ import java.util.concurrent.atomic.AtomicLong
  * 设计取舍：
  * - WindowManager 单例悬浮窗而非前台 Service：无通知、无 FGS 类型约束，
  *   进程存活期间持续显示，隐藏即回收；
- * - 视频渲染复用 showerclient 的 [ShowerSurfaceView]（自动等待 video size、
- *   绑定 MediaCodec 解码器与二进制帧回调）；
+ * - 视频用 TextureView 画在窗口里面。SurfaceView 在半透明悬浮窗下会沉到窗口背后，
+ *   洞穿失败时整块是黑的；TextureView 跟普通 View 一样合成，画面能直接看见；
  * - 触摸回传：手指在悬浮窗上的操作按「视图坐标 → 视频坐标」等比映射后
  *   经 Binder 注入虚拟屏，用于人工干预 AI 的自动化过程；
  * - 纯代码构建 View（runtime 模块有 resourcePrefix 约束，避免引入布局资源）；
@@ -43,12 +49,12 @@ object VirtualDisplayHud {
 
     private const val TAG = "VirtualDisplayHud"
 
-    /** 悬浮窗宽度（dp）；高度按视频宽高比自适应。 */
-    private const val WINDOW_WIDTH_DP = 300
+    /** 预览宽度占屏幕宽度的比例。300dp 在手机上接近整屏宽，再按 19.5:9 拉高就会盖住大半个屏幕。 */
+    private const val WINDOW_WIDTH_FRACTION = 0.40f
+    /** 预览高度上限占屏幕高度的比例，避免竖屏画面把悬浮窗拉得比屏幕还高。 */
+    private const val WINDOW_MAX_HEIGHT_FRACTION = 0.42f
     /** 标题条高度（dp）。 */
-    private const val TITLE_BAR_HEIGHT_DP = 32
-    /** 初始视频区高度（dp）：按常见 19.5:9 屏比预估，video size 就绪后校正。 */
-    private const val INITIAL_VIDEO_HEIGHT_DP = 640
+    private const val TITLE_BAR_HEIGHT_DP = 36
     /** 圆角半径（px），与太墟深色卡片风格一致的轻圆角。 */
     private const val CORNER_RADIUS_PX = 28
 
@@ -68,6 +74,20 @@ object VirtualDisplayHud {
     @Volatile
     var showingSessionId: String? = null
         private set
+
+    /** 标题栏上的当前步骤。窗口还没挂上时先记着，挂上后写进去。 */
+    private var stepText: String = "等待操作"
+    private var statusView: TextView? = null
+
+    /** 把当前做到哪一步写到悬浮窗标题上，用户不用翻聊天记录也能看到。 */
+    fun setStep(step: String) {
+        val text = step.trim().ifBlank { "等待操作" }
+        stepText = text
+        mainHandler.post { statusView?.text = titleFor(showingSessionId, text) }
+    }
+
+    private fun titleFor(sessionId: String?, step: String): String =
+        "虚拟屏 · ${sessionId.orEmpty()} · $step"
 
     /**
      * 显示指定会话的虚拟屏悬浮窗。
@@ -97,6 +117,7 @@ object VirtualDisplayHud {
     fun hide() {
         generation.incrementAndGet()
         showingSessionId = null
+        statusView = null
         scope?.cancel()
         scope = null
         val view = rootView ?: return
@@ -114,8 +135,10 @@ object VirtualDisplayHud {
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-        val density = context.resources.displayMetrics.density
-        val px = { dp: Int -> (dp * density).toInt() }
+        val screen = android.util.DisplayMetrics()
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getRealMetrics(screen)
+        val px = { dp: Int -> (dp * screen.density).toInt() }
 
         // ---- 根容器：深灰圆角卡片 ----
         val root = LinearLayout(context).apply {
@@ -133,11 +156,14 @@ object VirtualDisplayHud {
             setPadding(px(12), px(4), px(4), px(4))
         }
         val title = TextView(context).apply {
-            text = "虚拟屏 · $sessionId"
+            text = titleFor(sessionId, stepText)
             setTextColor(Color.WHITE)
             textSize = 12f
+            maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
+        statusView = title
         val closeButton = TextView(context).apply {
             text = "✕"
             setTextColor(Color.parseColor("#AAAAAA"))
@@ -177,44 +203,50 @@ object VirtualDisplayHud {
             }
         }
 
-        // ---- 视频区：showerclient SurfaceView（自动接 MediaCodec 解码）+ 触摸回传 ----
-        val videoView = TouchForwardSurfaceView(context).apply {
-            bindController(controller)
+        val maxVideoW = (screen.widthPixels * WINDOW_WIDTH_FRACTION).toInt().coerceAtLeast(px(148))
+        val maxVideoH = (screen.heightPixels * WINDOW_MAX_HEIGHT_FRACTION).toInt().coerceAtLeast(px(220))
+
+        // ---- 视频区：TextureView 解码 + 触摸回传 ----
+        val videoView = TouchForwardVideoView(context).apply {
             forwardController = controller
             forwardScopeSupplier = { scope }
         }
 
         root.addView(
             titleBar,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                px(TITLE_BAR_HEIGHT_DP),
-            ),
+            LinearLayout.LayoutParams(maxVideoW, px(TITLE_BAR_HEIGHT_DP)),
         )
         root.addView(
             videoView,
-            LinearLayout.LayoutParams(
-                px(WINDOW_WIDTH_DP),
-                px(INITIAL_VIDEO_HEIGHT_DP),
-            ),
+            LinearLayout.LayoutParams(maxVideoW, maxVideoH),
         )
 
-        // video size 就绪后按实际宽高比校正视频区高度（等比、宽度不变）
+        // video size 就绪后按实际宽高比收进最大宽高，避免竖屏把窗口拉满。
         scope?.launch {
             var size = controller.getVideoSize()
             var tries = 0
             while (size == null && tries < 50) {
-                kotlinx.coroutines.delay(100)
+                delay(100)
                 tries++
                 size = controller.getVideoSize()
             }
             val (vw, vh) = size ?: return@launch
-            if (vw <= 0 || root.parent == null) return@launch
-            val targetHeight = px(WINDOW_WIDTH_DP) * vh / vw
+            if (vw <= 0 || vh <= 0 || root.parent == null) return@launch
+            var targetW = maxVideoW
+            var targetH = targetW * vh / vw
+            if (targetH > maxVideoH) {
+                targetH = maxVideoH
+                targetW = targetH * vw / vh
+            }
             mainHandler.post {
                 runCatching {
-                    videoView.layoutParams = (videoView.layoutParams as LinearLayout.LayoutParams)
-                        .apply { height = targetHeight }
+                    videoView.layoutParams = (videoView.layoutParams as LinearLayout.LayoutParams).apply {
+                        width = targetW
+                        height = targetH
+                    }
+                    titleBar.layoutParams = (titleBar.layoutParams as LinearLayout.LayoutParams).apply {
+                        width = targetW
+                    }
                     videoView.requestLayout()
                 }
             }
@@ -246,20 +278,63 @@ object VirtualDisplayHud {
     }
 
     /**
-     * [ShowerSurfaceView] 的触摸回传子类：把悬浮窗上的手势按视图→视频坐标
-     * 等比映射后经 Binder 注入虚拟屏。
+     * 用 TextureView 解码虚拟屏视频，并把触摸按视图→视频坐标回注。
+     * SurfaceView 在 TYPE_APPLICATION_OVERLAY 里经常整块黑屏，TextureView 不会。
      */
-    private class TouchForwardSurfaceView(context: Context) : ShowerSurfaceView(context) {
+    private class TouchForwardVideoView(context: Context) :
+        TextureView(context),
+        TextureView.SurfaceTextureListener {
 
-        init {
-            // 悬浮窗是半透明窗口。SurfaceView 默认画在窗口下面，洞穿失败时整块视频是黑的。
-            // 媒体层叠在本窗口之上、其它窗口之下，解码出的画面才能露出来。
-            setZOrderMediaOverlay(true)
-            holder.setFormat(PixelFormat.OPAQUE)
-        }
+        private val renderer = ShowerVideoRenderer()
+        private var decodeSurface: Surface? = null
+        private var attachJob: Job? = null
 
         var forwardController: ShowerController? = null
         var forwardScopeSupplier: (() -> CoroutineScope?)? = null
+
+        init {
+            surfaceTextureListener = this
+        }
+
+        override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+            val ctrl = forwardController ?: return
+            val scope = forwardScopeSupplier?.invoke() ?: return
+            attachJob?.cancel()
+            attachJob = scope.launch {
+                var size = ctrl.getVideoSize()
+                var tries = 0
+                while (size == null && tries < 50) {
+                    delay(100)
+                    tries++
+                    size = ctrl.getVideoSize()
+                }
+                val (videoW, videoH) = size ?: run {
+                    ShowerLog.e(TAG, "TextureView: 等不到视频尺寸，画面会一直是黑的")
+                    return@launch
+                }
+                if (!isAvailable || videoW <= 0 || videoH <= 0) return@launch
+                surface.setDefaultBufferSize(videoW, videoH)
+                val output = Surface(surface)
+                decodeSurface = output
+                renderer.attach(output, videoW, videoH)
+                ctrl.setBinaryHandler { frame -> renderer.onFrame(frame) }
+                ShowerLog.d(TAG, "TextureView: 解码表面已接上 ${videoW}x$videoH")
+            }
+        }
+
+        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) = Unit
+
+        override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+            attachJob?.cancel()
+            attachJob = null
+            forwardController?.setBinaryHandler(null)
+            renderer.detach()
+            decodeSurface?.release()
+            decodeSurface = null
+            return true
+        }
+
+        override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
 
         private var downTime = 0L
 
