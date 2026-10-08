@@ -106,6 +106,21 @@ class ToolManager(
 
     private val _isBatchInstalling = MutableStateFlow(false)
     val isBatchInstalling: StateFlow<Boolean> = _isBatchInstalling.asStateFlow()
+    private val bundleBatch = BundleComponentBatch(
+        linuxRuntime = linuxRuntime,
+        backgroundTaskRegistry = backgroundTaskRegistry,
+        notificationNotifier = notificationNotifier,
+        installLogRepository = installLogRepository,
+        assetSynchronizer = assetSynchronizer,
+        flutterSdkDownloader = flutterSdkDownloader,
+        installMutex = installMutex,
+        isBatchInstalling = _isBatchInstalling,
+        bundleInstallState = _bundleInstallState,
+        bundleInstallLog = _bundleInstallLog,
+        scope = managerScope,
+        currentDistroId = ::currentDistroId,
+        probeInstalledComponents = ::probeInstalledComponents,
+    )
 
     private val _localPluginImportState = MutableStateFlow<LocalPluginImportState>(LocalPluginImportState.Idle)
     val localPluginImportState: StateFlow<LocalPluginImportState> = _localPluginImportState.asStateFlow()
@@ -118,10 +133,10 @@ class ToolManager(
         managerScope.launch {
             runCatching {
                 val persisted = installLogRepository
-                    .observeForTool(currentDistroId(), BUNDLE_LOG_TOOL_ID)
+                    .observeForTool(currentDistroId(), BundleComponentBatch.LOG_TOOL_ID)
                     .first()
                     .map { it.message }
-                if (persisted.isNotEmpty()) _bundleInstallLog.value = persisted.takeLast(MAX_BUNDLE_LOG_LINES)
+                if (persisted.isNotEmpty()) _bundleInstallLog.value = persisted.takeLast(BundleComponentBatch.MAX_LOG_LINES)
             }
         }
     }
@@ -437,180 +452,26 @@ class ToolManager(
     }
 
     /**
-     * 🛠️ 批量聚合原子安装选中的组件 (Batch Component Installation)
-     * 自动对 APT 依赖包进行去重，只运行 1 次 update 和 1 次 install，彻底杜绝 dpkg 锁冲突，性能提升 3~5 倍。
+     * 批量装配选中的组件。reinstall 会先清掉该组件自己的程序文件，再跑安装脚本。
      */
-    fun batchInstallComponents(componentIds: Set<String>): Flow<InstallEvent> = flow {
-        if (componentIds.isEmpty()) {
-            emit(InstallEvent.Completed("components", "1.0.0"))
-            return@flow
-        }
-        val distroId = currentDistroId()
-        val bundleTitle = "开发套件装配"
-        installMutex.withLock {
-            _isBatchInstalling.value = true
-            backgroundTaskRegistry.start(BUNDLE_TASK_ID)
-            _bundleInstallLog.value = emptyList()
-            runCatching { installLogRepository.deleteForTool(distroId, BUNDLE_LOG_TOOL_ID) }
-            emit(InstallEvent.Started("components"))
-            runCatching {
-                assetSynchronizer.syncAssetsToDistro(distroId)
-            }
-            val steps = top.wkbin.taixu.core.model.BuiltinPluginBundles.buildBatchInstallScript(componentIds)
-            val selectedComps = top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles.flatMap { it.components }.filter { it.id in componentIds }
-            val compNames = selectedComps.joinToString("、") { it.name }
+    fun batchInstallComponents(componentIds: Set<String>, reinstall: Boolean = false): Flow<InstallEvent> =
+        bundleBatch.install(componentIds, reinstall)
 
-            val initialMsg = "正在准备 [$compNames] 批量装配流水线..."
-            _bundleInstallState.value = initialMsg
-            appendBundleInstallLog(initialMsg)
-            notificationNotifier.showProgress("dev_bundle_install", bundleTitle, initialMsg, 0.05f)
-            emit(InstallEvent.Progress("components", initialMsg, 0.05f))
+    /** 卸载选中组件。仍被其他已装配组件使用的目录和软件包会保留。 */
+    fun batchUninstallComponents(componentIds: Set<String>): Flow<InstallEvent> =
+        bundleBatch.uninstall(componentIds)
 
-            try {
-                steps.forEachIndexed { index, step ->
-                    val progress = 0.1f + 0.8f * (index.toFloat() / steps.size.toFloat())
-                    val shortDesc = when {
-                        index == 0 -> "正在创建 dpkg 配置目录..."
-                        index == 1 -> "正在写入 PRoot dpkg 安全策略..."
-                        index == 2 -> "正在清理 dpkg/apt 残留锁与临时文件..."
-                        "dpkg --remove" in step -> "正在清理无法完成的可选软件包事务..."
-                        "dpkg --configure" in step -> "正在恢复未完成的 dpkg 事务..."
-                        // apt-get 后面带有 -o 参数，不能用固定的
-                        // "apt-get update" 子串判断，否则会误落入安装文案。
-                        "apt-get" in step && " update " in step -> "正在同步软件源并聚合下载全部依赖包..."
-                        "apt-get" in step -> "正在安装 [$compNames] 所需系统依赖..."
-                        "gradle" in step -> "正在部署并链接 Gradle 8.14.2 自动化构建环境..."
-                        "setup_android_core" in step -> "正在部署 Android SDK 平台包与 Gradle 构建环境 (国内镜像加速)..."
-                        "termux_ndk" in step -> "正在下载、校验并原子装配 Linux AArch64 NDK..."
-                        "jadx" in step -> "正在部署 JADX-CLI 源码反编译工具包..."
-                        "android" in step -> "正在配置 Android SDK 官方开发工具链..."
-                        "flutter" in step -> "正在拉取并配置 Flutter SDK 跨端开发环境..."
-                        else -> "正在执行环境准备步骤..."
-                    }
-                    // 重型下载型脚本 (SDK 平台包 ~60MB / Gradle ~120MB / Flutter SDK git clone) 放宽超时
-                    val stepTimeoutMs = when {
-                        "/opt/taixu/scripts/" in step ||
-                            "setup_android_core.sh" in step || "setup_flutter.sh" in step -> HEAVY_SETUP_STEP_TIMEOUT_MS
-                        else -> DEFAULT_STEP_TIMEOUT_MS
-                    }
-                    val stepLabel = "[步骤 ${index + 1}/${steps.size}] $shortDesc"
-                    _bundleInstallState.value = stepLabel
-                    appendBundleInstallLog(stepLabel)
-                    notificationNotifier.showProgress("dev_bundle_install", bundleTitle, stepLabel, progress)
-                    emit(InstallEvent.Progress("components", stepLabel, progress))
+    fun startBackgroundBatchInstall(
+        componentIds: Set<String>,
+        reinstall: Boolean = false,
+        onCompleted: (() -> Unit)? = null,
+    ): Job = bundleBatch.startInstall(componentIds, reinstall, onCompleted)
 
-                    val flutterArchive = if ("setup_flutter.sh" in step) {
-                        appendBundleInstallLog("==> [TaiXu] 使用应用内断点下载器获取 Flutter SDK（不在 PRoot 内调用 curl）...")
-                        var lastFlutterLogAt = 0L
-                        var lastFlutterLoggedBytes = -1L
-                        flutterSdkDownloader.prepare(distroId) { downloaded, total ->
-                            val totalText = total?.takeIf { it > 0 }?.let { " / ${it / (1024 * 1024)} MB" }.orEmpty()
-                            val downloadedMb = downloaded / (1024 * 1024)
-                            val now = System.currentTimeMillis()
-                            val completed = total != null && total > 0L && downloaded >= total
-                            val shouldLog = downloaded == 0L || completed ||
-                                (downloaded > lastFlutterLoggedBytes && now - lastFlutterLogAt >= FLUTTER_DOWNLOAD_LOG_INTERVAL_MS)
-                            if (shouldLog) {
-                                appendBundleInstallLog("[TaiXu] Flutter SDK 应用内下载：$downloadedMb MB$totalText")
-                                lastFlutterLoggedBytes = downloaded
-                                lastFlutterLogAt = now
-                            }
-                        }
-                    } else {
-                        null
-                    }
-                    val result = linuxRuntime.execute(
-                        top.wkbin.taixu.runtime.shell.ShellCommand(
-                            commandLine = step,
-                            workingDirectory = "/root",
-                            environment = flutterArchive?.let {
-                                mapOf("TAIXU_FLUTTER_ARCHIVE" to it.guestPath)
-                            }.orEmpty(),
-                            timeoutMs = stepTimeoutMs,
-                        ),
-                        distroId = distroId,
-                    )
-                    result.stdout.trim().takeIf { it.isNotBlank() }?.let { appendBundleInstallLog(it.takeLast(4000)) }
-                    result.stderr.trim().takeIf { it.isNotBlank() }?.let { appendBundleInstallLog(it.takeLast(4000)) }
-                    if (!result.isSuccess) {
-                        error("安装步骤执行失败: ${result.stderr.ifBlank { result.stdout }.takeLast(800)}")
-                    }
-                }
+    fun startBackgroundBatchUninstall(
+        componentIds: Set<String>,
+        onCompleted: (() -> Unit)? = null,
+    ): Job = bundleBatch.startUninstall(componentIds, onCompleted)
 
-                _bundleInstallState.value = "正在验证已安装组件状态..."
-                appendBundleInstallLog("正在验证已安装组件状态...")
-                notificationNotifier.showProgress("dev_bundle_install", bundleTitle, "正在验证状态...", 0.95f)
-                emit(InstallEvent.Progress("components", "正在验证已安装组件状态...", 0.95f))
-
-                val installed = probeInstalledComponents()
-                val missing = componentIds - installed
-                if (missing.isNotEmpty()) {
-                    error("开发套件安装未完成，缺少组件: ${missing.joinToString()}")
-                }
-
-                notificationNotifier.showSuccess("dev_bundle_install", bundleTitle, "已成功就绪")
-                emit(InstallEvent.Completed("components", "1.0.0"))
-            } catch (e: Exception) {
-                appendBundleInstallLog("安装失败: ${e.message ?: "装配异常"}")
-                notificationNotifier.showFailed("dev_bundle_install", bundleTitle, e.message ?: "装配异常")
-                emit(InstallEvent.Failed("components", e.message ?: "装配异常"))
-                throw e
-            } finally {
-                _isBatchInstalling.value = false
-                backgroundTaskRegistry.finish(BUNDLE_TASK_ID)
-                _bundleInstallState.value = null
-            }
-        }
-    }
-
-    private fun appendBundleInstallLog(message: String) {
-        val normalized = message.trim()
-        if (normalized.isBlank()) return
-        val incoming = normalized.lineSequence().filter { it.isNotBlank() }.toList()
-        if (incoming.isEmpty()) return
-        val retained = (_bundleInstallLog.value + incoming).toMutableList()
-        var totalChars = retained.sumOf { it.length + 1 }
-        while (totalChars > MAX_BUNDLE_LOG_CHARS && retained.size > 1) {
-            totalChars -= retained.removeAt(0).length + 1
-        }
-        // A single tool line can be unusually large; cap it independently.
-        _bundleInstallLog.value = retained.map { line ->
-            if (line.length <= MAX_BUNDLE_LINE_CHARS) line else line.takeLast(MAX_BUNDLE_LINE_CHARS)
-        }
-        managerScope.launch {
-            runCatching {
-                incoming.forEach { line ->
-                    installLogRepository.insert(
-                        InstallLogEntity(
-                            distroId = currentDistroId(),
-                            toolId = BUNDLE_LOG_TOOL_ID,
-                            event = "bundle",
-                            message = if (line.length <= MAX_BUNDLE_LINE_CHARS) line else line.takeLast(MAX_BUNDLE_LINE_CHARS),
-                        ),
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * 🚀 在应用级生命周期协程 (managerScope) 中脱机静默运行批量装配
-     * 用户可自由切换至任何页面（工坊、聊天、终端等），完全不影响后台装配进程，通知栏实时同步。
-     */
-    fun startBackgroundBatchInstall(componentIds: Set<String>, onCompleted: (() -> Unit)? = null): Job {
-        return managerScope.launch {
-            try {
-                batchInstallComponents(componentIds).collect {}
-                onCompleted?.invoke()
-            } catch (e: Exception) {
-                android.util.Log.w("ToolManager", "Background batch install components failed: ${e.message}", e)
-            }
-        }
-    }
-
-    /**
-     * 🛠️ 兼容按套件 ID 批量安装
-     */
     fun batchInstallSuites(suiteIds: Set<String>): Flow<InstallEvent> {
         val componentIds = top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles
             .filter { it.id in suiteIds }
@@ -1112,20 +973,6 @@ class ToolManager(
         const val TASK_FAILED = "FAILED"
         const val TASK_CANCELLED = "CANCELLED"
         const val TASK_INTERRUPTED = "INTERRUPTED"
-        /** 普通安装步骤 (dpkg 自愈 / apt 聚合安装 / 软链配置) 的默认超时 */
-        // PRoot cold-starts (JDK/Gradle/Flutter) can spend several minutes
-        // unpacking or compiling on slower ARM devices. A three-minute default
-        // incorrectly aborts valid installs before the script can finish.
-        const val DEFAULT_STEP_TIMEOUT_MS = 10 * 60_000L
-
-        /** 重型下载型脚本 (Android SDK 平台包 / Gradle / Flutter SDK / JADX) 的超时，与 GenericRecipeInstaller 对齐 */
-        const val HEAVY_SETUP_STEP_TIMEOUT_MS = 45 * 60_000L
-        const val FLUTTER_DOWNLOAD_LOG_INTERVAL_MS = 2_000L
-        const val MAX_BUNDLE_LOG_CHARS = 120 * 1024
-        const val MAX_BUNDLE_LINE_CHARS = 8 * 1024
-        const val MAX_BUNDLE_LOG_LINES = 2048
-        const val BUNDLE_LOG_TOOL_ID = "components"
-        const val BUNDLE_TASK_ID = "dev-bundle-install"
     }
 
 }

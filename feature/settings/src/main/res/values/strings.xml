@@ -50,4 +50,10 @@
     <string name="settings_terminal_preview_output">太墟沙箱运行正常 🚀</string>
     <string name="settings_tool_center_empty_category_title">该分类下暂无工具</string>
     <string name="settings_tool_center_empty_category_subtitle">换一个分类，或稍后刷新插件目录再试</string>
+    <string name="settings_component_reinstall">重新安装</string>
+    <string name="settings_component_uninstall">卸载</string>
+    <string name="settings_component_installed_hint">已装配的组件可以卸载，或重新安装以修复损坏的环境。</string>
+    <string name="settings_component_uninstall_title">卸载 %1$s？</string>
+    <string name="settings_component_uninstall_body">将移除该组件在沙箱中的程序文件，以及只有它在使用的软件包。curl、git、python3 等基础工具会保留。</string>
+    <string name="settings_component_confirm_uninstall">确认卸载</string>
 </resources>
