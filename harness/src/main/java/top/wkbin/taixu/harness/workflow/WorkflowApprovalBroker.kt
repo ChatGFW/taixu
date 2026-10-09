@@ -13,6 +13,7 @@ class WorkflowApprovalBroker() {
 
     // 按 executionId 隔离的当前审批请求流：并发工作流互不串扰（A 的 UI 不会显示 B 的请求）
     private val requestsByExecution = ConcurrentHashMap<String, MutableStateFlow<WorkflowApprovalRequest?>>()
+    internal val retainedExecutionCount: Int get() = requestsByExecution.size
 
     // 兼容旧签名：保留“最早仍在等待”的全局单值视图（原有语义，feature 层旧调用方仍可用，
     // 自行按 executionId 过滤）；需要按执行隔离的调用方请改用 [currentRequestFor]

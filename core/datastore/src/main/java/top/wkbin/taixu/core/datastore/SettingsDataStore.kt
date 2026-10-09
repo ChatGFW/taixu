@@ -168,16 +168,11 @@ class SettingsDataStore(
     }
 
     suspend fun resetWorkshopScripts() {
-        context.settingsDataStore.edit {
-            it.remove(workshopAndroidScriptKey)
-            it.remove(workshopFlutterScriptKey)
-        }
+        context.settingsDataStore.edit { it.remove(workshopAndroidScriptKey); it.remove(workshopFlutterScriptKey) }
     }
 
     private suspend fun setWorkshopValue(key: androidx.datastore.preferences.core.Preferences.Key<String>, value: String) {
-        context.settingsDataStore.edit { prefs ->
-            if (value.isBlank()) prefs.remove(key) else prefs[key] = value
-        }
+        context.settingsDataStore.edit { prefs -> if (value.isBlank()) prefs.remove(key) else prefs[key] = value }
     }
     private val developerModeKey = booleanPreferencesKey("developer_mode")
     private val qemuCompatibilityEnabledKey = booleanPreferencesKey("qemu_compatibility_enabled")
@@ -191,6 +186,7 @@ class SettingsDataStore(
     private val providerKey = stringPreferencesKey("provider")
     private val providerBaseUrlKey = stringPreferencesKey("provider_base_url")
     private val providerModelKey = stringPreferencesKey("provider_model")
+    private val phoneAgentConfigKey = stringPreferencesKey("phone_agent_config")
     private val apiKeyCiphertextKey = stringPreferencesKey("api_key_ciphertext")
     private val registryManifestUrlKey = stringPreferencesKey("registry_manifest_url")
     private val registrySignatureUrlKey = stringPreferencesKey("registry_signature_url")
@@ -548,6 +544,9 @@ class SettingsDataStore(
             if (value.isBlank()) it.remove(providerModelKey) else it[providerModelKey] = value.trim()
         }
     }
+
+    val phoneAgentConfig: Flow<PhoneAgentEndpoint> = context.settingsDataStore.data.map { decodePhoneAgentConfig(it[phoneAgentConfigKey], secretManager) }
+    suspend fun setPhoneAgentConfig(value: PhoneAgentEndpoint) { context.settingsDataStore.edit { val encoded = encodePhoneAgentConfig(value, secretManager); if (encoded == null) it.remove(phoneAgentConfigKey) else it[phoneAgentConfigKey] = encoded } }
 
     suspend fun setApiKey(value: String) {
         context.settingsDataStore.edit {

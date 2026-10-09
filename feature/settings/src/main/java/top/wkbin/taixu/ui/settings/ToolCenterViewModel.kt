@@ -228,7 +228,7 @@ class ToolCenterViewModel(
 
     fun installActiveBundleComponents() {
         val selected = _selectedComponents.value
-        if (selected.isEmpty()) return
+        if (selected.isEmpty() || toolManager.isBatchInstalling.value) return
 
         // 立即关闭装配弹窗，后台静默装配并发送系统通知栏进度
         _activeBundle.value = null
@@ -236,6 +236,36 @@ class ToolCenterViewModel(
         toolManager.startBackgroundBatchInstall(selected) {
             refreshInstalledStatus()
             syncRegistry()
+        }
+    }
+
+    fun reinstallComponent(component: top.wkbin.taixu.core.model.PluginComponent) {
+        if (toolManager.isBatchInstalling.value) return
+        _operationError.value = null
+        _activeBundle.value = null
+        toolManager.startBackgroundBatchInstall(setOf(component.id), reinstall = true) {
+            refreshInstalledStatus()
+        }
+    }
+
+    /** 仍有其他已装配组件依赖它时返回原因，并写到操作错误横幅。 */
+    fun uninstallBlockedReason(component: top.wkbin.taixu.core.model.PluginComponent): String? {
+        val blockers = top.wkbin.taixu.core.model.BuiltinPluginBundles.blockingDependents(
+            component.id,
+            _installedComponentIds.value,
+        )
+        if (blockers.isEmpty()) return null
+        val message = "请先卸载依赖「${component.name}」的组件：${blockers.joinToString("、") { it.name }}"
+        _operationError.value = message
+        return message
+    }
+
+    fun uninstallComponent(component: top.wkbin.taixu.core.model.PluginComponent) {
+        if (toolManager.isBatchInstalling.value) return
+        if (uninstallBlockedReason(component) != null) return
+        _activeBundle.value = null
+        toolManager.startBackgroundBatchUninstall(setOf(component.id)) {
+            refreshInstalledStatus()
         }
     }
 

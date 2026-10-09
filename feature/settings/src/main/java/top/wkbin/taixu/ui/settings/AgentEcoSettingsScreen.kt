@@ -12,6 +12,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,6 +44,11 @@ fun AgentEcoSettingsScreen(
     val models by viewModel.models.collectAsStateWithLifecycle()
     val skills by viewModel.allSkills.collectAsStateWithLifecycle()
     val phrases by viewModel.quickPhrases.collectAsStateWithLifecycle()
+    var editingPhoneAgent by remember { mutableStateOf(false) }
+    if (editingPhoneAgent) {
+        PhoneAgentSettingsScreen(onBack = { editingPhoneAgent = false })
+        return
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -88,6 +96,18 @@ fun AgentEcoSettingsScreen(
                         subtitle = "Token 消耗、活跃度热力图、模型与话题排行",
                         onClick = onOpenStats,
                     )
+                }
+            }
+
+            item {
+                Text(
+                    text = "虚拟屏",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                )
+                SettingsGroup {
+                    PhoneAgentSettingsEntry(onOpen = { editingPhoneAgent = true })
                 }
             }
 

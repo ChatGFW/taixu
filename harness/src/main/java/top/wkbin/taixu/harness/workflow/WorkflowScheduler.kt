@@ -58,6 +58,7 @@ class WorkflowScheduler(
     ): WorkflowRunHandle {
         val executionId = "wf_${UUID.randomUUID()}"
         val mutableState = MutableStateFlow(WorkflowRuntimeState.initial(executionId, definition))
+        val approvalRequest = approvalBroker.currentRequestFor(executionId)
         val jobRef = AtomicReference<Job?>()
         // cancel() 与 jobRef.set() 之间的竞态标志：set 之前 cancel 只能取到 null 导致 job 未取消，
         // 置位后由 set 完成侧再检查一次补 cancel 兜底
@@ -77,7 +78,7 @@ class WorkflowScheduler(
         return WorkflowRunHandle(
             state = mutableState.asStateFlow(),
             // 按本执行过滤审批请求：全局单值会串扰并发工作流（A 的 UI 可能显示 B 的请求）
-            approvalRequest = approvalBroker.currentRequestFor(executionId),
+            approvalRequest = approvalRequest,
             cancelAction = {
                 approvalBroker.cancelExecution(executionId)
                 cancelled.set(true)

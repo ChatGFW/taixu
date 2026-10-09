@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.chat
 
+import android.content.Context
 import top.wkbin.taixu.harness.A2uiSurfaceBus
 import top.wkbin.taixu.harness.HarnessLoop
 
@@ -10,8 +11,8 @@ import top.wkbin.taixu.harness.HarnessLoop
  */
 object A2uiChatBridge {
 
-    fun bind(harnessLoop: HarnessLoop) {
-        top.wkbin.taixu.feature.a2uipoc.A2uiPocInstaller.install()
+    fun bind(harnessLoop: HarnessLoop, appContext: Context) {
+        top.wkbin.taixu.feature.a2uipoc.A2uiPocInstaller.install(appContext)
         // 忙时用 steer 挂到当前运行，避免每次事件都 send() 新建排队任务
         fun dispatch(text: String, sessionId: String) {
             if (sessionId.isBlank()) return
@@ -22,4 +23,6 @@ object A2uiChatBridge {
         // 引擎运行时错误（组件被 Catalog 拒绝等）此前静默吞掉，界面只会转圈；回传让模型自纠
         A2uiSurfaceBus.errorEventSink = { event -> dispatch(A2uiSurfaceBus.formatErrorEvent(event), event.sessionId) }
     }
+
+    fun releaseSession(sessionId: String) = A2uiSurfaceBus.releaseSession(sessionId)
 }

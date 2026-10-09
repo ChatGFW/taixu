@@ -174,6 +174,8 @@ class AgentPreferences(private val store: SettingsDataStore) {
     val maxToolsPerRound get() = store.maxToolsPerRound
     val maxConsecutiveFailures get() = store.maxConsecutiveFailures
     val providerModel get() = store.providerModel
+    val phoneAgentConfig get() = store.phoneAgentConfig
+    suspend fun setPhoneAgentConfig(value: PhoneAgentEndpoint) = store.setPhoneAgentConfig(value)
     val environmentPrivacyMode get() = store.environmentPrivacyMode
     val allPlugins get() = store.allPlugins
     val maxConcurrentAgentTurns get() = store.maxConcurrentAgentTurns

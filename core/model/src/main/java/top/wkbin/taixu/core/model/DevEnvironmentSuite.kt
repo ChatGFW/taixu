@@ -15,6 +15,15 @@ data class PluginComponent(
     val aptPackages: List<String> = emptyList(),
     val postInstallSteps: List<String> = emptyList(),
     val checkCommand: String, // 状态探针命令，返回 0 表示已就绪
+    /** 其他仍处于装配状态时，禁止卸载本组件。 */
+    val dependsOn: List<String> = emptyList(),
+    /** 卸载时整目录删除。路径必须落在脚本构建器的白名单内。 */
+    val purgePaths: List<String> = emptyList(),
+    /** 卸载时删除的单个文件（环境脚本、离线包里的组件文件）。 */
+    val purgeFiles: List<String> = emptyList(),
+    /** 卸载时删除的命令软链接。 */
+    val purgeLinks: List<String> = emptyList(),
+    val postUninstallSteps: List<String> = emptyList(),
 )
 
 /**
@@ -35,7 +44,7 @@ data class PluginBundle(
 object BuiltinPluginBundles {
     /** 基础核心包：始终隐式自动预装，保证 Linux 基础终端与工具可用 */
     val baseRequiredPackages: List<String> = listOf(
-        "curl", "wget", "git", "python3", "ca-certificates", "ripgrep", "fd-find", "fzf", "bat", "jq", "tmux", "tar", "gzip", "xz-utils", "file",
+        "curl", "wget", "git", "python3", "ca-certificates", "util-linux", "jq", "tmux", "tar", "gzip", "xz-utils", "file",
     )
 
     /** 核心聚合大插件清单 */
@@ -62,12 +71,38 @@ object BuiltinPluginBundles {
                         "/bin/sh /opt/taixu/scripts/setup_android_core.sh",
                     ),
                     checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; JAVA_BIN=\"\${JAVA_HOME:-/opt/taixu/toolchains/android/jdk}/bin/java\"; (test -x \"\$JAVA_BIN\" || test -x /opt/taixu/bin/java || command -v java >/dev/null 2>&1) && test -f /opt/android-sdk/platforms/android-34/android.jar && test -f /opt/android-sdk/build-tools/35.0.0/lib/d8.jar && (test -f /opt/gradle-8.14.2/lib/gradle-launcher-8.14.2.jar || test -x /opt/taixu/bin/gradle || command -v gradle >/dev/null 2>&1) && (test -x \"\${TAIXU_AAPT2_PATH:-/opt/android-sdk/build-tools/35.0.0/aapt2}\" || test -x /opt/android-sdk/build-tools/35.0.0/aapt2 || test -x /opt/taixu/bin/aapt2) && (test -f \"\${TAIXU_NDK_PATH:-/opt/taixu/toolchains/android/ndk}/source.properties\" || test -f /opt/taixu/toolchains/android/ndk/source.properties)",
+                    purgePaths = listOf(
+                        "/opt/android-sdk",
+                        "/opt/gradle-8.14.2",
+                        "/opt/taixu/android-sdk-tools",
+                        "/opt/taixu/toolchains/android/sdk-tools",
+                        "/opt/taixu/toolchains/android/jdk",
+                        "/opt/taixu/toolchains/android/ndk",
+                    ),
+                    purgeFiles = listOf(
+                        "/etc/profile.d/taixu-android.sh",
+                        "/root/.gradle/init.gradle",
+                        "/root/.gradle/init.d/taixu-android-ndk.gradle",
+                    ),
+                    purgeLinks = listOf(
+                        "/opt/taixu/bin/gradle",
+                        "/opt/taixu/bin/aapt2",
+                        "/opt/taixu/bin/java",
+                        "/opt/taixu/bin/javac",
+                        "/opt/taixu/bin/keytool",
+                        "/opt/taixu/bin/jarsigner",
+                        "/usr/local/bin/gradle",
+                        "/usr/bin/gradle",
+                        "/usr/local/bin/aapt2",
+                        "/usr/bin/aapt2",
+                    ),
                 ),
                 PluginComponent(
                     id = "flutter",
                     name = "Flutter 跨平台开发环境",
                     description = "Flutter ARM64 SDK、Dart 运行时与 Android APK 构建依赖（需要 Android 核心基础环境）",
                     isRequired = false,
+                    dependsOn = listOf("android-core"),
                     // Archives are extracted by the setup script (Python/BusyBox);
                     // Ubuntu's unzip package is unreliable in PRoot during dpkg
                     // ownership updates (zipinfo.dpkg-new).
@@ -76,6 +111,17 @@ object BuiltinPluginBundles {
                         "/bin/sh /opt/taixu/scripts/setup_flutter.sh",
                     ),
                     checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; (test -x /opt/flutter/bin/flutter || test -x /opt/taixu/bin/flutter || command -v flutter >/dev/null 2>&1) && test -f /opt/android-sdk/platforms/android-34/android.jar && test -f /opt/android-sdk/build-tools/35.0.0/lib/d8.jar",
+                    purgePaths = listOf("/opt/flutter"),
+                    purgeLinks = listOf(
+                        "/opt/taixu/bin/flutter",
+                        "/opt/taixu/bin/dart",
+                        "/usr/local/bin/flutter",
+                        "/usr/bin/flutter",
+                        "/usr/local/bin/dart",
+                        "/usr/bin/dart",
+                        "/opt/taixu/tools/android-suite-offline/bin/flutter",
+                        "/opt/taixu/tools/android-suite-offline/bin/dart",
+                    ),
                 ),
                 PluginComponent(
                     id = "android-ndk",
@@ -87,6 +133,16 @@ object BuiltinPluginBundles {
                         "/bin/sh /opt/taixu/scripts/setup_termux_ndk.sh",
                     ),
                     checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || . /opt/taixu/toolchains/android/ndk/taixu-ndk.env 2>/dev/null || true; (command -v cmake >/dev/null 2>&1 || test -x /opt/taixu/bin/cmake || test -x /opt/taixu/tools/android-suite-offline/cmake/bin/cmake || test -x /usr/bin/cmake) && (test -f \"\${TAIXU_NDK_PATH:-/opt/taixu/toolchains/android/ndk}/source.properties\" || test -f /opt/taixu/toolchains/android/ndk/source.properties)",
+                    purgePaths = listOf(
+                        "/opt/taixu/toolchains/android/ndk",
+                        "/opt/taixu/tools/android-suite-offline/cmake",
+                    ),
+                    purgeLinks = listOf(
+                        "/opt/taixu/bin/cmake",
+                        "/opt/taixu/bin/ninja",
+                        "/usr/local/bin/cmake",
+                        "/usr/local/bin/ninja",
+                    ),
                 ),
                 PluginComponent(
                     id = "android-re",
@@ -98,6 +154,21 @@ object BuiltinPluginBundles {
                         "/bin/sh /opt/taixu/scripts/setup_jadx.sh",
                     ),
                     checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; (command -v apktool >/dev/null 2>&1 || test -x /opt/taixu/bin/apktool || test -f /opt/taixu/tools/android-suite-offline/lib/apktool.jar || command -v jadx >/dev/null 2>&1 || test -x /opt/taixu/bin/jadx || test -x /opt/jadx/bin/jadx || test -x /opt/taixu/tools/android-suite-offline/jadx/bin/jadx)",
+                    purgePaths = listOf(
+                        "/opt/jadx",
+                        "/opt/taixu/tools/android-suite-offline/jadx",
+                    ),
+                    purgeFiles = listOf("/opt/taixu/tools/android-suite-offline/lib/apktool.jar"),
+                    purgeLinks = listOf(
+                        "/opt/taixu/bin/jadx",
+                        "/opt/taixu/bin/apktool",
+                        "/usr/local/bin/jadx",
+                        "/usr/bin/jadx",
+                        "/usr/local/bin/apktool",
+                        "/usr/bin/apktool",
+                        "/opt/taixu/tools/android-suite-offline/bin/jadx",
+                        "/opt/taixu/tools/android-suite-offline/bin/apktool",
+                    ),
                 ),
                 PluginComponent(
                     id = "rust-dev",
@@ -109,6 +180,19 @@ object BuiltinPluginBundles {
                         "/bin/sh /opt/taixu/scripts/setup_rust.sh",
                     ),
                     checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; (command -v rustc >/dev/null 2>&1 || test -x /opt/taixu/bin/rustc || test -x /opt/taixu/toolchains/rust/bin/rustc) && (command -v cargo >/dev/null 2>&1 || test -x /opt/taixu/bin/cargo || test -x /opt/taixu/toolchains/rust/bin/cargo)",
+                    purgePaths = listOf("/opt/taixu/toolchains/rust"),
+                    purgeFiles = listOf("/etc/profile.d/taixu-rust.sh"),
+                    purgeLinks = listOf(
+                        "/opt/taixu/bin/rustc",
+                        "/opt/taixu/bin/cargo",
+                        "/opt/taixu/bin/rustdoc",
+                        "/usr/local/bin/rustc",
+                        "/usr/local/bin/cargo",
+                        "/usr/local/bin/rustdoc",
+                        "/usr/bin/rustc",
+                        "/usr/bin/cargo",
+                        "/usr/bin/rustdoc",
+                    ),
                 ),
             ),
         ),
@@ -127,6 +211,15 @@ object BuiltinPluginBundles {
                     isRequired = true,
                     aptPackages = listOf("ripgrep", "fd-find", "fzf", "bat"),
                     checkCommand = "(command -v rg >/dev/null 2>&1 || test -x /opt/taixu/bin/rg) && (command -v fd >/dev/null 2>&1 || command -v fdfind >/dev/null 2>&1 || test -x /usr/local/bin/fd) && (command -v fzf >/dev/null 2>&1 || test -x /usr/bin/fzf) && (command -v bat >/dev/null 2>&1 || command -v batcat >/dev/null 2>&1 || test -x /usr/local/bin/bat)",
+                    purgeFiles = listOf(
+                        "/opt/taixu/bin/rg",
+                        "/opt/taixu/bin/fd",
+                        "/opt/taixu/bin/fzf",
+                        "/opt/taixu/bin/bat",
+                        "/usr/local/bin/fd",
+                        "/usr/local/bin/bat",
+                        "/opt/taixu/tools/android-suite-offline/bin/rg",
+                    ),
                 ),
             ),
         ),
@@ -177,56 +270,47 @@ object BuiltinPluginBundles {
                     name = "现代包管理器与编译加速 (pnpm / yarn)",
                     description = "pnpm 与 yarn 高性能本地包缓存管理器",
                     isRequired = false,
+                    dependsOn = listOf("nodejs-core"),
                     postInstallSteps = listOf(
                         "/bin/sh /opt/taixu/scripts/setup_pnpm.sh",
                     ),
                     checkCommand = "command -v pnpm || command -v yarn",
+                    purgeLinks = listOf(
+                        "/usr/local/bin/pnpm",
+                        "/usr/local/bin/yarn",
+                        "/usr/bin/pnpm",
+                        "/usr/bin/yarn",
+                        "/opt/taixu/bin/pnpm",
+                        "/opt/taixu/bin/yarn",
+                    ),
+                    postUninstallSteps = listOf("npm uninstall -g pnpm yarn >/dev/null 2>&1 || true"),
                 ),
             ),
         ),
     )
 
     /**
-     * 批量聚合生成单条安全、极速的安装脚本流水线
+     * 批量聚合安装脚本。[reinstall] 为 true 时先删掉该组件自己的程序文件，
+     * 再执行安装，避免脚本看见残留文件后直接跳过。
      */
-    fun buildBatchInstallScript(selectedComponentIds: Set<String>): List<String> {
-        val allComponents = bundles.flatMap { it.components }.filter { it.id in selectedComponentIds }
-        val allAptPackages = (baseRequiredPackages + allComponents.flatMap { it.aptPackages }).distinct()
+    fun buildBatchInstallScript(selectedComponentIds: Set<String>, reinstall: Boolean = false): List<String> =
+        PluginBundleScripts.installScript(selectedComponentIds, reinstall)
 
-        val steps = mutableListOf<String>()
-        // 1. dpkg 锁与环境自愈
-        steps.add("mkdir -p /etc/dpkg/dpkg.cfg.d /usr/bin /usr/sbin /usr/lib 2>/dev/null || true")
-        steps.add("printf 'force-unsafe-io\\nforce-overwrite\\n' > /etc/dpkg/dpkg.cfg.d/taixu-proot 2>/dev/null || true")
-        steps.add("rm -rf /var/lib/dpkg/updates/* /var/lib/dpkg/lock* /var/lib/apt/lists/lock /var/cache/apt/archives/lock /usr/bin/*.dpkg-new /usr/sbin/*.dpkg-new /usr/lib/*.dpkg-new 2>/dev/null || true")
-        // A previously interrupted unzip/java-wrappers transaction can never
-        // complete in PRoot because dpkg cannot chown zipinfo.dpkg-new. These
-        // optional helpers are not needed: the APK supplies its own JAR-backed
-        // unzip command and setup_android_core.sh links it into PATH.
-        steps.add("DEBIAN_FRONTEND=noninteractive dpkg --remove --force-remove-reinstreq --force-depends unzip java-wrappers 2>/dev/null || true")
-        steps.add("DEBIAN_FRONTEND=noninteractive dpkg --configure -a 2>/dev/null || true")
+    /**
+     * 卸载选中组件。[retainedComponentIds] 中的组件仍要可用，共享目录和软件包会留下。
+     */
+    fun buildBatchUninstallScript(selectedComponentIds: Set<String>, retainedComponentIds: Set<String>): List<String> =
+        PluginBundleScripts.uninstallScript(selectedComponentIds, retainedComponentIds)
 
-        // 2. 批量聚合 APT 安装（仅执行 1 次 update 和 1 次 install；
-        //    整批失败时降级为 --ignore-missing，避免个别发行版缺包导致全部装不上）
-        if (allAptPackages.isNotEmpty()) {
-            val packageArg = allAptPackages.joinToString(" ")
-            // Runtime configures TUNA ubuntu-ports/debian mirrors. Keep apt
-            // retries bounded so a slow mirror does not stall the whole suite.
-            // ForceIPv4/Languages=en：手机 IPv6 半残防假死 + 跳过 Translation 下载（真机实测）。
-            val aptOpts = "-o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 " +
-                "-o Acquire::ForceIPv4=true -o Acquire::Languages=en"
-            steps.add("DEBIAN_FRONTEND=noninteractive apt-get $aptOpts update -y || true")
-            steps.add("DEBIAN_FRONTEND=noninteractive apt-get $aptOpts install -y --no-install-recommends $packageArg || DEBIAN_FRONTEND=noninteractive apt-get $aptOpts -f install -y --no-install-recommends && DEBIAN_FRONTEND=noninteractive apt-get $aptOpts install -y --no-install-recommends $packageArg")
-        }
-
-        // 3. Debian/Ubuntu 将 fd、bat 分别命名为 fdfind、batcat；统一暴露常用命令名。
-        steps.add("mkdir -p /usr/local/bin; if ! command -v fd >/dev/null 2>&1 && command -v fdfind >/dev/null 2>&1; then ln -sf \"${'$'}(command -v fdfind)\" /usr/local/bin/fd; fi")
-        steps.add("mkdir -p /usr/local/bin; if ! command -v bat >/dev/null 2>&1 && command -v batcat >/dev/null 2>&1; then ln -sf \"${'$'}(command -v batcat)\" /usr/local/bin/bat; fi")
-
-        // 4. 各子组件后置处理
-        allComponents.forEach { comp ->
-            steps.addAll(comp.postInstallSteps)
-        }
-
-        return steps
+    /** 仍装配着、且声明依赖 [componentId] 的组件。这些组件不在 [alsoRemoving] 里时，不能先卸依赖基座。 */
+    fun blockingDependents(
+        componentId: String,
+        installedIds: Set<String>,
+        alsoRemoving: Set<String> = emptySet(),
+    ): List<PluginComponent> = bundles.flatMap { it.components }.filter { component ->
+        componentId in component.dependsOn &&
+            component.id in installedIds &&
+            component.id !in alsoRemoving &&
+            component.id != componentId
     }
 }

@@ -59,6 +59,9 @@ class LaneManager(
         val parentIds = entries.mapNotNullTo(mutableSetOf()) { it.parentId }
         val leafIds = entries.asSequence().map { it.id }.filter { it !in parentIds }.toList()
         val targets = (leafIds + lanes.mapNotNull { it.leafId } + listOfNotNull(main?.leafId)).distinct()
+        val lanesByLeaf = lanes.filter { it.name != SessionTreeStore.MAIN_LANE }
+            .groupBy { it.leafId }
+        val decodedMessages = mutableMapOf<String, HarnessMessage?>()
 
         return targets.mapIndexed { index, leafId ->
             val pathEntries = buildList {
@@ -69,10 +72,9 @@ class LaneManager(
                     current = current.parentId?.let { entryMap[it] }
                 }
             }.asReversed()
-            val pathIds = pathEntries.mapTo(hashSetOf()) { it.id }
-            val namedLane = lanes
-                .filter { it.name != SessionTreeStore.MAIN_LANE && it.leafId in pathIds }
-                .maxByOrNull { lane -> pathEntries.indexOfLast { it.id == lane.leafId } }
+            val namedLane = pathEntries.asReversed().firstNotNullOfOrNull { entry ->
+                lanesByLeaf[entry.id]?.firstOrNull()
+            }
             val kind = when {
                 namedLane?.name?.startsWith(SUBAGENT_PREFIX) == true -> ConversationBranchKind.SUBAGENT
                 namedLane?.name?.startsWith(BRANCH_PREFIX) == true -> ConversationBranchKind.BRANCH
@@ -85,7 +87,10 @@ class LaneManager(
             } else {
                 pathEntries
             }
-            val scopedMessages = scopedPathEntries.mapNotNull { treeStore.decode(it) }
+            val scopedMessages = scopedPathEntries.mapNotNull { entry ->
+                if (!decodedMessages.containsKey(entry.id)) decodedMessages[entry.id] = treeStore.decode(entry)
+                decodedMessages[entry.id]
+            }
             val roleName = namedLane?.name.orEmpty()
                 .removePrefix(SUBAGENT_PREFIX)
                 .substringBefore(':')

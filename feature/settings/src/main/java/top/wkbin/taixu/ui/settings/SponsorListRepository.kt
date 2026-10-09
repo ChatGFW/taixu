@@ -19,7 +19,7 @@ import okhttp3.Request
  *   "entries": [
  *     { "kind": "funding",      "name": "阿伟",   "source": "qq",    "identifier": "10001" },
  *     { "kind": "resource",     "name": "wkbin",  "source": "github", "identifier": "wkbin", "note": "提供推理 token" },
- *     { "kind": "contribution", "name": "路人甲", "source": "github", "identifier": "lurenjia", "note": "上报多窗口闪退" }
+ *     { "kind": "contribution", "name": "路人甲", "source": "github", "identifier": "lurenjia", "avatar": "https://avatars.githubusercontent.com/u/1?s=96", "note": "上报多窗口闪退" }
  *   ]
  * }
  */
@@ -37,7 +37,7 @@ enum class SponsorKind {
     @SerialName("contribution") Contribution,
 }
 
-/** 鸣谢名单条目：name 为展示昵称，identifier 为 GitHub 用户名或 QQ 号，note 为补充说明 */
+/** 鸣谢名单条目：name 为展示昵称，identifier 为 GitHub 用户名或 QQ 号，avatar 为可选头像地址，note 为补充说明 */
 @Serializable
 data class SponsorEntry(
     val kind: SponsorKind,
@@ -45,10 +45,11 @@ data class SponsorEntry(
     val source: SponsorSource,
     val identifier: String,
     val note: String? = null,
+    val avatar: String? = null,
 ) {
-    /** 按来源生成公开头像地址：GitHub 用户头像 / QQ 公开头像 */
+    /** 优先使用名单里的头像；未填写时按来源生成 GitHub / QQ 公开头像 */
     val avatarUrl: String
-        get() = when (source) {
+        get() = avatar?.takeIf { it.isNotBlank() } ?: when (source) {
             SponsorSource.GitHub -> "https://avatars.githubusercontent.com/$identifier?s=96"
             SponsorSource.Qq -> "https://q1.qlogo.cn/g?b=qq&nk=$identifier&s=96"
         }

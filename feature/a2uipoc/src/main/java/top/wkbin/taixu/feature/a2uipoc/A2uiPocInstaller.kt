@@ -1,5 +1,6 @@
 package top.wkbin.taixu.feature.a2uipoc
 
+import android.content.Context
 import top.wkbin.taixu.harness.A2uiSurfaceBus
 
 /**
@@ -13,11 +14,13 @@ object A2uiPocInstaller {
     @Volatile
     private var installed = false
 
-    fun install() {
+    fun install(context: Context) {
+        TaiXuUrlOpener.bind(context)
         if (installed) return
         synchronized(this) {
             if (installed) return
             A2uiSurfaceBus.installDeepValidator { messagesJson -> TaiXuA2uiRenderer.validateMessages(messagesJson) }
+            A2uiSurfaceBus.onSurfacesReleased = { TaiXuA2uiRenderer.releaseSurfaces(it) }
             TaiXuA2uiRenderer.startEventForwarding()
             installed = true
         }

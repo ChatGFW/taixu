@@ -50,4 +50,10 @@
     <string name="settings_terminal_preview_output">TaiXu sandbox is running normally 🚀</string>
     <string name="settings_tool_center_empty_category_title">No tools in this category</string>
     <string name="settings_tool_center_empty_category_subtitle">Try another category, or refresh the tool registry later</string>
+    <string name="settings_component_reinstall">Reinstall</string>
+    <string name="settings_component_uninstall">Uninstall</string>
+    <string name="settings_component_installed_hint">Installed components can be uninstalled, or reinstalled to repair a broken environment.</string>
+    <string name="settings_component_uninstall_title">Uninstall %1$s?</string>
+    <string name="settings_component_uninstall_body">This removes the component\'s programs in the sandbox and packages used only by it. Base tools such as curl, git and python3 stay installed.</string>
+    <string name="settings_component_confirm_uninstall">Confirm uninstall</string>
 </resources>

@@ -1,10 +1,12 @@
 package top.wkbin.taixu.feature.a2uipoc
 
 import androidx.a2ui.compose.runtime.A2uiMessageParser
+import androidx.a2ui.compose.ui.A2uiCatalog
 import androidx.a2ui.compose.ui.A2uiMessageProcessor
 import androidx.a2ui.model.catalog.functions.A2uiLocaleProvider
 import androidx.a2ui.model.protocol.A2uiClientErrorMessage
 import androidx.a2ui.model.protocol.A2uiClientEventMessage
+import androidx.a2ui.model.protocol.A2uiDeleteSurfaceMessage
 import androidx.compose.material3.a2ui.A2uiSurface
 import androidx.compose.material3.a2ui.catalog.materialA2uiBasicCatalogV1
 import androidx.compose.runtime.Composable
@@ -30,9 +32,9 @@ import top.wkbin.taixu.harness.A2uiSurfaceBus
 /**
  * 太墟 A2UI 渲染器包装：把 androidx.a2ui 官方渲染器收敛为单例入口。
  *
- * - Catalog 使用官方 Material3 Basic Catalog（Text/Row/Column/Card/Button/Tabs 等），
- *   catalogId 与 harness 契约（A2uiSurfaceContract.CATALOG_ID，即官方 basic catalog.json）
- *   保持一致：智能体只能使用目录内声明的组件，与工具白名单同一套安全哲学；
+ * - Catalog 在官方 Material3 Basic Catalog 上加太墟 Table，catalogId 与
+ *   harness 契约（A2uiSurfaceContract.CATALOG_ID）保持一致：智能体只能使用目录内
+ *   声明的组件，与工具白名单同一套安全哲学；
  * - processor 单例持有全部活动 surface：聊天流滚动导致组合销毁重建时，
  *   界面状态不丢失（滚动回来即恢复），因此同一载荷只投喂一次（见 [processMessages] 去重）；
  * - 用户交互事件（Button 点击等）经 [processor].outboundEvents 收集后转发到
@@ -45,21 +47,21 @@ import top.wkbin.taixu.harness.A2uiSurfaceBus
 object TaiXuA2uiRenderer {
 
     /**
-     * 官方 Basic Catalog + 太墟占位媒体组件：image/video/audioPlayer 与
-     * urlOpener/messageFormatter 官方不提供默认实现（媒体渲染与出链策略留给宿主），
-     * 其余组件走官方默认（Text/Row/Column/Card/Button/Tabs 等）。
+     * Basic Catalog 加 Table。image/video/audioPlayer 与 urlOpener/messageFormatter
+     * 由太墟实现（Coil、Media3、http/https 白名单、ICU plural）；其余走官方默认。
      */
-    private val catalog = materialA2uiBasicCatalogV1(
-        image = TaiXuImageComponent(),
-        video = TaiXuVideoComponent(),
-        audioPlayer = TaiXuAudioPlayerComponent(),
-        urlOpener = TaiXuUrlOpener,
-        // 覆写 List：官方实现用 LazyColumn/LazyRow，内嵌聊天流（同为纵向 LazyColumn）
-        // 会因「同向嵌套滚动容器 + 无限高约束」抛 IllegalStateException 并杀死进程，
-        // 这里改用普通 Column/Row 逐项展平，见 TaiXuNonLazyList.kt。
-        list = TaiXuNonLazyList,
-        messageFormatter = TaiXuMessageFormatter,
-        localeProvider = A2uiLocaleProvider.Default,
+    private val catalog: A2uiCatalog = TaiXuA2uiCatalog.extend(
+        materialA2uiBasicCatalogV1(
+            image = TaiXuImageComponent(),
+            video = TaiXuVideoComponent(),
+            audioPlayer = TaiXuAudioPlayerComponent(),
+            urlOpener = TaiXuUrlOpener,
+            // 覆写 List：官方纵向 LazyColumn 在聊天流里拿到无限高会直接崩溃。
+            // 短列表展平，超长列表限高后再懒加载，见 TaiXuNonLazyList.kt。
+            list = TaiXuNonLazyList,
+            messageFormatter = TaiXuMessageFormatter,
+            localeProvider = A2uiLocaleProvider.Default,
+        ),
     )
 
     private val processor = A2uiMessageProcessor(catalogs = listOf(catalog))
@@ -87,19 +89,22 @@ object TaiXuA2uiRenderer {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>): Boolean =
             size > MAX_PROCESSED_PAYLOADS
     }
+    private val replay = TaiXuA2uiReplay()
 
     /**
      * 逐条投喂 A2UI 协议消息（JSON Lines 数组字符串）：
      * 每条先经 parser.parse 反序列化为协议对象，再交给 processor.processMessage。
      * 返回 null 表示全部消息受理成功，否则返回错误文案（可直接展示给用户）。
-     * 同一载荷（按 SHA-256 指纹）只投喂一次：组合销毁重建时 processor 仍持有
-     * surface 状态，重复投喂既浪费也可能触发 createSurface 重复冲突。
+     * 同一张卡片（[replayKey]）只投喂一次，避免滚回时 createSurface 冲突。
+     * 没有 replayKey 的预览页在该界面已被 deleteSurface 拆掉后不再建回来。
+     * 新的工具调用使用另一把 replayKey，可以再次创建。
      */
-    fun processMessages(messagesJson: String): String? {
-        val fingerprint = sha256(messagesJson)
-        synchronized(processedPayloads) {
-            if (processedPayloads.containsKey(fingerprint)) return null
-        }
+    fun processMessages(messagesJson: String, replayKey: String? = null): String? {
+        val contentKey = sha256(messagesJson)
+        val replayFingerprint = replayKey?.takeIf { it.isNotBlank() }?.let { sha256(it) }
+        val createdId = extractSurfaceId(messagesJson)
+        val deletedIds = extractSurfaceIds(messagesJson, "deleteSurface")
+        if (replay.shouldSkip(replayFingerprint, contentKey, createdId)) return null
         // 归一化放在 runCatching 内：畸形载荷（非 JSON / 非数组 / 元素非对象 / surfaceId 非原始值）
         // 必须仍返回错误文案。归一化器自身也会吞掉异常并原样退回，这里再兜一层。
         val error = runCatching {
@@ -107,16 +112,23 @@ object TaiXuA2uiRenderer {
             // 官方 bindUpdater 判定非 {"path"} 即返回 null → isEnabled=false → 组件被静默禁用
             // （能渲染、不能输入、不回传、无提示）。这里统一归一化为数据绑定并种值，
             // 使这五类组件真正可用；已是数据绑定的载荷幂等不变。见 TaiXuA2uiInputNormalizer。
-            val normalized = TaiXuA2uiInputNormalizer.normalize(messagesJson)
+            val normalized = TaiXuA2uiInputNormalizer.normalize(
+                TaiXuA2uiCatalog.alignCatalogId(messagesJson),
+            )
             Json.parseToJsonElement(normalized.messagesJson).jsonArray.forEach { element ->
                 processor.processMessage(parser.parse(element.toString()))
             }
         }.fold(
             onSuccess = { null },
-            onFailure = { it.message?.let { msg -> "A2UI 消息处理失败：$msg" } ?: "A2UI 消息处理失败" },
+            onFailure = { failure ->
+                val msg = failure.message?.takeIf { it.isNotBlank() } ?: "A2UI 消息处理失败"
+                if (msg.contains("already exists", ignoreCase = true)) null else "A2UI 消息处理失败：$msg"
+            },
         )
         if (error == null) {
-            synchronized(processedPayloads) { processedPayloads[fingerprint] = extractSurfaceId(messagesJson).orEmpty() }
+            synchronized(processedPayloads) { processedPayloads[contentKey] = createdId.orEmpty() }
+            replay.record(replayFingerprint, contentKey, createdId, deletedIds)
+            deletedIds.forEach { A2uiSurfaceBus.forgetEngineSurface(it) }
         }
         return error
     }
@@ -128,7 +140,7 @@ object TaiXuA2uiRenderer {
      * 失败原因在工具结果里回传给模型自我纠正，而不是等 UI 渲染时才默默回退。
      */
     fun validateMessages(messagesJson: String): String? = runCatching {
-        val array = Json.parseToJsonElement(messagesJson).jsonArray
+        val array = Json.parseToJsonElement(TaiXuA2uiCatalog.alignCatalogId(messagesJson)).jsonArray
         var rootCount = 0
         array.forEach { element ->
             parser.parse(element.toString())
@@ -151,10 +163,26 @@ object TaiXuA2uiRenderer {
         onFailure = { it.message?.let { msg -> "A2UI 协议消息解析失败：$msg" } ?: "A2UI 协议消息解析失败" },
     )
 
+    /** 会话删除时拆掉这些 surface，指纹也放行，同一份载荷以后还能再渲染。 */
+    fun releaseSurfaces(surfaceIds: Collection<String>) {
+        if (surfaceIds.isEmpty()) return
+        val dropping = surfaceIds.toSet()
+        dropping.forEach { id ->
+            runCatching { processor.processMessage(A2uiDeleteSurfaceMessage(id)) }
+        }
+        synchronized(processedPayloads) {
+            val iterator = processedPayloads.entries.iterator()
+            while (iterator.hasNext()) {
+                if (iterator.next().value in dropping) iterator.remove()
+            }
+        }
+        replay.release(dropping)
+        synchronized(errorReportLock) { dropping.forEach { errorReportedAt.remove(it) } }
+    }
+
     /**
      * 启动引擎消息循环与用户交互事件转发（幂等）。
-     * processMessage 只是把消息入队，真正处理靠 [A2uiMessageProcessor.collectMessages]
-     * 消费循环——不启动它 surface 永远不会出现在 activeSurfaces（官方 samples 同款用法）。
+     * processMessage 只是入队，真正处理靠 [A2uiMessageProcessor.collectMessages]。
      */
     fun startEventForwarding() {
         if (eventForwardingStarted) return
@@ -167,12 +195,12 @@ object TaiXuA2uiRenderer {
             processor.outboundEvents.collect { message ->
                 when (message) {
                     is A2uiClientEventMessage -> {
-                        val surface = A2uiSurfaceBus.findSurface(message.surfaceId)
+                        val route = A2uiSurfaceBus.routeFor(message.surfaceId)
                         A2uiSurfaceBus.publishUserEvent(
                             A2uiSurfaceBus.A2uiUserEvent(
                                 surfaceId = message.surfaceId,
-                                surfaceTitle = surface?.title ?: message.surfaceId,
-                                sessionId = surface?.sessionId.orEmpty(),
+                                surfaceTitle = route?.title ?: message.surfaceId,
+                                sessionId = route?.sessionId.orEmpty(),
                                 componentId = message.componentId,
                                 eventName = message.type,
                                 context = message.context,
@@ -199,12 +227,12 @@ object TaiXuA2uiRenderer {
                             }
                         }
                         if (shouldReport) {
-                            val surface = A2uiSurfaceBus.findSurface(message.surfaceId)
+                            val route = A2uiSurfaceBus.routeFor(message.surfaceId)
                             A2uiSurfaceBus.publishErrorEvent(
                                 A2uiSurfaceBus.A2uiErrorEvent(
                                     surfaceId = message.surfaceId,
-                                    surfaceTitle = surface?.title ?: message.surfaceId,
-                                    sessionId = surface?.sessionId.orEmpty(),
+                                    surfaceTitle = route?.title ?: message.surfaceId,
+                                    sessionId = route?.sessionId.orEmpty(),
                                     code = message.code,
                                     message = message.message,
                                 ),
@@ -249,12 +277,14 @@ object TaiXuA2uiRenderer {
     private fun availableComponentNames(): String =
         catalog.components.joinToString("/") { it.name }
 
-    private fun extractSurfaceId(messagesJson: String): String? = runCatching {
-        Json.parseToJsonElement(messagesJson).jsonArray
-            .firstOrNull { it.jsonObject.containsKey("createSurface") }
-            ?.jsonObject?.get("createSurface")
-            ?.jsonObject?.get("surfaceId")?.jsonPrimitive?.contentOrNull
-    }.getOrNull()
+    private fun extractSurfaceId(messagesJson: String): String? =
+        extractSurfaceIds(messagesJson, "createSurface").firstOrNull()
+
+    private fun extractSurfaceIds(messagesJson: String, field: String): Set<String> = runCatching {
+        Json.parseToJsonElement(messagesJson).jsonArray.mapNotNull { element ->
+            element.jsonObject[field]?.jsonObject?.get("surfaceId")?.jsonPrimitive?.contentOrNull
+        }.filter { it.isNotBlank() }.toSet()
+    }.getOrDefault(emptySet())
 
     private fun sha256(text: String): String =
         MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }

@@ -35,6 +35,7 @@ import top.wkbin.taixu.harness.approval.ApprovalResumePolicy
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
 import top.wkbin.taixu.harness.checkpoint.RewindController
 import top.wkbin.taixu.harness.compaction.BranchSummarizer
+import top.wkbin.taixu.harness.session.QueuedInstructionRecorder
 import top.wkbin.taixu.harness.session.SessionTreeStore
 import top.wkbin.taixu.harness.session.SessionTurnCoordinator
 import top.wkbin.taixu.harness.session.TurnPriority
@@ -542,9 +543,8 @@ class HarnessLoop(
         // 段，而 finally 段需要抢同一把锁，全程持锁必然死锁。因此采用 tombstone +
         // 结束时移除 tombstone 的方案；对"协程在删除完成后才拿到锁"的窗口，
         // 由 startSessionRun 锁内的 DB 存在性检查兜底（见该函数注释）。
-        // Mark tombstoned first so finishRun on the dying job cannot drain pending
-        // messages and start a fresh run after we have already begun cleanup.
         tombstonedSessions.add(id)
+        A2uiSurfaceBus.releaseSession(id)
         cancelApprovalTimeout(id)
         _sessionPendingMessages[id]?.value = emptyList()
         sessionJobs[id]?.cancelAndJoin()
@@ -995,17 +995,14 @@ class HarnessLoop(
         }
     }
 
-    private suspend fun createDurableTask(sessId: String, pending: PendingMessage) {
-        val taskId = pending.taskId ?: return
-        agentTaskStateMachine.createQueued(
-            id = taskId,
-            sessionId = sessId,
-            title = pending.text.lineSequence().firstOrNull().orEmpty(),
-            description = pending.text,
-            nowMs = pending.createdAt,
-        )
-        agentEventLogger.log(sessId, "DurableTaskQueued", "taskId=$taskId")
-    }
+    private val queuedInstructions = QueuedInstructionRecorder(
+        agentTaskStateMachine,
+        sessionDao,
+        { sessionId, tag, message -> agentEventLogger.log(sessionId, tag, message) },
+    ) { id -> messageStore.load(id).any { it is UserMessage } }
+
+    private suspend fun createDurableTask(sessId: String, pending: PendingMessage) =
+        queuedInstructions.record(sessId, pending)
 
     /** Resolve a waiting approval as a cancelled tool call before allowing a new run. */
     private suspend fun rejectPendingApprovalsForCancel(sessId: String) {

@@ -269,7 +269,6 @@ class HarnessToolRoundRunner(
                 loopDetector.recordSettled(item.toolName, item.args, success = outcome.success, output = outcome.output)
                 if (outcome.awaitingApproval) {
                     metrics.approvalRequested()
-                    operationCoordinator.waitingApproval(operationId)
                     stateMirrors.setStatus(sessId, "等待用户批准")
                     // 触发审批暂停：中止本回合尚未开始的调用，在途调用自然完成后统一暂停，
                     // 与原串行实现"中途暂停、后续调用不执行"的语义一致。
@@ -284,7 +283,12 @@ class HarnessToolRoundRunner(
                 sessionDao.touch(sessId, now())
             }
         }
-        if (approvalPauseRequested.get()) throw ApprovalPauseException()
+        if (approvalPauseRequested.get()) {
+            // All in-flight results must settle before persisting the approval boundary.
+            operationCoordinator.waitingApproval(operationId)
+            stateMirrors.setStatus(sessId, "等待用户批准")
+            throw ApprovalPauseException()
+        }
         return roundHadSuccess.get()
     }
 

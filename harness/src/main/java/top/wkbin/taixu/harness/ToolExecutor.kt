@@ -27,9 +27,6 @@ import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.runtime.privilege.ShizukuSystemApis
 import top.wkbin.taixu.runtime.apps.AndroidAppManager
 import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
-import top.wkbin.taixu.runtime.gui.GuiKey
-import top.wkbin.taixu.runtime.gui.GuiPrimitive
-import top.wkbin.taixu.runtime.gui.ScrollDirection
 import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayCoordinator
 import top.wkbin.taixu.runtime.virtualdisplay.VirtualScreenToolkit
 import top.wkbin.taixu.core.database.AndroidAppRepository
@@ -43,7 +40,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
@@ -328,7 +324,9 @@ class ToolExecutor(
                                 "data:$imageMime;base64,$base64",
                             )
                             true to "已读取图片文件 $path（${bytesResult.data.size} 字节，$imageMime）。" +
-                                "图像已作为多模态附件随本次工具结果提供；若当前模型不支持视觉，请改用文字/脚本方式描述图片内容。"
+                                "图像已作为多模态附件随本次工具结果提供。" +
+                                "若这是虚拟屏截图，点击坐标用 0–1000 相对位置，不要用图上的像素。" +
+                                "若当前模型不支持视觉，请改用文字/脚本方式描述图片内容。"
                         }
                         is AppResult.Failure -> bytesResult.toToolOutput(actionName = "read")
                     }
@@ -371,7 +369,7 @@ class ToolExecutor(
             }
             HarnessTool.BASE -> executeBase(args, workspace)
             HarnessTool.PROCESS -> executeProcess(args, workspace)
-            HarnessTool.HOST -> executeHost(args, operationId, sessionId)
+            HarnessTool.HOST -> executeHost(args, operationId, sessionId, metadata)
             HarnessTool.DOWNLOAD -> {
                 val destinationPath = args.stringArg("destination")
                 if (destinationPath != null) captureBeforeWrite(sessionId, activeFileAccess, destinationPath)
@@ -473,8 +471,8 @@ class ToolExecutor(
     }
 
     /** 宿主 Android 特权通道；权限在每次执行前实时复核，不能仅依赖启动时快照。 */
-    private suspend fun executeHost(args: JsonObject, operationId: String?, sessionId: String): Pair<Boolean, String> {
-        val raw = executeHostUncapped(args, operationId, sessionId)
+    private suspend fun executeHost(args: JsonObject, operationId: String?, sessionId: String, metadata: MutableMap<String, String>): Pair<Boolean, String> {
+        val raw = executeHostUncapped(args, operationId, sessionId, metadata)
         return raw.first to capHostOutput(raw.second)
     }
 
@@ -484,7 +482,7 @@ class ToolExecutor(
      * Java 堆，直接触发 target footprint OOM。截断标记引导模型缩小范围重取。
      */
     @OptIn(InternalCoroutinesApi::class)
-    private suspend fun executeHostUncapped(args: JsonObject, operationId: String?, sessionId: String): Pair<Boolean, String> {
+    private suspend fun executeHostUncapped(args: JsonObject, operationId: String?, sessionId: String, metadata: MutableMap<String, String>): Pair<Boolean, String> {
         val action = requireString(args, "action").trim().lowercase()
 
         // Logcat 优先走内置无线 ADB，不依赖 Shizuku/Root；不可用时再回退原特权通道。
@@ -514,6 +512,9 @@ class ToolExecutor(
             }
         }
         val manager = privilegeManager ?: return false to "未初始化宿主权限执行器"
+        if (VirtualScreenHostActions.handles(action)) {
+            return virtualScreenHostActions { metadata["image_payload"] = it }.execute(action, args)
+        }
 
         // settings_put system 命名空间优先走 Android ContentResolver API（需 WRITE_SETTINGS），
         // 避免 Shizuku shell 在部分国产 ROM 上被 SettingsProvider 静默拒绝（exit 22）。
@@ -652,123 +653,6 @@ class ToolExecutor(
                     onSuccess = { msg -> true to msg },
                     onFailure = { err -> false to err.message.orEmpty() }
                 )
-            }
-            "virtual_screen_ensure" -> {
-                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
-                val session = optionalSession(args)
-                val displayId = coordinator.ensureVirtualDisplay(session)
-                if (displayId == null) {
-                    false to "虚拟屏创建失败（session=$session）：Shower 服务未启动或建屏失败，详见 runtime.log 中的 [Shower] 日志（不一定是授权问题）"
-                } else {
-                    true to "虚拟屏已就绪：session=$session displayId=$displayId（尺寸与主屏一致）；" +
-                        "接下来用 virtual_screen_launch 启动应用，virtual_screen_screenshot 截图识图"
-                }
-            }
-            "virtual_screen_launch" -> {
-                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
-                val session = optionalSession(args)
-                val packageName = requireHostIdentifier(args, "package", PACKAGE_NAME)
-                if (coordinator.getDisplayId(session) == null &&
-                    coordinator.ensureVirtualDisplay(session) == null
-                ) {
-                    return false to "虚拟屏创建失败（session=$session）：Shower 服务未启动或建屏失败，详见 runtime.log 中的 [Shower] 日志（不一定是授权问题）"
-                }
-                val res = coordinator.launchApp(session, packageName)
-                if (res) {
-                    true to "已在虚拟屏启动应用：$packageName（session=$session " +
-                        "displayId=${coordinator.getDisplayId(session)}）；应用画面不会出现在主屏"
-                } else {
-                    false to "虚拟屏启动应用失败：$packageName（检查包名是否为已安装应用）"
-                }
-            }
-            "virtual_screen_screenshot" -> {
-                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
-                val session = optionalSession(args)
-                if (coordinator.getDisplayId(session) == null) {
-                    return false to "虚拟屏未创建（session=$session）：先调用 virtual_screen_ensure"
-                }
-                val targetPath = requireString(args, "path")
-                val png = coordinator.requestScreenshot(session)
-                    ?: return false to "虚拟屏截图失败（session=$session）：screencap/Binder 通道均不可用，详见 runtime.log 的 [Shower] 日志"
-                runCatching {
-                    val file = File(targetPath)
-                    file.parentFile?.mkdirs()
-                    file.writeBytes(png)
-                }.fold(
-                    onSuccess = { true to "虚拟屏截图已保存至 $targetPath（${png.size} 字节），可用 read 查看图片" },
-                    onFailure = { err -> false to "截图写入失败：${err.message}" }
-                )
-            }
-            "virtual_screen_click",
-            "virtual_screen_double_click",
-            "virtual_screen_long_press",
-            "virtual_screen_swipe",
-            "virtual_screen_scroll",
-            "virtual_screen_key",
-            -> {
-                val toolkit = virtualScreenToolkit ?: return false to "未初始化虚拟屏工具"
-                val session = optionalSession(args)
-                val primitive = when (action) {
-                    "virtual_screen_click" ->
-                        GuiPrimitive.Tap(requireInt(args, "x"), requireInt(args, "y"))
-                    "virtual_screen_double_click" ->
-                        GuiPrimitive.DoubleTap(requireInt(args, "x"), requireInt(args, "y"))
-                    "virtual_screen_long_press" -> GuiPrimitive.LongPress(
-                        x = requireInt(args, "x"),
-                        y = requireInt(args, "y"),
-                        durationMs = optionalLong(args, "duration_ms", 800L, 200L, 5_000L),
-                    )
-                    "virtual_screen_swipe" -> GuiPrimitive.Swipe(
-                        x1 = requireInt(args, "x1"),
-                        y1 = requireInt(args, "y1"),
-                        x2 = requireInt(args, "x2"),
-                        y2 = requireInt(args, "y2"),
-                        durationMs = optionalLong(args, "duration_ms", 300L, 50L, 5_000L),
-                    )
-                    "virtual_screen_scroll" -> GuiPrimitive.Scroll(
-                        direction = when (args["direction"]?.jsonPrimitive?.contentOrNull?.lowercase()) {
-                            "up" -> ScrollDirection.UP
-                            "down" -> ScrollDirection.DOWN
-                            "left" -> ScrollDirection.LEFT
-                            "right" -> ScrollDirection.RIGHT
-                            else -> return false to "screen_scroll 需要 direction: up/down/left/right"
-                        },
-                        distanceRatio = args["distance_ratio"]?.jsonPrimitive?.doubleOrNull?.toFloat() ?: 0.45f,
-                        durationMs = optionalLong(args, "duration_ms", 350L, 50L, 5_000L),
-                    )
-                    else -> {
-                        val key = GuiKey.parse(requireString(args, "key"))
-                            ?: return false to "未知按键：支持 back/home/recents/enter/delete/paste/power"
-                        GuiPrimitive.Key(key)
-                    }
-                }
-                val result = toolkit.execute(session, primitive)
-                result.success to result.message
-            }
-            "virtual_screen_close" -> {
-                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
-                val session = optionalSession(args)
-                coordinator.closeSession(session)
-                true to "已关闭虚拟屏会话：$session"
-            }
-            "virtual_screen_show" -> {
-                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
-                val session = optionalSession(args)
-                if (coordinator.getDisplayId(session) == null &&
-                    coordinator.ensureVirtualDisplay(session) == null
-                ) {
-                    return false to "虚拟屏创建失败（session=$session）：Shower 服务未启动或建屏失败，详见 runtime.log 中的 [Shower] 日志（不一定是授权问题）"
-                }
-                if (coordinator.showOverlay(session)) {
-                    true to "已显示虚拟屏实时悬浮窗（session=$session）：用户可观看画面并直接触摸干预"
-                } else {
-                    false to "悬浮窗权限未授予：请引导用户在系统设置中允许「显示在其他应用上层」后重试"
-                }
-            }
-            "virtual_screen_hide" -> {
-                val coordinator = virtualDisplayCoordinator ?: return false to "未初始化虚拟屏协调器"
-                coordinator.hideOverlay()
-                true to "已隐藏虚拟屏悬浮窗（虚拟屏会话不受影响，仍可继续操作）"
             }
             else -> {
                 val packageName = if (action in APP_DATABASE_GUARDED_ACTIONS || action == "app_grant_permission") {
@@ -931,6 +815,12 @@ class ToolExecutor(
             "不支持的 host action：$action；可用 status/exec/settings_get/settings_put/package_list/package_disable/package_enable/package_uninstall_user/app_list/app_freeze/app_unfreeze/app_grant_permission/logcat",
         )
     }
+
+    private fun virtualScreenHostActions(attachImage: (String) -> Unit = {}) = VirtualScreenHostActions(
+        virtualDisplayCoordinator, virtualScreenToolkit, PACKAGE_NAME,
+        ::requireHostIdentifier, ::requireString, ::requireInt, ::optionalLong, ::optionalSession,
+        providerClient, settingsDataStore, attachImage,
+    )
 
     private fun requireSettingsNamespace(args: JsonObject): String {
         val namespace = requireString(args, "namespace").trim().lowercase()

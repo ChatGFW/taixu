@@ -162,7 +162,7 @@ class ChatViewModel(
     val permissionRequests: kotlinx.coroutines.flow.SharedFlow<HarnessEvent.PermissionRequired> = _permissionRequests
 
     init {
-        A2uiChatBridge.bind(harnessLoop)
+        A2uiChatBridge.bind(harnessLoop, context)
         viewModelScope.launch {
             quickPhraseRepository.ensureInitialized()
             workflowRepository.ensureBuiltins()
@@ -1125,7 +1125,7 @@ class ChatViewModel(
     }
 
     fun deleteSession(id: String) {
-        viewModelScope.launch { harnessLoop.deleteSession(id) }
+        viewModelScope.launch { A2uiChatBridge.releaseSession(id); harnessLoop.deleteSession(id) }
     }
 
     fun renameSession(id: String, title: String) {

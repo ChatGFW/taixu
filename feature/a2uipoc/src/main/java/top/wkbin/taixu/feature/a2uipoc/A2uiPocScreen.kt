@@ -19,7 +19,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -34,24 +37,37 @@ import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 
+/** 当前聊天会话。卡片用它给 surfaceId 加前缀，和工具执行时写入总线的会话一致。 */
+val LocalA2uiSessionId = staticCompositionLocalOf { "" }
+
 /**
- * A2UI PoC 的两个复用入口：
+ * A2UI 的两个复用入口：
  * - [A2uiPocSurfaceCard]：聊天流内嵌卡片（render_surface 工具结果 → 原生界面）；
- * - [A2uiPocScreen]：独立演示屏（注入示例 / 清空 / 浏览最近载荷），供入口挂载。
+ * - [A2uiPocScreen]：设置里的界面页（注入示例 / 清空预览 / 浏览最近载荷）。
  *
  * 协议消息只在内容变化时处理一次（LaunchedEffect 按 messagesJson 键控）；
- * 渲染失败或 surface 尚无组件数据时回退展示原始 JSON，保证 PoC 始终可观测。
+ * 渲染失败或 surface 尚无组件数据时回退展示原始 JSON。
  */
 
 @Composable
-fun A2uiPocSurfaceCard(call: ToolCall, modifier: Modifier = Modifier) {
+fun A2uiPocSurfaceCard(
+    call: ToolCall,
+    modifier: Modifier = Modifier,
+    sessionId: String = LocalA2uiSessionId.current,
+) {
     val surfaceId = call.args["surfaceId"]?.toString()?.trim('"', ' ')?.trim().orEmpty()
     val rawMessages = call.args["messages"]?.toString()?.trim('"', ' ')?.trim().orEmpty()
     // 与工具执行路径共用同一份归一化（双转义自动修复）；失败时保留原文供回退展示
     val messagesJson = remember(rawMessages) {
         A2uiSurfaceBus.normalizeMessagesJson(rawMessages) ?: rawMessages
     }
-    A2uiSurfaceHost(surfaceId = surfaceId, messagesJson = messagesJson, modifier = modifier)
+    A2uiSurfaceHost(
+        surfaceId = surfaceId,
+        messagesJson = messagesJson,
+        modifier = modifier,
+        sessionId = sessionId,
+        replayKey = call.id,
+    )
 }
 
 @Composable
@@ -60,10 +76,22 @@ fun A2uiSurfaceHost(
     messagesJson: String,
     modifier: Modifier = Modifier,
     title: String? = null,
+    sessionId: String = "",
+    replayKey: String? = null,
 ) {
-    var renderError by remember(messagesJson) { mutableStateOf<String?>(null) }
-    LaunchedEffect(messagesJson) {
-        renderError = if (messagesJson.isBlank()) "载荷为空" else TaiXuA2uiRenderer.processMessages(messagesJson)
+    val context = LocalContext.current
+    SideEffect { TaiXuUrlOpener.bind(context) }
+    val scopedJson = remember(messagesJson, sessionId) {
+        TaiXuA2uiCatalog.scopeMessages(messagesJson, sessionId)
+    }
+    val engineId = A2uiSurfaceBus.engineSurfaceId(sessionId, surfaceId)
+    var renderError by remember(scopedJson) { mutableStateOf<String?>(null) }
+    LaunchedEffect(scopedJson, replayKey) {
+        renderError = if (scopedJson.isBlank()) {
+            "载荷为空"
+        } else {
+            TaiXuA2uiRenderer.processMessages(scopedJson, replayKey)
+        }
     }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         title?.let {
@@ -73,7 +101,7 @@ fun A2uiSurfaceHost(
                 color = MaterialTheme.colorScheme.primary,
             )
         }
-        val rendered = TaiXuA2uiRenderer.SurfaceView(surfaceId = surfaceId, modifier = Modifier.fillMaxWidth())
+        val rendered = TaiXuA2uiRenderer.SurfaceView(surfaceId = engineId, modifier = Modifier.fillMaxWidth())
         if (!rendered) {
             A2uiFallbackCard(renderError = renderError, messagesJson = messagesJson)
         }
@@ -122,10 +150,13 @@ fun A2uiPocScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                 actions = {
                     RuntimeTextButton(onClick = {
                         lastInjectedAt = System.currentTimeMillis()
-                        A2uiSurfaceBus.publishFromTool(sampleToolArgs(lastInjectedAt))
+                        A2uiSurfaceBus.publishFromTool(
+                            sampleToolArgs(lastInjectedAt),
+                            A2uiSurfaceBus.PREVIEW_SESSION_ID,
+                        )
                     }) { Text(stringResource(R.string.fa2ui_inject_sample)) }
                     Spacer(Modifier.width(8.dp))
-                    RuntimeTextButton(onClick = { A2uiSurfaceBus.clear() }) {
+                    RuntimeTextButton(onClick = { A2uiSurfaceBus.clearPreview() }) {
                         Text(stringResource(R.string.fa2ui_clear))
                     }
                 },
@@ -147,7 +178,7 @@ fun A2uiPocScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(surfaces, key = { it.surfaceId }) { payload ->
+                    items(surfaces, key = { "${it.sessionId}:${it.surfaceId}" }) { payload ->
                         Surface(
                             shape = MaterialTheme.shapes.medium,
                             tonalElevation = 1.dp,
@@ -163,6 +194,7 @@ fun A2uiPocScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                                     surfaceId = payload.surfaceId,
                                     messagesJson = payload.messagesJson,
                                     modifier = Modifier.fillMaxWidth(),
+                                    sessionId = payload.sessionId,
                                 )
                             }
                         }

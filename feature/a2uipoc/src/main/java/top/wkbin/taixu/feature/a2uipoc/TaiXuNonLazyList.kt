@@ -8,17 +8,22 @@ import androidx.a2ui.compose.ui.A2uiComponent
 import androidx.a2ui.compose.ui.catalog.A2uiBasicCatalogV1
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
 /**
- * 宿主自实现的 A2UI Basic Catalog「List」组件（非懒加载版）。
+ * 宿主自实现的 A2UI Basic Catalog「List」组件。
  *
  * 背景（为什么必须覆写）：
  * 官方 [androidx.compose.material3.a2ui.catalog.MaterialA2uiBasicCatalogV1List] 在
@@ -30,9 +35,8 @@ import androidx.compose.ui.unit.dp
  *   infinity maximum height constraints ...")
  * 异常发生在 measure 阶段且无捕获点，进程被杀（用户表现为「滑到那张卡就闪退」）。
  *
- * 本实现用普通 Column/Row 逐项展开，不做内部滚动，因此可以安全地内嵌进任何
- * 纵向滚动列表（聊天流、设置页等）。代价是超长列表不再懒加载——对聊天内嵌的
- * PoC 场景可接受；若将来需要长列表，应改为「有界高度容器 + LazyColumn」。
+ * 短列表用 Column/LazyRow 按内容撑开。纵向项数超过 [MAX_EAGER_CHILDREN] 时改用
+ * 限高的 LazyColumn：父级给出的是有限高度，不会再触发那条无限高断言，超长列表在卡片内滚动。
  *
  * 接入方式（TaiXuA2uiRenderer.kt）：
  *   private val catalog = materialA2uiBasicCatalogV1(
@@ -53,34 +57,44 @@ internal object TaiXuNonLazyList : A2uiBasicCatalogV1.List {
         accessibility: A2uiBasicCatalogV1.AccessibilityAttributes?,
         modifier: Modifier,
     ) {
+        val listModifier = modifier.listAccessibility(accessibility)
         when (direction) {
             A2uiBasicCatalogV1.List.Direction.Horizontal -> {
-                Row(
-                    modifier = modifier,
+                LazyRow(
+                    modifier = listModifier,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = align.toVerticalAlignment(),
                 ) {
-                    children.forEach { childRef ->
+                    items(children, key = { it.id to it.baseDataPath }) { childRef ->
                         ListItem(childRef = childRef, modifier = Modifier)
                     }
                 }
             }
 
             A2uiBasicCatalogV1.List.Direction.Vertical -> {
-                Column(
-                    modifier = modifier,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalAlignment = align.toHorizontalAlignment(),
-                ) {
-                    children.forEach { childRef ->
-                        ListItem(childRef = childRef, modifier = Modifier.fillMaxWidth())
+                if (children.size <= MAX_EAGER_CHILDREN) {
+                    Column(
+                        modifier = listModifier,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = align.toHorizontalAlignment(),
+                    ) {
+                        children.forEach { childRef ->
+                            ListItem(childRef = childRef, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = listModifier.heightIn(max = MAX_LAZY_HEIGHT),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = align.toHorizontalAlignment(),
+                    ) {
+                        items(children, key = { it.id to it.baseDataPath }) { childRef ->
+                            ListItem(childRef = childRef, modifier = Modifier.fillMaxWidth())
+                        }
                     }
                 }
             }
         }
-        // 说明：官方实现还会调用 modifier.a2uiAccessibility(accessibility)，
-        // 该扩展函数是 material3-a2ui 模块的 internal，宿主模块无法调用；
-        // 如需无障碍语义，可自行 Modifier.semantics { contentDescription = ... }。
     }
 
     @Composable
@@ -112,6 +126,20 @@ internal object TaiXuNonLazyList : A2uiBasicCatalogV1.List {
     }
 }
 
+private fun Modifier.listAccessibility(
+    attributes: A2uiBasicCatalogV1.AccessibilityAttributes?,
+): Modifier {
+    val label = attributes?.label?.takeUnless { it.isBlank() }
+    val description = attributes?.description?.takeUnless { it.isBlank() }
+    val text = when {
+        label != null && description != null -> "$label - $description"
+        label != null -> label
+        description != null -> description
+        else -> return this
+    }
+    return semantics { contentDescription = text }
+}
+
 private fun A2uiBasicCatalogV1.List.Align.toHorizontalAlignment(): Alignment.Horizontal =
     when (this) {
         A2uiBasicCatalogV1.List.Align.Start -> Alignment.Start
@@ -127,3 +155,6 @@ private fun A2uiBasicCatalogV1.List.Align.toVerticalAlignment(): Alignment.Verti
         A2uiBasicCatalogV1.List.Align.End -> Alignment.Bottom
         A2uiBasicCatalogV1.List.Align.Stretch -> Alignment.Top
     }
+
+private const val MAX_EAGER_CHILDREN = 12
+private val MAX_LAZY_HEIGHT = 320.dp

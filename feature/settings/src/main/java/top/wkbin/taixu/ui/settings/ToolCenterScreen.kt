@@ -6,7 +6,6 @@ import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Arrangement
@@ -44,7 +43,6 @@ import androidx.compose.material3.HorizontalDivider
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeCheckbox
 import androidx.compose.material3.MaterialTheme
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -808,205 +806,19 @@ fun ToolCenterScreen(
             )
         }
 
-        // 🛠️ 聚合大插件子组件装配弹窗 (Bundle Component Setup Dialog)
         activeBundle?.let { bundle ->
-            RuntimeAlertDialog(
-                onDismissRequest = viewModel::closeBundleSetup,
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        RuntimeIcon(
-                            name = when (bundle.iconName) {
-                                "Android" -> RuntimeIconName.Android
-                                "Flutter" -> RuntimeIconName.Flutter
-                                "Globe" -> RuntimeIconName.Globe
-                                "Search" -> RuntimeIconName.Search
-                                else -> RuntimeIconName.Code
-                            },
-                            modifier = Modifier.size(22.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Text("装配 ${bundle.name}", fontWeight = FontWeight.Bold)
-                    }
-                },
-                text = {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            // Keep the dialog actions in the viewport when a bundle has many components.
-                            // The component list remains fully accessible through this scroll container.
-                            .heightIn(max = 360.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Text(
-                            bundle.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-
-                        if (isInstallingComponents) {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        RuntimeCircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                                        Text(componentInstallProgress ?: "正在执行批量原子装配流水线...", style = MaterialTheme.typography.bodySmall, maxLines = 2)
-                                    }
-                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)))
-                                }
-                            }
-                        }
-
-                        val uninstalledComponents = bundle.components.filter { it.id !in installedComponentIds }
-                        val installedComponentsList = bundle.components.filter { it.id in installedComponentIds }
-
-                        // 1. 待装配组件分组 (Uninstalled Components)
-                        if (uninstalledComponents.isNotEmpty()) {
-                            Text(
-                                "待装配组件 (${uninstalledComponents.size})：",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-
-                            uninstalledComponents.forEach { comp ->
-                                val isUninstalledRequired = comp.isRequired
-                                val isChecked = isUninstalledRequired || comp.id in selectedComponents
-
-                                Surface(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .clickable(enabled = !isInstallingComponents && !isUninstalledRequired) {
-                                            viewModel.toggleComponent(comp)
-                                        },
-                                    shape = RoundedCornerShape(10.dp),
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        1.dp,
-                                        if (isChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                    ),
-                                    color = if (isChecked) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
-                                    else MaterialTheme.colorScheme.surfaceContainerLow,
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        RuntimeCheckbox(
-                                            checked = isChecked,
-                                            onCheckedChange = { if (!isUninstalledRequired) viewModel.toggleComponent(comp) },
-                                            enabled = !isInstallingComponents && !isUninstalledRequired,
-                                        )
-
-                                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                Text(comp.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
-                                                if (isUninstalledRequired) {
-                                                    Surface(
-                                                        shape = RoundedCornerShape(4.dp),
-                                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                                    ) {
-                                                        Text(
-                                                            "必选基座",
-                                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                                            color = MaterialTheme.colorScheme.primary,
-                                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                            Text(comp.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // 2. 已装配就绪分组 (Installed Components)
-                        if (installedComponentsList.isNotEmpty()) {
-                            Text(
-                                "已装配就绪 (${installedComponentsList.size})：",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = successStatusColor(),
-                                modifier = Modifier.padding(top = 6.dp),
-                            )
-
-                            installedComponentsList.forEach { comp ->
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(10.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, successStatusColor().copy(alpha = 0.25f)),
-                                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(20.dp)
-                                                .clip(CircleShape)
-                                                .background(successStatusColor().copy(alpha = 0.15f)),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            RuntimeIcon(
-                                                name = RuntimeIconName.Check,
-                                                modifier = Modifier.size(12.dp),
-                                                tint = successStatusColor(),
-                                            )
-                                        }
-
-                                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                Text(comp.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
-                                                Surface(
-                                                    shape = RoundedCornerShape(4.dp),
-                                                    color = successStatusColor().copy(alpha = 0.15f),
-                                                ) {
-                                                    Text(
-                                                        "✓ 已就绪",
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                                        color = successStatusColor(),
-                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                                                    )
-                                                }
-                                            }
-                                            Text(comp.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    val uninstalledComponents = bundle.components.filter { it.id !in installedComponentIds }
-                    if (uninstalledComponents.isEmpty()) {
-                        Button(onClick = viewModel::closeBundleSetup) {
-                            Text("全部组件已就绪")
-                        }
-                    } else {
-                        Button(
-                            onClick = viewModel::installActiveBundleComponents,
-                            enabled = !isInstallingComponents && selectedComponents.isNotEmpty(),
-                        ) {
-                            Text(if (selectedComponents.isEmpty()) "请勾选待装配组件" else "开始装配 (${selectedComponents.size})")
-                        }
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = viewModel::closeBundleSetup) {
-                        Text("取消")
-                    }
-                },
+            BundleComponentSetupDialog(
+                bundle = bundle,
+                installedComponentIds = installedComponentIds,
+                selectedComponents = selectedComponents,
+                isInstallingComponents = isInstallingComponents,
+                componentInstallProgress = componentInstallProgress,
+                onToggle = viewModel::toggleComponent,
+                onInstall = viewModel::installActiveBundleComponents,
+                onReinstall = viewModel::reinstallComponent,
+                onUninstall = viewModel::uninstallComponent,
+                uninstallBlockedReason = viewModel::uninstallBlockedReason,
+                onDismiss = viewModel::closeBundleSetup,
             )
         }
     }

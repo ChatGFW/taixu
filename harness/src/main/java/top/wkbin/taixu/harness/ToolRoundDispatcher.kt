@@ -26,17 +26,29 @@ import kotlinx.coroutines.sync.withPermit
  */
 class ToolRoundDispatcher() {
     /** 工作区（或语义等价的 scope key）→ 互斥锁；blank key 兜底为全局单锁。 */
-    private val mutationMutexes = ConcurrentHashMap<String, Mutex>()
-
-    private fun mutexFor(scopeKey: String): Mutex =
-        mutationMutexes.getOrPut(scopeKey.trim().ifBlank { GLOBAL_SCOPE }) { Mutex() }
+    private class MutationLock(val mutex: Mutex = Mutex(), var users: Int = 0)
+    private val mutationMutexes = ConcurrentHashMap<String, MutationLock>()
 
     /**
      * 按工作区串行执行变更类副作用。除本调度器外，审批恢复路径（被批准的
      * write/base/mcp 等）也必须经此方法取锁，否则会与并发会话的同工作区写入踩踏。
      */
-    suspend fun <T> withMutationLock(scopeKey: String, block: suspend () -> T): T =
-        mutexFor(scopeKey).withLock { block() }
+    suspend fun <T> withMutationLock(scopeKey: String, block: suspend () -> T): T {
+        val key = scopeKey.trim().ifBlank { GLOBAL_SCOPE }
+        val holder = mutationMutexes.compute(key) { _, current ->
+            (current ?: MutationLock()).also { it.users++ }
+        }!!
+        try {
+            return holder.mutex.withLock { block() }
+        } finally {
+            // Retain waiting callers too, so reclamation cannot create a second live lock.
+            mutationMutexes.compute(key) { _, current ->
+                if (current !== holder) current else holder.takeIf { --it.users > 0 }
+            }
+        }
+    }
+
+    internal val retainedMutationScopeCount: Int get() = mutationMutexes.size
 
     class Pause private constructor() {
         private val aborted = AtomicBoolean(false)
@@ -56,13 +68,12 @@ class ToolRoundDispatcher() {
         run: suspend (T, Pause) -> Unit,
     ) {
         if (items.isEmpty()) return
-        val mutex = mutexFor(mutationScope)
         if (items.size == 1 || parallelism <= 1) {
             val pause = Pause.create()
             items.forEach { item ->
                 if (pause.isAborted()) return
                 if (isParallelSafe(item)) run(item, pause)
-                else mutex.withLock {
+                else withMutationLock(mutationScope) {
                     if (!pause.isAborted()) run(item, pause)
                 }
             }
@@ -76,7 +87,7 @@ class ToolRoundDispatcher() {
                     permits.withPermit {
                         if (pause.isAborted()) return@withPermit
                         if (isParallelSafe(item)) run(item, pause)
-                        else mutex.withLock {
+                        else withMutationLock(mutationScope) {
                             if (!pause.isAborted()) run(item, pause)
                         }
                     }

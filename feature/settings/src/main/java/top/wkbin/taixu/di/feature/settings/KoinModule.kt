@@ -5,6 +5,7 @@ import top.wkbin.taixu.ui.settings.AppManagementViewModel
 import top.wkbin.taixu.ui.settings.CcSwitchViewModel
 import top.wkbin.taixu.ui.settings.FtpSettingsViewModel
 import top.wkbin.taixu.ui.settings.LocalLlmViewModel
+import top.wkbin.taixu.ui.settings.PhoneAgentSettingsViewModel
 import top.wkbin.taixu.ui.settings.SettingsViewModel
 import top.wkbin.taixu.ui.settings.SponsorListRepository
 import top.wkbin.taixu.ui.settings.SponsorListViewModel
@@ -19,6 +20,7 @@ import org.koin.core.module.dsl.viewModel
 /** Dependency registrations owned by the feature:settings module. */
 val featureSettingsModule = module {
     viewModel<AppManagementViewModel> { AppManagementViewModel(repository = get(), appManager = get()) }
+    viewModel { PhoneAgentSettingsViewModel(preferences = get()) }
 
     viewModel<CcSwitchViewModel> {
         CcSwitchViewModel(
