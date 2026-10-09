@@ -22,8 +22,8 @@ import java.io.InputStream
  */
 object McpResponseSizeLimiter {
 
-    /** 允许在内存中内联缓冲解析的最大体积：512KB */
-    const val DEFAULT_MAX_INLINE_BYTES = 512L * 1024
+    /** 允许在内存中内联缓冲解析的最大体积：768KB */
+    const val DEFAULT_MAX_INLINE_BYTES =  768L * 1024
 
     /** 允许流式落盘转存的最大上限 / 熔断阈值：4MB */
     const val DEFAULT_MAX_SPILL_BYTES = 4L * 1024 * 1024
