@@ -44,7 +44,7 @@ class RoomDatabaseBackupRepository(private val database: AppDatabase) : Database
                     val value = row.getValue(column.name)
                     require(value is JsonPrimitive && !(column.required && value == JsonNull)) { "备份字段类型无效" }
                     if (value != JsonNull) require(when (column.type) {
-                        "INTEGER" -> !value.jsonPrimitive.isString && value.jsonPrimitive.longOrNull != null
+                        "INTEGER" -> !value.jsonPrimitive.isString && (value.jsonPrimitive.longOrNull != null || value.jsonPrimitive.booleanOrNull != null)
                         "REAL" -> !value.jsonPrimitive.isString && value.jsonPrimitive.doubleOrNull?.isFinite() == true
                         "TEXT" -> value.jsonPrimitive.isString
                         else -> false
@@ -66,7 +66,11 @@ class RoomDatabaseBackupRepository(private val database: AppDatabase) : Database
                     val values = row.filterKeys { it != "sequence" || table !in setOf("harness_entries", "harness_usage") }
                     sql.execSQL("INSERT INTO `$table` (${values.keys.joinToString { "`$it`" }}) VALUES (${values.keys.joinToString { "?" }})",
                         values.values.map<JsonElement, Any?> { value -> if (value == JsonNull) null else value.jsonPrimitive.let {
-                            if (it.isString) it.content else it.longOrNull ?: it.doubleOrNull
+                            when {
+                                it.isString -> it.content
+                                it.booleanOrNull != null -> if (it.boolean!!) 1 else 0
+                                else -> it.longOrNull ?: it.doubleOrNull
+                            }
                         } }.toTypedArray())
                     count++
                 }
