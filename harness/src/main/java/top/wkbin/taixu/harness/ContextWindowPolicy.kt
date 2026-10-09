@@ -7,14 +7,7 @@ import kotlinx.serialization.json.jsonPrimitive
 /** Pure context-budget and historical-folding policy used by the provider mapper and UI. */
 object ContextWindowPolicy {
     internal const val RESERVED_OUTPUT_TOKENS = 8_192
-    /**
-     * 折叠线为 provider 可见 tools 数组预留的 token。
-     *
-     * 口径与 [estimateToolDefinitionTokens] 一致，实测对象是 `ProviderClient.TOOLS`：
-     * 2026-10-08 虚拟屏坐标约定与 virtual_screen_input_text 写进 host schema 后，
-     * 预留抬到 7,200（此前 6,300 已低于实测）。低于实测会从折叠线余量里挖走。
-     * 增删或放大工具后须用 ContextWindowPolicyTest 的一致性测试重新校准（低于实测即失败）。
-     */
+    /** Provider tools schema 预留；以 estimateToolDefinitionTokens 实测校准，工具变更后运行一致性测试。 */
     internal const val TOOL_SCHEMA_RESERVE_TOKENS = 7_200
     private const val MAX_SYSTEM_PROMPT_FRACTION = 0.60
     private const val MIN_SYSTEM_PROMPT_TOKENS = 512
@@ -22,9 +15,7 @@ object ContextWindowPolicy {
     private const val MIN_GIANT_USER_MESSAGE_TOKENS = 2_000
     /** 巨型用户消息截断后至少保留的头部 token 数。 */
     private const val MIN_KEPT_USER_TURN_TOKENS = 800
-    /**
-     * 引擎预算上限。与设置页滑块对齐，并为 Gemini/Claude 等 1M+ 标称窗口保留余量。
-     */
+    /** 与设置页滑块对齐，并为 1M+ 标称窗口保留余量。 */
     const val MAX_CONTEXT_BUDGET = 2_000_000
     /**
      * 发给 Provider 的 JSON 请求体物理上限（字节）。Token 预算看不见 UTF-8/JSON 转义膨胀，
@@ -287,7 +278,7 @@ object ContextWindowPolicy {
         toolSchemaTokens.coerceAtLeast(0) + messages.sumOf { message ->
             // Keep a small per-message framing allowance; provider tokenizers count role and
             // content-part markers too, while our fallback tokenizer cannot see them.
-            4 + estimateTokens(message.content.orEmpty()) +
+            4 + (message.responsesTurn?.payloadBytes?.div(3) ?: 0) + estimateTokens(message.content.orEmpty()) +
                 estimateTokens(message.reasoning_content.orEmpty()) +
                 message.imageUrls.sumOf { image ->
                     if (image.startsWith("data:image/", ignoreCase = true)) {
@@ -422,7 +413,7 @@ object ContextWindowPolicy {
                 }
                 is AssistantText -> {
                     conversationTokens += estimateTokens(assistantTextForContext(message.text)) +
-                        estimateTokens(message.reasoning.orEmpty())
+                        estimateTokens(message.reasoning.orEmpty()) + (message.responsesTurn?.payloadBytes?.div(3) ?: 0)
                 }
                 is ToolCall -> {
                     toolTokens += estimateTokens(message.args.toString()) + estimateTokens(message.reasoning.orEmpty())
@@ -555,7 +546,7 @@ object ContextWindowPolicy {
         is CapabilityEvent, is ModelSwitchEvent, is SkillSuggestion -> 0
         is UserMessage -> estimateTokens(message.text) + message.imageUrls.size * ESTIMATED_IMAGE_TOKENS
         is AssistantText -> estimateTokens(assistantTextForContext(message.text)) +
-            estimateTokens(message.reasoning.orEmpty())
+            estimateTokens(message.reasoning.orEmpty()) + (message.responsesTurn?.payloadBytes?.div(3) ?: 0)
         is ToolResult -> estimateTokens(message.output)
         is ToolCall -> estimateTokens(message.args.toString()) + estimateTokens(message.reasoning.orEmpty())
     }
@@ -757,6 +748,15 @@ object ContextWindowPolicy {
                 changed = true
             }
         }
+        for (index in out.indices) {
+            if (bytes <= maxBytes) break
+            val message = out[index]
+            if (message.responsesTurn == null) continue
+            val updated = message.copy(responsesTurn = null)
+            bytes += apiMessagePayloadBytes(updated) - apiMessagePayloadBytes(message)
+            out[index] = updated
+            changed = true
+        }
         return if (changed) out else messages
     }
 
@@ -772,7 +772,7 @@ object ContextWindowPolicy {
                     jsonTextBytes(message.text) + message.imageUrls.sumOf { it.length }
                 }
                 is AssistantText -> {
-                    jsonTextBytes(assistantTextForContext(message.text)) + jsonTextBytes(message.reasoning.orEmpty())
+                    jsonTextBytes(assistantTextForContext(message.text)) + jsonTextBytes(message.reasoning.orEmpty()) + (message.responsesTurn?.payloadBytes ?: 0)
                 }
                 is ToolCall -> {
                     jsonTextBytes(message.args.toString()) + jsonTextBytes(message.reasoning.orEmpty())
@@ -788,7 +788,7 @@ object ContextWindowPolicy {
     }
 
     private fun apiMessagePayloadBytes(message: ApiMessage): Int =
-        JSON_FRAMING_PER_MESSAGE + jsonTextBytes(message.content.orEmpty()) +
+        JSON_FRAMING_PER_MESSAGE + (message.responsesTurn?.payloadBytes ?: 0) + jsonTextBytes(message.content.orEmpty()) +
             jsonTextBytes(message.reasoning_content.orEmpty()) + message.imageUrls.sumOf { it.length } +
             message.tool_calls.orEmpty().sumOf { call ->
                 jsonTextBytes(call.function.name) + jsonTextBytes(call.function.arguments) + JSON_FRAMING_PER_MESSAGE

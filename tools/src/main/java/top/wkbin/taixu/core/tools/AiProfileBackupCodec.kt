@@ -1,11 +1,11 @@
 package top.wkbin.taixu.core.tools
 
 import kotlinx.coroutines.flow.first
-import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.model.AiModelProfileBundle
 import top.wkbin.taixu.core.model.AiModelProfileExport
-import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import top.wkbin.taixu.core.model.AiProfileImportMode
 
 /**
  * AI 模型档案的导入/导出编解码：实体 ↔ 导出 JSON 的唯一映射实现。
@@ -13,119 +13,50 @@ import java.util.UUID
  */
 class AiProfileBackupCodec(
     private val aiModelDao: AiModelRepository,
-    private val providerRepository: ProviderRepository,
+    private val providerRepository: ModelCredentialStore,
     private val profileWriter: AiProfileWriter,
 ) {
 
-    private val json = Json {
-        prettyPrint = true
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-        isLenient = true
-        coerceInputValues = true
-    }
+    private val json = AiProfileTransferFormat.json
 
     suspend fun exportAll(includeApiKeys: Boolean): String {
         val models = aiModelDao.observeAll().first()
         val bundle = AiModelProfileBundle(
-            schemaVersion = 1,
+            schemaVersion = AiProfileTransferFormat.SCHEMA_VERSION,
             exportedAt = System.currentTimeMillis(),
             source = "TaiXu",
-            profiles = models.map { entityToExport(it, readKeys(it, includeApiKeys)) },
+            profiles = models.map { entityToExport(it, readKeys(it, includeApiKeys), includeApiKeys) },
         )
-        return json.encodeToString(bundle)
+        return json.encodeToString(bundle).also { AiProfileTransferFormat.parse(it) }
     }
 
     suspend fun exportSingle(modelId: String, includeApiKeys: Boolean): String? {
         val entity = aiModelDao.findById(modelId) ?: return null
-        return json.encodeToString(entityToExport(entity, readKeys(entity, includeApiKeys)))
+        return json.encodeToString(entityToExport(entity, readKeys(entity, includeApiKeys), includeApiKeys))
+            .also { AiProfileTransferFormat.parse(it) }
     }
 
-    /** 兼容 Bundle / 单档案 / 档案数组三种 JSON 形态 */
-    fun parseProfiles(rawJson: String): Result<List<AiModelProfileExport>> {
-        val trimmed = rawJson.trim()
-        if (trimmed.isBlank()) return Result.failure(IllegalArgumentException("导入内容为空"))
-        return runCatching {
-            when {
-                trimmed.startsWith("{") -> {
-                    val bundleResult = runCatching { json.decodeFromString<AiModelProfileBundle>(trimmed) }
-                    if (bundleResult.isSuccess && bundleResult.getOrThrow().profiles.isNotEmpty()) {
-                        bundleResult.getOrThrow().profiles
-                    } else {
-                        val single = json.decodeFromString<AiModelProfileExport>(trimmed)
-                        listOf(single)
-                    }
-                }
-                trimmed.startsWith("[") -> json.decodeFromString<List<AiModelProfileExport>>(trimmed)
-                else -> throw IllegalArgumentException("JSON 格式无效，内容必须以 { 或 [ 开头")
-            }
+    /** Valid legacy bundle/single/array formats are still supported; validate every row before writing. */
+    fun parseProfiles(rawJson: String): Result<List<AiModelProfileExport>> =
+        runCatching { AiProfileTransferFormat.parse(rawJson) }
+
+    suspend fun importProfiles(rawJson: String, mode: AiProfileImportMode = AiProfileImportMode.COPY): Result<Int> {
+        val profiles = parseProfiles(rawJson).getOrElse { return Result.failure(it) }
+        return try {
+            Result.success(profileWriter.importProfiles(profiles, mode))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Result.failure(failure)
         }
-    }
-
-    /** 逐条入库并返回成功导入的数量 */
-    suspend fun importProfiles(rawJson: String): Result<Int> {
-        val parseResult = parseProfiles(rawJson)
-        if (parseResult.isFailure) return Result.failure(parseResult.exceptionOrNull() ?: RuntimeException("JSON 解析失败"))
-        val profiles = parseResult.getOrThrow()
-        if (profiles.isEmpty()) return Result.failure(IllegalArgumentException("未检测到有效的模型档案配置"))
-
-        val existing = aiModelDao.observeAll().first()
-        val importedIds = mutableListOf<String>()
-
-        for (profile in profiles) {
-            val modelStr = profile.model.trim()
-            val providerStr = profile.provider.trim().ifBlank { "Custom" }
-            if (modelStr.isBlank() && profile.name.isBlank()) continue
-
-            val modelId = profile.id?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
-            val keys = profileWriter.parseApiKeys(
-                (profile.apiKeys + listOfNotNull(profile.apiKey)).joinToString("\n"),
-            )
-            val nameStr = profile.name.trim().ifBlank {
-                val firstModel = modelStr.split(",").firstOrNull()?.trim().orEmpty()
-                firstModel.ifBlank { providerStr }
-            }
-
-            profileWriter.upsertProfile(
-                AiProfileWriter.UpsertRequest(
-                    id = modelId,
-                    name = nameStr,
-                    provider = providerStr,
-                    model = modelStr.ifBlank { nameStr },
-                    baseUrl = profile.baseUrl,
-                    apiKey = keys.joinToString("\n"),
-                    requestsPerMinutePerKey = profile.requestsPerMinutePerKey,
-                    temperature = profile.temperature,
-                    maxTokens = profile.maxTokens,
-                    topP = profile.topP,
-                    reasoningMode = profile.reasoningMode,
-                    reasoningEffort = profile.reasoningEffort,
-                    toolCallMode = profile.toolCallMode,
-                    contextTokens = profile.contextTokens,
-                    customHeaders = profile.customHeaders,
-                    pureChatMode = profile.pureChatMode,
-                    visionEnabled = profile.visionEnabled,
-                    imageGenerationEnabled = profile.imageGenerationEnabled,
-                    responseApiEnabled = profile.responseApiEnabled,
-                    promptCachingEnabled = profile.promptCachingEnabled,
-                    promptCacheTtl1h = profile.promptCacheTtl1h,
-                ),
-            )
-            importedIds.add(modelId)
-        }
-
-        // 与既有行为一致：仅当原本没有任何活跃档案时，才把第一条导入设为活跃
-        if (existing.none { it.isActive } && importedIds.isNotEmpty()) {
-            aiModelDao.activate(importedIds.first())
-        }
-
-        return if (importedIds.isNotEmpty()) Result.success(importedIds.size)
-        else Result.failure(IllegalArgumentException("未解析到任何有效模型"))
     }
 
     private suspend fun readKeys(entity: top.wkbin.taixu.core.database.AiModelEntity, includeApiKeys: Boolean): List<String> {
+        check(!includeApiKeys || entity.apiKeyCount == 0 || entity.secretRef.isNotBlank()) { "模型凭据引用缺失，请重新配置后再导出" }
         return if (includeApiKeys && entity.secretRef.isNotBlank()) {
-            providerRepository.readModelApiKeys(entity.secretRef)
+            providerRepository.readModelApiKeys(entity.secretRef).also {
+                check(entity.apiKeyCount == 0 || it.isNotEmpty()) { "模型凭据无法读取，请重新配置后再导出" }
+            }
         } else {
             emptyList()
         }
@@ -134,7 +65,10 @@ class AiProfileBackupCodec(
     private fun entityToExport(
         entity: top.wkbin.taixu.core.database.AiModelEntity,
         keys: List<String>,
+        includeCredentials: Boolean,
     ) = AiModelProfileExport(
+        schemaVersion = AiProfileTransferFormat.SCHEMA_VERSION,
+        credentialsIncluded = includeCredentials,
         id = entity.id,
         name = entity.name,
         provider = entity.provider,
@@ -150,7 +84,9 @@ class AiProfileBackupCodec(
         reasoningEffort = entity.reasoningEffort,
         toolCallMode = entity.toolCallMode,
         contextTokens = entity.contextTokens,
-        customHeaders = entity.customHeaders,
+        compactionKeepRecentTokens = entity.compactionKeepRecentTokens,
+        compactionReserveTokens = entity.compactionReserveTokens,
+        customHeaders = if (includeCredentials) entity.customHeaders else "",
         pureChatMode = entity.pureChatMode,
         visionEnabled = entity.visionEnabled,
         imageGenerationEnabled = entity.imageGenerationEnabled,

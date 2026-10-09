@@ -72,6 +72,7 @@ val toolsModule = module {
     single<LocalPluginPayloadManager> { LocalPluginPayloadManager(registry = get(), pathManager = get()) }
 
     single<ProviderRepository> { ProviderRepository(providerPreferences = get()) }
+    single<top.wkbin.taixu.core.tools.ModelCredentialStore> { get<ProviderRepository>() }
 
     single<RuntimeManagerImpl> {
         RuntimeManagerImpl(

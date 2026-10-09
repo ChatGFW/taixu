@@ -10,6 +10,8 @@
 | --- | --- | --- |
 | `harness/HarnessLoop.kt` | 主循环，多会话并发 | Agent 主循环 |
 | `harness/HarnessProviderRunner.kt` | 模型能力选择、流式请求与重试、助手回复结算 | 模型回合 |
+| `harness/diagnostics/*` | 最终请求体脱敏快照、内存保留预算；聊天圆环「最近请求上下文」入口 | 请求诊断（详见 [CONTEXT_DIAGNOSTICS.md](CONTEXT_DIAGNOSTICS.md)） |
+| `harness/ResponsesApi.kt` / `ResponsesRequestBuilder.kt` / `ResponsesTurn.kt` | 原生 output 保存与回放、作用域校验、调用 ID 映射；主会话与子智能体共用投影 | Responses 历史（详见 [RESPONSES_HISTORY.md](RESPONSES_HISTORY.md)） |
 | `harness/HarnessToolRoundRunner.kt` | 工具参数校验、单轮限额、执行与审批暂停 | 工具回合 |
 | `harness/HarnessWorkspaceRecommendations.kt` | 工作区路径边界、MCP 推荐扫描与前台投影 | MCP 推荐 |
 | `harness/ToolExecutor.kt` | `read / write / edit / base / process / host / download / build_script / subagent` 等内置工具分派 |
@@ -20,6 +22,10 @@
 | `harness/browser/BrowserMcpBootstrap.kt` | 内置 Browser MCP Server 启动 + 注册引擎 |
 | `harness/mcp/server/*` | in-process MCP Server：`McpServerRuntime` / Auth / Tool+Resource Dispatcher |
 | `harness/HarnessMessage.kt` | `HarnessTool` 枚举 + `ToolResult` (含 `imageAttachments`) |
+
+## 🗂️ 模型档案迁移
+
+模型档案的备份与迁移见 [MODEL_PROFILE_TRANSFER.md](MODEL_PROFILE_TRANSFER.md)：`tools/AiProfileBackupCodec.kt` / `AiProfileTransferFormat.kt` / `AiProfileImportWriter.kt`，持久化端口为 `core/database/AiModelRepository.kt`，界面为 `feature/settings/ModelImportDialog.kt` / `ModelExportDialog.kt`。
 
 ## 🌐 内置浏览器（Browser）
 

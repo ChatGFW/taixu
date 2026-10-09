@@ -2,6 +2,7 @@ package top.wkbin.taixu.harness
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PhoneAgentActionTest {
@@ -64,8 +65,59 @@ class PhoneAgentActionTest {
     }
 
     @Test
+    fun parsesSensitiveTapAndNote() {
+        assertEquals(
+            PhoneAgentAction.TakeOver("确认支付"),
+            parsePhoneAgentAction("""do(action="Tap", element=[10, 20], message="确认支付")"""),
+        )
+        assertEquals(
+            PhoneAgentAction.Note("订单已提交"),
+            parsePhoneAgentAction("""<answer>do(action="Note", message="订单已提交")</answer>"""),
+        )
+        assertTrue(phoneAgentSystemPrompt(java.time.LocalDate.of(2026, 10, 9)).contains("do(action=\"Launch\""))
+    }
+
+    @Test
     fun rejectsUnknownAction() {
         assertNull(parsePhoneAgentAction("我先看看画面"))
         assertNull(parsePhoneAgentAction("""do(action="Fly")"""))
+    }
+
+    @Test
+    fun ignoresThinkingAndNeverParsesCommandsInsideTypedText() {
+        assertEquals(
+            PhoneAgentAction.Type("请填写 finish(message=\"完成\")\n下一行"),
+            parsePhoneAgentAction("""<think>do(action="Back")</think><answer>do(action="Type", text="请填写 finish(message=\"完成\")\n下一行")</answer>"""),
+        )
+        assertNull(parsePhoneAgentAction("""<think>finish(message="猜测完成")</think>"""))
+        assertNull(parsePhoneAgentAction("""do(action="Back")
+            finish(message="完成")"""))
+        assertNull(parsePhoneAgentAction("""<answer>do(action="Back")</answer><answer>do(action="Home")</answer>"""))
+    }
+
+    @Test
+    fun parsesWhitespaceSingleQuotesEmptyTextAndParameterOrder() {
+        assertEquals(PhoneAgentAction.Type(""), parsePhoneAgentAction("""do ( text = '', action = 'Type' )"""))
+        assertEquals(PhoneAgentAction.TakeOver("确认, 支付"),
+            parsePhoneAgentAction("""do(message="确认, 支付", element=[10, 20], action="Tap")"""))
+        assertEquals(PhoneAgentAction.Type("C:\\tmp\\a"),
+            parsePhoneAgentAction("""do(action="Type", text="C:\\tmp\\a")"""))
+        assertEquals(PhoneAgentAction.Wait(2500), parsePhoneAgentAction("""do(action="Wait", duration="2.5 seconds")"""))
+    }
+
+    @Test
+    fun rejectsMalformedDuplicateAndOutOfRangeArguments() {
+        listOf(
+            """do(action="Tap", element=[999999999999999999999, 20])""",
+            """do(action="Tap", element=[1001, 20])""",
+            """do(action="Tap", element=[-1, 20])""",
+            """do(action="Tap", start=[10, 20])""",
+            """do(action="Type", text="hello""",
+            """do(action="Type", text="a", text="b")""",
+            """do(action="Wait", duration="100 seconds")""",
+            """do(action="Wait", duration=[1, 2])""",
+            """finish(message="done", action="Tap")""",
+            """<answer>do(action="Back")""",
+        ).forEach { raw -> assertNull(raw, parsePhoneAgentAction(raw)) }
     }
 }

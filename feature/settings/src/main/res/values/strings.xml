@@ -56,4 +56,24 @@
     <string name="settings_component_uninstall_title">卸载 %1$s？</string>
     <string name="settings_component_uninstall_body">将移除该组件在沙箱中的程序文件，以及只有它在使用的软件包。curl、git、python3 等基础工具会保留。</string>
     <string name="settings_component_confirm_uninstall">确认卸载</string>
+    <string name="profile_transfer_import">导入模型档案</string>
+    <string name="profile_transfer_preview">预览导入</string>
+    <string name="profile_transfer_paste_hint">粘贴模型配置 JSON，支持单档案、数组和配置包</string>
+    <string name="profile_transfer_paste">粘贴剪贴板内容</string>
+    <string name="profile_transfer_clipboard_empty">剪贴板为空</string>
+    <string name="profile_transfer_choose_file">选择 JSON 文件</string>
+    <string name="profile_transfer_read_error">无法读取文件，请选择不超过 2 MiB 的 JSON 文件</string>
+    <string name="profile_transfer_invalid">配置版本、结构或参数无效，请检查文件</string>
+    <string name="profile_transfer_limits">文件上限 2 MiB，每次最多 500 个档案。先预览，再保存。</string>
+    <string name="profile_transfer_summary">共 %1$d 个档案，其中 %2$d 个与本机 ID 相同</string>
+    <string name="profile_transfer_copy">新增副本（默认）</string>
+    <string name="profile_transfer_copy_detail">新增 %1$d 个档案，保留现有配置</string>
+    <string name="profile_transfer_update">更新同 ID 档案</string>
+    <string name="profile_transfer_update_detail">更新 %1$d 个，新增 %2$d 个</string>
+    <string name="profile_transfer_credentials_detail">更新时，未提供 Key 会保留本机 Key；标记为不含凭据的备份也会保留本机请求头。新副本不会继承旧凭据。</string>
+    <string name="profile_transfer_row_update">更新：%1$s</string>
+    <string name="profile_transfer_row_create">新增：%1$s</string>
+    <string name="profile_transfer_confirm">确认导入</string>
+    <string name="profile_transfer_cancel">取消</string>
+    <string name="profile_transfer_edit">返回编辑</string>
 </resources>

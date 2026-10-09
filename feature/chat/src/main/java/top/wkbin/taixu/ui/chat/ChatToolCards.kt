@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCheckbox as Checkbox
@@ -121,8 +120,13 @@ internal fun ToolCard(
                     modifier = Modifier.size(16.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    val dotModifier = if (dotDesc != null) Modifier.semantics { contentDescription = dotDesc } else Modifier
-                    Box(dotModifier.size(6.dp).clip(CircleShape).background(dotColor))
+                    // 工具语义图标：形状标识工具类别，tint 沿用状态色（运行中/成功/失败/待定）
+                    val iconModifier = if (dotDesc != null) Modifier.semantics { contentDescription = dotDesc } else Modifier
+                    RuntimeIcon(
+                        toolIcon(call.tool),
+                        Modifier.size(13.dp).then(iconModifier),
+                        dotColor,
+                    )
                 }
                 Text(
                     if (call.tool == HarnessTool.MCP) stringResource(R.string.chat_call_tool) else toolName(call.tool, call.rawToolName),
@@ -344,12 +348,7 @@ internal fun ApprovalRequestCard(
     }
 }
 
-/**
- * ask_user 问题卡：渲染智能体的结构化提问（候选项 chips + 可选自定义输入），
- * 与 ApprovalRequestCard 同级复用 pending 请求流。提交答案走 resolveQuestion
- * （答案即工具结果）；「忽略」走既有拒绝路径（模型收到未回答结果）。
- * 自定义输入与选项互斥：某题输入非空时优先采用输入。
- */
+/** ask_user 问题卡：渲染智能体的结构化提问（候选项 chips + 可选自定义输入），与 ApprovalRequestCard 同级复用 pending 请求流。提交答案走 resolveQuestion（答案即工具结果）；「忽略」走既有拒绝路径（模型收到未回答结果）。自定义输入与选项互斥：某题输入非空时优先采用输入。 */
 @Composable
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 internal fun AskUserCard(
@@ -381,17 +380,10 @@ internal fun AskUserCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RuntimeIcon(RuntimeIconName.Chat, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
-                Text(
-                    stringResource(R.string.chat_ask_user_title),
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                )
+                Text(stringResource(R.string.chat_ask_user_title), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
             }
             if (questions.isEmpty()) {
-                Text(
-                    stringResource(R.string.chat_ask_user_parse_failed),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text(stringResource(R.string.chat_ask_user_parse_failed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             questions.forEachIndexed { index, question ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -485,11 +477,7 @@ private fun AskUserOptionChip(
 ) {
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = if (isSelected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
+        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
         border = BorderStroke(
             1.dp,
             if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
@@ -497,20 +485,36 @@ private fun AskUserOptionChip(
         onClick = onClick,
     ) {
         Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            )
+            Text(label, style = MaterialTheme.typography.labelLarge, color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
             if (!description.isNullOrBlank()) {
-                Text(
-                    description,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text(description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
+}
+
+/** 工具类型 → 语义前缀图标（与思考块的 Brain 图标同一视觉语言）。形状标识工具类别；颜色由调用处以状态色着色。穷尽 HarnessTool，新增工具有编译器兜底。 */
+internal fun toolIcon(tool: HarnessTool): RuntimeIconName = when (tool) {
+    HarnessTool.READ -> RuntimeIconName.Document
+    HarnessTool.WRITE -> RuntimeIconName.Save
+    HarnessTool.EDIT -> RuntimeIconName.Edit
+    HarnessTool.BASE -> RuntimeIconName.Terminal
+    HarnessTool.PROCESS -> RuntimeIconName.Play
+    HarnessTool.HOST -> RuntimeIconName.Phone
+    HarnessTool.DOWNLOAD -> RuntimeIconName.Download
+    HarnessTool.MEMORY -> RuntimeIconName.Bookmark
+    HarnessTool.PLAN -> RuntimeIconName.Checklist
+    HarnessTool.SCRATCHPAD -> RuntimeIconName.StickyNote
+    HarnessTool.HISTORY_SEARCH -> RuntimeIconName.Search
+    HarnessTool.HISTORY_READ -> RuntimeIconName.History
+    HarnessTool.BUILD_SCRIPT -> RuntimeIconName.Hammer
+    HarnessTool.SUBAGENT -> RuntimeIconName.Bot
+    HarnessTool.MCP -> RuntimeIconName.Extension
+    HarnessTool.LOAD_RULE -> RuntimeIconName.BookOpen
+    HarnessTool.LOAD_SKILL -> RuntimeIconName.BookOpen
+    HarnessTool.COMPRESS -> RuntimeIconName.Compress
+    HarnessTool.ASK_USER -> RuntimeIconName.Chat
+    HarnessTool.RENDER_SURFACE -> RuntimeIconName.Palette
 }
 
 internal fun toolName(tool: HarnessTool, rawToolName: String? = null): String {
@@ -545,10 +549,7 @@ internal fun toolArgsSummary(call: ToolCall): String {
     return entries
 }
 
-/**
- * 代码行数增减变更徽章：类似 GitHub 的 +27 -8。
- * 绿色展示增加行数，红色展示删除行数。
- */
+/** 代码行数增减变更徽章：类似 GitHub 的 +27 -8。绿色展示增加行数，红色展示删除行数。 */
 @Composable
 internal fun DiffStatBadge(
     added: Int,
@@ -591,9 +592,7 @@ internal fun DiffStatBadge(
 
 private val DIFF_STAT_REGEX = Regex("""DIFF_STAT:\s*\+(\d+)\s*-(\d+)""")
 
-/**
- * 从工具输出或参数中解析代码变更统计（增加行数, 删除行数）。
- */
+/** 从工具输出或参数中解析代码变更统计（增加行数, 删除行数）。 */
 internal fun parseDiffStat(call: ToolCall, result: ToolResult?): Pair<Int, Int>? {
     // 若工具执行已完成且失败，不展示代码变更统计
     if (result != null && !result.success) return null

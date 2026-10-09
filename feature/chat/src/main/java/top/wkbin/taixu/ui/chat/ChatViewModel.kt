@@ -26,7 +26,6 @@ import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.PendingMessage
 import top.wkbin.taixu.harness.QueuedPrompt
 import top.wkbin.taixu.harness.ContextWindowPolicy
-import top.wkbin.taixu.harness.ContextUsageBreakdown
 import top.wkbin.taixu.harness.compaction.CompactedContext
 import top.wkbin.taixu.harness.ToolCallMode
 import top.wkbin.taixu.harness.prompt.SystemPromptBuilder
@@ -98,6 +97,7 @@ class ChatViewModel(
     private val context: Context,
     private val savedStateHandle: SavedStateHandle,
     private val harnessLoop: HarnessLoop,
+    private val requestDiagnostics: top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore,
     private val systemPromptBuilder: SystemPromptBuilder,
     private val sessionDao: HarnessSessionRepository,
     private val aiModelDao: AiModelRepository,
@@ -132,10 +132,7 @@ class ChatViewModel(
     private val _workflowSuggestions = MutableStateFlow<List<ProactiveWorkflowSuggestion>>(emptyList())
     val workflowSuggestions: StateFlow<List<ProactiveWorkflowSuggestion>> = _workflowSuggestions.asStateFlow()
 
-    /**
-     * 模型回复里引用的沙箱绝对路径（如 /workspace/xxx.jpg）到宿主真实目录的映射，
-     * 供聊天媒体渲染把 PRoot 内路径翻译成 Android 可读文件。
-     */
+    /** 模型回复里引用的沙箱绝对路径（如 /workspace/xxx.jpg）到宿主真实目录的映射，供聊天媒体渲染把 PRoot 内路径翻译成 Android 可读文件。 */
     val sandboxHostRoots: Map<String, java.io.File> = mapOf(
         "workspace" to pathManager.workspaceDir,
         "attachments" to pathManager.attachmentsDir,
@@ -241,10 +238,7 @@ class ChatViewModel(
         }
     }
 
-    /**
-     * 应用技能进化建议：创建新技能或更新既有自定义技能（内置技能不可覆盖，降级为新建）。
-     * [createNew] 为 true 时始终新建（对应卡片「创建技能 / 另存为新技能」）。
-     */
+    /** 应用技能进化建议：创建新技能或更新既有自定义技能（内置技能不可覆盖，降级为新建）；[createNew] 为 true 时始终新建（对应卡片「创建技能 / 另存为新技能」）。 */
     fun applySkillSuggestion(suggestion: SkillSuggestion, createNew: Boolean) {
         val trimmedName = suggestion.skillName.trim()
         val trimmedPrompt = suggestion.systemPrompt.trim()
@@ -351,11 +345,7 @@ class ChatViewModel(
         if (sessionId.isBlank()) kotlinx.coroutines.flow.flowOf(emptyList()) else approvalRepository.pendingForSession(sessionId)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /**
-     * 当前会话的活跃结构化任务规划（模型通过 plan 工具写入的 AgentPlanEntity）。
-     * 以 currentSessionId + 运行状态为键重新读取：一轮执行内状态多次变化，
-     * 借此近似实时刷新看板进度；无规划或非活跃时为 null。
-     */
+    /** 当前会话的活跃结构化任务规划（模型通过 plan 工具写入的 AgentPlanEntity）。以 currentSessionId + 运行状态为键重新读取：一轮执行内状态多次变化，借此近似实时刷新看板进度；无规划或非活跃时为 null。 */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val activePlan: StateFlow<top.wkbin.taixu.core.database.AgentPlanEntity?> =
         combine(harnessLoop.currentSessionId, harnessLoop.status) { sessionId, status ->
@@ -372,10 +362,7 @@ class ChatViewModel(
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /**
-     * 当前会话最近一次上下文压缩的快照（折叠条数 + 摘要预览）。
-     * 会话从未压缩时为 null——UI 据此隐藏提示横幅。
-     */
+    /** 当前会话最近一次上下文压缩的快照（折叠条数 + 摘要预览）；会话从未压缩时为 null——UI 据此隐藏提示横幅。 */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val activeCompaction: StateFlow<top.wkbin.taixu.harness.compaction.CompactionSnapshot?> =
         // 原写法 combine(currentSessionId, messages) { sessionId, _ -> sessionId }
@@ -474,10 +461,7 @@ class ChatViewModel(
     val models: StateFlow<List<AiModelEntity>> = aiModelDao.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /**
-     * 当前会话绑定的模型档案。占用圆环 / 压缩预算必须跟会话走，
-     * 不能回落到创建会话时的全局 isActive 默认模型。
-     */
+    /** 当前会话绑定的模型档案。占用圆环 / 压缩预算必须跟会话走，不能回落到创建会话时的全局 isActive 默认模型。 */
     private val sessionBoundModel: StateFlow<AiModelEntity?> = combine(
         models,
         sessions,
@@ -517,6 +501,32 @@ class ChatViewModel(
         savedStateHandle[KEY_INPUT_DRAFT] = value
     }
 
+    // 系统分享入口：预填文本 + 快捷指令行（UI 见 ChatShareSupport）
+    private val _pendingShare = MutableStateFlow<String?>(null)
+
+    /** 分享快捷指令行状态（null=隐藏）；分享文本只预填输入框，不自动发送。 */
+    val shareActions: StateFlow<ShareQuickActionsState?> = _pendingShare.map { text ->
+        text?.let { ShareQuickActionsState(it, ::resolveShareAction, ::dismissPendingShare) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** 系统分享进入：预填输入框并展示快捷指令行。 */
+    fun onSharedTextReceived(text: String) {
+        if (text.isBlank()) return
+        setInput(text)
+        _pendingShare.value = text
+    }
+
+    private fun resolveShareAction(action: ShareQuickAction) {
+        val text = _pendingShare.value ?: return
+        _pendingShare.value = null
+        send(wrapSharePrompt(action, text))
+    }
+
+    /** 关闭快捷指令行，保留输入框中已预填的文本。 */
+    fun dismissPendingShare() {
+        _pendingShare.value = null
+    }
+
     val activeSkills: StateFlow<List<top.wkbin.taixu.core.model.AgentSkill>> = agentSkillRepository.activeSkills
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -526,14 +536,7 @@ class ChatViewModel(
     val mcpServers: StateFlow<List<top.wkbin.taixu.core.model.McpServerConfig>> = mcpServerRepository.servers
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /**
-     * 真实压缩投影缓存（与引擎 ApiContextAssembler 同源）：按 (sessionId, compactionRevision)
-     * 从树读取 `CompactionManager.project()`。只在会话切换或某次压缩落库后才重读，
-     * 避免流式期间（每 token 一次）对 DAO 的频繁查询。
-     * 键必须同时含 revision：只发 sessionId 会被 distinctUntilChanged 吞掉压缩信号，
-     * 面板就只有重进应用（ViewModel 重建）才能看到压缩后的用量。
-     * 用量面板依赖它：已折叠历史以摘要层形式计 token，不再重复计入对话体积。
-     */
+    /** 真实压缩投影缓存（与引擎 ApiContextAssembler 同源）：按 (sessionId, compactionRevision) 从树读取 `CompactionManager.project()`。只在会话切换或某次压缩落库后才重读，避免流式期间（每 token 一次）对 DAO 的频繁查询。键必须同时含 revision：只发 sessionId 会被 distinctUntilChanged 吞掉压缩信号，面板就只有重进应用（ViewModel 重建）才能看到压缩后的用量。已折叠历史以摘要层形式计 token，不再重复计入对话体积。 */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private val compactedContext: StateFlow<CompactedContext?> =
         combine(harnessLoop.currentSessionId, compactionManager.compactionRevision) { sessionId, revision ->
@@ -544,10 +547,7 @@ class ChatViewModel(
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /**
-     * 当前会话上下文用量的 UI 估算。Harness 发请求时会用同一字符/token 近似值再做最终压缩，
-     * 因此这里明确是预估值，而不是 provider 返回的精确 tokenizer 计数。
-     */
+    /** 当前会话上下文用量的 UI 估算。Harness 发请求时会用同一字符/token 近似值再做最终压缩，因此这里明确是预估值，而不是 provider 返回的精确 tokenizer 计数。 */
     val contextUsage: StateFlow<ContextUsage> = combine(
         // 用 revision（消息数量 + 末条 id + 末条内容长度）压缩上游：
         // contextUsage 的计算含 estimateEffectiveUsage（遍历全部消息）与两次 filterIsInstance 求和，
@@ -707,6 +707,9 @@ class ChatViewModel(
         // 首屏卡顿修复（P1）：estimateEffectiveUsage 与两次 filterIsInstance 求和都是 O(消息数)，
         // stateIn 默认在 Main 执行；首订阅（空列表 → 全量）时会整段压在主线程，与首帧布局争抢。
         .flowOn(Dispatchers.Default)
+        .combine(combine(currentSessionId, requestDiagnostics.snapshots) { id, snapshots -> snapshots[id].orEmpty() }) { usage, requests ->
+            usage.copy(requests = requests)
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ContextUsage())
 
     /** 各 MCP 服务的实时连通性状态（与 McpManager 共享，聊天挂载面板 / 设置页联动）。 */
@@ -1134,10 +1137,7 @@ class ChatViewModel(
 
     // ---- 撤回到此轮（Checkpoint Rewind） ----
 
-    /**
-     * 撤回到 [messageId] 所在用户轮：按 checkpoint 锚点定位轮次，
-     * prepare/commit 两段式执行；CONVERSATION/BOTH 会派生回退分支并切换过去。
-     */
+    /** 撤回到 [messageId] 所在用户轮：按 checkpoint 锚点定位轮次，prepare/commit 两段式执行；CONVERSATION/BOTH 会派生回退分支并切换过去。 */
     fun rewindToMessage(messageId: String, scope: top.wkbin.taixu.harness.checkpoint.RewindScope) {
         viewModelScope.launch(Dispatchers.IO) {
             val sessionId = harnessLoop.currentSessionId.value
@@ -1341,10 +1341,7 @@ class ChatViewModel(
         }
     }
 
-    /**
-     * 在同一供应商档案内为当前会话选择具体模型 ID（复用 baseUrl / Key / 推理参数）。
-     * 档案本身保持不变，避免其他会话被连带切换。
-     */
+    /** 在同一供应商档案内为当前会话选择具体模型 ID（复用 baseUrl / Key / 推理参数）；档案本身保持不变，避免其他会话被连带切换。 */
     fun switchModelInProfile(profileId: String, modelId: String) {
         val trimmed = modelId.trim()
         if (trimmed.isBlank()) return
@@ -1498,31 +1495,6 @@ private data class ContextUsageCalculation(
     val sessionId: String,
     val compactionEnabled: Boolean,
     val foldingRatioPercent: Int,
-)
-
-data class ContextUsage(
-    val usedTokens: Int = 0,
-    /**
-     * 模型上下文窗口（总预算，也是面板百分比的分母）。
-     * 主流 harness 以模型窗口展示占用；实际折叠线见 [compactionThresholdTokens]。
-     */
-    val limitTokens: Int = 128_000,
-    /** 达到该 token 数后下一次请求会触发历史压缩。 */
-    val compactionThresholdTokens: Int = 116_000,
-    /**
-     * 当前生效的模型上下文窗口。优先用户显式配置，其次自动适配主流模型元数据，
-     * 最后才回退全局预算。仅用于面板标注，不参与百分比计算。
-     */
-    val declaredTokens: Int = 128_000,
-    /** 历史折叠线比例（%）。面板据此标注「按 X% 折叠」，使折叠决策对用户可见。 */
-    val foldingRatioPercent: Int = ContextWindowPolicy.DEFAULT_FOLDING_RATIO_PERCENT,
-    val systemTokens: Int = 0,
-    val toolTokens: Int = 0,
-    val conversationTokens: Int = 0,
-    val compacted: Boolean = false,
-    val cachedTokens: Long = 0L,
-    val cacheHitRatePercent: Int? = null,
-    val breakdown: ContextUsageBreakdown = ContextUsageBreakdown(),
 )
 
 data class MentionItem(

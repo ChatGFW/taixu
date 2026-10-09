@@ -400,7 +400,7 @@ object HostWorkflowActions {
                 HostWorkflowField("args", "参数", "set-wifi-enabled enabled", multiline = true),
             ),
         ),
-    )
+    ) + VirtualScreenWorkflowActions.all
 
     fun find(id: String): HostWorkflowActionDef? = all.firstOrNull { it.id == id }
 

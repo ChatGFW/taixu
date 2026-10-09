@@ -1,6 +1,7 @@
 package top.wkbin.taixu.runtime.virtualdisplay
 
 import android.content.Context
+import android.hardware.display.DisplayManager
 import android.provider.Settings
 import android.util.DisplayMetrics
 import android.util.Log
@@ -18,6 +19,11 @@ import top.wkbin.taixu.runtime.apps.installedAppNames
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * 虚拟屏能力门面（多会话版）。
@@ -40,6 +46,8 @@ class VirtualDisplayCoordinator(
 ) {
 
     private val sessions = ConcurrentHashMap<String, ShowerController>()
+    val phoneTasks = PhoneTaskRegistry()
+    private val lifecycleMutex = Mutex()
 
     init {
         ShowerEnvironment.shellRunner = TaixuShowerShellRunner(privilegeManager, logger)
@@ -85,7 +93,11 @@ class VirtualDisplayCoordinator(
     suspend fun ensureVirtualDisplay(
         sessionId: String = DEFAULT_SESSION_ID,
         bitrateKbps: Int? = null,
-    ): Int? {
+    ): Int? = lifecycleMutex.withLock {
+        ensureDisplayLocked(sessionId, bitrateKbps)
+    }
+
+    private suspend fun ensureDisplayLocked(sessionId: String, bitrateKbps: Int?): Int? {
         val controller = controller(sessionId)
         if (!ShowerServerManager.ensureServerStarted(context)) {
             logger.w("虚拟屏 server 启动失败：请检查 Shizuku/Root 特权状态（PRoot 模式不支持虚拟屏）")
@@ -119,8 +131,8 @@ class VirtualDisplayCoordinator(
      * 指定会话虚拟屏整屏截图（PNG 字节）。
      *
      * **为什么不直接用 server 的 Binder 截图**：`IShowerService.requestScreenshot` 把整张位图
-     * 塞进**一次 Binder 事务**回传，而 Binder 事务缓冲区按进程共享、上限 1MB；1216×2640 的
-     * 原始位图 ≈ 2.7MB+，必然触发事务写回失败。调用侧只会拿到一个 DEAD_OBJECT 兜底文案
+     * 塞进**一次 Binder 事务**回传，而 Binder 事务缓冲区按进程共享、上限 1MB；高分辨率复杂
+     * 页面即使压成 PNG 也可能超限。调用侧可能只拿到一个 DEAD_OBJECT 兜底文案
      * （「remote process probably died … out of binder buffer space」），把「数据太大」误报成
      * 「进程死了」——服务端其实采集成功（见 runtime.log 的 [Shower] 行）。
      *
@@ -130,10 +142,10 @@ class VirtualDisplayCoordinator(
     suspend fun requestScreenshot(
         sessionId: String = DEFAULT_SESSION_ID,
         timeoutMs: Long = SCREENSHOT_TIMEOUT_MS,
-    ): ByteArray? {
-        screencapToBytes(sessionId)?.let { return it }
+    ): ByteArray? = withContext(Dispatchers.IO) {
+        screencapToBytes(sessionId)?.let { return@withContext it }
         logger.w("虚拟屏截图回退 Binder 通道（session=$sessionId）：screencap 不可用或失败")
-        return controller(sessionId).requestScreenshot(timeoutMs)
+        controller(sessionId).requestScreenshot(timeoutMs)
     }
 
     /**
@@ -147,29 +159,38 @@ class VirtualDisplayCoordinator(
         // （/data/local/tmp 因 SELinux shell_data_file 标签 App 读不了，不能用）。
         val dir = context.getExternalFilesDir(null) ?: return null
         val physicalDisplayId = resolvePhysicalDisplayId(runner, logicalDisplayId) ?: return null
-        // sessionId 来自 Agent 入参，做文件名净化以避免路径穿越
-        val safeName = sessionId.replace(Regex("[^A-Za-z0-9_-]"), "_")
-        val file = File(dir, "vs_screenshot_$safeName.png")
-        val result = runner.run(
-            // chmod 644：文件由 shell 创建（属 shell:ext_data_rw），显式放开「其它」读位，
-            // 保证另一 uid 的 App 进程能读到，不单纯依赖 FUSE 的按包可见性。
-            "screencap -d $physicalDisplayId -p \"${file.absolutePath}\" && " +
-                "chmod 644 \"${file.absolutePath}\"",
-            ShellIdentity.SHELL,
-        )
-        if (!result.success || !file.exists() || file.length() == 0L) {
-            logger.w(
-                "screencap 截图失败（session=$sessionId, display=$logicalDisplayId, " +
-                    "physical=$physicalDisplayId, exit=${result.exitCode}, " +
-                    "err=${result.stderr.trim().take(LOG_PREVIEW_LIMIT)}）",
-            )
+        // 每次截图独立路径，不会因同 session 并发或文件名净化碰撞而读错图。
+        val file = try {
+            File.createTempFile("vs_screenshot_", ".png", dir)
+        } catch (e: Exception) {
+            logger.w("创建虚拟屏截图文件失败：${e.message}")
             return null
         }
-        val bytes = runCatching { file.readBytes() }
-            .onFailure { logger.w("读取截图文件失败（${file.absolutePath}）：${it.message}") }
-            .getOrNull()
-        file.delete()
-        return bytes
+        try {
+            val result = runner.run(
+                // chmod 644：文件由 shell 创建（属 shell:ext_data_rw），显式放开「其它」读位，
+                // 保证另一 uid 的 App 进程能读到，不单纯依赖 FUSE 的按包可见性。
+                "screencap -d $physicalDisplayId -p \"${file.absolutePath}\" && " +
+                    "chmod 644 \"${file.absolutePath}\"",
+                ShellIdentity.SHELL,
+            )
+            if (!result.success || !file.exists() || file.length() == 0L) {
+                logger.w(
+                    "screencap 截图失败（session=$sessionId, display=$logicalDisplayId, " +
+                        "physical=$physicalDisplayId, exit=${result.exitCode}, " +
+                        "err=${result.stderr.trim().take(LOG_PREVIEW_LIMIT)}）",
+                )
+                return null
+            }
+            return file.readBytes()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.w("读取虚拟屏截图失败：${e.message}")
+            return null
+        } finally {
+            file.delete()
+        }
     }
 
     /**
@@ -179,11 +200,16 @@ class VirtualDisplayCoordinator(
      * 该 id 是 64 位无符号数（实测虚拟屏为 11529215046613627067，已超出 Long.MAX_VALUE），
      * **必须按字符串原样传递**，任何 toLong()/toInt() 都会溢出成非法值。
      *
-     * 输出格式因设备/版本而异，这里只做保守过滤：优先取带 `ShowerVirtualDisplay` 名称的行，
-     * 其次取不含物理口信息（`pnpId=`/`port=`）的行，最后退化为取最后一行。候选与选择结果会
-     * 写入日志，便于在设备上核对。
+     * 先查逻辑屏的名称，再与 SurfaceFlinger 的 displayName 精确匹配。
+     * 名称不可见、未匹配或同名多屏时拒绝猜屏，交给按逻辑 id 截图的 Binder 通道。
      */
     private suspend fun resolvePhysicalDisplayId(runner: ShellRunner, logicalDisplayId: Int): String? {
+        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        val name = displayManager.getDisplay(logicalDisplayId)?.name ?: run {
+            val logicalDump = runner.run("dumpsys display", ShellIdentity.SHELL)
+            if (!logicalDump.success) return null
+            logicalDisplayName(logicalDump.stdout, logicalDisplayId) ?: return null
+        }
         val dump = runner.run("dumpsys SurfaceFlinger --display-id", ShellIdentity.SHELL)
         if (!dump.success) {
             logger.w(
@@ -192,14 +218,7 @@ class VirtualDisplayCoordinator(
             )
             return null
         }
-        val candidates = dump.stdout.lineSequence()
-            .filter { it.contains("Display ") }
-            .mapNotNull { line -> Regex("""\d{6,}""").find(line)?.value?.let { it to line.trim() } }
-            .toList()
-        val chosen = candidates.firstOrNull { it.second.contains("ShowerVirtualDisplay") }
-            ?: candidates.filterNot { it.second.contains("pnpId=") || it.second.contains("port=") }
-                .lastOrNull()
-            ?: candidates.lastOrNull()
+        val chosen = physicalDisplayIdForName(dump.stdout, name)
         if (chosen == null) {
             logger.w(
                 "未从 SurfaceFlinger 解析出物理屏 id（logical=$logicalDisplayId）：" +
@@ -208,10 +227,9 @@ class VirtualDisplayCoordinator(
             return null
         }
         logger.d(
-            "resolvePhysicalDisplayId: logical=$logicalDisplayId -> ${chosen.first}；" +
-                "候选=${candidates.joinToString { it.first }}",
+            "resolvePhysicalDisplayId: logical=$logicalDisplayId name=$name -> $chosen",
         )
-        return chosen.first
+        return chosen
     }
 
     /**
@@ -253,6 +271,11 @@ class VirtualDisplayCoordinator(
      * 销毁指定会话的虚拟屏并释放本地状态；server 进程由其空闲看护（15s 无客户端）自行退出。
      */
     suspend fun closeSession(sessionId: String) {
+        phoneTasks.cancel(sessionId)
+        lifecycleMutex.withLock { closeSessionLocked(sessionId) }
+    }
+
+    private fun closeSessionLocked(sessionId: String) {
         if (VirtualDisplayHud.showingSessionId == sessionId) {
             hideOverlay()
         }

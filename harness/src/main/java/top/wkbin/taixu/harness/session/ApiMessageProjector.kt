@@ -145,14 +145,14 @@ object ApiMessageProjector {
                     } else {
                         null
                     }
-                    add(
-                        ApiMessage(
-                            role = "assistant",
-                            content = text,
-                            reasoning_content = reasoning,
-                            tool_calls = toolCalls.takeIf { it.isNotEmpty() },
-                        ),
+                    val projected = ApiMessage(
+                        role = "assistant", content = text, reasoning_content = reasoning,
+                        tool_calls = toolCalls.takeIf { it.isNotEmpty() },
                     )
+                    val turn = (message as? AssistantText)?.responsesTurn?.takeIf {
+                        top.wkbin.taixu.harness.ResponsesReplay.canProject(it, projected, msgs.subList(i, j).filterIsInstance<ToolCall>(), msgs)
+                    }
+                    add(projected.copy(responsesTurn = turn))
                     i = j
                 } else if (message is ToolResult) {
                     val imageOmitted = visionEnabled &&

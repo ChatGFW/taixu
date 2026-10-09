@@ -118,6 +118,7 @@ data class AssistantText(
      * 用于前端展示「已深度思考 N.N 秒」；旧数据无此字段，默认 null。
      */
     val reasoningMs: Long? = null,
+    val responsesTurn: ResponsesTurn? = null,
 ) : HarnessMessage
 
 @Serializable

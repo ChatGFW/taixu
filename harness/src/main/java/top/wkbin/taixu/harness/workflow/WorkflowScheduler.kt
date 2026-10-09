@@ -9,6 +9,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +30,7 @@ import top.wkbin.taixu.core.model.workflow.WorkflowRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeContext
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
 import top.wkbin.taixu.core.model.workflow.WorkflowValidator
+import top.wkbin.taixu.runtime.virtualdisplay.PhoneTaskState
 
 class WorkflowRunHandle internal constructor(
     val state: StateFlow<WorkflowRuntimeState>,
@@ -44,6 +46,7 @@ class WorkflowRunHandle internal constructor(
 class WorkflowScheduler(
     executors: Set<@JvmSuppressWildcards NodeExecutor>,
     private val approvalBroker: WorkflowApprovalBroker,
+    private val virtualScreenRuns: VirtualScreenWorkflowRuns? = null,
 ) {
     private val executorMap = executors
         .flatMap { executor -> executor.supportedTypes.map { it to executor } }
@@ -117,6 +120,7 @@ class WorkflowScheduler(
         }
 
         try {
+            virtualScreenRuns?.begin(executionId, currentCoroutineContext()[Job]!!)
             val nodesById = definition.nodes.associateBy { it.id }
             val incoming = definition.edges.groupBy { it.toNodeId }
             val pending = nodesById.keys.toMutableSet()
@@ -194,6 +198,12 @@ class WorkflowScheduler(
             throw cancelled
         } catch (error: Throwable) {
             state.update { it.copy(status = WorkflowRunStatus.FAILED, finishedAt = System.currentTimeMillis(), error = error.message ?: error::class.java.simpleName) }
+        } finally {
+            virtualScreenRuns?.end(executionId, when (state.value.status) {
+                WorkflowRunStatus.SUCCESS -> PhoneTaskState.COMPLETED
+                WorkflowRunStatus.CANCELLED -> PhoneTaskState.CANCELLED
+                else -> PhoneTaskState.FAILED
+            })
         }
     }
 

@@ -381,9 +381,7 @@ private fun ModelEditorContent(
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinct()
-        if (importedKeys.isNotEmpty()) {
-            keyList = importedKeys
-        }
+        if (importedKeys.isNotEmpty()) keyList = importedKeys
         val importedModels = profile.model.split(",").map { it.trim() }.filter { it.isNotEmpty() }
         if (importedModels.isNotEmpty()) {
             selectedModels = importedModels.toSet()
@@ -392,6 +390,8 @@ private fun ModelEditorContent(
         profile.temperature?.let { temperature = it }
         profile.maxTokens?.let { maxTokensText = it.toString() }
         profile.contextTokens?.let { contextTokensText = it.toString() }
+        if (profile.schemaVersion >= 2 || profile.compactionKeepRecentTokens != null) compactionKeepRecentText = profile.compactionKeepRecentTokens?.toString().orEmpty()
+        if (profile.schemaVersion >= 2 || profile.compactionReserveTokens != null) compactionReserveText = profile.compactionReserveTokens?.toString().orEmpty()
         profile.topP?.let { topP = it }
         profile.reasoningMode?.let { reasoningModeText = it }
         profile.reasoningEffort?.let { reasoningEffortText = it }
@@ -565,7 +565,7 @@ private fun ModelEditorContent(
                         value = name,
                         onValueChange = { name = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("档案名称（可选，留空按模型命名）") },
+                        label = { Text("档案名称") },
                         placeholder = { Text(if (selectedModels.isNotEmpty()) selectedModels.first() else provider.name) },
                         singleLine = true,
                         shape = compactFieldShape,
@@ -580,7 +580,7 @@ private fun ModelEditorContent(
                         value = url,
                         onValueChange = { url = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Base URL（接口端点）") },
+                        label = { Text("Base URL") },
                         placeholder = {
                             Text(
                                 if (provider.protocol == top.wkbin.taixu.core.tools.ProviderProtocol.ANTHROPIC) {
@@ -611,7 +611,7 @@ private fun ModelEditorContent(
                                     RuntimeCircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                                 } else {
                                     RuntimeIcon(
-                                        name = RuntimeIconName.Refresh,
+                                        name = RuntimeIconName.Download,
                                         modifier = Modifier.size(18.dp),
                                         tint = if (url.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                                     )
@@ -929,7 +929,7 @@ private fun ModelEditorContent(
                         value = customModelInput,
                         onValueChange = { customModelInput = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("自定义模型 ID（可选，逗号分隔额外模型）") },
+                        label = { Text("模型 ID（可选，逗号分隔额外模型）") },
                         placeholder = { Text("例如：gpt-4.5-preview, claude-3-7-sonnet") },
                         singleLine = true,
                         shape = compactFieldShape,

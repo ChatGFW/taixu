@@ -11,8 +11,12 @@ import java.util.UUID
  */
 class AiProfileWriter(
     private val aiModelDao: AiModelRepository,
-    private val providerRepository: ProviderRepository,
+    private val providerRepository: ModelCredentialStore,
 ) {
+    suspend fun importProfiles(
+        profiles: List<top.wkbin.taixu.core.model.AiModelProfileExport>,
+        mode: top.wkbin.taixu.core.model.AiProfileImportMode,
+    ): Int = importModelProfiles(aiModelDao, providerRepository, profiles, mode)
 
     /** 解析多行 Key 文本为去重的 Key 列表 */
     fun parseApiKeys(raw: String): List<String> = raw

@@ -11,14 +11,11 @@ import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.harness.ApiMessage
 import top.wkbin.taixu.harness.AssistantText
-import top.wkbin.taixu.harness.CapabilityEvent
 import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.harness.HarnessApiMapper
-import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ProviderClient
-import top.wkbin.taixu.harness.SkillSuggestion
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolCallIdNormalizer
 import top.wkbin.taixu.harness.ToolCallMode
@@ -130,18 +127,19 @@ class SubagentLaneRunner(
                     operations.usageEntity(
                         sessionId = sessionId,
                         operationId = operationId,
-                        entryId = responseId.takeIf { assistantText.isNotBlank() },
+                        entryId = responseId.takeIf { assistantText.isNotBlank() || result.responsesTurn != null },
                         provider = model.provider,
                         modelId = model.model,
                         usage = it,
                     )
                 }
-                if (assistantText.isNotBlank()) {
+                if (assistantText.isNotBlank() || result.responsesTurn != null) {
                     val assistant = AssistantText(
                         id = responseId,
                         createdAt = now(),
                         text = assistantText,
                         reasoning = result.reasoningContent,
+                        responsesTurn = result.responsesTurn,
                         modelId = model.model,
                         providerId = model.provider,
                         promptTokens = result.usage.inputTokens.takeIf { it > 0 }?.toInt(),
@@ -454,38 +452,7 @@ internal fun isolatedProviderMessages(
     val taskStart = messages.indexOfLast { it is top.wkbin.taixu.harness.UserMessage }
         .takeIf { it >= 0 } ?: messages.size
     val task = budgetedLaneMessages(messages.drop(taskStart), historyBudgetTokens)
-    val toolNames = task.filterIsInstance<ToolCall>()
-        .associate { it.id to (it.rawToolName ?: HarnessApiMapper.apiName(it.tool)) }
-    val answeredIds = task.filterIsInstance<ToolResult>().mapTo(mutableSetOf()) { it.toolCallId }
-    task.forEach { message ->
-        when {
-            message is CapabilityEvent || message is ModelSwitchEvent || message is SkillSuggestion -> Unit
-            // 文本模式：落库的 assistant 文本已剥离工具标记，调用意图必须以同一协议形态
-            // 回放成 assistant 消息，否则模型看不到自己调用了什么参数，结果无法关联；
-            // 悬空调用（无结果）不回放，与主会话 NATIVE 分支同口径。结果以 user 文本回灌。
-            toolCallMode == ToolCallMode.JSON_TEXT && message is ToolCall -> {
-                if (message.id in answeredIds) {
-                    add(
-                        ApiMessage(
-                            role = "assistant",
-                            content = TextToolCallCodec.encodeCall(
-                                toolNames[message.id] ?: HarnessApiMapper.apiName(message.tool),
-                                message.args.toString(),
-                            ),
-                        ),
-                    )
-                }
-            }
-            toolCallMode == ToolCallMode.JSON_TEXT && message is ToolResult -> add(
-                ApiMessage(
-                    role = "user",
-                    content = "【工具 ${toolNames[message.toolCallId] ?: "工具"} 执行结果·" +
-                        "${if (message.success) "成功" else "失败"}】\n${message.output}",
-                ),
-            )
-            else -> add(HarnessApiMapper.toApiMessage(message))
-        }
-    }
+    addAll(top.wkbin.taixu.harness.session.ApiMessageProjector.project(task, toolCallMode, visionEnabled = true))
 }
 
 internal fun isDirectSubagentConclusion(

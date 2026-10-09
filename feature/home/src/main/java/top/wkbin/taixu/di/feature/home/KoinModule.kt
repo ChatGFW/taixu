@@ -16,6 +16,8 @@ val featureHomeModule = module {
             backgroundTaskRegistry = get(),
             privilegeManager = get(),
             logger = get(),
+            workflowRepository = get(),
+            scheduleRepository = get(),
             webChatBridgeServer = get(),
         )
     }

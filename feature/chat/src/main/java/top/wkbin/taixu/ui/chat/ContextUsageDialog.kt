@@ -56,6 +56,7 @@ import kotlin.math.roundToInt
 fun ContextUsageDialog(
     usage: ContextUsage,
     onDismiss: () -> Unit,
+    onInspectRequest: () -> Unit = {},
 ) {
     val isDark = isSystemInDarkTheme()
     val cardBg = if (isDark) Color(0xFF18181B) else MaterialTheme.colorScheme.surfaceContainerHigh
@@ -205,6 +206,9 @@ fun ContextUsageDialog(
                         }
                     }
 
+                    top.wkbin.taixu.ui.components.RuntimeTextButton(onClick = onInspectRequest) {
+                        Text(stringResource(R.string.chat_request_context_title))
+                    }
                     // 5. Optional TaiXu Enhanced Footer (KV Cache & Compaction)
                     if (usage.cachedTokens > 0L || usage.compacted) {
                         Spacer(modifier = Modifier.height(4.dp))

@@ -14,7 +14,7 @@ object BuiltinWorkflows {
             atomicCommit,
             hostAutomationLab,
             hostBroadcastDemo,
-            hostAgentGuiPilot,
+            hostAgentGuiPilot, VirtualScreenWorkflowActions.template(), MorningReportSentinel.definition,
         ).map(WorkflowLayout::arrange)
 
     fun find(id: String): WorkflowDefinition? = all.firstOrNull { it.id == id }

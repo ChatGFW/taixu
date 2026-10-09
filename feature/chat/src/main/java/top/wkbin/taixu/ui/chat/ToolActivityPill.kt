@@ -146,12 +146,8 @@ fun ToolActivityPill(
         modifier = modifier,
     ) {
         val toolKind = activeToolCall?.tool
-        val toolIcon = when (toolKind) {
-            HarnessTool.BASE, HarnessTool.PROCESS -> RuntimeIconName.Terminal
-            HarnessTool.READ, HarnessTool.WRITE, HarnessTool.EDIT -> RuntimeIconName.Document
-            HarnessTool.SUBAGENT -> RuntimeIconName.Brain
-            else -> RuntimeIconName.Speed
-        }
+        // 与消息流 ToolCard 共用同一套工具语义图标映射
+        val iconName = toolKind?.let { toolIcon(it) } ?: RuntimeIconName.Speed
 
         val pillAccent = when (toolKind) {
             HarnessTool.BASE, HarnessTool.PROCESS -> Color(0xFF00E5FF)
@@ -198,7 +194,7 @@ fun ToolActivityPill(
 
                     // 图标
                     RuntimeIcon(
-                        name = toolIcon,
+                        name = iconName,
                         modifier = Modifier.size(12.dp),
                         tint = pillAccent,
                     )

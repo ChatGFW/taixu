@@ -13,8 +13,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /**
  * 用 TextureView 解码虚拟屏视频，并把触摸按视图→视频坐标回注。
@@ -30,6 +31,7 @@ internal class TouchForwardVideoView(context: Context) :
 
     var forwardController: ShowerController? = null
     var forwardScopeSupplier: (() -> CoroutineScope?)? = null
+    var onManualTouch: (() -> Unit)? = null
 
     init {
         surfaceTextureListener = this
@@ -66,6 +68,9 @@ internal class TouchForwardVideoView(context: Context) :
     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
         attachJob?.cancel()
         attachJob = null
+        touchJob?.cancel()
+        touchJob = null
+        synchronized(touches) { touches.clear() }
         forwardController?.setBinaryHandler(null)
         renderer.detach()
         decodeSurface?.release()
@@ -75,71 +80,64 @@ internal class TouchForwardVideoView(context: Context) :
 
     override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
 
-    private var downTime = 0L
-
-    /**
-     * 公平锁：保证注入顺序 = 事件顺序。每个 MOVE 独立 launch 协程，
-     * 无锁时多个注入并发执行会乱序到达虚拟屏，滑动轨迹错乱。
-     */
-    private val injectMutex = Mutex()
+    private data class Touch(
+        val controller: ShowerController, val action: Int, val x: Float, val y: Float,
+        val downTime: Long, val eventTime: Long,
+    )
+    private val touches = ArrayDeque<Touch>()
+    private val wakeTouch = Channel<Unit>(Channel.CONFLATED)
+    private var touchJob: Job? = null
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val controller = forwardController ?: return true
         val scope = forwardScopeSupplier?.invoke() ?: return true
         val (vw, vh) = controller.getVideoSize() ?: return true
-        val w = width.coerceAtLeast(1)
-        val h = height.coerceAtLeast(1)
-        val x = event.x * (vw - 1) / w
-        val y = event.y * (vh - 1) / h
-
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                downTime = event.downTime
-                scope.launch { inject(controller, MotionEvent.ACTION_DOWN, x, y, event) }
-            }
-            MotionEvent.ACTION_MOVE -> {
-                scope.launch { inject(controller, MotionEvent.ACTION_MOVE, x, y, event) }
-            }
-            MotionEvent.ACTION_UP -> {
-                scope.launch {
-                    inject(controller, MotionEvent.ACTION_UP, x, y, event)
-                }
-            }
-            MotionEvent.ACTION_CANCEL -> {
-                scope.launch { inject(controller, MotionEvent.ACTION_CANCEL, x, y, event) }
-            }
+        val action = event.actionMasked
+        if (action !in setOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL)) return true
+        if (action == MotionEvent.ACTION_DOWN) onManualTouch?.invoke()
+        // MotionEvent 会被系统回收，必须在回调内复制时间和坐标。
+        val touch = Touch(controller, action,
+            (event.x * (vw - 1) / width.coerceAtLeast(1)).coerceIn(0f, (vw - 1).toFloat()),
+            (event.y * (vh - 1) / height.coerceAtLeast(1)).coerceIn(0f, (vh - 1).toFloat()),
+            event.downTime, event.eventTime)
+        synchronized(touches) {
+            if (action == MotionEvent.ACTION_MOVE && touches.lastOrNull()?.action == action) touches.removeLast()
+            touches.addLast(touch)
         }
+        if (touchJob?.isActive != true) touchJob = scope.launch { drainTouches() }
+        wakeTouch.trySend(Unit)
         return true
     }
 
-    private suspend fun inject(
-        controller: ShowerController,
-        action: Int,
-        x: Float,
-        y: Float,
-        event: MotionEvent,
-    ) {
-        injectMutex.withLock {
-            runCatching {
-                controller.injectTouchEvent(
-                    action = action,
-                    x = x,
-                    y = y,
-                    downTime = downTime,
-                    eventTime = event.eventTime,
-                    pressure = if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) 0f else 1f,
-                    size = 1f,
-                    metaState = 0,
-                    xPrecision = 1f,
-                    yPrecision = 1f,
-                    deviceId = 0,
-                    edgeFlags = 0,
-                )
-            }.onFailure { ShowerLog.w(TAG, "触摸回传失败: ${it.message}") }
+    private suspend fun drainTouches() {
+        var pressed: Touch? = null
+        try {
+            for (signal in wakeTouch) {
+                while (true) {
+                    val touch = synchronized(touches) { touches.removeFirstOrNull() } ?: break
+                    // 先登记触点，即使取消发生在 Binder 回程也会发送 CANCEL。
+                    if (touch.action == MotionEvent.ACTION_DOWN) pressed = touch
+                    inject(touch)
+                    if (touch.action == MotionEvent.ACTION_UP || touch.action == MotionEvent.ACTION_CANCEL) pressed = null
+                }
+            }
+        } finally {
+            pressed?.let { touch ->
+                withContext(NonCancellable) { inject(touch.copy(action = MotionEvent.ACTION_CANCEL)) }
+            }
         }
     }
 
+    private suspend fun inject(touch: Touch) {
+        val accepted = touch.controller.injectTouchEvent(
+            action = touch.action, x = touch.x, y = touch.y,
+            downTime = touch.downTime, eventTime = touch.eventTime,
+            pressure = if (touch.action == MotionEvent.ACTION_UP || touch.action == MotionEvent.ACTION_CANCEL) 0f else 1f,
+            size = 1f, metaState = 0, xPrecision = 1f, yPrecision = 1f, deviceId = 0, edgeFlags = 0,
+        )
+        if (!accepted) ShowerLog.w(TAG, "触摸回传失败: action=${touch.action}")
+    }
     private companion object {
         const val TAG = "VirtualDisplayHud"
     }

@@ -462,4 +462,19 @@
     <string name="chat_floating_thinking">🧠 Thinking…</string>
     <string name="chat_floating_running">⚡ Executing…</string>
     <string name="chat_context_compaction_threshold">History compacts at %1$s (%2$d%%)</string>
+    <string name="chat_request_context_title">Recent request context</string>
+    <string name="chat_request_context_close">Close</string>
+    <string name="chat_request_context_notice">Inspect the two most recent constructed requests in this run, after protocol conversion and redaction. Media and opaque data are omitted. Construction does not confirm server receipt. Snapshots stay in memory and are cleared on restart.</string>
+    <string name="chat_request_context_empty">No request snapshot yet. Send a message to capture one; after restarting the app, send another message.</string>
+    <string name="chat_request_context_attempt">Round %1$d · Request %2$d · %3$s</string>
+    <string name="chat_request_context_metadata">Protocol endpoint: %1$s · Original body: %2$d bytes</string>
+    <string name="chat_request_context_clipped">The preview was shortened for display. This does not change the request sent to the model or indicate history compaction.</string>
+    <string name="chat_request_context_search">Search fields or content</string>
+    <string name="chat_request_context_no_matches">No matching preview content.</string>
+    <string name="chat_request_context_expand">Expand %1$s</string>
+    <string name="chat_request_context_collapse">Collapse %1$s</string>
+    <string name="chat_share_received">Shared content received</string>
+    <string name="chat_share_chip_summarize">Summarize</string>
+    <string name="chat_share_chip_translate">Translate to Chinese</string>
+    <string name="chat_share_chip_save">Save to sandbox</string>
 </resources>

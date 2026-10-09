@@ -56,4 +56,24 @@
     <string name="settings_component_uninstall_title">Uninstall %1$s?</string>
     <string name="settings_component_uninstall_body">This removes the component\'s programs in the sandbox and packages used only by it. Base tools such as curl, git and python3 stay installed.</string>
     <string name="settings_component_confirm_uninstall">Confirm uninstall</string>
+    <string name="profile_transfer_import">Import model profiles</string>
+    <string name="profile_transfer_preview">Preview import</string>
+    <string name="profile_transfer_paste_hint">Paste profile JSON: a single profile, array or bundle</string>
+    <string name="profile_transfer_paste">Paste from clipboard</string>
+    <string name="profile_transfer_clipboard_empty">Clipboard is empty</string>
+    <string name="profile_transfer_choose_file">Choose JSON file</string>
+    <string name="profile_transfer_read_error">Could not read the file. Choose a JSON file no larger than 2 MiB.</string>
+    <string name="profile_transfer_invalid">Unsupported version or invalid profile data. Check the file.</string>
+    <string name="profile_transfer_limits">Up to 2 MiB and 500 profiles. Preview before saving.</string>
+    <string name="profile_transfer_summary">%1$d profiles; %2$d match existing IDs</string>
+    <string name="profile_transfer_copy">Create copies (default)</string>
+    <string name="profile_transfer_copy_detail">Add %1$d profiles and keep existing profiles</string>
+    <string name="profile_transfer_update">Update matching IDs</string>
+    <string name="profile_transfer_update_detail">Update %1$d and add %2$d profiles</string>
+    <string name="profile_transfer_credentials_detail">Updates keep local keys when none are supplied. Backups marked as excluding credentials also keep local headers. Copies do not inherit existing credentials.</string>
+    <string name="profile_transfer_row_update">Update: %1$s</string>
+    <string name="profile_transfer_row_create">Add: %1$s</string>
+    <string name="profile_transfer_confirm">Confirm import</string>
+    <string name="profile_transfer_cancel">Cancel</string>
+    <string name="profile_transfer_edit">Back to edit</string>
 </resources>

@@ -91,6 +91,7 @@ sealed interface AppDestination : NavKey
 @Serializable data object FtpSettingsDestination : AppDestination
 @Serializable data object ModelProfilesDestination : AppDestination
 @Serializable data object LocalLlmDestination : AppDestination
+@Serializable data object PhoneAgentSettingsDestination : AppDestination
 @Serializable data class ModelEditorDestination(val modelId: String? = null) : AppDestination
 @Serializable data object QuickPhrasesDestination : AppDestination
 @Serializable data object StatsDestination : AppDestination
@@ -111,10 +112,7 @@ sealed interface AppDestination : NavKey
     val executionId: String? = null,
 ) : AppDestination
 
-/**
- * 太墟核心导航分发系统
- * 采用 Navigation 3，为每个 Tab 独立维护持久回退栈与状态生命周期
- */
+/** 太墟核心导航分发系统：采用 Navigation 3，为每个 Tab 独立维护持久回退栈与状态生命周期 */
 @Composable
 fun TaiXuNavHost(
     globalNavigationBus: top.wkbin.taixu.core.common.navigation.GlobalNavigationBus? = null,
@@ -139,8 +137,7 @@ fun TaiXuNavHost(
     var selectedMain by rememberSaveable { mutableStateOf(MainDestination.Home) } // 默认进入太墟开辟主界
     /** Programmatic stack mutation (bus / workflow). */
     fun NavBackStack<NavKey>.pushRaw(destination: NavKey) {
-        if (lastOrNull() == destination) return
-        add(destination)
+        if (lastOrNull() != destination) add(destination)
     }
 
     LaunchedEffect(chatViewModel) {
@@ -180,6 +177,12 @@ fun TaiXuNavHost(
                     }
                     globalNavigationBus.clearLatest(target)
                 }
+                is top.wkbin.taixu.core.common.navigation.AppNavigationTarget.SharedText -> {
+                    // 系统分享入口：切到智枢并预填输入框（不自动发送，由用户选择快捷指令或直接发送）
+                    selectedMain = MainDestination.Agent
+                    chatViewModel.onSharedTextReceived(target.text)
+                    globalNavigationBus.clearLatest(target)
+                }
             }
         }
     }
@@ -191,10 +194,8 @@ fun TaiXuNavHost(
         MainDestination.Settings -> settingsStack
     }
 
-    fun navigateMain(destination: MainDestination) {
-        // Tab swaps are instantaneous (key(selectedMain)); do not transition-lock them.
-        selectedMain = destination
-    }
+    // Tab swaps are instantaneous (key(selectedMain)); do not transition-lock them.
+    fun navigateMain(destination: MainDestination) { selectedMain = destination }
 
     fun NavBackStack<NavKey>.push(from: NavKey, destination: NavKey) {
         if (lastOrNull() == from && lastOrNull() != destination) {
@@ -203,8 +204,7 @@ fun TaiXuNavHost(
     }
 
     fun popBack() {
-        if (activeStack.size <= 1) return
-        activeStack.removeLastOrNull()
+        if (activeStack.size > 1) activeStack.removeLastOrNull()
     }
 
     @Composable
@@ -239,6 +239,11 @@ fun TaiXuNavHost(
                         onNavigate = ::navigateMain,
                         onOpenTerminal = { homeStack.push(HomeDestination, TerminalDestination()) },
                         onOpenToolCenter = { homeStack.push(HomeDestination, ToolCenterDestination) },
+                        onStartCustomIteration = { homeStack.push(HomeDestination, CustomIterationDestination) },
+                        onStartRoundtable = {
+                            pendingHealingTask = HealingTask(AgentPresets.ROUNDTABLE_TITLE, AgentPresets.ROUNDTABLE_PROMPT)
+                            selectedMain = MainDestination.Agent
+                        },
                     )
                 }
             }
@@ -370,22 +375,14 @@ fun TaiXuNavHost(
                         onBack = ::popBack,
                         onNavigateToTarget = { target ->
                             when (target) {
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.MODEL_PROFILES ->
-                                    settingsStack.push(SettingsSearchDestination, ModelProfilesDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.MODEL_EDITOR_NEW ->
-                                    settingsStack.push(SettingsSearchDestination, ModelEditorDestination())
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.LOCAL_LLM ->
-                                    settingsStack.push(SettingsSearchDestination, LocalLlmDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.QUICK_PHRASES ->
-                                    settingsStack.push(SettingsSearchDestination, QuickPhrasesDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.STATS ->
-                                    settingsStack.push(SettingsSearchDestination, StatsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.TOOL_CENTER ->
-                                    settingsStack.push(SettingsSearchDestination, ToolCenterDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.CC_SWITCH ->
-                                    settingsStack.push(SettingsSearchDestination, CcSwitchDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.AGENT_EXECUTION ->
-                                    settingsStack.push(SettingsSearchDestination, AgentSettingsDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.MODEL_PROFILES -> settingsStack.push(SettingsSearchDestination, ModelProfilesDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.MODEL_EDITOR_NEW -> settingsStack.push(SettingsSearchDestination, ModelEditorDestination())
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.LOCAL_LLM -> settingsStack.push(SettingsSearchDestination, LocalLlmDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.QUICK_PHRASES -> settingsStack.push(SettingsSearchDestination, QuickPhrasesDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.STATS -> settingsStack.push(SettingsSearchDestination, StatsDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.TOOL_CENTER -> settingsStack.push(SettingsSearchDestination, ToolCenterDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.CC_SWITCH -> settingsStack.push(SettingsSearchDestination, CcSwitchDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.AGENT_EXECUTION -> settingsStack.push(SettingsSearchDestination, AgentSettingsDestination)
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.AGENT_SUBAGENTS ->
                                     settingsStack.push(SettingsSearchDestination, AgentSubagentSettingsDestination)
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.AGENT_SKILLS ->
@@ -490,6 +487,7 @@ fun TaiXuNavHost(
                         onOpenMcpSettings = { settingsStack.push(AgentEcoSettingsDestination, McpSettingsDestination) },
                         onOpenQuickPhrases = { settingsStack.push(AgentEcoSettingsDestination, QuickPhrasesDestination) },
                         onOpenStats = { settingsStack.push(AgentEcoSettingsDestination, StatsDestination) },
+                        onOpenPhoneAgent = { settingsStack.push(AgentEcoSettingsDestination, PhoneAgentSettingsDestination) },
                         viewModel = settingsViewModel,
                     )
                 }
@@ -679,6 +677,11 @@ fun TaiXuNavHost(
                     )
                 }
             }
+            entry<PhoneAgentSettingsDestination> {
+                GuardedEntry(PhoneAgentSettingsDestination) {
+                    top.wkbin.taixu.ui.settings.PhoneAgentSettingsScreen(onBack = ::popBack)
+                }
+            }
             entry<ModelEditorDestination> { destination ->
                 GuardedEntry(destination) {
                     ModelEditorScreen(
@@ -737,21 +740,14 @@ fun TaiXuNavHost(
                 }
             }
             entry<TerminalDestination> { destination ->
-                GuardedEntry(destination) {
-                    TerminalScreen(onBack = ::popBack, project = destination.project)
-                }
+                GuardedEntry(destination) { TerminalScreen(onBack = ::popBack, project = destination.project) }
             }
             entry<BrowserDestination> {
-                GuardedEntry(BrowserDestination) {
-                    BrowserScreen(onBack = ::popBack, viewModel = browserViewModel)
-                }
+                GuardedEntry(BrowserDestination) { BrowserScreen(onBack = ::popBack, viewModel = browserViewModel) }
             }
             entry<GitRepositoryDestination> { destination ->
                 GuardedEntry(destination) {
-                    top.wkbin.taixu.ui.git.GitScreen(
-                        projectName = destination.projectName,
-                        onBack = ::popBack,
-                    )
+                    top.wkbin.taixu.ui.git.GitScreen(projectName = destination.projectName, onBack = ::popBack)
                 }
             }
     }
