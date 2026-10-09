@@ -82,6 +82,17 @@ interface AiModelDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(model: AiModelEntity)
 
+    @Query("SELECT * FROM harness_models")
+    suspend fun listAll(): List<AiModelEntity>
+
+    /** Imported records and activation flags commit together; concurrent edits require a fresh preview. */
+    @Transaction
+    suspend fun importBatch(expected: List<AiModelEntity>, models: List<AiModelEntity>) {
+        check(listAll().associateBy { it.id } == expected.associateBy { it.id }) { "模型档案已变化，请重新预览后导入" }
+        require(models.map { it.id }.distinct().size == models.size) { "导入档案 ID 重复" }
+        models.forEach { upsert(it) }
+    }
+
     @Query("UPDATE harness_models SET isActive = 0")
     suspend fun clearActive()
 

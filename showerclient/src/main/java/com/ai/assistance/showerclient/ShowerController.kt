@@ -6,6 +6,7 @@ import android.os.IBinder
 import android.os.RemoteException
 import com.ai.assistance.shower.IShowerService
 import com.ai.assistance.shower.IShowerVideoSink
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -24,23 +25,18 @@ class ShowerController {
     companion object {
         private const val TAG = "ShowerController"
         private const val CODEC_SIZE_ALIGNMENT = 16
-
         @Volatile
         private var binderService: IShowerService? = null
-
         private fun alignToCodecBlockSize(value: Int): Int =
             ((value + CODEC_SIZE_ALIGNMENT - 1) / CODEC_SIZE_ALIGNMENT) * CODEC_SIZE_ALIGNMENT
-
         private suspend fun getBinder(context: Context? = null): IShowerService? = withContext(Dispatchers.IO) {
             if (binderService?.asBinder()?.isBinderAlive == true) {
                 return@withContext binderService
             }
-
             fun clearDeadService() {
                 binderService = null
                 ShowerBinderRegistry.setService(null)
             }
-
             val maxAttempts = if (context != null) 2 else 1
             var attempt = 0
             while (attempt < maxAttempts) {
@@ -59,10 +55,10 @@ class ShowerController {
                         clearDeadService()
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     ShowerLog.e(TAG, "Failed to connect to Binder service on attempt=$attempt", e)
                     clearDeadService()
                 }
-
                 if (context != null && attempt == 1) {
                     try {
                         val ctx = context.applicationContext
@@ -75,6 +71,7 @@ class ShowerController {
                         // Wait a bit for broadcast to propagate
                         delay(200)
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         ShowerLog.e(TAG, "getBinder: exception while restarting Shower server", e)
                         break
                     }
@@ -153,6 +150,7 @@ class ShowerController {
                     service.requestScreenshot(id)
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 ShowerLog.e(TAG, "requestScreenshot failed for $id", e)
                 null
             }
@@ -167,17 +165,14 @@ class ShowerController {
             binderService = null
             ShowerBinderRegistry.setService(null)
         }
-
         fun resetLocalDisplayState() {
             virtualDisplayId = null
             videoWidth = 0
             videoHeight = 0
         }
-
         fun isBinderDied(e: Throwable): Boolean {
             return e is DeadObjectException || e is RemoteException || e.cause is DeadObjectException
         }
-
         fun doPrepare(service: IShowerService): Boolean {
             // If this controller was previously bound to a virtual display, release it first.
             val oldId = virtualDisplayId
@@ -191,7 +186,6 @@ class ShowerController {
                 } catch (_: Exception) {
                 }
             }
-
             virtualDisplayId = 0
             videoWidth = 0
             videoHeight = 0
@@ -200,17 +194,16 @@ class ShowerController {
             ShowerLog.d(TAG, "prepareMainDisplay complete, displayId=0")
             return true
         }
-
         val service = getBinder(context) ?: return@withContext false
         try {
             doPrepare(service)
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             ShowerLog.e(TAG, "prepareMainDisplay failed", e)
             resetLocalDisplayState()
             if (!isBinderDied(e)) {
                 return@withContext false
             }
-
             clearCachedBinder()
             try {
                 ShowerLog.d(TAG, "prepareMainDisplay: binder died, restarting Shower server and retrying")
@@ -223,6 +216,7 @@ class ShowerController {
                 val retryService = getBinder(context) ?: return@withContext false
                 doPrepare(retryService)
             } catch (retryError: Exception) {
+                if (retryError is CancellationException) throw retryError
                 ShowerLog.e(TAG, "prepareMainDisplay retry failed", retryError)
                 resetLocalDisplayState()
                 clearCachedBinder()
@@ -242,21 +236,17 @@ class ShowerController {
             binderService = null
             ShowerBinderRegistry.setService(null)
         }
-
         fun resetLocalDisplayState() {
             virtualDisplayId = null
             videoWidth = 0
             videoHeight = 0
         }
-
         fun isBinderDied(e: Throwable): Boolean {
             return e is DeadObjectException || e is RemoteException || e.cause is DeadObjectException
         }
-
         val targetWidth = alignToCodecBlockSize(width)
         val targetHeight = alignToCodecBlockSize(height)
         val bitrate = bitrateKbps ?: 0
-
         suspend fun doEnsure(service: IShowerService): Boolean {
             val existingId = virtualDisplayId
             if (existingId != null && videoWidth == targetWidth && videoHeight == targetHeight) {
@@ -264,13 +254,13 @@ class ShowerController {
                 ShowerLog.d(TAG, "ensureDisplay reuse existing displayId=$existingId, size=${videoWidth}x${videoHeight}")
                 return true
             }
-
             // displayId 0=主屏（prepareMainDisplay）为全会话共享，绝不销毁（守卫同 shutdown/doPrepare 的 id>0）
             if (existingId != null && existingId > 0) {
                 try {
                     service.destroyDisplay(existingId)
                     ShowerLog.d(TAG, "ensureDisplay: destroyed previous displayId=$existingId before recreate")
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     ShowerLog.w(TAG, "ensureDisplay: failed to destroy previous displayId=$existingId before recreate", e)
                 }
             }
@@ -282,7 +272,6 @@ class ShowerController {
                 ShowerLog.e(TAG, "ensureDisplay: server reported invalid displayId=$id")
                 return false
             }
-
             virtualDisplayId = id
             videoWidth = targetWidth
             videoHeight = targetHeight
@@ -298,6 +287,7 @@ class ShowerController {
         try {
             doEnsure(service)
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             ShowerLog.e(TAG, "ensureDisplay failed", e)
             resetLocalDisplayState()
             if (!isBinderDied(e)) {
@@ -316,6 +306,7 @@ class ShowerController {
                 val retryService = getBinder(context) ?: return@withContext false
                 doEnsure(retryService)
             } catch (retryError: Exception) {
+                if (retryError is CancellationException) throw retryError
                 ShowerLog.e(TAG, "ensureDisplay retry failed", retryError)
                 resetLocalDisplayState()
                 clearCachedBinder()
@@ -332,6 +323,7 @@ class ShowerController {
             service.launchApp(packageName, id)
             true
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             ShowerLog.e(TAG, "launchApp failed for $packageName on $id", e)
             false
         }
@@ -344,6 +336,7 @@ class ShowerController {
             service.tap(id, x.toFloat(), y.toFloat())
             true
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             ShowerLog.e(TAG, "tap($x, $y) failed on $id", e)
             false
         }
@@ -362,6 +355,7 @@ class ShowerController {
             service.swipe(id, startX.toFloat(), startY.toFloat(), endX.toFloat(), endY.toFloat(), durationMs)
             true
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             ShowerLog.e(TAG, "swipe failed on $id", e)
             false
         }
@@ -374,6 +368,7 @@ class ShowerController {
             service.touchDown(id, x.toFloat(), y.toFloat())
             true
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             ShowerLog.e(TAG, "touchDown($x, $y) failed on $id", e)
             false
         }
@@ -386,6 +381,7 @@ class ShowerController {
             service.touchMove(id, x.toFloat(), y.toFloat())
             true
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             ShowerLog.e(TAG, "touchMove($x, $y) failed on $id", e)
             false
         }
@@ -398,6 +394,7 @@ class ShowerController {
             service.touchUp(id, x.toFloat(), y.toFloat())
             true
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             ShowerLog.e(TAG, "touchUp($x, $y) failed on $id", e)
             false
         }
@@ -437,6 +434,7 @@ class ShowerController {
             )
             true
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             ShowerLog.e(TAG, "injectTouchEvent(action=$action, x=$x, y=$y) failed on $id", e)
             false
         }
@@ -458,6 +456,7 @@ class ShowerController {
                 service.setVideoSink(id, null)
                 service.destroyDisplay(id)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 ShowerLog.e(TAG, "shutdown: destroyDisplay failed for $id", e)
             }
         }
@@ -478,6 +477,7 @@ class ShowerController {
             }
             true
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             ShowerLog.e(TAG, "keyWithMeta(keyCode=$keyCode, metaState=$metaState) failed on $id", e)
             false
         }

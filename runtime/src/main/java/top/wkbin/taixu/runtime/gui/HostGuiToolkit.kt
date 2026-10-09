@@ -162,6 +162,10 @@ class HostGuiToolkit(
     }
 
     private suspend fun pasteText(text: String): GuiExecResult {
+        return GuiClipboardLock.use { pasteTextLocked(text) }
+    }
+
+    private suspend fun pasteTextLocked(text: String): GuiExecResult {
         val attempts = mutableListOf<GuiAttempt>()
         if (text.isEmpty()) {
             return GuiExecResult(false, "粘贴文本为空")

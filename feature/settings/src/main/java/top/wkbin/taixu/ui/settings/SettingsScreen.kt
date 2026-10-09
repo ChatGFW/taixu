@@ -130,6 +130,7 @@ fun SettingsScreen(
                 }
             }
 
+            item { LocalBackupSettingsCard() }
             item {
                 Text(
                     text = "系统与配置分类",

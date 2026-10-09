@@ -58,28 +58,6 @@ class ConditionNodeExecutor() : NodeExecutor {
     }
 }
 
-class DelayNodeExecutor() : NodeExecutor {
-    override val supportedTypes = setOf(WorkflowNodeType.DELAY)
-
-    override suspend fun execute(
-        node: WorkflowNode,
-        context: WorkflowRuntimeContext,
-        onProgress: suspend (NodeRunStatus, String) -> Unit,
-    ): NodeExecutionOutput {
-        val seconds = interpolate(node.config["seconds"] ?: node.config["delaySeconds"] ?: "1", context)
-            .trim().toDoubleOrNull()?.coerceIn(0.0, 600.0) ?: 1.0
-        val millis = (seconds * 1000).toLong().coerceAtLeast(0L)
-        onProgress(NodeRunStatus.RUNNING, "等待 ${seconds}s…")
-        delay(millis)
-        return NodeExecutionOutput(
-            status = NodeRunStatus.SUCCESS,
-            textOutput = "已等待 ${seconds}s",
-            variables = mapOf("DELAY_SECONDS" to seconds.toString()),
-            durationMs = millis,
-        )
-    }
-}
-
 class SetVariableNodeExecutor() : NodeExecutor {
     override val supportedTypes = setOf(WorkflowNodeType.SET_VARIABLE)
 
@@ -128,6 +106,7 @@ class HostActionNodeExecutor(
     private val privilegeManager: PrivilegeManager,
     private val linuxRuntime: LinuxRuntime,
     private val guiPilot: WorkflowGuiPilot,
+    private val virtualScreen: VirtualScreenWorkflowExecutor,
 ) : NodeExecutor {
     override val supportedTypes = setOf(WorkflowNodeType.HOST_ACTION)
 
@@ -144,7 +123,10 @@ class HostActionNodeExecutor(
                 return@withContext NodeExecutionOutput(NodeRunStatus.FAILED, exitCode = 13, error = err)
             }
         }
-        runCatching { dispatch(action, node, context, onProgress) }
+        runCatching {
+            if (VirtualScreenWorkflowExecutor.handles(action)) virtualScreen.execute(node, context)
+            else dispatch(action, node, context, onProgress)
+        }
             .fold(
                 onSuccess = { it },
                 onFailure = { err ->

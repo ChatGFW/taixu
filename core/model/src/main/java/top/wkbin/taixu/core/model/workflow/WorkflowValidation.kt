@@ -26,6 +26,7 @@ object WorkflowValidator {
                 }
             }
             if (node.type == WorkflowNodeType.HOST_ACTION) {
+                issues += VirtualScreenWorkflowValidation.issues(node)
                 val action = node.config["action"].orEmpty().ifBlank { "status" }
                 val def = HostWorkflowActions.find(action)
                 if (def == null && node.config["command"].isNullOrBlank()) {
@@ -35,7 +36,9 @@ object WorkflowValidator {
                     )
                 }
                 def?.fields?.filter { it.required }?.forEach { field ->
-                    if (node.config[field.key].isNullOrBlank()) {
+                    val missing = if (action == "virtual_screen_input_text" && field.key == "text")
+                        node.config[field.key].isNullOrEmpty() else node.config[field.key].isNullOrBlank()
+                    if (missing) {
                         issues += WorkflowValidationIssue(
                             "nodes.${node.id}.${field.key}",
                             "宿主动作「${def.label}」缺少必填参数：${field.label}",
@@ -45,8 +48,14 @@ object WorkflowValidator {
             }
             if (node.type == WorkflowNodeType.DELAY) {
                 val seconds = node.config["seconds"] ?: node.config["delaySeconds"]
-                if (seconds != null && seconds.toDoubleOrNull() == null) {
-                    issues += WorkflowValidationIssue("nodes.${node.id}.seconds", "等待秒数必须是数字")
+                if (seconds != null && !seconds.contains("\${") &&
+                    seconds.toDoubleOrNull()?.let { it.isFinite() && it in 0.0..600.0 } != true) {
+                    issues += WorkflowValidationIssue("nodes.${node.id}.seconds", "等待秒数必须在 0–600 之间")
+                }
+                node.config["milliseconds"]?.takeUnless { it.contains("\${") }?.let { raw ->
+                    if (raw.toLongOrNull()?.let { it in 0L..600_000L } != true) {
+                        issues += WorkflowValidationIssue("nodes.${node.id}.milliseconds", "等待毫秒数必须为 0–600000 的整数")
+                    }
                 }
             }
         }

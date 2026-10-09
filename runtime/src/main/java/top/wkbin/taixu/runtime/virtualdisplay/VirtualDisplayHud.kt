@@ -15,7 +15,6 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.ai.assistance.showerclient.ShowerController
 import com.ai.assistance.showerclient.ShowerLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -100,7 +99,7 @@ object VirtualDisplayHud {
                 ShowerLog.d(TAG, "show: 丢弃迟到的挂载请求（已被 hide 或新一轮 show 取代）")
                 return@post
             }
-            runCatching { attach(appContext, sessionId, controller = coordinator.controller(sessionId)) }
+            runCatching { attach(appContext, sessionId, coordinator) }
                 .onFailure { ShowerLog.e(TAG, "show: 悬浮窗挂载失败", it) }
         }
     }
@@ -124,7 +123,8 @@ object VirtualDisplayHud {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun attach(context: Context, sessionId: String, controller: ShowerController) {
+    private fun attach(context: Context, sessionId: String, coordinator: VirtualDisplayCoordinator) {
+        val controller = coordinator.controller(sessionId)
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -162,7 +162,8 @@ object VirtualDisplayHud {
             setTextColor(Color.parseColor("#AAAAAA"))
             textSize = 14f
             setPadding(px(12), px(4), px(12), px(4))
-            setOnClickListener { hide() }
+            contentDescription = "停止任务并隐藏虚拟屏"
+            setOnClickListener { coordinator.phoneTasks.cancel(sessionId); hide() }
         }
         titleBar.addView(title)
         titleBar.addView(closeButton)
@@ -203,6 +204,10 @@ object VirtualDisplayHud {
         val videoView = TouchForwardVideoView(context).apply {
             forwardController = controller
             forwardScopeSupplier = { scope }
+            onManualTouch = {
+                coordinator.phoneTasks.pause(sessionId, manual = true)
+                setStep("人工操作中 · 点继续后重新观察")
+            }
         }
 
         root.addView(
@@ -213,6 +218,8 @@ object VirtualDisplayHud {
             videoView,
             LinearLayout.LayoutParams(maxVideoW, maxVideoH),
         )
+        val controls = phoneTaskHudControls(context, coordinator.phoneTasks, sessionId, scope!!)
+        root.addView(controls, LinearLayout.LayoutParams(maxVideoW, px(40)))
 
         // video size 就绪后按实际宽高比收进最大宽高，避免竖屏把窗口拉满。
         scope?.launch {
@@ -238,6 +245,9 @@ object VirtualDisplayHud {
                         height = targetH
                     }
                     titleBar.layoutParams = (titleBar.layoutParams as LinearLayout.LayoutParams).apply {
+                        width = targetW
+                    }
+                    controls.layoutParams = (controls.layoutParams as LinearLayout.LayoutParams).apply {
                         width = targetW
                     }
                     videoView.requestLayout()

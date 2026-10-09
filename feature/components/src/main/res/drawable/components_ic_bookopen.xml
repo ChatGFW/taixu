@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lucide Icons (ISC License) via Iconify, converted to Android vector drawable -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M12,5v16m8.001,-2A2,2 0 0 0 22,17V5a2,2 0 0 0 -1.999,-2L16,3.002A5,5 0 0 0 12,5a5,5 0 0 0 -4,-2H4a2,2 0 0 0 -2,2v12a2,2 0 0 0 1.999,2H8a5,5 0 0 1 4,2a5,5 0 0 1 4,-2z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        />
+</vector>

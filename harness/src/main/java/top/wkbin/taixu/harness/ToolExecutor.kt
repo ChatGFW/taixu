@@ -84,6 +84,7 @@ class ToolExecutor(
     private val providerClient: ProviderClient? = null,
     private val skillRepository: top.wkbin.taixu.core.database.AgentSkillRepository? = null,
     private val settingsDataStore: AgentPreferences? = null,
+    private val phoneAgentServices: PhoneAgentServices? = null,
 ) {
     suspend fun execute(
         toolCall: ToolCall,
@@ -818,8 +819,8 @@ class ToolExecutor(
 
     private fun virtualScreenHostActions(attachImage: (String) -> Unit = {}) = VirtualScreenHostActions(
         virtualDisplayCoordinator, virtualScreenToolkit, PACKAGE_NAME,
-        ::requireHostIdentifier, ::requireString, ::requireInt, ::optionalLong, ::optionalSession,
-        providerClient, settingsDataStore, attachImage,
+        ::requireHostIdentifier, ::requireString, ::requireInt, ::optionalLong, ::virtualScreenSession,
+        providerClient, settingsDataStore, attachImage, phoneAgentServices,
     )
 
     private fun requireSettingsNamespace(args: JsonObject): String {
@@ -1439,10 +1440,6 @@ class ToolExecutor(
         require(value in min..max) { "参数 $key 必须在 $min-$max 之间" }
         return value
     }
-
-    /** virtual_screen_* 的可选会话 ID（默认 default，不同会话对应独立虚拟屏）。 */
-    private fun optionalSession(args: JsonObject): String =
-        args["session"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: VIRTUAL_SCREEN_DEFAULT_SESSION
 
     companion object {
         const val MIN_BASE_TIMEOUT_SECONDS = 1L

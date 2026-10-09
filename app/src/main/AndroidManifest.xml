@@ -77,6 +77,12 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="taixu" android:host="oauth" android:path="/mcp" />
             </intent-filter>
+            <!-- 系统分享入口：任意 App「分享给太墟」，仅接收纯文本 -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
         <!-- 应用内 APK 更新安装文件提供器 -->
         <provider

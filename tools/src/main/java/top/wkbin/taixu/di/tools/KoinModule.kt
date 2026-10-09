@@ -32,6 +32,14 @@ import org.koin.core.qualifier.named
 
 /** Dependency registrations owned by the tools module. */
 val toolsModule = module {
+    single<top.wkbin.taixu.core.tools.backup.BackupLocations> {
+        val context = get<android.content.Context>()
+        val paths = get<top.wkbin.taixu.runtime.RuntimePathManager>()
+        top.wkbin.taixu.core.tools.backup.BackupLocations(context.filesDir, paths.attachmentsDir, paths.workspaceDir, java.io.File(context.cacheDir, "local-backup"))
+    }
+    single<top.wkbin.taixu.core.tools.backup.LocalBackupService> {
+        top.wkbin.taixu.core.tools.backup.LocalBackupService(repository = get(), preferences = get(), locations = get())
+    }
     single<ProviderManager> { ProviderManager(providerRepository = get()) }
 
     single<AgentModelConnectionTester> { AgentModelConnectionTester(http = get()) }
@@ -72,6 +80,7 @@ val toolsModule = module {
     single<LocalPluginPayloadManager> { LocalPluginPayloadManager(registry = get(), pathManager = get()) }
 
     single<ProviderRepository> { ProviderRepository(providerPreferences = get()) }
+    single<top.wkbin.taixu.core.tools.ModelCredentialStore> { get<ProviderRepository>() }
 
     single<RuntimeManagerImpl> {
         RuntimeManagerImpl(

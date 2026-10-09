@@ -19,8 +19,9 @@ import org.koin.core.module.dsl.viewModel
 
 /** Dependency registrations owned by the feature:settings module. */
 val featureSettingsModule = module {
+    viewModel { top.wkbin.taixu.ui.settings.LocalBackupViewModel(context = get(), service = get()) }
     viewModel<AppManagementViewModel> { AppManagementViewModel(repository = get(), appManager = get()) }
-    viewModel { PhoneAgentSettingsViewModel(preferences = get()) }
+    viewModel { PhoneAgentSettingsViewModel(preferences = get(), connectionTester = get()) }
 
     viewModel<CcSwitchViewModel> {
         CcSwitchViewModel(

@@ -32,6 +32,7 @@ fun ContextUsageRing(
     modifier: Modifier = Modifier,
 ) {
     var showDialog by remember { mutableStateOf(false) }
+    var inspectRequest by remember { mutableStateOf(false) }
     val rawRatio = (usage.usedTokens.toFloat() / usage.limitTokens.coerceAtLeast(1)).coerceIn(0f, 1f)
     val animatedProgress by animateFloatAsState(
         targetValue = rawRatio,
@@ -91,7 +92,9 @@ fun ContextUsageRing(
             ContextUsageDialog(
                 usage = usage,
                 onDismiss = { showDialog = false },
+                onInspectRequest = { showDialog = false; inspectRequest = true },
             )
         }
+        if (inspectRequest) RequestContextDialog(usage.requests, onDismiss = { inspectRequest = false })
     }
 }

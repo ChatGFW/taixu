@@ -119,14 +119,8 @@ private fun chatBottomInsets(bottomBarHeight: Dp): WindowInsets {
     return bottomBarInsets.union(WindowInsets.ime)
 }
 
-/**
- * 太墟 · 智枢对话界面 (TaiXu Agent)
- * 智能结对编程、工具自动化调用与代码生成
- */
-@OptIn(
-    androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
-    androidx.compose.material3.ExperimentalMaterial3Api::class,
-)
+/** 太墟 · 智枢对话界面 (TaiXu Agent)：智能结对编程、工具自动化调用与代码生成 */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     onNavigate: (MainDestination) -> Unit,
@@ -158,6 +152,7 @@ fun ChatScreen(
     val workspace by viewModel.workspace.collectAsStateWithLifecycle()
     val mcpRecommendations by viewModel.mcpRecommendations.collectAsStateWithLifecycle()
     val workflowSuggestions by viewModel.workflowSuggestions.collectAsStateWithLifecycle()
+    val shareActions by viewModel.shareActions.collectAsStateWithLifecycle()
     val hiddenSkillSuggestions by viewModel.hiddenSkillSuggestions.collectAsStateWithLifecycle()
     val sessionProjectType by viewModel.projectType.collectAsStateWithLifecycle()
     val matchingCommands by viewModel.matchingCommands.collectAsStateWithLifecycle()
@@ -507,6 +502,7 @@ fun ChatScreen(
                     workflowSuggestions = workflowSuggestions,
                     onLaunchWorkflowSuggestion = viewModel::launchWorkflowSuggestion,
                     onDismissWorkflowSuggestion = viewModel::dismissWorkflowSuggestion,
+                    shareActions = shareActions,
                     hiddenSkillSuggestions = hiddenSkillSuggestions,
                     onApplySkillSuggestion = viewModel::applySkillSuggestion,
                     onDismissSkillSuggestion = viewModel::dismissSkillSuggestion,
@@ -949,6 +945,7 @@ private fun ChatPaneContent(
     onConvertToSteer: (QueuedPrompt) -> Unit = {},
     sendMode: ComposerSendMode,
     input: String,
+    shareActions: ShareQuickActionsState? = null,
     onInputChanged: (String) -> Unit,
     onApplyCommand: (SlashCommandItem) -> Unit,
     onApplyMention: (MentionItem) -> Unit = {},
@@ -1083,6 +1080,7 @@ private fun ChatPaneContent(
             onLaunch = onLaunchWorkflowSuggestion,
             onDismiss = onDismissWorkflowSuggestion,
         )
+        shareActions?.let { share -> ShareQuickActionsRow(state = share, modifier = Modifier.padding(vertical = 4.dp)) }
 
         ChatComposer(
             listState = listState,

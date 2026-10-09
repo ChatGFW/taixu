@@ -77,4 +77,10 @@ scripts_patch/
 .taixu-outputs/
 .taixu-subagent/
 
+# Local agent protocol dumps, review exports, and temporary attachments
+/.codex_schema/
+/codex_appserver_schema.json
+/.loomy-pr-review/
+/.opencode/
+
 

@@ -124,6 +124,8 @@ fun HomeScreen(
     onNavigate: (MainDestination) -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenToolCenter: () -> Unit = {},
+    onStartCustomIteration: () -> Unit = {},
+    onStartRoundtable: () -> Unit = {},
     viewModel: HomeViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
@@ -141,6 +143,7 @@ fun HomeScreen(
     val switchingDistro by viewModel.switchingDistro.collectAsStateWithLifecycle()
     val modeStatus by viewModel.executionModeStatus.collectAsStateWithLifecycle()
     val webChatStatus by viewModel.webChatStatus.collectAsStateWithLifecycle()
+    val sentinelState by viewModel.sentinelState.collectAsStateWithLifecycle()
 
     val allFilesPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -267,6 +270,16 @@ fun HomeScreen(
                 onOpenModeSettings = { onNavigate(MainDestination.Settings) },
             )
 
+            // 1.5 首页快捷入口：一句话做 App · AI 圆桌 · 晨报哨兵
+            CustomIterationHeroCard(onClick = onStartCustomIteration)
+            RoundtableEntryCard(onClick = onStartRoundtable)
+            MorningReportSentinelCard(
+                state = sentinelState,
+                onEnable = { viewModel.enableSentinel(sentinelState.hour, sentinelState.minute) },
+                onDisable = viewModel::disableSentinel,
+                onTimeChange = { h, m -> viewModel.enableSentinel(h, m) },
+            )
+
             // 2. WebChat 电脑大屏协作卡片 (Dashboard Bridge Card)
             WebChatDashboardCard(
                 status = webChatStatus,
@@ -333,9 +346,7 @@ fun HomeScreen(
         }
     }
 }
-/**
- * 运行与开发环境体检自愈卡片 (TaiXu Doctor & Auto-Fix)
- */
+/** 运行与开发环境体检自愈卡片 (TaiXu Doctor & Auto-Fix) */
 @Composable
 private fun EnvironmentDoctorCard(
     report: DoctorReport?,
@@ -621,9 +632,7 @@ private fun EnvironmentDoctorCard(
         }
     }
 }
-/**
- * 体检条目单行展示
- */
+/** 体检条目单行展示 */
 @Composable
 private fun DoctorItemRow(
     item: DoctorItem,
@@ -732,9 +741,7 @@ private fun DoctorItemRow(
     }
 }
 
-/**
- * Android 环境未安装引导卡：提供「QQ 群全量离线插件包」与「插件中心在线安装」两条获取路径。
- */
+/** Android 环境未安装引导卡：提供「QQ 群全量离线插件包」与「插件中心在线安装」两条获取路径。 */
 @Composable
 private fun AndroidEnvAcquisitionCard(
     onJoinQqGroup: () -> Unit,
@@ -829,9 +836,7 @@ private fun joinQqGroup(context: Context) {
     }
 }
 
-/**
- * 运行时引擎主状态卡片
- */
+/** 运行时引擎主状态卡片 */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun RuntimeEngineStatusCard(
@@ -1157,9 +1162,7 @@ private fun ExecutionModeBadge(
     }
 }
 
-/**
- * 资源监控指标卡片
- */
+/** 资源监控指标卡片 */
 @Composable
 private fun ResourceMetricCard(
     modifier: Modifier = Modifier,
@@ -1241,9 +1244,7 @@ private fun ResourceMetricCard(
     }
 }
 
-/**
- * 宿主与运行环境规格卡片（低频信息，默认折叠）
- */
+/** 宿主与运行环境规格卡片（低频信息，默认折叠） */
 @Composable
 private fun SystemSpecsCard(metrics: SystemResourceMetrics, modeStatus: ExecutionModeStatus) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -1324,9 +1325,7 @@ private fun SpecRow(label: String, value: String) {
     }
 }
 
-/**
- * 状态呼吸灯圆点
- */
+/** 状态呼吸灯圆点 */
 @Composable
 private fun PulsingStatusDot(color: Color, isPulsing: Boolean) {
     val transition = rememberInfiniteTransition(label = "status_dot_pulse")
@@ -1360,9 +1359,7 @@ private fun PulsingStatusDot(color: Color, isPulsing: Boolean) {
     }
 }
 
-/**
- * WebChat 电脑大屏协作卡片 (Dashboard Bridge Card)
- */
+/** WebChat 电脑大屏协作卡片 (Dashboard Bridge Card) */
 @Composable
 private fun WebChatDashboardCard(
     status: top.wkbin.taixu.runtime.webchat.WebChatServerStatus,

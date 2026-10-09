@@ -41,6 +41,7 @@ internal inline fun <T> withinStreamHandling(block: () -> T): T = try {
 /** 模型能力选择、流式请求重试及助手回复持久化；不持有会话调度状态。 */
 class HarnessProviderRunner(
     private val providerClient: ProviderClient,
+    private val requestDiagnostics: top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore,
     private val messageStore: SessionTreeStore,
     private val operationCoordinator: OperationCoordinator,
     private val stateMirrors: SessionStateMirrors,
@@ -50,6 +51,8 @@ class HarnessProviderRunner(
     private val contextAssembler: ApiContextAssembler,
     private val compactionManager: CompactionManager,
 ) {
+    fun clearDiagnostics(sessionId: String) = requestDiagnostics.removeSession(sessionId)
+
     /**
      * 记录本轮 @提及 的能力挂载事件（UI 展示用）。
      *
@@ -115,15 +118,6 @@ class HarnessProviderRunner(
             thinkingMode = stateMirrors.requestThinkingMode(sessId),
             sessionRunMode = sessionEntity?.runMode,
         )
-        fun estimateTokens(messages: List<ApiMessage>) = messages.sumOf { message ->
-            ContextWindowPolicy.estimateTokens(message.content.orEmpty()) +
-                ContextWindowPolicy.estimateTokens(message.reasoning_content.orEmpty()) +
-                message.tool_calls.orEmpty().sumOf { call ->
-                    ContextWindowPolicy.estimateTokens(call.function.name) +
-                        ContextWindowPolicy.estimateTokens(call.function.arguments)
-                } +
-                message.imageUrls.size * ContextWindowPolicy.ESTIMATED_IMAGE_TOKENS
-        }
         // Context and prompt remain immutable during network retries. The configured model
         // window is authoritative: a transport heuristic must never persistently compact a
         // valid 128k/200k conversation down to 64k.
@@ -138,7 +132,7 @@ class HarnessProviderRunner(
             } else {
                 0
             }
-        val estimatedRequestTokens = estimateTokens(requestMessages) + toolSchemaTokens
+        val estimatedRequestTokens = estimateRetryRequestTokens(requestMessages) + toolSchemaTokens
         val maxNetworkRetries = maxNetworkRetriesFor(estimatedRequestTokens, retryPolicy.maxRetries)
         val maxAttempts = maxNetworkRetries + 1
         if (maxNetworkRetries < retryPolicy.maxRetries) {
@@ -148,6 +142,7 @@ class HarnessProviderRunner(
                 "估算输入约 $estimatedRequestTokens tokens，大上下文网络重试限制为 $maxNetworkRetries 次",
             )
         }
+        var requestAttempt = 0
         while (streamed == null) {
             try {
                 stateMirrors.setStatus(sessId, "等待模型首个响应（${netRetry + 1}/$maxAttempts）")
@@ -161,6 +156,9 @@ class HarnessProviderRunner(
                 streamed = providerClient.chatStream(
                     requestModel,
                     requestMessages,
+                    onRequest = { protocol, body, bytes, secrets ->
+                        requestDiagnostics.record(sessId, operationId, round, ++requestAttempt, protocol, body, bytes, secrets)
+                    },
                     onReasoning = { chunk ->
                         withinStreamHandling {
                             streamReasoning.append(chunk)
@@ -475,7 +473,7 @@ class HarnessProviderRunner(
         }
     }
 
-    /** 回合结束后落库助手回复；无文本时只结算 usage 记录 */
+    /** 落库助手回复或原生输出锚点；两者都没有时只结算 usage。 */
     suspend fun persistAssistantOutput(
         sessId: String,
         assistantId: String,
@@ -488,7 +486,7 @@ class HarnessProviderRunner(
         displayText: String,
         hasToolCalls: Boolean,
     ) {
-        if (displayText.isNotEmpty()) {
+        if (displayText.isNotEmpty() || result.responsesTurn != null) {
             persistAssistant(
                 sessId,
                 assistantId,
@@ -497,6 +495,7 @@ class HarnessProviderRunner(
                 result.reasoningContent,
                 totalMs = if (!hasToolCalls) now() - startedAt else null,
                 reasoningMs = result.reasoningMs,
+                responsesTurn = result.responsesTurn,
                 operationId = operationId,
                 round = round,
                 usage = result.usage,
@@ -529,6 +528,7 @@ class HarnessProviderRunner(
         round: Int = 0,
         usage: ChatUsage? = null,
         model: ModelConfig? = null,
+        responsesTurn: ResponsesTurn? = null,
     ) {
         val message = AssistantText(
             id = id,
@@ -537,6 +537,7 @@ class HarnessProviderRunner(
             reasoning = reasoning,
             totalMs = totalMs,
             reasoningMs = reasoningMs,
+            responsesTurn = responsesTurn,
             modelId = model?.model,
             providerId = model?.provider,
             promptTokens = usage?.inputTokens?.takeIf { it > 0 }?.toInt(),
@@ -641,14 +642,7 @@ class HarnessProviderRunner(
                 largeContextRetries
             }
 
-        /**
-         * 判断是否为「原样重发同一请求即可安全恢复」的瞬态故障：连接被对端中止、读超时、
-         * TLS 层中断、流意外结束，以及上游 5xx（[TransientHttpException]，如 Cloudflare 524 / 503）。
-         *
-         * 这些故障与请求体大小、上下文规模无关，因此不受大上下文重试降级影响（见 [effectiveRetryBudget]）；
-         * 否则一次 503 就会让长会话整轮失败，用户只能手动接续。
-         * 沿 cause 链最多上溯 10 层，避免自引用造成死循环。
-         */
+        /** 可原样重发的瞬态故障；不受大上下文重试降级影响。沿 cause 链最多检查 10 层。 */
         internal fun isTransientFailure(throwable: Throwable): Boolean {
             var cause: Throwable? = throwable
             var depth = 0

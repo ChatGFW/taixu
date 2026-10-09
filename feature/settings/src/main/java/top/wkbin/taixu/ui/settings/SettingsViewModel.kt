@@ -58,7 +58,6 @@ import java.io.File
 import java.util.UUID
 import java.util.zip.ZipInputStream
 import java.io.BufferedOutputStream
-import top.wkbin.taixu.core.model.AiModelProfileExport
 
 
 class SettingsViewModel(
@@ -91,7 +90,7 @@ class SettingsViewModel(
     private val toolManager: ToolManager,
     private val quickPhraseRepository: top.wkbin.taixu.core.database.QuickPhraseRepository,
     private val profileWriter: AiProfileWriter,
-    private val profileBackupCodec: AiProfileBackupCodec,
+    internal val profileBackupCodec: AiProfileBackupCodec,
     private val webChatBridgeServer: top.wkbin.taixu.runtime.webchat.WebChatBridgeServer? = null,
     private val browserPrefs: BrowserPreferences,
     private val agentServerPreferences: AgentServerPreferences,
@@ -1636,19 +1635,6 @@ class SettingsViewModel(
             profileWriter.deleteProfile(id)
         }
     }
-
-    suspend fun exportAllProfilesJson(includeApiKeys: Boolean): String =
-        profileBackupCodec.exportAll(includeApiKeys)
-
-    suspend fun exportSingleProfileJson(modelId: String, includeApiKeys: Boolean): String? =
-        profileBackupCodec.exportSingle(modelId, includeApiKeys)
-
-    fun parseProfilesFromJson(rawJson: String): Result<List<AiModelProfileExport>> =
-        profileBackupCodec.parseProfiles(rawJson)
-
-    suspend fun importProfilesFromJson(rawJson: String): Result<Int> =
-        profileBackupCodec.importProfiles(rawJson)
-
 
     // ---- 宿主与沙箱存储挂载配置 (PRoot -b) ----
     val mountDownloadEnabled: StateFlow<Boolean> = runtimePreferences.mountDownloadEnabled

@@ -20,6 +20,7 @@ import top.wkbin.taixu.core.datastore.WorkshopPreferences
 
 /** Dependency registrations owned by the core:datastore module. */
 val coreDatastoreModule = module {
+    single<top.wkbin.taixu.core.datastore.BackupPreferenceStore> { top.wkbin.taixu.core.datastore.BackupPreferences(context = get()) }
     single<AppearancePreferences> { AppearancePreferences(store = get()) }
 
     single<TerminalPreferences> { TerminalPreferences(store = get()) }

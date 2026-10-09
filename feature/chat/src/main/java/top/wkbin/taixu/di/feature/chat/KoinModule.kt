@@ -11,6 +11,7 @@ val featureChatModule = module {
             context = get(),
             savedStateHandle = get(),
             harnessLoop = get(),
+            requestDiagnostics = get(),
             systemPromptBuilder = get(),
             sessionDao = get(),
             aiModelDao = get(),

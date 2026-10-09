@@ -71,4 +71,18 @@
     <string name="home_webchat_copied">Link copied. Open it on your computer to enter the workbench.</string>
     <string name="home_webchat_hint">💡 Tip: the computer must be on the same Wi-Fi as the phone. Devices online: %1$d</string>
     <string name="home_webchat_intro">No cable needed — connect from a desktop browser over the same Wi-Fi to use the TaiXu Agent, review code, and manage sandbox workspaces.</string>
+    <string name="home_sentinel_title">Morning Sentinel</string>
+    <string name="home_sentinel_subtitle">Daily read-only workspace inspection with an AI-generated morning report notification</string>
+    <string name="home_sentinel_schedule">Runs daily at %1$s</string>
+    <string name="home_sentinel_next_run">Next run: %1$s</string>
+    <string name="home_sentinel_time_edit">Time</string>
+    <string name="home_sentinel_dialog_title">Inspection time</string>
+    <string name="home_sentinel_hour_label">Hour (0–23)</string>
+    <string name="home_sentinel_minute_label">Minute (0–59)</string>
+    <string name="home_sentinel_confirm">Save</string>
+    <string name="home_sentinel_cancel">Cancel</string>
+    <string name="home_hero_custom_iteration_title">One-Sentence App</string>
+    <string name="home_hero_custom_iteration_subtitle">Describe the app you want — TaiXu builds and installs it on your phone</string>
+    <string name="home_roundtable_title">AI Roundtable</string>
+    <string name="home_roundtable_subtitle">Architecture · Security · Performance review in parallel, with a judge-synthesized debate report</string>
 </resources>

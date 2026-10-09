@@ -350,6 +350,11 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val action = intentToHandle.action
+        // 系统分享入口：分享文本进聊天页预填（不自动发送）
+        top.wkbin.taixu.navigation.ShareIntentExtractor.extractSharedText(intentToHandle)?.let { sharedText ->
+            globalNavigationBus.navigateTo(top.wkbin.taixu.core.common.navigation.AppNavigationTarget.SharedText(sharedText))
+            return
+        }
         val navigateTo = intentToHandle.getStringExtra("navigate_to")
         val isAdbLogcat = action == "top.wkbin.taixu.action.OPEN_ADB_LOGCAT" || navigateTo == "adb_logcat"
         if (isAdbLogcat) {
@@ -357,11 +362,9 @@ class MainActivity : AppCompatActivity() {
         }
         // 工作流通知点入：打开运行页并定位到对应执行
         if (action == top.wkbin.taixu.service.WorkflowForegroundService.ACTION_OPEN_RUN) {
-            globalNavigationBus.navigateTo(
-                top.wkbin.taixu.core.common.navigation.AppNavigationTarget.WorkflowRun(
-                    intentToHandle.getStringExtra(top.wkbin.taixu.service.WorkflowForegroundService.EXTRA_EXECUTION_ID),
-                ),
-            )
+            globalNavigationBus.navigateTo(top.wkbin.taixu.core.common.navigation.AppNavigationTarget.WorkflowRun(
+                intentToHandle.getStringExtra(top.wkbin.taixu.service.WorkflowForegroundService.EXTRA_EXECUTION_ID),
+            ))
         }
     }
 

@@ -3,13 +3,12 @@ package top.wkbin.taixu.runtime.virtualdisplay
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
+import android.view.KeyEvent
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import top.wkbin.taixu.runtime.gui.GuiClipboardLock
 import top.wkbin.taixu.runtime.gui.GuiBackendId
 import top.wkbin.taixu.runtime.gui.GuiExecResult
 import top.wkbin.taixu.runtime.gui.GuiKey
@@ -31,10 +30,11 @@ class VirtualScreenToolkit(
     private val coordinator: VirtualDisplayCoordinator,
 ) {
 
-    suspend fun execute(sessionId: String, action: GuiPrimitive): GuiExecResult =
+    suspend fun execute(sessionId: String, action: GuiPrimitive, canInject: () -> Boolean = { true }): GuiExecResult =
         withContext(Dispatchers.IO) {
             val backend = GuiBackendId.SHOWER_VIRTUAL_DISPLAY
             val controller = coordinator.controller(sessionId)
+            if (!canInject()) return@withContext GuiExecResult(false, "任务已暂停或画面已失效", backend)
             if (coordinator.getDisplayId(sessionId) == null) {
                 return@withContext GuiExecResult(
                     false,
@@ -54,6 +54,7 @@ class VirtualScreenToolkit(
                 is GuiPrimitive.DoubleTap -> {
                     val first = controller.tap(action.x, action.y)
                     delay(action.gapMs.coerceIn(40L, 400L))
+                    if (!canInject()) return@withContext GuiExecResult(false, "双击已中止：任务暂停或画面失效", backend)
                     val second = controller.tap(action.x, action.y)
                     if (first && second) {
                         GuiExecResult(true, "已在虚拟屏双击 (${action.x},${action.y})", backend)
@@ -124,7 +125,7 @@ class VirtualScreenToolkit(
                     }
                 }
 
-                is GuiPrimitive.PasteText -> pasteText(sessionId, action.text, backend)
+                is GuiPrimitive.PasteText -> pasteText(sessionId, action.text, backend, canInject)
             }
         }
 
@@ -137,37 +138,58 @@ class VirtualScreenToolkit(
         sessionId: String,
         text: String,
         backend: GuiBackendId,
+        canInject: () -> Boolean,
+    ): GuiExecResult = GuiClipboardLock.use {
+        pasteTextLocked(sessionId, text, backend, replace = false, canInject = canInject)
+    }
+
+    /** AutoGLM Type 的替换语义；普通 virtual_screen_input_text 继续保留追加语义。 */
+    suspend fun setText(sessionId: String, text: String, canInject: () -> Boolean = { true }): GuiExecResult = withContext(Dispatchers.IO) {
+        GuiClipboardLock.use {
+            pasteTextLocked(sessionId, text, GuiBackendId.SHOWER_VIRTUAL_DISPLAY, replace = true, canInject = canInject)
+        }
+    }
+
+    private suspend fun pasteTextLocked(
+        sessionId: String, text: String, backend: GuiBackendId, replace: Boolean, canInject: () -> Boolean = { true },
     ): GuiExecResult {
-        if (text.isEmpty()) {
+        val controller = coordinator.controller(sessionId)
+        if (!canInject()) return GuiExecResult(false, "任务已暂停或画面已失效", backend)
+        if (coordinator.getDisplayId(sessionId) == null) return GuiExecResult(false, "虚拟屏未创建", backend)
+        if (text.isEmpty() && !replace) {
             return GuiExecResult(false, "粘贴文本为空", backend)
         }
-        if (!writeClipboard(text)) {
+        // 先准备剪贴板，避免写剪贴板失败时已清空用户文本。
+        if (text.isNotEmpty() && !writeClipboard(text)) {
             return GuiExecResult(false, "写入剪贴板失败，虚拟屏粘贴中止", backend)
         }
         delay(PASTE_SETTLE_MS)
-        val controller = coordinator.controller(sessionId)
-        return if (controller.key(GuiKey.PASTE.keyCode)) {
-            GuiExecResult(true, "已在虚拟屏通过剪贴板粘贴（${text.length} 字）：$text", backend)
+        if (!canInject()) return GuiExecResult(false, "文本输入已中止：任务暂停或画面失效", backend)
+        if (replace) {
+            if (!controller.keyWithMeta(KeyEvent.KEYCODE_A, KeyEvent.META_CTRL_ON)) {
+                return GuiExecResult(false, "全选按键注入失败，文本替换中止", backend)
+            }
+            delay(80)
+        }
+        if (!canInject()) return GuiExecResult(false, "文本输入已中止：任务暂停或画面失效", backend)
+        val accepted = controller.key(if (text.isEmpty()) KeyEvent.KEYCODE_DEL else GuiKey.PASTE.keyCode)
+        return if (accepted) {
+            GuiExecResult(true, "已发送${if (replace) "替换" else "粘贴"}文本按键（${text.length} 字），请核对下一张截图", backend)
         } else {
             GuiExecResult(false, "KEYCODE_PASTE 注入失败：目标应用可能不响应粘贴键", backend)
         }
     }
 
-    private fun writeClipboard(text: String): Boolean {
-        val latch = CountDownLatch(1)
-        var error: Throwable? = null
-        Handler(Looper.getMainLooper()).post {
-            try {
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("taixu-vscreen", text))
-            } catch (t: Throwable) {
-                error = t
-            } finally {
-                latch.countDown()
-            }
+    private suspend fun writeClipboard(text: String): Boolean = withContext(Dispatchers.Main) {
+        try {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("taixu-vscreen", text))
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
         }
-        if (!latch.await(3, TimeUnit.SECONDS)) return false
-        return error == null
     }
 
     private companion object {

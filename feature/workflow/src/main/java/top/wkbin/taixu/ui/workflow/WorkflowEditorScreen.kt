@@ -1317,15 +1317,7 @@ private fun NodeInspectorCard(
                 }
 
                 WorkflowNodeType.DELAY -> {
-                    OutlinedTextField(
-                        value = configMap["seconds"] ?: "1",
-                        onValueChange = { configMap["seconds"] = it.filter { ch -> ch.isDigit() || ch == '.' }.take(6) },
-                        label = { Text("等待秒数") },
-                        supportingText = { Text("支持 0–600 秒，可写小数") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    WorkflowDelayFields(configMap)
                 }
 
                 WorkflowNodeType.SET_VARIABLE -> {

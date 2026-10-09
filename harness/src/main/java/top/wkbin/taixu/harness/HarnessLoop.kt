@@ -537,7 +537,6 @@ class HarnessLoop(
     suspend fun renameSession(id: String, title: String) {
         sessionDao.rename(id, title, System.currentTimeMillis())
     }
-
     suspend fun deleteSession(id: String) {
         // 注意：这里不能全程持有会话互斥锁——cancelAndJoin 会等待 runLoop 的 finally
         // 段，而 finally 段需要抢同一把锁，全程持锁必然死锁。因此采用 tombstone +
@@ -552,6 +551,7 @@ class HarnessLoop(
         turnCoordinator.evictSession(id)
         messageProjector.removeSession(id)
         stateMirrors.removeSession(id)
+        providerRunner.clearDiagnostics(id)
 
         messageStore.deleteSession(id)
         approvalRepository.deleteForSession(id)

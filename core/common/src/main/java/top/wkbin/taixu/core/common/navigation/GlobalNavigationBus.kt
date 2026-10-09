@@ -15,6 +15,9 @@ sealed interface AppNavigationTarget {
 
     /** 打开 Agent 设置页（模型/思考呈现/工具中心配置） */
     data object AgentSettings : AppNavigationTarget
+
+    /** 系统分享入口：外部 ACTION_SEND 分享的文本，进入聊天页预填（不自动发送） */
+    data class SharedText(val text: String) : AppNavigationTarget
 }
 
 /**

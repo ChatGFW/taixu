@@ -10,6 +10,8 @@
 | --- | --- | --- |
 | `harness/HarnessLoop.kt` | 主循环，多会话并发 | Agent 主循环 |
 | `harness/HarnessProviderRunner.kt` | 模型能力选择、流式请求与重试、助手回复结算 | 模型回合 |
+| `harness/diagnostics/*` | 最终请求体脱敏快照、内存保留预算；聊天圆环「最近请求上下文」入口 | 请求诊断（详见 [CONTEXT_DIAGNOSTICS.md](CONTEXT_DIAGNOSTICS.md)） |
+| `harness/ResponsesApi.kt` / `ResponsesRequestBuilder.kt` / `ResponsesTurn.kt` | 原生 output 保存与回放、作用域校验、调用 ID 映射；主会话与子智能体共用投影 | Responses 历史（详见 [RESPONSES_HISTORY.md](RESPONSES_HISTORY.md)） |
 | `harness/HarnessToolRoundRunner.kt` | 工具参数校验、单轮限额、执行与审批暂停 | 工具回合 |
 | `harness/HarnessWorkspaceRecommendations.kt` | 工作区路径边界、MCP 推荐扫描与前台投影 | MCP 推荐 |
 | `harness/ToolExecutor.kt` | `read / write / edit / base / process / host / download / build_script / subagent` 等内置工具分派 |
@@ -20,6 +22,10 @@
 | `harness/browser/BrowserMcpBootstrap.kt` | 内置 Browser MCP Server 启动 + 注册引擎 |
 | `harness/mcp/server/*` | in-process MCP Server：`McpServerRuntime` / Auth / Tool+Resource Dispatcher |
 | `harness/HarnessMessage.kt` | `HarnessTool` 枚举 + `ToolResult` (含 `imageAttachments`) |
+
+## 🗂️ 模型档案迁移
+
+模型档案的备份与迁移见 [MODEL_PROFILE_TRANSFER.md](MODEL_PROFILE_TRANSFER.md)：`tools/AiProfileBackupCodec.kt` / `AiProfileTransferFormat.kt` / `AiProfileImportWriter.kt`，持久化端口为 `core/database/AiModelRepository.kt`，界面为 `feature/settings/ModelImportDialog.kt` / `ModelExportDialog.kt`。
 
 ## 🌐 内置浏览器（Browser）
 
@@ -93,3 +99,21 @@
 ## 🤝 Web Reverse MCP 参考
 
 项目内置浏览器/MCP 设计借鉴自 `mnjh666/WebReverse-MCP`（模块切分 / 工具动词集 / 风险矩阵），不复用其代码。
+
+## 💾 本地数据备份与恢复
+
+完整说明见 [LOCAL_BACKUP.md](LOCAL_BACKUP.md)。
+
+| 文件 | 说明 |
+|---|---|
+| `tools/backup/LocalBackupService.kt` | 备份/恢复协调器、原子恢复日志、启动挂单恢复 |
+| `tools/backup/BackupArchive.kt` | ZIP 归档读写、路径安全校验、SHA-256 摘要 |
+| `tools/backup/BackupResources.kt` | 资源文件收集与路径重写 |
+| `core/database/BackupRecordPolicy.kt` | 可备份表清单、运行时字段归零、记录差集 |
+| `core/database/BackupRestoreReceipt.kt` | 恢复收据实体 + DB Migration 53→54 |
+| `core/database/DatabaseBackupRepository.kt` | Room 事务级快照、结构校验和合并 |
+| `core/datastore/BackupPreferences.kt` | 可移植偏好快照、校验、原子回滚 |
+| `core/model/LocalBackup.kt` | `LocalBackupManifest` / `BackupRecords` / `BackupPreview` 数据类 |
+| `feature/settings/LocalBackupDialog.kt` | 导出/导入 UI（含预览、偏好复选框）|
+| `feature/settings/LocalBackupViewModel.kt` | 备份 UI ViewModel |
+| `app/BackupStartupRecovery.kt` | Application 启动检查并完成挂起恢复 |

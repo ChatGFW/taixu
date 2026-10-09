@@ -97,6 +97,7 @@ private const val AGENT_MCP_RUNTIME = "agentMcpServerRuntime"
 
 /** Dependency registrations owned by the harness module. */
 val harnessModule = module {
+    phoneWorkflowDefinitions()
     single<BrowserMcpResources> { provideBrowserMcpResources(registry = get()) }
 
     single<BrowserMcpTools> { provideBrowserMcpTools(registry = get(), browserPrefs = get()) }
@@ -147,12 +148,13 @@ val harnessModule = module {
             turnCoordinator = get(),
         )
     }
-
     single<HarnessPathResolver> { HarnessPathResolver() }
 
+    single { top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore(redactor = get()) }
     factory<HarnessProviderRunner> {
         HarnessProviderRunner(
             providerClient = get(),
+            requestDiagnostics = get(),
             messageStore = get(),
             operationCoordinator = get(),
             stateMirrors = get(),
@@ -196,7 +198,6 @@ val harnessModule = module {
             json = get(),
         )
     }
-
     single<ProviderResponseNormalizer> { ProviderResponseNormalizer(json = get()) }
 
     single<SubagentOrchestrator> {
@@ -247,6 +248,7 @@ val harnessModule = module {
             providerClient = get(),
             skillRepository = get(),
             settingsDataStore = get(),
+            phoneAgentServices = get(),
         )
     }
 
@@ -547,16 +549,6 @@ val harnessModule = module {
 
     factory<SetVariableNodeExecutor> { SetVariableNodeExecutor() }
 
-    factory<HostActionNodeExecutor> {
-        HostActionNodeExecutor(
-            appContext = get(),
-            gui = get(),
-            privilegeManager = get(),
-            linuxRuntime = get(),
-            guiPilot = get(),
-        )
-    }
-
     single<WorkflowSignalBus> { WorkflowSignalBus() }
 
     single<ProactiveWorkflowAdvisor> { ProactiveWorkflowAdvisor(signalBus = get(), workflows = get()) }
@@ -600,7 +592,7 @@ val harnessModule = module {
         )
     }
 
-    single<WorkflowScheduler> { WorkflowScheduler(executors = get(named("workflowExecutors")), approvalBroker = get()) }
+    single<WorkflowScheduler> { WorkflowScheduler(executors = get(named("workflowExecutors")), approvalBroker = get(), virtualScreenRuns = get()) }
 
     single<Set<NodeExecutor>>(named("workflowExecutors")) {
         setOf(get<PassthroughNodeExecutor>(), get<ApprovalNodeExecutor>(), get<LinuxNodeExecutor>(), get<AgentNodeExecutor>(), get<ConditionNodeExecutor>(), get<DelayNodeExecutor>(), get<SetVariableNodeExecutor>(), get<HostActionNodeExecutor>())

@@ -519,4 +519,19 @@
     <string name="chat_floating_thinking">🧠 思考中…</string>
     <string name="chat_floating_running">⚡ 执行中…</string>
     <string name="chat_context_compaction_threshold">达到 %1$s（按 %2$d%%）时自动压缩历史</string>
+    <string name="chat_request_context_title">最近请求上下文</string>
+    <string name="chat_request_context_close">关闭</string>
+    <string name="chat_request_context_notice">查看本次运行最近两次构造的请求。内容来自协议转换后的请求体，已脱敏；媒体和不透明数据不展示。构造请求不代表服务端已接收。快照仅保存在内存中，重启后清空。</string>
+    <string name="chat_request_context_empty">尚无请求快照。发送消息后可在这里查看；重新打开应用后需要再次发送。</string>
+    <string name="chat_request_context_attempt">第 %1$d 轮 · 请求 %2$d · %3$s</string>
+    <string name="chat_request_context_metadata">协议入口：%1$s · 原始请求体：%2$d 字节</string>
+    <string name="chat_request_context_clipped">预览因显示上限被截短。此限制不影响发送给模型的请求，也不代表历史已被压缩。</string>
+    <string name="chat_request_context_search">搜索字段或内容</string>
+    <string name="chat_request_context_no_matches">未找到匹配的预览内容。</string>
+    <string name="chat_request_context_expand">展开 %1$s</string>
+    <string name="chat_request_context_collapse">收起 %1$s</string>
+    <string name="chat_share_received">已收到分享内容</string>
+    <string name="chat_share_chip_summarize">总结</string>
+    <string name="chat_share_chip_translate">翻译成中文</string>
+    <string name="chat_share_chip_save">存入沙箱</string>
 </resources>

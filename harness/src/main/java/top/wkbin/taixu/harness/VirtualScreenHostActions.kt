@@ -28,6 +28,8 @@ internal class VirtualScreenHostActions(
     private val providerClient: ProviderClient? = null,
     private val preferences: AgentPreferences? = null,
     private val attachImage: (String) -> Unit = {},
+    private val services: PhoneAgentServices? = null,
+    private val canInject: () -> Boolean = { true },
 ) {
     suspend fun execute(action: String, args: JsonObject): Pair<Boolean, String> = when (action) {
         "virtual_screen_ensure" -> {
@@ -49,11 +51,13 @@ internal class VirtualScreenHostActions(
             val coordinator = coordinator ?: return false to "未初始化虚拟屏协调器"
             val session = optionalSession(args)
             val packageName = requireHostIdentifier(args, "package", packageNamePattern)
+            if (!canInject()) return false to "操作已中止：虚拟屏任务暂停或已被人工介入"
             if (coordinator.getDisplayId(session) == null &&
                 coordinator.ensureVirtualDisplay(session) == null
             ) {
                 return false to "虚拟屏创建失败（session=$session）：Shower 服务未启动或建屏失败，详见 runtime.log 中的 [Shower] 日志（不一定是授权问题）"
             }
+            if (!canInject()) return false to "应用启动已中止：任务暂停或已被人工介入"
             val res = coordinator.launchApp(session, packageName)
             if (res) {
                 val hidden = coordinator.reveal(session, "启动 $packageName")
@@ -95,7 +99,7 @@ internal class VirtualScreenHostActions(
                 hiddenShot?.let { append(' ').append(it) }
             }
         }
-        "virtual_screen_input_text" -> {
+        "virtual_screen_input_text", "virtual_screen_set_text" -> {
             val toolkit = toolkit ?: return false to "未初始化虚拟屏工具"
             val coordinator = coordinator ?: return false to "未初始化虚拟屏协调器"
             val session = optionalSession(args)
@@ -103,7 +107,8 @@ internal class VirtualScreenHostActions(
                 return false to "虚拟屏未创建（session=$session）：先调用 virtual_screen_ensure"
             }
             val text = requireString(args, "text")
-            val result = toolkit.execute(session, GuiPrimitive.PasteText(text))
+            val result = if (action == "virtual_screen_set_text") toolkit.setText(session, text, canInject)
+                else toolkit.execute(session, GuiPrimitive.PasteText(text), canInject)
             val hiddenStep = coordinator.reveal(session, result.message)
             result.success to if (hiddenStep == null) result.message else "${result.message} $hiddenStep"
         }
@@ -167,7 +172,7 @@ internal class VirtualScreenHostActions(
                     GuiPrimitive.Key(key)
                 }
             }
-            val result = toolkit.execute(session, primitive)
+            val result = toolkit.execute(session, primitive, canInject)
             val hiddenStep = coordinator.reveal(session, result.message)
             result.success to if (hiddenStep == null) result.message else "${result.message} $hiddenStep"
         }
@@ -201,7 +206,13 @@ internal class VirtualScreenHostActions(
             val goal = requireString(args, "goal")
             val packageName = args["package"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
             val maxSteps = optionalLong(args, "max_steps", 12L, 1L, 20L).toInt()
-            PhoneAgentPilot(client, prefs, coordinator, toolkit).run(session, goal, packageName, maxSteps)
+            val workflowName = args["workflow_name"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty().take(100)
+            PhoneAgentPilot(client, prefs, coordinator, toolkit, services).run(session, goal, packageName, maxSteps, workflowName)
+        }
+        "virtual_screen_wait" -> {
+            val millis = optionalLong(args, "duration_ms", 1000L, 0L, 600_000L)
+            kotlinx.coroutines.delay(millis)
+            true to "已等待 ${millis}ms"
         }
         "virtual_screen_hide" -> {
             val coordinator = coordinator ?: return false to "未初始化虚拟屏协调器"
@@ -216,6 +227,7 @@ internal class VirtualScreenHostActions(
      * 尺寸未知时返回 null，避免把相对坐标当成物理像素打偏。
      */
     private fun relativePoint(session: String, x: Int, y: Int): Pair<Int, Int>? {
+        require(x in 0..1000 && y in 0..1000) { "虚拟屏坐标必须在 0–1000" }
         val size = coordinator?.getVideoSize(session) ?: return null
         return phoneAgentPoint(x, size.first) to phoneAgentPoint(y, size.second)
     }
@@ -257,6 +269,7 @@ internal class VirtualScreenHostActions(
             "virtual_screen_scroll",
             "virtual_screen_key",
             "virtual_screen_input_text",
+            "virtual_screen_set_text", "virtual_screen_wait",
             "virtual_screen_close",
             "virtual_screen_show",
             "virtual_screen_hide",
