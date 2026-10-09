@@ -56,6 +56,25 @@ class ApiMessageProjectorTest {
     }
 
     @Test
+    fun `vision bridge keeps only the most recent tool images`() {
+        val older = (1..3).map { index ->
+            ToolResult(
+                id = "r$index",
+                createdAt = index.toLong(),
+                toolCallId = "c$index",
+                success = true,
+                output = "截图 $index",
+                imageDataUrl = "data:image/png;base64,IMG$index",
+            )
+        }
+        val projected = ApiMessageProjector.project(older, ToolCallMode.NATIVE, visionEnabled = true)
+        val images = projected.filter { it.imageUrls.isNotEmpty() }
+        assertEquals(listOf("data:image/png;base64,IMG2", "data:image/png;base64,IMG3"), images.flatMap { it.imageUrls })
+        assertTrue(projected.first { it.role == "tool" && it.tool_call_id == "c1" }.content.orEmpty().contains("未再次附上"))
+        assertTrue(projected.first { it.role == "tool" && it.tool_call_id == "c3" }.content.orEmpty().contains("截图 3"))
+    }
+
+    @Test
     fun `vision bridge is skipped when vision disabled`() {
         val projected = ApiMessageProjector.project(messages(), ToolCallMode.NATIVE, visionEnabled = false)
         assertTrue(projected.none { it.imageUrls.isNotEmpty() })

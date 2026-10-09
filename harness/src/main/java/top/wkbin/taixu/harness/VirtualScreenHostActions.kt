@@ -1,7 +1,9 @@
 package top.wkbin.taixu.harness
 
 import java.io.File
+import java.util.Base64
 import kotlinx.serialization.json.JsonObject
+import top.wkbin.taixu.core.datastore.AgentPreferences
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -23,6 +25,9 @@ internal class VirtualScreenHostActions(
     private val requireInt: (JsonObject, String) -> Int,
     private val optionalLong: (JsonObject, String, Long, Long, Long) -> Long,
     private val optionalSession: (JsonObject) -> String,
+    private val providerClient: ProviderClient? = null,
+    private val preferences: AgentPreferences? = null,
+    private val attachImage: (String) -> Unit = {},
 ) {
     suspend fun execute(action: String, args: JsonObject): Pair<Boolean, String> = when (action) {
         "virtual_screen_ensure" -> {
@@ -35,7 +40,9 @@ internal class VirtualScreenHostActions(
                 val hidden = coordinator.reveal(session, "等待打开应用")
                 true to "虚拟屏已就绪：session=$session displayId=$displayId。" +
                     (hidden ?: "悬浮窗已弹出。刚建好的屏上没有应用，画面是黑的。") +
-                    "用 virtual_screen_launch 打开应用后才会有画面，再用 virtual_screen_screenshot 截图识图"
+                    "用 virtual_screen_launch 打开应用后才会有画面。" +
+                    "多步操作交给 virtual_screen_task；只有要亲自看画面时才截图。" +
+                    "点击坐标是 0–1000 相对位置，打字用 virtual_screen_input_text"
             }
         }
         "virtual_screen_launch" -> {
@@ -65,20 +72,40 @@ internal class VirtualScreenHostActions(
                 return false to "虚拟屏未创建（session=$session）：先调用 virtual_screen_ensure"
             }
             val hiddenShot = coordinator.reveal(session, "正在截图")
-            val targetPath = requireString(args, "path")
             val png = coordinator.requestScreenshot(session)
                 ?: return false to "虚拟屏截图失败（session=$session）：screencap/Binder 通道均不可用，详见 runtime.log 的 [Shower] 日志"
-            runCatching {
-                val file = File(targetPath)
-                file.parentFile?.mkdirs()
-                file.writeBytes(png)
-            }.fold(
-                onSuccess = {
-                    true to "虚拟屏截图已保存至 $targetPath（${png.size} 字节），可用 read 查看图片" +
-                        (hiddenShot?.let { " $it" } ?: "")
-                },
-                onFailure = { err -> false to "截图写入失败：${err.message}" },
-            )
+            val (width, height) = pngDimensions(png)
+            val dataUrl = "data:image/png;base64," + Base64.getEncoder().encodeToString(png)
+            attachImage(ImagePayloadCompressor.downscaleDataUrl(dataUrl))
+            val saved = args["path"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty().takeIf { it.isNotEmpty() }?.let { targetPath ->
+                runCatching {
+                    val file = File(targetPath)
+                    file.parentFile?.mkdirs()
+                    file.writeBytes(png)
+                    targetPath
+                }.getOrNull()
+            }
+            true to buildString {
+                append("虚拟屏截图已随本条结果附上")
+                if (width > 0 && height > 0) append("，物理分辨率 ${width}×${height}")
+                append("，${png.size} 字节。")
+                append("点击、双击、长按、滑动用 0–1000 相对坐标，左上角是 0,0，不要用像素，也不要按截图缩放换算。")
+                append("输入文字用 virtual_screen_input_text。paste_text 和 screen_input_text 打到主屏焦点，会把虚拟屏里的应用切走。")
+                if (saved != null) append(" 文件副本：$saved。")
+                hiddenShot?.let { append(' ').append(it) }
+            }
+        }
+        "virtual_screen_input_text" -> {
+            val toolkit = toolkit ?: return false to "未初始化虚拟屏工具"
+            val coordinator = coordinator ?: return false to "未初始化虚拟屏协调器"
+            val session = optionalSession(args)
+            if (coordinator.getDisplayId(session) == null) {
+                return false to "虚拟屏未创建（session=$session）：先调用 virtual_screen_ensure"
+            }
+            val text = requireString(args, "text")
+            val result = toolkit.execute(session, GuiPrimitive.PasteText(text))
+            val hiddenStep = coordinator.reveal(session, result.message)
+            result.success to if (hiddenStep == null) result.message else "${result.message} $hiddenStep"
         }
         "virtual_screen_click",
         "virtual_screen_double_click",
@@ -91,22 +118,38 @@ internal class VirtualScreenHostActions(
             val coordinator = coordinator ?: return false to "未初始化虚拟屏协调器"
             val session = optionalSession(args)
             val primitive = when (action) {
-                "virtual_screen_click" ->
-                    GuiPrimitive.Tap(requireInt(args, "x"), requireInt(args, "y"))
-                "virtual_screen_double_click" ->
-                    GuiPrimitive.DoubleTap(requireInt(args, "x"), requireInt(args, "y"))
-                "virtual_screen_long_press" -> GuiPrimitive.LongPress(
-                    x = requireInt(args, "x"),
-                    y = requireInt(args, "y"),
-                    durationMs = optionalLong(args, "duration_ms", 800L, 200L, 5_000L),
-                )
-                "virtual_screen_swipe" -> GuiPrimitive.Swipe(
-                    x1 = requireInt(args, "x1"),
-                    y1 = requireInt(args, "y1"),
-                    x2 = requireInt(args, "x2"),
-                    y2 = requireInt(args, "y2"),
-                    durationMs = optionalLong(args, "duration_ms", 300L, 50L, 5_000L),
-                )
+                "virtual_screen_click" -> {
+                    val (x, y) = relativePoint(session, requireInt(args, "x"), requireInt(args, "y"))
+                        ?: return false to relativePointUnavailable(session)
+                    GuiPrimitive.Tap(x, y)
+                }
+                "virtual_screen_double_click" -> {
+                    val (x, y) = relativePoint(session, requireInt(args, "x"), requireInt(args, "y"))
+                        ?: return false to relativePointUnavailable(session)
+                    GuiPrimitive.DoubleTap(x, y)
+                }
+                "virtual_screen_long_press" -> {
+                    val (x, y) = relativePoint(session, requireInt(args, "x"), requireInt(args, "y"))
+                        ?: return false to relativePointUnavailable(session)
+                    GuiPrimitive.LongPress(
+                        x = x,
+                        y = y,
+                        durationMs = optionalLong(args, "duration_ms", 800L, 200L, 5_000L),
+                    )
+                }
+                "virtual_screen_swipe" -> {
+                    val (x1, y1) = relativePoint(session, requireInt(args, "x1"), requireInt(args, "y1"))
+                        ?: return false to relativePointUnavailable(session)
+                    val (x2, y2) = relativePoint(session, requireInt(args, "x2"), requireInt(args, "y2"))
+                        ?: return false to relativePointUnavailable(session)
+                    GuiPrimitive.Swipe(
+                        x1 = x1,
+                        y1 = y1,
+                        x2 = x2,
+                        y2 = y2,
+                        durationMs = optionalLong(args, "duration_ms", 300L, 50L, 5_000L),
+                    )
+                }
                 "virtual_screen_scroll" -> GuiPrimitive.Scroll(
                     direction = when (args["direction"]?.jsonPrimitive?.contentOrNull?.lowercase()) {
                         "up" -> ScrollDirection.UP
@@ -149,6 +192,17 @@ internal class VirtualScreenHostActions(
                 false to "悬浮窗权限未授予：请引导用户在系统设置中允许「显示在其他应用上层」后重试"
             }
         }
+        "virtual_screen_task" -> {
+            val client = providerClient ?: return false to "手机操作模型还没接上。"
+            val prefs = preferences ?: return false to "手机操作模型还没接上。"
+            val coordinator = coordinator ?: return false to "未初始化虚拟屏协调器"
+            val toolkit = toolkit ?: return false to "未初始化虚拟屏工具"
+            val session = optionalSession(args)
+            val goal = requireString(args, "goal")
+            val packageName = args["package"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+            val maxSteps = optionalLong(args, "max_steps", 12L, 1L, 20L).toInt()
+            PhoneAgentPilot(client, prefs, coordinator, toolkit).run(session, goal, packageName, maxSteps)
+        }
         "virtual_screen_hide" -> {
             val coordinator = coordinator ?: return false to "未初始化虚拟屏协调器"
             coordinator.hideOverlay()
@@ -157,8 +211,40 @@ internal class VirtualScreenHostActions(
         else -> error("virtual_screen action 未登记：$action")
     }
 
+    /**
+     * 虚拟屏指针坐标是 0–1000 的相对位置，和模型看到的缩放截图无关。
+     * 尺寸未知时返回 null，避免把相对坐标当成物理像素打偏。
+     */
+    private fun relativePoint(session: String, x: Int, y: Int): Pair<Int, Int>? {
+        val size = coordinator?.getVideoSize(session) ?: return null
+        return phoneAgentPoint(x, size.first) to phoneAgentPoint(y, size.second)
+    }
+
+    private fun relativePointUnavailable(session: String): String =
+        "虚拟屏尺寸未知（session=$session），无法把 0–1000 坐标换算成像素。先 virtual_screen_ensure，等画面出现后再操作。"
+
     companion object {
         fun handles(action: String): Boolean = action in ACTIONS
+
+        /** PNG IHDR 里的宽高。不是 PNG 或头部不完整时返回 0×0。 */
+        internal fun pngDimensions(png: ByteArray): Pair<Int, Int> {
+            if (png.size < PNG_IHDR_END) return 0 to 0
+            if (png[0] != PNG_SIGNATURE_0 || png[1] != 'P'.code.toByte() || png[2] != 'N'.code.toByte() || png[3] != 'G'.code.toByte()) {
+                return 0 to 0
+            }
+            return readBe32(png, PNG_WIDTH_OFFSET) to readBe32(png, PNG_HEIGHT_OFFSET)
+        }
+
+        private fun readBe32(bytes: ByteArray, offset: Int): Int =
+            ((bytes[offset].toInt() and 0xff) shl 24) or
+                ((bytes[offset + 1].toInt() and 0xff) shl 16) or
+                ((bytes[offset + 2].toInt() and 0xff) shl 8) or
+                (bytes[offset + 3].toInt() and 0xff)
+
+        private const val PNG_SIGNATURE_0 = 0x89.toByte()
+        private const val PNG_WIDTH_OFFSET = 16
+        private const val PNG_HEIGHT_OFFSET = 20
+        private const val PNG_IHDR_END = 24
 
         private val ACTIONS = setOf(
             "virtual_screen_ensure",
@@ -170,9 +256,11 @@ internal class VirtualScreenHostActions(
             "virtual_screen_swipe",
             "virtual_screen_scroll",
             "virtual_screen_key",
+            "virtual_screen_input_text",
             "virtual_screen_close",
             "virtual_screen_show",
             "virtual_screen_hide",
+            "virtual_screen_task",
         )
     }
 }

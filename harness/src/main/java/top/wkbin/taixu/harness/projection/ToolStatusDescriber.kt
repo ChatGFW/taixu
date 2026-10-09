@@ -33,6 +33,10 @@ object ToolStatusDescriber {
                 "screen_key" -> "正在触发系统按键：${arg(args, "key")}…"
                 "app_launch" -> "正在调起宿主应用：${arg(args, "package")}…"
                 "screen_capture" -> "正在截取屏幕画面…"
+                "virtual_screen_screenshot" -> "正在截取虚拟屏…"
+                "virtual_screen_click" -> "正在点击虚拟屏相对坐标 (${arg(args, "x")}, ${arg(args, "y")})…"
+                "virtual_screen_input_text" -> "正在向虚拟屏输入：${arg(args, "text")?.take(20)}…"
+                "virtual_screen_task" -> "正在让手机操作模型执行：${arg(args, "goal")?.take(MAX_STATUS_ARG_LENGTH) ?: "虚拟屏任务"}…"
                 else -> "正在使用宿主权限：$action${arg(args, "command")?.let { " · ${it.take(MAX_STATUS_ARG_LENGTH)}" }.orEmpty()}"
             }
         }

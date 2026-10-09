@@ -149,6 +149,9 @@ class ApprovalPolicyEngineTest {
         assertFalse(policy.decide(ApprovalMode.ASSISTED, HarnessTool.HOST, args("action" to "screen_input_text", "text" to "hi"), workspace).required)
         assertFalse(policy.decide(ApprovalMode.ASSISTED, HarnessTool.HOST, args("action" to "screen_key", "key" to "back"), workspace).required)
         assertFalse(policy.decide(ApprovalMode.ASSISTED, HarnessTool.HOST, args("action" to "app_launch", "package" to "com.tencent.mobileqq"), workspace).required)
+        assertFalse(policy.decide(ApprovalMode.ASSISTED, HarnessTool.HOST, args("action" to "virtual_screen_click", "x" to "500", "y" to "400"), workspace).required)
+        assertFalse(policy.decide(ApprovalMode.ASSISTED, HarnessTool.HOST, args("action" to "virtual_screen_input_text", "text" to "今天发新版本"), workspace).required)
+        assertFalse(policy.decide(ApprovalMode.ASSISTED, HarnessTool.HOST, args("action" to "virtual_screen_screenshot"), workspace).required)
     }
 
     @Test

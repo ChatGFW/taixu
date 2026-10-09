@@ -324,7 +324,9 @@ class ToolExecutor(
                                 "data:$imageMime;base64,$base64",
                             )
                             true to "已读取图片文件 $path（${bytesResult.data.size} 字节，$imageMime）。" +
-                                "图像已作为多模态附件随本次工具结果提供；若当前模型不支持视觉，请改用文字/脚本方式描述图片内容。"
+                                "图像已作为多模态附件随本次工具结果提供。" +
+                                "若这是虚拟屏截图，点击坐标用 0–1000 相对位置，不要用图上的像素。" +
+                                "若当前模型不支持视觉，请改用文字/脚本方式描述图片内容。"
                         }
                         is AppResult.Failure -> bytesResult.toToolOutput(actionName = "read")
                     }
@@ -367,7 +369,7 @@ class ToolExecutor(
             }
             HarnessTool.BASE -> executeBase(args, workspace)
             HarnessTool.PROCESS -> executeProcess(args, workspace)
-            HarnessTool.HOST -> executeHost(args, operationId, sessionId)
+            HarnessTool.HOST -> executeHost(args, operationId, sessionId, metadata)
             HarnessTool.DOWNLOAD -> {
                 val destinationPath = args.stringArg("destination")
                 if (destinationPath != null) captureBeforeWrite(sessionId, activeFileAccess, destinationPath)
@@ -469,8 +471,8 @@ class ToolExecutor(
     }
 
     /** 宿主 Android 特权通道；权限在每次执行前实时复核，不能仅依赖启动时快照。 */
-    private suspend fun executeHost(args: JsonObject, operationId: String?, sessionId: String): Pair<Boolean, String> {
-        val raw = executeHostUncapped(args, operationId, sessionId)
+    private suspend fun executeHost(args: JsonObject, operationId: String?, sessionId: String, metadata: MutableMap<String, String>): Pair<Boolean, String> {
+        val raw = executeHostUncapped(args, operationId, sessionId, metadata)
         return raw.first to capHostOutput(raw.second)
     }
 
@@ -480,7 +482,7 @@ class ToolExecutor(
      * Java 堆，直接触发 target footprint OOM。截断标记引导模型缩小范围重取。
      */
     @OptIn(InternalCoroutinesApi::class)
-    private suspend fun executeHostUncapped(args: JsonObject, operationId: String?, sessionId: String): Pair<Boolean, String> {
+    private suspend fun executeHostUncapped(args: JsonObject, operationId: String?, sessionId: String, metadata: MutableMap<String, String>): Pair<Boolean, String> {
         val action = requireString(args, "action").trim().lowercase()
 
         // Logcat 优先走内置无线 ADB，不依赖 Shizuku/Root；不可用时再回退原特权通道。
@@ -511,7 +513,7 @@ class ToolExecutor(
         }
         val manager = privilegeManager ?: return false to "未初始化宿主权限执行器"
         if (VirtualScreenHostActions.handles(action)) {
-            return virtualScreenHostActions().execute(action, args)
+            return virtualScreenHostActions { metadata["image_payload"] = it }.execute(action, args)
         }
 
         // settings_put system 命名空间优先走 Android ContentResolver API（需 WRITE_SETTINGS），
@@ -814,15 +816,10 @@ class ToolExecutor(
         )
     }
 
-    private fun virtualScreenHostActions() = VirtualScreenHostActions(
-        coordinator = virtualDisplayCoordinator,
-        toolkit = virtualScreenToolkit,
-        packageNamePattern = PACKAGE_NAME,
-        requireHostIdentifier = ::requireHostIdentifier,
-        requireString = ::requireString,
-        requireInt = ::requireInt,
-        optionalLong = ::optionalLong,
-        optionalSession = ::optionalSession,
+    private fun virtualScreenHostActions(attachImage: (String) -> Unit = {}) = VirtualScreenHostActions(
+        virtualDisplayCoordinator, virtualScreenToolkit, PACKAGE_NAME,
+        ::requireHostIdentifier, ::requireString, ::requireInt, ::optionalLong, ::optionalSession,
+        providerClient, settingsDataStore, attachImage,
     )
 
     private fun requireSettingsNamespace(args: JsonObject): String {

@@ -14,6 +14,7 @@ import com.ai.assistance.showerclient.ShowerLogSink
 import com.ai.assistance.showerclient.ShowerServerManager
 import com.ai.assistance.showerclient.ShowerVideoRenderer
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.runtime.apps.installedAppNames
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -106,6 +107,9 @@ class VirtualDisplayCoordinator(
         }
         return controller.getDisplayId()
     }
+
+    /** 已安装应用的包名和应用名，供手机操作模型把「微信」解析成包名。 */
+    fun installedApps(): List<Pair<String, String>> = installedAppNames(context)
 
     /** 在指定会话的虚拟屏上以 shell 身份启动第三方应用（需 Shizuku/Root；普通 App 无法做到） */
     suspend fun launchApp(sessionId: String = DEFAULT_SESSION_ID, packageName: String): Boolean =

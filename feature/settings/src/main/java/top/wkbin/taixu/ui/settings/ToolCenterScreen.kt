@@ -821,6 +821,7 @@ fun ToolCenterScreen(
                 onDismiss = viewModel::closeBundleSetup,
             )
         }
+    }
 
     // 首次进入引导遮罩：高亮顶栏「导入离线插件包」入口（组件内部等待按钮完成布局测量后才绘制）
     if (!importGuideShown) {

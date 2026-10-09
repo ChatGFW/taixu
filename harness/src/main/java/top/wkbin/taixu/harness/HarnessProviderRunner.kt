@@ -347,7 +347,7 @@ class HarnessProviderRunner(
                 // 超出预算则明确失败并给出原始响应首部——绝不返回"什么都没有"，
                 // 否则上层会走"无工具调用 → 收尾 → Outcome=completed"，前台零提示。
                 currentCoroutineContext().ensureActive()
-                netRetry++
+                requestMessages = stripEmptyResponseImages(++netRetry, EMPTY_RESPONSE_MAX_RETRIES, requestMessages, sessId, agentEventLogger, empty)
                 if (netRetry > EMPTY_RESPONSE_MAX_RETRIES) {
                     stateMirrors.setThinkingLive(sessId, false)
                     messageProjector.remove(sessId, assistantId)

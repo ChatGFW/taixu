@@ -252,7 +252,7 @@ class ApprovalPolicyEngine(
             "screen_input_text",
             "paste_text",
             "screen_key",
-            "app_launch",
+            "app_launch", "virtual_screen_task", "virtual_screen_click", "virtual_screen_double_click", "virtual_screen_long_press", "virtual_screen_swipe", "virtual_screen_scroll", "virtual_screen_key", "virtual_screen_input_text", "virtual_screen_screenshot",
         )
 
         /** argumentsJson 的 SHA-256 十六进制摘要；创建时写入，执行前复核。 */

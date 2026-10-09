@@ -35,6 +35,7 @@ import top.wkbin.taixu.harness.approval.ApprovalResumePolicy
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
 import top.wkbin.taixu.harness.checkpoint.RewindController
 import top.wkbin.taixu.harness.compaction.BranchSummarizer
+import top.wkbin.taixu.harness.session.QueuedInstructionRecorder
 import top.wkbin.taixu.harness.session.SessionTreeStore
 import top.wkbin.taixu.harness.session.SessionTurnCoordinator
 import top.wkbin.taixu.harness.session.TurnPriority
@@ -994,17 +995,14 @@ class HarnessLoop(
         }
     }
 
-    private suspend fun createDurableTask(sessId: String, pending: PendingMessage) {
-        val taskId = pending.taskId ?: return
-        agentTaskStateMachine.createQueued(
-            id = taskId,
-            sessionId = sessId,
-            title = pending.text.lineSequence().firstOrNull().orEmpty(),
-            description = pending.text,
-            nowMs = pending.createdAt,
-        )
-        agentEventLogger.log(sessId, "DurableTaskQueued", "taskId=$taskId")
-    }
+    private val queuedInstructions = QueuedInstructionRecorder(
+        agentTaskStateMachine,
+        sessionDao,
+        { sessionId, tag, message -> agentEventLogger.log(sessionId, tag, message) },
+    ) { id -> messageStore.load(id).any { it is UserMessage } }
+
+    private suspend fun createDurableTask(sessId: String, pending: PendingMessage) =
+        queuedInstructions.record(sessId, pending)
 
     /** Resolve a waiting approval as a cancelled tool call before allowing a new run. */
     private suspend fun rejectPendingApprovalsForCancel(sessId: String) {

@@ -881,6 +881,20 @@ class ContextWindowPolicyTest {
         )
     }
 
+    @Test
+    fun `retainLatestImages drops older pictures and keeps the newest`() {
+        val messages = listOf(
+            ApiMessage(role = "user", content = "第一张", imageUrls = listOf("data:image/png;base64,AAA")),
+            ApiMessage(role = "user", content = "第二张", imageUrls = listOf("data:image/png;base64,BBB")),
+            ApiMessage(role = "user", content = "只要文字"),
+        )
+        val kept = retainLatestImages(messages, keep = 1)
+        assertEquals(emptyList<String>(), kept[0].imageUrls)
+        assertTrue(kept[0].content.orEmpty().contains("历史图片已省略"))
+        assertEquals(listOf("data:image/png;base64,BBB"), kept[1].imageUrls)
+        assertEquals("只要文字", kept[2].content)
+    }
+
     private fun estimateMessageTokens(message: HarnessMessage): Int = when (message) {
         is UserMessage -> ContextWindowPolicy.estimateTokens(message.text)
         is AssistantText -> ContextWindowPolicy.estimateTokens(message.text) +

@@ -37,6 +37,13 @@ object ApiMessageProjector {
         recallSuffixes: Map<String, String> = emptyMap(),
     ): List<ApiMessage> {
         val answeredIds = msgs.filterIsInstance<ToolResult>().mapTo(mutableSetOf()) { it.toolCallId }
+        // 虚拟屏一轮轮截图会把每张全屏图都留在后续请求里。模型实际只需要最近几张，
+        // 更早的画面继续堆叠会把上下文撑到上游只回空 delta 的程度。
+        val keptToolImageIds = msgs.filterIsInstance<ToolResult>()
+            .filter { it.success && !it.imageDataUrl.isNullOrBlank() }
+            .map { it.id }
+            .takeLast(MAX_RECENT_TOOL_IMAGES)
+            .toSet()
         val toolCallDetails = msgs.filterIsInstance<ToolCall>().associate {
             it.id to ((it.rawToolName ?: HarnessApiMapper.apiName(it.tool)) to it.args)
         }
@@ -148,7 +155,15 @@ object ApiMessageProjector {
                     )
                     i = j
                 } else if (message is ToolResult) {
-                    val content = message.output
+                    val imageOmitted = visionEnabled &&
+                        message.success &&
+                        !message.imageDataUrl.isNullOrBlank() &&
+                        message.id !in keptToolImageIds
+                    val content = if (imageOmitted) {
+                        message.output + "\n[这张历史截图未再次附上，上下文只保留最近 $MAX_RECENT_TOOL_IMAGES 张画面。需要旧画面请重新截图。]"
+                    } else {
+                        message.output
+                    }
                     add(
                         ApiMessage(
                             role = "tool",
@@ -157,7 +172,9 @@ object ApiMessageProjector {
                         ),
                     )
                     // 沙箱图片多模态直通：紧跟 tool 结果追加一条图片 user 消息
-                    visionBridgeMessage(message, visionEnabled)?.let { add(it) }
+                    if (!imageOmitted) {
+                        visionBridgeMessage(message, visionEnabled)?.let { add(it) }
+                    }
                     i++
                 } else {
                     val mapped = HarnessApiMapper.toApiMessage(message)
@@ -178,8 +195,11 @@ object ApiMessageProjector {
         if (!visionEnabled || !message.success) return null
         return ApiMessage(
             role = "user",
-            content = "[read 工具读取的图片，已作为多模态图像提供]",
+            content = "[工具结果附带的图片，已作为多模态图像提供]",
             imageUrls = listOf(payload),
         )
     }
+
+    /** 发给模型的工具截图上限。更早的 imageDataUrl 仍留在会话记录里，只是不再重复发送。 */
+    internal const val MAX_RECENT_TOOL_IMAGES = 2
 }
