@@ -24,6 +24,8 @@ import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
 import top.wkbin.taixu.runtime.build.WorkshopSigningManager
 import top.wkbin.taixu.runtime.build.WorkspaceBuildRunner
 import top.wkbin.taixu.runtime.doctor.EnvironmentDoctor
+import top.wkbin.taixu.runtime.doctor.ToolchainInspector
+import top.wkbin.taixu.runtime.doctor.ToolchainInstaller
 import top.wkbin.taixu.runtime.doctor.EnvironmentRepairer
 import top.wkbin.taixu.runtime.gui.GuiAccessibilityEnabler
 import top.wkbin.taixu.runtime.gui.HostGuiController
@@ -202,6 +204,10 @@ val runtimeModule = module {
     single<EnvironmentDoctor> { EnvironmentDoctor(context = get(), linuxRuntime = get()) }
 
     single<EnvironmentRepairer> { EnvironmentRepairer(linuxRuntime = get(), environmentDoctor = get()) }
+
+    // 沙箱工具链检测 / 一键补齐：顶部工具条「工具链」入口使用
+    single<ToolchainInspector> { ToolchainInspector(linuxRuntime = get()) }
+    single<ToolchainInstaller> { ToolchainInstaller(linuxRuntime = get()) }
 
     single<GuiAccessibilityEnabler> { GuiAccessibilityEnabler(context = get(), privilegeManager = get()) }
 
