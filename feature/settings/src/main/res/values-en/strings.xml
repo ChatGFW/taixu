@@ -76,4 +76,20 @@
     <string name="profile_transfer_confirm">Confirm import</string>
     <string name="profile_transfer_cancel">Cancel</string>
     <string name="profile_transfer_edit">Back to edit</string>
+    <string name="local_backup_title">Data backup and restore</string>
+    <string name="local_backup_subtitle">Profiles · Conversations and attachments · Skills · Workspace index</string>
+    <string name="local_backup_scope">Save model profiles, portable appearance and agent preferences, conversations, app attachments, custom skill resources and the workspace index to a local ZIP. Stop agent tasks first.</string>
+    <string name="local_backup_exclusions">The archive contains original conversations and files. Keep it private. Model keys, headers, OAuth, device permissions, execution queues and Linux systems are excluded. Workspace files require a separate backup. Limit: 256 MiB and 10,000 resource files.</string>
+    <string name="local_backup_export">Generate and save backup</string>
+    <string name="local_backup_choose">Choose backup and preview</string>
+    <string name="local_backup_preview">Data to add</string>
+    <string name="local_backup_counts">Models %1$d · Conversations %2$d · Messages %3$d · Skills %4$d · Workspaces %5$d</string>
+    <string name="local_backup_files">%1$d resources, %2$d MiB; keep %3$d existing records with matching IDs.</string>
+    <string name="local_backup_merge_detail">Merge keeps existing records and conversation history. New models need credentials configured again. Imported skills and subagents are disabled. Restored conversations use assisted approval and never resume tasks automatically.</string>
+    <string name="local_backup_preferences">Also replace portable preferences (%1$d values)</string>
+    <string name="local_backup_restore">Merge and restore</string>
+    <string name="local_backup_back">Back</string>
+    <string name="local_backup_close">Close</string>
+    <string name="local_backup_completed">Operation completed.</string>
+    <string name="local_backup_error">Operation did not complete. Stop running tasks and check the archive version, integrity and available storage. If data changed during preview, select the archive again.</string>
 </resources>

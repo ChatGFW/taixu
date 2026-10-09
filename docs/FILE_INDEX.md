@@ -99,3 +99,21 @@
 ## 🤝 Web Reverse MCP 参考
 
 项目内置浏览器/MCP 设计借鉴自 `mnjh666/WebReverse-MCP`（模块切分 / 工具动词集 / 风险矩阵），不复用其代码。
+
+## 💾 本地数据备份与恢复
+
+完整说明见 [LOCAL_BACKUP.md](LOCAL_BACKUP.md)。
+
+| 文件 | 说明 |
+|---|---|
+| `tools/backup/LocalBackupService.kt` | 备份/恢复协调器、原子恢复日志、启动挂单恢复 |
+| `tools/backup/BackupArchive.kt` | ZIP 归档读写、路径安全校验、SHA-256 摘要 |
+| `tools/backup/BackupResources.kt` | 资源文件收集与路径重写 |
+| `core/database/BackupRecordPolicy.kt` | 可备份表清单、运行时字段归零、记录差集 |
+| `core/database/BackupRestoreReceipt.kt` | 恢复收据实体 + DB Migration 53→54 |
+| `core/database/DatabaseBackupRepository.kt` | Room 事务级快照、结构校验和合并 |
+| `core/datastore/BackupPreferences.kt` | 可移植偏好快照、校验、原子回滚 |
+| `core/model/LocalBackup.kt` | `LocalBackupManifest` / `BackupRecords` / `BackupPreview` 数据类 |
+| `feature/settings/LocalBackupDialog.kt` | 导出/导入 UI（含预览、偏好复选框）|
+| `feature/settings/LocalBackupViewModel.kt` | 备份 UI ViewModel |
+| `app/BackupStartupRecovery.kt` | Application 启动检查并完成挂起恢复 |

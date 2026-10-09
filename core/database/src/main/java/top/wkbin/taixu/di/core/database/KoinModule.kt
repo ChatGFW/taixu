@@ -36,6 +36,7 @@ import top.wkbin.taixu.core.database.task.RoomAgentTaskRepository
 
 /** Dependency registrations owned by the core:database module. */
 val coreDatabaseModule = module {
+    single<top.wkbin.taixu.core.database.DatabaseBackupRepository> { top.wkbin.taixu.core.database.RoomDatabaseBackupRepository(database = get()) }
     single<AgencyAgentCatalogLoader> { AgencyAgentCatalogLoader(context = get(), json = get()) }
 
     single<AgentApprovalRepository> { AgentApprovalRepository(dao = get()) }

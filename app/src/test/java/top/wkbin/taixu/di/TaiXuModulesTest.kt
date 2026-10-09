@@ -34,6 +34,7 @@ class TaiXuModulesTest {
             // These arguments are assembled explicitly by provider lambdas, not container lookups.
             injections = injectedParameters(
                 definition<WorkspaceFileAccess>(File::class),
+                definition<top.wkbin.taixu.core.tools.backup.BackupLocations>(File::class),
                 definition<HttpClient>(HttpClientEngine::class),
                 definition<OkHttpClient>(OkHttpClient.Builder::class),
                 definition<SubagentLaneRunner>(Function0::class),
