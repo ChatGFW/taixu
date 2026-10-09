@@ -1,18 +1,19 @@
-package top.wkbin.taixu.ui.home
+package top.wkbin.taixu.harness.workflow
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.WorkflowRepository
 import top.wkbin.taixu.core.database.WorkflowScheduleEntity
 import top.wkbin.taixu.core.model.workflow.MorningReportSentinel
 import top.wkbin.taixu.core.model.workflow.WorkflowScheduleRepeat
-import top.wkbin.taixu.harness.workflow.WorkflowScheduleRepository
 
-/** 晨报哨兵首页卡片的派生状态（由定时计划表映射而来）。 */
+/**
+ * 晨报哨兵的派生状态（由定时计划表映射而来）。
+ * 首页「晨报哨兵」卡片与乾坤「特色功能」栏共用同一套状态与操作。
+ */
 data class SentinelState(
     val enabled: Boolean = false,
     val hour: Int = DEFAULT_HOUR,

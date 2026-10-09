@@ -18,8 +18,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.logging.AppLogger
-import top.wkbin.taixu.core.database.WorkflowRepository
-import top.wkbin.taixu.harness.workflow.WorkflowScheduleRepository
 import top.wkbin.taixu.core.model.DoctorReport
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.core.model.RepairProgress
@@ -71,41 +69,7 @@ class HomeViewModel(
     private val backgroundTaskRegistry: BackgroundTaskRegistry,
     private val privilegeManager: PrivilegeManager,
     private val logger: AppLogger,
-    private val workflowRepository: WorkflowRepository,
-    private val scheduleRepository: WorkflowScheduleRepository,
-    private val webChatBridgeServer: top.wkbin.taixu.runtime.webchat.WebChatBridgeServer? = null,
 ) : ViewModel() {
-
-    // 晨报哨兵：定时计划驱动的每日巡检（详见 HomeSentinelSupport）
-    private val _sentinelState = MutableStateFlow(SentinelState())
-    val sentinelState: StateFlow<SentinelState> = _sentinelState.asStateFlow()
-
-    fun enableSentinel(hour: Int, minute: Int) {
-        viewModelScope.launch {
-            runCatching { enableSentinelSchedule(scheduleRepository, workflowRepository, hour, minute) }
-                .onFailure { logger.w("HomeViewModel: enableSentinel failed: ${it.message}", it) }
-        }
-    }
-
-    fun disableSentinel() {
-        viewModelScope.launch {
-            runCatching { disableSentinelSchedule(scheduleRepository) }
-                .onFailure { logger.w("HomeViewModel: disableSentinel failed: ${it.message}", it) }
-        }
-    }
-
-    val webChatStatus: StateFlow<top.wkbin.taixu.runtime.webchat.WebChatServerStatus> =
-        webChatBridgeServer?.status ?: MutableStateFlow(top.wkbin.taixu.runtime.webchat.WebChatServerStatus()).asStateFlow()
-
-    fun toggleWebChat(enabled: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            if (enabled) {
-                webChatBridgeServer?.start()
-            } else {
-                webChatBridgeServer?.stop()
-            }
-        }
-    }
 
     val runtimeState: StateFlow<RuntimeState> = linuxRuntime.state
     val installedDistros = linuxRuntime.installedDistros
@@ -144,7 +108,6 @@ class HomeViewModel(
         observeRuntimeStateForDoctor()
         observeRepairCompletion()
         observeExecutionMode()
-        viewModelScope.observeSentinelState(scheduleRepository) { _sentinelState.value = it }
     }
 
     /** 直接消费全应用共享的权限状态机，避免首页自行维护第二套授权真相。 */
