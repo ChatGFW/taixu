@@ -25,7 +25,7 @@ import top.wkbin.taixu.runtime.doctor.ToolchainInspector
 class ToolchainViewModel(
     private val inspector: ToolchainInspector,
     private val toolManager: ToolManager,
-    linuxRuntime: LinuxRuntime,
+    private val linuxRuntime: LinuxRuntime,
 ) : ViewModel() {
 
     private val repairer = ToolchainRepairer(linuxRuntime)
