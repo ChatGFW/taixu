@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness
 
 import kotlinx.serialization.json.Json
+import top.wkbin.taixu.harness.core.TurnResponse
 
 /** Protocol normalization boundary shared by the main loop and independently testable. */
 class ProviderResponseNormalizer(
@@ -51,11 +52,19 @@ data class NormalizedProviderResponse(
     val result: ChatResult,
     val rawText: String,
     val displayText: String,
-    val toolCalls: List<ApiToolCallSpec>,
+    override val toolCalls: List<ApiToolCallSpec>,
     val textToolCallCount: Int,
     val invalidMarkerCount: Int,
     val hasUnresolvedMarkers: Boolean,
-) {
+) : TurnResponse<ApiToolCallSpec> {
+    override val failureMessage: String?
+        get() = when {
+            isBlankResponse -> ProviderClient.EMPTY_RESPONSE_MESSAGE
+            toolCalls.isEmpty() && hasUnresolvedMarkers ->
+                "模型返回了无法解析的文本工具调用；已停止，避免把未执行的工具请求误判为完成"
+            else -> null
+        }
+
     /**
      * 空的一轮：模型没产出正文、（有效）推理，也没有（原生或文本）工具调用。
      *

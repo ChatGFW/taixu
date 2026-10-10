@@ -11,10 +11,28 @@ interface WebChatAgentGateway {
     suspend fun messages(sessionId: String): List<WebChatMessage>
     suspend fun pendingApprovals(sessionId: String): List<WebChatApproval>
     fun observeSession(sessionId: String): Flow<WebChatSessionSnapshot>
-    suspend fun send(sessionId: String, text: String, imageUrls: List<String>)
+    fun observeTask(sessionId: String, taskId: String): Flow<WebChatTaskState>
+    suspend fun send(sessionId: String, text: String, imageUrls: List<String>,
+        mode: WebChatInputMode = WebChatInputMode.NEXT_RUN): WebChatInputReceipt
     suspend fun resolveApproval(sessionId: String, requestId: String, approved: Boolean): Boolean
     fun cancel(sessionId: String)
 }
+
+enum class WebChatTaskState {
+    QUEUED, RUNNING, WAITING_APPROVAL, RECOVERING, SUSPENDED, FAILED, COMPLETED, CANCELLED, MISSING, UNKNOWN
+}
+
+enum class WebChatInputMode(val id: String) {
+    NEXT_RUN("next_run"), STEER("steer"), FOLLOW_UP("follow_up")
+}
+
+/** Admission receipt. Completion is reported by the existing session stream. */
+data class WebChatInputReceipt(
+    val disposition: String,
+    val taskId: String?,
+    val queue: String? = null,
+    val queueItemId: String? = null,
+)
 
 @Serializable
 data class WebChatApproval(

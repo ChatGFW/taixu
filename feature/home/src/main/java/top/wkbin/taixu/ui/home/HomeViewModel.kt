@@ -278,8 +278,8 @@ class HomeViewModel(
                     val totalBytes = stat.totalBytes
                     val availBytes = stat.availableBytes
                     val usedBytes = (totalBytes - availBytes).coerceAtLeast(0)
-                    totalGb = String.format("%.1f", totalBytes.toDouble() / (1024 * 1024 * 1024)).toDoubleOrNull() ?: 0.0
-                    usedGb = String.format("%.1f", usedBytes.toDouble() / (1024 * 1024 * 1024)).toDoubleOrNull() ?: 0.0
+                    totalGb = kotlin.math.round(totalBytes.toDouble() / (1024 * 1024 * 1024) * 10) / 10
+                    usedGb = kotlin.math.round(usedBytes.toDouble() / (1024 * 1024 * 1024) * 10) / 10
                     storagePercent = if (totalBytes > 0) ((usedBytes * 100) / totalBytes).toInt() else 0
                 }
 

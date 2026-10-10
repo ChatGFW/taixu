@@ -4,7 +4,7 @@ import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.harness.mcp.McpToolApiName
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlinx.coroutines.CancellationException
+import top.wkbin.taixu.harness.core.DurableToolRunner
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -232,56 +232,52 @@ class HarnessToolRoundRunner(
                 rawToolName = item.toolName,
             )
             val toolStart = now()
-            val outcome = try {
-                publicationMutex.withLock {
-                    agentEventLogger.log(sessId, "ToolCall", "Tool=${item.tool.name}, CallId=${toolCall.id}, ArgumentCount=${item.args.size}")
-                    operationCoordinator.toolIntent(
+            DurableToolRunner.run<ToolResult>(
+                commitIntent = {
+                    publicationMutex.withLock {
+                        agentEventLogger.log(sessId, "ToolCall", "Tool=${item.tool.name}, CallId=${toolCall.id}, ArgumentCount=${item.args.size}")
+                        operationCoordinator.toolIntent(
+                            operationId = operationId,
+                            message = toolCall,
+                            payloadJson = item.args.toString(),
+                            replay = ToolReplayPolicy.forTool(item.tool, item.toolName),
+                            round = round,
+                        )
+                        messageProjector.publishPersisted(sessId, toolCall)
+                        stateMirrors.setStatus(sessId, ToolStatusDescriber.describe(item.tool, item.args, item.toolName))
+                    }
+                },
+                execute = {
+                    toolExecutor.execute(
+                        toolCall, sessId, sessionWorkspace,
+                        progressReporter = { progress -> stateMirrors.setStatus(sessId, progress) },
                         operationId = operationId,
-                        message = toolCall,
-                        payloadJson = item.args.toString(),
-                        replay = ToolReplayPolicy.forTool(item.tool, item.toolName),
-                        round = round,
                     )
-                    messageProjector.publishPersisted(sessId, toolCall)
-                    stateMirrors.setStatus(sessId, ToolStatusDescriber.describe(item.tool, item.args, item.toolName))
-                }
-                toolExecutor.execute(
-                    toolCall,
-                    sessId,
-                    sessionWorkspace,
-                    progressReporter = { progress -> stateMirrors.setStatus(sessId, progress) },
-                    operationId = operationId,
-                )
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (throwable: Throwable) {
-                ToolResult(
-                    id = newId(),
-                    createdAt = now(),
-                    toolCallId = toolCall.id,
-                    success = false,
-                    output = "工具执行异常：${friendly(throwable)}",
-                )
-            }
-            val duration = now() - toolStart
-            publicationMutex.withLock {
-                agentEventLogger.log(sessId, "ToolResult", "Tool=${item.tool.name}, CallId=${toolCall.id}, Success=${outcome.success}, Duration=${duration}ms, OutputChars=${outcome.output.length}, AwaitingApproval=${outcome.awaitingApproval}")
-                loopDetector.recordSettled(item.toolName, item.args, success = outcome.success, output = outcome.output)
-                if (outcome.awaitingApproval) {
-                    metrics.approvalRequested()
-                    stateMirrors.setStatus(sessId, "等待用户批准")
-                    // 触发审批暂停：中止本回合尚未开始的调用，在途调用自然完成后统一暂停，
-                    // 与原串行实现"中途暂停、后续调用不执行"的语义一致。
-                    pause.abort()
-                    approvalPauseRequested.set(true)
-                }
-                val settledOutcome = outcome.copy(durationMs = duration)
-                operationCoordinator.toolSettled(operationId, settledOutcome, round, toolName = toolCall.rawToolName ?: item.tool.name)
-                messageProjector.publishPersisted(sessId, settledOutcome)
-                if (outcome.success) roundHadSuccess.set(true)
-                metrics.toolCallRecorded(failed = !outcome.success)
-                sessionDao.touch(sessId, now())
-            }
+                },
+                executionFailure = { throwable ->
+                    ToolResult(newId(), now(), toolCall.id, false, "工具执行异常：${friendly(throwable)}")
+                },
+                commitResult = { outcome ->
+                    publicationMutex.withLock {
+                        val duration = now() - toolStart
+                        agentEventLogger.log(sessId, "ToolResult", "Tool=${item.tool.name}, CallId=${toolCall.id}, Success=${outcome.success}, Duration=${duration}ms, OutputChars=${outcome.output.length}, AwaitingApproval=${outcome.awaitingApproval}")
+                        if (outcome.awaitingApproval) {
+                            metrics.approvalRequested()
+                            stateMirrors.setStatus(sessId, "等待用户批准")
+                            // Stop queued calls; in-flight calls settle before the approval boundary.
+                            pause.abort()
+                            approvalPauseRequested.set(true)
+                        }
+                        val settledOutcome = outcome.copy(durationMs = duration)
+                        operationCoordinator.toolSettled(operationId, settledOutcome, round, toolName = toolCall.rawToolName ?: item.tool.name)
+                        messageProjector.publishPersisted(sessId, settledOutcome)
+                        loopDetector.recordSettled(item.toolName, item.args, success = outcome.success, output = outcome.output)
+                        if (outcome.success) roundHadSuccess.set(true)
+                        metrics.toolCallRecorded(failed = !outcome.success)
+                        sessionDao.touch(sessId, now())
+                    }
+                },
+            )
         }
         if (approvalPauseRequested.get()) {
             // All in-flight results must settle before persisting the approval boundary.

@@ -62,7 +62,7 @@ class ApiContextAssembler(
             modelId = model.model,
             providerId = model.provider,
         )
-        val toolCallMode = if (model.pureChatMode) ToolCallMode.DISABLED else model.toolCallMode
+        val toolCallMode = model.effectiveToolCallMode
         // 折叠线的工具 schema 预留按模式取：不外发 tools 的会话不该白留这 5,600 token
         val toolSchemaReserveTokens = ContextWindowPolicy.toolSchemaReserveTokensFor(
             pureChat = model.pureChatMode,
@@ -174,7 +174,7 @@ class ApiContextAssembler(
                         systemPrompt = systemPrompt,
                         summaryLayer = compactedContext.summaryLayer,
                         toolCallMode = toolCallMode,
-                        visionEnabled = model.visionEnabled,
+                        visionEnabled = model.capabilities.images,
                         recallBlocks = compactedContext.recallBlocks,
                         // 被折叠区域的 provider 可见形态：截断已发生过，与主对话实际发送的字节一致
                         replayPrefix = msgs.take(computedKeepFromIndex),
@@ -220,7 +220,7 @@ class ApiContextAssembler(
             val projectedMessages = ApiMessageProjector.project(
                 msgs = msgs,
                 toolCallMode = toolCallMode,
-                visionEnabled = model.visionEnabled,
+                visionEnabled = model.capabilities.images,
                 recallSuffixes = compactedContext.recallBlocks,
             )
             // Split-Turn 压缩后保留段可能从 assistant / tool_call 中途开始。补一条合成 user

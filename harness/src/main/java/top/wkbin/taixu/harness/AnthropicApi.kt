@@ -1,5 +1,6 @@
 package top.wkbin.taixu.harness
 
+import top.wkbin.taixu.harness.core.LlmApi
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicInteger
@@ -36,16 +37,14 @@ import kotlin.time.Duration.Companion.milliseconds
  * - 系统提示是顶层 system 字段，不在 messages 数组里；
  * - 工具结果以 user 角色 content 中的 tool_result 块回传，且同一轮的多个
  *   tool_result 必须合并在同一条 user 消息里；
- * - max_tokens 为必填；
- * - 流式事件为 content_block_start / content_block_delta / message_stop，
- *   工具参数通过 input_json_delta 增量分片。
  */
 internal class AnthropicApi(
     private val okHttpClient: OkHttpClient,
     private val json: Json,
-) {
+) : LlmApiAdapter {
+    override val api = LlmApi.ANTHROPIC_MESSAGES
     @OptIn(InternalCoroutinesApi::class)
-    suspend fun chat(model: ModelConfig, messages: List<ApiMessage>): ChatResult =
+    override suspend fun chat(model: ModelConfig, messages: List<ApiMessage>): ChatResult =
         withContext(Dispatchers.IO) {
             val call = okHttpClient.newCall(buildRequest(model, messages, stream = false))
             // 与流式路径一致：取消时立即关闭 socket，避免"停止"后阻塞到读超时
@@ -75,11 +74,11 @@ internal class AnthropicApi(
      * 再次请求（严禁插入人工 "Continue" 用户消息），直到拿到终态；各段增量已在回调
      * 中顺序上屏，Token 统计与工具调用在续跑间累加、重基。
      */
-    suspend fun chatStream(
+    override suspend fun chatStream(
         model: ModelConfig,
         messages: List<ApiMessage>,
         onReasoning: (String) -> Unit,
-        onToolProgress: (ToolCallStreamProgress) -> Unit = {},
+        onToolProgress: (ToolCallStreamProgress) -> Unit,
         onDelta: (String) -> Unit,
     ): ChatResult = withContext(Dispatchers.IO) {
         var conversation = messages
@@ -404,7 +403,7 @@ internal class AnthropicApi(
         val dynamicTools = if (model.pureChatMode) emptyList() else ProviderClient.buildDynamicTools()
         // NATIVE 模式下 tools 数组独立于 messages，输出预算必须显式扣掉 schema
         val toolSchemaTokens =
-            if (!model.pureChatMode && model.toolCallMode == ToolCallMode.NATIVE) {
+            if (model.capabilities.nativeTools) {
                 ContextWindowPolicy.estimateToolDefinitionTokens(dynamicTools)
             } else {
                 0
@@ -433,13 +432,13 @@ internal class AnthropicApi(
                 model.topP?.let { put("top_p", it) }
             }
             put("stream", stream)
-            if (!model.pureChatMode && model.toolCallMode == ToolCallMode.JSON_TEXT && dynamicTools.isNotEmpty()) {
+            if (model.capabilities.textTools && dynamicTools.isNotEmpty()) {
                 // JSON 文本模式：工具定义写进 system，模型用文本输出工具调用
                 systemPrompt.append("\n\n## 可用工具 JSON 定义（必须严格按此 name 与参数输出）\n")
                     .append(ProviderClient.buildToolsTextDescription(dynamicTools))
             }
             if (!model.pureChatMode && systemPrompt.isNotEmpty()) {
-                if (model.promptCachingEnabled) {
+                if (model.capabilities.promptCaching) {
                     // Prompt Caching 断点 1：System 提示词末尾
                     put(
                         "system",
@@ -465,7 +464,7 @@ internal class AnthropicApi(
             applyUserCacheBreakpoint(model, normalizedMessages)
             put("messages", JsonArray(normalizedMessages))
             // 仅 NATIVE 模式注入标准 tools；纯净模式与 JSON_TEXT / DISABLED 均不注入
-            if (!model.pureChatMode && model.toolCallMode == ToolCallMode.NATIVE && dynamicTools.isNotEmpty()) {
+            if (model.capabilities.nativeTools && dynamicTools.isNotEmpty()) {
                 put(
                     "tools",
                     buildJsonArray {
@@ -476,7 +475,7 @@ internal class AnthropicApi(
                                     put("description", definition.function.description)
                                     put("input_schema", definition.function.parameters)
                                     // Prompt Caching 断点 2：Tools 数组最后一个工具定义
-                                    if (model.promptCachingEnabled && toolIndex == dynamicTools.lastIndex) {
+                                    if (model.capabilities.promptCaching && toolIndex == dynamicTools.lastIndex) {
                                         put("cache_control", cacheControl(model))
                                     }
                                 },
@@ -493,7 +492,7 @@ internal class AnthropicApi(
             .header("Content-Type", "application/json")
             .header("anthropic-version", ANTHROPIC_VERSION)
             .apply {
-                if (model.promptCachingEnabled && model.promptCacheTtl1h) {
+                if (model.capabilities.promptCaching && model.promptCacheTtl1h) {
                     header("anthropic-beta", EXTENDED_CACHE_TTL_BETA)
                 }
                 model.apiKey?.let { header("x-api-key", it) }
@@ -541,7 +540,7 @@ internal class AnthropicApi(
      * 真实用户消息 = role=user 且 content 含 text block（排除纯 tool_result 回包）。
      */
     private fun applyUserCacheBreakpoint(model: ModelConfig, messages: MutableList<JsonObject>) {
-        if (!model.promptCachingEnabled) return
+        if (!model.capabilities.promptCaching) return
         val realUserIndices = messages.indices.filter { index ->
             val message = messages[index]
             if (message["role"]?.jsonPrimitive?.contentOrNull != "user") return@filter false

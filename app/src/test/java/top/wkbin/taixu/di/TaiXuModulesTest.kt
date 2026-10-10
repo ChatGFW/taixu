@@ -16,6 +16,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import okhttp3.OkHttpClient
 import top.wkbin.taixu.harness.WorkspaceFileAccess
+import top.wkbin.taixu.harness.WorkspaceToolBackend
+import top.wkbin.taixu.harness.core.ToolCheckpoints
 import top.wkbin.taixu.harness.subagent.SubagentLaneRunner
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpResources
@@ -34,6 +36,8 @@ class TaiXuModulesTest {
             // These arguments are assembled explicitly by provider lambdas, not container lookups.
             injections = injectedParameters(
                 definition<WorkspaceFileAccess>(File::class),
+                definition<WorkspaceToolBackend>(Function1::class),
+                definition<ToolCheckpoints<*, *>>(List::class),
                 definition<top.wkbin.taixu.core.tools.backup.BackupLocations>(File::class),
                 definition<HttpClient>(HttpClientEngine::class),
                 definition<OkHttpClient>(OkHttpClient.Builder::class),

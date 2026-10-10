@@ -2,7 +2,7 @@ package top.wkbin.taixu.ui.chat
 
 import android.content.Context
 import top.wkbin.taixu.harness.A2uiSurfaceBus
-import top.wkbin.taixu.harness.HarnessLoop
+import top.wkbin.taixu.harness.session.InteractiveSessionControl
 
 /**
  * A2UI PoC 与聊天会话的桥接：注册官方 parser 深度校验、启动用户交互事件转发
@@ -11,7 +11,7 @@ import top.wkbin.taixu.harness.HarnessLoop
  */
 object A2uiChatBridge {
 
-    fun bind(harnessLoop: HarnessLoop, appContext: Context) {
+    fun bind(harnessLoop: InteractiveSessionControl, appContext: Context) {
         top.wkbin.taixu.feature.a2uipoc.A2uiPocInstaller.install(appContext)
         // 忙时用 steer 挂到当前运行，避免每次事件都 send() 新建排队任务
         fun dispatch(text: String, sessionId: String) {

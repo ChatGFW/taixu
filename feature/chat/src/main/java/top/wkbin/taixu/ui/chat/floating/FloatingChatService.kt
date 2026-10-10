@@ -29,7 +29,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
-import top.wkbin.taixu.harness.HarnessLoop
+import top.wkbin.taixu.harness.session.InteractiveSessionControl
 import top.wkbin.taixu.ui.theme.TaiXuTheme
 import kotlin.math.roundToInt
 
@@ -39,7 +39,7 @@ import kotlin.math.roundToInt
  */
 class FloatingChatService : Service() {
 
-    val harnessLoop: HarnessLoop by inject()
+    val harnessLoop: InteractiveSessionControl by inject()
 
     val sessionDao: HarnessSessionRepository by inject()
 

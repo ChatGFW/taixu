@@ -289,6 +289,26 @@ interface HarnessRuntimeDao {
         upsertLane(lane)
     }
 
+    @Query("""
+        UPDATE agent_tasks SET status = 'RUNNING', operationId = :operationId,
+            startedAt = COALESCE(startedAt, :now), updatedAt = :now,
+            attemptCount = attemptCount + 1, statusDetail = '任务已受理',
+            errorMessage = NULL, completedAt = NULL, nextRunAt = NULL
+        WHERE id = :taskId AND sessionId = :sessionId AND status = 'QUEUED'
+    """)
+    suspend fun claimAdmittedTask(taskId: String, sessionId: String, operationId: String, now: Long): Int
+
+    @Transaction
+    suspend fun acceptTaskOperation(taskId: String, entry: HarnessEntryEntity, lane: HarnessLaneEntity,
+        operation: HarnessOperationEntity, queueItemId: String?) {
+        require(entry.sessionId == lane.sessionId && operation.sessionId == lane.sessionId && operation.laneName == lane.name)
+        check(claimAdmittedTask(taskId, lane.sessionId, operation.id, operation.startedAt) == 1) {
+            "Task could not claim admission"
+        }
+        if (queueItemId == null) acceptOperation(entry, lane, operation)
+        else acceptQueuedOperation(queueItemId, entry, lane, operation)
+    }
+
     @Transaction
     suspend fun settleEffect(entry: HarnessEntryEntity?, usage: HarnessUsageEntity?, operation: HarnessOperationEntity, lane: HarnessLaneEntity) {
         if (entry != null) insertEntryOrThrow(entry)

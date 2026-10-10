@@ -67,7 +67,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.layout
@@ -102,7 +101,6 @@ fun CodeEditorScreen(
     onBack: () -> Unit,
     viewModel: WorkspaceViewModel = koinViewModel(),
 ) {
-    val fileContent by viewModel.fileContent.collectAsStateWithLifecycle()
     val contentRevision by viewModel.contentRevision.collectAsStateWithLifecycle()
     val isDirty by viewModel.isDirty.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
@@ -111,11 +109,11 @@ fun CodeEditorScreen(
     val messageIsError by viewModel.messageIsError.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    var showUnsavedDialog by remember { mutableStateOf(false) }
-    var showDiscardDialog by remember { mutableStateOf(false) }
+    var showUnsavedDialog by rememberSaveable(projectName, relativePath) { mutableStateOf(false) }
+    var showDiscardDialog by rememberSaveable(projectName, relativePath) { mutableStateOf(false) }
     var wordWrap by rememberSaveable { mutableStateOf(false) }
     var editorFontSizeSp by rememberSaveable { mutableStateOf(13f) }
-    val editorState = remember { TextFieldState() }
+    val editorState = remember(projectName, relativePath) { TextFieldState(viewModel.editorText(projectName, relativePath)) }
     val lineCount by remember(editorState) {
         derivedStateOf {
             val text = editorState.text
@@ -143,7 +141,7 @@ fun CodeEditorScreen(
     // 仅在整文加载或重置时同步文本，避免打字期间因异步流转导致光标重置和软键盘闪烁
     LaunchedEffect(contentRevision) {
         if (contentRevision > 0L) {
-            val target = viewModel.fileContent.value
+            val target = viewModel.editorText(projectName, relativePath)
             if (editorState.text.toString() != target) {
                 editorState.setTextAndPlaceCursorAtEnd(target)
             }
@@ -386,7 +384,7 @@ fun CodeEditorScreen(
     // 未保存退出提示
     if (showUnsavedDialog) {
         RuntimeAlertDialog(
-            onDismissRequest = { showUnsavedDialog = false },
+            onDismissRequest = { if (!isSaving) showUnsavedDialog = false },
             title = { Text(stringResource(R.string.workspace_unsaved_title)) },
             text = { Text(stringResource(R.string.workspace_unsaved_message)) },
             confirmButton = {
@@ -401,6 +399,7 @@ fun CodeEditorScreen(
                             },
                         )
                     },
+                    enabled = !isSaving && !loading,
                 ) { Text(stringResource(R.string.workspace_save_and_exit)) }
             },
             dismissButton = {
@@ -410,6 +409,7 @@ fun CodeEditorScreen(
                         viewModel.closeFile()
                         onBack()
                     },
+                    enabled = !isSaving,
                 ) { Text(stringResource(R.string.workspace_discard_changes), color = MaterialTheme.colorScheme.error) }
             },
         )

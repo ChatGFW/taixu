@@ -92,4 +92,6 @@
     <string name="local_backup_close">关闭</string>
     <string name="local_backup_completed">操作已完成。</string>
     <string name="local_backup_error">操作未完成。请停止正在运行的任务，确认备份版本、完整性和存储空间后重试。恢复预览期间数据有变化时，请重新选择文件。</string>
+    <string name="model_integer_nonnegative">请输入 0 到 2147483647 的整数，留空表示不限</string>
+    <string name="model_integer_positive">请输入 1 到 2147483647 的整数，留空使用默认值</string>
 </resources>

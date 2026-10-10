@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness.mcp
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
@@ -273,6 +274,8 @@ class McpStdioTransportLifecycleTest {
 
         override suspend fun close() {
             alive = false
+            // Model process shutdown: stop the delayed writer before closing its stdout.
+            fakeScope.coroutineContext[Job]?.cancelAndJoin()
             incoming.close()
         }
     }

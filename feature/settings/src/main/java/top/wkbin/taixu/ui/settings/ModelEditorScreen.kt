@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.settings
 
+import androidx.compose.ui.res.stringResource
+import top.wkbin.taixu.feature.settings.R
+
 import org.koin.compose.viewmodel.koinViewModel
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -333,6 +336,9 @@ private fun ModelEditorContent(
     var compactionReserveText by rememberSaveable(modelId) {
         mutableStateOf(existing?.compactionReserveTokens?.toString().orEmpty())
     }
+    val rpmValid = isValidOptionalModelInteger(rpmLimitText, 0)
+    val keepRecentValid = isValidOptionalModelInteger(compactionKeepRecentText, 1)
+    val reserveValid = isValidOptionalModelInteger(compactionReserveText, 1)
     var topP by rememberSaveable(modelId) { mutableFloatStateOf(existing?.topP ?: 1.0f) }
 
     var reasoningModeText by rememberSaveable(modelId) { mutableStateOf(existing?.reasoningMode ?: "auto") }
@@ -1162,7 +1168,9 @@ private fun ModelEditorContent(
                             // 单 Key 每分钟上限
                             OutlinedTextField(
                                 value = rpmLimitText,
-                                onValueChange = { rpmLimitText = it.filter(Char::isDigit) },
+                                onValueChange = { rpmLimitText = it },
+                                isError = !rpmValid,
+                                supportingText = { if (!rpmValid) Text(stringResource(R.string.model_integer_nonnegative)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 label = { Text("单 Key 每分钟请求上限 (RPM)") },
                                 placeholder = { Text("0 表示不限制") },
@@ -1179,7 +1187,9 @@ private fun ModelEditorContent(
                             ) {
                                 OutlinedTextField(
                                     value = compactionKeepRecentText,
-                                    onValueChange = { compactionKeepRecentText = it.filter(Char::isDigit) },
+                                    onValueChange = { compactionKeepRecentText = it },
+                                    isError = !keepRecentValid,
+                                    supportingText = { if (!keepRecentValid) Text(stringResource(R.string.model_integer_positive)) },
                                     modifier = Modifier.weight(1f),
                                     label = { Text("压缩保留上限") },
                                     placeholder = { Text("20000") },
@@ -1190,7 +1200,9 @@ private fun ModelEditorContent(
                                 )
                                 OutlinedTextField(
                                     value = compactionReserveText,
-                                    onValueChange = { compactionReserveText = it.filter(Char::isDigit) },
+                                    onValueChange = { compactionReserveText = it },
+                                    isError = !reserveValid,
+                                    supportingText = { if (!reserveValid) Text(stringResource(R.string.model_integer_positive)) },
                                     modifier = Modifier.weight(1f),
                                     label = { Text("响应预留 Token") },
                                     placeholder = { Text("16384") },
@@ -1400,7 +1412,7 @@ private fun ModelEditorContent(
                 },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(12.dp),
-                enabled = effectiveModels.isNotEmpty() && urlValid && tokenFieldsValid,
+                enabled = effectiveModels.isNotEmpty() && urlValid && tokenFieldsValid && rpmValid && keepRecentValid && reserveValid,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     RuntimeIcon(RuntimeIconName.Check, Modifier.size(18.dp), MaterialTheme.colorScheme.onPrimary)
@@ -1425,29 +1437,6 @@ internal fun filterCandidateModels(models: List<String>, query: String): List<St
         models
     } else {
         models.filter { it.contains(normalizedQuery, ignoreCase = true) }
-    }
-}
-
-@Composable
-private fun PresetChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-        modifier = Modifier.clickable(onClick = onClick),
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            ),
-            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-        )
     }
 }
 

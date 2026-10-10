@@ -239,11 +239,6 @@ fun TaiXuNavHost(
                         onNavigate = ::navigateMain,
                         onOpenTerminal = { homeStack.push(HomeDestination, TerminalDestination()) },
                         onOpenToolCenter = { homeStack.push(HomeDestination, ToolCenterDestination) },
-                        onStartCustomIteration = { homeStack.push(HomeDestination, CustomIterationDestination) },
-                        onStartRoundtable = {
-                            pendingHealingTask = HealingTask(AgentPresets.ROUNDTABLE_TITLE, AgentPresets.ROUNDTABLE_PROMPT)
-                            selectedMain = MainDestination.Agent
-                        },
                     )
                 }
             }

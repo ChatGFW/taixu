@@ -1,5 +1,5 @@
 package top.wkbin.taixu.harness
-
+import top.wkbin.taixu.harness.core.TurnOutcome
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.database.HarnessSessionEntity
@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -96,10 +97,10 @@ class HarnessLoop(
     private val branchSummarizer: BranchSummarizer,
     private val skillEvolutionAdvisor: SkillEvolutionAdvisor? = null,
     private val turnCoordinator: SessionTurnCoordinator,
-) {
+) : top.wkbin.taixu.harness.session.InteractiveSessionControl {
     private val loopScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    val currentSessionId: StateFlow<String> get() = sessionTracker.currentSessionId
+    override val currentSessionId: StateFlow<String> get() = sessionTracker.currentSessionId
 
     private val sessionJobs = ConcurrentHashMap<String, Job>()
     private val sessionCancelEpochs = ConcurrentHashMap<String, AtomicLong>()
@@ -114,84 +115,82 @@ class HarnessLoop(
     private val _sessionPendingMessages = ConcurrentHashMap<String, MutableStateFlow<List<PendingMessage>>>()
 
     /** 全局所有会话的运行状态映射（供会话抽屉、状态点等观察）——委托给状态镜像器。 */
-    val sessionRunStates: StateFlow<Map<String, SessionRunState>> get() = stateMirrors.sessionRunStates
+    override val sessionRunStates: StateFlow<Map<String, SessionRunState>> get() = stateMirrors.sessionRunStates
     /** 全局各会话当前的动作描述状态。 */
-    val sessionStatuses: StateFlow<Map<String, String>> get() = stateMirrors.sessionStatuses
+    override val sessionStatuses: StateFlow<Map<String, String>> get() = stateMirrors.sessionStatuses
 
     // ---- 当前前台聚焦会话的响应式镜像（全部委托给投影协作类） ----
-    val messages: StateFlow<List<HarnessMessage>> get() = messageProjector.foregroundMessages
+    override val messages: StateFlow<List<HarnessMessage>> get() = messageProjector.foregroundMessages
 
     /** Session-scoped message stream used by trusted secondary surfaces such as TaiXu WebChat. */
-    fun messagesForSession(sessionId: String): StateFlow<List<HarnessMessage>> =
+    override fun messagesForSession(sessionId: String): StateFlow<List<HarnessMessage>> =
         messageProjector.messagesFlow(sessionId)
 
     // ---- Checkpoints & Rewind（每轮文件快照安全网，供 UI / 未来 MCP 调用） ----
-    fun sessionCheckpoints(sessionId: String): List<top.wkbin.taixu.harness.checkpoint.CheckpointMeta> =
+    override fun sessionCheckpoints(sessionId: String): List<top.wkbin.taixu.harness.checkpoint.CheckpointMeta> =
         rewindController.checkpoints(sessionId)
 
-    fun prepareRewind(
+    override fun prepareRewind(
         sessionId: String,
         turn: Int,
         scope: top.wkbin.taixu.harness.checkpoint.RewindScope,
     ): top.wkbin.taixu.harness.checkpoint.RewindPlan = rewindController.prepare(sessionId, turn, scope)
 
-    suspend fun commitRewind(
+    override suspend fun commitRewind(
         plan: top.wkbin.taixu.harness.checkpoint.RewindPlan,
-        workspace: String = "",
+        workspace: String,
     ): top.wkbin.taixu.harness.checkpoint.RewindResult = rewindController.commit(plan, workspace)
 
     /** 撤销最近一次 rewind（单层级）；null = 当前没有可撤销的 rewind。 */
-    suspend fun undoRewind(
+    override suspend fun undoRewind(
         sessionId: String,
-        workspace: String = "",
+        workspace: String,
     ): top.wkbin.taixu.harness.checkpoint.RewindResult? = rewindController.undoLastRewind(sessionId, workspace)
 
     /** Loads persisted history without changing the Android UI's foreground session. */
-    suspend fun prepareRemoteSession(sessionId: String): List<HarnessMessage> {
-        val flow = messageProjector.preparedForLoad(sessionId)
-        return flow.value
-    }
+    override suspend fun prepareRemoteSession(sessionId: String): List<HarnessMessage> = messageProjector.preparedForLoad(sessionId).value
+    override suspend fun persistedMessages(sessionId: String): List<HarnessMessage> = messageProjector.loadPersistedHistory(sessionId)
 
-    val running: StateFlow<Boolean> get() = stateMirrors.running
+    override val running: StateFlow<Boolean> get() = stateMirrors.running
 
     private val _workspace = MutableStateFlow("")
     /** 当前会话关联的工作区 Linux 路径（"" = 未关联）。 */
-    val workspace: StateFlow<String> = _workspace.asStateFlow()
+    override val workspace: StateFlow<String> = _workspace.asStateFlow()
 
     private val _projectType = MutableStateFlow("")
     /** 当前会话显式选择的工程类型；空值表示由工作区内容自动识别。 */
-    val projectType: StateFlow<String> = _projectType.asStateFlow()
+    override val projectType: StateFlow<String> = _projectType.asStateFlow()
 
-    val mcpRecommendations get() = workspaceRecommendations.recommendations
+    override val mcpRecommendations get() = workspaceRecommendations.recommendations
 
-    fun enableRecommendedMcp(presetId: String) {
+    override fun enableRecommendedMcp(presetId: String) {
         loopScope.launch { workspaceRecommendations.enable(presetId) }
     }
 
-    fun dismissMcpRecommendation(presetId: String) = workspaceRecommendations.dismiss(presetId)
+    override fun dismissMcpRecommendation(presetId: String) = workspaceRecommendations.dismiss(presetId)
 
     private fun refreshMcpRecommendations(workspacePath: String) {
         workspaceRecommendations.refresh(loopScope, workspacePath)
     }
 
-    val error: StateFlow<String?> get() = stateMirrors.error
+    override val error: StateFlow<String?> get() = stateMirrors.error
 
     /** 当前执行状态（供 UI / 后台通知显示进度）。运行结束或出错时置空。 */
-    val status: StateFlow<String?> get() = stateMirrors.status
+    override val status: StateFlow<String?> get() = stateMirrors.status
 
     /** 推理模型思考中（reasoning 正在流式上屏）。开始思考置 true，本回合结束时置 false。 */
-    val thinkingLive: StateFlow<Boolean> get() = stateMirrors.thinkingLive
+    override val thinkingLive: StateFlow<Boolean> get() = stateMirrors.thinkingLive
 
     private val _pendingMessages = MutableStateFlow<List<PendingMessage>>(emptyList())
     /**
      * 运行中排队等待发送的用户消息。当前任务结束后自动按序接续执行；
      * 用户点"停止"时清空。UI 可观察此列表展示排队状态。
      */
-    val pendingMessages: StateFlow<List<PendingMessage>> = _pendingMessages.asStateFlow()
+    override val pendingMessages: StateFlow<List<PendingMessage>> = _pendingMessages.asStateFlow()
 
     private val _queuedPrompts = MutableStateFlow<List<QueuedPrompt>>(emptyList())
     /** Current session's durable queues, including steering and follow-up semantics. */
-    val queuedPrompts: StateFlow<List<QueuedPrompt>> = _queuedPrompts.asStateFlow()
+    override val queuedPrompts: StateFlow<List<QueuedPrompt>> = _queuedPrompts.asStateFlow()
 
     private fun getOrCreatePendingFlow(sessId: String): MutableStateFlow<List<PendingMessage>> {
         return _sessionPendingMessages.getOrPut(sessId) { MutableStateFlow(emptyList()) }
@@ -309,7 +308,7 @@ class HarnessLoop(
     }
 
     /** 新建会话。workspace 为关联的工作区 Linux 路径（如 /workspace/proj），空串表示不关联。 */
-    suspend fun newSession(title: String, workspace: String = "", projectType: String = ""): String {
+    override suspend fun newSession(title: String, workspace: String, projectType: String): String {
         val id = UUID.randomUUID().toString()
         val defaultModel = modelRepository.activeModel()
         foregroundLoadGeneration.incrementAndGet()
@@ -346,7 +345,7 @@ class HarnessLoop(
     }
 
     /** 恢复已有会话的历史消息与工作区关联，不中断正在后台运行的任何会话。 */
-    suspend fun loadSession(id: String) {
+    override suspend fun loadSession(id: String) {
         val generation = foregroundLoadGeneration.incrementAndGet()
         sessionTracker.setCurrent(id)
         val sessionEntity = withContext(Dispatchers.IO) { sessionDao.findById(id) }
@@ -534,10 +533,10 @@ class HarnessLoop(
         }
     }
 
-    suspend fun renameSession(id: String, title: String) {
+    override suspend fun renameSession(id: String, title: String) {
         sessionDao.rename(id, title, System.currentTimeMillis())
     }
-    suspend fun deleteSession(id: String) {
+    override suspend fun deleteSession(id: String) {
         // 注意：这里不能全程持有会话互斥锁——cancelAndJoin 会等待 runLoop 的 finally
         // 段，而 finally 段需要抢同一把锁，全程持锁必然死锁。因此采用 tombstone +
         // 结束时移除 tombstone 的方案；对"协程在删除完成后才拿到锁"的窗口，
@@ -574,58 +573,54 @@ class HarnessLoop(
         }
     }
 
-    fun send(text: String, targetSessionId: String? = null, imageUrls: List<String> = emptyList()) {
-        val trimmed = text.trim()
-        val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
-        if (trimmed.isEmpty() && imageUrls.isEmpty()) return
-        if (sessId.isBlank()) return
-
-        val pending = PendingMessage(text = trimmed, imageUrls = imageUrls, taskId = newId())
-        startSessionRun(sessId, enqueueOnBusy = pending) {
-            runLoop(sessId, pending.text, pending.imageUrls, pending.taskId)
-        }
-        startForegroundServiceSafe()
-    }
-
-    fun steer(text: String, targetSessionId: String? = null, imageUrls: List<String> = emptyList()) {
-        enqueueExplicit(PromptQueue.STEER, text, targetSessionId, imageUrls)
-    }
-
-    fun followUp(text: String, targetSessionId: String? = null, imageUrls: List<String> = emptyList()) {
-        enqueueExplicit(PromptQueue.FOLLOW_UP, text, targetSessionId, imageUrls)
-    }
-
-    private fun enqueueExplicit(queue: PromptQueue, text: String, targetSessionId: String?, imageUrls: List<String>) {
-        val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
-        val trimmed = text.trim()
-        if (sessId.isBlank() || (trimmed.isBlank() && imageUrls.isEmpty())) return
-        loopScope.launch {
-            turnCoordinator.withSessionMutex(sessId) {
-                // 与 startSessionRun 同款幽灵会话防线：deleteSession 先删 DB 行、后移除 tombstone，
-                // 等锁的 steer/followUp 协程拿到锁时 tombstone 已不在——不查库就会给已删除会话
-                // 重建 durable task 并发起真实 LLM 调用（幽灵运行）。
-                if (tombstonedSessions.contains(sessId)) return@withSessionMutex
-                if (sessionDao.findById(sessId) == null) return@withSessionMutex
-                checkAndSettleExpiredApprovalsLocked(sessId)
-                if (isSessionBusy(sessId)) {
-                    // Steering/follow-up belongs to the currently active durable task.
-                    promptQueueManager.enqueue(sessId, queue, PendingMessage(trimmed, imageUrls))
-                } else {
-                    val pending = PendingMessage(trimmed, imageUrls, taskId = newId())
-                    createDurableTask(sessId, pending)
-                    launchSessionJobLocked(sessId, pending.taskId) {
-                        runLoop(sessId, pending.text, pending.imageUrls, pending.taskId)
-                    }
+    private val inputController = top.wkbin.taixu.harness.session.SessionInputController(
+        turnCoordinator, object : top.wkbin.taixu.harness.session.SessionInputRuntime {
+            override suspend fun exists(sessionId: String) =
+                !tombstonedSessions.contains(sessionId) && sessionDao.findById(sessionId) != null
+            override fun busy(sessionId: String) = isSessionBusy(sessionId)
+            override suspend fun settleExpiredApprovals(sessionId: String) { checkAndSettleExpiredApprovalsLocked(sessionId) }
+            override suspend fun hasNextRun(sessionId: String) = promptQueueManager.first(sessionId, PromptQueue.NEXT_RUN) != null
+            override suspend fun record(sessionId: String, input: PendingMessage) { createDurableTask(sessionId, input) }
+            override suspend fun enqueue(sessionId: String, queue: PromptQueue, input: PendingMessage) =
+                promptQueueManager.enqueue(sessionId, queue, input)
+            override suspend fun start(sessionId: String, input: PendingMessage): Boolean = withContext(NonCancellable) {
+                val operationId = acceptUserInput(sessionId, input.text, input.imageUrls, input.taskId, claimTask = true)
+                launchSessionJobLocked(sessionId, input.taskId, operationId, taskAlreadyRunning = true) {
+                    runLoopInternal(sessionId, now(), operationId, input.taskId)
                 }
             }
-            refreshPendingProjection(sessId)
+            override suspend fun startNext(sessionId: String) { startNextQueuedLocked(sessionId) }
+            override suspend fun refresh(sessionId: String) { refreshPendingProjection(sessionId) }
+            override fun refreshFailed(sessionId: String, failure: Exception) { logger.e("Accepted input projection refresh failed for $sessionId", failure) }
+        },
+    )
+    override suspend fun submit(sessionId: String, text: String, imageUrls: List<String>, queue: PromptQueue):
+        top.wkbin.taixu.harness.session.PromptSubmission = inputController.submit(sessionId, text, imageUrls, queue).also {
+            if (it is top.wkbin.taixu.harness.session.PromptSubmission.Accepted) startForegroundServiceSafe()
+        }
+    override fun send(text: String, targetSessionId: String?, imageUrls: List<String>) =
+        submitAsync(PromptQueue.NEXT_RUN, text, targetSessionId, imageUrls)
+    override fun steer(text: String, targetSessionId: String?, imageUrls: List<String>) =
+        submitAsync(PromptQueue.STEER, text, targetSessionId, imageUrls)
+    override fun followUp(text: String, targetSessionId: String?, imageUrls: List<String>) =
+        submitAsync(PromptQueue.FOLLOW_UP, text, targetSessionId, imageUrls)
+    private fun submitAsync(queue: PromptQueue, text: String, targetSessionId: String?, imageUrls: List<String>) {
+        val sessId = targetSessionId?.ifBlank { null } ?: currentSessionId.value
+        val images = imageUrls.toList()
+        loopScope.launch {
+            try { submit(sessId, text, images, queue) }
+            catch (cancellation: CancellationException) { throw cancellation }
+            catch (failure: Exception) {
+                logger.e("Session input admission failed for $sessId", failure)
+                stateMirrors.setError(sessId, "消息接收失败，请重试")
+            }
         }
     }
 
     /**
      * 重新生成最后一次回复
      */
-    fun regenerateLast(targetSessionId: String? = null) {
+    override fun regenerateLast(targetSessionId: String?) {
         val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
         if (sessId.isBlank()) return
 
@@ -643,7 +638,7 @@ class HarnessLoop(
     }
 
     /** Rewinds before a tool call and asks the model to continue again on a preserved new branch. */
-    fun retryToolCall(toolCallId: String, targetSessionId: String? = null) {
+    override fun retryToolCall(toolCallId: String, targetSessionId: String?) {
         val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
         if (sessId.isBlank()) return
         startSessionRun(sessId) {
@@ -660,7 +655,7 @@ class HarnessLoop(
     }
 
     /** Moves the main conversation cursor to an existing immutable-tree leaf. */
-    suspend fun activateBranch(leafId: String?, targetSessionId: String? = null): Boolean {
+    override suspend fun activateBranch(leafId: String?, targetSessionId: String?): Boolean {
         val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
         if (sessId.isBlank() || isSessionBusy(sessId)) return false
         val oldLeafId = messageStore.laneLeafId(sessId)
@@ -686,7 +681,7 @@ class HarnessLoop(
     /**
      * 编辑并重发指定用户消息
      */
-    fun truncateAndResend(userMessageId: String, newText: String, targetSessionId: String? = null) {
+    override fun truncateAndResend(userMessageId: String, newText: String, targetSessionId: String?) {
         val trimmed = newText.trim()
         val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
         if (trimmed.isEmpty() || sessId.isBlank()) return
@@ -707,7 +702,7 @@ class HarnessLoop(
     }
 
     /** Navigate the active branch to immediately before this message. */
-    suspend fun deleteMessage(messageId: String, targetSessionId: String? = null) {
+    override suspend fun deleteMessage(messageId: String, targetSessionId: String?) {
         val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
         if (isSessionBusy(sessId) || sessId.isBlank()) return
         val liveFlow = messageProjector.messagesFlow(sessId)
@@ -756,7 +751,7 @@ class HarnessLoop(
         }
     }
 
-    fun cancel(targetSessionId: String? = null) {
+    override fun cancel(targetSessionId: String?) {
         val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
         if (sessId.isBlank()) return
         stateMirrors.setStatus(sessId, "正在停止…")
@@ -805,7 +800,7 @@ class HarnessLoop(
     }
 
     /** 移除某会话排队中的消息 */
-    fun removePendingMessage(index: Int, targetSessionId: String? = null) {
+    override fun removePendingMessage(index: Int, targetSessionId: String?) {
         val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
         if (sessId.isBlank()) return
         loopScope.launch {
@@ -817,7 +812,7 @@ class HarnessLoop(
         }
     }
 
-    fun removeQueuedPrompt(queue: PromptQueue, index: Int, targetSessionId: String? = null) {
+    override fun removeQueuedPrompt(queue: PromptQueue, index: Int, targetSessionId: String?) {
         val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
         if (sessId.isBlank()) return
         loopScope.launch {
@@ -833,7 +828,7 @@ class HarnessLoop(
     }
 
     /** 清空某会话全部排队消息 */
-    fun clearPendingMessages(targetSessionId: String? = null) {
+    override fun clearPendingMessages(targetSessionId: String?) {
         val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
         if (sessId.isBlank()) return
         loopScope.launch {
@@ -873,12 +868,11 @@ class HarnessLoop(
             createDurableTask(sessId, next.copy(taskId = generated))
         }
         val userMessage = UserMessage(newId(), now(), next.text, next.imageUrls)
-        val operationId = operationCoordinator.acceptQueuedRun(sessId, queueItemId, userMessage)
+        val operationId = operationCoordinator.acceptQueuedRun(sessId, queueItemId, userMessage, taskId)
         messageProjector.publishPersisted(sessId, userMessage)
-        launchSessionJobLocked(sessId, taskId, operationId = operationId) {
+        return launchSessionJobLocked(sessId, taskId, operationId = operationId, taskAlreadyRunning = true) {
             runLoopInternal(sessId, now(), operationId, taskId)
         }
-        return true
     }
 
     /** Caller holds the session mutex. A lazy Job counts as busy as soon as it enters the map. */
@@ -888,8 +882,9 @@ class HarnessLoop(
         operationId: String? = null,
         incrementTaskAttempt: Boolean = true,
         priority: TurnPriority = TurnPriority.NORMAL,
+        taskAlreadyRunning: Boolean = false,
         block: suspend () -> RunResult,
-    ) {
+    ): Boolean {
         // 占用护栏：已有活跃 Job 时拒绝再启动。审批恢复（startClaimedSessionRun）在
         // claimPending 与拿会话锁之间留有窗口——用户同时点「批准」与「停止」时，
         // cancel 的 startNextQueuedLocked 先启动了新 run，这里若再无条件覆盖
@@ -899,16 +894,16 @@ class HarnessLoop(
                 "Session $sessId already has an active run; skipping duplicate launch " +
                     "(taskId=$taskId). This indicates an approval/cancel race — the earlier run wins.",
             )
-            return
+            return false
         }
-        if (taskId != null && !agentTaskStateMachine.markRunning(
+        if (taskId != null && !taskAlreadyRunning && !agentTaskStateMachine.markRunning(
                 id = taskId,
                 operationId = operationId,
                 incrementAttempt = incrementTaskAttempt,
             )
         ) {
             logger.w("Durable task $taskId could not claim RUNNING; session launch skipped")
-            return
+            return false
         }
         val epoch = sessionCancelEpochs.getOrPut(sessId) { AtomicLong() }.get()
         val job = loopScope.launch(start = CoroutineStart.LAZY) {
@@ -916,27 +911,24 @@ class HarnessLoop(
         }
         sessionJobs[sessId] = job
         job.start()
+        return true
     }
 
-    fun clearError(targetSessionId: String? = null) {
+    override fun clearError(targetSessionId: String?) {
         val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
         if (sessId.isBlank()) return
         stateMirrors.setError(sessId, null)
     }
 
     /**
-     * Atomically check-and-occupy the session slot under a per-session Mutex,
-     * then run [block] as the single active run. If the session is busy the
-     * optional [enqueueOnBusy] message is queued for ordered execution.
+     * Starts an interactive history action in an otherwise-idle session slot.
      */
     private fun startSessionRun(
         sessId: String,
-        enqueueOnBusy: PendingMessage? = null,
         block: suspend () -> RunResult,
     ) {
         if (tombstonedSessions.contains(sessId)) return
         loopScope.launch {
-            enqueueOnBusy?.taskId?.let { createDurableTask(sessId, enqueueOnBusy) }
             var refreshQueue = false
             turnCoordinator.withSessionMutex(sessId) {
                 if (tombstonedSessions.contains(sessId)) return@withSessionMutex
@@ -950,21 +942,13 @@ class HarnessLoop(
                     refreshQueue = true
                 }
                 if (isSessionBusy(sessId)) {
-                    enqueueOnBusy?.let {
-                        promptQueueManager.enqueue(sessId, PromptQueue.NEXT_RUN, it)
-                        refreshQueue = true
-                    }
                     return@withSessionMutex
                 }
                 if (promptQueueManager.list(sessId, PromptQueue.NEXT_RUN).isNotEmpty()) {
-                    enqueueOnBusy?.let {
-                        promptQueueManager.enqueue(sessId, PromptQueue.NEXT_RUN, it)
-                        refreshQueue = true
-                    }
                     startNextQueuedLocked(sessId)
                     return@withSessionMutex
                 }
-                launchSessionJobLocked(sessId, enqueueOnBusy?.taskId, block = block)
+                launchSessionJobLocked(sessId, block = block)
             }
             if (refreshQueue) refreshPendingProjection(sessId)
         }
@@ -1147,14 +1131,19 @@ class HarnessLoop(
         imageUrls: List<String> = emptyList(),
         taskId: String? = null,
     ): RunResult {
+        val operationId = acceptUserInput(sessId, userText, imageUrls, taskId)
+        return runLoopInternal(sessId, startedAt = now(), operationId = operationId, taskId = taskId)
+    }
+
+    private suspend fun acceptUserInput(sessId: String, userText: String, imageUrls: List<String>, taskId: String?, claimTask: Boolean = false): String {
         // 拦截器重置已移至 runLoopInternal 入口（覆盖 regenerate/retry/branch 等直达路径）。
         agentEventLogger.log(sessId, "UserPrompt", userText)
         val userMessage = UserMessage(id = newId(), createdAt = now(), text = userText, imageUrls = imageUrls)
         rewindController.beginTurn(sessId, userText, userMessage.id)
-        val operationId = operationCoordinator.acceptRun(sessId, userMessage)
-        taskId?.let { agentTaskStateMachine.checkpoint(it, operationId, 0, 0, "任务已受理") }
+        val operationId = operationCoordinator.acceptRun(sessId, userMessage, taskId = taskId.takeIf { claimTask })
+        taskId?.takeUnless { claimTask }?.let { agentTaskStateMachine.checkpoint(it, operationId, 0, 0, "任务已受理") }
         messageProjector.publishPersisted(sessId, userMessage)
-        return runLoopInternal(sessId, startedAt = now(), operationId = operationId, taskId = taskId)
+        return operationId
     }
 
     private suspend fun runLoopInternal(
@@ -1475,7 +1464,7 @@ class HarnessLoop(
     private fun now(): Long = System.currentTimeMillis()
 
     /** Approve or reject a frozen tool call, then resume the same Agent session. */
-    fun resolveApproval(requestId: String, approved: Boolean, rememberForSession: Boolean = false) {
+    override fun resolveApproval(requestId: String, approved: Boolean, rememberForSession: Boolean) {
         logger.i("resolveApproval called: requestId=$requestId approved=$approved remember=$rememberForSession")
         loopScope.launch {
             val request = approvalRepository.find(requestId)
@@ -1607,7 +1596,7 @@ class HarnessLoop(
      * 与 resolveApproval 同轨（认领 → 占位启动 → 续跑），但无需重执行工具——
      * 答案经 [AskUserQuestions.formatAnswers] 直接作为该 toolCall 的结果落库。
      */
-    fun resolveQuestion(requestId: String, answersJson: String) {
+    override fun resolveQuestion(requestId: String, answersJson: String) {
         logger.i("resolveQuestion called: requestId=$requestId")
         loopScope.launch {
             val request = approvalRepository.find(requestId)

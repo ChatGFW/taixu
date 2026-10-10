@@ -1,5 +1,6 @@
 package top.wkbin.taixu.harness
 
+import top.wkbin.taixu.harness.core.LlmApi
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicInteger
@@ -30,10 +31,7 @@ import okhttp3.OkHttpClient
  * - 历史消息用 `input` items 表示：`{role:user|assistant, content:[...]}`、
  *   `{type:"function_call", call_id, name, arguments}`、
  *   `{type:"function_call_output", call_id, output}`；
- * - 图片内容 part 类型为 `input_image`，文本为 `input_text` / `output_text`；
  * - 工具定义为扁平结构 `{type:"function", name, description, parameters}`；
- * - 最大输出 token 字段名为 `max_output_tokens`；
- * - 推理参数为顶层 `reasoning: {effort: low|medium|high}`；
  * - 流式事件为 response.* 事件族：`response.output_text.delta`（正文增量）、
  *   `response.reasoning_text.delta` / `response.reasoning_summary_text.delta`（推理增量）、
  *   `response.output_item.added` / `response.function_call_arguments.delta`（工具调用分片）、
@@ -42,9 +40,10 @@ import okhttp3.OkHttpClient
 internal class ResponsesApi(
     private val okHttpClient: OkHttpClient,
     private val json: Json,
-) {
+) : LlmApiAdapter {
+    override val api = LlmApi.OPENAI_RESPONSES
     @OptIn(InternalCoroutinesApi::class)
-    suspend fun chat(model: ModelConfig, messages: List<ApiMessage>): ChatResult =
+    override suspend fun chat(model: ModelConfig, messages: List<ApiMessage>): ChatResult =
         withContext(Dispatchers.IO) {
             val call = okHttpClient.newCall(buildResponsesRequest(model, messages, stream = false))
             // 与流式路径一致：取消时立即关闭 socket，避免"停止"后阻塞到读超时
@@ -69,11 +68,11 @@ internal class ResponsesApi(
         }
 
     @OptIn(InternalCoroutinesApi::class)
-    suspend fun chatStream(
+    override suspend fun chatStream(
         model: ModelConfig,
         messages: List<ApiMessage>,
-        onReasoning: (String) -> Unit = {},
-        onToolProgress: (ToolCallStreamProgress) -> Unit = {},
+        onReasoning: (String) -> Unit,
+        onToolProgress: (ToolCallStreamProgress) -> Unit,
         onDelta: (String) -> Unit,
     ): ChatResult = withContext(Dispatchers.IO) {
         val call = okHttpClient.newCall(buildResponsesRequest(model, messages, stream = true))

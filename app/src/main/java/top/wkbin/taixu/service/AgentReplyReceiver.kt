@@ -6,12 +6,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.RemoteInput
-import top.wkbin.taixu.harness.HarnessLoop
+import top.wkbin.taixu.harness.session.SessionControl
 
 /** 处理通知栏【回复】输入框：把用户的下一条指令交给 Agent 继续执行。 */
 class AgentReplyReceiver : BroadcastReceiver(), KoinComponent {
 
-    val harnessLoop: HarnessLoop by inject()
+    val harnessLoop: SessionControl by inject()
 
     override fun onReceive(context: Context, intent: Intent) {
         val reply = RemoteInput.getResultsFromIntent(intent)

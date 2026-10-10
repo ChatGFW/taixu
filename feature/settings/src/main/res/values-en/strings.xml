@@ -92,4 +92,6 @@
     <string name="local_backup_close">Close</string>
     <string name="local_backup_completed">Operation completed.</string>
     <string name="local_backup_error">Operation did not complete. Stop running tasks and check the archive version, integrity and available storage. If data changed during preview, select the archive again.</string>
+    <string name="model_integer_nonnegative">Enter an integer from 0 to 2147483647; leave blank for unlimited</string>
+    <string name="model_integer_positive">Enter an integer from 1 to 2147483647; leave blank for the default</string>
 </resources>

@@ -214,6 +214,7 @@ val appModule = module {
             sessions = get(),
             models = get(),
             approvals = get(),
+            tasks = get(),
         )
     }
 

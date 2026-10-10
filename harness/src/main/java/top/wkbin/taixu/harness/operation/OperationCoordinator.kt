@@ -29,35 +29,32 @@ class OperationCoordinator(
      */
     private val acceptMutex = Mutex()
 
-    suspend fun acceptRun(sessionId: String, userMessage: HarnessMessage, laneName: String = SessionTreeStore.MAIN_LANE): String = acceptMutex.withLock {
+    suspend fun acceptRun(sessionId: String, userMessage: HarnessMessage, laneName: String = SessionTreeStore.MAIN_LANE,
+        taskId: String? = null): String = acceptMutex.withLock {
         val lane = reclaimInterruptedLane(sessionId, laneName)
         check(lane.currentOperationId == null) { "Lane ${lane.name} is busy" }
         val now = System.currentTimeMillis()
         val operationId = UUID.randomUUID().toString()
         val operation = newOperation(operationId, sessionId, lane, now)
         val entry = messageEntry(sessionId, lane.leafId, userMessage)
-        repository.acceptOperation(
-            entry = entry,
-            lane = lane.copy(leafId = entry.id, currentOperationId = operationId, updatedAt = now),
-            operation = operation,
-        )
+        val acceptedLane = lane.copy(leafId = entry.id, currentOperationId = operationId, updatedAt = now)
+        if (taskId == null) repository.acceptOperation(entry, acceptedLane, operation)
+        else repository.acceptTaskOperation(taskId, entry, acceptedLane, operation)
         eventBus.emit(HarnessEvent.OperationStarted(sessionId, now, operationId, laneName))
         return operationId
     }
 
-    suspend fun acceptQueuedRun(sessionId: String, queueItemId: String, userMessage: HarnessMessage): String = acceptMutex.withLock {
+    suspend fun acceptQueuedRun(sessionId: String, queueItemId: String, userMessage: HarnessMessage,
+        taskId: String? = null): String = acceptMutex.withLock {
         val lane = reclaimInterruptedLane(sessionId, SessionTreeStore.MAIN_LANE)
         check(lane.currentOperationId == null) { "Lane ${lane.name} is busy" }
         val now = System.currentTimeMillis()
         val operationId = UUID.randomUUID().toString()
         val operation = newOperation(operationId, sessionId, lane, now)
         val entry = messageEntry(sessionId, lane.leafId, userMessage)
-        repository.acceptQueuedOperation(
-            queueItemId = queueItemId,
-            entry = entry,
-            lane = lane.copy(leafId = entry.id, currentOperationId = operationId, updatedAt = now),
-            operation = operation,
-        )
+        val acceptedLane = lane.copy(leafId = entry.id, currentOperationId = operationId, updatedAt = now)
+        if (taskId == null) repository.acceptQueuedOperation(queueItemId, entry, acceptedLane, operation)
+        else repository.acceptTaskOperation(taskId, entry, acceptedLane, operation, queueItemId)
         eventBus.emit(HarnessEvent.OperationStarted(sessionId, now, operationId, SessionTreeStore.MAIN_LANE))
         return operationId
     }

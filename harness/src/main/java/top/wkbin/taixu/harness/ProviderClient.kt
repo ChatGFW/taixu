@@ -1,20 +1,16 @@
 package top.wkbin.taixu.harness
 
-import top.wkbin.taixu.core.database.AiModelRepository
-import top.wkbin.taixu.core.datastore.AgentPreferences
-import top.wkbin.taixu.core.tools.ProviderRepository
+import top.wkbin.taixu.harness.core.LlmApi
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -28,7 +24,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import top.wkbin.taixu.harness.diagnostics.withRequestDiagnostics
 import okhttp3.RequestBody.Companion.toRequestBody
 import top.wkbin.taixu.harness.mcp.McpToolApiName
 
@@ -68,9 +63,10 @@ class LlmEmptyResponseException(message: String) : IOException(message)
 internal class ChatApi(
     private val okHttpClient: OkHttpClient,
     private val json: Json,
-) {
+) : LlmApiAdapter {
+    override val api = LlmApi.OPENAI_COMPLETIONS
     @OptIn(InternalCoroutinesApi::class)
-    suspend fun chat(model: ModelConfig, messages: List<ApiMessage>): ChatResult =
+    override suspend fun chat(model: ModelConfig, messages: List<ApiMessage>): ChatResult =
         withContext(Dispatchers.IO) {
             val call = okHttpClient.newCall(buildRequest(model, messages, stream = false))
             // 与流式路径一致：取消时立即关闭 socket，否则阻塞的 execute()/body.string()
@@ -111,11 +107,11 @@ internal class ChatApi(
      * 即失败，不会有增量重复发送的风险）。
      */
     @OptIn(InternalCoroutinesApi::class)
-    suspend fun chatStream(
+    override suspend fun chatStream(
         model: ModelConfig,
         messages: List<ApiMessage>,
-        onReasoning: (String) -> Unit = {},
-        onToolProgress: (ToolCallStreamProgress) -> Unit = {},
+        onReasoning: (String) -> Unit,
+        onToolProgress: (ToolCallStreamProgress) -> Unit,
         onDelta: (String) -> Unit,
     ): ChatResult = try {
         executeStream(model, messages, onReasoning, onToolProgress, onDelta, includeUsage = true)
@@ -375,7 +371,7 @@ internal class ChatApi(
         // JSON_TEXT 模式：把工具 JSON 描述追加到首条 system 消息末尾，让模型在纯文本中输出工具调用。
         // 只注入首条：压缩摘要层也是 system 消息，全量注入会把数千 token 的工具 schema 复制多份，
         // 还把 JSON 定义拼在「早期历史摘要」末尾污染摘要语义（Anthropic/Responses 路径本就只注入一次）。
-        val effectiveMessages = if (!model.pureChatMode && model.toolCallMode == ToolCallMode.JSON_TEXT && tools.isNotEmpty()) {
+        val effectiveMessages = if (model.capabilities.textTools && tools.isNotEmpty()) {
             val desc = ProviderClient.buildToolsTextDescription(tools)
             var injected = false
             messages.map { msg ->
@@ -392,7 +388,7 @@ internal class ChatApi(
         // NATIVE 模式下 tools 数组独立于 messages，输出预算必须显式扣掉 schema；
         // JSON_TEXT 模式下 schema 已内联进 effectiveMessages，由 messages 口径覆盖，故传 0。
         val toolSchemaTokens =
-            if (!model.pureChatMode && model.toolCallMode == ToolCallMode.NATIVE) {
+            if (model.capabilities.nativeTools) {
                 ContextWindowPolicy.estimateToolDefinitionTokens(tools)
             } else {
                 0
@@ -422,7 +418,7 @@ internal class ChatApi(
             // 推理开关/强度：按厂商能力翻译（reasoning_effort / thinking_config / thinking / reasoning）
             ReasoningAdapter.openAiFields(model).forEach { (key, value) -> put(key, value) }
             // 工具调用：纯净模式与 DISABLED 模式完全不注入工具相关参数；仅 NATIVE 模式注入标准 tools
-            if (!model.pureChatMode && model.toolCallMode == ToolCallMode.NATIVE && tools.isNotEmpty()) {
+            if (model.capabilities.nativeTools && tools.isNotEmpty()) {
                 put("tools", json.encodeToJsonElement(kotlinx.serialization.builtins.ListSerializer(ApiToolDefinition.serializer()), tools))
             }
             put("messages", kotlinx.serialization.json.buildJsonArray {
@@ -572,92 +568,6 @@ internal fun countPartialJsonStringLines(arguments: CharSequence, fieldName: Str
     }
     return null
 }
-
-/** 解析后的模型运行配置。 */
-data class ModelConfig(
-    val name: String,
-    val provider: String,
-    val model: String,
-    val baseUrl: String,
-    val apiKey: String?,
-    /** 同一接口地址下参与轮询的 Key 池；为空时兼容使用 [apiKey]。 */
-    val apiKeys: List<String> = emptyList(),
-    /** 单 Key 每分钟请求上限；0 表示不限。 */
-    val requestsPerMinutePerKey: Int = 0,
-    /** 接入协议：OPENAI 兼容或 Anthropic Messages API。 */
-    val protocol: ApiProtocol = ApiProtocol.OPENAI,
-    /** 推理参数（null = 服务端默认）。 */
-    val temperature: Float? = null,
-    val maxTokens: Int? = null,
-    val topP: Float? = null,
-    /** 推理开关：AUTO = 跟随模型服务端默认。 */
-    val reasoningMode: ReasoningMode = ReasoningMode.AUTO,
-    /** 推理强度：null = 服务端默认。 */
-    val reasoningEffort: ReasoningEffort? = null,
-    /**
-     * 工具调用模式：NATIVE = OpenAI 标准 function calling（注入 tools）；
-     * JSON_TEXT = 工具列表写入系统提示词，模型用文本输出工具调用；
-     * DISABLED = 禁用工具（纯聊天）。
-     */
-    val toolCallMode: ToolCallMode = ToolCallMode.NATIVE,
-    val dynamicMcpTools: List<top.wkbin.taixu.core.model.McpToolInfo> = emptyList(),
-    /** 上下文 Token 容量上限（如 128000，超出时滑动窗口压缩）。 */
-    val contextTokens: Int? = null,
-    /**
-     * 每模型压缩预算覆盖（对齐 pi compaction.modelOverrides）：
-     * 压缩触发时保留的最近 token 上限（null = 不启用该收紧）。
-     */
-    val compactionKeepRecentTokens: Int? = null,
-    /** 为 LLM 响应预留的 token（null = 使用内置默认 8192）。 */
-    val compactionReserveTokens: Int? = null,
-    /** 自定义请求头（多行 Key: Value 格式）。 */
-    val customHeaders: String = "",
-    /** 纯净排查模式：不注入系统提示词与工具。 */
-    val pureChatMode: Boolean = false,
-    /** 是否支持视觉多模态直接发送图片。 */
-    val visionEnabled: Boolean = true,
-    /** 是否使用 OpenAI Responses API（true = POST /responses；false = /chat/completions）。 */
-    val responseApiEnabled: Boolean = false,
-    /**
-     * Anthropic Prompt Caching：请求时注入 cache_control 断点
-     * （System 末尾 / Tools 末尾 / 倒数第二轮真实 User 消息）。仅对原生 Anthropic
-     * Messages API 生效；由 toModelConfig 按协议自动启用，避免给不支持的代理注入字段。
-     */
-    val promptCachingEnabled: Boolean = false,
-    /** 是否使用 1 小时缓存 TTL（cache_control.ttl=1h + 扩展 beta 头）；默认 5 分钟。 */
-    val promptCacheTtl1h: Boolean = false,
-)
-
-internal data class RequestedModelTarget(
-    val profileId: String,
-    val variant: String? = null,
-)
-
-internal fun selectRequestedModelTarget(
-    profiles: List<top.wkbin.taixu.core.database.AiModelEntity>,
-    selection: String,
-): RequestedModelTarget? {
-    val requested = selection.trim()
-    if (requested.isBlank()) return null
-    profiles.firstOrNull {
-        it.id.equals(requested, ignoreCase = true) || it.name.equals(requested, ignoreCase = true)
-    }?.let { return RequestedModelTarget(profileId = it.id) }
-    profiles.forEach { entity ->
-        val canonicalVariant = entity.model.split(',')
-            .map { it.trim() }
-            .firstOrNull { it.equals(requested, ignoreCase = true) }
-        if (canonicalVariant != null) {
-            return RequestedModelTarget(profileId = entity.id, variant = canonicalVariant)
-        }
-    }
-    return null
-}
-
-/** LLM 接入协议：绝大多数厂商提供 OpenAI 兼容端点；Anthropic Claude 需要专用适配。 */
-enum class ApiProtocol { OPENAI, ANTHROPIC }
-
-/** 工具调用模式：NATIVE = 标准函数调用；JSON_TEXT = 文本 JSON 标记；DISABLED = 禁用。 */
-enum class ToolCallMode { NATIVE, JSON_TEXT, DISABLED }
 
 /**
  * 残渣级思考的长度上限（字符，trim 后）：正文与工具调用全空时，思考字段只剩低于该阈值的
@@ -821,176 +731,27 @@ data class ChatResponseMessage(
     val tool_calls: List<ApiToolCall>? = null,
 )
 
-/**
- * 调用 LLM（OpenAI 兼容 chat/completions，支持 tools/tool_calls）。
- *
- * 模型配置优先取 [AiModelRepository] 中激活的 [top.wkbin.taixu.core.database.AiModelEntity]，
- * 未配置时回退到 [ProviderRepository]；API Key 始终从加密存储读取，绝不落库/落日志。
- */
-class ProviderClient(
-    private val okHttpClient: OkHttpClient,
-    private val providerRepository: ProviderRepository,
-    private val modelDao: AiModelRepository,
-    private val mcpManager: top.wkbin.taixu.harness.mcp.McpManager,
-    private val settingsDataStore: AgentPreferences,
-    private val json: Json,
+/** Compatibility facade for model resolution and the shared three-protocol request boundary. */
+class ProviderClient internal constructor(
+    private val modelResolver: ProviderModelResolver,
+    private val transport: ProviderTransport,
 ) {
-    private val apiKeyScheduler = ApiKeyScheduler()
-    // 非流式专用：保留 callTimeout 总超时（含响应体读取），防止慢端点永久挂起。
-    private val httpClient: OkHttpClient = okHttpClient.newBuilder()
-        .callTimeout(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-        .readTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-        .build()
+    suspend fun resolveModel(): ModelConfig = modelResolver.resolveModel()
 
-    // 流式专用：callTimeout 计时覆盖整个 SSE 响应体读取，长生成（>5min）会被硬掐断、
-    // 已流式内容全部丢弃。这里取消 callTimeout（0 = 不限制），长连接依靠
-    // readTimeout（逐次 read 间隔超时，每个 SSE 事件都会重置）+ 首字看门狗兜底。
-    // 连接池与拦截器通过 newBuilder() 与非流式 client 共享，无额外开销。
-    private val streamHttpClient: OkHttpClient = okHttpClient.newBuilder()
-        .callTimeout(0, TimeUnit.MILLISECONDS)
-        .readTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-        .build()
+    suspend fun resolveConfigured(modelId: String? = null, modelVariant: String? = null): ModelConfig =
+        modelResolver.resolveConfigured(modelId, modelVariant)
 
-    suspend fun resolveModel(): ModelConfig = withContext(Dispatchers.IO) {
-        val active = modelDao.activeModel()
-        val baseConfig = active?.toModelConfig(providerRepository)
-            ?: ModelConfig(
-                name = "默认",
-                provider = providerRepository.provider.first(),
-                model = providerRepository.model.first().ifBlank { DEFAULT_MODEL },
-                baseUrl = providerRepository.baseUrl.first().ifBlank { DEFAULT_BASE_URL },
-                apiKey = providerRepository.readApiKey(),
-            )
-        // 主流模型自动适配：provider 的 /models 通常不返回 context window，
-        // 这里在最终模型名（含 variant）确定后统一补全；显式 contextTokens 仍优先。
-        baseConfig.withResolvedContextWindow().applyGlobalReasoningDepth()
-    }
-
-    /**
-     * 同 [resolveModel]，但额外做最小配置校验。[modelId] 非空且存在时优先使用该会话绑定档案，
-     * [modelVariant] 用于覆盖档案里的默认模型名，实现同一供应商档案下的会话级模型隔离。
-     * 否则回退到当前激活模型。无可用模型且未设置 API Key 时直接抛出明确异常。
-     */
-    suspend fun resolveConfigured(modelId: String? = null, modelVariant: String? = null): ModelConfig = withContext(Dispatchers.IO) {
-        val requested = modelId?.takeIf { it.isNotBlank() }?.let { modelDao.findById(it) }
-        val active = requested ?: modelDao.activeModel()
-        val providerKey = providerRepository.readApiKey().orEmpty()
-        if (active == null && providerKey.isBlank()) {
-            throw IllegalStateException("未配置模型或 API Key，请先在「设置 → 模型」中添加并激活一个模型")
-        }
-        val baseConfig = if (active != null) {
-            active.toModelConfig(providerRepository)
-        } else {
-            val provider = providerRepository.provider.first()
-            val baseUrl = providerRepository.baseUrl.first().ifBlank { DEFAULT_BASE_URL }
-            ModelConfig(
-                name = "默认",
-                provider = provider,
-                model = providerRepository.model.first().ifBlank { DEFAULT_MODEL },
-                baseUrl = baseUrl,
-                apiKey = providerKey.ifBlank { null },
-                protocol = inferProtocol(baseUrl, provider),
-            )
-        }
-        val sessionConfig = if (requested != null && !modelVariant.isNullOrBlank()) {
-            baseConfig.copy(model = modelVariant.trim())
-        } else {
-            baseConfig
-        }
-        // 同 resolveModel：请求路径零 MCP 发现；按最终 variant 自动适配 context window。
-        sessionConfig.withResolvedContextWindow().applyGlobalReasoningDepth()
-    }
-
-    /**
-     * Resolve an explicit agent model selection without silently falling back to the active model.
-     * The selection may be a saved profile id/name or one concrete model configured in a profile.
-     */
     suspend fun resolveRequestedModel(
         selection: String?,
         inheritedProfileId: String? = null,
         inheritedVariant: String? = null,
-    ): ModelConfig = withContext(Dispatchers.IO) {
-        val requested = selection?.trim()?.takeIf { it.isNotBlank() && !it.equals("inherit", ignoreCase = true) }
-            ?: return@withContext resolveConfigured(inheritedProfileId, inheritedVariant)
-        val profiles = modelDao.observeAll().first()
-        val target = selectRequestedModelTarget(profiles, requested) ?: throw IllegalArgumentException(
-            "未找到模型选择“$requested”。请传入已保存的模型档案 ID/名称，或档案中已配置的具体模型名。",
-        )
-        resolveConfigured(target.profileId, target.variant)
-    }
+    ): ModelConfig = modelResolver.resolveRequestedModel(selection, inheritedProfileId, inheritedVariant)
 
-    /** Resolve a persisted role binding strictly, including its concrete model variant. */
-    suspend fun resolveSavedModelProfile(profileId: String, variant: String?): ModelConfig = withContext(Dispatchers.IO) {
-        val profile = modelDao.findById(profileId) ?: throw IllegalArgumentException(
-            "子智能体绑定的模型档案“$profileId”已不存在，请在子智能体角色设置中重新选择。",
-        )
-        val requestedVariant = variant?.trim()?.takeIf { it.isNotBlank() }
-        val canonicalVariant = requestedVariant?.let { requested ->
-            profile.model.split(',').map { it.trim() }.firstOrNull { it.equals(requested, ignoreCase = true) }
-                ?: throw IllegalArgumentException(
-                    "模型档案“${profile.name}”中已不存在模型“$requested”，请在子智能体角色设置中重新选择。",
-                )
-        }
-        resolveConfigured(profile.id, canonicalVariant)
-    }
+    suspend fun resolveSavedModelProfile(profileId: String, variant: String?): ModelConfig =
+        modelResolver.resolveSavedModelProfile(profileId, variant)
 
-    /**
-     * 把「全局推理深度」设置应用到未显式配置的模型上。**只对该厂商实际支持的能力生效**：
-     * - 先探测厂商能力（能否关闭 / 能否调强度），不支持的选项直接忽略，避免设置"改了却没反应"；
-     * - 模型已显式关闭推理 -> 保持不动（用户意图优先）；
-     * - 全局 disabled：仅当厂商 [ReasoningCapabilities.supportsDisable] 且模型 AUTO 时关闭推理；
-     * - 全局 low/medium/high：仅当厂商 [ReasoningCapabilities.supportsEffort] 时按深度设置强度
-     *   （模型 AUTO 则同时开启推理）；厂商不支持强度（如豆包）则保持 AUTO 跟随服务端默认；
-     * - 全局 auto 或未知值 -> 不动。
-     */
-    private suspend fun ModelConfig.applyGlobalReasoningDepth(): ModelConfig {
-        if (reasoningMode == ReasoningMode.DISABLED) return this
-        val depth = settingsDataStore.defaultReasoningDepth.first()
-        val caps = ReasoningAdapter.capabilities(this)
-        return when (depth) {
-            "disabled" ->
-                if (reasoningMode == ReasoningMode.AUTO && caps.supportsDisable) {
-                    copy(reasoningMode = ReasoningMode.DISABLED)
-                } else {
-                    this
-                }
-            "low", "medium", "high", "extreme", "max" -> {
-                if (!caps.supportsEffort) return this // 不支持强度 -> 跟随服务端默认
-                val effort = when (depth) {
-                    "low" -> ReasoningEffort.LOW
-                    "medium" -> ReasoningEffort.MEDIUM
-                    "high" -> ReasoningEffort.HIGH
-                    else -> ReasoningEffort.MAX
-                }
-                if (reasoningMode == ReasoningMode.AUTO) {
-                    copy(reasoningMode = ReasoningMode.ENABLED, reasoningEffort = effort)
-                } else {
-                    copy(reasoningEffort = reasoningEffort ?: effort)
-                }
-            }
-            else -> this
-        }
-    }
+    suspend fun chat(model: ModelConfig, messages: List<ApiMessage>): ChatResult = transport.chat(model, messages)
 
-    suspend fun chat(model: ModelConfig, messages: List<ApiMessage>): ChatResult =
-        executeWithRotatedApiKey(model, apiKeyScheduler) { selected ->
-            val sanitized = sanitizeApiTranscript(messages)
-            when {
-                // 用户显式开启 Responses API 时优先走该协议（仅对 OpenAI 兼容端点有意义）
-                selected.responseApiEnabled -> ResponsesApi(httpClient, json).chat(selected, sanitized)
-                selected.protocol == ApiProtocol.ANTHROPIC -> AnthropicApi(httpClient, json).chat(selected, sanitized)
-                else -> ChatApi(httpClient, json).chat(selected, sanitized)
-            }
-        }.also { result ->
-            if (result.isBlankResponse) throw LlmEmptyResponseException(EMPTY_RESPONSE_MESSAGE)
-        }
-
-    /**
-     * 流式调用：内容增量通过 [onDelta] 实时回调，推理增量通过 [onReasoning] 实时回调。
-     *
-     * 思考耗时在此统一测量（三种协议同一口径）：首个 reasoning 增量开始计时，
-     * 首个正文增量（或流正常结束）停止计时，结果写入 [ChatResult.reasoningMs]。
-     */
     suspend fun chatStream(
         model: ModelConfig,
         messages: List<ApiMessage>,
@@ -998,67 +759,11 @@ class ProviderClient(
         onToolProgress: (ToolCallStreamProgress) -> Unit = {},
         onRequest: ((String, String, Long, Collection<String>) -> Unit)? = null,
         onDelta: (String) -> Unit,
-    ): ChatResult {
-        val timing = ReasoningTimingTracker()
-        val timedReasoning: (String) -> Unit = { chunk ->
-            timing.onReasoningChunk()
-            onReasoning(chunk)
-        }
-        val timedDelta: (String) -> Unit = { chunk ->
-            timing.onContentChunk()
-            onDelta(chunk)
-        }
-        val result = executeWithRotatedApiKey(model, apiKeyScheduler) { selected ->
-            val sanitized = sanitizeApiTranscript(messages)
-            val client = streamHttpClient.withRequestDiagnostics(onRequest)
-            when {
-                selected.responseApiEnabled -> ResponsesApi(client, json).chatStream(
-                    selected,
-                    sanitized,
-                    timedReasoning,
-                    onToolProgress,
-                    timedDelta,
-                )
-                selected.protocol == ApiProtocol.ANTHROPIC -> AnthropicApi(client, json).chatStream(
-                    selected,
-                    sanitized,
-                    timedReasoning,
-                    onToolProgress,
-                    timedDelta,
-                )
-                else -> ChatApi(client, json).chatStream(
-                    selected,
-                    sanitized,
-                    timedReasoning,
-                    onToolProgress,
-                    timedDelta,
-                )
-            }
-        }
-        if (result.isBlankResponse) throw LlmEmptyResponseException(EMPTY_RESPONSE_MESSAGE)
-        val reasoningMs = timing.finish()
-        return if (reasoningMs != null) result.copy(reasoningMs = reasoningMs) else result
-    }
-
-    /**
-     * Fallback metadata for mainstream models whose provider /models response does not
-     * expose the context window. Explicit profile values are never overwritten.
-     */
-    private fun ModelConfig.withResolvedContextWindow(): ModelConfig {
-        if (contextTokens != null) return this
-        val inferred = ModelContextWindows.resolve(model, provider) ?: return this
-        return copy(contextTokens = inferred)
-    }
-
+    ): ChatResult = transport.chatStream(model, messages, onReasoning, onToolProgress, onRequest, onDelta)
 
     companion object {
         const val DEFAULT_BASE_URL = "https://api.openai.com/v1"
         const val DEFAULT_MODEL = "gpt-4o-mini"
-        // 非流式 chat() 的总超时（含响应体读取）；须覆盖最大首字看门狗（240s），
-        // 否则超大上下文 Prefill 会先被 callTimeout 掐断。
-        // 流式路径已改用无 callTimeout 的 streamHttpClient（见类成员注释）。
-        private const val CALL_TIMEOUT_MS = 5 * 60 * 1000L
-
         /** 大请求若迟迟没有任何合法 SSE 事件，应尽早失败并向 UI 暴露重试，而不是静默等满 callTimeout。 */
         internal const val FIRST_STREAM_EVENT_TIMEOUT_MS = 90_000L
         internal const val FIRST_EVENT_WAITING = 0
@@ -1113,56 +818,6 @@ class ProviderClient(
                 compact
             }
             return " 原始响应首部：$clipped"
-        }
-
-        /** Room 实体 → 运行配置：推理参数原样透传，协议按 Base URL / 厂商名自动推断。 */
-        private suspend fun top.wkbin.taixu.core.database.AiModelEntity.toModelConfig(
-            providerRepository: top.wkbin.taixu.core.tools.ProviderRepository,
-        ): ModelConfig {
-            val baseUrl = this.baseUrl.ifBlank { DEFAULT_BASE_URL }
-            val resolvedProtocol = inferProtocol(baseUrl, provider)
-            val modelKeys = providerRepository.readModelApiKeys(secretRef)
-            val fallbackKey = providerRepository.readApiKey().orEmpty().ifBlank { null }
-            val effectiveKeys = modelKeys.ifEmpty { listOfNotNull(fallbackKey) }
-            return ModelConfig(
-                name = name,
-                provider = provider,
-                model = model.split(",").firstOrNull()?.trim().takeUnless { it.isNullOrBlank() } ?: model.trim(),
-                baseUrl = baseUrl,
-                apiKey = effectiveKeys.firstOrNull(),
-                apiKeys = effectiveKeys,
-                requestsPerMinutePerKey = requestsPerMinutePerKey.coerceAtLeast(0),
-                protocol = resolvedProtocol,
-                temperature = temperature,
-                maxTokens = maxTokens,
-                topP = topP,
-                reasoningMode = when (reasoningMode?.lowercase()) {
-                    "disabled" -> ReasoningMode.DISABLED
-                    "enabled" -> ReasoningMode.ENABLED
-                    else -> ReasoningMode.AUTO
-                },
-                reasoningEffort = when (reasoningEffort?.lowercase()) {
-                    "low" -> ReasoningEffort.LOW
-                    "medium" -> ReasoningEffort.MEDIUM
-                    "high" -> ReasoningEffort.HIGH
-                    "extreme", "max" -> ReasoningEffort.MAX
-                    else -> null
-                },
-                toolCallMode = when (toolCallMode?.lowercase()) {
-                    "json" -> ToolCallMode.JSON_TEXT
-                    "disabled" -> ToolCallMode.DISABLED
-                    else -> ToolCallMode.NATIVE
-                },
-                contextTokens = contextTokens,
-                compactionKeepRecentTokens = compactionKeepRecentTokens,
-                compactionReserveTokens = compactionReserveTokens,
-                customHeaders = customHeaders,
-                pureChatMode = pureChatMode,
-                visionEnabled = visionEnabled,
-                responseApiEnabled = responseApiEnabled,
-                promptCachingEnabled = promptCachingEnabled && resolvedProtocol == ApiProtocol.ANTHROPIC,
-                promptCacheTtl1h = promptCacheTtl1h,
-            )
         }
 
         /** 解析多行自定义请求头（格式为 Key: Value，支持忽略空行与 # 注释） */
