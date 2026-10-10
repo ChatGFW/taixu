@@ -91,14 +91,17 @@ class ToolchainInspector(
             resolve.append("echo \"__TX__${probe.id}__PATH__\$res\"; ")
 
             // 2) 取版本（仅当定位成功）
+            // 版本命令里的 {cmd}/{path} 一律替换成 shell 变量 $res 的**裸引用**（不加引号、不加替换），
+            // 这样探针自带的管道（如 zipalign 的 "| head -1"）仍能正常参与解析，
+            // 不会与外层的 head/tr 叠加成双重管道。
             val versionCmd = probe.versionCommand
             val version = if (versionCmd == null) {
                 ""
             } else {
-                val expanded = versionCmd
-                    .replace("{cmd}", "\"\$res\"")
-                    .replace("{path}", "\"\$res\"")
-                "if [ -n \"\$res\" ]; then v=\$($expanded 2>&1 | head -2 | tr '\\n' ' '); echo \"__TX__${probe.id}__VER__\$v\"; else echo \"__TX__${probe.id}__VER__\"; fi; "
+                val shellCmd = versionCmd
+                    .replace("{cmd}", "$res")
+                    .replace("{path}", "$res")
+                "if [ -n \"\$res\" ]; then v=\$($shellCmd 2>&1 | head -2 | tr '\\n' ' '); echo \"__TX__${probe.id}__VER__\$v\"; else echo \"__TX__${probe.id}__VER__\"; fi; "
             }
 
             sb.append(resolve).append(version)

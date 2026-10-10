@@ -181,7 +181,7 @@ object SandboxToolchainCatalog {
             purpose = "APK 资源与 Smali 回编译，改包名/资源/流程必用",
             commands = listOf("apktool"),
             candidatePaths = listOf("/opt/taixu/tools/android-suite-offline/lib/apktool.jar"),
-            versionCommand = "apktool --version",
+            versionCommand = "{cmd} --version",
             aptPackages = listOf("apktool"),
             group = ToolchainGroup.REVERSE_ENGINEERING,
         ),

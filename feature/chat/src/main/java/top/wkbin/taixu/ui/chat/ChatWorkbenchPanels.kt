@@ -212,7 +212,7 @@ internal fun CollapsibleChatWorkbenchStrip(
 }
 
 @Composable
-private fun StatusDivider() {
+internal fun StatusDivider() {
     Box(
         modifier = Modifier
             .padding(horizontal = 2.dp)
@@ -222,7 +222,7 @@ private fun StatusDivider() {
 }
 
 @Composable
-private fun WorkbenchStatusItem(
+internal fun WorkbenchStatusItem(
     icon: RuntimeIconName,
     label: String,
     tint: Color,

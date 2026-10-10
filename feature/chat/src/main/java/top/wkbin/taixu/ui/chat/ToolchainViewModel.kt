@@ -37,6 +37,8 @@ class ToolchainViewModel(
 
     /** 全量检测；沙箱不可用时如实置 failed，不谎报「工具缺失」。 */
     fun refresh() {
+        // 幂等守卫：面板打开时 Host 与 Sheet 可能同时触发，避免重复跑全量沙箱探针
+        if (_busy.value) return
         viewModelScope.launch {
             _busy.value = true
             runCatching { inspector.inspect() }
@@ -55,7 +57,7 @@ class ToolchainViewModel(
     /**
      * 一键补齐：把 [ToolchainReport.repairable]（缺失 + 版本落后）合并安装。
      *
-     * 只补明确有问题���项 —— 已就绪的工具一律不动，避免无谓破坏现成环境。
+     * 只补明确有问题的项 —— 已就绪的工具一律不动，避免无谓破坏现成环境。
      */
     fun repairMissing() {
         val current = _report.value ?: return

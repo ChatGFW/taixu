@@ -24,7 +24,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,7 +33,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.core.model.ToolchainGroup
-import top.wkbin.taixu.core.model.ToolchainProbe
 import top.wkbin.taixu.core.model.ToolchainProbeResult
 import top.wkbin.taixu.core.model.ToolchainReport
 import top.wkbin.taixu.core.model.ToolchainStatus
@@ -61,9 +60,6 @@ internal fun ToolchainPanel(
     val logs by viewModel.logs.collectAsState()
     val busy by viewModel.busy.collectAsState()
     val failed by viewModel.failed.collectAsState()
-
-    // 首次进入自动全量检测
-    LaunchedEffect(Unit) { viewModel.refresh() }
 
     Surface(
         color = MaterialTheme.colorScheme.surface,

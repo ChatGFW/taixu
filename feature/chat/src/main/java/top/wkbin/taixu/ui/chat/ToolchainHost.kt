@@ -5,6 +5,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -33,11 +34,11 @@ internal fun ToolchainSheet(
     val viewModel: ToolchainViewModel = koinViewModel()
     val report by viewModel.report.collectAsState()
 
-    // 后台静默探一次：用户还没点开，顶部入口就已经有红点提示
-    LaunchedEffect(Unit) {
-        viewModel.refresh()
-        report?.let { onReportChanged(it) }
-    }
+    // 首次组合触发全量检测；报告变化时同步刷新顶部入口红点。
+    // 注意 key 必须是 report 而非 Unit —— LaunchedEffect(Unit) 只在首次组合运行，
+    // 内部读到的 report 永远是初始 null，会导致红点永不亮起。
+    LaunchedEffect(Unit) { viewModel.refresh() }
+    LaunchedEffect(report) { report?.let(onReportChanged) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Box(modifier = Modifier.padding(bottom = 24.dp)) {
