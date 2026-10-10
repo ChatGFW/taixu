@@ -71,19 +71,5 @@
     <string name="home_webchat_copied">已复制免密链接，发到电脑打开即可自动进入工作台！</string>
     <string name="home_webchat_hint">💡 提示：电脑需与手机连接至同一 Wi-Fi；当前在线设备：%1$d 台</string>
     <string name="home_webchat_intro">无需数据线，在同一 Wi-Fi 下使用电脑浏览器直接连入太墟 Agent、审阅代码并管理沙箱工作区。</string>
-    <string name="home_sentinel_title">晨报哨兵</string>
-    <string name="home_sentinel_subtitle">每天定时只读巡检当前工作区，AI 汇总晨间简报并推送通知</string>
-    <string name="home_sentinel_schedule">每天 %1$s 自动巡检</string>
-    <string name="home_sentinel_next_run">下次巡检：%1$s</string>
-    <string name="home_sentinel_time_edit">改时间</string>
-    <string name="home_sentinel_dialog_title">巡检时间</string>
-    <string name="home_sentinel_hour_label">时 (0–23)</string>
-    <string name="home_sentinel_minute_label">分 (0–59)</string>
-    <string name="home_sentinel_confirm">保存</string>
-    <string name="home_sentinel_cancel">取消</string>
-    <string name="home_hero_custom_iteration_title">一句话做 App</string>
-    <string name="home_hero_custom_iteration_subtitle">描述你想要的应用，太墟自动构建并安装到手机</string>
-    <string name="home_roundtable_title">AI 圆桌会议</string>
-    <string name="home_roundtable_subtitle">架构 · 安全 · 性能三视角并行评审，总裁判汇总辩论报告</string>
     <string name="home_device_storage_note">沙箱所在分区，包含其他应用数据</string>
 </resources>

@@ -36,7 +36,6 @@ import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import androidx.compose.material3.ButtonDefaults
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -267,7 +266,7 @@ fun HomeScreen(
                 onOpenModeSettings = { onNavigate(MainDestination.Settings) },
             )
 
-            // 3. 运行与开发环境体检自愈中心 (TaiXu Doctor & Auto-Fix)
+            // 2. 运行与开发环境体检自愈中心 (TaiXu Doctor & Auto-Fix)
             EnvironmentDoctorCard(
                 report = doctorReport,
                 isChecking = isCheckingDoctor,
@@ -322,7 +321,7 @@ fun HomeScreen(
                 )
             }
 
-            // 2. WebChat 电脑大屏协作卡片 (Dashboard Bridge Card)
+            // 3. WebChat 电脑大屏协作卡片 (Dashboard Bridge Card)
             WebChatDashboardCard(
                 status = webChatStatus,
                 onToggle = viewModel::toggleWebChat,
@@ -1348,4 +1347,3 @@ private fun PulsingStatusDot(color: Color, isPulsing: Boolean) {
         )
     }
 }
-

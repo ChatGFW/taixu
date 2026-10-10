@@ -52,7 +52,7 @@ fun SettingsScreen(
     onOpenSystemDev: () -> Unit,
     onOpenAboutCommunity: () -> Unit,
     onOpenSearch: () -> Unit = {},
-    onOpenA2uiPoc: () -> Unit = {},
+    onOpenFeatureHub: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val models by viewModel.models.collectAsStateWithLifecycle()
@@ -192,10 +192,10 @@ fun SettingsScreen(
                 SettingsCategoryCard(
                     icon = RuntimeIconName.Sparkles,
                     accent = MaterialTheme.colorScheme.tertiary,
-                    title = "A2UI 界面",
-                    subtitle = "智能体把回答画成原生界面 · 查看最近界面或注入示例",
-                    badge = "聊天内嵌",
-                    onClick = onOpenA2uiPoc,
+                    title = "特色功能",
+                    subtitle = "一句话做 App · AI 圆桌 · 晨报哨兵 · WebChat 大屏 · A2UI 界面",
+                    badge = "5 项功能",
+                    onClick = onOpenFeatureHub,
                 )
             }
 

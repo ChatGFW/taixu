@@ -100,6 +100,7 @@ sealed interface AppDestination : NavKey
 @Serializable data object LiquidGlassCatalogDestination : AppDestination
 @Serializable data object AdbLogcatDestination : AppDestination
 @Serializable data object A2uiPocDestination : AppDestination
+@Serializable data object FeatureHubDestination : AppDestination
 @Serializable data object CustomIterationDestination : AppDestination
 @Serializable data class TerminalDestination(val toolId: String = "", val project: String = "") : AppDestination
 @Serializable data object BrowserDestination : AppDestination
@@ -359,7 +360,7 @@ fun TaiXuNavHost(
                         onOpenSystemDev = { settingsStack.push(SettingsDestination, SystemDevSettingsDestination) },
                         onOpenAboutCommunity = { settingsStack.push(SettingsDestination, AboutCommunityDestination) },
                         onOpenSearch = { settingsStack.push(SettingsDestination, SettingsSearchDestination) },
-                        onOpenA2uiPoc = { settingsStack.push(SettingsDestination, A2uiPocDestination) },
+                        onOpenFeatureHub = { settingsStack.push(SettingsDestination, FeatureHubDestination) },
                         viewModel = settingsViewModel,
                     )
                 }
@@ -378,48 +379,31 @@ fun TaiXuNavHost(
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.TOOL_CENTER -> settingsStack.push(SettingsSearchDestination, ToolCenterDestination)
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.CC_SWITCH -> settingsStack.push(SettingsSearchDestination, CcSwitchDestination)
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.AGENT_EXECUTION -> settingsStack.push(SettingsSearchDestination, AgentSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.AGENT_SUBAGENTS ->
-                                    settingsStack.push(SettingsSearchDestination, AgentSubagentSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.AGENT_SKILLS ->
-                                    settingsStack.push(SettingsSearchDestination, AgentSkillSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.MCP_SETTINGS ->
-                                    settingsStack.push(SettingsSearchDestination, McpSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.DISTRO_MANAGEMENT ->
-                                    settingsStack.push(SettingsSearchDestination, DistroManagementDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.STORAGE_USAGE ->
-                                    settingsStack.push(SettingsSearchDestination, StorageUsageDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.STORAGE_MOUNTS ->
-                                    settingsStack.push(SettingsSearchDestination, StorageMountSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ENV_VARS ->
-                                    settingsStack.push(SettingsSearchDestination, EnvironmentVariableSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.SSH_SETTINGS ->
-                                    settingsStack.push(SettingsSearchDestination, SshSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.FTP_SETTINGS ->
-                                    settingsStack.push(SettingsSearchDestination, FtpSettingsDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.AGENT_SUBAGENTS -> settingsStack.push(SettingsSearchDestination, AgentSubagentSettingsDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.AGENT_SKILLS -> settingsStack.push(SettingsSearchDestination, AgentSkillSettingsDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.MCP_SETTINGS -> settingsStack.push(SettingsSearchDestination, McpSettingsDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.DISTRO_MANAGEMENT -> settingsStack.push(SettingsSearchDestination, DistroManagementDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.STORAGE_USAGE -> settingsStack.push(SettingsSearchDestination, StorageUsageDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.STORAGE_MOUNTS -> settingsStack.push(SettingsSearchDestination, StorageMountSettingsDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ENV_VARS -> settingsStack.push(SettingsSearchDestination, EnvironmentVariableSettingsDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.SSH_SETTINGS -> settingsStack.push(SettingsSearchDestination, SshSettingsDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.FTP_SETTINGS -> settingsStack.push(SettingsSearchDestination, FtpSettingsDestination)
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.WEB_CHAT,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.PRIVILEGE_MODE ->
-                                    settingsStack.push(SettingsSearchDestination, LinuxEnvSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.APP_MANAGEMENT ->
-                                    settingsStack.push(SettingsSearchDestination, AppManagementDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.PRIVILEGE_MODE -> settingsStack.push(SettingsSearchDestination, LinuxEnvSettingsDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.APP_MANAGEMENT -> settingsStack.push(SettingsSearchDestination, AppManagementDestination)
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.APPEARANCE_SETTINGS,
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.THEME_MODE,
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.DYNAMIC_COLOR,
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.LIQUID_GLASS,
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.FONT_SCALE,
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.TERMINAL_SETTINGS,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.LANGUAGE_SETTINGS ->
-                                    settingsStack.push(SettingsSearchDestination, AppearanceSettingsDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.LANGUAGE_SETTINGS -> settingsStack.push(SettingsSearchDestination, AppearanceSettingsDestination)
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.BATTERY_OPTIMIZATION,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.PHANTOM_PROCESS ->
-                                    settingsStack.push(SettingsSearchDestination, SystemDevSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.DEVELOPER_OPTIONS ->
-                                    settingsStack.push(SettingsSearchDestination, DeveloperDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ADB_LOGCAT ->
-                                    settingsStack.push(SettingsSearchDestination, AdbLogcatDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.CUSTOM_ITERATION ->
-                                    settingsStack.push(SettingsSearchDestination, CustomIterationDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.PERMISSION_GUIDE ->
-                                    settingsStack.push(SettingsSearchDestination, PermissionGuideDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.PHANTOM_PROCESS -> settingsStack.push(SettingsSearchDestination, SystemDevSettingsDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.DEVELOPER_OPTIONS -> settingsStack.push(SettingsSearchDestination, DeveloperDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ADB_LOGCAT -> settingsStack.push(SettingsSearchDestination, AdbLogcatDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.CUSTOM_ITERATION -> settingsStack.push(SettingsSearchDestination, CustomIterationDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.PERMISSION_GUIDE -> settingsStack.push(SettingsSearchDestination, PermissionGuideDestination)
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.WORKSHOP_SETTINGS -> {
                                     selectedMain = MainDestination.Workspace
                                     workspaceStack.pushRaw(WorkshopSettingsDestination)
@@ -451,10 +435,8 @@ fun TaiXuNavHost(
                                     activeStack.pushRaw(BrowserDestination)
                                 }
                                 top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ABOUT_COMMUNITY,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ABOUT_UPDATE ->
-                                    settingsStack.push(SettingsSearchDestination, AboutCommunityDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ABOUT_SPONSOR ->
-                                    settingsStack.push(SettingsSearchDestination, SponsorDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ABOUT_UPDATE -> settingsStack.push(SettingsSearchDestination, AboutCommunityDestination)
+                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ABOUT_SPONSOR -> settingsStack.push(SettingsSearchDestination, SponsorDestination)
                             }
                         }
                     )
@@ -721,6 +703,16 @@ fun TaiXuNavHost(
             entry<A2uiPocDestination> {
                 GuardedEntry(A2uiPocDestination) {
                     top.wkbin.taixu.feature.a2uipoc.A2uiPocScreen(onBack = ::popBack)
+                }
+            }
+            entry<FeatureHubDestination> {
+                GuardedEntry(FeatureHubDestination) {
+                    top.wkbin.taixu.ui.settings.FeatureHubScreen(
+                        onBack = ::popBack,
+                        onOpenCustomIteration = { settingsStack.push(FeatureHubDestination, CustomIterationDestination) },
+                        onStartRoundtable = { pendingHealingTask = HealingTask(AgentPresets.ROUNDTABLE_TITLE, AgentPresets.ROUNDTABLE_PROMPT); selectedMain = MainDestination.Agent },
+                        onOpenA2uiPoc = { settingsStack.push(FeatureHubDestination, A2uiPocDestination) },
+                    )
                 }
             }
             entry<CustomIterationDestination> {
