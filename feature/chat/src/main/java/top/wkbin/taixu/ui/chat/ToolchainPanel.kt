@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.chat
 
+import top.wkbin.taixu.feature.chat.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

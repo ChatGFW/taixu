@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.chat
 
+import top.wkbin.taixu.feature.chat.R
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
