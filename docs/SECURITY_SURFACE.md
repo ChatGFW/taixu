@@ -1,6 +1,6 @@
 # 凭证与暴露面清单 (Security Surface)
 
-> 借鉴 pi v1.1.0 [containerization 文档](https://github.com/earendil-works/pi/blob/v1.1.0/packages/coding-agent/docs/containerization.md)的框架：隔离方案的每条边界都要写清楚「谁暴露了什么、凭证在哪、泄漏面多大」，而不是笼统一句「有沙箱所以安全」。本文按该框架逐条核验当前实现，结论均标注代码出处；代码演进后请随改动更新。
+> 本文逐条说明权限边界、凭证归属与暴露面，核验当前实现并标注代码出处；代码演进后请随改动更新。
 >
 > **一句话定性：PRoot 沙箱是 ptrace 系统调用虚拟化的兼容层，不是防恶意代码的安全边界。** guest 内进程实际以 App uid 运行；真正的安全边界是 Android 权限模型 + `ApprovalPolicyEngine` 审批门控 + 用户显式授权。对外文案应避免「安全沙箱」这类表述（另见 [`ADR_SANDBOX_BACKEND.md`](ADR_SANDBOX_BACKEND.md) 的选型依据）。
 

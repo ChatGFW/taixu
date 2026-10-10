@@ -115,10 +115,6 @@
 
 > JGit 在宿主侧直接打开工作区仓库（`RepositoryBuilder` + 空的 system/user 配置规避 Android 路径问题），不依赖沙箱内 git 安装。
 
-## 🤝 Web Reverse MCP 参考
-
-项目内置浏览器/MCP 设计借鉴自 `mnjh666/WebReverse-MCP`（模块切分 / 工具动词集 / 风险矩阵），不复用其代码。
-
 ## 💾 本地数据备份与恢复
 
 完整说明见 [LOCAL_BACKUP.md](LOCAL_BACKUP.md)。
