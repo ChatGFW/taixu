@@ -13,20 +13,16 @@ import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * 沙箱工具链面板宿主 —— 自持全部状态。
+ * 沙箱工具链面板宿主。
  *
- * 之所以做成独立宿主：architecture-policy.json 的行数棘轮要求
- * ChatScreen.kt / ChatWorkbenchPanels.kt 只许缩减、不许增长，
- * 因此工具链相关的状态、面板挂载一律外置，ChatScreen 侧只保留入口接线。
+ * 红点逻辑：ToolchainViewModel.hasGap 在检测完成后主动更新，
+ * 即便用户没打开面板，只要后台/入口触发了检测，红点也会亮起。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ToolchainHost(visible: Boolean, onDismiss: () -> Unit, onGapChanged: (Boolean) -> Unit) {
     if (visible) {
-        ToolchainSheet(
-            onDismiss = onDismiss,
-            onReportChanged = { report -> onGapChanged(report.repairable.isNotEmpty()) },
-        )
+        ToolchainSheet(onDismiss = onDismiss, onGapChanged = onGapChanged)
     }
 }
 
@@ -34,16 +30,14 @@ internal fun ToolchainHost(visible: Boolean, onDismiss: () -> Unit, onGapChanged
 @Composable
 internal fun ToolchainSheet(
     onDismiss: () -> Unit,
-    onReportChanged: (top.wkbin.taixu.core.model.ToolchainReport) -> Unit,
+    onGapChanged: (Boolean) -> Unit,
 ) {
     val viewModel: ToolchainViewModel = koinViewModel()
-    val report by viewModel.report.collectAsState()
+    val hasGap by viewModel.hasGap.collectAsState()
 
-    // 首次组合触发全量检测；报告变化时同步刷新顶部入口红点。
-    // 注意 key 必须是 report 而非 Unit —— LaunchedEffect(Unit) 只在首次组合运行，
-    // 内部读到的 report 永远是初始 null，会导致红点永不亮起。
+    // 首次组合触发全量检测；检测完成后 hasGap 变化会通过下面的 LaunchedEffect 回报红点
     LaunchedEffect(Unit) { viewModel.refresh() }
-    LaunchedEffect(report) { report?.let(onReportChanged) }
+    LaunchedEffect(hasGap) { onGapChanged(hasGap) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Box(modifier = Modifier.padding(bottom = 24.dp)) {

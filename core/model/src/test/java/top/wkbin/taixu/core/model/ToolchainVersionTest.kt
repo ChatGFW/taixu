@@ -10,10 +10,12 @@ import org.junit.Test
 /**
  * 沙箱工具链版本判定逻辑单测。
  *
- * 覆盖三类最容易出错的点：
+ * 覆盖：
  *  1. 版本号抽取（各种工具输出形态）；
  *  2. 版本比较（段数不等、无法解析、判不了时必须返回 null）；
- *  3. 状态判定顺序（沙箱不可达 ≠ 工具缺失；版本读不到 ≠ 已就绪）。
+ *  3. 状态判定顺序（沙箱不可达 ≠ 工具缺失；版本读不到 ≠ 已就绪）；
+ *  4. NEEDS_ROOT 状态（root 依赖工具就绪后提升）；
+ *  5. repairable 只统计可自动补齐的项（RepairStrategy.None 排除）。
  */
 class ToolchainVersionTest {
 
@@ -36,7 +38,6 @@ class ToolchainVersionTest {
 
     @Test
     fun extractsVersionFromBinutilsOutput() {
-        // 关键：不能把 "GNU Binutils for aarch64" 里的杂散数字误当版本
         assertEquals("2.42", ToolchainVersion.extractVersion("readelf (GNU Binutils) 2.42"))
     }
 
@@ -69,7 +70,6 @@ class ToolchainVersionTest {
 
     @Test
     fun returnsNullWhenVersionUnparsable() {
-        // 判不了必须返回 null，交由上层降级为 UNKNOWN，绝不臆断
         assertNull(ToolchainVersion.compare("abc", "3.22"))
         assertNull(ToolchainVersion.compare(null, "3.22"))
         assertNull(ToolchainVersion.compare("3.22", null))
@@ -80,52 +80,35 @@ class ToolchainVersionTest {
     @Test
     fun reportsUnknownWhenSandboxUnreachableInsteadOfMissing() {
         val probe = SandboxToolchainCatalog.probes.first { it.id == "cmake" }
-
-        val status = ToolchainVersion.resolveStatus(
-            probe = probe,
-            resolvedPath = null,
-            version = null,
-            reachable = false,
-        )
-
-        // 探测不可达 ≠ 工具缺失：绝不能误报 MISSING 让用户去装一堆其实装好的东西
+        val status = ToolchainVersion.resolveStatus(probe, null, null, reachable = false)
         assertEquals(ToolchainStatus.UNKNOWN, status)
     }
 
     @Test
     fun reportsMissingWhenExecutableNotFound() {
         val probe = SandboxToolchainCatalog.probes.first { it.id == "cmake" }
-
-        val status = ToolchainVersion.resolveStatus(probe, resolvedPath = null, version = null)
-
+        val status = ToolchainVersion.resolveStatus(probe, null, null)
         assertEquals(ToolchainStatus.MISSING, status)
     }
 
     @Test
     fun reportsOutdatedWhenVersionBelowMinimum() {
         val probe = SandboxToolchainCatalog.probes.first { it.id == "cmake" }
-
-        val status = ToolchainVersion.resolveStatus(probe, resolvedPath = "/usr/bin/cmake", version = "3.18.0")
-
+        val status = ToolchainVersion.resolveStatus(probe, "/usr/bin/cmake", "3.18.0")
         assertEquals(ToolchainStatus.OUTDATED, status)
     }
 
     @Test
     fun reportsReadyWhenVersionMeetsMinimum() {
         val probe = SandboxToolchainCatalog.probes.first { it.id == "cmake" }
-
-        val status = ToolchainVersion.resolveStatus(probe, resolvedPath = "/usr/bin/cmake", version = "4.3.4")
-
+        val status = ToolchainVersion.resolveStatus(probe, "/usr/bin/cmake", "4.3.4")
         assertEquals(ToolchainStatus.READY, status)
     }
 
     @Test
     fun reportsUnknownWhenMinVersionRequiredButVersionUnreadable() {
         val probe = SandboxToolchainCatalog.probes.first { it.id == "cmake" }
-
-        val status = ToolchainVersion.resolveStatus(probe, resolvedPath = "/usr/bin/cmake", version = null)
-
-        // 找到工具但读不到版本，如实 UNKNOWN，不能武断判成 READY
+        val status = ToolchainVersion.resolveStatus(probe, "/usr/bin/cmake", null)
         assertEquals(ToolchainStatus.UNKNOWN, status)
     }
 
@@ -133,63 +116,53 @@ class ToolchainVersionTest {
     fun reportsReadyWhenNoMinVersionRequired() {
         val probe = SandboxToolchainCatalog.probes.first { it.id == "readelf" }
         assertNull(probe.minVersion)
-
-        val status = ToolchainVersion.resolveStatus(probe, resolvedPath = "/usr/bin/readelf", version = null)
-
+        val status = ToolchainVersion.resolveStatus(probe, "/usr/bin/readelf", null)
         assertEquals(ToolchainStatus.READY, status)
     }
 
-    // ---------- 中文结论 ----------
+    // ---------- NEEDS_ROOT ----------
 
     @Test
-    fun summaryMarksRootDependentToolsClearly() {
+    fun readyRootToolIsPromotedToNeedsRoot() {
         val frida = SandboxToolchainCatalog.probes.first { it.id == "frida" }
         assertTrue(frida.requiresRootAtRuntime)
 
-        val summary = ToolchainVersion.describe(frida, "/usr/bin/frida", "16.0.0", ToolchainStatus.READY)
-
-        // 装好 ≠ 能用：必须明确告诉用户驱动需要 root
-        assertTrue(summary.contains("root"))
+        val status = ToolchainVersion.resolveStatusWithRoot(frida, "/usr/bin/frida", "17.23.3")
+        assertEquals(ToolchainStatus.NEEDS_ROOT, status)
     }
 
     @Test
-    fun summaryForMissingToolDoesNotClaimInstalled() {
-        val probe = SandboxToolchainCatalog.probes.first { it.id == "cmake" }
-
-        val summary = ToolchainVersion.describe(probe, null, null, ToolchainStatus.MISSING)
-
-        assertTrue(summary.contains("未安装"))
-        assertFalse(summary.contains("已就绪"))
+    fun missingRootToolStaysMissing() {
+        val frida = SandboxToolchainCatalog.probes.first { it.id == "frida" }
+        val status = ToolchainVersion.resolveStatusWithRoot(frida, null, null)
+        // 缺失就是缺失，不能因为 root 依赖就变成 NEEDS_ROOT
+        assertEquals(ToolchainStatus.MISSING, status)
     }
 
     @Test
-    fun summaryForOutdatedMentionsTargetVersion() {
-        val probe = SandboxToolchainCatalog.probes.first { it.id == "cmake" }
-
-        val summary = ToolchainVersion.describe(probe, "/usr/bin/cmake", "3.18.0", ToolchainStatus.OUTDATED)
-
-        assertTrue(summary.contains("版本过低"))
-        assertTrue(summary.contains("3.22"))
+    fun nonRootReadyToolStaysReady() {
+        val cmake = SandboxToolchainCatalog.probes.first { it.id == "cmake" }
+        assertFalse(cmake.requiresRootAtRuntime)
+        val status = ToolchainVersion.resolveStatusWithRoot(cmake, "/usr/bin/cmake", "4.3.4")
+        assertEquals(ToolchainStatus.READY, status)
     }
 
     // ---------- 报告聚合 ----------
 
     @Test
-    fun reportAggregatesCountsAndRepairables() {
-        val probe = SandboxToolchainCatalog.probes.first()
+    fun reportRepairableOnlyCountsAutoRepairable() {
+        val auto = SandboxToolchainCatalog.probes.first { it.repair is RepairStrategy.ByBundleComponents }
+        val manual = SandboxToolchainCatalog.probes.first { it.repair is RepairStrategy.None }
         val results = listOf(
-            ToolchainProbeResult(probe, "/usr/bin/cmake", "4.0.0", ToolchainStatus.READY, "已就绪"),
-            ToolchainProbeResult(probe, null, null, ToolchainStatus.MISSING, "未安装"),
-            ToolchainProbeResult(probe, "/usr/bin/cmake", "3.1.0", ToolchainStatus.OUTDATED, "版本过低"),
+            ToolchainProbeResult(auto, null, null, ToolchainStatus.MISSING, ""),
+            ToolchainProbeResult(manual, null, null, ToolchainStatus.MISSING, ""),
         )
 
         val report = ToolchainReport(results = results)
 
-        assertEquals(1, report.readyCount)
-        assertEquals(1, report.missingCount)
-        assertEquals(1, report.outdatedCount)
-        // 缺失与落后都要进补齐队列
-        assertEquals(2, report.repairable.size)
+        // 只有能自动补齐的进 repairable，None 策略进 manualOnly
+        assertEquals(1, report.repairable.size)
+        assertEquals(1, report.manualOnly.size)
         assertFalse(report.isAllReady)
     }
 
@@ -197,16 +170,30 @@ class ToolchainVersionTest {
     fun catalogCoversAllGroupsAndMarksRootTools() {
         val probes = SandboxToolchainCatalog.probes
         assertTrue(probes.isNotEmpty())
-        // 三个分组都要有覆盖，避免面板出现空分区
         assertTrue(probes.any { it.group == ToolchainGroup.NATIVE_BUILD })
         assertTrue(probes.any { it.group == ToolchainGroup.REVERSE_ENGINEERING })
         assertTrue(probes.any { it.group == ToolchainGroup.DEBUG_INSPECT })
-        // root 依赖工具必须显式标注
         assertTrue(probes.any { it.requiresRootAtRuntime })
-        // 每个探针都要有用途说明，用户才看得懂为什么要装
         assertTrue(probes.all { it.purpose.isNotBlank() })
-        // id 必须唯一，否则解析会串号
         assertEquals(probes.size, probes.map { it.id }.distinct().size)
         assertNotNull(SandboxToolchainCatalog.probes.firstOrNull { it.id == "cmake" })
+    }
+
+    @Test
+    fun allByBundleComponentIdsExistInBuiltinBundles() {
+        // 补齐映射的开发套件组件 id 必须真实存在于 BuiltinPluginBundles，否则安装会空转
+        val validIds = top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles
+            .flatMap { it.components }
+            .map { it.id }
+            .toSet()
+
+        val mapped = SandboxToolchainCatalog.probes
+            .mapNotNull { it.repair as? RepairStrategy.ByBundleComponents }
+            .flatMap { it.componentIds }
+            .distinct()
+
+        mapped.forEach { id ->
+            assertTrue("组件 id 不存在于开发套件: $id", id in validIds)
+        }
     }
 }

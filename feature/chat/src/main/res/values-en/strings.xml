@@ -477,4 +477,30 @@
     <string name="chat_share_chip_summarize">Summarize</string>
     <string name="chat_share_chip_translate">Translate to Chinese</string>
     <string name="chat_share_chip_save">Save to sandbox</string>
+    <!-- Sandbox toolchain panel -->
+    <string name="toolchain_title">Sandbox Toolchain</string>
+    <string name="toolchain_subtitle">Reverse · Build · Debug probes</string>
+    <string name="toolchain_entry">Toolchain</string>
+    <string name="toolchain_entry_gap">Toolchain •</string>
+    <string name="toolchain_detecting">Probing sandbox tools…</string>
+    <string name="toolchain_detect_failed">Probe failed: sandbox may not be running. Initialize the Linux sandbox first.</string>
+    <string name="toolchain_repair_all">Repair %1$d items</string>
+    <string name="toolchain_repairing">Repairing…</string>
+    <string name="toolchain_recheck">Recheck</string>
+    <string name="toolchain_group_native">Native build</string>
+    <string name="toolchain_group_reverse">Reverse engineering</string>
+    <string name="toolchain_group_debug">Debug & tracing</string>
+    <string name="toolchain_status_ready">Ready</string>
+    <string name="toolchain_status_outdated">Outdated</string>
+    <string name="toolchain_status_missing">Missing</string>
+    <string name="toolchain_status_needs_root">Needs root</string>
+    <string name="toolchain_status_unknown">Unknown</string>
+    <string name="toolchain_chip_ready">Ready %1$d</string>
+    <string name="toolchain_chip_missing">Missing %1$d</string>
+    <string name="toolchain_chip_outdated">Outdated %1$d</string>
+    <string name="toolchain_chip_needs_root">Root %1$d</string>
+    <string name="toolchain_chip_unknown">Unknown %1$d</string>
+    <string name="toolchain_root_banner">Installed, but requires root to drive: %1$s</string>
+    <string name="toolchain_manual_only">Cannot auto-repair, install manually via dev suite: %1$s</string>
+    <string name="toolchain_log_empty">No auto-repairable items (install the rest manually via dev suite)</string>
 </resources>

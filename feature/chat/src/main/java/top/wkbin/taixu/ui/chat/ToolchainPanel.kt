@@ -22,12 +22,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,14 +42,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 /**
  * 🧰 沙箱工具链面板
  *
- * 回答一个此前 App 里完全没有答案的问题：**沙箱里到底装了哪些逆向/构建工具，缺什么、版本够不够新。**
- *
- * 交互：
- *  - 打开即自动全量检测；
- *  - 「一键补齐」把所有缺失与落后项合并安装（走国内镜像），安装完自动重新检测刷新；
- *  - 需要 root 才能驱动的工具单独高亮标注，避免用户以为装完就能跑。
- *
- * 纯 UI 层，不含业务判定 —— 判定全部来自 core/model 的 [ToolchainReport]。
+ * 纯 UI 层：文案全部来自 strings.xml（i18n），业务判定来自 [ToolchainReport]。
  */
 @Composable
 internal fun ToolchainPanel(
@@ -57,9 +50,11 @@ internal fun ToolchainPanel(
     modifier: Modifier = Modifier,
 ) {
     val report by viewModel.report.collectAsState()
-    val logs by viewModel.logs.collectAsState()
     val busy by viewModel.busy.collectAsState()
     val failed by viewModel.failed.collectAsState()
+    val installLog by viewModel.installLog.collectAsState()
+    val installState by viewModel.installState.collectAsState()
+    val debBased = viewModel.debBased
 
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -83,13 +78,13 @@ internal fun ToolchainPanel(
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "沙箱工具链",
+                    text = stringResource(R.string.toolchain_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = "逆向 · 构建 · 调试 全量探针",
+                    text = stringResource(R.string.toolchain_subtitle),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -100,7 +95,7 @@ internal fun ToolchainPanel(
             // ---------- 状态区 ----------
             when {
                 current == null && failed -> StatusBanner(
-                    text = "检测失败：沙箱可能未启动，请先在仪表盘初始化 Linux 沙箱",
+                    text = stringResource(R.string.toolchain_detect_failed),
                     color = Color(0xFFC62828),
                 )
 
@@ -109,15 +104,15 @@ internal fun ToolchainPanel(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                    Text("正在检测沙箱工具…", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.toolchain_detecting), style = MaterialTheme.typography.bodySmall)
                 }
 
                 else -> SummaryRow(current)
             }
 
-            // ---------- 一键补齐 ----------
+            // ---------- 一键补齐（仅 Debian 系发行版） ----------
             val repairables = current?.repairable.orEmpty()
-            if (repairables.isNotEmpty()) {
+            if (repairables.isNotEmpty() && debBased) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -126,7 +121,7 @@ internal fun ToolchainPanel(
                         if (busy) {
                             CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(6.dp))
-                            Text("补齐中…", fontSize = 12.sp)
+                            Text(stringResource(R.string.toolchain_repairing), fontSize = 12.sp)
                         } else {
                             RuntimeIcon(
                                 name = RuntimeIconName.Download,
@@ -134,32 +129,47 @@ internal fun ToolchainPanel(
                                 tint = Color.White,
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text("一键补齐 ${repairables.size} 项", fontSize = 12.sp)
+                            Text(stringResource(R.string.toolchain_repair_all, repairables.size), fontSize = 12.sp)
                         }
                     }
                     if (!busy) {
                         TextButton(onClick = { viewModel.refresh() }) {
-                            Text("重新检测", fontSize = 12.sp)
+                            Text(stringResource(R.string.toolchain_recheck), fontSize = 12.sp)
                         }
                     }
                 }
             } else if (current != null && current.results.isNotEmpty() && !busy) {
                 TextButton(onClick = { viewModel.refresh() }) {
-                    Text("重新检测", fontSize = 12.sp)
+                    Text(stringResource(R.string.toolchain_recheck), fontSize = 12.sp)
                 }
+            }
+
+            // ---------- 无法自动补齐提示 ----------
+            val manualOnly = current?.manualOnly.orEmpty()
+            if (manualOnly.isNotEmpty()) {
+                StatusBanner(
+                    text = stringResource(
+                        R.string.toolchain_manual_only,
+                        manualOnly.joinToString(", ") { it.probe.displayName },
+                    ),
+                    color = Color(0xFFE65100),
+                )
             }
 
             // ---------- root 依赖提示 ----------
             val rootTools = current?.rootRequired.orEmpty()
             if (rootTools.isNotEmpty()) {
                 StatusBanner(
-                    text = "以下工具已装好，但实际驱动需要 root 权限：" +
+                    text = stringResource(
+                        R.string.toolchain_root_banner,
                         rootTools.joinToString(", ") { it.probe.displayName },
+                    ),
                     color = Color(0xFF6A1B9A),
                 )
             }
 
             // ---------- 安装日志 ----------
+            val logs = installState?.let { listOf(it) }.orEmpty() + installLog
             if (logs.isNotEmpty()) {
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -185,7 +195,7 @@ internal fun ToolchainPanel(
 
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = group.displayName,
+                            text = groupTitle(group),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold,
@@ -199,13 +209,20 @@ internal fun ToolchainPanel(
 }
 
 @Composable
+private fun groupTitle(group: ToolchainGroup): String = when (group) {
+    ToolchainGroup.NATIVE_BUILD -> stringResource(R.string.toolchain_group_native)
+    ToolchainGroup.REVERSE_ENGINEERING -> stringResource(R.string.toolchain_group_reverse)
+    ToolchainGroup.DEBUG_INSPECT -> stringResource(R.string.toolchain_group_debug)
+}
+
+@Composable
 private fun SummaryRow(report: ToolchainReport) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        CountChip("就绪 ${report.readyCount}", Color(0xFF2E7D32))
-        if (report.missingCount > 0) CountChip("缺失 ${report.missingCount}", Color(0xFFC62828))
-        if (report.outdatedCount > 0) CountChip("版本落后 ${report.outdatedCount}", Color(0xFFE65100))
-        if (report.needsRootCount > 0) CountChip("需 root ${report.needsRootCount}", Color(0xFF6A1B9A))
-        if (report.unknownCount > 0) CountChip("待确认 ${report.unknownCount}", Color(0xFF546E7A))
+        CountChip(stringResource(R.string.toolchain_chip_ready, report.readyCount), Color(0xFF2E7D32))
+        if (report.missingCount > 0) CountChip(stringResource(R.string.toolchain_chip_missing, report.missingCount), Color(0xFFC62828))
+        if (report.outdatedCount > 0) CountChip(stringResource(R.string.toolchain_chip_outdated, report.outdatedCount), Color(0xFFE65100))
+        if (report.needsRootCount > 0) CountChip(stringResource(R.string.toolchain_chip_needs_root, report.needsRootCount), Color(0xFF6A1B9A))
+        if (report.unknownCount > 0) CountChip(stringResource(R.string.toolchain_chip_unknown, report.unknownCount), Color(0xFF546E7A))
     }
 }
 
@@ -236,13 +253,7 @@ private fun StatusBanner(text: String, color: Color) {
 
 @Composable
 private fun ToolchainRow(item: ToolchainProbeResult) {
-    val (dotColor, statusText) = when (item.status) {
-        ToolchainStatus.READY -> Color(0xFF2E7D32) to "就绪"
-        ToolchainStatus.OUTDATED -> Color(0xFFE65100) to "落后"
-        ToolchainStatus.MISSING -> Color(0xFFC62828) to "缺失"
-        ToolchainStatus.NEEDS_ROOT -> Color(0xFF6A1B9A) to "需root"
-        ToolchainStatus.UNKNOWN -> Color(0xFF546E7A) to "待确认"
-    }
+    val (dotColor, statusText) = statusPresentation(item)
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f),
@@ -279,14 +290,24 @@ private fun ToolchainRow(item: ToolchainProbeResult) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 15.sp,
             )
-            if (item.summary.isNotBlank() && item.summary != item.probe.purpose) {
+            // 落后项额外提示版本升级目标
+            if (item.status == ToolchainStatus.OUTDATED && item.version != null) {
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = item.summary,
+                    text = "v${item.version} → ${item.probe.minVersion}",
                     style = MaterialTheme.typography.labelSmall,
                     color = dotColor.copy(alpha = 0.85f),
                 )
             }
         }
     }
+}
+
+@Composable
+private fun statusPresentation(item: ToolchainProbeResult): Pair<Color, String> = when (item.status) {
+    ToolchainStatus.READY -> Color(0xFF2E7D32) to stringResource(R.string.toolchain_status_ready)
+    ToolchainStatus.OUTDATED -> Color(0xFFE65100) to stringResource(R.string.toolchain_status_outdated)
+    ToolchainStatus.MISSING -> Color(0xFFC62828) to stringResource(R.string.toolchain_status_missing)
+    ToolchainStatus.NEEDS_ROOT -> Color(0xFF6A1B9A) to stringResource(R.string.toolchain_status_needs_root)
+    ToolchainStatus.UNKNOWN -> Color(0xFF546E7A) to stringResource(R.string.toolchain_status_unknown)
 }

@@ -6,6 +6,14 @@ import kotlinx.serialization.Serializable
  * 🔧 沙箱工具链探针定义 (Sandbox Toolchain Probe)
  *
  * 描述「沙箱里某个可执行工具」的期望存在性与最低版本要求。
+ *
+ * 职责边界（与开发套件 PluginBundleScripts 严格区分）：
+ * - 本清单**只负责检测**：探针回答「工具在不在、版本够不够新」；
+ * - **补齐**不再由探针直接拼 apt 命令，而是把工具映射到开发套件组件 id，
+ *   交给 ToolManager / BundleComponentBatch 安装（复用其白名单、PRoot 准备步骤与互斥锁）；
+ * - 仅开发套件未覆盖的工具（strace/ltrace/gdb-multiarch/patchelf/binutils/smali/dex2jar）
+ *   才走 apt 补齐，且同样复用 PluginBundleScripts 的准备步骤与 aptOptions。
+ *
  * 本文件是纯数据 + 纯函数模块：不依赖 Android、不依赖沙箱，
  * 因此可以在 JVM 单元测试里完整覆盖版本比较与状态判定逻辑。
  */
@@ -24,20 +32,46 @@ data class ToolchainProbe(
     val versionCommand: String? = null,
     /** 最低可接受版本号（数字段比较，如 "3.22" 表示 >= 3.22）。 */
     val minVersion: String? = null,
-    /** apt 包名，供一键补齐时安装。 */
-    val aptPackages: List<String> = emptyList(),
     /** 该工具是否必须 root 才能实际驱动（工具本体可装，运行时才需要特权）。 */
     val requiresRootAtRuntime: Boolean = false,
     /** 分类，用于面板分组。 */
     val group: ToolchainGroup,
+    /** 补齐策略：为空表示「无法自动补齐」（提示用户去开发套件手动装）。 */
+    val repair: RepairStrategy = RepairStrategy.None,
 )
+
+/**
+ * 补齐策略。
+ *
+ * [ByBundleComponents]：把缺失/落后映射到开发套件组件 id，交给 ToolManager 安装
+ * （这是首选路径，开发套件已覆盖 cmake/ninja/apktool/jadx/aapt2/apksigner/zipalign）。
+ * [ByAptPackages]：开发套件未覆盖的补充工具，直接用 apt 装（复用 PluginBundleScripts 准备步骤）。
+ * [None]：无法自动补齐，仅提示用户到开发套件安装。
+ */
+@Serializable
+sealed interface RepairStrategy {
+    @Serializable
+    data object None : RepairStrategy
+
+    @Serializable
+    data class ByBundleComponents(
+        val componentIds: List<String>,
+        /** 用户可见的套件名，用于提示「请在开发套件安装 X」。 */
+        val suiteName: String,
+    ) : RepairStrategy
+
+    @Serializable
+    data class ByAptPackages(
+        val packages: List<String>,
+    ) : RepairStrategy
+}
 
 /** 工具链分组，面板按此渲染分区。 */
 @Serializable
-enum class ToolchainGroup(val displayName: String) {
-    NATIVE_BUILD("原生构建链"),
-    REVERSE_ENGINEERING("逆向分析"),
-    DEBUG_INSPECT("调试与追踪"),
+enum class ToolchainGroup {
+    NATIVE_BUILD,
+    REVERSE_ENGINEERING,
+    DEBUG_INSPECT,
 }
 
 /** 单个工具的检测结论。 */
@@ -56,10 +90,9 @@ data class ToolchainProbeResult(
 /**
  * 工具状态。
  *
- * [MISSING] / [OUTDATED] 均视为「可自动补齐」——这正是本功能的核心：
- * 沙箱里缺工具、工具版本落后，都要能在 App 内一键补齐，而不是让用户自己去猜。
- * [NEEDS_ROOT] 表示工具本体可以装好，但真正驱动它需要 root 特权（PRoot 伪 root 不算），
- * 如实标注避免用户以为装完就能跑。
+ * [MISSING] / [OUTDATED] 均视为「可自动补齐」；[NEEDS_ROOT] 表示工具本体已装好，
+ * 但真正驱动它需要 root 特权（PRoot 伪 root 不算）；[UNKNOWN] 表示沙箱忙 / 版本读不到，
+ * 绝不误报为缺失。
  */
 @Serializable
 enum class ToolchainStatus {
@@ -82,26 +115,44 @@ data class ToolchainReport(
     val needsRootCount: Int get() = results.count { it.status == ToolchainStatus.NEEDS_ROOT }
     val unknownCount: Int get() = results.count { it.status == ToolchainStatus.UNKNOWN }
 
-    /** 需要补齐的工具（缺失 + 版本落后），按清单固定顺序展示。 */
+    /**
+     * 真正可一键补齐的工具：状态为 MISSING/OUTDATED，且补齐策略不是 [RepairStrategy.None]。
+     * 这保证「一键补齐 N 项」的 N 只统计那些补完后会真正变就绪的项，不空转。
+     */
     val repairable: List<ToolchainProbeResult>
-        get() = results.filter { it.status == ToolchainStatus.MISSING || it.status == ToolchainStatus.OUTDATED }
+        get() = results.filter {
+            (it.status == ToolchainStatus.MISSING || it.status == ToolchainStatus.OUTDATED) &&
+                it.probe.repair !is RepairStrategy.None
+        }
+
+    /** 无法自动补齐、只能手动到开发套件安装的工具。 */
+    val manualOnly: List<ToolchainProbeResult>
+        get() = results.filter {
+            (it.status == ToolchainStatus.MISSING || it.status == ToolchainStatus.OUTDATED) &&
+                it.probe.repair is RepairStrategy.None
+        }
 
     /** 补齐后依然需要 root 才能驱动的工具，单独提示，避免用户误以为已可用。 */
     val rootRequired: List<ToolchainProbeResult>
         get() = results.filter { it.status == ToolchainStatus.NEEDS_ROOT }
 
-    val isAllReady: Boolean get() = results.isNotEmpty() && repairable.isEmpty()
+    val isAllReady: Boolean get() = results.isNotEmpty() && repairable.isEmpty() && manualOnly.isEmpty()
 }
 
 /**
  * 🧰 沙箱工具链清单 —— 全量探针表（原生构建 / 逆向 / 调试）。
  *
- * 清单集中在此处声明，与 [BuiltinPluginBundles] 的组件探针互补：
- * 插件中心管「套件装没装」，这里管「工具在不在、版本够不够新」，两者口径独立。
+ * 补齐策略映射到开发套件组件（BuiltinPluginBundles）：
+ * - cmake / ninja → android-ndk
+ * - apktool / jadx → android-re
+ * - aapt2 / apksigner / zipalign → android-core
+ * 其余开发套件未覆盖的工具（patchelf / binutils / smali / dex2jar / strace / ltrace / gdb）
+ * 走 ByAptPackages；frida 走 None（依赖 pip + root，无法可靠自动补齐）。
  */
 object SandboxToolchainCatalog {
 
     val probes: List<ToolchainProbe> = listOf(
+        // ---------- 原生构建链 ----------
         ToolchainProbe(
             id = "cmake",
             displayName = "CMake",
@@ -110,8 +161,11 @@ object SandboxToolchainCatalog {
             candidatePaths = listOf("/opt/taixu/tools/android-suite-offline/cmake/bin/cmake"),
             versionCommand = "{cmd} --version",
             minVersion = "3.22",
-            aptPackages = listOf("cmake", "ninja-build"),
             group = ToolchainGroup.NATIVE_BUILD,
+            repair = RepairStrategy.ByBundleComponents(
+                componentIds = listOf("android-ndk"),
+                suiteName = "Android & 移动全栈开发套件",
+            ),
         ),
         ToolchainProbe(
             id = "ninja",
@@ -121,8 +175,11 @@ object SandboxToolchainCatalog {
             candidatePaths = listOf("/opt/taixu/tools/android-suite-offline/cmake/bin/ninja"),
             versionCommand = "{cmd} --version",
             minVersion = "1.10",
-            aptPackages = listOf("ninja-build"),
             group = ToolchainGroup.NATIVE_BUILD,
+            repair = RepairStrategy.ByBundleComponents(
+                componentIds = listOf("android-ndk"),
+                suiteName = "Android & 移动全栈开发套件",
+            ),
         ),
         ToolchainProbe(
             id = "patchelf",
@@ -130,8 +187,8 @@ object SandboxToolchainCatalog {
             purpose = "改写 ELF 头信息（库名/rpath/解释器），SO 修补与注入必用",
             commands = listOf("patchelf"),
             versionCommand = "{cmd} --version",
-            aptPackages = listOf("patchelf"),
             group = ToolchainGroup.NATIVE_BUILD,
+            repair = RepairStrategy.ByAptPackages(listOf("patchelf")),
         ),
         ToolchainProbe(
             id = "aapt2",
@@ -141,6 +198,10 @@ object SandboxToolchainCatalog {
             candidatePaths = listOf("/opt/android-sdk/build-tools/35.0.0/aapt2"),
             versionCommand = "{cmd} version",
             group = ToolchainGroup.NATIVE_BUILD,
+            repair = RepairStrategy.ByBundleComponents(
+                componentIds = listOf("android-core"),
+                suiteName = "Android & 移动全栈开发套件",
+            ),
         ),
         ToolchainProbe(
             id = "apksigner",
@@ -153,6 +214,10 @@ object SandboxToolchainCatalog {
             ),
             versionCommand = "{cmd} version",
             group = ToolchainGroup.NATIVE_BUILD,
+            repair = RepairStrategy.ByBundleComponents(
+                componentIds = listOf("android-core"),
+                suiteName = "Android & 移动全栈开发套件",
+            ),
         ),
         ToolchainProbe(
             id = "zipalign",
@@ -161,7 +226,12 @@ object SandboxToolchainCatalog {
             commands = listOf("zipalign"),
             versionCommand = "{cmd} 2>&1 | head -1",
             group = ToolchainGroup.NATIVE_BUILD,
+            repair = RepairStrategy.ByBundleComponents(
+                componentIds = listOf("android-core"),
+                suiteName = "Android & 移动全栈开发套件",
+            ),
         ),
+        // ---------- 逆向分析 ----------
         ToolchainProbe(
             id = "jadx",
             displayName = "JADX",
@@ -172,8 +242,11 @@ object SandboxToolchainCatalog {
                 "/opt/jadx/bin/jadx",
             ),
             versionCommand = "{cmd} --version",
-            aptPackages = listOf("openjdk-17-jdk-headless"),
             group = ToolchainGroup.REVERSE_ENGINEERING,
+            repair = RepairStrategy.ByBundleComponents(
+                componentIds = listOf("android-re"),
+                suiteName = "Android 逆向分析套件",
+            ),
         ),
         ToolchainProbe(
             id = "apktool",
@@ -182,8 +255,11 @@ object SandboxToolchainCatalog {
             commands = listOf("apktool"),
             candidatePaths = listOf("/opt/taixu/tools/android-suite-offline/lib/apktool.jar"),
             versionCommand = "{cmd} --version",
-            aptPackages = listOf("apktool"),
             group = ToolchainGroup.REVERSE_ENGINEERING,
+            repair = RepairStrategy.ByBundleComponents(
+                componentIds = listOf("android-re"),
+                suiteName = "Android 逆向分析套件",
+            ),
         ),
         ToolchainProbe(
             id = "baksmali",
@@ -191,16 +267,16 @@ object SandboxToolchainCatalog {
             purpose = "Dex 与 Smali 互转，字节码级修改的基础",
             commands = listOf("baksmali", "smali"),
             versionCommand = "{cmd} --version",
-            aptPackages = listOf("smali"),
             group = ToolchainGroup.REVERSE_ENGINEERING,
+            repair = RepairStrategy.ByAptPackages(listOf("smali")),
         ),
         ToolchainProbe(
             id = "dex2jar",
             displayName = "dex2jar",
             purpose = "Dex 转 Jar，便于用常规 Java 工具分析字节码",
             commands = listOf("d2j-dex2jar", "d2j-dex2jar.sh"),
-            aptPackages = listOf("dex2jar"),
             group = ToolchainGroup.REVERSE_ENGINEERING,
+            repair = RepairStrategy.ByAptPackages(listOf("dex2jar")),
         ),
         ToolchainProbe(
             id = "readelf",
@@ -208,8 +284,8 @@ object SandboxToolchainCatalog {
             purpose = "ELF 头段符号表分析，SO 逆向与壳识别的基础",
             commands = listOf("readelf"),
             versionCommand = "{cmd} --version",
-            aptPackages = listOf("binutils"),
             group = ToolchainGroup.REVERSE_ENGINEERING,
+            repair = RepairStrategy.ByAptPackages(listOf("binutils")),
         ),
         ToolchainProbe(
             id = "frida",
@@ -217,18 +293,19 @@ object SandboxToolchainCatalog {
             purpose = "动态插桩与 hook，运行期改写行为；工具可装，驱动需 root",
             commands = listOf("frida", "frida-ps"),
             versionCommand = "{cmd} --version",
-            aptPackages = listOf("python3-pip"),
             group = ToolchainGroup.REVERSE_ENGINEERING,
             requiresRootAtRuntime = true,
+            repair = RepairStrategy.None,
         ),
+        // ---------- 调试与追踪 ----------
         ToolchainProbe(
             id = "strace",
             displayName = "strace",
             purpose = "系统调用追踪，定位文件/网络行为与崩溃根因",
             commands = listOf("strace"),
             versionCommand = "{cmd} --version",
-            aptPackages = listOf("strace"),
             group = ToolchainGroup.DEBUG_INSPECT,
+            repair = RepairStrategy.ByAptPackages(listOf("strace")),
         ),
         ToolchainProbe(
             id = "ltrace",
@@ -236,8 +313,8 @@ object SandboxToolchainCatalog {
             purpose = "库函数调用追踪，观察 dlopen/malloc 等关键行为",
             commands = listOf("ltrace"),
             versionCommand = "{cmd} --version",
-            aptPackages = listOf("ltrace"),
             group = ToolchainGroup.DEBUG_INSPECT,
+            repair = RepairStrategy.ByAptPackages(listOf("ltrace")),
         ),
         ToolchainProbe(
             id = "gdb",
@@ -245,8 +322,8 @@ object SandboxToolchainCatalog {
             purpose = "原生调试器，支持 ARM64 跨架构调试",
             commands = listOf("gdb-multiarch", "gdb"),
             versionCommand = "{cmd} --version",
-            aptPackages = listOf("gdb-multiarch"),
             group = ToolchainGroup.DEBUG_INSPECT,
+            repair = RepairStrategy.ByAptPackages(listOf("gdb-multiarch")),
         ),
     )
 

@@ -5,29 +5,32 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import top.wkbin.taixu.core.model.ToolchainProbeResult
+import top.wkbin.taixu.core.model.RepairStrategy
 import top.wkbin.taixu.core.model.ToolchainReport
+import top.wkbin.taixu.core.tools.ToolManager
+import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.doctor.ToolchainInspector
-import top.wkbin.taixu.runtime.doctor.ToolchainInstaller
 
 /**
  * 🧰 沙箱工具链 ViewModel
  *
- * 遵循项目规范：UI 不直接持有 LinuxRuntime，所有沙箱交互经 ViewModel 暴露，
- * 便于注入与替换（测试里可传 Fake）。
+ * 职责：
+ * - 检测：调用 [ToolchainInspector] 全量探针；
+ * - 补齐：**委托 [ToolManager].startBackgroundBatchInstall** 走开发套件安装
+ *   （白名单 + PRoot 准备步骤 + 应用级互斥锁 + 后台任务），不自己拼 apt/删锁/换源。
+ *
+ * 生命周期：安装用 ToolManager 的应用级 managerScope 承载，离开聊天页也不会被打断；
+ * 本 VM 只订阅 [ToolManager.bundleInstallState] 刷新 UI。
  */
 class ToolchainViewModel(
     private val inspector: ToolchainInspector,
-    private val installer: ToolchainInstaller,
+    private val toolManager: ToolManager,
+    private val linuxRuntime: LinuxRuntime,
 ) : ViewModel() {
 
     private val _report = MutableStateFlow<ToolchainReport?>(null)
     val report: StateFlow<ToolchainReport?> = _report.asStateFlow()
-
-    private val _logs = MutableStateFlow<List<String>>(emptyList())
-    val logs: StateFlow<List<String>> = _logs.asStateFlow()
 
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
@@ -35,16 +38,49 @@ class ToolchainViewModel(
     private val _failed = MutableStateFlow(false)
     val failed: StateFlow<Boolean> = _failed.asStateFlow()
 
+    /** 顶部入口是否需要亮红点（有可一键补齐的缺口即亮）。 */
+    private val _hasGap = MutableStateFlow(false)
+    val hasGap: StateFlow<Boolean> = _hasGap.asStateFlow()
+
+    /** 安装进度（来自开发套件批量安装的实时日志）。 */
+    val installLog: StateFlow<List<String>> = toolManager.bundleInstallLog
+
+    /** 安装状态文案（null = 空闲）。 */
+    val installState: StateFlow<String?> = toolManager.bundleInstallState
+
+    /**
+     * 当前发行版是否 Debian 系（packageManager == "apt"）。
+     * 非 Debian 系（alpine/arch/fedora）没有 apt，开发套件安装不适用，UI 层据此隐藏补齐按钮。
+     */
+    val debBased: Boolean
+        get() {
+            val activeId = linuxRuntime.activeDistroId.value
+            val active = linuxRuntime.installedDistros.value.firstOrNull { it.id == activeId }
+            return active?.packageManager == "apt"
+        }
+
+    init {
+        // 安装状态结束后自动刷新检测结果与红点
+        viewModelScope.launch {
+            toolManager.bundleInstallState.collect { state ->
+                _busy.value = toolManager.isBatchInstalling.value
+                if (state == null && _report.value != null) {
+                    refresh()
+                }
+            }
+        }
+    }
+
     /** 全量检测；沙箱不可用时如实置 failed，不谎报「工具缺失」。 */
     fun refresh() {
-        // 幂等守卫：面板打开时 Host 与 Sheet 可能同时触发，避免重复跑全量沙箱探针
         if (_busy.value) return
         viewModelScope.launch {
             _busy.value = true
             runCatching { inspector.inspect() }
-                .onSuccess {
+                .onSuccess { report ->
                     _failed.value = false
-                    _report.value = it
+                    _report.value = report
+                    _hasGap.value = report.repairable.isNotEmpty()
                 }
                 .onFailure {
                     _failed.value = true
@@ -55,28 +91,24 @@ class ToolchainViewModel(
     }
 
     /**
-     * 一键补齐：把 [ToolchainReport.repairable]（缺失 + 版本落后）合并安装。
-     *
-     * 只补明确有问题的项 —— 已就绪的工具一律不动，避免无谓破坏现成环境。
+     * 一键补齐：把 [ToolchainReport.repairable] 里走开发套件的项映射到组件 id，
+     * 交给 ToolManager 后台批量安装。
      */
     fun repairMissing() {
         val current = _report.value ?: return
         val targets = current.repairable
         if (targets.isEmpty() || _busy.value) return
 
-        viewModelScope.launch {
-            _busy.value = true
-            _logs.value = emptyList()
-            val results: List<ToolchainProbeResult> = runCatching {
-                installer.install(targets) { line ->
-                    _logs.update { (it + line).takeLast(60) }
-                }
-            }.getOrElse { throwable ->
-                _logs.update { it + "补齐失败：${throwable.message}" }
-                current.results
-            }
-            _report.value = current.copy(results = results)
-            _busy.value = false
-        }
+        val componentIds = targets
+            .mapNotNull { it.probe.repair as? RepairStrategy.ByBundleComponents }
+            .flatMap { it.componentIds }
+            .distinct()
+            .toSet()
+
+        if (componentIds.isEmpty()) return
+
+        toolManager.startBackgroundBatchInstall(componentIds, reinstall = false, onCompleted = {
+            viewModelScope.launch { refresh() }
+        })
     }
 }

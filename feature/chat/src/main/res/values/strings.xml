@@ -534,4 +534,30 @@
     <string name="chat_share_chip_summarize">总结</string>
     <string name="chat_share_chip_translate">翻译成中文</string>
     <string name="chat_share_chip_save">存入沙箱</string>
+    <!-- 沙箱工具链面板 -->
+    <string name="toolchain_title">沙箱工具链</string>
+    <string name="toolchain_subtitle">逆向 · 构建 · 调试 全量探针</string>
+    <string name="toolchain_entry">工具链</string>
+    <string name="toolchain_entry_gap">工具链 •</string>
+    <string name="toolchain_detecting">正在检测沙箱工具…</string>
+    <string name="toolchain_detect_failed">检测失败：沙箱可能未启动，请先在仪表盘初始化 Linux 沙箱</string>
+    <string name="toolchain_repair_all">一键补齐 %1$d 项</string>
+    <string name="toolchain_repairing">补齐中…</string>
+    <string name="toolchain_recheck">重新检测</string>
+    <string name="toolchain_group_native">原生构建链</string>
+    <string name="toolchain_group_reverse">逆向分析</string>
+    <string name="toolchain_group_debug">调试与追踪</string>
+    <string name="toolchain_status_ready">就绪</string>
+    <string name="toolchain_status_outdated">落后</string>
+    <string name="toolchain_status_missing">缺失</string>
+    <string name="toolchain_status_needs_root">需root</string>
+    <string name="toolchain_status_unknown">待确认</string>
+    <string name="toolchain_chip_ready">就绪 %1$d</string>
+    <string name="toolchain_chip_missing">缺失 %1$d</string>
+    <string name="toolchain_chip_outdated">版本落后 %1$d</string>
+    <string name="toolchain_chip_needs_root">需 root %1$d</string>
+    <string name="toolchain_chip_unknown">待确认 %1$d</string>
+    <string name="toolchain_root_banner">以下工具已装好，但实际驱动需要 root 权限：%1$s</string>
+    <string name="toolchain_manual_only">以下工具无法自动补齐，请在开发套件手动安装：%1$s</string>
+    <string name="toolchain_log_empty">没有可自动补齐的项（其余需在开发套件手动安装）</string>
 </resources>
