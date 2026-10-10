@@ -60,6 +60,9 @@ class CapabilityScriptRunner(
             // Android dex 不支持 Rhino 运行期生成字节码，必须解释模式
             optimizationLevel = -1
             setClassShutter(ClassShutter { false })
+            // Avoid Rhino's default converter class, which also initializes the
+            // optional JavaBean converter (java.beans is unavailable on Android).
+            setJavaToJSONConverter { throw Context.reportRuntimeError("Java object JSON conversion is disabled") }
         }
     }
 
