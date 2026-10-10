@@ -403,7 +403,7 @@ class SystemPromptBuilder(
         if (builtinLines.isEmpty() && customLines.isEmpty()) return ""
         val protocol = buildString {
             append("\n\n## 系统核心 MCP 能力（经 use_capability 统一代理发现与调用）\n")
-            append("MCP 工具的名称与参数不在本轮工具列表里，发现与调用全部通过 use_capability：\n")
+            append("MCP 工具与内置低频宿主能力的名称与参数不在本轮工具列表里，发现与调用全部通过 use_capability（虚拟屏等宿主能力域用 server=\"host\"）：\n")
             append("1. action=\"list\"：列出已启用的服务（不启动任何进程）；\n")
             append("2. action=\"inspect\" + server=\"<id>\"：查看该服务的工具清单与参数说明；\n")
             append("3. action=\"call\" + server=\"<id>\" + tool=\"<工具名>\" + arguments={...}：调用工具（未连接的服务会自动启动，首次启动可能需要数秒）。\n")
