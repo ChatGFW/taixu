@@ -40,6 +40,8 @@ data class NestedCallRecord(
 data class NestedCallLog(
     val complete: Boolean = true,
     val calls: List<NestedCallRecord> = emptyList(),
+    /** Total attempts, independent of the bounded retained window; zero for legacy logs. */
+    val totalCalls: Long = 0,
 )
 
 object NestedCalls {
@@ -75,19 +77,25 @@ object NestedCalls {
         redact: (String) -> String = { it },
     ) {
         val current = read(metadata) ?: NestedCallLog()
-        val seq = current.calls.size + 1
+        val seq = maxOf(current.totalCalls, current.calls.maxOfOrNull {
+            it.toolCallId.substringAfterLast('/').toLongOrNull() ?: 0
+        } ?: 0) + 1
+        val redactedArgs = arguments?.let(redact)
+        val redactedError = error?.let(redact)
+        val truncated = (redactedArgs?.length ?: 0) > MAX_ARGUMENT_CHARS ||
+            (redactedError?.length ?: 0) > MAX_ERROR_CHARS
         val record = NestedCallRecord(
             toolCallId = "${parentToolCallId ?: "nested"}/$seq",
             name = name,
             status = status,
             durationMs = durationMs.coerceAtLeast(0),
-            argumentsPreview = arguments?.let { redact(it).take(MAX_ARGUMENT_CHARS) },
-            error = error?.let { redact(it).take(MAX_ERROR_CHARS) },
+            argumentsPreview = redactedArgs?.take(MAX_ARGUMENT_CHARS),
+            error = redactedError?.take(MAX_ERROR_CHARS),
         )
         val kept = current.calls + record
         val trimmed = kept.takeLast(MAX_RECORDS)
-        val log = if (kept.size > MAX_RECORDS) current.copy(complete = false, calls = trimmed)
-        else current.copy(calls = trimmed)
+        val log = current.copy(complete = current.complete && !truncated && kept.size <= MAX_RECORDS,
+            calls = trimmed, totalCalls = seq)
         runCatching { metadata[METADATA_KEY] = json.encodeToString(NestedCallLog.serializer(), log) }
     }
 }

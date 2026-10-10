@@ -83,9 +83,9 @@ class ApprovalPolicyEngine(
             )
         }
         if (mode == ApprovalMode.FULL_ACCESS) return ApprovalDecision(false)
-        // use_capability 的 list/inspect/decline 是只读元操作（不启动任何服务器进程），任何模式免审
+        // list/inspect/decline 是元操作；script 仅编排，实际调用逐条重入策略入口。
         if (tool == HarnessTool.MCP && rawToolName == "use_capability" &&
-            args["action"]?.jsonPrimitive?.content.orEmpty().trim().lowercase() != "call"
+            args["action"]?.jsonPrimitive?.content.orEmpty().trim().lowercase() in setOf("list", "inspect", "decline", "script")
         ) {
             return ApprovalDecision(false)
         }
@@ -198,6 +198,7 @@ class ApprovalPolicyEngine(
             }
         }
         HarnessTool.MCP -> when {
+            rawToolName == "use_capability" && args["action"]?.jsonPrimitive?.content.orEmpty().trim().lowercase() == "script" -> null // 内层逐条门控
             // 宿主能力域的 deferred 调用：按直接 host 调用的只读约束判定
             // （deferred 动作全部是非只读管理/虚拟屏动作，只读规划下一律拦截）。
             HostCapabilityDirectory.isCapabilityCall(args, rawToolName) ->
@@ -217,7 +218,7 @@ class ApprovalPolicyEngine(
     /** MCP 只读判定：use_capability 的只读元操作，或内置浏览器风险矩阵中的 low 档工具。 */
     private fun isReadOnlyMcpCall(args: JsonObject, rawToolName: String?): Boolean {
         if (rawToolName == "use_capability" &&
-            args["action"]?.jsonPrimitive?.content.orEmpty().trim().lowercase() != "call"
+            args["action"]?.jsonPrimitive?.content.orEmpty().trim().lowercase() in setOf("list", "inspect", "decline")
         ) {
             return true
         }

@@ -88,8 +88,9 @@
 
 - **Java 互操作全禁**：Rhino `ClassShutter` 对所有类名返回 false——脚本无法触达 `java.*`、反射或宿主类路径（由 `CapabilityScriptRunnerTest` 锁定）。
 - **无系统 API**：脚本环境不暴露文件、网络、进程句柄；唯一出口是 capability 绑定。
-- **非免审通道**：每条 `capability.call` 经 `invokeCapability` 走与直接 call 相同的校验、审批矩阵与 NestedCalls 留痕；审批 UI 逐条出现，脚本只是编排层。
-- **资源熔断**：解释模式（optimizationLevel=-1，Android dex 限制）+ 指令观察器按 deadline（默认 60s、上限 300s）中止死循环；结果正文 64 KiB 截断。
+- **非免审通道**：每条 `capability.call` 经 `ScriptCapabilityDispatcher` 校验后重入 `ToolExecutor.execute`，执行同一 PLAN、审批、检查点及脱敏链路；MCP 首次调用先发现工具，使注解升级参与审批。未注入受控入口的路由器拒绝脚本执行。
+- **审批与恢复**：首次遇到待审批调用即停止脚本，父结果保留 `awaitingApproval` / `approvalDeferred`。审批请求绑定父调用 ID，但参数仅包含当前 `call` 及内部来源标记；批准后只执行这一条调用，模型根据结果继续剩余任务，不重放脚本及已完成副作用。后台 Lane 不创建审批 UI。
+- **资源熔断与取消**：解释模式（optimizationLevel=-1，Android dex 限制）+ 指令观察器检查父 Job 和单调时钟期限（默认 60s、上限 300s）；内层调用继承父 Job，并受剩余时间预算约束，返回与结果序列化后再次核验期限。JS 的 try/catch 无法吞掉取消、超时或审批交接。结果正文 64 KiB 截断。
 - **依赖**：Rhino 1.7.15（MPL-2.0，与 GPL-3.0 兼容，已记录于 libs.versions.toml）。
 - **线程面**：内层调用以 `runBlocking` 占用单个 IO 线程至完成——长耗时宿主动作期间该线程不可复用（Dispatchers.IO 池 64 线程，可接受；记录在案）。
 

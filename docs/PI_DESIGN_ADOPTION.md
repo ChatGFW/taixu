@@ -302,9 +302,9 @@ host 工具拆分：17 个高频动作保留 direct（status / exec / settings_g
 
 | 边界 | 太墟实现 |
 | --- | --- |
-| 契约类型 | `harness/directory/NestedCallRecord`：`NestedCallRecord`（toolCallId=`<parentToolCallId>/<n>`、name、status、durationMs、argumentsPreview、error）+ `NestedCallLog`（complete 标记 + 有界列表） |
+| 契约类型 | `harness/directory/NestedCallRecord`：`NestedCallRecord`（toolCallId=`<parentToolCallId>/<n>`、name、status、durationMs、argumentsPreview、error）+ `NestedCallLog`（complete 标记 + 有界列表 + 独立递增 totalCalls；旧记录由保留 ID 推导下一序号） |
 | 写入点 | `CapabilityToolRouter.call()`：宿主 deferred 与 MCP 两条内层路径统一计时并落 `metadata["nested_calls"]`；被目录拒绝的尝试记为 `blocked`，元操作 list/inspect/decline 不记录 |
-| 有界化 | 最多 256 条（超出丢最旧并置 `complete=false`）；参数摘要截断 8 KiB、错误截断 512 字符 |
+| 有界化 | 最多 256 条（超出丢最旧，序号继续递增）；参数摘要截断 8 KiB、错误截断 512 字符；任意记录或文本截断均置 `complete=false`，后续追加不复原 |
 | 脱敏 | `argRedactor` 由调用方注入（ToolExecutor 传 `SecretRedactor.redact`）——参数与错误即使不存结果正文也可能含密钥 |
 | 上下文与持久化 | metadata 随 ToolResult 持久化但**不进入模型上下文**；写入证据语义不变 |
 | usage 归属 | 当前落地者均为非模型消耗型内层调用，无重复计费面；模型驱动组合工具的「内层 usage 逐层累加进父结果、父只报自身消耗」规则随契约生效 |
@@ -321,11 +321,14 @@ pi 的 codemode 暴露级别落地：模型把多轮能力调用合并成一段 
 | --- | --- |
 | 入口 | `use_capability` 新增 `action="script"`：`code`（必填，≤32 KiB）+ `timeout_seconds`（1-300，默认 60） |
 | 脚本 API | `capability.call(server, tool, args)` → `{ok, output}`；`capability.list()` / `capability.inspect(server)` → 能力域 JSON；脚本返回值（字符串或可 JSON 化对象）即结果正文（64 KiB 截断） |
-| 审批不绕行 | 每条内层调用经 `CapabilityToolRouter.invokeCapability`——直接 call 与脚本共用同一校验、审批矩阵、NestedCalls 留痕与脱敏；被拒调用以 `{ok:false}` 暴露给脚本自行改道 |
-| 沙箱化 | ClassShutter 全禁 Java 互操作（脚本无法触达 java.*/反射）；无文件/网络/进程 API；指令观察器按 deadline 熔断死循环 |
-| 结构 | `CapabilityToolRouter` 抽出 `invokeCapability` 内层核心供 call 与 script 共用；`HostCapabilityDirectory.flattenHostArgs` 复用参数展平 |
+| 审批不绕行 | `ScriptCapabilityDispatcher` 校验每条调用并重入 `ToolExecutor.execute`，复用 PLAN、审批、检查点与脱敏。MCP 首次发现后的注解参与审批；普通失败以 `{ok:false}` 暴露给脚本 |
+| 审批恢复 | 待审批 / 后台 Lane 交接立即终止脚本，控制标记传播到父结果；请求只包含当前 call，批准后单次执行并提示模型继续剩余任务，不重放此前操作 |
+| 沙箱化 | ClassShutter 全禁 Java 互操作（脚本无法触达 java.*/反射）；无文件/网络/进程 API；指令观察器检查父 Job 与单调时钟 deadline；内层调用继承取消并受剩余时间预算约束 |
+| 结构 | `CapabilityToolRouter` 的 script 必须注入受控入口，缺失时拒绝执行；直接 call 保留 `invokeCapability` 分发与审计路径，脚本通过重入直接 call 复用实际执行路径 |
 
 新增测试：`CapabilityScriptRunnerTest` 7 项（多调用编排、Java 全禁、deadline 熔断、blocked 感知与改道、内层错误可见、超长代码拒绝、对象 JSON 化）+ 路由器集成测试（script 动作的内层嵌套记录逐条落 metadata）。`use_capability` schema 的 action 枚举扩为 5 值并新增 code/timeout_seconds 参数（护栏测试不受影响）。
+
+Review 修复回归：`CapabilityScriptPolicyTest` 经真实执行器与 Room 审批仓库验证 REQUEST、PLAN、后台交接、批准后单次重放、检查点、参数校验及 MockWebServer MCP 注解/执行链路；运行器新增取消传播、JS catch 不可吞控制状态、内层超时与超时后返回检查；`NestedCallRecordTest` 验证持续淘汰后的唯一 ID、旧数据兼容及参数/错误截断标记。
 
 已知边界：脚本内暂不支持 MCP 能力域的自动发现（inspect 需在脚本外先做，发现结果按名传入）；内层调用 `runBlocking` 占用单个 IO 线程至完成；prompt 侧 script 用例引导需真机会话检验；安全边界同步登记于 [`SECURITY_SURFACE.md`](SECURITY_SURFACE.md) 第 6 节。
 
@@ -346,7 +349,7 @@ pi 的 codemode 暴露级别落地：模型把多轮能力调用合并成一段 
 
 ### C. codemode（阶段 8）
 
-6. **批量编排**：让模型用 `action="script"` 循环取 3 次虚拟屏状态 → 一次工具调用完成 3 条内层；REQUEST 模式下审批按内层逐条弹出。
+6. **批量编排与审批**：允许自动执行的调用可在一次脚本中完成多条内层；REQUEST 下遇到待审批调用即停止，批准后只执行该条，剩余动作由模型继续发起；确认此前完成的操作没有重放。
 7. **超时熔断**：脚本 `while(true){}` → 60 秒中止，提示部分结果可用。
 8. **无 Java 逃逸**：脚本尝试 `java.lang.Runtime` → 失败信息确认被 ClassShutter 拦截。
 

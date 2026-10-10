@@ -1,6 +1,14 @@
 package top.wkbin.taixu.harness
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.CancellationException
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.serialization.json.JsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -106,5 +114,69 @@ class CapabilityScriptRunnerTest {
         assertTrue(ok)
         assertTrue(output.contains("\"done\":true"))
         assertTrue(output.contains("\"via\":\"script\""))
+    }
+
+    @Test
+    fun `parent cancellation cancels inner call and prevents later dispatch even inside JS catch`() = runBlocking {
+        val entered = CompletableDeferred<Unit>()
+        val cancelled = CompletableDeferred<Unit>()
+        val calls = AtomicInteger()
+        val running = async {
+            runner(inner = { _, _, _ ->
+                calls.incrementAndGet()
+                entered.complete(Unit)
+                try { awaitCancellation() } finally { cancelled.complete(Unit) }
+            }).execute("try { capability.call('host','first',{}); } catch(e) {} capability.call('host','second',{});", 10_000)
+        }
+        withTimeout(5_000) { entered.await() }
+        running.cancel()
+        withTimeout(5_000) { cancelled.await(); running.cancelAndJoin() }
+        assertEquals(1, calls.get())
+    }
+
+    @Test
+    fun `deadline cancels suspended inner call and cannot be swallowed by JS`() = runBlocking {
+        val cancelled = CompletableDeferred<Unit>()
+        val calls = AtomicInteger()
+        val started = System.nanoTime()
+        val (ok, output) = runner(inner = { _, _, _ ->
+            calls.incrementAndGet()
+            try { delay(10_000); true to "late" } finally { cancelled.complete(Unit) }
+        }).execute("try { capability.call('host','first',{}); } catch(e) {} capability.call('host','second',{}); 'success';", 200)
+        assertFalse(ok)
+        assertTrue(output.contains("超时"))
+        assertTrue(cancelled.isCompleted)
+        assertEquals(1, calls.get())
+        assertTrue((System.nanoTime() - started) / 1_000_000 < 5_000)
+    }
+
+    @Test
+    fun `non cooperative inner return past deadline cannot report success`() = runBlocking {
+        val (ok, output) = runner(inner = { _, _, _ -> Thread.sleep(150); true to "late" })
+            .execute("capability.call('host','first',{}); 'success';", 50)
+        assertFalse(ok)
+        assertTrue(output.contains("超时"))
+    }
+
+    @Test
+    fun `inner cancellation is propagated rather than converted to ordinary failure`() = runBlocking {
+        val failure = runCatching {
+            runner(inner = { _, _, _ -> throw CancellationException("stop") })
+                .execute("try { capability.call('host','first',{}); } catch(e) {} 'success';", 10_000)
+        }.exceptionOrNull()
+        assertTrue(failure is CancellationException)
+    }
+
+    @Test
+    fun `parent cancellation interrupts pure JS loop without waiting for deadline`() = runBlocking {
+        val entered = CompletableDeferred<Unit>()
+        val running = async {
+            runner(inner = { _, _, _ -> entered.complete(Unit); true to "ok" })
+                .execute("capability.call('host','first',{}); while(true){}", 60_000)
+        }
+        withTimeout(5_000) { entered.await() }
+        running.cancel()
+        withTimeout(5_000) { running.cancelAndJoin() }
+        assertTrue(running.isCancelled)
     }
 }
