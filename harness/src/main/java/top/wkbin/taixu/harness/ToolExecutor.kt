@@ -126,9 +126,10 @@ class ToolExecutor(
         progressReporter: (suspend (String) -> Unit)? = null,
         operationId: String? = null,
     ): ToolResult {
-        return executionBoundary.execute(ToolExecutionRequest(toolCall, sessionId, workspace, operationId)) {
+        val result = executionBoundary.execute(ToolExecutionRequest(toolCall, sessionId, workspace, operationId)) {
             executeWithPolicy(toolCall, sessionId, workspace, bypassApproval, allowApprovalRequest, progressReporter, operationId)
         }
+        return if (bypassApproval) top.wkbin.taixu.harness.directory.ScriptCapabilityDispatcher.replayResult(toolCall, result) else result
     }
 
     private suspend fun executeWithPolicy(
@@ -253,7 +254,9 @@ class ToolExecutor(
                     )
                 }
             }
-            executeTool(toolCall.tool, toolCall.args, toolCall.rawToolName, toolCall.id, sessionId, workspace, progressReporter, operationId, toolMetadata)
+            executeTool(toolCall.tool, toolCall.args, toolCall.rawToolName, toolCall.id, sessionId, workspace, progressReporter, operationId, toolMetadata, allowApprovalRequest)
+        } catch (interrupted: top.wkbin.taixu.harness.directory.ScriptCallInterrupted) {
+            return interrupted.result.copy(toolCallId = toolCall.id)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (throwable: Throwable) {
@@ -359,6 +362,7 @@ class ToolExecutor(
         progressReporter: (suspend (String) -> Unit)?,
         operationId: String?,
         metadata: MutableMap<String, String>,
+        allowApprovalRequest: Boolean,
     ): Pair<Boolean, String> {
         // MCP 工具的参数名由远端 schema 定义，跳过单键解包/扁平键还原与内置别名，
         // 否则名为 input 的单参数或含 __ / . 的合法参数名会被错误改写。
@@ -396,7 +400,7 @@ class ToolExecutor(
                 subagentOrchestrator?.executeSubagents(args, sessionId) ?: (false to "未初始化子智能体编排器")
             }
             HarnessTool.MCP -> if (rawToolName == "use_capability") {
-                executeCapability(args, workspace, parentToolCallId, operationId, sessionId, metadata)
+                executeCapability(args, workspace, parentToolCallId, operationId, sessionId, metadata, allowApprovalRequest)
             } else {
                 // 兼容路径：对话历史/模型习惯中仍可能出现直接 mcp__ 调用（schema 已不再宣告）
                 mcpManager?.executeTool(rawToolName ?: "mcp", args, workspace) ?: (false to "未初始化 MCP 管理器")
@@ -972,7 +976,7 @@ class ToolExecutor(
     /**
      * use_capability 统一代理入口：分发已迁至 [top.wkbin.taixu.harness.directory.CapabilityToolRouter]
      * （零增长迁移）。宿主能力域（server="host"）在其中复用 [executeHost] 的完整执行通道；
-     * 其余服务按 (server, tool) 交给 MCP 管理器。审批与 PLAN 门禁在 [execute] 入口已完成。
+     * script 每条调用重入 [execute]，保留审批/PLAN/检查点，且批准时只重放当前 call。
      */
     private suspend fun executeCapability(
         args: JsonObject,
@@ -981,7 +985,13 @@ class ToolExecutor(
         operationId: String?,
         sessionId: String,
         metadata: MutableMap<String, String>,
-    ): Pair<Boolean, String> = capabilityRouter.execute(args, workspace, parentToolCallId, operationId, sessionId, metadata)
+        allowApprovalRequest: Boolean,
+    ): Pair<Boolean, String> {
+        val dispatch = top.wkbin.taixu.harness.directory.ScriptCapabilityDispatcher(
+            parentToolCallId, metadata, mcpManager, { secretRedactor.redact(it) },
+        ) { inner -> execute(inner, sessionId, workspace, allowApprovalRequest = allowApprovalRequest, operationId = operationId) }
+        return capabilityRouter.execute(args, workspace, parentToolCallId, operationId, sessionId, metadata, dispatch::call)
+    }
 
     private suspend fun executeHistoryRead(args: JsonObject, sessionId: String): Pair<Boolean, String> {
         val messageId = args["message_id"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }

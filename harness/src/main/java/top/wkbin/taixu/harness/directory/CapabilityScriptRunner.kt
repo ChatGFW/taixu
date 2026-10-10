@@ -1,8 +1,14 @@
 package top.wkbin.taixu.harness.directory
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.ContinuationInterceptor
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import org.mozilla.javascript.BaseFunction
@@ -40,12 +46,14 @@ class CapabilityScriptRunner(
 
     /** 当前执行的截止时刻；Rhino 指令观察器据此熔断（每个实例只跑一段脚本，无并发竞争）。 */
     @Volatile
-    private var deadlineMs = 0L
+    private var deadlineNanos = 0L
+    private lateinit var executionContext: CoroutineContext
+    private var terminalFailure: Throwable? = null
 
     private val contextFactory = object : ContextFactory() {
         override fun makeContext(): Context = object : Context() {
             override fun observeInstructionCount(instructionCount: Int) {
-                if (System.currentTimeMillis() > deadlineMs) throw ScriptDeadlineExceeded()
+                checkExecution()
             }
         }.apply {
             languageVersion = Context.VERSION_ES6
@@ -59,12 +67,20 @@ class CapabilityScriptRunner(
         if (code.length > MAX_CODE_CHARS) {
             return false to "脚本过长（${code.length} 字符，上限 $MAX_CODE_CHARS）。请精简逻辑或拆分为多次 script 调用。"
         }
-        deadlineMs = System.currentTimeMillis() + timeoutMs
+        deadlineNanos = System.nanoTime() + timeoutMs.coerceAtLeast(0) * 1_000_000
+        terminalFailure = null
         val startedAt = System.currentTimeMillis()
         return try {
-            withContext(Dispatchers.IO) { runScript(code) }
+            withContext(Dispatchers.IO) {
+                executionContext = currentCoroutineContext()
+                checkExecution()
+                runScript(code)
+            }
         } catch (t: Throwable) {
-            if (t.isOrCausedBy<ScriptDeadlineExceeded>()) {
+            currentCoroutineContext().ensureActive()
+            t.findCause<CancellationException>()?.let { throw it }
+            t.findCause<ScriptCallInterrupted>()?.let { throw it }
+            if (t.findCause<ScriptDeadlineExceeded>() != null) {
                 false to "脚本超时（上限 ${timeoutMs / 1000} 秒）已中止；已执行的内层调用与结果见本工具调用的审计记录，可先用部分结果继续任务。"
             } else {
                 val message = t.message ?: t::class.simpleName ?: "未知错误"
@@ -94,11 +110,13 @@ class CapabilityScriptRunner(
             ScriptableObject.putProperty(scope, "capability", capability)
 
             val result = cx.evaluateString(scope, code, "codemode", 1, null)
+            checkExecution()
             val output = when {
                 result == null || result is Undefined -> "(脚本无返回值)"
                 result is CharSequence -> result.toString()
                 else -> NativeJSON.stringify(cx, scope, result, null, null)?.toString() ?: "null"
             }
+            checkExecution()
             return true to output
         } finally {
             Context.exit()
@@ -107,7 +125,7 @@ class CapabilityScriptRunner(
 
     /** 内层调用的 JS 绑定：deadline 预检 → 阻塞执行内层（已在 IO 线程）→ 组装 {ok, output}。 */
     private fun capabilityCall(cx: Context, scope: Scriptable, args: Array<Any?>): Any? {
-        if (System.currentTimeMillis() > deadlineMs) throw ScriptDeadlineExceeded()
+        checkExecution()
         val serverId = args.getOrNull(0)?.toString()?.trim().orEmpty()
         val tool = args.getOrNull(1)?.toString()?.trim().orEmpty()
         val argsJson = if (args.size > 2 && args[2] != null) {
@@ -117,7 +135,20 @@ class CapabilityScriptRunner(
         }
         val callArgs = runCatching { Json.parseToJsonElement(argsJson) as? JsonObject }.getOrNull()
             ?: JsonObject(emptyMap())
-        val (ok, output) = runBlocking { innerCall(serverId, tool, callArgs) }
+        // Keep the parent Job, but use this blocking thread's event loop rather than
+        // redispatching to IO (which could deadlock a limited dispatcher).
+        val (ok, output) = try {
+            runBlocking(executionContext.minusKey(ContinuationInterceptor)) {
+                checkExecution()
+                val remainingMs = ((deadlineNanos - System.nanoTime()) / 1_000_000).coerceAtLeast(1)
+                withTimeoutOrNull(remainingMs) { innerCall(serverId, tool, callArgs) }
+                    ?: throw ScriptDeadlineExceeded()
+            }
+        } catch (t: Throwable) {
+            terminalFailure = t
+            throw t
+        }
+        checkExecution()
         return cx.newObject(scope).apply {
             put("ok", this, ok)
             put("output", this, output)
@@ -172,13 +203,23 @@ class CapabilityScriptRunner(
             output
         }
 
-    private inline fun <reified T : Throwable> Throwable.isOrCausedBy(): Boolean {
+    private fun checkExecution() {
+        terminalFailure?.let { throw it }
+        executionContext.ensureActive()
+        if (System.nanoTime() >= deadlineNanos) {
+            val failure = ScriptDeadlineExceeded()
+            terminalFailure = failure
+            throw failure
+        }
+    }
+
+    private inline fun <reified T : Throwable> Throwable.findCause(): T? {
         var current: Throwable? = this
         while (current != null) {
-            if (current is T) return true
+            if (current is T) return current
             current = current.cause
         }
-        return false
+        return null
     }
 
     /** deadline 熔断专用类型：与一般脚本异常区分，给出可续作任务的提示。 */

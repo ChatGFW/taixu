@@ -1,38 +1,23 @@
 # 🌐 太墟 (TaiXu) — 内置浏览器与 Harness 集成方案 (Browser Design)
 
-> **范围**：在 Android 无 Root TaiXu 内置一个 `in-app WebView`，并让 harness 通过 MCP 协议像 Codex 操纵内置 In-App Browser 一样驱动它；可同时被桌面 Claude / Cursor / Copilot 通过 `adb reverse` 接入。
+> **范围**：在 Android 无 Root TaiXu 内置一个 `in-app WebView`，由 harness 通过 MCP 协议驱动；可同时被桌面 MCP 客户端通过 `adb reverse` 接入。
 > **状态**：v0.9.0-MVP 落地切片（首期实现 in-app 一族 + 文件系统一族）。
 > **作者**：TaiXu Architecture Team
 > **创建日期**：2026-09-02
 
 ---
 
-## 1. 🎯 目标与对位
+## 1. 🎯 集成目标
 
 ### 1.1 目标
 
-让 TaiXu 的 Agent Harness 能像 Codex desktop 内置浏览器那样：
+TaiXu 的 Agent Harness 与内置浏览器集成目标：
 
 1. **内置可见**：用户能在 App 内打开一个真正的浏览器页面（多 Tab、URL Bar、Co-browsing 状态条）。
 2. **AI 可控**：harness 内的 LLM 通过 MCP 工具（`mcp__browser__open` / `navigate` / `snapshot` / `click` / `type` / `screenshot` …）调度同一个浏览器实例。
 3. **共驾（Co-browsing）**：UI 操作、AI 操作在同一个 `WebView` 上交替发生，谁的最近一次操作、谁在接管，可视化切换。
 4. **可选外接**：同端口（`127.0.0.1:8787` 或 `0.0.0.0:8787`）允许桌面 AI / CLI 通过 MCP JSON-RPC 接入。
 5. **安全闭环**：复用 `core:security/SecretRedactor`，敏感 Cookie / Authorization / Password 默认脱敏；按风险等级（LOW / MEDIUM / HIGH / CRITICAL）申请审批。
-
-### 1.2 Codex 对位
-
-| Codex desktop | TaiXu（本方案） |
-| --- | --- |
-| `agent.browsers.list()` / `get(name)` / `getForUrl()` / `getDefault()` | `BrowserRegistry.listFamilies()` / `get(family)` / `getForUrl()` / `getDefault()` |
-| 内置 In-App Browser（XAML / WKWebView） | in-app `WebView`（`androidx.webkit`） |
-| 通过 Chrome Extension + CDP 操纵桌面 Chrome | 通过 **in-process MCP server** 操纵自己 app 内的 WebView；外部 Chrome 走 Intent 唤起（v1.1+） |
-| 工具结果含 base64 截图 | `ToolResult.imageAttachments: List<ToolImageRef>`，UI 用 Coil 渲染本地文件 |
-| 持久化浏览器 binding 跨 turn | `BrowserRegistry` 单例 + `BrowserSessionToken`（按 agent session） |
-| 选择策略：用户显式 > URL 隐式 > 默认 | `BrowserSelectionPolicy.decide(request, prefs, urlHint)` |
-
-### 1.3 与 WebReverse-MCP 的关系
-
-本方案**借鉴**其模块切分粒度 / 工具动词集 / 风险矩阵 / Evidence Store 设计；**不复用其代码**（他们的 `pluginManagement` 与 `gradle 7.x` 配置不适配 TaiXu），后续若有强需求可独立 PR 借鉴特定模块。
 
 ---
 
@@ -321,7 +306,7 @@ docs/AI_NAVIGATION.md, docs/ARCHITECTURE.md, docs/FILE_INDEX.md ── 同步新
 
 ## 9.5 🎣 注入式 Hook 引擎与 CDP 调试（阶段 1 + 2，已落地）
 
-> 2026-09 起在 MVP 之上扩展的网页逆向能力，对标 WebReverse-MCP 的 hook/断点特性。
+> 2026-09 起在 MVP 之上扩展网页逆向能力，包括 hook 与断点支持。
 
 ### 9.5.1 注入式 Hook 引擎（阶段 1，allowHooks 门禁）
 
@@ -350,7 +335,7 @@ docs/AI_NAVIGATION.md, docs/ARCHITECTURE.md, docs/FILE_INDEX.md ── 同步新
 ## 10. 📜 决策记录（ADR 摘要）
 
 - **ADR-001**：工具暴露走 MCP，**不**走原生工具（`HarnessTool.BROWSER`）。理由：与 harness 既有 `McpManager` 流水线零冲突；未来工具集可平滑扩到 200+。
-- **ADR-002**：MCP server 跑在 TaiXu 自己的 Android 进程内（loopback），使用 Ktor 起服。理由：无需 fork WebReverse-MCP；与现有 `McpHttpTransport` 同协议同形态；外接零开发。
+- **ADR-002**：MCP server 跑在 TaiXu 自己的 Android 进程内（loopback），使用 Ktor 起服。理由：与现有 `McpHttpTransport` 同协议同形态；外接零开发。
 - **ADR-003**：内建 server 默认 `isBuiltin=true` 且 `isEnabled=true`，但配置写入 `McpServerRepository`。理由：与用户对 MCP server 的"启用/禁用"心智模型一致；用户关闭时不影响其它 MCP server。
 - **ADR-004**：ref 不暴露真实 selector；用户和 AI 操作共用一张 `refMap`，ref 在 tab 重建时归零。理由：防止 prompt 里出现内部 path / 减少幻觉、同时支持 co-browsing。
 - **ADR-005**：第一版 MVP **不**实现 CDP hub、断点、hook、JSVMP/WASM、Evidence Graph。理由：TaiXu 主要用例是"AI 打开网页、读 DOM、读 API、点击登录"，不必要求 web 逆向工程能力。**（2026-09 演进：阶段 1 注入式 Hook 引擎与阶段 2 CDP 断点/Worker 级拦截已落地，见 §9.5；JSVMP/WASM 与 Evidence Graph 仍未实现）**

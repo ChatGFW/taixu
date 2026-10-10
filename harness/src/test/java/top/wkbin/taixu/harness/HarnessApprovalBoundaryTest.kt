@@ -16,6 +16,9 @@ import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.AppDatabase
+import top.wkbin.taixu.core.database.HarnessSessionEntity
+import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.harness.directory.NestedCalls
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
 import top.wkbin.taixu.core.database.RoomHarnessSessionRepository
 import top.wkbin.taixu.core.datastore.AgentPreferences
@@ -41,13 +44,24 @@ import top.wkbin.taixu.runtime.LinuxRuntime
 @Config(sdk = [34])
 class HarnessApprovalBoundaryTest {
     @Test
-    fun questionRoundRemainsWaitingApprovalAfterResultsPersistAndRuntimeRebuilds() = runBlocking {
+    fun questionRoundRemainsWaitingApprovalAfterResultsPersistAndRuntimeRebuilds() = verifyWaitingBoundary(
+        "ask_user", """{"questions":[{"question":"What next?"}]}""",
+    )
+
+    @Test
+    fun scriptRoundPersistsOnlyParentCallAndRetainsApprovalAfterRuntimeRebuilds() = verifyWaitingBoundary(
+        "use_capability", """{"action":"script","code":"capability.call('host','package_disable',{package:'example.app'});"}""",
+    )
+
+    private fun verifyWaitingBoundary(toolName: String, arguments: String) = runBlocking {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries().build()
         try {
             val repository = RoomHarnessRuntimeRepository(database.harnessRuntimeDao())
             val sessions = RoomHarnessSessionRepository(database.harnessSessionDao())
+            sessions.upsert(HarnessSessionEntity("session", "test", 1, 1, null,
+                approvalMode = ApprovalMode.REQUEST.id, workspace = "/workspace/test"))
             val approvals = AgentApprovalRepository(database.agentApprovalDao())
             val logger = AppLogger(context, SensitiveDataRedactor { it })
             val store = SessionTreeStore(repository, Json, logger)
@@ -59,7 +73,7 @@ class HarnessApprovalBoundaryTest {
             val executor = ToolExecutor(
                 WorkspaceFileAccess(context.cacheDir), unusedPort<LinuxRuntime>(), resolver,
                 ApprovalPolicyEngine(resolver), SecretRedactor(), unusedPort<FileDownloader>(),
-                approvalRepository = approvals,
+                approvalRepository = approvals, sessionDao = sessions,
             )
             val runner = HarnessToolRoundRunner(
                 executor, sessions, Json, operations, SessionMessageProjector(store, tracker),
@@ -68,7 +82,7 @@ class HarnessApprovalBoundaryTest {
             val operationId = operations.acceptRun("session", UserMessage("user", 1L, "Ask me"))
             try {
                 runner.executeToolCalls(
-                    "session", listOf(ApiToolCallSpec("call", "ask_user", """{"questions":[{"question":"What next?"}]}""")),
+                    "session", listOf(ApiToolCallSpec("call", toolName, arguments)),
                     null, "/workspace/test", false,
                     ModelConfig("test", "test", "test", "https://example.invalid", null),
                     operationId, 0, RunMetrics(1L), ToolCallLoopDetector(),
@@ -79,6 +93,13 @@ class HarnessApprovalBoundaryTest {
             }
             assertEquals(OperationStatus.WAITING_APPROVAL.id, repository.findOperation(operationId)!!.status)
             assertTrue(store.load("session").filterIsInstance<ToolResult>().single().awaitingApproval)
+            assertEquals(1, store.load("session").filterIsInstance<ToolCall>().size)
+            if (toolName == "use_capability") {
+                val pending = approvals.pendingNow("session").single()
+                assertEquals(store.load("session").filterIsInstance<ToolCall>().single().id, pending.toolCallId)
+                assertTrue(pending.argumentsJson.contains("\"action\":\"call\""))
+                assertEquals(1, NestedCalls.read(store.load("session").filterIsInstance<ToolResult>().single().metadata)!!.calls.size)
+            }
             val recovered = RecoveryManager(
                 repository, OperationCoordinator(repository, Json, events), approvals, Json, events,
             ).recoverSession("session")

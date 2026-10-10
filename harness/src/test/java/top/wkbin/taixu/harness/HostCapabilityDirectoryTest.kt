@@ -288,6 +288,7 @@ class HostCapabilityDirectoryTest {
                 )
             },
             workspace, "call-5", null, "s1", metadata,
+            scriptCall = { server, tool, args -> router.invokeCapability(server, tool, args, workspace, "call-5", null, "s1", metadata) },
         )
 
         assertTrue(ok)

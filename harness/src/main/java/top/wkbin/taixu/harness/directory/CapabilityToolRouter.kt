@@ -30,6 +30,7 @@ class CapabilityToolRouter(
         operationId: String?,
         sessionId: String,
         metadata: MutableMap<String, String>,
+        scriptCall: (suspend (String, String, JsonObject) -> Pair<Boolean, String>)? = null,
     ): Pair<Boolean, String> {
         val action = args.stringArg("action")?.lowercase().orEmpty()
         return when (action) {
@@ -41,32 +42,27 @@ class CapabilityToolRouter(
                 val tool = args.stringArg("tool").orEmpty().trim()
                 true to "已记录：不再尝试 ${if (serverId.isNotBlank()) "$serverId." else ""}$tool。请改用其他方式完成任务或向用户说明障碍。"
             }
-            "script" -> script(args, workspace, parentToolCallId, operationId, sessionId, metadata)
+            "script" -> script(args, scriptCall)
             else -> false to "action 必须是 list / inspect / call / decline / script 之一"
         }
     }
 
     /**
      * codemode 脚本动作：模型写 JS，脚本内 capability.call(server, tool, args) 批量/循环/条件
-     * 调用能力域。每条内层调用经 [invokeCapability] 走与直接 call 完全相同的校验、审批、
+     * 调用能力域。每条内层调用经调用方注入的受控入口走完整校验、审批、
      * 嵌套留痕与脱敏——脚本是编排层，不是绕过审批的通道。
      */
     private suspend fun script(
         args: JsonObject,
-        workspace: String,
-        parentToolCallId: String?,
-        operationId: String?,
-        sessionId: String,
-        metadata: MutableMap<String, String>,
+        scriptCall: (suspend (String, String, JsonObject) -> Pair<Boolean, String>)?,
     ): Pair<Boolean, String> {
+        val dispatch = scriptCall ?: return false to "脚本受控执行入口未初始化，本次调用未执行。"
         val code = args.stringArg("code").orEmpty()
         if (code.isBlank()) return false to "script 需要 code 参数（JS 脚本；全局对象 capability.call(server, tool, args) 返回 {ok, output}）"
         val timeoutMs = args.stringArg("timeout_seconds")?.trim()?.toLongOrNull()
             ?.coerceIn(1, CapabilityScriptRunner.MAX_TIMEOUT_SECONDS)?.times(1000)
             ?: CapabilityScriptRunner.DEFAULT_TIMEOUT_MS
-        val runner = CapabilityScriptRunner(argRedactor) { serverId, tool, callArgs ->
-            invokeCapability(serverId, tool, callArgs, workspace, parentToolCallId, operationId, sessionId, metadata)
-        }
+        val runner = CapabilityScriptRunner(argRedactor, dispatch)
         return runner.execute(code, timeoutMs)
     }
 
