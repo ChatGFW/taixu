@@ -50,6 +50,8 @@ termux = "0.118.0"
 work = "2.11.2"
 mlkitTranslate = "17.0.3"
 asm = "9.10.1"
+# Rhino：codemode 脚本引擎（MPL-2.0，与 GPL-3.0 兼容）；Android 上必须用解释模式
+rhino = "1.7.15"
 
 [libraries]
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
@@ -124,6 +126,7 @@ media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "medi
 termux-terminal-emulator = { group = "com.termux", name = "terminal-emulator", version.ref = "termux" }
 termux-terminal-view = { group = "com.termux", name = "terminal-view", version.ref = "termux" }
 mlkit-translate = { group = "com.google.mlkit", name = "translate", version.ref = "mlkitTranslate" }
+rhino = { group = "org.mozilla", name = "rhino", version.ref = "rhino" }
 
 # Dependencies of the included build-logic
 android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }

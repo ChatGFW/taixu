@@ -271,6 +271,38 @@ class HostCapabilityDirectoryTest {
     }
 
     @Test
+    fun `script action records nested calls per inner invocation`() = runBlocking {
+        val invoked = mutableListOf<String>()
+        val router = CapabilityToolRouter(mcpManager = null) { args, _, _, _ ->
+            invoked += args["action"]?.toString()?.trim('"').orEmpty()
+            true to "done-${args["action"]?.toString()?.trim('"')}"
+        }
+        val metadata = mutableMapOf<String, String>()
+        val (ok, output) = router.execute(
+            buildJsonObject {
+                put("action", "script")
+                put(
+                    "code",
+                    "var r1 = capability.call('host','virtual_screen_wait',{duration_ms:0}); " +
+                        "var r2 = capability.call('host','virtual_screen_close',{}); r1.output + '|' + r2.output",
+                )
+            },
+            workspace, "call-5", null, "s1", metadata,
+        )
+
+        assertTrue(ok)
+        assertTrue(output.contains("done-virtual_screen_wait"))
+        assertTrue(output.contains("done-virtual_screen_close"))
+        assertEquals(2, invoked.size)
+        val log = NestedCalls.read(metadata)
+        assertEquals("每条内层调用都必须留下嵌套记录", 2, log?.calls?.size)
+        assertEquals(
+            listOf("host.virtual_screen_wait", "host.virtual_screen_close"),
+            log?.calls?.map { it.name },
+        )
+    }
+
+    @Test
     fun `request mode escalates destructive annotations beyond normal rememberable risk`() {
         val legacyArgs = buildJsonObject { put("name", "query") }
         val escalated = policy.decide(

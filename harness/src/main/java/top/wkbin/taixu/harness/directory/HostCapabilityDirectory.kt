@@ -138,9 +138,14 @@ object HostCapabilityDirectory {
     }
 
     /** 把 use_capability(call, server="host") 参数展平为等价的 host 工具参数：arguments + action=tool。 */
-    fun flattenToHostArgs(args: JsonObject): JsonObject {
-        val tool = args.stringOf("tool")?.trim().orEmpty()
-        val callArgs = args["arguments"] as? JsonObject ?: JsonObject(emptyMap())
+    fun flattenToHostArgs(args: JsonObject): JsonObject =
+        flattenHostArgs(
+            tool = args.stringOf("tool")?.trim().orEmpty(),
+            callArgs = args["arguments"] as? JsonObject ?: JsonObject(emptyMap()),
+        )
+
+    /** 把直接给出的调用参数展平为 host 参数（codemode 脚本与 use_capability call 共用）。 */
+    fun flattenHostArgs(tool: String, callArgs: JsonObject): JsonObject {
         val flattened = LinkedHashMap(callArgs)
         flattened["action"] = JsonPrimitive(tool)
         return JsonObject(flattened)

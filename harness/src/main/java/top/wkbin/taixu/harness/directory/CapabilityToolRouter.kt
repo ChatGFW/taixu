@@ -41,8 +41,33 @@ class CapabilityToolRouter(
                 val tool = args.stringArg("tool").orEmpty().trim()
                 true to "已记录：不再尝试 ${if (serverId.isNotBlank()) "$serverId." else ""}$tool。请改用其他方式完成任务或向用户说明障碍。"
             }
-            else -> false to "action 必须是 list / inspect / call / decline 之一"
+            "script" -> script(args, workspace, parentToolCallId, operationId, sessionId, metadata)
+            else -> false to "action 必须是 list / inspect / call / decline / script 之一"
         }
+    }
+
+    /**
+     * codemode 脚本动作：模型写 JS，脚本内 capability.call(server, tool, args) 批量/循环/条件
+     * 调用能力域。每条内层调用经 [invokeCapability] 走与直接 call 完全相同的校验、审批、
+     * 嵌套留痕与脱敏——脚本是编排层，不是绕过审批的通道。
+     */
+    private suspend fun script(
+        args: JsonObject,
+        workspace: String,
+        parentToolCallId: String?,
+        operationId: String?,
+        sessionId: String,
+        metadata: MutableMap<String, String>,
+    ): Pair<Boolean, String> {
+        val code = args.stringArg("code").orEmpty()
+        if (code.isBlank()) return false to "script 需要 code 参数（JS 脚本；全局对象 capability.call(server, tool, args) 返回 {ok, output}）"
+        val timeoutMs = args.stringArg("timeout_seconds")?.trim()?.toLongOrNull()
+            ?.coerceIn(1, CapabilityScriptRunner.MAX_TIMEOUT_SECONDS)?.times(1000)
+            ?: CapabilityScriptRunner.DEFAULT_TIMEOUT_MS
+        val runner = CapabilityScriptRunner(argRedactor) { serverId, tool, callArgs ->
+            invokeCapability(serverId, tool, callArgs, workspace, parentToolCallId, operationId, sessionId, metadata)
+        }
+        return runner.execute(code, timeoutMs)
     }
 
     private suspend fun listCapabilities(): Pair<Boolean, String> {
@@ -121,6 +146,23 @@ class CapabilityToolRouter(
             return false to "call 需要 server 与 tool 参数（先 inspect 查看可用的工具名与参数）"
         }
         val callArgs = args["arguments"] as? JsonObject ?: JsonObject(emptyMap())
+        return invokeCapability(serverId, tool, callArgs, workspace, parentToolCallId, operationId, sessionId, metadata)
+    }
+
+    /**
+     * 内层能力调用核心：host deferred 校验 / MCP 分派 + 有界嵌套留痕。
+     * 直接 call 与 codemode 脚本共用——审批与留痕语义不因编排形态改变。
+     */
+    internal suspend fun invokeCapability(
+        serverId: String,
+        tool: String,
+        callArgs: JsonObject,
+        workspace: String,
+        parentToolCallId: String?,
+        operationId: String?,
+        sessionId: String,
+        metadata: MutableMap<String, String>,
+    ): Pair<Boolean, String> {
         val logicalName = "${serverId.lowercase()}.$tool"
         val startedAt = System.currentTimeMillis()
 
@@ -139,7 +181,7 @@ class CapabilityToolRouter(
                 )
                 return false to reason
             }
-            hostExecutor(HostCapabilityDirectory.flattenToHostArgs(args), operationId, sessionId, metadata)
+            hostExecutor(HostCapabilityDirectory.flattenHostArgs(tool, callArgs), operationId, sessionId, metadata)
         } else {
             val manager = mcpManager ?: run {
                 val reason = "未初始化 MCP 管理器"

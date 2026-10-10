@@ -1169,9 +1169,9 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "use_capability",
-                    description = "MCP 服务与内置宿主能力域（server=\"host\"，含虚拟屏与应用管理等低频能力）的统一代理入口。action=list 列出能力域（不启动任何进程）；action=inspect + server 查看工具清单与参数；action=call + server + tool + arguments 执行（未连接的 MCP 服务自动启动）；action=decline + server + tool 表示放弃该能力。",
+                    description = "MCP 服务与内置宿主能力域（server=\"host\"，含虚拟屏与应用管理等低频能力）的统一代理入口。action=list 列出能力域（不启动任何进程）；action=inspect + server 查看工具清单与参数；action=call + server + tool + arguments 执行（未连接的 MCP 服务自动启动）；action=decline + server + tool 表示放弃该能力；action=script + code 写 JS 批量/循环/条件调用能力（每条内层调用照常校验、审批与留痕），适合把多轮调用合并成一次。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"action":{"type":"string","enum":["list","inspect","call","decline"],"description":"list=列出服务；inspect=查看某服务的工具清单；call=调用工具；decline=放弃某能力"},"server":{"type":"string","description":"MCP 服务 id（list 时省略；inspect/call/decline 必填）"},"tool":{"type":"string","description":"目标工具名（call/decline 必填；inspect 省略则列出该服务全部工具）"},"arguments":{"type":"object","description":"call 时传给目标工具的参数对象，结构与 inspect 输出的参数 schema 一致"}},"required":["action"]}""",
+                        """{"type":"object","properties":{"action":{"type":"string","enum":["list","inspect","call","decline","script"],"description":"list=列出能力域；inspect=查看某能力域的工具清单；call=调用工具；decline=放弃某能力；script=执行 JS 脚本批量/循环调用能力"},"server":{"type":"string","description":"能力域 id（list 时省略；inspect/call/decline 必填）"},"tool":{"type":"string","description":"目标工具名（call/decline 必填；inspect 省略则列出该能力域全部工具）"},"arguments":{"type":"object","description":"call 时传给目标工具的参数对象，结构与 inspect 输出的参数 schema 一致"},"code":{"type":"string","description":"script 时必填的 JS 脚本；全局对象 capability.call(server, tool, args) 返回 {ok, output}，脚本返回值（字符串或对象）即工具结果"},"timeout_seconds":{"type":"integer","minimum":1,"maximum":300,"description":"script 的整体超时，默认 60 秒"}},"required":["action"]}""",
                     ).jsonObject,
                 ),
             ),

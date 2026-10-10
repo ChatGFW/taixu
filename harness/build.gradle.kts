@@ -27,6 +27,8 @@ dependencies {
     implementation(libs.bundles.ktor.server)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
+    // codemode 脚本引擎：ClassShutter 全禁 Java、解释模式（-1 优化级别），仅暴露 capability 绑定
+    implementation(libs.rhino)
 
     testImplementation(libs.bundles.test.robolectric)
     testImplementation(libs.okhttp.mockwebserver)
