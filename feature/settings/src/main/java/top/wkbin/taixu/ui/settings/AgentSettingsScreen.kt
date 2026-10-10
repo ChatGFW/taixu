@@ -80,6 +80,9 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
+import kotlinx.coroutines.delay
+import top.wkbin.taixu.core.model.skill.ClawHubMarketItem
+import top.wkbin.taixu.ui.settings.skill.SkillSecurityAuditDialog
 
 enum class AgentSettingsCategory { EXECUTION, SUBAGENTS, SKILLS }
 
@@ -634,7 +637,7 @@ fun AgentSettingsScreen(
     }
 
     pendingSkillInspection?.let { inspection ->
-        top.wkbin.taixu.ui.settings.skill.SkillSecurityAuditDialog(
+        SkillSecurityAuditDialog(
             inspection = inspection,
             isCommitting = isCommittingInstallation,
             onConfirmInstall = viewModel::confirmSkillInstallation,
@@ -1504,7 +1507,7 @@ private fun SkillCard(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ClawHubMarketSkillCard(
-    item: top.wkbin.taixu.core.model.skill.ClawHubMarketItem,
+    item: ClawHubMarketItem,
     isPreparing: Boolean,
     onInstall: () -> Unit,
 ) {
@@ -1938,7 +1941,7 @@ private fun SystemPromptCustomCard(
     var textBuffer by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(prompt) }
     androidx.compose.runtime.LaunchedEffect(textBuffer) {
         if (textBuffer != prompt) {
-            kotlinx.coroutines.delay(400)
+            delay(400)
             onPromptChange(textBuffer)
         }
     }
@@ -1947,14 +1950,14 @@ private fun SystemPromptCustomCard(
     var charNameBuffer by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(charName) }
     androidx.compose.runtime.LaunchedEffect(charNameBuffer) {
         if (charNameBuffer != charName) {
-            kotlinx.coroutines.delay(400)
+            delay(400)
             onCharNameChange(charNameBuffer)
         }
     }
     var userNameBuffer by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(userName) }
     androidx.compose.runtime.LaunchedEffect(userNameBuffer) {
         if (userNameBuffer != userName) {
-            kotlinx.coroutines.delay(400)
+            delay(400)
             onUserNameChange(userNameBuffer)
         }
     }

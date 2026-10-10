@@ -2,6 +2,7 @@ package top.wkbin.taixu.runtime.tools
 
 import top.wkbin.taixu.core.model.RuntimeName
 import top.wkbin.taixu.core.model.RuntimeRequirement
+import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.core.tools.DependencyManager
 import top.wkbin.taixu.core.tools.ProviderManager
 import top.wkbin.taixu.core.tools.ToolActionResult
@@ -12,6 +13,7 @@ import top.wkbin.taixu.runtime.shell.ShellCommand
 import top.wkbin.taixu.runtime.shell.SessionConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 
 class CodexToolInstaller(
@@ -108,7 +110,7 @@ class CodexToolInstaller(
         ShellCommand(command, environment = providerManager.environment()),
     )
 
-    private suspend fun kotlinx.coroutines.flow.FlowCollector<InstallEvent>.executeAndReport(
+    private suspend fun FlowCollector<InstallEvent>.executeAndReport(
         result: CommandResult,
     ): CommandResult {
         result.stdout.lineSequence().filter { it.isNotBlank() }.forEach { emit(InstallEvent.Output("codex", it)) }
@@ -116,12 +118,12 @@ class CodexToolInstaller(
         return result
     }
 
-    private suspend fun kotlinx.coroutines.flow.FlowCollector<InstallEvent>.executeAndReport(
+    private suspend fun FlowCollector<InstallEvent>.executeAndReport(
         command: String,
     ): CommandResult = executeAndReport(execute(command))
 
     private fun checkRuntimeReady() {
-        check(linuxRuntime.state.value is top.wkbin.taixu.core.model.RuntimeState.Ready) {
+        check(linuxRuntime.state.value is RuntimeState.Ready) {
             "Linux Runtime 未就绪，请先初始化 Linux"
         }
     }

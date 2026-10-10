@@ -1,13 +1,18 @@
 package top.wkbin.taixu.runtime.service
 
 import top.wkbin.taixu.core.common.result.AppResult
+import top.wkbin.taixu.core.model.InstalledDistro
 import top.wkbin.taixu.core.model.RuntimeState
+import top.wkbin.taixu.runtime.DownloadProgress
+import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.RootfsUpdateInfo
 import top.wkbin.taixu.runtime.RuntimeHealth
 import top.wkbin.taixu.runtime.RuntimeInstallRequest
 import top.wkbin.taixu.runtime.shell.CommandResult
 import top.wkbin.taixu.runtime.shell.LinuxSession
 import top.wkbin.taixu.runtime.shell.ManagedProcess
 import top.wkbin.taixu.runtime.shell.SessionConfig
+import top.wkbin.taixu.runtime.shell.ProcessType
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import top.wkbin.taixu.runtime.shell.TerminalOutput
 import java.net.ServerSocket
@@ -73,23 +78,23 @@ class LocalServiceLauncherTest {
 
     private fun findUnusedPort(): Int = ServerSocket(0).use { it.localPort }
 
-    private class FakeRuntime : top.wkbin.taixu.runtime.LinuxRuntime {
+    private class FakeRuntime : LinuxRuntime {
         override val state = MutableStateFlow<RuntimeState>(RuntimeState.Ready)
         override val activeDistroId = MutableStateFlow("ubuntu")
-        override val installedDistros = MutableStateFlow<List<top.wkbin.taixu.core.model.InstalledDistro>>(emptyList())
+        override val installedDistros = MutableStateFlow<List<InstalledDistro>>(emptyList())
         var stoppedProcessId: String? = null
         var sessionToStop: LinuxSession? = null
 
         override fun refreshInstalledDistros() = Unit
         override suspend fun switchActiveDistro(distroId: String): AppResult<Unit> = AppResult.Success(Unit)
-        override suspend fun installDistro(request: RuntimeInstallRequest, onProgress: suspend (top.wkbin.taixu.runtime.DownloadProgress) -> Unit): AppResult<Unit> = AppResult.Success(Unit)
+        override suspend fun installDistro(request: RuntimeInstallRequest, onProgress: suspend (DownloadProgress) -> Unit): AppResult<Unit> = AppResult.Success(Unit)
         override suspend fun uninstallDistro(distroId: String): AppResult<Unit> = AppResult.Success(Unit)
         override suspend fun resetSandbox(distroId: String?): AppResult<Unit> = AppResult.Success(Unit)
 
         override suspend fun initialize(request: RuntimeInstallRequest): AppResult<Unit> = AppResult.Success(Unit)
         override suspend fun restoreInstalledState(): Boolean = false
         override suspend fun updateRootfs(distroId: String?): AppResult<Unit> = AppResult.Success(Unit)
-        override suspend fun checkRootfsUpdate(distroId: String?): AppResult<top.wkbin.taixu.runtime.RootfsUpdateInfo> =
+        override suspend fun checkRootfsUpdate(distroId: String?): AppResult<RootfsUpdateInfo> =
             error("unused")
         override suspend fun healthCheck(distroId: String?): RuntimeHealth = error("unused")
         override suspend fun execute(command: ShellCommand, distroId: String?): CommandResult = error("unused")
@@ -98,7 +103,7 @@ class LocalServiceLauncherTest {
             id: String,
             command: ShellCommand,
             toolId: String?,
-            type: top.wkbin.taixu.runtime.shell.ProcessType,
+            type: ProcessType,
             distroId: String?,
         ): ManagedProcess = error("unused")
         override fun listBackground(): List<ManagedProcess> = emptyList()

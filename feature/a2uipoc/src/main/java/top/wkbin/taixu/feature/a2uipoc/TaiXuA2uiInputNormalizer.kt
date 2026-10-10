@@ -3,6 +3,7 @@ package top.wkbin.taixu.feature.a2uipoc
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -38,6 +39,12 @@ internal object TaiXuA2uiInputNormalizer {
 
     private val VALUE_COMPONENT_TYPES =
         setOf("TextField", "CheckBox", "ChoicePicker", "Slider", "DateTimeInput")
+
+    /**
+     * 值型组件缺 `value` 时补的默认种子（仅 [DEFAULTABLE_MISSING_VALUE] 内类型）。
+     * 见 [defaultValueForMissingValue]。
+     */
+    private val DEFAULTABLE_MISSING_VALUE = setOf("TextField")
 
     /** [messagesJson] 为归一化后的协议消息数组；[paths] 为 surfaceId -> (组件id -> 数据模型路径)。 */
     data class Result(
@@ -80,12 +87,21 @@ internal object TaiXuA2uiInputNormalizer {
             val normalized = components.map { component ->
                 val obj = component.jsonObject.toMutableMap()
                 val type = obj["component"]?.jsonPrimitive?.contentOrNull
-                val constant = obj["value"]
+                val declared = obj["value"]
                 if (type == null || type !in VALUE_COMPONENT_TYPES) return@map component
-                if (constant == null || (constant is JsonObject && constant.containsKey("path"))) {
+                if (declared is JsonObject && declared.containsKey("path")) {
                     return@map component
                 }
                 val componentId = obj["id"]?.jsonPrimitive?.contentOrNull ?: return@map component
+                // 缺 value 时按类型补默认种子：官方 Catalog 里 TextField 的 value 是可选的，
+                // 但 bindUpdater 拿不到 value 时 isEnabled=false，输入框会静默变成灰色不可输入。
+                // 其余值型组件 value 为必填，缺了属于模型漏写，交给渲染期校验如实报错，这里不替它猜。
+                val constant =
+                    if (declared == null || declared is JsonNull) {
+                        defaultValueForMissingValue(type) ?: return@map component
+                    } else {
+                        declared
+                    }
                 val path = PROXY_PATH_PREFIX + jsonPointerToken(componentId)
                 obj["value"] = JsonObject(mapOf("path" to JsonPrimitive(path)))
                 perSurface[componentId] = path
@@ -116,6 +132,13 @@ internal object TaiXuA2uiInputNormalizer {
 
         return Result(JsonArray(rewritten + seeds).toString(), paths, fixedCount, dataModelForced)
     }
+
+    /**
+     * 值型组件缺 `value` 时补的默认种子；仅对「value 在官方 Catalog 里可选、但缺省会让组件不可用」
+     * 的类型（当前只有 `TextField`）返回，其余返回 null 表示不改写、让渲染期校验如实报错。
+     */
+    private fun defaultValueForMissingValue(type: String): JsonElement? =
+        if (type in DEFAULTABLE_MISSING_VALUE) JsonPrimitive("") else null
 
     /**
      * RFC 6901 JSON Pointer 的单个 token：`~` 必须先编成 `~0`，再把 `/` 编成 `~1`。

@@ -23,6 +23,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpToolInfo
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.serialization.json.JsonElement
 
 /** STDIO 传输层故障（子进程死亡 / EOF / IO 错误）：连接不可复用，需要销毁重建 */
 internal class McpStdioChannelException(message: String) : IOException(message)
@@ -267,12 +268,12 @@ class McpStdioTransport(
             return block()
         }
 
-        suspend fun request(method: String, params: kotlinx.serialization.json.JsonElement): JsonRpcResponse =
+        suspend fun request(method: String, params: JsonElement): JsonRpcResponse =
             requestInternal(method, params, CALL_REQUEST_TIMEOUT_MS)
 
         private suspend fun requestInternal(
             method: String,
-            params: kotlinx.serialization.json.JsonElement,
+            params: JsonElement,
             timeoutMs: Long,
         ): JsonRpcResponse {
             dead?.let { throw McpStdioChannelException("MCP 通道已失效：" + it) }

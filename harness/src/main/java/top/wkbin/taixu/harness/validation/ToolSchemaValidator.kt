@@ -10,7 +10,9 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.model.McpToolInfo
 import top.wkbin.taixu.harness.ProviderClient
+import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 import top.wkbin.taixu.harness.mcp.McpToolApiName
+import kotlinx.serialization.json.buildJsonObject
 
 /**
  * 工具参数执行前 JSON Schema 校验（模型参数 → 校验 → 审批 → 执行 链路的第二环）。
@@ -54,7 +56,7 @@ object ToolSchemaValidator {
         // MCP 的 target/script/timeout 有自己的协议语义，不能套用内置文件/命令工具别名。
         if (!applyAliases) return unflattened
 
-        return kotlinx.serialization.json.buildJsonObject {
+        return buildJsonObject {
             unflattened.forEach { (k, v) -> put(k, v) }
             if (!unflattened.containsKey("path")) {
                 val alias = unflattened["file_path"] ?: unflattened["filePath"] ?: unflattened["file"] ?: unflattened["target"]
@@ -160,14 +162,14 @@ object ToolSchemaValidator {
     }
 
     private fun toJsonElement(value: Any?): JsonElement = when (value) {
-        null -> kotlinx.serialization.json.JsonNull
+        null -> JsonNull
         is JsonElement -> value
-        is Map<*, *> -> kotlinx.serialization.json.buildJsonObject {
+        is Map<*, *> -> buildJsonObject {
             value.forEach { (k, v) ->
                 put(k.toString(), toJsonElement(v))
             }
         }
-        else -> kotlinx.serialization.json.JsonNull
+        else -> JsonNull
     }
 
 
@@ -199,6 +201,10 @@ object ToolSchemaValidator {
             "history.read" -> "history_read"
             else -> toolName
         }
+        // host 的校验面 = 执行器接受面（direct ∪ deferred 并集）：provider 声明面只宣告
+        // direct 高频动作（prompt 减负），deferred 动作经 use_capability 或旧式直接调用
+        // 进入时必须仍然可校验、可执行，否则旧会话重放与模型历史模仿会被 enum 硬拒。
+        if (apiName == "host") return HostCapabilityDirectory.validationSchema()
         return ProviderClient.TOOLS.firstOrNull { it.function.name == apiName }?.function?.parameters
     }
 

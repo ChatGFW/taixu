@@ -14,9 +14,12 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.widget.Toast
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 
 data class ScreenObservation(
@@ -199,7 +202,7 @@ class HostGuiController(
             } else {
                 // 回退 monkey 唤醒
                 val res = privilegeManager.executeShellCommand(
-                    "/system/bin/monkey -p ${shellQuote(packageName)} -c android.intent.category.LAUNCHER 1"
+                    "/system/bin/monkey -p ${ShellQuote.of(packageName)} -c android.intent.category.LAUNCHER 1"
                 )
                 if (res.success) "已通过 shell 唤起应用：$packageName" else error("无法启动应用 $packageName：${res.stderr}")
             }
@@ -211,7 +214,7 @@ class HostGuiController(
      */
     suspend fun captureScreenshot(targetPath: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val res = privilegeManager.executeShellCommand("/system/bin/screencap -p ${shellQuote(targetPath)}")
+            val res = privilegeManager.executeShellCommand("/system/bin/screencap -p ${ShellQuote.of(targetPath)}")
             if (res.success) "屏幕截图已保存至 $targetPath" else error(res.stderr.ifBlank { "截图失败" })
         }
     }
@@ -254,14 +257,14 @@ class HostGuiController(
 
     suspend fun forceStopApp(packageName: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val res = privilegeManager.executeShellCommand("/system/bin/am force-stop ${shellQuote(packageName)}")
+            val res = privilegeManager.executeShellCommand("/system/bin/am force-stop ${ShellQuote.of(packageName)}")
             if (res.success) "已强制停止：$packageName" else error(res.stderr.ifBlank { "force-stop 失败" })
         }
     }
 
     suspend fun clearAppData(packageName: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val res = privilegeManager.executeShellCommand("/system/bin/pm clear ${shellQuote(packageName)}")
+            val res = privilegeManager.executeShellCommand("/system/bin/pm clear ${ShellQuote.of(packageName)}")
             if (res.success) "已清除数据：$packageName\n${res.stdout}".trim() else error(res.stderr.ifBlank { "pm clear 失败" })
         }
     }
@@ -306,7 +309,7 @@ class HostGuiController(
     }
 
     fun clipboardSet(text: String): Result<String> = runCatching {
-        val latch = java.util.concurrent.CountDownLatch(1)
+        val latch = CountDownLatch(1)
         var error: Throwable? = null
         Handler(Looper.getMainLooper()).post {
             try {
@@ -318,7 +321,7 @@ class HostGuiController(
                 latch.countDown()
             }
         }
-        if (!latch.await(3, java.util.concurrent.TimeUnit.SECONDS)) {
+        if (!latch.await(3, TimeUnit.SECONDS)) {
             error("写入剪贴板超时")
         }
         error?.let { throw it }
@@ -383,6 +386,4 @@ class HostGuiController(
             "Unknown" to "Unknown"
         }
     }
-
-    private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 }

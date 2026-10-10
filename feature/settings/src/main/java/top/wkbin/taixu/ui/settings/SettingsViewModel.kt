@@ -58,11 +58,50 @@ import java.io.File
 import java.util.UUID
 import java.util.zip.ZipInputStream
 import java.io.BufferedOutputStream
+import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.withTimeoutOrNull
+import top.wkbin.taixu.core.common.files.BoundedStreamCopy
+import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.common.result.AppResult
+import top.wkbin.taixu.core.common.translation.TranslationManager
+import top.wkbin.taixu.core.common.translation.TranslationModelStatus
+import top.wkbin.taixu.core.database.AgentApprovalRepository
+import top.wkbin.taixu.core.database.AgentSubagentRepository
+import top.wkbin.taixu.core.database.HarnessSessionRepository
+import top.wkbin.taixu.core.database.McpOAuthCredentialRepository
+import top.wkbin.taixu.core.database.QuickPhraseRepository
+import top.wkbin.taixu.core.datastore.SettingsDataStore
+import top.wkbin.taixu.core.model.AgentDepartments
+import top.wkbin.taixu.core.model.AgentPlugin
+import top.wkbin.taixu.core.model.AgentSkill
+import top.wkbin.taixu.core.model.AgentSubagent
+import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.BuiltinMcpPresets
+import top.wkbin.taixu.core.model.McpServerConfig
+import top.wkbin.taixu.core.model.McpToolInfo
+import top.wkbin.taixu.core.model.McpTransportType
+import top.wkbin.taixu.core.model.QuickPhrase
+import top.wkbin.taixu.core.model.RunMode
+import top.wkbin.taixu.core.model.StorageMountBinding
+import top.wkbin.taixu.core.model.UpdateCheckState
+import top.wkbin.taixu.core.model.skill.ClawHubMarketItem
+import top.wkbin.taixu.core.network.AppUpdateManager
+import top.wkbin.taixu.core.tools.ProviderProtocol
+import top.wkbin.taixu.core.tools.skill.ClawHubClient
+import top.wkbin.taixu.core.tools.skill.SkillInstallInspection
+import top.wkbin.taixu.core.tools.skill.SkillInstallationManager
+import top.wkbin.taixu.core.tools.skill.SkillPackageParser
+import top.wkbin.taixu.harness.mcp.McpManager
+import top.wkbin.taixu.harness.mcp.oauth.McpOAuthCoordinator
+import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.RuntimeInstallRequest
+import top.wkbin.taixu.runtime.webchat.WebChatBridgeServer
+import top.wkbin.taixu.runtime.webchat.WebChatServerStatus
 
 
 class SettingsViewModel(
     private val application: Application,
-    private val logger: top.wkbin.taixu.core.common.logging.AppLogger,
+    private val logger: AppLogger,
     private val appearancePreferences: AppearancePreferences,
     private val terminalPreferences: TerminalPreferences,
     private val runtimePreferences: RuntimePreferences,
@@ -74,29 +113,29 @@ class SettingsViewModel(
     private val providerCatalogRepository: AgentProviderCatalog,
     private val connectionTester: AgentModelConnectionTester,
     private val privilegeManager: PrivilegeManager,
-    private val mcpManager: top.wkbin.taixu.harness.mcp.McpManager,
-    private val linuxRuntime: top.wkbin.taixu.runtime.LinuxRuntime,
+    private val mcpManager: McpManager,
+    private val linuxRuntime: LinuxRuntime,
     private val pathManager: RuntimePathManager,
     private val linuxEnvironmentManager: LinuxEnvironmentManager,
-    private val appUpdateManager: top.wkbin.taixu.core.network.AppUpdateManager,
-    private val subagentRepository: top.wkbin.taixu.core.database.AgentSubagentRepository,
+    private val appUpdateManager: AppUpdateManager,
+    private val subagentRepository: AgentSubagentRepository,
     private val agentSkillRepository: AgentSkillRepository,
     private val mcpServerRepository: McpServerRepository,
-    private val mcpOAuthCoordinator: top.wkbin.taixu.harness.mcp.oauth.McpOAuthCoordinator,
-    private val mcpOAuthCredentials: top.wkbin.taixu.core.database.McpOAuthCredentialRepository,
+    private val mcpOAuthCoordinator: McpOAuthCoordinator,
+    private val mcpOAuthCredentials: McpOAuthCredentialRepository,
     private val storageMountBindingRepository: StorageMountBindingRepository,
-    private val approvalRepository: top.wkbin.taixu.core.database.AgentApprovalRepository,
-    private val sessionDao: top.wkbin.taixu.core.database.HarnessSessionRepository,
+    private val approvalRepository: AgentApprovalRepository,
+    private val sessionDao: HarnessSessionRepository,
     private val toolManager: ToolManager,
-    private val quickPhraseRepository: top.wkbin.taixu.core.database.QuickPhraseRepository,
+    private val quickPhraseRepository: QuickPhraseRepository,
     private val profileWriter: AiProfileWriter,
     internal val profileBackupCodec: AiProfileBackupCodec,
-    private val webChatBridgeServer: top.wkbin.taixu.runtime.webchat.WebChatBridgeServer? = null,
+    private val webChatBridgeServer: WebChatBridgeServer? = null,
     private val browserPrefs: BrowserPreferences,
     private val agentServerPreferences: AgentServerPreferences,
-    private val translationManager: top.wkbin.taixu.core.common.translation.TranslationManager,
-    private val skillInstallationManager: top.wkbin.taixu.core.tools.skill.SkillInstallationManager? = null,
-    private val clawHubClient: top.wkbin.taixu.core.tools.skill.ClawHubClient? = null,
+    private val translationManager: TranslationManager,
+    private val skillInstallationManager: SkillInstallationManager? = null,
+    private val clawHubClient: ClawHubClient? = null,
 ) : ViewModel() {
     val installedDistros = linuxRuntime.installedDistros
     val activeDistroId = linuxRuntime.activeDistroId
@@ -233,8 +272,8 @@ class SettingsViewModel(
     val autoCheckUpdates: StateFlow<Boolean> = appearancePreferences.autoCheckUpdates
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
-    val webChatStatus: StateFlow<top.wkbin.taixu.runtime.webchat.WebChatServerStatus> =
-        webChatBridgeServer?.status ?: MutableStateFlow(top.wkbin.taixu.runtime.webchat.WebChatServerStatus()).asStateFlow()
+    val webChatStatus: StateFlow<WebChatServerStatus> =
+        webChatBridgeServer?.status ?: MutableStateFlow(WebChatServerStatus()).asStateFlow()
 
     fun toggleWebChatServer(enabled: Boolean, port: Int = 8899) {
         if (enabled) {
@@ -244,8 +283,8 @@ class SettingsViewModel(
         }
     }
 
-    private val _updateCheckState = MutableStateFlow<top.wkbin.taixu.core.model.UpdateCheckState>(top.wkbin.taixu.core.model.UpdateCheckState.Idle)
-    val updateCheckState: StateFlow<top.wkbin.taixu.core.model.UpdateCheckState> = _updateCheckState.asStateFlow()
+    private val _updateCheckState = MutableStateFlow<UpdateCheckState>(UpdateCheckState.Idle)
+    val updateCheckState: StateFlow<UpdateCheckState> = _updateCheckState.asStateFlow()
 
     private val _downloadProgress = MutableStateFlow<Float?>(null)
     val downloadProgress: StateFlow<Float?> = _downloadProgress.asStateFlow()
@@ -264,12 +303,12 @@ class SettingsViewModel(
 
     fun checkForUpdates(currentVersion: String) {
         viewModelScope.launch {
-            _updateCheckState.value = top.wkbin.taixu.core.model.UpdateCheckState.Checking
+            _updateCheckState.value = UpdateCheckState.Checking
             val res = appUpdateManager.checkUpdate(currentVersion)
             res.onSuccess { info ->
-                _updateCheckState.value = top.wkbin.taixu.core.model.UpdateCheckState.Success(info)
+                _updateCheckState.value = UpdateCheckState.Success(info)
             }.onFailure { err ->
-                _updateCheckState.value = top.wkbin.taixu.core.model.UpdateCheckState.Error(err.message ?: "检查更新失败，请检查网络")
+                _updateCheckState.value = UpdateCheckState.Error(err.message ?: "检查更新失败，请检查网络")
             }
         }
     }
@@ -291,13 +330,13 @@ class SettingsViewModel(
                 appUpdateManager.installApk(apkFile)
             }.onFailure { err ->
                 _downloadProgress.value = null
-                _updateCheckState.value = top.wkbin.taixu.core.model.UpdateCheckState.Error("下载更新包失败：${err.message}")
+                _updateCheckState.value = UpdateCheckState.Error("下载更新包失败：${err.message}")
             }
         }
     }
 
     fun clearUpdateState() {
-        _updateCheckState.value = top.wkbin.taixu.core.model.UpdateCheckState.Idle
+        _updateCheckState.value = UpdateCheckState.Idle
         _downloadProgress.value = null
         _isDownloading.value = false
     }
@@ -344,7 +383,7 @@ class SettingsViewModel(
         _distroInstallState.value = _distroInstallState.value.copy(errorMessage = null)
     }
 
-    fun installDistro(request: top.wkbin.taixu.runtime.RuntimeInstallRequest) {
+    fun installDistro(request: RuntimeInstallRequest) {
         if (_distroInstallState.value.isInstalling) return
         viewModelScope.launch {
             _distroInstallState.value = DistroInstallUiState(
@@ -362,7 +401,7 @@ class SettingsViewModel(
                     progressFraction = (p.fraction ?: 0f) * 0.8f + 0.1f,
                 )
             }
-            if (res is top.wkbin.taixu.core.common.result.AppResult.Success) {
+            if (res is AppResult.Success) {
                 // 安装成功：重置进度状态，UI 据此关闭安装弹窗
                 _distroInstallState.value = DistroInstallUiState()
             } else {
@@ -375,7 +414,7 @@ class SettingsViewModel(
         }
     }
 
-    private val _restoringDistroId = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    private val _restoringDistroId = MutableStateFlow<String?>(null)
     val restoringDistroId: StateFlow<String?> = _restoringDistroId.asStateFlow()
 
     fun resetDistro(distroId: String, onResult: ((Boolean, String) -> Unit)? = null) {
@@ -383,11 +422,11 @@ class SettingsViewModel(
         _restoringDistroId.value = distroId
         viewModelScope.launch {
             val res = linuxRuntime.resetSandbox(distroId)
-            if (res is top.wkbin.taixu.core.common.result.AppResult.Success) {
+            if (res is AppResult.Success) {
                 toolManager.resetDistroState(distroId)
             }
             _restoringDistroId.value = null
-            if (res is top.wkbin.taixu.core.common.result.AppResult.Success) {
+            if (res is AppResult.Success) {
                 onResult?.invoke(true, "已恢复初始状态")
             } else {
                 res.errorOrNull()?.let { logger.e("Distro reset failed: ${it.message}", it.cause) }
@@ -396,7 +435,7 @@ class SettingsViewModel(
         }
     }
 
-    private val _deletingDistroId = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    private val _deletingDistroId = MutableStateFlow<String?>(null)
     val deletingDistroId: StateFlow<String?> = _deletingDistroId.asStateFlow()
 
     fun uninstallDistro(distroId: String, onResult: ((Boolean, String) -> Unit)? = null) {
@@ -405,7 +444,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             val res = linuxRuntime.uninstallDistro(distroId)
             _deletingDistroId.value = null
-            if (res is top.wkbin.taixu.core.common.result.AppResult.Success) {
+            if (res is AppResult.Success) {
                 onResult?.invoke(true, "系统已成功删除")
             } else {
                 res.errorOrNull()?.let { logger.e("Distro uninstall failed: ${it.message}", it.cause) }
@@ -415,17 +454,17 @@ class SettingsViewModel(
     }
 
     private val persistedMcpServers = mcpServerRepository.servers
-        .stateIn(viewModelScope, SharingStarted.Eagerly, top.wkbin.taixu.core.model.BuiltinMcpPresets.presets)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, BuiltinMcpPresets.presets)
 
     private val _mcpToggleOverrides = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val mcpToggleOverrides: StateFlow<Map<String, Boolean>> = _mcpToggleOverrides.asStateFlow()
-    val mcpServers: StateFlow<List<top.wkbin.taixu.core.model.McpServerConfig>> = combine(
+    val mcpServers: StateFlow<List<McpServerConfig>> = combine(
         persistedMcpServers, _mcpToggleOverrides,
     ) { servers, overrides ->
         servers.map { server ->
             overrides[server.id]?.let { server.copy(isEnabled = it) } ?: server
         }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, top.wkbin.taixu.core.model.BuiltinMcpPresets.presets)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, BuiltinMcpPresets.presets)
 
     /** 各 MCP 服务的实时连通性状态（与 McpManager 共享，设置页与聊天页联动）。 */
     val mcpConnectionStates: StateFlow<Map<String, McpConnectionState>> = mcpManager.connectionStates
@@ -459,7 +498,7 @@ class SettingsViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
-    suspend fun beginMcpAuthorization(server: top.wkbin.taixu.core.model.McpServerConfig): String =
+    suspend fun beginMcpAuthorization(server: McpServerConfig): String =
         mcpOAuthCoordinator.begin(server)
 
     fun logoutMcpAuthorization(serverId: String) {
@@ -555,7 +594,7 @@ class SettingsViewModel(
         }
     }
 
-    fun saveMcpServer(server: top.wkbin.taixu.core.model.McpServerConfig) {
+    fun saveMcpServer(server: McpServerConfig) {
         viewModelScope.launch {
             mcpServerRepository.save(server)
             mcpManager.refreshConnections()
@@ -571,7 +610,7 @@ class SettingsViewModel(
         }
     }
 
-    suspend fun testMcpServer(server: top.wkbin.taixu.core.model.McpServerConfig): Result<List<top.wkbin.taixu.core.model.McpToolInfo>> {
+    suspend fun testMcpServer(server: McpServerConfig): Result<List<McpToolInfo>> {
         return mcpManager.testServer(server)
     }
 
@@ -594,7 +633,7 @@ class SettingsViewModel(
                 val found = candidates.map { candidate ->
                     async(Dispatchers.IO) {
                         val tools = probeLimiter.withPermit {
-                            kotlinx.coroutines.withTimeoutOrNull(6_000) {
+                            withTimeoutOrNull(6_000) {
                                 mcpManager.testServer(candidate.server).getOrNull()
                             }
                         }
@@ -731,7 +770,7 @@ class SettingsViewModel(
     val thinkingExpanded: StateFlow<Boolean> = agentPreferences.thinkingExpanded
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    val translationModelStatus: StateFlow<top.wkbin.taixu.core.common.translation.TranslationModelStatus> =
+    val translationModelStatus: StateFlow<TranslationModelStatus> =
         translationManager.status
 
     val thinkingAutoTranslate: StateFlow<Boolean> = agentPreferences.thinkingAutoTranslate
@@ -777,14 +816,14 @@ class SettingsViewModel(
     }
 
     val agentCharName: StateFlow<String> = agentPreferences.agentCharName
-        .stateIn(viewModelScope, SharingStarted.Eagerly, top.wkbin.taixu.core.datastore.SettingsDataStore.DEFAULT_AGENT_CHAR_NAME)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsDataStore.DEFAULT_AGENT_CHAR_NAME)
 
     fun setAgentCharName(name: String) {
         viewModelScope.launch { agentPreferences.setAgentCharName(name) }
     }
 
     val agentUserName: StateFlow<String> = agentPreferences.agentUserName
-        .stateIn(viewModelScope, SharingStarted.Eagerly, top.wkbin.taixu.core.datastore.SettingsDataStore.DEFAULT_AGENT_USER_NAME)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsDataStore.DEFAULT_AGENT_USER_NAME)
 
     fun setAgentUserName(name: String) {
         viewModelScope.launch { agentPreferences.setAgentUserName(name) }
@@ -811,11 +850,11 @@ class SettingsViewModel(
     val baseCommandTimeoutSeconds: StateFlow<Int> = agentPreferences.baseCommandTimeoutSeconds
         .stateIn(viewModelScope, SharingStarted.Eagerly, agentPreferences.defaultBaseCommandTimeoutSeconds)
 
-    val approvalMode: StateFlow<top.wkbin.taixu.core.model.ApprovalMode> = approvalRepository.mode
-        .stateIn(viewModelScope, SharingStarted.Eagerly, top.wkbin.taixu.core.model.ApprovalMode.ASSISTED)
+    val approvalMode: StateFlow<ApprovalMode> = approvalRepository.mode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ApprovalMode.ASSISTED)
 
-    val runMode: StateFlow<top.wkbin.taixu.core.model.RunMode> = approvalRepository.runMode
-        .stateIn(viewModelScope, SharingStarted.Eagerly, top.wkbin.taixu.core.model.RunMode.BUILD)
+    val runMode: StateFlow<RunMode> = approvalRepository.runMode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, RunMode.BUILD)
 
     val contextBudgetTokens: StateFlow<Int> = agentPreferences.contextBudgetTokens
         .stateIn(viewModelScope, SharingStarted.Eagerly, 128_000)
@@ -861,7 +900,7 @@ class SettingsViewModel(
     val maxConsecutiveFailures: StateFlow<Int> = agentPreferences.maxConsecutiveFailures
         .stateIn(viewModelScope, SharingStarted.Eagerly, 8)
 
-    val allSkills: StateFlow<List<top.wkbin.taixu.core.model.AgentSkill>> = agentSkillRepository.allSkills
+    val allSkills: StateFlow<List<AgentSkill>> = agentSkillRepository.allSkills
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _skillArchiveMessage = MutableStateFlow<String?>(null)
@@ -872,8 +911,8 @@ class SettingsViewModel(
     val skillArchiveMessageIsError: StateFlow<Boolean> = _skillArchiveMessageIsError.asStateFlow()
 
     // ClawHub 市场与端侧静态安全审计状态
-    private val _clawHubMarketSkills = MutableStateFlow<List<top.wkbin.taixu.core.model.skill.ClawHubMarketItem>>(emptyList())
-    val clawHubMarketSkills: StateFlow<List<top.wkbin.taixu.core.model.skill.ClawHubMarketItem>> = _clawHubMarketSkills.asStateFlow()
+    private val _clawHubMarketSkills = MutableStateFlow<List<ClawHubMarketItem>>(emptyList())
+    val clawHubMarketSkills: StateFlow<List<ClawHubMarketItem>> = _clawHubMarketSkills.asStateFlow()
 
     private val _isMarketLoading = MutableStateFlow(false)
     val isMarketLoading: StateFlow<Boolean> = _isMarketLoading.asStateFlow()
@@ -891,22 +930,22 @@ class SettingsViewModel(
     private val _isCommittingInstallation = MutableStateFlow(false)
     val isCommittingInstallation: StateFlow<Boolean> = _isCommittingInstallation.asStateFlow()
 
-    private val _pendingSkillInspection = MutableStateFlow<top.wkbin.taixu.core.tools.skill.SkillInstallInspection?>(null)
-    val pendingSkillInspection: StateFlow<top.wkbin.taixu.core.tools.skill.SkillInstallInspection?> = _pendingSkillInspection.asStateFlow()
+    private val _pendingSkillInspection = MutableStateFlow<SkillInstallInspection?>(null)
+    val pendingSkillInspection: StateFlow<SkillInstallInspection?> = _pendingSkillInspection.asStateFlow()
 
     fun loadClawHubMarket(query: String? = null, category: String? = null) {
         val client = clawHubClient ?: return
         viewModelScope.launch {
             _isMarketLoading.value = true
             when (val res = client.fetchMarketCatalog(query, category)) {
-                is top.wkbin.taixu.core.common.result.AppResult.Success -> {
+                is AppResult.Success -> {
                     val installedIds = allSkills.value.map { it.id.removePrefix("custom_") }.toSet()
                     _clawHubMarketSkills.value = res.data.map { item ->
                         item.copy(isInstalled = item.id in installedIds || "custom_${item.id}" in allSkills.value.map { it.id }.toSet())
                     }
                     _isMarketOfflinePreset.value = client.lastCatalogUsedOfflineFallback
                 }
-                is top.wkbin.taixu.core.common.result.AppResult.Failure -> {
+                is AppResult.Failure -> {
                     logger.w("加载 ClawHub 技能市场失败: ${res.error.message}", res.error.cause)
                 }
             }
@@ -925,10 +964,10 @@ class SettingsViewModel(
             _isPreparingInstall.value = true
             _preparingSkillId.value = skillId
             when (val res = installer.prepareMarketSkill(skillId)) {
-                is top.wkbin.taixu.core.common.result.AppResult.Success -> {
+                is AppResult.Success -> {
                     _pendingSkillInspection.value = res.data
                 }
-                is top.wkbin.taixu.core.common.result.AppResult.Failure -> {
+                is AppResult.Failure -> {
                     _skillArchiveMessage.value = "准备技能失败: ${res.error.message}"
                     _skillArchiveMessageIsError.value = true
                 }
@@ -945,13 +984,13 @@ class SettingsViewModel(
         }
         viewModelScope.launch {
             try {
-                val bos = java.io.ByteArrayOutputStream()
+                val bos = ByteArrayOutputStream()
                 application.contentResolver.openInputStream(uri)?.use { stream ->
-                    top.wkbin.taixu.core.common.files.BoundedStreamCopy.copy(
+                    BoundedStreamCopy.copy(
                         input = stream,
                         output = bos,
-                        maxBytes = top.wkbin.taixu.core.tools.skill.SkillPackageParser.MAX_ZIP_TOTAL_BYTES,
-                        policy = top.wkbin.taixu.core.common.files.BoundedStreamCopy.OverflowPolicy.ABORT,
+                        maxBytes = SkillPackageParser.MAX_ZIP_TOTAL_BYTES,
+                        policy = BoundedStreamCopy.OverflowPolicy.ABORT,
                     )
                 } ?: error("无法读取所选 ZIP 文件")
                 val inspection = installer.inspectZipBytes(bos.toByteArray(), fallbackId = "custom_zip")
@@ -991,10 +1030,10 @@ class SettingsViewModel(
     val autoSubagentDelegationEnabled: StateFlow<Boolean> = subagentRepository.autoDelegationEnabled
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
-    val allSubagents: StateFlow<List<top.wkbin.taixu.core.model.AgentSubagent>> = subagentRepository.profiles
+    val allSubagents: StateFlow<List<AgentSubagent>> = subagentRepository.profiles
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val allPlugins: StateFlow<List<top.wkbin.taixu.core.model.AgentPlugin>> = agentPreferences.allPlugins
+    val allPlugins: StateFlow<List<AgentPlugin>> = agentPreferences.allPlugins
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val skillEvolutionSuggestions: StateFlow<Boolean> = agentPreferences.skillEvolutionSuggestions
@@ -1032,7 +1071,7 @@ class SettingsViewModel(
         viewModelScope.launch { agentPreferences.setBaseCommandTimeoutSeconds(value) }
     }
 
-    fun setApprovalMode(mode: top.wkbin.taixu.core.model.ApprovalMode) {
+    fun setApprovalMode(mode: ApprovalMode) {
         viewModelScope.launch {
             approvalRepository.setMode(mode)
             // 会话创建时快照了当时的全局模式；全局改动必须传导到已有会话，
@@ -1041,7 +1080,7 @@ class SettingsViewModel(
         }
     }
 
-    fun setRunMode(mode: top.wkbin.taixu.core.model.RunMode) {
+    fun setRunMode(mode: RunMode) {
         // 仅作为新建会话的初始值，不传导到已有会话：运行意图是会话内的临时选择，
         // 聊天顶部可随时单独切换，全局改动若覆盖会丢失用户的显式设置。
         viewModelScope.launch { approvalRepository.setRunMode(mode) }
@@ -1067,8 +1106,8 @@ class SettingsViewModel(
         val trimmedName = name.trim()
         val trimmedPrompt = systemPrompt.trim()
         if (trimmedName.isBlank() || trimmedPrompt.isBlank()) return
-        val id = "custom_" + java.util.UUID.randomUUID().toString().take(8)
-        val skill = top.wkbin.taixu.core.model.AgentSkill(
+        val id = "custom_" + UUID.randomUUID().toString().take(8)
+        val skill = AgentSkill(
             id = id,
             name = trimmedName,
             description = description.trim().ifBlank { "自定义技能" },
@@ -1268,7 +1307,7 @@ class SettingsViewModel(
             val description = AgentSkillRepository.extractSkillMetadata(markdown, "description") ?: "从压缩包导入的 Skill"
             val guestPath = "/attachments/skills/$id"
             val prompt = markdown + "\n\n【Skill 资源目录】$guestPath\n如需执行该 Skill 附带的脚本，请先检查脚本内容与参数，再从此目录调用。"
-            agentSkillRepository.addCustom(top.wkbin.taixu.core.model.AgentSkill(id, skillName, description, prompt, isBuiltin = false, category = "自定义", resourcePath = target.absolutePath))
+            agentSkillRepository.addCustom(AgentSkill(id, skillName, description, prompt, isBuiltin = false, category = "自定义", resourcePath = target.absolutePath))
             return "Skill“$skillName”导入成功，脚本资源位于 $guestPath"
         } catch (error: Throwable) {
             target?.let(::deleteOwnedSkillDirectory)
@@ -1291,7 +1330,7 @@ class SettingsViewModel(
     private fun deleteOwnedSkillDirectory(path: String) = deleteOwnedSkillDirectory(File(path))
 
     /** Skill 自动发现目录：共享附件区、工作区及项目根 `.agents/skills`（社区规范）。 */
-    private fun skillScanRoots() = top.wkbin.taixu.core.database.AgentSkillRepository.standardScanRoots(
+    private fun skillScanRoots() = AgentSkillRepository.standardScanRoots(
         attachmentsDir = pathManager.attachmentsDir,
         workspaceDir = pathManager.workspaceDir,
     )
@@ -1311,7 +1350,7 @@ class SettingsViewModel(
     }
 
     fun saveSubagent(
-        previous: top.wkbin.taixu.core.model.AgentSubagent?,
+        previous: AgentSubagent?,
         roleId: String,
         name: String,
         description: String,
@@ -1327,7 +1366,7 @@ class SettingsViewModel(
         val normalizedDefaultModelId = defaultModelId?.trim()?.takeIf { it.isNotBlank() }
         if (normalizedId.isBlank() || trimmedName.isBlank() || trimmedPrompt.isBlank()) return
         viewModelScope.launch {
-            val profile = top.wkbin.taixu.core.model.AgentSubagent(
+            val profile = AgentSubagent(
                 id = normalizedId,
                 name = trimmedName,
                 description = description.trim().ifBlank { "自定义子智能体角色" },
@@ -1336,7 +1375,7 @@ class SettingsViewModel(
                 defaultModelVariant = normalizedDefaultModelId?.let {
                     defaultModelVariant?.trim()?.takeIf { variant -> variant.isNotBlank() }
                 },
-                departmentId = previous?.departmentId ?: top.wkbin.taixu.core.model.AgentDepartments.CUSTOM_ID,
+                departmentId = previous?.departmentId ?: AgentDepartments.CUSTOM_ID,
                 isEnabled = previous?.isEnabled ?: true,
                 isBuiltin = previous?.isBuiltin ?: false,
                 sortOrder = previous?.sortOrder ?: subagentRepository.nextSortOrder(),
@@ -1460,7 +1499,7 @@ class SettingsViewModel(
                     model = model,
                     apiKey = profileWriter.parseApiKeys(apiKey).firstOrNull(),
                     useResponsesApi = useResponsesApi,
-                    protocol = provider?.protocol ?: top.wkbin.taixu.core.tools.ProviderProtocol.OPENAI,
+                    protocol = provider?.protocol ?: ProviderProtocol.OPENAI,
                     providerName = provider?.name,
                 )
             }
@@ -1646,7 +1685,7 @@ class SettingsViewModel(
     val mountSharedStorageEnabled: StateFlow<Boolean> = runtimePreferences.mountSharedStorageEnabled
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    val customMountBindings: StateFlow<List<top.wkbin.taixu.core.model.StorageMountBinding>> = storageMountBindingRepository.bindings
+    val customMountBindings: StateFlow<List<StorageMountBinding>> = storageMountBindingRepository.bindings
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun setMountDownloadEnabled(enabled: Boolean) {
@@ -1667,15 +1706,15 @@ class SettingsViewModel(
      * 避免历史版本"先入库、会话启动时才崩"的问题再次发生。
      */
     fun addCustomMountBinding(name: String, hostPath: String, guestPath: String): Result<Unit> {
-        val binding = top.wkbin.taixu.core.model.StorageMountBinding(
-            id = java.util.UUID.randomUUID().toString(),
+        val binding = StorageMountBinding(
+            id = UUID.randomUUID().toString(),
             name = name.trim().ifBlank { "自定义挂载" },
             hostPath = hostPath.trim(),
             guestPath = if (guestPath.trim().startsWith("/")) guestPath.trim() else "/${guestPath.trim()}",
             enabled = true,
             isSystemDefault = false,
         )
-        val error = top.wkbin.taixu.core.model.StorageMountBinding.validationError(binding)
+        val error = StorageMountBinding.validationError(binding)
         if (error != null) {
             return Result.failure(IllegalArgumentException(error))
         }
@@ -1692,7 +1731,7 @@ class SettingsViewModel(
     }
 
     // ---- 快捷短语与常用指令 ----
-    val quickPhrases: StateFlow<List<top.wkbin.taixu.core.model.QuickPhrase>> = quickPhraseRepository.observeAll()
+    val quickPhrases: StateFlow<List<QuickPhrase>> = quickPhraseRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun saveQuickPhrase(
@@ -1706,8 +1745,8 @@ class SettingsViewModel(
     ) {
         viewModelScope.launch {
             val existing = if (id != null) quickPhraseRepository.findById(id) else null
-            val phrase = top.wkbin.taixu.core.model.QuickPhrase(
-                id = id ?: java.util.UUID.randomUUID().toString(),
+            val phrase = QuickPhrase(
+                id = id ?: UUID.randomUUID().toString(),
                 title = title.trim(),
                 content = content.trim(),
                 description = description.trim(),
@@ -1748,7 +1787,7 @@ sealed interface LocalMcpDiscoveryState {
 }
 
 data class DetectedLocalMcpServer(
-    val server: top.wkbin.taixu.core.model.McpServerConfig,
+    val server: McpServerConfig,
     val toolCount: Int,
 ) {
     val serverUrl: String get() = server.serverUrl
@@ -1775,11 +1814,11 @@ private fun localLoopbackMcpCandidates(): List<DetectedLocalMcpServer> {
         listOf("mcp", "sse").map { path ->
             val url = "http://127.0.0.1:$port/$path"
             DetectedLocalMcpServer(
-                server = top.wkbin.taixu.core.model.McpServerConfig(
+                server = McpServerConfig(
                     id = "local_probe_${port}_$path",
                     name = "本机 MCP ($port)",
                     description = "在 127.0.0.1:$port 上自动探测到的 MCP 服务",
-                    transportType = top.wkbin.taixu.core.model.McpTransportType.SSE,
+                    transportType = McpTransportType.SSE,
                     serverUrl = url,
                     isEnabled = true,
                     isBuiltin = false,

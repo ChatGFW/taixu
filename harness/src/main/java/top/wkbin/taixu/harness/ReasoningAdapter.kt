@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness
 
 import java.net.URI
+import top.wkbin.taixu.harness.core.LlmApi
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -13,7 +14,7 @@ enum class ReasoningMode { AUTO, DISABLED, ENABLED }
 /** 推理强度：null = 服务端默认。 */
 enum class ReasoningEffort { LOW, MEDIUM, HIGH, MAX }
 
-/** 某厂商对「推理开关 / 强度」的支持能力。 */
+/** 当前协议适配器对「推理开关 / 强度」的编码能力。 */
 data class ReasoningCapabilities(
     val supportsDisable: Boolean,
     val supportsEffort: Boolean,
@@ -94,25 +95,25 @@ object ReasoningAdapter {
     // ---------- 厂商判定 ----------
 
     /**
-     * 该厂商的推理能力支持度。用于「全局推理深度」按能力过滤，避免对不支持关闭 / 不支持调强度的厂商盲目注入：
-     * - [supportsDisable]：能否通过参数关闭推理。DeepSeek reasoner 等「推理模型」一般无法关闭，且用普通模型时 `reasoning_effort` 也是未知字段 -> 保守视为不支持。
-     * - [supportsEffort]：能否调节推理强度。豆包等只提供开关、无强度档位 -> 不支持。
-     * - [effortOnly]：不支持关闭但支持调节强度的厂商（理论上很少，目前无）。
+     * 全局偏好只应用到当前序列化器可编码的选项。
+     * Messages 用 thinking 开关和预算；Responses 当前只编码强度；
+     * Chat Completions 继续按厂商选择兼容字段（豆包只提供开关）。
      */
     fun capabilities(model: ModelConfig): ReasoningCapabilities {
+        // Capabilities must describe the selected serializer, even on a custom gateway.
+        when (model.api) {
+            LlmApi.OPENAI_RESPONSES -> return ReasoningCapabilities(supportsDisable = false, supportsEffort = true)
+            LlmApi.ANTHROPIC_MESSAGES -> return ReasoningCapabilities(supportsDisable = true, supportsEffort = true)
+            LlmApi.OPENAI_COMPLETIONS -> Unit
+        }
         val host = hostOf(model.baseUrl)
         val provider = model.provider.lowercase()
         val modelName = model.model.lowercase()
         val known = isGemini(host, provider, modelName) || isZhipu(host, provider, modelName) || isDoubao(host, provider, modelName) ||
             isOpenRouter(host, provider) || isOpenAiOfficial(host, provider)
         if (!known) {
-            // 未知厂商（自定义 baseURL）：OpenAI 兼容协议按 OpenAI 官方字段注入 reasoning_effort；
-            // Anthropic 协议无专有强度字段，保守视为不支持。
-            return if (model.protocol == ApiProtocol.OPENAI) {
-                ReasoningCapabilities(supportsDisable = true, supportsEffort = true)
-            } else {
-                ReasoningCapabilities(supportsDisable = false, supportsEffort = false)
-            }
+            // 未知 Chat Completions 网关继续使用既有的 reasoning_effort 兼容策略。
+            return ReasoningCapabilities(supportsDisable = true, supportsEffort = true)
         }
         // 豆包：只有开关，无强度档位
         val supportsEffort = !isDoubao(host, provider, modelName)

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
+import androidx.room.PrimaryKey
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -17,7 +18,7 @@ import java.util.UUID
 
 @Entity(tableName = "agent_skills")
 data class AgentSkillEntity(
-    @androidx.room.PrimaryKey val id: String,
+    @PrimaryKey val id: String,
     val name: String,
     val description: String,
     val systemPrompt: String,

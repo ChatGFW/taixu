@@ -11,6 +11,8 @@ import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.runtime.browser.BrowserEvent
@@ -49,7 +51,7 @@ object WebViewClients {
         view.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(
                 view: WebView,
-                request: android.webkit.WebResourceRequest,
+                request: WebResourceRequest,
             ): Boolean = handleUrlLoading(view, request.url)
 
             @Deprecated("Deprecated in Java")
@@ -99,8 +101,8 @@ object WebViewClients {
 
             override fun shouldInterceptRequest(
                 view: WebView,
-                request: android.webkit.WebResourceRequest,
-            ): android.webkit.WebResourceResponse? {
+                request: WebResourceRequest,
+            ): WebResourceResponse? {
                 // 品牌起始页：本地 assets 拦截（不出网），也不计入网络时间线
                 NewTabPage.intercept(context, request.url)?.let { return it }
                 networkInterceptor.onRequestStart(request)

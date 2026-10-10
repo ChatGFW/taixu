@@ -9,6 +9,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.wkbin.taixu.core.model.McpToolInfo
+import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 
 class BuiltinToolContractTest {
     @Test
@@ -96,13 +97,24 @@ class BuiltinToolContractTest {
     }
 
     @Test
-    fun hostExposesStatusAndPrivilegedExec() {
+    fun hostDirectSurfaceKeepsHighFrequencyActionsAndPointsToDirectory() {
         val host = ProviderClient.TOOLS.single { it.function.name == "host" }
-        val encoded = host.function.parameters.toString()
-        assertTrue(encoded.contains("\"status\""))
-        listOf("exec", "settings_get", "settings_put", "package_list", "package_disable", "package_enable", "package_uninstall_user", "app_list", "app_freeze", "app_unfreeze", "app_grant_permission", "logcat", "screen_observe", "screen_click", "screen_double_click", "screen_long_press", "screen_swipe", "screen_scroll", "screen_input_text", "paste_text", "screen_key", "app_launch", "screen_capture")
-            .forEach { action -> assertTrue(encoded.contains("\"$action\"")) }
+        val enum = host.function.parameters["properties"]!!.jsonObject["action"]!!.jsonObject["enum"]!!.jsonArray
+            .map { it.jsonPrimitive.content }
+
+        // direct 声明与目录的 DIRECT_ACTIONS 完全一致（唯一事实源）
+        assertEquals(HostCapabilityDirectory.DIRECT_ACTIONS, enum)
+        // deferred 动作绝不出现在 direct 声明中（prompt 负担迁移的合同）
+        HostCapabilityDirectory.DEFERRED_ACTIONS.forEach { action ->
+            assertFalse("deferred 动作 ${action.name} 不得出现在 host 直接声明中", action.name in enum)
+        }
+        // 高频核心动作仍在场
+        listOf("status", "exec", "settings_get", "logcat", "device_status", "screen_click", "app_launch")
+            .forEach { action -> assertTrue("direct host 必须保留 $action", action in enum) }
         assertTrue(host.function.description.contains("Android"))
+        // direct 声明必须指引按需发现域（模型要知道 virtual_screen_* 去哪找）
+        assertTrue(host.function.description.contains("use_capability"))
+        assertTrue(host.function.description.contains("server=\"host\""))
     }
 
     @Test

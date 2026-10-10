@@ -55,6 +55,12 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
 import top.wkbin.taixu.ui.components.StatusBadge
 import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.util.Log
+import android.widget.Toast
+import top.wkbin.taixu.runtime.RootfsUpdateInfo
 
 @Composable
 fun DeveloperScreen(
@@ -319,9 +325,9 @@ fun DeveloperScreen(
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = {
-                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Logcat", logcatOutput))
-                            android.widget.Toast.makeText(context, "日志已复制", android.widget.Toast.LENGTH_SHORT).show()
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Logcat", logcatOutput))
+                            Toast.makeText(context, "日志已复制", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text("复制日志") }
@@ -468,9 +474,9 @@ fun DeveloperScreen(
                         OutlinedButton(
                             onClick = {
                                 val logs = viewModel.readAgentLogs()
-                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("TaiXu Agent Logs", logs))
-                                android.widget.Toast.makeText(context, "日志已复制到剪贴板", android.widget.Toast.LENGTH_SHORT).show()
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("TaiXu Agent Logs", logs))
+                                Toast.makeText(context, "日志已复制到剪贴板", Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.weight(1f),
                         ) {
@@ -593,9 +599,9 @@ fun DeveloperScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
-                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("TaiXu Agent Logs", agentLogText))
-                    android.widget.Toast.makeText(context, "日志已复制", android.widget.Toast.LENGTH_SHORT).show()
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("TaiXu Agent Logs", agentLogText))
+                    Toast.makeText(context, "日志已复制", Toast.LENGTH_SHORT).show()
                 }) { Text("复制") }
             },
         )
@@ -606,7 +612,7 @@ fun DeveloperScreen(
 private fun RuntimeControlCard(
     state: RuntimeState,
     rootfsVersion: String?,
-    rootfsUpdate: top.wkbin.taixu.runtime.RootfsUpdateInfo?,
+    rootfsUpdate: RootfsUpdateInfo?,
     busy: Boolean,
     onInitialize: () -> Unit,
     onCancel: () -> Unit,
@@ -690,7 +696,7 @@ private fun RuntimeControlCard(
             Spacer(Modifier.height(12.dp))
             // 面向用户的提示与原始异常解耦：原始异常进日志，避免技术文本直接展示
             androidx.compose.runtime.LaunchedEffect(it.throwable) {
-                android.util.Log.w("DeveloperScreen", "Runtime error: ${it.throwable.message}")
+                Log.w("DeveloperScreen", "Runtime error: ${it.throwable.message}")
             }
             NoticeBanner("Runtime 初始化失败，请检查网络与存储空间后点击「重试初始化」", isError = true)
         }

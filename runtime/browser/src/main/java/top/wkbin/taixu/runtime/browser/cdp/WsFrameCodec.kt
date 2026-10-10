@@ -2,6 +2,7 @@ package top.wkbin.taixu.runtime.browser.cdp
 
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
+import java.security.SecureRandom
 import java.util.Base64
 import java.util.UUID
 
@@ -30,7 +31,7 @@ object WsFrameCodec {
 
     /** 客户端发送帧：FIN=1 + 掩码（随机 4 字节 key，逐字节异或）。 */
     fun encodeClientFrame(opcode: Int, payload: ByteArray): ByteArray {
-        val mask = ByteArray(4).also { java.security.SecureRandom().nextBytes(it) }
+        val mask = ByteArray(4).also { SecureRandom().nextBytes(it) }
         val masked = ByteArray(payload.size) { i -> (payload[i].toInt() xor mask[i and 3].toInt()).toByte() }
         val header = ByteArrayOutputStream()
         header.write(0x80 or opcode)
@@ -70,7 +71,7 @@ object WsFrameCodec {
             "\r\n"
 
     fun newWebSocketKey(): String {
-        val bytes = ByteArray(16).also { java.security.SecureRandom().nextBytes(it) }
+        val bytes = ByteArray(16).also { SecureRandom().nextBytes(it) }
         return Base64.getEncoder().encodeToString(bytes)
     }
 

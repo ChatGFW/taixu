@@ -13,4 +13,5 @@ interface McpTransport {
 internal fun McpToolDto.toInfo(server: McpServerConfig, parametersJson: String) = McpToolInfo(
     serverId = server.id, serverName = server.name, name = name,
     description = description, parametersJson = parametersJson,
+    annotations = annotations,
 )

@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness.mcp
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
@@ -20,6 +21,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpTransportType
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.withTimeout
 
 class McpStdioTransportLifecycleTest {
     private val json = Json { ignoreUnknownKeys = true }
@@ -126,7 +131,7 @@ class McpStdioTransportLifecycleTest {
         // 否则沿 McpManager/ToolExecutor 的取消透传链会被当成"用户取消"，整个回合静默中止
         assertFalse(
             "timeout must not look like cancellation, got: " + failure!!::class.simpleName,
-            failure is kotlinx.coroutines.CancellationException,
+            failure is CancellationException,
         )
         assertTrue(
             "timeout message must name the request, got: " + failure.message,
@@ -145,7 +150,7 @@ class McpStdioTransportLifecycleTest {
         transport.injectConnection(echoServer, channel)
         var caught: Throwable? = null
         try {
-            kotlinx.coroutines.withTimeout(McpStdioTransport.STARTUP_TIMEOUT_MS * 2) {
+            withTimeout(McpStdioTransport.STARTUP_TIMEOUT_MS * 2) {
                 transport.discover(echoServer)
             }
         } catch (t: Throwable) {
@@ -154,7 +159,7 @@ class McpStdioTransportLifecycleTest {
         // 真实的外层取消（如 McpManager 发现 8s 总超时）必须原样透传，不得被转换成普通异常
         assertTrue(
             "caller cancellation must propagate as cancellation, got: " + caught?.let { it::class.simpleName },
-            caught is kotlinx.coroutines.CancellationException,
+            caught is CancellationException,
         )
     }
 
@@ -273,6 +278,8 @@ class McpStdioTransportLifecycleTest {
 
         override suspend fun close() {
             alive = false
+            // Model process shutdown: stop the delayed writer before closing its stdout.
+            fakeScope.coroutineContext[Job]?.cancelAndJoin()
             incoming.close()
         }
     }
@@ -334,7 +341,7 @@ class McpStdioTransportLifecycleTest {
         assertTrue(
             "写路径取消必须以 CancellationException 透传，不得包装成通道异常销毁连接，got: " +
                 caught?.let { it::class.simpleName },
-            caught is kotlinx.coroutines.CancellationException,
+            caught is CancellationException,
         )
         assertEquals("等待者必须同步移除，否则 inFlight 永真、连接无法被空闲回收", 0, transport.test_pendingCount(echoServer.id))
         assertTrue("取消不代表通道损坏，连接必须保留", transport.test_connectionKeys().contains(echoServer.id))
@@ -402,7 +409,7 @@ class McpStdioTransportLifecycleTest {
         var openAttempts = 0
         override suspend fun open(server: McpServerConfig): McpStdioChannel {
             openAttempts++
-            kotlinx.coroutines.awaitCancellation()
+            awaitCancellation()
         }
     }
 
@@ -442,7 +449,7 @@ internal fun McpStdioTransport.rewindIdleForTest(ageMs: Long) {
 internal fun McpStdioTransport.test_connectionKeys(): Set<String> {
     val field = McpStdioTransport::class.java.getDeclaredField("connections").apply { isAccessible = true }
     @Suppress("UNCHECKED_CAST")
-    val map = field.get(this) as java.util.concurrent.ConcurrentHashMap<String, Any>
+    val map = field.get(this) as ConcurrentHashMap<String, Any>
     return map.keys.toSet()
 }
 
@@ -461,8 +468,8 @@ internal fun McpStdioTransport.test_markConnectionInFlight(serverId: String, inF
     // 多路复用后 inFlight = 等待表非空（旧实现为 mutex.isLocked）
     val field = connection.javaClass.getDeclaredField("pending").apply { isAccessible = true }
     @Suppress("UNCHECKED_CAST")
-    val pending = field.get(connection) as java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.CompletableDeferred<JsonRpcResponse>>
-    if (inFlight) pending.putIfAbsent("test-in-flight", kotlinx.coroutines.CompletableDeferred()) else pending.clear()
+    val pending = field.get(connection) as ConcurrentHashMap<String, CompletableDeferred<JsonRpcResponse>>
+    if (inFlight) pending.putIfAbsent("test-in-flight", CompletableDeferred()) else pending.clear()
 }
 
 @Suppress("FunctionName")
@@ -471,12 +478,12 @@ internal fun McpStdioTransport.test_pendingCount(serverId: String): Int {
     val connection = connections[serverId] ?: return 0
     val field = connection.javaClass.getDeclaredField("pending").apply { isAccessible = true }
     @Suppress("UNCHECKED_CAST")
-    val pending = field.get(connection) as java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.CompletableDeferred<JsonRpcResponse>>
+    val pending = field.get(connection) as ConcurrentHashMap<String, CompletableDeferred<JsonRpcResponse>>
     return pending.size
 }
 
-private fun McpStdioTransport.reflectedConnections(): java.util.concurrent.ConcurrentHashMap<String, Any> {
+private fun McpStdioTransport.reflectedConnections(): ConcurrentHashMap<String, Any> {
     val field = McpStdioTransport::class.java.getDeclaredField("connections").apply { isAccessible = true }
     @Suppress("UNCHECKED_CAST")
-    return field.get(this) as java.util.concurrent.ConcurrentHashMap<String, Any>
+    return field.get(this) as ConcurrentHashMap<String, Any>
 }

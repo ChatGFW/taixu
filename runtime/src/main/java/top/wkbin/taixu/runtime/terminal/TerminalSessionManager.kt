@@ -1,6 +1,7 @@
 package top.wkbin.taixu.runtime.terminal
 
 import com.termux.terminal.TerminalSession
+import android.util.Log
 import top.wkbin.taixu.core.database.TerminalSessionEntity
 import top.wkbin.taixu.core.database.TerminalSessionRepository
 import top.wkbin.taixu.runtime.LinuxRuntime
@@ -95,7 +96,7 @@ class TerminalSessionManager(
             config = SessionConfig(workingDirectory = workingDirectory, showBanner = true),
             distroId = targetDistro,
         )
-        android.util.Log.i(
+        Log.i(
             "TaiXuTerminal",
             "createSession distro=$targetDistro cwd=${launch.workingDirectory} " +
                 "argv0=${launch.executable} argc=${launch.arguments.size} env=${launch.environment.size}",
@@ -110,7 +111,7 @@ class TerminalSessionManager(
                 sessionClientRouter,
             )
         } catch (t: Throwable) {
-            android.util.Log.e("TaiXuTerminal", "TerminalSession construct failed", t)
+            Log.e("TaiXuTerminal", "TerminalSession construct failed", t)
             throw t
         }
         val handle = TerminalSessionHandle(

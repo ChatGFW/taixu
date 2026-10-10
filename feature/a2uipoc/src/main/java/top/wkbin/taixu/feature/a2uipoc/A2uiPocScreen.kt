@@ -36,6 +36,8 @@ import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 
 /** 当前聊天会话。卡片用它给 surfaceId 加前缀，和工具执行时写入总线的会话一致。 */
 val LocalA2uiSessionId = staticCompositionLocalOf { "" }
@@ -207,10 +209,10 @@ fun A2uiPocScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
 }
 
 /** 演示屏注入示例时模拟一次 render_surface 工具调用（与真实工具共用同一校验/发布链路）。 */
-private fun sampleToolArgs(timestamp: Long) = kotlinx.serialization.json.buildJsonObject {
+private fun sampleToolArgs(timestamp: Long) = buildJsonObject {
     val surfaceId = "demo-$timestamp"
-    put("surfaceId", kotlinx.serialization.json.JsonPrimitive(surfaceId))
-    put("title", kotlinx.serialization.json.JsonPrimitive("内置示例"))
+    put("surfaceId", JsonPrimitive(surfaceId))
+    put("title", JsonPrimitive("内置示例"))
     // createSurface 里的 surfaceId 必须与入参一致，否则卡片按入参 id 找不到已渲染的 surface
-    put("messages", kotlinx.serialization.json.JsonPrimitive(A2uiSurfaceBus.sampleMessagesJson(surfaceId)))
+    put("messages", JsonPrimitive(A2uiSurfaceBus.sampleMessagesJson(surfaceId)))
 }

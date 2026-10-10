@@ -25,6 +25,10 @@ import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
+import kotlinx.serialization.builtins.ListSerializer
+import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
+import top.wkbin.taixu.harness.session.SessionTreeStore
 
 /** latestSnapshot 快照 API：UI 折叠透明度横幅的数据源契约（真实 Room）。 */
 @RunWith(RobolectricTestRunner::class)
@@ -42,10 +46,10 @@ class CompactionSnapshotTest {
             .allowMainThreadQueries()
             .build()
         repository = RoomHarnessRuntimeRepository(database.harnessRuntimeDao())
-        val store = top.wkbin.taixu.harness.session.SessionTreeStore(
+        val store = SessionTreeStore(
             repository,
             Json,
-            top.wkbin.taixu.core.common.logging.AppLogger(context, top.wkbin.taixu.core.common.logging.SensitiveDataRedactor { it }),
+            AppLogger(context, SensitiveDataRedactor { it }),
         )
         compaction = CompactionManager(repository, Json, store)
     }
@@ -224,7 +228,7 @@ class CompactionSnapshotTest {
         val legacyPayload = CompactionPayload(
             sourceLeafId = null,
             summary = "旧版摘要",
-            retainedMessagesJson = Json.encodeToString(kotlinx.serialization.builtins.ListSerializer(HarnessMessage.serializer()), listOf(retainedMsg)),
+            retainedMessagesJson = Json.encodeToString(ListSerializer(HarnessMessage.serializer()), listOf(retainedMsg)),
             compactedMessageCount = 5,
             cumulativeCompactedMessageCount = 5,
             retainedMessageCount = 1,

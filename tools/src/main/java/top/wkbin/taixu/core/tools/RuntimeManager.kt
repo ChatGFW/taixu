@@ -1,10 +1,13 @@
 package top.wkbin.taixu.core.tools
 
+import top.wkbin.taixu.core.common.result.AppError
 import top.wkbin.taixu.core.common.result.AppResult
+import top.wkbin.taixu.core.common.result.ErrorCode
 import top.wkbin.taixu.core.database.RuntimeEntity
 import top.wkbin.taixu.core.model.InstalledRuntime
 import top.wkbin.taixu.core.model.RuntimeName
 import top.wkbin.taixu.core.model.RuntimeRequirement
+import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.tools.RuntimeBinaryInstaller
 import top.wkbin.taixu.runtime.shell.ShellCommand
@@ -56,8 +59,8 @@ class RuntimeManagerImpl(
         val incompatible = runtimeRepository.findRuntime(id)
         if (incompatible != null && runtimeRepository.referenceCount(id) > 0) {
             return AppResult.Failure(
-                top.wkbin.taixu.core.common.result.AppError(
-                    top.wkbin.taixu.core.common.result.ErrorCode.INSTALLATION_FAILED,
+                AppError(
+                    ErrorCode.INSTALLATION_FAILED,
                     "Runtime ${requirement.name} 已被其他工具引用，当前版本 ${incompatible.version ?: "未知"} " +
                         "不满足 ${requirement.constraint ?: "当前"} 要求，拒绝原地替换共享 Runtime",
                 ),
@@ -65,7 +68,7 @@ class RuntimeManagerImpl(
         }
 
         return try {
-            if (linuxRuntime.state.value !is top.wkbin.taixu.core.model.RuntimeState.Ready) {
+            if (linuxRuntime.state.value !is RuntimeState.Ready) {
                 error("Linux Runtime 未就绪")
             }
             val packageName = packageName(requirement.name)
@@ -115,8 +118,8 @@ class RuntimeManagerImpl(
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (throwable: Throwable) {
-            AppResult.Failure(top.wkbin.taixu.core.common.result.AppError(
-                top.wkbin.taixu.core.common.result.ErrorCode.INSTALLATION_FAILED,
+            AppResult.Failure(AppError(
+                ErrorCode.INSTALLATION_FAILED,
                 throwable.message ?: "共享 Runtime 安装失败",
                 throwable,
             ))
@@ -130,8 +133,8 @@ class RuntimeManagerImpl(
         }
         AppResult.Success(Unit)
     } catch (throwable: Throwable) {
-        AppResult.Failure(top.wkbin.taixu.core.common.result.AppError(
-            top.wkbin.taixu.core.common.result.ErrorCode.IO,
+        AppResult.Failure(AppError(
+            ErrorCode.IO,
             throwable.message ?: "释放 Runtime 引用失败",
             throwable,
         ))
@@ -154,7 +157,7 @@ class RuntimeManagerImpl(
             check(runtimeRepository.referenceCount(runtimeId) == 0) {
                 "Runtime 仍被工具引用，不能清理：${entity.name}"
             }
-            if (linuxRuntime.state.value !is top.wkbin.taixu.core.model.RuntimeState.Ready) {
+            if (linuxRuntime.state.value !is RuntimeState.Ready) {
                 error("Linux Runtime 未就绪")
             }
             val result = if (entity.executablePath.startsWith("/opt/taixu/")) {
@@ -179,8 +182,8 @@ class RuntimeManagerImpl(
             throw cancellation
         } catch (throwable: Throwable) {
             AppResult.Failure(
-                top.wkbin.taixu.core.common.result.AppError(
-                    top.wkbin.taixu.core.common.result.ErrorCode.IO,
+                AppError(
+                    ErrorCode.IO,
                     throwable.message ?: "清理共享 Runtime 失败",
                     throwable,
                 ),

@@ -7,7 +7,12 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStream
+import java.io.File
 import java.net.Socket
+import java.net.InetSocketAddress
+import java.net.URI
+import java.io.ByteArrayOutputStream
+import android.os.Process
 import kotlin.concurrent.thread
 
 /**
@@ -73,7 +78,7 @@ class TcpCdpTransport(private val host: String, private val port: Int) : CdpTran
         val socket = Socket()
         runCatching {
             socket.soTimeout = timeoutMs.toInt()
-            socket.connect(java.net.InetSocketAddress(host, port), timeoutMs.toInt())
+            socket.connect(InetSocketAddress(host, port), timeoutMs.toInt())
         }.onFailure { e ->
             runCatching { socket.close() }
             throw IOException("connect tcp $host:$port failed: ${e.message}", e)
@@ -94,8 +99,8 @@ object DevToolsSocketResolver {
 
     /** 候选列表（按优先级）；调用方逐个试连。 */
     fun discover(
-        pid: Int = android.os.Process.myPid(),
-        readUnixSockets: () -> List<String> = { java.io.File("/proc/net/unix").readLines() },
+        pid: Int = Process.myPid(),
+        readUnixSockets: () -> List<String> = { File("/proc/net/unix").readLines() },
     ): Discovery {
         val result = ArrayList<String>(2)
         result += PREFIX + pid
@@ -155,7 +160,7 @@ object HttpOverSocket {
 object WsHandshake {
     /** 保留完整 /devtools/page/... 路径（含转义与查询参数），不能截掉 devtools 前缀。 */
     fun targetPath(debuggerUrl: String): String {
-        val uri = java.net.URI(debuggerUrl)
+        val uri = URI(debuggerUrl)
         require(uri.scheme in setOf("ws", "wss") && !uri.rawPath.isNullOrEmpty()) {
             "invalid webSocketDebuggerUrl: $debuggerUrl"
         }
@@ -181,7 +186,7 @@ private class StreamWsConnection(
     private var closeCode = 1000
     private var closeReason = "client detach"
     // 文本分片重组（CDP 大 payload 可能分片）
-    private val textBuffer = java.io.ByteArrayOutputStream()
+    private val textBuffer = ByteArrayOutputStream()
     // setListener 之前到达的消息缓存（握手后服务器可能立即推送事件），setListener 时重放
     private val earlyTexts = ArrayDeque<String>()
     private val lock = Any()
@@ -206,7 +211,7 @@ private class StreamWsConnection(
 
     /** 逐字节读至 \r\n\r\n（握手响应头结束；多读的帧字节由调用方处理）。 */
     private fun readUntilHeaderEnd(): ByteArray {
-        val out = java.io.ByteArrayOutputStream()
+        val out = ByteArrayOutputStream()
         var last3 = 0
         while (true) {
             val b = conn.input.read()

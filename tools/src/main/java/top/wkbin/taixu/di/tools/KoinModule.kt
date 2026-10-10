@@ -1,5 +1,7 @@
 package top.wkbin.taixu.di.tools
 
+import android.content.Context
+import java.io.File
 import org.koin.dsl.module
 import top.wkbin.taixu.core.tools.ProviderManager
 import top.wkbin.taixu.core.tools.AgentModelConnectionTester
@@ -30,17 +32,26 @@ import top.wkbin.taixu.runtime.tools.HelloToolInstaller
 import top.wkbin.taixu.runtime.tools.RemoteScriptRunner
 import top.wkbin.taixu.runtime.tools.RuntimeBinaryInstaller
 import top.wkbin.taixu.runtime.tools.ToolCommandLinker
+import top.wkbin.taixu.core.tools.ModelCredentialStore
+import top.wkbin.taixu.core.tools.backup.BackupLocations
+import top.wkbin.taixu.core.tools.backup.LocalBackupService
+import top.wkbin.taixu.core.tools.skill.ClawHubClient
+import top.wkbin.taixu.core.tools.skill.SkillCompatibilityEvaluator
+import top.wkbin.taixu.core.tools.skill.SkillInstallationManager
+import top.wkbin.taixu.core.tools.skill.SkillPackageInspector
+import top.wkbin.taixu.core.tools.skill.SkillPackageParser
+import top.wkbin.taixu.runtime.RuntimePathManager
 import org.koin.core.qualifier.named
 
 /** Dependency registrations owned by the tools module. */
 val toolsModule = module {
-    single<top.wkbin.taixu.core.tools.backup.BackupLocations> {
-        val context = get<android.content.Context>()
-        val paths = get<top.wkbin.taixu.runtime.RuntimePathManager>()
-        top.wkbin.taixu.core.tools.backup.BackupLocations(context.filesDir, paths.attachmentsDir, paths.workspaceDir, java.io.File(context.cacheDir, "local-backup"))
+    single<BackupLocations> {
+        val context = get<Context>()
+        val paths = get<RuntimePathManager>()
+        BackupLocations(context.filesDir, paths.attachmentsDir, paths.workspaceDir, File(context.cacheDir, "local-backup"))
     }
-    single<top.wkbin.taixu.core.tools.backup.LocalBackupService> {
-        top.wkbin.taixu.core.tools.backup.LocalBackupService(repository = get(), preferences = get(), locations = get())
+    single<LocalBackupService> {
+        LocalBackupService(repository = get(), preferences = get(), locations = get())
     }
     single<ProviderManager> { ProviderManager(providerRepository = get()) }
 
@@ -82,7 +93,7 @@ val toolsModule = module {
     single<LocalPluginPayloadManager> { LocalPluginPayloadManager(registry = get(), pathManager = get()) }
 
     single<ProviderRepository> { ProviderRepository(providerPreferences = get()) }
-    single<top.wkbin.taixu.core.tools.ModelCredentialStore> { get<ProviderRepository>() }
+    single<ModelCredentialStore> { get<ProviderRepository>() }
 
     single<RuntimeManagerImpl> {
         RuntimeManagerImpl(
@@ -161,16 +172,16 @@ val toolsModule = module {
 
     single<ToolCommandLinker> { ToolCommandLinker(linuxRuntime = get()) }
 
-    single { top.wkbin.taixu.core.tools.skill.SkillPackageParser() }
+    single { SkillPackageParser() }
 
-    single { top.wkbin.taixu.core.tools.skill.SkillPackageInspector() }
+    single { SkillPackageInspector() }
 
-    single { top.wkbin.taixu.core.tools.skill.SkillCompatibilityEvaluator(toolRegistry = getOrNull()) }
+    single { SkillCompatibilityEvaluator(toolRegistry = getOrNull()) }
 
-    single { top.wkbin.taixu.core.tools.skill.ClawHubClient(httpClient = get()) }
+    single { ClawHubClient(httpClient = get()) }
 
     single {
-        top.wkbin.taixu.core.tools.skill.SkillInstallationManager(
+        SkillInstallationManager(
             packageParser = get(),
             inspector = get(),
             compatibilityEvaluator = get(),

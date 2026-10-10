@@ -2,8 +2,11 @@ package top.wkbin.taixu.runtime.tools
 
 import top.wkbin.taixu.core.model.RuntimeName
 import top.wkbin.taixu.core.model.RuntimeRequirement
+import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.core.tools.DependencyManager
+import top.wkbin.taixu.core.tools.LocalPluginPayloadManager
+import top.wkbin.taixu.core.tools.LocalPluginPreparationEvent
 import top.wkbin.taixu.core.tools.ManifestDependencyParser
 import top.wkbin.taixu.core.tools.ProviderManager
 import top.wkbin.taixu.core.tools.ToolActionResult
@@ -16,6 +19,7 @@ import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 
@@ -29,7 +33,7 @@ class GenericRecipeInstaller(
     private val dependencyManager: DependencyManager,
     private val providerManager: ProviderManager,
     private val toolCommandLinker: ToolCommandLinker,
-    private val localPluginPayloadManager: top.wkbin.taixu.core.tools.LocalPluginPayloadManager? = null,
+    private val localPluginPayloadManager: LocalPluginPayloadManager? = null,
 ) : ToolRuntimeAdapter {
     override val toolId: String = manifest.id
 
@@ -43,7 +47,7 @@ class GenericRecipeInstaller(
                 var preparedPath: String? = null
                 localPluginPayloadManager?.prepare(toolId, linuxRuntime.activeDistroId.value)?.collect { event ->
                     when (event) {
-                        is top.wkbin.taixu.core.tools.LocalPluginPreparationEvent.Copying -> emit(
+                        is LocalPluginPreparationEvent.Copying -> emit(
                             InstallEvent.Progress(
                                 toolId = toolId,
                                 message = event.message,
@@ -51,7 +55,7 @@ class GenericRecipeInstaller(
                                 phase = InstallEvent.Phase.PREPARING,
                             ),
                         )
-                        is top.wkbin.taixu.core.tools.LocalPluginPreparationEvent.Ready -> preparedPath = event.payloadPath
+                        is LocalPluginPreparationEvent.Ready -> preparedPath = event.payloadPath
                     }
                 } ?: error("本地插件 payload 管理器不可用")
                 preparedPath ?: error("本地插件 payload 不存在")
@@ -321,7 +325,7 @@ class GenericRecipeInstaller(
         fi
     """.trimIndent()
 
-    private suspend fun kotlinx.coroutines.flow.FlowCollector<InstallEvent>.executeAndReport(
+    private suspend fun FlowCollector<InstallEvent>.executeAndReport(
         result: CommandResult,
     ): CommandResult {
         (result.stdout.lineSequence() + result.stderr.lineSequence())
@@ -348,11 +352,11 @@ class GenericRecipeInstaller(
         return result
     }
 
-    private suspend fun kotlinx.coroutines.flow.FlowCollector<InstallEvent>.executeAndReport(
+    private suspend fun FlowCollector<InstallEvent>.executeAndReport(
         command: String,
     ): CommandResult = executeAndReport(execute(command))
 
-    private fun checkReady() = check(linuxRuntime.state.value is top.wkbin.taixu.core.model.RuntimeState.Ready) {
+    private fun checkReady() = check(linuxRuntime.state.value is RuntimeState.Ready) {
         "Linux Runtime 未就绪，请先初始化 Linux"
     }
 

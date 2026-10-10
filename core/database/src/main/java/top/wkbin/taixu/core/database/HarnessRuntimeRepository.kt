@@ -1,6 +1,7 @@
 package top.wkbin.taixu.core.database
 
 import kotlinx.coroutines.flow.Flow
+import java.util.UUID
 
 /** Persistence port used by the harness runtime; feature modules never depend on its DAO. */
 interface HarnessRuntimeRepository {
@@ -47,6 +48,11 @@ interface HarnessRuntimeRepository {
     suspend fun listActiveOperations(sessionId: String): List<HarnessOperationEntity>
     suspend fun acceptOperation(entry: HarnessEntryEntity, lane: HarnessLaneEntity, operation: HarnessOperationEntity)
     suspend fun acceptQueuedOperation(queueItemId: String, entry: HarnessEntryEntity, lane: HarnessLaneEntity, operation: HarnessOperationEntity)
+    /** Atomically claims a queued task with its full input and operation, including queue consumption. */
+    suspend fun acceptTaskOperation(taskId: String, entry: HarnessEntryEntity, lane: HarnessLaneEntity,
+        operation: HarnessOperationEntity, queueItemId: String? = null) {
+        error("Atomic task admission is not supported by this repository")
+    }
     suspend fun beginOperation(lane: HarnessLaneEntity, operation: HarnessOperationEntity)
     suspend fun saveOperation(operation: HarnessOperationEntity)
     suspend fun settleEffect(entry: HarnessEntryEntity?, usage: HarnessUsageEntity?, operation: HarnessOperationEntity, lane: HarnessLaneEntity)
@@ -141,10 +147,10 @@ class RoomHarnessRuntimeRepository(
                 // Idempotent retry of the same logical entry.
                 return candidate
             }
-            val randomSuffix = java.util.UUID.randomUUID().toString().replace("-", "").take(8)
+            val randomSuffix = UUID.randomUUID().toString().replace("-", "").take(8)
             candidate = entry.copy(id = "${entry.id}_$randomSuffix")
         }
-        val fallback = java.util.UUID.randomUUID().toString().replace("-", "")
+        val fallback = UUID.randomUUID().toString().replace("-", "")
         val resolved = entry.copy(id = "${entry.id}_$fallback")
         check(dao.findEntry(resolved.id) == null) {
             "Unable to allocate a unique harness entry id for ${entry.id}"
@@ -219,6 +225,13 @@ class RoomHarnessRuntimeRepository(
 
     override suspend fun beginOperation(lane: HarnessLaneEntity, operation: HarnessOperationEntity) =
         dao.beginOperation(lane, operation)
+
+    override suspend fun acceptTaskOperation(taskId: String, entry: HarnessEntryEntity, lane: HarnessLaneEntity,
+        operation: HarnessOperationEntity, queueItemId: String?) {
+        require(lane.leafId == entry.id) { "Admission lane must point to the input entry" }
+        val unique = ensureUniqueStorageEntry(entry)
+        dao.acceptTaskOperation(taskId, sanitizeForStorage(unique), lane.copy(leafId = unique.id), operation, queueItemId)
+    }
     override suspend fun saveOperation(operation: HarnessOperationEntity) = dao.upsertOperation(operation)
     override suspend fun settleEffect(entry: HarnessEntryEntity?, usage: HarnessUsageEntity?, operation: HarnessOperationEntity, lane: HarnessLaneEntity) {
         val uniqueEntry = entry?.let { ensureUniqueStorageEntry(it) }

@@ -11,9 +11,17 @@ import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
 import top.wkbin.taixu.runtime.shell.ShellCommand
+import top.wkbin.taixu.runtime.shell.CommandResult
+import top.wkbin.taixu.runtime.scripts.RuntimeAssetSynchronizer
 import top.wkbin.taixu.core.datastore.RuntimePreferences
+import top.wkbin.taixu.core.datastore.WorkshopPreferences
+import top.wkbin.taixu.core.datastore.WorkshopKeystore
 import top.wkbin.taixu.core.database.BuildScriptRepository
 import java.io.File
+import java.io.BufferedWriter
+import java.io.FileWriter
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -23,10 +31,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-data class StepDuration(
-    val step: String,
-    val durationMs: Long,
-)
+data class StepDuration(val step: String, val durationMs: Long)
 
 data class BuildRunProgress(
     val step: String,
@@ -58,17 +63,14 @@ private val ANSI_ESCAPE_REGEX = Regex("\u001B\\[[0-9;?]*[ -/]*[@-~]")
 private val ANSI_OSC_REGEX = Regex("\u001B\\][^\u0007]*\u0007")
 
 private fun sanitizeBuildLog(raw: String): String {
-    var s = ANSI_ESCAPE_REGEX.replace(raw, "")
-    s = ANSI_OSC_REGEX.replace(s, "")
+    val s = ANSI_OSC_REGEX.replace(ANSI_ESCAPE_REGEX.replace(raw, ""), "")
     // TTY 行规则会把 \n 转成 \r\n，进度条用 \r 覆盖同一行；统一归一化为换行。
     return s.replace("\r\n", "\n").replace("\r", "\n")
 }
 
 private data class DependencyObservation(
-    val current: String? = null,
-    val seenItems: Set<String> = emptySet(),
-    val total: Int? = null,
-    val percent: Int? = null,
+    val current: String? = null, val seenItems: Set<String> = emptySet(),
+    val total: Int? = null, val percent: Int? = null,
 )
 
 /**
@@ -126,9 +128,9 @@ class WorkspaceBuildRunner(
     private val context: Context,
     private val linuxRuntime: LinuxRuntime,
     private val embeddedAdbManager: EmbeddedAdbManager,
-    private val assetSynchronizer: top.wkbin.taixu.runtime.scripts.RuntimeAssetSynchronizer,
+    private val assetSynchronizer: RuntimeAssetSynchronizer,
     private val runtimePreferences: RuntimePreferences,
-    private val workshopPreferences: top.wkbin.taixu.core.datastore.WorkshopPreferences,
+    private val workshopPreferences: WorkshopPreferences,
     private val buildScriptRepository: BuildScriptRepository,
     private val signingManager: WorkshopSigningManager,
     private val logger: AppLogger,
@@ -168,7 +170,7 @@ class WorkspaceBuildRunner(
     fun runProject(
         project: WorkspaceProject,
         buildType: WorkshopBuildType = WorkshopBuildType.DEBUG,
-        keystore: top.wkbin.taixu.core.datastore.WorkshopKeystore? = null,
+        keystore: WorkshopKeystore? = null,
     ): Flow<BuildRunProgress> = channelFlow {
         // 确保每次构建前，沙箱内部的 Shell 资产脚本永远最新且无 BOM 污染
         runCatching {
@@ -266,7 +268,7 @@ class WorkspaceBuildRunner(
         buildLogDir.listFiles()?.filter { it.isFile }?.sortedBy { it.lastModified() }
             ?.dropLast(KEEP_BUILD_LOG_FILES)?.forEach { runCatching { it.delete() } }
         val buildLogFile = File(buildLogDir, "build-$buildStartedAt.log")
-        val buildLogWriter = java.io.BufferedWriter(java.io.FileWriter(buildLogFile))
+        val buildLogWriter = BufferedWriter(FileWriter(buildLogFile))
 
         fun flushLogBuffer() {
             synchronized(logLock) {
@@ -404,9 +406,7 @@ class WorkspaceBuildRunner(
                 fun recordStepDuration(newStep: String) {
                     val now = System.currentTimeMillis()
                     val duration = now - lastStepTime
-                    if (duration > 100) {
-                        stepHistory.add(StepDuration(previousStep, duration))
-                    }
+                    if (duration > 100) stepHistory.add(StepDuration(previousStep, duration))
                     previousStep = newStep
                     lastStepTime = now
                 }
@@ -417,8 +417,7 @@ class WorkspaceBuildRunner(
                     "/bin/sh $androidScriptPath android \"${project.linuxPath}\" $androidTask"
                 } else {
                     "/bin/sh $androidScriptPath \"${project.linuxPath}\" $androidTask"
-                } +
-                    if (useQemuBuild) " --qemu" else ""
+                } + if (useQemuBuild) " --qemu" else ""
                 var lastEmitTime = System.currentTimeMillis()
                 var currentStep = "正在执行 Gradle 构建任务..."
                 var currentProgress = 0.35f
@@ -510,7 +509,7 @@ class WorkspaceBuildRunner(
                             },
                         ))
                     }.getOrElse { error ->
-                        top.wkbin.taixu.runtime.shell.CommandResult(-1, "", error.message ?: "QEMU 兼容环境启动失败", 0L)
+                        CommandResult(-1, "", error.message ?: "QEMU 兼容环境启动失败", 0L)
                     }
                 }
 
@@ -702,8 +701,7 @@ class WorkspaceBuildRunner(
                     "/bin/sh $flutterScriptPath flutter \"${project.linuxPath}\" $flutterTarget"
                 } else {
                     "/bin/sh $flutterScriptPath \"${project.linuxPath}\" \"$flutterTarget\""
-                } +
-                    if (useQemuBuild) " --qemu" else ""
+                } + if (useQemuBuild) " --qemu" else ""
                 var lastEmitTime = System.currentTimeMillis()
 
                 var outcome = linuxRuntime.execute(
@@ -752,7 +750,7 @@ class WorkspaceBuildRunner(
                             },
                         ))
                     }.getOrElse { error ->
-                        top.wkbin.taixu.runtime.shell.CommandResult(-1, "", error.message ?: "QEMU 兼容环境启动失败", 0L)
+                        CommandResult(-1, "", error.message ?: "QEMU 兼容环境启动失败", 0L)
                     }
                 }
 
@@ -911,7 +909,7 @@ class WorkspaceBuildRunner(
         }
     }.flowOn(Dispatchers.IO)
 
-    private fun shouldRetryWithQemu(outcome: top.wkbin.taixu.runtime.shell.CommandResult): Boolean {
+    private fun shouldRetryWithQemu(outcome: CommandResult): Boolean {
         val text = (outcome.stdout + "\n" + outcome.stderr).lowercase()
         // not_elf / 包装脚本回环 = 工具链文件本身被损坏（典型：exec 回环把
         // JDK 启动器覆盖成脚本）。这是中毒信号，不是架构兼容问题——
@@ -981,10 +979,10 @@ class WorkspaceBuildRunner(
 
     /** 用临时文件替换目标；覆盖失败（例如旧文件不可删除）返回 false。 */
     private fun replaceTarget(source: File, target: File): Boolean = try {
-        java.nio.file.Files.move(
+        Files.move(
             source.toPath(),
             target.toPath(),
-            java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+            StandardCopyOption.REPLACE_EXISTING,
         )
         true
     } catch (_: Throwable) {

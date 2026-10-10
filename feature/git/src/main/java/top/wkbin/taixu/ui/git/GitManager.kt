@@ -30,6 +30,11 @@ import java.io.ByteArrayOutputStream
 import org.eclipse.jgit.transport.RefSpec
 import org.eclipse.jgit.transport.RemoteRefUpdate
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
+import java.text.SimpleDateFormat
+import java.util.Date
+import org.eclipse.jgit.api.MergeResult
+import org.eclipse.jgit.lib.ObjectId
+import org.eclipse.jgit.lib.ProgressMonitor
 
 /** 当前路径不是 Git 仓库 */
 class GitNotARepoException : IOException("NOT_A_GIT_REPO")
@@ -235,7 +240,7 @@ class GitManager(
                     sb.append("commit ").append(commit.id.name()).append('\n')
                     sb.append("Author: ").append(commit.authorIdent.name)
                         .append(" <").append(commit.authorIdent.emailAddress).append(">\n")
-                    sb.append("Date:   ").append(java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(java.util.Date(commit.commitTime * 1000L))).append("\n\n")
+                    sb.append("Date:   ").append(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(commit.commitTime * 1000L))).append("\n\n")
                     sb.append(commit.fullMessage.trim()).append("\n\n")
                     sb.append(formatCommitDiff(walk, repo, commit))
                     sb.toString().take(20_000)
@@ -265,8 +270,8 @@ class GitManager(
     }
 
     /** 空树 ObjectId：根提交与"无父"比较时用（Git 的固定空树哈希） */
-    private fun emptyTreeId(@Suppress("UNUSED_PARAMETER") repo: Repository): org.eclipse.jgit.lib.ObjectId =
-        org.eclipse.jgit.lib.ObjectId.fromString("4b825dc642cb6eb9a060e54bf8d69288fbee4904")
+    private fun emptyTreeId(@Suppress("UNUSED_PARAMETER") repo: Repository): ObjectId =
+        ObjectId.fromString("4b825dc642cb6eb9a060e54bf8d69288fbee4904")
 
     /** 取消全部暂存（index 重置到 HEAD，工作区文件不动） */
     suspend fun unstageAll(hostPath: String): GitOpResult = withContext(Dispatchers.IO) {
@@ -720,13 +725,13 @@ class GitManager(
 
                     val merge = result.mergeResult
                     when (merge?.mergeStatus) {
-                        org.eclipse.jgit.api.MergeResult.MergeStatus.ALREADY_UP_TO_DATE ->
+                        MergeResult.MergeStatus.ALREADY_UP_TO_DATE ->
                             GitOpResult.Ok("已是最新，无需拉取")
-                        org.eclipse.jgit.api.MergeResult.MergeStatus.FAST_FORWARD ->
+                        MergeResult.MergeStatus.FAST_FORWARD ->
                             GitOpResult.Ok("已拉取并快进到 ${merge.newHead?.name()?.take(7)}")
-                        org.eclipse.jgit.api.MergeResult.MergeStatus.MERGED ->
+                        MergeResult.MergeStatus.MERGED ->
                             GitOpResult.Ok("已拉取并合并（产生合并提交）")
-                        org.eclipse.jgit.api.MergeResult.MergeStatus.CONFLICTING ->
+                        MergeResult.MergeStatus.CONFLICTING ->
                             GitOpResult.Failed("拉取完成但存在冲突（${merge.conflicts.size} 个文件），请手动解决")
                         else -> GitOpResult.Ok("拉取完成")
                     }
@@ -738,8 +743,8 @@ class GitManager(
     // 辅助
     // ------------------------------------------------------------------
 
-    private fun progressMonitor(onProgress: (GitProgress) -> Unit): org.eclipse.jgit.lib.ProgressMonitor =
-        object : org.eclipse.jgit.lib.ProgressMonitor {
+    private fun progressMonitor(onProgress: (GitProgress) -> Unit): ProgressMonitor =
+        object : ProgressMonitor {
             private var title = ""
             private var total = 0
             private var done = 0

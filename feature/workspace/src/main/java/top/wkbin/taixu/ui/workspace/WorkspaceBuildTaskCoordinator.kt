@@ -18,6 +18,9 @@ import top.wkbin.taixu.runtime.build.BuildRunProgress
 import top.wkbin.taixu.runtime.build.WorkspaceBuildRunner
 import top.wkbin.taixu.harness.workflow.WorkflowSignal
 import top.wkbin.taixu.harness.workflow.WorkflowSignalBus
+import java.io.File
+import top.wkbin.taixu.core.datastore.WorkshopKeystore
+import top.wkbin.taixu.runtime.build.WorkshopBuildType
 
 data class WorkspaceBuildTaskState(
     val project: WorkspaceProject,
@@ -40,8 +43,8 @@ class WorkspaceBuildTaskCoordinator(
     @Synchronized
     fun start(
         project: WorkspaceProject,
-        buildType: top.wkbin.taixu.runtime.build.WorkshopBuildType = top.wkbin.taixu.runtime.build.WorkshopBuildType.DEBUG,
-        keystore: top.wkbin.taixu.core.datastore.WorkshopKeystore? = null,
+        buildType: WorkshopBuildType = WorkshopBuildType.DEBUG,
+        keystore: WorkshopKeystore? = null,
     ): Boolean {
         if (job?.isActive == true || _state.value?.progress?.isRunning == true) return false
         val initial = BuildRunProgress(step = context.getString(R.string.workspace_prepare_build))
@@ -115,7 +118,7 @@ class WorkspaceBuildTaskCoordinator(
     }
 
     fun launchPackageInstaller(apkPath: String) {
-        runner.launchPackageInstaller(java.io.File(apkPath))
+        runner.launchPackageInstaller(File(apkPath))
     }
 
     private companion object {

@@ -41,6 +41,7 @@ import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 
 /**
  * 技能端侧静态安全审计与权限审查弹窗（基于 RuntimeAlertDialog 与 M3 Expressive 设计规范）。
@@ -308,7 +309,7 @@ fun SkillSecurityAuditDialog(
                     ),
                 ) {
                     if (isCommitting) {
-                        top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator(
+                        RuntimeCircularProgressIndicator(
                             modifier = Modifier.size(14.dp),
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary,

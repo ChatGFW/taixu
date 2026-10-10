@@ -23,5 +23,3 @@
 - `harness/.../diagnostics/RequestDiagnosticsInterceptor.kt`：读取最终请求体，不修改请求。
 - `harness/.../diagnostics/RequestDiagnosticsStore.kt`：脱敏、字段投影、预览预算和会话隔离。
 - `feature/chat/.../RequestContextDialog.kt`：搜索、展开与选择文本。
-
-参考 Kelivo 的上下文可观测性思路，按太墟现有架构独立实现，未复制其源码。

@@ -28,6 +28,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import top.wkbin.taixu.harness.mcp.MCP_PROTOCOL_VERSION
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 
 /**
  * 进程内 MCP server：单端口（默认 8787）上提供 POST /mcp 与 GET /mcp/stats、/mcp/health。
@@ -180,8 +182,8 @@ class McpServerRuntime(
         // B11: 区分"id 字段缺失"（notification，不回响应体）与"id 显式为 null"（按 JSON-RPC 规范
         // 属无效请求，回 -32600）；id 原样保留（数字/字符串都按原始 JsonElement 回显）
         if (!req.containsKey("id")) return null
-        val id = req["id"]?.takeUnless { it is kotlinx.serialization.json.JsonNull }
-            ?: return jsonrpcError(kotlinx.serialization.json.JsonNull, -32600, "invalid request: id must not be null")
+        val id = req["id"]?.takeUnless { it is JsonNull }
+            ?: return jsonrpcError(JsonNull, -32600, "invalid request: id must not be null")
         return when (method) {
             "initialize" -> jsonrpcOk(id, buildJsonObject {
                 put("protocolVersion", JsonPrimitive(MCP_PROTOCOL_VERSION))
@@ -195,7 +197,7 @@ class McpServerRuntime(
                 })
             })
             "tools/list" -> jsonrpcOk(id, buildJsonObject {
-                put("tools", kotlinx.serialization.json.JsonArray(toolDispatcher.listTools()))
+                put("tools", JsonArray(toolDispatcher.listTools()))
             })
             "tools/call" -> {
                 val params = req["params"] as? JsonObject
@@ -211,7 +213,7 @@ class McpServerRuntime(
                 }
             }
             "resources/list" -> jsonrpcOk(id, buildJsonObject {
-                put("resources", kotlinx.serialization.json.JsonArray(resourceDispatcher.listResources()))
+                put("resources", JsonArray(resourceDispatcher.listResources()))
             })
             "resources/read" -> {
                 val params = req["params"] as? JsonObject
@@ -219,7 +221,7 @@ class McpServerRuntime(
                 val resource = resourceDispatcher.readResource(uri)
                     ?: return jsonrpcError(id, -32004, "not_found")
                 jsonrpcOk(id, buildJsonObject {
-                    put("contents", kotlinx.serialization.json.JsonArray(listOf(resource)))
+                    put("contents", JsonArray(listOf(resource)))
                 })
             }
             "ping" -> jsonrpcOk(id, JsonObject(emptyMap()))

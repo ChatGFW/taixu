@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.CancellationException
 
 class ToolRoundDispatcherTest {
 
@@ -188,7 +189,7 @@ class ToolRoundDispatcherTest {
         var cancelled = false
         try {
             job.await()
-        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+        } catch (cancellation: CancellationException) {
             cancelled = true
         }
         assertTrue(cancelled)

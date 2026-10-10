@@ -8,6 +8,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import java.util.Base64
 import top.wkbin.taixu.runtime.browser.BrowserEvent
 import top.wkbin.taixu.runtime.browser.BrowserEventBus
 import top.wkbin.taixu.runtime.browser.CapturedRequest
@@ -274,5 +275,5 @@ class CdpFetchInterceptor(
     }
 
     private fun encodeBase64(s: String): String =
-        java.util.Base64.getEncoder().encodeToString(s.toByteArray(Charsets.UTF_8))
+        Base64.getEncoder().encodeToString(s.toByteArray(Charsets.UTF_8))
 }

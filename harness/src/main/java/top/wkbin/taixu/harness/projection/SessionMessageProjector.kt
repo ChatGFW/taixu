@@ -110,6 +110,10 @@ class SessionMessageProjector(
     /** 会话历史（活动分支），供分支切换 / 重生成等操作重建实时流。 */
     suspend fun loadHistory(sessionId: String): List<HarnessMessage> = history(sessionId)
 
+    /** Strict storage read for remote snapshots and terminal task acknowledgments. */
+    suspend fun loadPersistedHistory(sessionId: String): List<HarnessMessage> =
+        withContext(Dispatchers.IO) { store.loadStrict(sessionId) }
+
     /**
      * loadSession 的预置路径：已有流直接复用；否则先读历史再创建，
      * 避免异步合并窗口期把刚切换的会话闪成空列表。

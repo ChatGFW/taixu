@@ -2,11 +2,13 @@ package top.wkbin.taixu.harness.compaction
 
 import android.util.Log
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.database.HarnessEntryEntity
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
@@ -15,6 +17,7 @@ import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ModelConfig
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.session.SessionTreeStore
+import top.wkbin.taixu.harness.session.SessionContextProjector
 
 /** compress 锚点解析结果。 */
 sealed interface CompressAnchorResult {
@@ -41,92 +44,14 @@ class CompactionManager(
     private val _compactionRevision = MutableStateFlow(0L)
     val compactionRevision: StateFlow<Long> = _compactionRevision.asStateFlow()
 
-    suspend fun project(sessionId: String, laneName: String = SessionTreeStore.MAIN_LANE): CompactedContext {
-        val lane = repository.ensureLane(sessionId, laneName)
-        val latestCompaction = repository.latestBranchEntryOfType(sessionId, lane.leafId, ENTRY_TYPE)
-        if (latestCompaction == null) {
-            val entries = repository.branch(sessionId, lane.leafId)
-            val recallBlocks = recallBlocksWithin(entries)
-            return CompactedContext(
-                messages = entries.mapNotNull(::decodeMessage),
-                branchSummaries = branchSummariesWithin(entries, afterSequence = null),
-                recallBlocks = recallBlocks,
-                sourceMaxSequence = entries.maxOfOrNull { it.sequence } ?: 0L,
-            )
-        }
+    private val contextProjector = SessionContextProjector(repository, json)
 
-        val payload = runCatching {
-            json.decodeFromString(CompactionPayload.serializer(), latestCompaction.payloadJson)
-        }.onFailure { throwable ->
-            Log.e("ContextCompaction", "Failed to deserialize compaction payload for $sessionId: ${throwable.message}", throwable)
-        }.getOrNull()
+    /** Canonical source entries and recovery diagnostics used by the provider projection. */
+    suspend fun inspect(sessionId: String, laneName: String = SessionTreeStore.MAIN_LANE) =
+        contextProjector.inspect(sessionId, laneName)
 
-        if (payload == null) {
-            // 异常降级：快照损坏或反序列化失败时，回退到全量活跃分支直接投射，避免会话永久瘫痪
-            val entries = repository.branch(sessionId, lane.leafId)
-            val recallBlocks = recallBlocksWithin(entries)
-            return CompactedContext(
-                messages = entries.mapNotNull(::decodeMessage),
-                branchSummaries = branchSummariesWithin(entries, afterSequence = null),
-                recallBlocks = recallBlocks,
-                sourceMaxSequence = entries.maxOfOrNull { it.sequence } ?: 0L,
-            )
-        }
-
-        val retained = payload.retainedMessages
-            ?: payload.retainedMessagesJson?.takeIf { it.isNotBlank() }?.let { jsonStr ->
-                runCatching {
-                    json.decodeFromString(ListSerializer(HarnessMessage.serializer()), jsonStr)
-                }.onFailure {
-                    Log.w("ContextCompaction", "Failed to decode legacy retainedMessagesJson for $sessionId: ${it.message}")
-                }.getOrNull()
-            }.orEmpty()
-
-        // 仅截取自愈水位线之后的增量窗口（与 recall_context 块）：
-        // 已被折叠的历史消息及其 Blob 大文件不再加载至 JVM 堆内，根治全分支膨胀导致的 OOM。
-        val watermark = payload.sourceWatermarkSequence ?: latestCompaction.sequence
-        val minSequence = minOf(watermark, latestCompaction.sequence)
-        val windowEntries = repository.branchWindow(sessionId, lane.leafId, minSequence)
-        val recallBlocks = recallBlocksWithin(windowEntries)
-
-        // 自愈：重读快照之后、压缩 entry 落库之前被并发直写落库的 entry（acceptRun 不经
-        // laneLock），不在 retainedMessages 里、又因 sequence 更小被 afterMessages /
-        // afterSequence 过滤——按水位线补回，否则从 provider 投影中永久丢失。
-        val healedEntries = payload.sourceWatermarkSequence
-            ?.takeIf { it < latestCompaction.sequence }
-            ?.let { wm ->
-                windowEntries.asSequence()
-                    .filter { it.sequence > wm && it.sequence < latestCompaction.sequence }
-                    .toList()
-            }
-            .orEmpty()
-        val healed = healedEntries.asSequence()
-            .filter { it.entryType == "message" }
-            .mapNotNull(::decodeMessage)
-            .toList()
-        // 分支摘要落在同一窗口同样被排除，一并补回注入
-        val healedBranchSummaries = healedEntries.asSequence()
-            .filter { it.entryType == BRANCH_SUMMARY_ENTRY_TYPE }
-            .mapNotNull { entry ->
-                runCatching {
-                    json.decodeFromString(BranchSummaryPayload.serializer(), entry.payloadJson).summary
-                }.getOrNull()
-            }
-            .filter { it.isNotBlank() }
-            .toList()
-        val afterMessages = windowEntries.asSequence()
-            .filter { it.sequence > latestCompaction.sequence }
-            .mapNotNull(::decodeMessage)
-            .toList()
-        // 压缩之后的分支摘要原样注入；之前的已在 compact() 时折叠进压缩摘要，避免重复
-        return CompactedContext(
-            summary = payload.summary,
-            messages = retained + healed + afterMessages,
-            branchSummaries = healedBranchSummaries + branchSummariesWithin(windowEntries, afterSequence = latestCompaction.sequence),
-            recallBlocks = recallBlocks,
-            sourceMaxSequence = maxOf(payload.sourceWatermarkSequence ?: 0L, windowEntries.maxOfOrNull { it.sequence } ?: latestCompaction.sequence),
-        )
-    }
+    suspend fun project(sessionId: String, laneName: String = SessionTreeStore.MAIN_LANE): CompactedContext =
+        inspect(sessionId, laneName).context()
 
     /**
      * 最近一次压缩的轻量快照（不解码保留消息）。
@@ -134,18 +59,17 @@ class CompactionManager(
      * 会话从未压缩时返回 null——UI 据此隐藏折叠提示。
      */
     suspend fun latestSnapshot(sessionId: String, laneName: String = SessionTreeStore.MAIN_LANE): CompactionSnapshot? {
-        val lane = runCatching { repository.ensureLane(sessionId, laneName) }.getOrNull() ?: return null
-        val latestEntry = runCatching {
-            repository.latestBranchEntryOfType(sessionId, lane.leafId, ENTRY_TYPE)
-        }.getOrNull() ?: return null
-        val newest = runCatching {
-            json.decodeFromString(CompactionPayload.serializer(), latestEntry.payloadJson)
-        }.getOrNull() ?: return null
-        return CompactionSnapshot(
-            summary = newest.summary,
-            foldedMessageCount = newest.cumulativeCompactedMessageCount ?: newest.compactedMessageCount,
-            createdAt = newest.createdAt,
-        )
+        return try {
+            currentCoroutineContext().ensureActive()
+            val lane = repository.findLane(sessionId, laneName)
+            currentCoroutineContext().ensureActive()
+            if (lane == null) return null
+            val entry = repository.latestBranchEntryOfType(sessionId, lane.leafId, ENTRY_TYPE)
+            currentCoroutineContext().ensureActive()
+            val newest = entry?.let { json.decodeFromString(CompactionPayload.serializer(), it.payloadJson) } ?: return null
+            CompactionSnapshot(newest.summary, newest.cumulativeCompactedMessageCount ?: newest.compactedMessageCount, newest.createdAt)
+        } catch (cancellation: CancellationException) { throw cancellation }
+        catch (_: Exception) { currentCoroutineContext().ensureActive(); null }
     }
 
     suspend fun compact(
@@ -169,7 +93,7 @@ class CompactionManager(
         val llmSummary = if (model != null && summarizer != null && collapsedForSummary.isNotEmpty()) {
             try {
                 summarizer.generateSummary(model, collapsedForSummary, previousSummaries, summaryContext)
-            } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (throwable: Throwable) {
                 Log.w(
@@ -243,7 +167,9 @@ class CompactionManager(
                 payloadJson = json.encodeToString(CompactionPayload.serializer(), payload),
             )
             beforeCompactionWriteForTest?.invoke()
+            currentCoroutineContext().ensureActive()
             repository.appendToLane(sessionId, laneName, entry)
+            currentCoroutineContext().ensureActive()
             _compactionRevision.update { it + 1 }
             Log.d(
                 "ContextCompaction",
@@ -253,40 +179,10 @@ class CompactionManager(
                     "折叠分支摘要 ${context.branchSummaries.size} 份，" +
                     "压缩前估算 ${payload.estimatedTokensBefore} tokens",
             )
-            // recallBlocks 从锁内重投影透传：保留窗口里的历史用户轮仍携带各自的召回后缀
-            CompactedContext(summary, retained, recallBlocks = fresh.recallBlocks)
+            // Return the canonical committed projection, including concurrent direct writes and provenance watermarks.
+            project(sessionId, laneName)
         }
     }
-
-    private fun decodeMessage(entry: HarnessEntryEntity): HarnessMessage? =
-        entry.takeIf { it.entryType == "message" }?.let {
-            runCatching { json.decodeFromString(HarnessMessage.serializer(), it.payloadJson) }.getOrNull()
-        }
-
-    /** 收集活跃分支上的召回后缀（userMessageId → 块文本）；entry 不在消息流内，仅此处读出。 */
-    private fun recallBlocksWithin(entries: List<HarnessEntryEntity>): Map<String, String> =
-        entries.asSequence()
-            .filter { it.entryType == SessionTreeStore.RECALL_ENTRY_TYPE }
-            .mapNotNull { entry ->
-                val userMessageId = entry.customType?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                userMessageId to entry.payloadJson
-            }
-            .toMap()
-
-    /** 收集活跃分支上（指定 sequence 之后）的分支摘要文本，按树序排列。 */
-    private fun branchSummariesWithin(
-        entries: List<HarnessEntryEntity>,
-        afterSequence: Long?,
-    ): List<String> = entries.asSequence()
-        .filter { it.entryType == BRANCH_SUMMARY_ENTRY_TYPE }
-        .filter { afterSequence == null || it.sequence > afterSequence }
-        .mapNotNull { entry ->
-            runCatching {
-                json.decodeFromString(BranchSummaryPayload.serializer(), entry.payloadJson).summary
-            }.getOrNull()
-        }
-        .filter { it.isNotBlank() }
-        .toList()
 
     private fun messageTokens(message: HarnessMessage): Int = ContextWindowPolicy.estimateTokens(message.toString())
 

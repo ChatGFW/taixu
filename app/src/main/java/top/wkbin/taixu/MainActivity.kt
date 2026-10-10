@@ -11,6 +11,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -72,6 +74,10 @@ import top.wkbin.taixu.core.common.navigation.GlobalNavigationBus
 import top.wkbin.taixu.harness.mcp.oauth.McpOAuthCoordinator
 import top.wkbin.taixu.harness.mcp.McpManager
 import top.wkbin.taixu.service.adb.AdbNotificationManager
+import top.wkbin.taixu.navigation.ShareIntentExtractor
+import top.wkbin.taixu.service.WorkflowForegroundService
+import top.wkbin.taixu.ui.chat.floating.FloatingChatService
+import top.wkbin.taixu.ui.theme.ThemeStyle
 
 class MainActivity : AppCompatActivity() {
     val settingsDataStore: AppearancePreferences by inject()
@@ -103,7 +109,7 @@ class MainActivity : AppCompatActivity() {
     private var createdUptimeMs: Long = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        createdUptimeMs = android.os.SystemClock.uptimeMillis()
+        createdUptimeMs = SystemClock.uptimeMillis()
         val splashScreen = installSplashScreen()
         splashScreen.setKeepOnScreenCondition { keepSplashOnScreen.value }
         super.onCreate(savedInstanceState)
@@ -130,7 +136,7 @@ class MainActivity : AppCompatActivity() {
                 ),
             ) {
                 TaiXuTheme(
-                    style = top.wkbin.taixu.ui.theme.ThemeStyle.fromId(themeStyle),
+                    style = ThemeStyle.fromId(themeStyle),
                     darkTheme = isDark,
                     dynamicColor = dynamicColorEnabled,
                     backgroundUri = chengmingBackgroundUri,
@@ -143,9 +149,9 @@ class MainActivity : AppCompatActivity() {
                 LaunchedEffect(onboarding.loaded) {
                     if (onboarding.loaded && keepSplashOnScreen.value) {
                         keepSplashOnScreen.value = false
-                        android.util.Log.i(
+                        Log.i(
                             "TaiXuStartup",
-                            "splash dismissed in ${android.os.SystemClock.uptimeMillis() - createdUptimeMs}ms",
+                            "splash dismissed in ${SystemClock.uptimeMillis() - createdUptimeMs}ms",
                         )
                     }
                 }
@@ -322,7 +328,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         // 主应用回到前台时，自动关闭智枢桌面悬浮小窗，避免主界面与悬浮窗重叠
         runCatching {
-            top.wkbin.taixu.ui.chat.floating.FloatingChatService.stop(this)
+            FloatingChatService.stop(this)
         }
     }
 
@@ -341,9 +347,7 @@ class MainActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 runCatching { mcpOAuthCoordinator.callback(oauthUri) }
                     .onSuccess { result ->
-                        if (result is McpOAuthCoordinator.CallbackResult.Authorized) {
-                            lifecycleScope.launch { mcpManager.invalidateServer(result.serverId) }
-                        }
+                        if (result is McpOAuthCoordinator.CallbackResult.Authorized) lifecycleScope.launch { mcpManager.invalidateServer(result.serverId) }
                     }
                     .onFailure { /* UI observes server auth state; never log callback code/token. */ }
             }
@@ -351,20 +355,16 @@ class MainActivity : AppCompatActivity() {
         }
         val action = intentToHandle.action
         // 系统分享入口：分享文本进聊天页预填（不自动发送）
-        top.wkbin.taixu.navigation.ShareIntentExtractor.extractSharedText(intentToHandle)?.let { sharedText ->
-            globalNavigationBus.navigateTo(top.wkbin.taixu.core.common.navigation.AppNavigationTarget.SharedText(sharedText))
+        ShareIntentExtractor.extractSharedText(intentToHandle)?.let { sharedText ->
+            globalNavigationBus.navigateTo(AppNavigationTarget.SharedText(sharedText))
             return
         }
         val navigateTo = intentToHandle.getStringExtra("navigate_to")
         val isAdbLogcat = action == "top.wkbin.taixu.action.OPEN_ADB_LOGCAT" || navigateTo == "adb_logcat"
-        if (isAdbLogcat) {
-            globalNavigationBus.navigateTo(top.wkbin.taixu.core.common.navigation.AppNavigationTarget.AdbLogcat)
-        }
+        if (isAdbLogcat) globalNavigationBus.navigateTo(AppNavigationTarget.AdbLogcat)
         // 工作流通知点入：打开运行页并定位到对应执行
-        if (action == top.wkbin.taixu.service.WorkflowForegroundService.ACTION_OPEN_RUN) {
-            globalNavigationBus.navigateTo(top.wkbin.taixu.core.common.navigation.AppNavigationTarget.WorkflowRun(
-                intentToHandle.getStringExtra(top.wkbin.taixu.service.WorkflowForegroundService.EXTRA_EXECUTION_ID),
-            ))
+        if (action == WorkflowForegroundService.ACTION_OPEN_RUN) {
+            globalNavigationBus.navigateTo(AppNavigationTarget.WorkflowRun(intentToHandle.getStringExtra(WorkflowForegroundService.EXTRA_EXECUTION_ID)))
         }
     }
 

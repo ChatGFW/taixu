@@ -4,7 +4,11 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.os.Build
+import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import java.lang.ref.WeakReference
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -89,7 +93,7 @@ internal object UiSettleSignal {
     private var lastEventAt = 0L
 
     fun mark() {
-        lastEventAt = android.os.SystemClock.uptimeMillis()
+        lastEventAt = SystemClock.uptimeMillis()
     }
 
     fun lastEventAt(): Long = lastEventAt
@@ -110,7 +114,7 @@ class TaiXuGuiAccessibilityService : AccessibilityService() {
         Log.i(TAG, "GUI accessibility gesture service connected")
     }
 
-    override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         UiSettleSignal.mark()
     }
 
@@ -142,15 +146,15 @@ class TaiXuGuiAccessibilityService : AccessibilityService() {
             val service = instance?.get() ?: return false
             return runCatching {
                 val focused = service.rootInActiveWindow
-                    ?.findFocus(android.view.accessibility.AccessibilityNodeInfo.FOCUS_INPUT)
+                    ?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
                     ?: return@runCatching false
-                val args = android.os.Bundle().apply {
+                val args = Bundle().apply {
                     putCharSequence(
-                        android.view.accessibility.AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                        AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
                         text,
                     )
                 }
-                focused.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
             }.getOrDefault(false)
         }
 
@@ -159,7 +163,7 @@ class TaiXuGuiAccessibilityService : AccessibilityService() {
             val service = instance?.get() ?: return null
             return runCatching {
                 service.rootInActiveWindow
-                    ?.findFocus(android.view.accessibility.AccessibilityNodeInfo.FOCUS_INPUT)
+                    ?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
                     ?.text
                     ?.toString()
             }.getOrNull()

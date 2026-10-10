@@ -37,6 +37,7 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.feature.theme.R
+import android.graphics.BitmapFactory
 
 /**
  * 太墟内置主题风格。
@@ -343,7 +344,7 @@ private fun ChengmingBackdrop(modifier: Modifier, darkTheme: Boolean, background
             backgroundUri?.takeIf { it.isNotBlank() }?.let { savedUri ->
                 runCatching {
                     context.contentResolver.openInputStream(Uri.parse(savedUri))?.use { stream ->
-                        android.graphics.BitmapFactory.decodeStream(stream)?.asImageBitmap()?.let(::BitmapPainter)
+                        BitmapFactory.decodeStream(stream)?.asImageBitmap()?.let(::BitmapPainter)
                     }
                 }.getOrNull()
             }

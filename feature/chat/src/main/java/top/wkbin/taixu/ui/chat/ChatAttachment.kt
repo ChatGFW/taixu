@@ -39,6 +39,11 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import java.io.File
 import java.util.Locale
 import java.util.UUID
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Base64
+import android.util.Log
+import java.io.ByteArrayOutputStream
 
 /**
  * 用户选取的图片或附件元数据
@@ -98,10 +103,10 @@ object AttachmentHelper {
             val base64 = if (isImage) {
                 runCatching {
                     // 与 ImagePayloadCompressor 对齐：长边 1280、JPEG 80，避免相册原图把请求体顶到 413。
-                    val boundsOptions = android.graphics.BitmapFactory.Options().apply {
+                    val boundsOptions = BitmapFactory.Options().apply {
                         inJustDecodeBounds = true
                     }
-                    android.graphics.BitmapFactory.decodeFile(targetFile.absolutePath, boundsOptions)
+                    BitmapFactory.decodeFile(targetFile.absolutePath, boundsOptions)
 
                     var inSampleSize = 1
                     val maxDimension = 1280
@@ -113,23 +118,23 @@ object AttachmentHelper {
                         }
                     }
 
-                    val decodeOptions = android.graphics.BitmapFactory.Options().apply {
+                    val decodeOptions = BitmapFactory.Options().apply {
                         this.inSampleSize = inSampleSize
                     }
-                    val bitmap = android.graphics.BitmapFactory.decodeFile(targetFile.absolutePath, decodeOptions)
+                    val bitmap = BitmapFactory.decodeFile(targetFile.absolutePath, decodeOptions)
                     if (bitmap != null) {
-                        val baos = java.io.ByteArrayOutputStream()
+                        val baos = ByteArrayOutputStream()
                         try {
-                            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, baos)
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, baos)
                         } finally {
                             bitmap.recycle()
                         }
                         val bytes = baos.toByteArray()
-                        val encoded = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                        val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
                         "data:image/jpeg;base64,$encoded"
                     } else if (targetFile.length() <= 4L * 1024 * 1024) {
                         val bytes = targetFile.readBytes()
-                        val encoded = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                        val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
                         "data:$sourceMimeType;base64,$encoded"
                     } else {
                         null
@@ -148,7 +153,7 @@ object AttachmentHelper {
             )
         } catch (e: Exception) {
             // 失败不能静默：记录日志并由 ChatViewModel 统计后以 Toast 上抛给用户
-            android.util.Log.w(TAG, "附件处理失败 uri=$uri", e)
+            Log.w(TAG, "附件处理失败 uri=$uri", e)
             null
         }
     }

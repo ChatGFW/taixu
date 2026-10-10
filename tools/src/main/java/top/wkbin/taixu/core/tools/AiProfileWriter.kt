@@ -3,6 +3,8 @@ package top.wkbin.taixu.core.tools
 import kotlinx.coroutines.flow.first
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.database.AiModelRepository
+import top.wkbin.taixu.core.model.AiModelProfileExport
+import top.wkbin.taixu.core.model.AiProfileImportMode
 import java.util.UUID
 
 /**
@@ -14,8 +16,8 @@ class AiProfileWriter(
     private val providerRepository: ModelCredentialStore,
 ) {
     suspend fun importProfiles(
-        profiles: List<top.wkbin.taixu.core.model.AiModelProfileExport>,
-        mode: top.wkbin.taixu.core.model.AiProfileImportMode,
+        profiles: List<AiModelProfileExport>,
+        mode: AiProfileImportMode,
     ): Int = importModelProfiles(aiModelDao, providerRepository, profiles, mode)
 
     /** 解析多行 Key 文本为去重的 Key 列表 */

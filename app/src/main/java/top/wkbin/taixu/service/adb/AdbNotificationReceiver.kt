@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import top.wkbin.taixu.core.datastore.RuntimePreferences
 import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
 
 /**
@@ -24,7 +25,7 @@ class AdbNotificationReceiver : BroadcastReceiver(), KoinComponent {
 
     val adbNotificationManager: AdbNotificationManager by inject()
 
-    val preferences: top.wkbin.taixu.core.datastore.RuntimePreferences by inject()
+    val preferences: RuntimePreferences by inject()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

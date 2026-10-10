@@ -47,6 +47,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.chat.artifact.ArtifactPreviewSheet
 
 private val DiffAddedBg = Color(0xFF0E2E1E)
 private val DiffAddedText = Color(0xFF7EE787)
@@ -358,7 +359,7 @@ private fun FilePathHeader(
     }
 
     if (showPreviewSheet && !previewContent.isNullOrEmpty()) {
-        top.wkbin.taixu.ui.chat.artifact.ArtifactPreviewSheet(
+        ArtifactPreviewSheet(
             title = path.substringAfterLast('/'),
             content = previewContent,
             relativePath = path,

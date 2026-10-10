@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 会话内审批授权表（"本会话内记住"，对齐 Reasonix 的 allow-for-session 语义）。
@@ -26,7 +27,7 @@ import kotlinx.serialization.json.contentOrNull
  */
 class SessionApprovalGrants() {
 
-    private val grants = java.util.concurrent.ConcurrentHashMap<String, LinkedHashMap<String, Long>>()
+    private val grants = ConcurrentHashMap<String, LinkedHashMap<String, Long>>()
 
     /** @return 本会话内是否已有能覆盖该操作类别的授权。 */
     fun isGranted(sessionId: String, toolName: String, argumentsJson: String, riskLevel: String = "normal"): Boolean {

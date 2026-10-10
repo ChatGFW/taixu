@@ -5,7 +5,9 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import top.wkbin.taixu.core.common.files.BoundedStreamCopy
+import top.wkbin.taixu.core.common.result.AppError
 import top.wkbin.taixu.core.common.result.AppResult
+import top.wkbin.taixu.core.common.result.ErrorCode
 import top.wkbin.taixu.core.model.skill.ClawHubMarketDetail
 import top.wkbin.taixu.core.model.skill.ClawHubMarketItem
 import top.wkbin.taixu.core.model.skill.SkillPermission
@@ -65,7 +67,7 @@ class ClawHubClient(
         // 尝试从远端获取
         val item = fetchMarketCatalog().let { res ->
             if (res is AppResult.Success) res.data.firstOrNull { it.id == skillId } else null
-        } ?: return AppResult.Failure(top.wkbin.taixu.core.common.result.AppError(top.wkbin.taixu.core.common.result.ErrorCode.NETWORK, "在 ClawHub 市场中未找到技能: $skillId"))
+        } ?: return AppResult.Failure(AppError(ErrorCode.NETWORK, "在 ClawHub 市场中未找到技能: $skillId"))
 
         return AppResult.Success(
             ClawHubMarketDetail(
@@ -111,7 +113,7 @@ class ClawHubClient(
                 }
             }
         }.getOrElse { err ->
-            AppResult.Failure(top.wkbin.taixu.core.common.result.AppError(top.wkbin.taixu.core.common.result.ErrorCode.DOWNLOAD, err.message ?: "下载技能失败", err))
+            AppResult.Failure(AppError(ErrorCode.DOWNLOAD, err.message ?: "下载技能失败", err))
         }
     }
 

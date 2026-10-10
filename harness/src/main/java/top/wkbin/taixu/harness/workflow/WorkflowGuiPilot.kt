@@ -21,6 +21,7 @@ import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
+import top.wkbin.taixu.runtime.gui.GuiNode
 
 /**
  * Workflow-native GUI loop: observe → LLM returns one JSON action → execute.
@@ -162,7 +163,7 @@ class WorkflowGuiPilot(
                                 .any { it.contains(needle, ignoreCase = true) }
                         }
                         .sortedWith(
-                            compareByDescending<top.wkbin.taixu.runtime.gui.GuiNode> { it.text.equals(needle, true) }
+                            compareByDescending<GuiNode> { it.text.equals(needle, true) }
                                 .thenByDescending { it.clickable }
                                 .thenByDescending { it.text.length.coerceAtMost(needle.length * 2) },
                         )

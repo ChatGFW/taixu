@@ -35,7 +35,7 @@ class DeveloperViewModel(
     private val runtimePreferences: RuntimePreferences,
     private val agentPreferences: AgentPreferences,
     private val registryPreferences: RegistryPreferences,
-    private val onboardingPreferences: top.wkbin.taixu.core.datastore.OnboardingPreferences,
+    private val onboardingPreferences: OnboardingPreferences,
     private val toolRegistry: ToolRegistry,
     private val toolManager: ToolManager,
     private val logger: AppLogger,

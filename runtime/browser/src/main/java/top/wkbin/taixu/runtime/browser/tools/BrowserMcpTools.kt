@@ -9,6 +9,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.put
+import java.util.UUID
 import top.wkbin.taixu.core.browser.BrowserCapability
 import top.wkbin.taixu.core.browser.BrowserPreferences
 import top.wkbin.taixu.core.browser.BrowserRisk
@@ -325,7 +326,7 @@ class BrowserMcpTools(
         }
         if (actions.isEmpty()) return InvokeResult.error("actions 不能为空")
         val rule = HookRule(
-            id = "hr_" + java.util.UUID.randomUUID().toString().substring(0, 8),
+            id = "hr_" + UUID.randomUUID().toString().substring(0, 8),
             type = type,
             target = target,
             name = args["name"]?.asString() ?: "",

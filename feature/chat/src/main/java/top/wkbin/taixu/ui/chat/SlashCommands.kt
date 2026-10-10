@@ -3,6 +3,8 @@ package top.wkbin.taixu.ui.chat
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import android.content.Context
 import top.wkbin.taixu.feature.chat.R
+import top.wkbin.taixu.core.model.AgentSkill
+import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
 
 data class SlashCommandItem(
     val command: String,
@@ -98,15 +100,15 @@ object SlashCommands {
 
     fun filterCommands(
         query: String,
-        activeSkills: List<top.wkbin.taixu.core.model.AgentSkill> = emptyList(),
-        workflows: List<top.wkbin.taixu.core.model.workflow.WorkflowDefinition> = emptyList(),
+        activeSkills: List<AgentSkill> = emptyList(),
+        workflows: List<WorkflowDefinition> = emptyList(),
     ): List<SlashCommandItem> = filterCommands(presetCommands, query, activeSkills, workflows)
 
     fun filterCommands(
         context: Context,
         query: String,
-        activeSkills: List<top.wkbin.taixu.core.model.AgentSkill> = emptyList(),
-        workflows: List<top.wkbin.taixu.core.model.workflow.WorkflowDefinition> = emptyList(),
+        activeSkills: List<AgentSkill> = emptyList(),
+        workflows: List<WorkflowDefinition> = emptyList(),
     ): List<SlashCommandItem> {
         return filterCommands(presetCommands(context), query, activeSkills, workflows)
     }
@@ -114,8 +116,8 @@ object SlashCommands {
     private fun filterCommands(
         presetItems: List<SlashCommandItem>,
         query: String,
-        activeSkills: List<top.wkbin.taixu.core.model.AgentSkill>,
-        workflows: List<top.wkbin.taixu.core.model.workflow.WorkflowDefinition> = emptyList(),
+        activeSkills: List<AgentSkill>,
+        workflows: List<WorkflowDefinition> = emptyList(),
     ): List<SlashCommandItem> {
         val skillItems = activeSkills.mapNotNull { skill ->
             val cmd = skill.triggerCommand ?: return@mapNotNull null

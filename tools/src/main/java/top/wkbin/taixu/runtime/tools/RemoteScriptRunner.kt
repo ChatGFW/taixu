@@ -1,5 +1,6 @@
 package top.wkbin.taixu.runtime.tools
 
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.shell.CommandResult
 import top.wkbin.taixu.runtime.shell.ShellCommand
@@ -54,9 +55,9 @@ class RemoteScriptRunner(
 
     private fun buildCommand(spec: RemoteScriptSpec): String {
         val scriptPath = "/tmp/taixu-installer-${spec.name}.sh"
-        val quotedUrl = shellQuote(spec.url)
-        val quotedPath = shellQuote(scriptPath)
-        val arguments = spec.arguments.joinToString(" ") { shellQuote(it) }
+        val quotedUrl = ShellQuote.of(spec.url)
+        val quotedPath = ShellQuote.of(scriptPath)
+        val arguments = spec.arguments.joinToString(" ") { ShellQuote.of(it) }
         return buildString {
             append("set -eu; umask 077; ")
             append("script_path=$quotedPath; ")
@@ -65,14 +66,12 @@ class RemoteScriptRunner(
             append("test -s \"\$script_path\"; chmod 700 \"\$script_path\"; ")
             spec.sha256?.let { checksum ->
                 require(SHA256.matches(checksum)) { "安装脚本 SHA-256 格式无效" }
-                append("printf '%s  %s\\n' ${shellQuote(checksum)} \"\$script_path\" | sha256sum -c -; ")
+                append("printf '%s  %s\\n' ${ShellQuote.of(checksum)} \"\$script_path\" | sha256sum -c -; ")
             }
             append("bash \"\$script_path\"")
             if (arguments.isNotBlank()) append(" $arguments")
         }
     }
-
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\\\"'\\\"'")}'"
 
     companion object {
         // 官方安装脚本需要 npm install / 下载二进制（OpenClaw 依赖较多，走代理
@@ -96,6 +95,6 @@ data class RemoteScriptSpec(
 ) {
     val host: String
         get() = runCatching {
-            java.net.URI(url).host.orEmpty().lowercase()
+            URI(url).host.orEmpty().lowercase()
         }.getOrDefault("")
 }

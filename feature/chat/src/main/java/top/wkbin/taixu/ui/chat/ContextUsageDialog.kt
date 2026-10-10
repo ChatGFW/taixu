@@ -47,6 +47,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.StatusBadge
 import java.util.Locale
 import kotlin.math.roundToInt
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 
 /**
  * 🌟 上下文用量可视化弹窗 (Context Usage Dialog)
@@ -206,7 +207,7 @@ fun ContextUsageDialog(
                         }
                     }
 
-                    top.wkbin.taixu.ui.components.RuntimeTextButton(onClick = onInspectRequest) {
+                    RuntimeTextButton(onClick = onInspectRequest) {
                         Text(stringResource(R.string.chat_request_context_title))
                     }
                     // 5. Optional TaiXu Enhanced Footer (KV Cache & Compaction)

@@ -1,6 +1,7 @@
 package top.wkbin.taixu.core.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /**
  * MCP (Model Context Protocol) 传输协议类型
@@ -45,7 +46,7 @@ data class McpServerConfig(
      * 运行时注入用（例如内置 browser server 的自环凭据）：@Transient 保证不参与序列化，
      * 既不落 Room 也不随 [toExportJsonConfig] 导出。
      */
-    @kotlinx.serialization.Transient
+    @Transient
     val authToken: String = "",
     /** 是否启用 */
     val isEnabled: Boolean = true,
@@ -95,6 +96,21 @@ enum class McpConnectionState {
 }
 
 /**
+ * MCP 工具注解（MCP 规范 tool.annotations 的提示性声明）：
+ * 服务端对工具风险特征的自述，**未经本端验证**。审批策略只采信显式声明来提高审批等级
+ * （escalation-only）；降低审批要求必须来自本地可信规则（如内置浏览器风险矩阵），
+ * 外部声明一律不得放行。缺省（null）按 MCP 规范默认语义是"可能破坏/非只读/可达外部"，
+ * 但为避免对存量服务的行为回归，缺省值不参与升级，仅显式 `true` 参与。
+ */
+@Serializable
+data class McpToolAnnotations(
+    val readOnlyHint: Boolean? = null,
+    val destructiveHint: Boolean? = null,
+    val idempotentHint: Boolean? = null,
+    val openWorldHint: Boolean? = null,
+)
+
+/**
  * 动态从 MCP Server 发现并注册的工具定义
  */
 @Serializable
@@ -104,6 +120,7 @@ data class McpToolInfo(
     val name: String,
     val description: String,
     val parametersJson: String = "{}",
+    val annotations: McpToolAnnotations? = null,
 )
 
 /**

@@ -15,6 +15,13 @@ import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.events.HarnessEvent
 import top.wkbin.taixu.harness.events.HarnessEventBus
 import top.wkbin.taixu.harness.session.SessionTreeStore
+import top.wkbin.taixu.harness.AssistantText
+import top.wkbin.taixu.harness.CapabilityEvent
+import top.wkbin.taixu.harness.ModelSwitchEvent
+import top.wkbin.taixu.harness.SkillSuggestion
+import top.wkbin.taixu.harness.ToolCall
+import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.UserMessage
 
 /** Owns all durable operation transitions and their transaction boundaries. */
 class OperationCoordinator(
@@ -29,35 +36,32 @@ class OperationCoordinator(
      */
     private val acceptMutex = Mutex()
 
-    suspend fun acceptRun(sessionId: String, userMessage: HarnessMessage, laneName: String = SessionTreeStore.MAIN_LANE): String = acceptMutex.withLock {
+    suspend fun acceptRun(sessionId: String, userMessage: HarnessMessage, laneName: String = SessionTreeStore.MAIN_LANE,
+        taskId: String? = null): String = acceptMutex.withLock {
         val lane = reclaimInterruptedLane(sessionId, laneName)
         check(lane.currentOperationId == null) { "Lane ${lane.name} is busy" }
         val now = System.currentTimeMillis()
         val operationId = UUID.randomUUID().toString()
         val operation = newOperation(operationId, sessionId, lane, now)
         val entry = messageEntry(sessionId, lane.leafId, userMessage)
-        repository.acceptOperation(
-            entry = entry,
-            lane = lane.copy(leafId = entry.id, currentOperationId = operationId, updatedAt = now),
-            operation = operation,
-        )
+        val acceptedLane = lane.copy(leafId = entry.id, currentOperationId = operationId, updatedAt = now)
+        if (taskId == null) repository.acceptOperation(entry, acceptedLane, operation)
+        else repository.acceptTaskOperation(taskId, entry, acceptedLane, operation)
         eventBus.emit(HarnessEvent.OperationStarted(sessionId, now, operationId, laneName))
         return operationId
     }
 
-    suspend fun acceptQueuedRun(sessionId: String, queueItemId: String, userMessage: HarnessMessage): String = acceptMutex.withLock {
+    suspend fun acceptQueuedRun(sessionId: String, queueItemId: String, userMessage: HarnessMessage,
+        taskId: String? = null): String = acceptMutex.withLock {
         val lane = reclaimInterruptedLane(sessionId, SessionTreeStore.MAIN_LANE)
         check(lane.currentOperationId == null) { "Lane ${lane.name} is busy" }
         val now = System.currentTimeMillis()
         val operationId = UUID.randomUUID().toString()
         val operation = newOperation(operationId, sessionId, lane, now)
         val entry = messageEntry(sessionId, lane.leafId, userMessage)
-        repository.acceptQueuedOperation(
-            queueItemId = queueItemId,
-            entry = entry,
-            lane = lane.copy(leafId = entry.id, currentOperationId = operationId, updatedAt = now),
-            operation = operation,
-        )
+        val acceptedLane = lane.copy(leafId = entry.id, currentOperationId = operationId, updatedAt = now)
+        if (taskId == null) repository.acceptQueuedOperation(queueItemId, entry, acceptedLane, operation)
+        else repository.acceptTaskOperation(taskId, entry, acceptedLane, operation, queueItemId)
         eventBus.emit(HarnessEvent.OperationStarted(sessionId, now, operationId, SessionTreeStore.MAIN_LANE))
         return operationId
     }
@@ -132,7 +136,7 @@ class OperationCoordinator(
         )
         settle(operationId, message, null, snapshot, replay)
         emitFor(operationId) { sessionId, timestamp, _ ->
-            val toolCall = message as? top.wkbin.taixu.harness.ToolCall
+            val toolCall = message as? ToolCall
             HarnessEvent.ToolCallStarted(
                 sessionId, timestamp, operationId,
                 toolCallId = message.id,
@@ -149,7 +153,7 @@ class OperationCoordinator(
             snapshot = OperationSnapshot(phase = OperationPhase.TOOL_SETTLED.id, round = round),
         )
         emitFor(operationId) { sessionId, timestamp, _ ->
-            val result = message as? top.wkbin.taixu.harness.ToolResult
+            val result = message as? ToolResult
             HarnessEvent.ToolCallSettled(
                 sessionId, timestamp, operationId,
                 toolCallId = result?.toolCallId ?: message.id,
@@ -338,11 +342,11 @@ class OperationCoordinator(
 }
 
 private fun HarnessMessage.serialType(): String = when (this) {
-    is top.wkbin.taixu.harness.UserMessage -> "user"
-    is top.wkbin.taixu.harness.AssistantText -> "assistant"
-    is top.wkbin.taixu.harness.ToolCall -> "tool_call"
-    is top.wkbin.taixu.harness.ToolResult -> "tool_result"
-    is top.wkbin.taixu.harness.CapabilityEvent -> "capability_event"
-    is top.wkbin.taixu.harness.SkillSuggestion -> "skill_suggestion"
-    is top.wkbin.taixu.harness.ModelSwitchEvent -> "model_switch"
+    is UserMessage -> "user"
+    is AssistantText -> "assistant"
+    is ToolCall -> "tool_call"
+    is ToolResult -> "tool_result"
+    is CapabilityEvent -> "capability_event"
+    is SkillSuggestion -> "skill_suggestion"
+    is ModelSwitchEvent -> "model_switch"
 }

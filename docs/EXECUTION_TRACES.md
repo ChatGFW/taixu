@@ -7,16 +7,31 @@
 ```text
 ChatScreen (UI)
   └─► ChatViewModel.send(prompt)
-        └─► HarnessLoop.send()
+        └─► InteractiveSessionControl.send() → HarnessLoop.submit() → SessionInputController
+              ├─► 会话锁内检查存在性/审批等待 → 创建任务 → 原子提交消息/operation/task RUNNING 或输入队列 → 启动/排队回执
               ├─► ProviderRepository 读取 BaseURL / Model / ApiKey
-              ├─► ProviderClient / ChatApi ➔ 流式接收 reasoning & text / tool_calls
+              ├─► ProviderClient ➔ ProviderModelResolver（档案/凭证/偏好）
+              │                   ➔ ProviderTransport / LlmApiRegistry（按模型 API 分发）
+              │                     ➔ ChatApi / ResponsesApi / AnthropicApi ➔ reasoning & text / tool_calls
               └─► 当模型返回 tool_calls:
                     ├─► HarnessApiMapper 映射 read / write / edit / base / process
-                    ├─► ApprovalPolicyEngine 计算审批要求
-                    ├─► ToolExecutor 分派文件访问或 LinuxRuntime
-                    ├─► 回传 ToolResult 到对话历史 (core:database)
+                    ├─► DurableToolRunner 等待执行意图持久化
+                    ├─► ToolExecutor / ToolExecutionBoundary 等待前置检查点（可否决）
+                    │     ├─► 既有 PLAN / ApprovalPolicyEngine / 宿主权限门控
+                    │     └─► WorkspaceToolBackend（read/write/edit）或其他工具分派
+                    │           └─► WorkspaceToolOperations / LinuxRuntime 等具体实现
+                    ├─► 等待后置检查点；只追加脱敏说明，保留成功/审批状态
+                    ├─► DurableToolRunner 等待 ToolResult 提交到对话历史 (core:database)
                     └─► 继续进入下一轮推理，直至任务全部完成
 ```
+
+检查点由受信任应用代码注入，按注册顺序运行。前置回调异常会阻止执行；后置回调异常只形成说明，不能把已成功写入改为失败并诱发重试。审批等待与 Lane 的审批移交也保留原标识和状态；取消在每个等待屏障后继续传播。事件总线仅供观察，不承担这些控制屏障。文件写入仍先捕获轮前内容，成功后捕获实际后像；超限文件报告恢复证据不完整。
+
+请求前的会话投影：`ApiContextAssembler` → `CompactionManager.project()` → `inspect()` → `SessionContextProjector`（固定本次 Lane 叶子；读取最新快照及增量窗口）→ 纯 Kotlin `SessionProjectionBuilder` → `CompactedContext`。主会话上下文用量面板、模型切换和压缩重读复用同一 `project()`。检查结果含消息/摘要/召回的来源、并发补回标记及损坏条目代码；之后的提示词注入、协议映射、图片及字节截断仍由请求组装层负责。
+
+压缩流程：锁外生成摘要 → Lane 锁内重读并核对消息前缀 → 记录快照来源水位线 → 提交不可变压缩条目 → 重新投影已提交分支。重读后、提交前由其他事务追加的消息和分支摘要，会立即通过水位线补回；压缩返回值与下一次投影一致。损坏快照或旧格式保留消息解码失败时回退完整活动分支，并在检查结果中注明原因；存储读取异常仍向调用方传播。
+
+Web 会话发送：认证 REST → `WebChatRunProtocol` 解析输入模式 → `WebChatRunTracker` 预留客户端关联 ID → gateway / `SessionControl.submit()` → 持久化接收回执。任务、完整用户消息及 operation 在启动事务中一起提交；受理后的队列投影刷新失败不改写成功回执。有独立任务 ID 时，经 `AgentTaskRepository.observeTask()` 观察精确任务状态；终态通过 `loadStrict()` 重读已提交消息，再报告 SSE 完成/失败，读取异常报告 error 并保留现有消息。每次请求分别观察，排队后继不会因前驱结束而完成。客户端 `TaskReceiptTracker` 记住回执之前的审批/终态事件，回执不再重新激活任务；记忆仅保留到请求结束。显式远端 ID 不切换前台，受理前存储失败返回通用 HTTP 500，取消传播。
 
 ---
 

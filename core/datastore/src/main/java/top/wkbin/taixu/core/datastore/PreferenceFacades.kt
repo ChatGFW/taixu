@@ -4,6 +4,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import top.wkbin.taixu.core.model.EnvironmentVariable
+import top.wkbin.taixu.core.model.ExecutionMode
 
 /** Narrow preference views keep consumers from depending on the complete settings schema. */
 class AppearancePreferences(private val store: SettingsDataStore) {
@@ -49,12 +51,12 @@ class RuntimePreferences(private val store: SettingsDataStore) {
     suspend fun clearLegacyEnvironmentVariables() = store.clearLegacyEnvironmentVariables()
     suspend fun setSelectedDistribution(value: String) = store.setSelectedDistribution(value)
     suspend fun setMirrorPolicy(value: String) = store.setMirrorPolicy(value)
-    suspend fun setExecutionMode(value: top.wkbin.taixu.core.model.ExecutionMode) = store.setExecutionMode(value)
-    suspend fun setPreferredExecutionMode(value: top.wkbin.taixu.core.model.ExecutionMode) = store.setPreferredExecutionMode(value)
-    suspend fun setEffectiveExecutionMode(value: top.wkbin.taixu.core.model.ExecutionMode) = store.setEffectiveExecutionMode(value)
+    suspend fun setExecutionMode(value: ExecutionMode) = store.setExecutionMode(value)
+    suspend fun setPreferredExecutionMode(value: ExecutionMode) = store.setPreferredExecutionMode(value)
+    suspend fun setEffectiveExecutionMode(value: ExecutionMode) = store.setEffectiveExecutionMode(value)
     suspend fun setExecutionModes(
-        preferred: top.wkbin.taixu.core.model.ExecutionMode,
-        effective: top.wkbin.taixu.core.model.ExecutionMode,
+        preferred: ExecutionMode,
+        effective: ExecutionMode,
     ) = store.setExecutionModes(preferred, effective)
     suspend fun setQemuCompatibilityEnabled(value: Boolean) = store.setQemuCompatibilityEnabled(value)
     suspend fun setAdbWirelessPort(value: Int) = store.setAdbWirelessPort(value)
@@ -133,7 +135,7 @@ class FtpPreferences(private val store: SettingsDataStore) {
 }
 
 data class LegacyEnvironmentVariable(
-    val metadata: top.wkbin.taixu.core.model.EnvironmentVariable,
+    val metadata: EnvironmentVariable,
     val value: String,
 )
 

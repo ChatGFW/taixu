@@ -25,7 +25,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okio.Path.Companion.toPath
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.datastore.RuntimePreferences
+import top.wkbin.taixu.runtime.RuntimePathManager
 
 /**
  * 应用内置的无线 ADB 客户端。
@@ -42,7 +44,7 @@ import top.wkbin.taixu.core.datastore.RuntimePreferences
 class EmbeddedAdbManager(
     private val context: Context,
     private val preferences: RuntimePreferences,
-    private val pathManager: top.wkbin.taixu.runtime.RuntimePathManager,
+    private val pathManager: RuntimePathManager,
 ) {
     sealed interface ConnectionState {
         data object Disconnected : ConnectionState
@@ -480,15 +482,15 @@ class EmbeddedAdbManager(
         require(request.priority.uppercaseChar() in PRIORITIES) { "日志优先级无效" }
         val lines = request.lines.coerceIn(1, MAX_LOG_LINES)
         val tagArgs = if (request.tag.isBlank()) {
-            shellQuote("*:${request.priority.uppercaseChar()}")
+            ShellQuote.of("*:${request.priority.uppercaseChar()}")
         } else {
-            "${shellQuote("${request.tag}:${request.priority.uppercaseChar()}")} ${shellQuote("*:S")}"
+            "${ShellQuote.of("${request.tag}:${request.priority.uppercaseChar()}")} ${ShellQuote.of("*:S")}"
         }
         val logcat = "/system/bin/logcat -d -v threadtime -t $lines"
         val command = if (request.packageName.isBlank()) {
             "$logcat $tagArgs"
         } else {
-            "pid=\$(/system/bin/pidof ${shellQuote(request.packageName)} | /system/bin/cut -d' ' -f1); " +
+            "pid=\$(/system/bin/pidof ${ShellQuote.of(request.packageName)} | /system/bin/cut -d' ' -f1); " +
                 "if [ -z \"\$pid\" ]; then echo '目标应用未运行：${request.packageName}'; exit 3; fi; " +
                 "$logcat --pid=\"\$pid\" $tagArgs"
         }
@@ -552,8 +554,6 @@ class EmbeddedAdbManager(
         }
         return "$prefix：$friendlyMessage"
     }
-
-    private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 
     companion object {
         const val TAG_MANUAL = "manual"

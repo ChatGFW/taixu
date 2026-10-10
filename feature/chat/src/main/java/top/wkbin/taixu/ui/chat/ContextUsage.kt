@@ -2,6 +2,7 @@ package top.wkbin.taixu.ui.chat
 
 import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.harness.ContextUsageBreakdown
+import top.wkbin.taixu.harness.diagnostics.RequestContextSnapshot
 
 data class ContextUsage(
     val usedTokens: Int = 0,
@@ -26,6 +27,6 @@ data class ContextUsage(
     val cachedTokens: Long = 0L,
     val cacheHitRatePercent: Int? = null,
     val breakdown: ContextUsageBreakdown = ContextUsageBreakdown(),
-    val requests: List<top.wkbin.taixu.harness.diagnostics.RequestContextSnapshot> = emptyList(),
+    val requests: List<RequestContextSnapshot> = emptyList(),
 )
 

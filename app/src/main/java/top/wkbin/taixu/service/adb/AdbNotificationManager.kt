@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.MainActivity
 import top.wkbin.taixu.R
+import top.wkbin.taixu.core.datastore.RuntimePreferences
 import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
 
 /**
@@ -29,7 +30,7 @@ import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
 class AdbNotificationManager(
     private val context: Context,
     private val embeddedAdbManager: EmbeddedAdbManager,
-    private val preferences: top.wkbin.taixu.core.datastore.RuntimePreferences,
+    private val preferences: RuntimePreferences,
 ) {
     private val notificationManager: NotificationManager =
         context.getSystemService(NotificationManager::class.java)

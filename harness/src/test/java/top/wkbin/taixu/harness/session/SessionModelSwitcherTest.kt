@@ -32,23 +32,24 @@ import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.compaction.CompactionManager
 import top.wkbin.taixu.harness.projection.LiveMessagePort
+import top.wkbin.taixu.harness.HarnessMessage
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class SessionModelSwitcherTest {
 
     private class RecordingPort : LiveMessagePort {
-        val appended = mutableListOf<Pair<String, top.wkbin.taixu.harness.HarnessMessage>>()
+        val appended = mutableListOf<Pair<String, HarnessMessage>>()
 
-        override suspend fun append(sessionId: String, message: top.wkbin.taixu.harness.HarnessMessage) {
+        override suspend fun append(sessionId: String, message: HarnessMessage) {
             appended += sessionId to message
         }
 
-        override suspend fun publishPersisted(sessionId: String, message: top.wkbin.taixu.harness.HarnessMessage) {
+        override suspend fun publishPersisted(sessionId: String, message: HarnessMessage) {
             append(sessionId, message)
         }
 
-        override fun snapshot(sessionId: String): List<top.wkbin.taixu.harness.HarnessMessage> = emptyList()
+        override fun snapshot(sessionId: String): List<HarnessMessage> = emptyList()
     }
 
     private lateinit var database: AppDatabase

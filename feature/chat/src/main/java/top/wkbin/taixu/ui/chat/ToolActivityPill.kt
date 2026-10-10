@@ -70,6 +70,7 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.StatusBadge
+import java.util.Locale
 
 /**
  * 🌟 底部悬浮工具活动胶囊 (Floating Tool Activity Strip / Live Pill)
@@ -342,7 +343,7 @@ private fun prettyArgs(args: JsonObject): String =
     }.getOrDefault(args.toString())
 
 private fun formatDuration(ms: Long): String {
-    return String.format(java.util.Locale.getDefault(), "%.1fs", ms / 1000f)
+    return String.format(Locale.getDefault(), "%.1fs", ms / 1000f)
 }
 
 private fun formatToolSummary(call: ToolCall): String {

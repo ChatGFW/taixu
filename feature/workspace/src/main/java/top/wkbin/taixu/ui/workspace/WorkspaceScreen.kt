@@ -47,7 +47,6 @@ import top.wkbin.taixu.runtime.ApkImportSource
 import top.wkbin.taixu.runtime.ProjectArchiveSource
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.template.InstalledProjectTemplate
-import top.wkbin.taixu.ui.components.EmptyPanel
 import top.wkbin.taixu.ui.components.MainDestination
 import top.wkbin.taixu.ui.components.NoticeBanner
 import top.wkbin.taixu.ui.components.RuntimeBottomBar
@@ -306,11 +305,10 @@ fun WorkspaceScreen(
                     }
                 } else if (projects.isEmpty()) {
                     item {
-                        EmptyPanel(
-                            icon = RuntimeIconName.Workspace,
-                            title = stringResource(R.string.workspace_no_projects),
-                            description = stringResource(R.string.workspace_no_projects_description),
-                            modifier = Modifier.padding(top = 24.dp),
+                        WorkspaceEmptyState(
+                            enabled = !busy,
+                            onCreate = { showCreate = true },
+                            onImport = { showImport = true },
                         )
                     }
                 } else {

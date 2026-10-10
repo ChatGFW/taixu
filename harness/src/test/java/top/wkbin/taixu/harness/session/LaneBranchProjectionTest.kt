@@ -16,13 +16,14 @@ import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.UserMessage
+import android.content.Context
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class LaneBranchProjectionTest {
     @Test
     fun sharedAncestorsPreserveNearestNamedLaneAndBranchPreviews() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val context = ApplicationProvider.getApplicationContext<Context>()
         val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries().build()
         try {

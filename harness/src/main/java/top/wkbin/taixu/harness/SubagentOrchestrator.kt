@@ -37,6 +37,8 @@ import top.wkbin.taixu.harness.subagent.renderSubagentClaimAdjudication
 import top.wkbin.taixu.harness.subagent.stripSubagentClaimBlock
 import top.wkbin.taixu.harness.prompt.PromptAssetLoader
 import top.wkbin.taixu.harness.WorkspaceFileAccess
+import top.wkbin.taixu.core.common.result.AppResult
+import top.wkbin.taixu.core.database.AgentSubagentRepository
 
 internal class SubagentConcurrencyGate(
     maxParallelism: Int = DEFAULT_MAX_CONCURRENT_SUBAGENTS,
@@ -57,7 +59,7 @@ class SubagentOrchestrator(
     private val sessionDao: HarnessSessionRepository,
     private val laneManager: LaneManager,
     private val laneRunner: SubagentLaneRunner,
-    private val subagentRepository: top.wkbin.taixu.core.database.AgentSubagentRepository,
+    private val subagentRepository: AgentSubagentRepository,
     private val promptAssets: PromptAssetLoader,
     private val agentContextRepo: AgentContextRepository,
     private val fileAccess: WorkspaceFileAccess,
@@ -817,7 +819,7 @@ internal suspend fun paginateSubagentSummary(
             .takeLast(80) + ".md"
         val relativePath = "$spillDir/$fileName"
         // 落盘失败不阻塞：该任务按普通截断处理
-        if (fileAccess.write(relativePath, outcome.summary) is top.wkbin.taixu.core.common.result.AppResult.Success) {
+        if (fileAccess.write(relativePath, outcome.summary) is AppResult.Success) {
             spilled[outcome.subSessionId] = relativePath
         }
     }

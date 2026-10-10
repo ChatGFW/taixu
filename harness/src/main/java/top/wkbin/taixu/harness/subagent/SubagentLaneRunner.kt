@@ -7,28 +7,26 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.harness.ApiMessage
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.ContextWindowPolicy
-import top.wkbin.taixu.harness.HarnessApiMapper
 import top.wkbin.taixu.harness.HarnessMessage
-import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ProviderClient
-import top.wkbin.taixu.harness.ToolCall
-import top.wkbin.taixu.harness.ToolCallIdNormalizer
 import top.wkbin.taixu.harness.ToolCallMode
 import top.wkbin.taixu.harness.ToolExecutor
-import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.TextToolCallCodec
-import top.wkbin.taixu.harness.effects.ToolReplayPolicy
 import top.wkbin.taixu.harness.operation.OperationCoordinator
 import top.wkbin.taixu.harness.prompt.PromptAssetLoader
 import top.wkbin.taixu.harness.session.SessionTreeStore
-import top.wkbin.taixu.harness.validation.ToolCallLoopDetector
-import top.wkbin.taixu.harness.validation.ToolSchemaValidator
 import top.wkbin.taixu.harness.R
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import top.wkbin.taixu.harness.ApiToolCallSpec
+import top.wkbin.taixu.harness.ChatResult
+import top.wkbin.taixu.harness.ModelConfig
+import top.wkbin.taixu.harness.UserMessage
+import top.wkbin.taixu.harness.session.ApiMessageProjector
 
 data class SubagentLaneResult(
     val success: Boolean,
@@ -66,7 +64,7 @@ class SubagentLaneRunner(
         workspace: String,
         modelId: String? = null,
         modelVariant: String? = null,
-        modelConfig: top.wkbin.taixu.harness.ModelConfig? = null,
+        modelConfig: ModelConfig? = null,
         /**
          * 子任务声明的写租约。非 null 时启用执行期写闸门：空列表 = 只读任务，
          * write/edit/download 在本 Lane 内被强制拦截。
@@ -77,21 +75,22 @@ class SubagentLaneRunner(
          */
         writePaths: List<String>? = null,
     ): SubagentLaneResult {
-        val user = top.wkbin.taixu.harness.UserMessage(UUID.randomUUID().toString(), now(), prompt)
+        val user = UserMessage(UUID.randomUUID().toString(), now(), prompt)
         val operationId = operations.acceptRun(sessionId, user, laneName)
-        var toolCalls = 0
+        val toolRoundRunner = SubagentToolRoundRunner(operations, json) { call, session, cwd, operation ->
+            toolExecutor().execute(call, session, cwd, allowApprovalRequest = false, operationId = operation)
+        }
         var finalText = ""
         // 需要审批而被跳过的调用、被写租约拦截的写入：两者都会让"看起来收场了"实际没做完，
         // 因此必须跨轮累计，并参与最终的完成判定。
-        val deferredApprovals = mutableListOf<SubagentApprovalHandoff>()
-        val blockedWrites = mutableListOf<String>()
+        val deferredApprovals = toolRoundRunner.pendingApprovals
+        val blockedWrites = toolRoundRunner.blockedWrites
         // 写过但最后一次尝试仍失败的目标（同目标后续写成功会移除）。
         // 这是"声称已落盘、其实没写成"的结构化证据；靠在结论文本里匹配"写入失败"会误伤
         // 只读审计任务（"检查为什么 X 服务写入失败"的合法结论里也有这些词）。
-        val failedWrites = linkedMapOf<String, String>()
+        val failedWrites = toolRoundRunner.failedWrites
         return try {
             val configuredModel = modelConfig ?: providerClient.resolveConfigured(modelId, modelVariant)
-            val loopDetector = ToolCallLoopDetector()
             // 子智能体是定向小任务，不能沿用主会话数百轮上限，否则只读审计会漫游到超时。
             val toolRounds = runCatching { settingsDataStore.maxToolRounds.first() }
                 .getOrDefault(DEFAULT_MAX_ROUNDS)
@@ -156,7 +155,7 @@ class SubagentLaneRunner(
                     return SubagentLaneResult(
                         success = false,
                         summary = "模型返回了无法解析的文本工具调用，未将其误判为任务完成",
-                        toolCallCount = toolCalls,
+                        toolCallCount = toolRoundRunner.toolCallCount,
                         termination = SubagentTermination.UNPARSEABLE_TOOL_CALL,
                         pendingApprovals = deferredApprovals.toList(),
                         blockedWrites = blockedWrites.toList(),
@@ -184,88 +183,18 @@ class SubagentLaneRunner(
                     return SubagentLaneResult(
                         success = verdict.accepted,
                         summary = laneSummary(verdict, assistantText, deferredApprovals, blockedWrites, failedWrites),
-                        toolCallCount = toolCalls,
+                        toolCallCount = toolRoundRunner.toolCallCount,
                         termination = verdict.termination,
                         pendingApprovals = deferredApprovals.toList(),
                         blockedWrites = blockedWrites.toList(),
                     )
                 }
 
-                for (spec in roundCalls) {
-                    toolCalls++
-                    val callId = ToolCallIdNormalizer.normalize(spec.id)
-                    val rawName = spec.name.trim()
-                    val tool = HarnessApiMapper.toolByName(rawName)
-                    val args = runCatching { json.parseToJsonElement(spec.argumentsJson) as JsonObject }.getOrElse {
-                        val invalidCall = ToolCall(callId, now(), tool, JsonObject(emptyMap()), result.reasoningContent, rawName)
-                        operations.toolIntent(
-                            operationId,
-                            invalidCall,
-                            spec.argumentsJson,
-                            ToolReplayPolicy.forTool(tool, rawName),
-                            round,
-                        )
-                        val failed = ToolResult(UUID.randomUUID().toString(), now(), callId, false, "工具参数不是 JSON 对象：${it.message}")
-                        operations.toolSettled(operationId, failed, round, toolName = rawName)
-                        continue
-                    }
-                    val call = ToolCall(callId, now(), tool, args, result.reasoningContent, rawName)
-                    val schemaProblems = ToolSchemaValidator.problemsFor(rawName, args, model.dynamicMcpTools)
-                    if (schemaProblems.isNotEmpty()) {
-                        operations.toolIntent(operationId, call, spec.argumentsJson, ToolReplayPolicy.forTool(tool, rawName), round)
-                        val rejected = ToolResult(
-                            UUID.randomUUID().toString(), now(), callId, false,
-                            "工具参数校验未通过：${schemaProblems.joinToString("；")}。请修正参数后重新调用。",
-                        )
-                        operations.toolSettled(operationId, rejected, round, toolName = rawName)
-                        continue
-                    }
-                    val loopVerdict = loopDetector.evaluate(rawName, args)
-                    if (loopVerdict is ToolCallLoopDetector.LoopVerdict.Block) {
-                        operations.toolIntent(operationId, call, spec.argumentsJson, ToolReplayPolicy.forTool(tool, rawName), round)
-                        val blocked = ToolResult(
-                            UUID.randomUUID().toString(), now(), callId, false,
-                            "${loopVerdict.reason}\n\n${loopVerdict.guidance}",
-                        )
-                        operations.toolSettled(operationId, blocked, round, toolName = rawName)
-                        continue
-                    }
-                    operations.toolIntent(operationId, call, spec.argumentsJson, ToolReplayPolicy.forTool(tool, rawName), round)
-                    loopDetector.recordIntent(rawName, args)
-                    val writeRejection = writePaths?.let { subagentWriteScopeRejection(tool, args, it) }
-                    val outcome = when {
-                        tool == HarnessTool.SUBAGENT ->
-                            ToolResult(UUID.randomUUID().toString(), now(), call.id, false, "子智能体 Lane 禁止再次派发子智能体")
-                        writeRejection != null -> {
-                            blockedWrites += subagentWriteTargetLabel(rawName, args)
-                            ToolResult(UUID.randomUUID().toString(), now(), call.id, false, writeRejection)
-                        }
-                        else -> toolExecutor().execute(
-                            call,
-                            sessionId,
-                            workspace,
-                            allowApprovalRequest = false,
-                            operationId = operationId,
-                        )
-                    }
-                    if (outcome.approvalDeferred) {
-                        deferredApprovals += SubagentApprovalHandoff(
-                            toolName = rawName,
-                            argumentsJson = spec.argumentsJson.take(MAX_HANDOFF_ARGS_CHARS),
-                            reason = outcome.output.lineSequence().firstOrNull()?.take(200).orEmpty(),
-                        )
-                    } else if (writeRejection == null && tool in LANE_WRITE_TOOLS) {
-                        // 被租约拦截或待审批的写入已分别记账，这里只追踪"真的执行了但失败"。
-                        val target = subagentWriteTargetLabel(rawName, args)
-                        if (outcome.success) {
-                            failedWrites.remove(target)
-                        } else {
-                            failedWrites[target] = outcome.output.lineSequence().firstOrNull()?.take(200).orEmpty()
-                        }
-                    }
-                    operations.toolSettled(operationId, outcome, round, toolName = rawName)
-                    loopDetector.recordSettled(rawName, args, outcome.success, output = outcome.output)
-                }
+                toolRoundRunner.execute(
+                    specs = roundCalls, sessionId = sessionId, workspace = workspace,
+                    model = model, operationId = operationId, round = round,
+                    reasoning = result.reasoningContent, writePaths = writePaths,
+                )
             }
             operations.finish(sessionId, "failed", details = "max rounds", laneName = laneName)
             SubagentLaneResult(
@@ -277,16 +206,16 @@ class SubagentLaneRunner(
                         append(finalText)
                     }
                 },
-                toolCallCount = toolCalls,
+                toolCallCount = toolRoundRunner.toolCallCount,
                 termination = SubagentTermination.MAX_ROUNDS,
                 pendingApprovals = deferredApprovals.toList(),
                 blockedWrites = blockedWrites.toList(),
             )
-        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+        } catch (cancellation: CancellationException) {
             // 结构化取消（用户停止或编排层超时）必须向上重抛；
             // 否则 lane operation 永远停留在 RUNNING，形成僵尸行。
             // finish 自身是挂起点，需在 NonCancellable 下落盘（与主循环清理链同一模式）。
-            withContext(kotlinx.coroutines.NonCancellable) {
+            withContext(NonCancellable) {
                 operations.finish(sessionId, "aborted", details = "已取消", laneName = laneName)
             }
             throw cancellation
@@ -295,7 +224,7 @@ class SubagentLaneRunner(
             SubagentLaneResult(
                 success = false,
                 summary = throwable.message ?: "子智能体执行失败",
-                toolCallCount = toolCalls,
+                toolCallCount = toolRoundRunner.toolCallCount,
                 termination = SubagentTermination.FAILED,
                 pendingApprovals = deferredApprovals.toList(),
                 blockedWrites = blockedWrites.toList(),
@@ -307,7 +236,7 @@ class SubagentLaneRunner(
      * Lane 历史的 token 预算。子循环没有主循环那套压缩管线，只做"够用就不动、超了才收紧"，
      * 并给系统提示词、工具 schema 与本轮输出留出余量。
      */
-    private suspend fun laneHistoryBudget(model: top.wkbin.taixu.harness.ModelConfig): Int {
+    private suspend fun laneHistoryBudget(model: ModelConfig): Int {
         val budget = ContextWindowPolicy.clampedBudget(
             model.contextTokens,
             runCatching { settingsDataStore.contextBudgetTokens.first() }.getOrDefault(DEFAULT_CONTEXT_BUDGET_TOKENS),
@@ -321,10 +250,10 @@ class SubagentLaneRunner(
         sessionId: String,
         laneName: String,
         forceFinalAnswer: Boolean,
-        model: top.wkbin.taixu.harness.ModelConfig,
+        model: ModelConfig,
         historyBudgetTokens: Int,
     ): List<ApiMessage> {
-        val toolCallMode = if (model.pureChatMode) ToolCallMode.DISABLED else model.toolCallMode
+        val toolCallMode = model.effectiveToolCallMode
         return isolatedProviderMessages(
             messages = treeStore.load(sessionId, laneName),
             systemPrompt = laneSystemPrompt(toolCallMode),
@@ -350,15 +279,15 @@ class SubagentLaneRunner(
     }
 
     private suspend fun chatWithRetry(
-        model: top.wkbin.taixu.harness.ModelConfig,
+        model: ModelConfig,
         messages: List<ApiMessage>,
         text: StringBuilder,
-    ): top.wkbin.taixu.harness.ChatResult {
+    ): ChatResult {
         var lastFailure: IOException? = null
         repeat(NETWORK_ATTEMPTS) { attempt ->
             try {
                 return providerClient.chatStream(model, messages, onReasoning = {}) { text.append(it) }
-            } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (failure: IOException) {
                 lastFailure = failure
@@ -385,7 +314,6 @@ class SubagentLaneRunner(
         private const val DEFAULT_CONTEXT_BUDGET_TOKENS = 128_000
         private const val LANE_HISTORY_BUDGET_FRACTION = 0.55
         private const val MIN_LANE_HISTORY_TOKENS = 4_000
-        private const val MAX_HANDOFF_ARGS_CHARS = 2_000
     }
 }
 
@@ -449,15 +377,15 @@ internal fun isolatedProviderMessages(
         ""
     }
     add(ApiMessage(role = "system", content = systemPrompt + finalInstruction))
-    val taskStart = messages.indexOfLast { it is top.wkbin.taixu.harness.UserMessage }
+    val taskStart = messages.indexOfLast { it is UserMessage }
         .takeIf { it >= 0 } ?: messages.size
     val task = budgetedLaneMessages(messages.drop(taskStart), historyBudgetTokens)
-    addAll(top.wkbin.taixu.harness.session.ApiMessageProjector.project(task, toolCallMode, visionEnabled = true))
+    addAll(ApiMessageProjector.project(task, toolCallMode, visionEnabled = true))
 }
 
 internal fun isDirectSubagentConclusion(
     assistantText: String,
-    structuredCalls: List<top.wkbin.taixu.harness.ApiToolCallSpec>,
+    structuredCalls: List<ApiToolCallSpec>,
     textNormalization: TextToolCallCodec.Normalization,
 ): Boolean = assistantText.isNotBlank() && structuredCalls.isEmpty() && !textNormalization.hasMarkers
 

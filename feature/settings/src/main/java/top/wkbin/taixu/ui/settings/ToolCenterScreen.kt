@@ -78,6 +78,13 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.StatusBadge
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import top.wkbin.taixu.core.tools.LocalPluginImportState
+import top.wkbin.taixu.feature.components.R as ComponentsR
+import top.wkbin.taixu.feature.settings.R
 
 /**
  * 太墟 · 插件与 AI 工具中心 (Tool & Plugin Center)
@@ -225,13 +232,13 @@ fun ToolCenterScreen(
                     }
                 }
 
-                if (localPluginImport !is top.wkbin.taixu.core.tools.LocalPluginImportState.Idle) {
+                if (localPluginImport !is LocalPluginImportState.Idle) {
                     item {
                         val state = localPluginImport
-                        val isImporting = state is top.wkbin.taixu.core.tools.LocalPluginImportState.Reading ||
-                            state is top.wkbin.taixu.core.tools.LocalPluginImportState.Importing
-                        val isError = state is top.wkbin.taixu.core.tools.LocalPluginImportState.Failed
-                        val isPending = state is top.wkbin.taixu.core.tools.LocalPluginImportState.PendingConfirmation
+                        val isImporting = state is LocalPluginImportState.Reading ||
+                            state is LocalPluginImportState.Importing
+                        val isError = state is LocalPluginImportState.Failed
+                        val isPending = state is LocalPluginImportState.PendingConfirmation
                         val containerColor = when {
                             isError -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f)
                             isImporting -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
@@ -270,29 +277,29 @@ fun ToolCenterScreen(
                                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                         Text(
                                             text = when (state) {
-                                                is top.wkbin.taixu.core.tools.LocalPluginImportState.Reading -> "正在读取本地插件信息"
-                                                is top.wkbin.taixu.core.tools.LocalPluginImportState.PendingConfirmation -> "等待确认安装本地插件"
-                                                is top.wkbin.taixu.core.tools.LocalPluginImportState.Importing -> "正在安装本地插件"
-                                                is top.wkbin.taixu.core.tools.LocalPluginImportState.Succeeded -> "本地插件安装完成"
-                                                is top.wkbin.taixu.core.tools.LocalPluginImportState.AlreadyImported -> "插件已导入"
-                                                is top.wkbin.taixu.core.tools.LocalPluginImportState.Failed -> "本地插件安装失败"
-                                                top.wkbin.taixu.core.tools.LocalPluginImportState.Idle -> ""
+                                                is LocalPluginImportState.Reading -> "正在读取本地插件信息"
+                                                is LocalPluginImportState.PendingConfirmation -> "等待确认安装本地插件"
+                                                is LocalPluginImportState.Importing -> "正在安装本地插件"
+                                                is LocalPluginImportState.Succeeded -> "本地插件安装完成"
+                                                is LocalPluginImportState.AlreadyImported -> "插件已导入"
+                                                is LocalPluginImportState.Failed -> "本地插件安装失败"
+                                                LocalPluginImportState.Idle -> ""
                                             },
                                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                             color = contentColor,
                                         )
                                         Text(
                                             text = when (state) {
-                                                is top.wkbin.taixu.core.tools.LocalPluginImportState.Reading -> "${state.fileName}：正在读取 manifest.json，尚未复制或解压插件资源"
-                                                is top.wkbin.taixu.core.tools.LocalPluginImportState.PendingConfirmation -> "${state.fileName} 已读取清单，请在弹窗中确认安装"
-                                                is top.wkbin.taixu.core.tools.LocalPluginImportState.Importing -> {
+                                                is LocalPluginImportState.Reading -> "${state.fileName}：正在读取 manifest.json，尚未复制或解压插件资源"
+                                                is LocalPluginImportState.PendingConfirmation -> "${state.fileName} 已读取清单，请在弹窗中确认安装"
+                                                is LocalPluginImportState.Importing -> {
                                                     val percent = state.progress?.let { " ${(it * 100).toInt()}%" }.orEmpty()
                                                     "${state.fileName}$percent · ${state.currentEntry ?: "正在解包插件资源"}，大型 ARM64 插件可能需要几分钟，请保持应用打开"
                                                 }
-                                                is top.wkbin.taixu.core.tools.LocalPluginImportState.Succeeded -> "${state.pluginName} v${state.version} 已解压、安装并完成验证"
-                                                is top.wkbin.taixu.core.tools.LocalPluginImportState.AlreadyImported -> "${state.pluginName} v${state.version} 已存在，无需重复导入；可在下方插件列表中安装或重试"
-                                                is top.wkbin.taixu.core.tools.LocalPluginImportState.Failed -> state.message
-                                                top.wkbin.taixu.core.tools.LocalPluginImportState.Idle -> ""
+                                                is LocalPluginImportState.Succeeded -> "${state.pluginName} v${state.version} 已解压、安装并完成验证"
+                                                is LocalPluginImportState.AlreadyImported -> "${state.pluginName} v${state.version} 已存在，无需重复导入；可在下方插件列表中安装或重试"
+                                                is LocalPluginImportState.Failed -> state.message
+                                                LocalPluginImportState.Idle -> ""
                                             },
                                             style = MaterialTheme.typography.bodySmall,
                                             color = contentColor,
@@ -306,14 +313,14 @@ fun ToolCenterScreen(
                                         }
                                     }
                                 }
-                                if (isImporting && state is top.wkbin.taixu.core.tools.LocalPluginImportState.Importing) {
+                                if (isImporting && state is LocalPluginImportState.Importing) {
                                     LinearProgressIndicator(
                                         progress = { state.progress ?: 0.03f },
                                         modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
                                         color = contentColor,
                                     )
                                 }
-                                if (state is top.wkbin.taixu.core.tools.LocalPluginImportState.Reading) {
+                                if (state is LocalPluginImportState.Reading) {
                                     LinearProgressIndicator(
                                         modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
                                         color = contentColor,
@@ -570,8 +577,8 @@ fun ToolCenterScreen(
                 // 分类下无任何工具时给出空态提示，避免列表区完全空白
                 if (showTools && filteredTools.isEmpty()) {
                     item(key = "tool_center_empty_category") {
-                        val emptyTitle = androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.settings.R.string.settings_tool_center_empty_category_title)
-                        val emptySubtitle = androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.settings.R.string.settings_tool_center_empty_category_subtitle)
+                        val emptyTitle = androidx.compose.ui.res.stringResource(R.string.settings_tool_center_empty_category_title)
+                        val emptySubtitle = androidx.compose.ui.res.stringResource(R.string.settings_tool_center_empty_category_subtitle)
                         RuntimeCard(
                             modifier = Modifier.fillMaxWidth(),
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -606,7 +613,7 @@ fun ToolCenterScreen(
         }
 
         // A package is only committed/installed after explicit confirmation.
-        (localPluginImport as? top.wkbin.taixu.core.tools.LocalPluginImportState.PendingConfirmation)?.let { pending ->
+        (localPluginImport as? LocalPluginImportState.PendingConfirmation)?.let { pending ->
             val manifest = pending.manifest
             RuntimeAlertDialog(
                 onDismissRequest = viewModel::cancelLocalPluginImport,
@@ -716,10 +723,10 @@ fun ToolCenterScreen(
                         TextButton(
                             onClick = {
                                 val fullLogs = toolLogs.joinToString("\n") { "[${it.event}] ${it.message}" }
-                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-                                val clip = android.content.ClipData.newPlainText("tool_logs", fullLogs)
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                                val clip = ClipData.newPlainText("tool_logs", fullLogs)
                                 clipboard?.setPrimaryClip(clip)
-                                android.widget.Toast.makeText(context, "日志已复制到剪贴板", android.widget.Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "日志已复制到剪贴板", Toast.LENGTH_SHORT).show()
                             },
                             enabled = toolLogs.isNotEmpty(),
                         ) {
@@ -777,10 +784,10 @@ fun ToolCenterScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         TextButton(
                             onClick = {
-                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-                                clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("TaiXu Bundle Install Log", componentInstallLog.joinToString("\n")))
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                                clipboard?.setPrimaryClip(ClipData.newPlainText("TaiXu Bundle Install Log", componentInstallLog.joinToString("\n")))
                                 // 与工具日志复制行为保持一致，复制后给出反馈
-                                android.widget.Toast.makeText(context, "日志已复制到剪贴板", android.widget.Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "日志已复制到剪贴板", Toast.LENGTH_SHORT).show()
                             },
                             enabled = componentInstallLog.isNotEmpty(),
                         ) { Text("复制") }
@@ -859,9 +866,9 @@ private fun ToolBrandAvatar(
     val key = toolId.lowercase().trim()
     val (logoRes, emoji, brandColor) = when {
         key.contains("claude") || key.contains("anthropic") ->
-            Triple(top.wkbin.taixu.feature.components.R.drawable.components_ic_provider_anthropic, null, Color(0xFFD97757))
+            Triple(ComponentsR.drawable.components_ic_provider_anthropic, null, Color(0xFFD97757))
         key.contains("codex") || key.contains("openai") ->
-            Triple(top.wkbin.taixu.feature.components.R.drawable.components_ic_provider_openai, null, Color(0xFF10A37F))
+            Triple(ComponentsR.drawable.components_ic_provider_openai, null, Color(0xFF10A37F))
         key.contains("android") ->
             Triple(null, "🤖", Color(0xFF3DDC84))
         key.contains("devtools") || key.contains("base-devtools") ->
@@ -869,9 +876,9 @@ private fun ToolBrandAvatar(
         key.contains("hello") ->
             Triple(null, "🧪", Color(0xFF10B981))
         key.contains("deepseek") ->
-            Triple(top.wkbin.taixu.feature.components.R.drawable.components_ic_provider_deepseek, null, Color(0xFF4D6BFE))
+            Triple(ComponentsR.drawable.components_ic_provider_deepseek, null, Color(0xFF4D6BFE))
         key.contains("ollama") ->
-            Triple(top.wkbin.taixu.feature.components.R.drawable.components_ic_provider_ollama, null, Color(0xFF334155))
+            Triple(ComponentsR.drawable.components_ic_provider_ollama, null, Color(0xFF334155))
         else -> when (category) {
             "CODING_AGENT" -> Triple(null, "💻", Color(0xFF6366F1))
             "AI_AGENT" -> Triple(null, "🤖", Color(0xFF0EA5E9))

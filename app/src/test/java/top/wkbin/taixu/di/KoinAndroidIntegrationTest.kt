@@ -23,8 +23,13 @@ import org.koin.dsl.module
 import org.koin.viewmodel.factory.KoinViewModelFactory
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.WorkflowRepository
 import top.wkbin.taixu.core.database.WorkflowScheduleStore
+import top.wkbin.taixu.harness.HarnessLoop
+import top.wkbin.taixu.harness.session.InteractiveSessionControl
+import top.wkbin.taixu.harness.session.PromptSubmission
+import top.wkbin.taixu.harness.session.SessionControl
 import top.wkbin.taixu.harness.workflow.WorkflowRunManager
 import top.wkbin.taixu.harness.workflow.WorkflowScheduler
 import top.wkbin.taixu.runtime.LinuxRuntime
@@ -104,4 +109,25 @@ class KoinAndroidIntegrationTest {
         T::class.java.classLoader,
         arrayOf(T::class.java),
     ) { _, method, _ -> error("Unexpected external operation: ${method.name}") } as T
+
+    @Test
+    fun sessionEntryPointsResolveOneRuntimeAndRejectMissingRemoteSession() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        context.applicationInfo.nativeLibraryDir = context.filesDir.absolutePath
+        val application = startKoin { androidContext(context); modules(taiXuModule) }
+        val koin = application.koin
+        try {
+            val loop = koin.get<HarnessLoop>()
+            val control = koin.get<SessionControl>()
+            assertSame(loop, control)
+            assertSame(loop, koin.get<InteractiveSessionControl>())
+            val foreground = control.currentSessionId.value
+            assertEquals(PromptSubmission.Rejected(
+                PromptSubmission.Rejection.SESSION_NOT_FOUND),
+                control.submit("missing-remote", "hello"))
+            assertEquals(foreground, control.currentSessionId.value)
+        } finally {
+            koin.get<AppDatabase>().close()
+        }
+    }
 }

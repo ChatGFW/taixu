@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.network.DownloadEvent
 import top.wkbin.taixu.core.network.DownloadRequest
 import top.wkbin.taixu.core.network.FileDownloader
@@ -222,7 +223,7 @@ class LocalLlmManager(
                     toolId = TOOL_ID,
                     type = ProcessType.SERVICE,
                     command = ShellCommand(
-                        commandLine = "exec llama-server -m ${shellQuote(guestModel)} --host 127.0.0.1 --port $SERVICE_PORT --ctx-size $contextSize --parallel 1 --threads $threads --threads-batch $threads",
+                        commandLine = "exec llama-server -m ${ShellQuote.of(guestModel)} --host 127.0.0.1 --port $SERVICE_PORT --ctx-size $contextSize --parallel 1 --threads $threads --threads-batch $threads",
                         environment = mapOf(
                             "LD_LIBRARY_PATH" to "/opt/taixu/tools/llama-cpp/lib/release",
                         ),
@@ -311,8 +312,6 @@ class LocalLlmManager(
             Files.move(source.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING)
         }
     }
-
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
 
     private fun deviceRamBytes(): Long = ActivityManager.MemoryInfo().also { info ->
         context.getSystemService(ActivityManager::class.java)?.getMemoryInfo(info)

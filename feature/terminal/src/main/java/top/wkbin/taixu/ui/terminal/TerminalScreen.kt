@@ -74,6 +74,9 @@ import top.wkbin.taixu.ui.components.SpotlightGuideOverlay
 import top.wkbin.taixu.ui.components.rememberSpotlightAnchor
 import top.wkbin.taixu.ui.components.spotlightAnchor
 import kotlin.math.roundToInt
+import top.wkbin.taixu.core.model.InstalledDistro
+import top.wkbin.taixu.runtime.DistributionCatalog
+import top.wkbin.taixu.runtime.WorkspaceProject
 
 private const val MIN_TERMINAL_FONT_SIZE_SP = 10f
 private const val MAX_TERMINAL_FONT_SIZE_SP = 24f
@@ -484,8 +487,8 @@ fun TerminalScreen(
 
 @Composable
 private fun CreateTerminalDialog(
-    workspaces: List<top.wkbin.taixu.runtime.WorkspaceProject>,
-    installedDistros: List<top.wkbin.taixu.core.model.InstalledDistro> = emptyList(),
+    workspaces: List<WorkspaceProject>,
+    installedDistros: List<InstalledDistro> = emptyList(),
     nextSessionIndex: Int,
     onDismiss: () -> Unit,
     onCreate: (label: String, workingDirectory: String, distroId: String?) -> Unit,
@@ -655,9 +658,9 @@ private fun TerminalDirOption(
                 if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             ),
         )
-        Column {
-            Text(name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal))
-            Text(path, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.weight(1f)) {
+            Text(name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(path, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -732,7 +735,7 @@ private fun SessionListDialog(
                         val handle = handles[index]
                         val active = handle.id == activeId
                         val distroName = runCatching {
-                            top.wkbin.taixu.runtime.DistributionCatalog.require(handle.distributionId).displayName
+                            DistributionCatalog.require(handle.distributionId).displayName
                         }.getOrDefault(handle.distributionId)
                         Surface(
                             shape = RoundedCornerShape(10.dp),

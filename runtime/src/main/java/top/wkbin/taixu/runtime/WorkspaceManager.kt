@@ -9,14 +9,23 @@ import top.wkbin.taixu.core.common.files.SafeFileTree
 import top.wkbin.taixu.core.common.result.AppError
 import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.common.result.ErrorCode
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.database.WorkspaceRepository
 import top.wkbin.taixu.core.database.WorkspaceEntity
+import top.wkbin.taixu.core.database.BuildScriptRepository
 import top.wkbin.taixu.template.ProjectTemplateEngine
 import top.wkbin.taixu.template.TemplateProjectType
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
+import java.nio.file.Files
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.Dispatchers
@@ -121,7 +130,7 @@ class WorkspaceManager(
     private val fileService: WorkspaceFileService,
     private val linuxRuntime: Lazy<LinuxRuntime>,
     private val projectTemplateEngine: ProjectTemplateEngine,
-    private val buildScriptRepository: Lazy<top.wkbin.taixu.core.database.BuildScriptRepository>? = null,
+    private val buildScriptRepository: Lazy<BuildScriptRepository>? = null,
 ) {
     constructor(
         pathManager: RuntimePathManager,
@@ -562,7 +571,7 @@ class WorkspaceManager(
         val result = linuxRuntime.value.execute(
             ShellCommand(
                 // --progress 让 git 在非 TTY 管道下也输出克隆进度（remote:/Receiving objects: 等）
-                commandLine = "git clone --depth 1 --progress -- ${shellQuote(url.trim())} ${shellQuote(linuxPathFor(directory))}",
+                commandLine = "git clone --depth 1 --progress -- ${ShellQuote.of(url.trim())} ${ShellQuote.of(linuxPathFor(directory))}",
                 timeoutMs = GIT_CLONE_TIMEOUT_SECONDS * 1_000L,
                 onOutput = onProgress,
             ),
@@ -631,7 +640,7 @@ class WorkspaceManager(
         extractProjectArchive(input, source.fileName, directory)
     }
 
-    internal fun extractProjectArchive(input: java.io.InputStream, fileName: String, directory: File) {
+    internal fun extractProjectArchive(input: InputStream, fileName: String, directory: File) {
         require(fileName.endsWith(".zip", ignoreCase = true)) { "本地导入目前仅支持 ZIP 项目压缩包" }
         val staging = File(directory, IMPORT_STAGING_DIRECTORY).canonicalFile
         check(isInside(directory.canonicalFile, staging)) { "导入暂存目录越界" }
@@ -688,11 +697,11 @@ class WorkspaceManager(
         }
     }
 
-    private fun writeProjectZip(projectDir: File, output: java.io.OutputStream) {
+    private fun writeProjectZip(projectDir: File, output: OutputStream) {
         ZipOutputStream(output.buffered()).use { zip ->
             projectDir.walkTopDown()
-                .onEnter { !java.nio.file.Files.isSymbolicLink(it.toPath()) }
-                .filter { it != projectDir && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
+                .onEnter { !Files.isSymbolicLink(it.toPath()) }
+                .filter { it != projectDir && !Files.isSymbolicLink(it.toPath()) }
                 .forEach { file ->
                     val relative = file.toRelativeString(projectDir).replace(File.separatorChar, '/')
                     if (relative == UNLINKED_MARKER || relative == IMPORT_STAGING_DIRECTORY) return@forEach
@@ -720,8 +729,6 @@ class WorkspaceManager(
         ProjectType.entries.firstOrNull { it.name == typeName }
     }.getOrNull()
 
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
-
     private suspend fun executeTemplateHook(
         templateId: String,
         stage: String,
@@ -735,7 +742,7 @@ class WorkspaceManager(
             hookFile.setExecutable(true)
             val result = linuxRuntime.value.execute(
                 ShellCommand(
-                    commandLine = "sh ${shellQuote(linuxPathFor(hookFile))}",
+                    commandLine = "sh ${ShellQuote.of(linuxPathFor(hookFile))}",
                     workingDirectory = linuxPathFor(projectDir),
                     environment = values.mapKeys { (name, _) -> "TAIXU_VAR_${name.uppercase()}" } +
                         ("TAIXU_PROJECT_DIR" to linuxPathFor(projectDir)),
@@ -805,7 +812,7 @@ class WorkspaceManager(
                 source.copyTo(apkFile, overwrite = true)
             }
             is ApkImportSource.FromFileUri -> {
-                val uri = android.net.Uri.parse(apkSource.uri)
+                val uri = Uri.parse(apkSource.uri)
                 val safeBase = apkSource.fileName
                     .substringAfterLast('/')
                     .substringAfterLast('\\')
@@ -857,7 +864,7 @@ class WorkspaceManager(
     /** 用标准 ZIP 读取器把 APK 逐条目解包到 [unpackedDir]（防 zip-slip 路径穿越）。 */
     private fun unpackApk(apkFile: File, unpackedDir: File) {
         val unpackedCanonical = unpackedDir.canonicalFile
-        java.util.zip.ZipFile(apkFile).use { zip ->
+        ZipFile(apkFile).use { zip ->
             zip.entries().asSequence().forEach { entry ->
                 if (entry.isDirectory) return@forEach
                 val rawName = entry.name.replace('\\', '/')
@@ -887,7 +894,7 @@ class WorkspaceManager(
             # $name · APK 逆向工程
 
             > 来源：$sourceLabel
-            > 导入时间：${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}
+            > 导入时间：${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())}
 
             ## 工程结构
 
@@ -987,8 +994,8 @@ class WorkspaceManager(
     }
 
     private fun sizeOf(file: File): Long = file.walkTopDown()
-        .onEnter { directory -> !java.nio.file.Files.isSymbolicLink(directory.toPath()) }
-        .filter { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
+        .onEnter { directory -> !Files.isSymbolicLink(directory.toPath()) }
+        .filter { it.isFile && !Files.isSymbolicLink(it.toPath()) }
         .sumOf { it.length() }
 
     private fun isValidProjectName(name: String): Boolean {

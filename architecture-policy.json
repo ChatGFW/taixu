@@ -33,6 +33,12 @@
   },
   "importBans": [
     {
+      "id": "agent-core-purity",
+      "pattern": "^import\\s+(android|androidx|okhttp3|io\\.ktor|org\\.koin|top\\.wkbin\\.taixu\\.(core|runtime|ui))\\.",
+      "modules": ["harness.core"],
+      "message": "harness:core 只承载平台无关的 Agent 执行契约，不得依赖 Android、网络客户端、DI、存储或运行时实现"
+    },
+    {
       "id": "model-purity",
       "pattern": "^import\\s+(android|androidx)\\.",
       "modules": ["core.model"],
@@ -94,10 +100,16 @@
     },
     {
       "id": "harness", "path": "harness", "requires": [
+        "harness.core",
         "core.common", "core.model", "core.browser", "runtime.browser",
         "core.database", "core.datastore", "core.network", "core.security",
         "runtime", "tools"
       ]
+    },
+    {
+      "id": "harness.core", "path": "harness/core", "requires": [],
+      "forbidBuildScript": ["android.library", "koin.android", "androidx.core"],
+      "_doc": "纯 Kotlin Agent 轮次与持久化屏障；协议、Room、PRoot 和 UI 由 harness 适配"
     },
     {
       "id": "showerclient", "path": "showerclient", "requires": [],

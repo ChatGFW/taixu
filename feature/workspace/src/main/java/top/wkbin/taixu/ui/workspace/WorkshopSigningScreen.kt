@@ -49,6 +49,7 @@ import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
 import androidx.compose.ui.res.stringResource
+import java.util.UUID
 
 /**
  * 工坊签名管理：创建 / 导入 / 删除 Android 签名（keystore）。
@@ -292,7 +293,7 @@ internal fun generateDefaultSigningDraft(prefixInput: String): WorkshopSigningCr
         .ifBlank { "taixu-release" }
     val safePrefix = cleanInput.replace(Regex("[^a-zA-Z0-9]+"), "-").trim('-').ifBlank { "taixu-release" }
     val dateStr = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
-    val hexSuffix = java.util.UUID.randomUUID().toString().replace("-", "").take(4).lowercase(Locale.getDefault())
+    val hexSuffix = UUID.randomUUID().toString().replace("-", "").take(4).lowercase(Locale.getDefault())
     val name = "$safePrefix-$dateStr-$hexSuffix"
     val alias = "$safePrefix-key"
     val yearStr = SimpleDateFormat("yyyy", Locale.getDefault()).format(Date())

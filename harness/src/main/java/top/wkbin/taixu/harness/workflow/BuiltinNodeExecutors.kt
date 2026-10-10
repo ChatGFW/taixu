@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.model.workflow.NodeExecutionOutput
 import top.wkbin.taixu.core.model.workflow.NodeRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowApprovalRequest
@@ -153,10 +154,8 @@ class LinuxNodeExecutor(
             key.endsWith(".output") -> context.nodeOutputs[key.removeSuffix(".output")]?.textOutput.orEmpty()
             else -> context.globalVariables[key].orEmpty()
         }
-        posixQuote(value)
+        ShellQuote.of(value)
     }
-
-    private fun posixQuote(value: String): String = "'" + value.replace("'", "'\"'\"'") + "'"
 
     private companion object {
         // Android ICU treats an unescaped closing brace as a syntax error, while the

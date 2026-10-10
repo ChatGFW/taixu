@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.datastore.RuntimePreferences
 import top.wkbin.taixu.core.model.EnvironmentVariable
 import top.wkbin.taixu.runtime.shell.ShellCommand
@@ -158,7 +159,7 @@ class LinuxEnvironmentManager(
         val command = buildString {
             append("umask 077 && mkdir -p '/etc/profile.d' && ")
             append("printf '%s' ")
-            append(shellQuote(content))
+            append(ShellQuote.of(content))
             append(" > '$TEMP_PROFILE_PATH' && ")
             append("chmod 600 '$TEMP_PROFILE_PATH' && ")
             append("mv -f '$TEMP_PROFILE_PATH' '$PROFILE_PATH' && ")
@@ -201,8 +202,6 @@ class LinuxEnvironmentManager(
 
     private fun isReservedKey(key: String): Boolean = key in RESERVED_KEYS ||
         key.startsWith("TAIXU_") || key.startsWith("ANDROID_")
-
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
 
     private companion object {
         const val PROFILE_PATH = "/etc/profile.d/zz-taixu-user-env.sh"
@@ -290,7 +289,7 @@ internal object LinuxEnvironmentProfile {
             append("export ")
             append(record.metadata.key)
             append('=')
-            appendLine(shellQuote(record.value))
+            appendLine(ShellQuote.of(record.value))
         }
     }
 
@@ -303,6 +302,4 @@ internal object LinuxEnvironmentProfile {
     } else {
         String(Base64.getUrlDecoder().decode(value), StandardCharsets.UTF_8)
     }
-
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
 }

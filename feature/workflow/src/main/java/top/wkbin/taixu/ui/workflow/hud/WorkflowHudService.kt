@@ -26,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.runtime.gui.WorkflowGuiHudBridge
 import top.wkbin.taixu.ui.theme.TaiXuTheme
+import android.app.Activity
 
 /**
  * Workflow run HUD: pill-shaped status + stop button. Only attached while the
@@ -51,7 +52,7 @@ class WorkflowHudService : Service() {
     private var dismissJob: Job? = null
 
     private val activityCallbacks = object : Application.ActivityLifecycleCallbacks {
-        override fun onActivityStarted(activity: android.app.Activity) {
+        override fun onActivityStarted(activity: Activity) {
             startedActivities++
             if (!appInForeground) {
                 appInForeground = true
@@ -59,7 +60,7 @@ class WorkflowHudService : Service() {
             }
         }
 
-        override fun onActivityStopped(activity: android.app.Activity) {
+        override fun onActivityStopped(activity: Activity) {
             startedActivities = (startedActivities - 1).coerceAtLeast(0)
             if (startedActivities == 0 && appInForeground) {
                 appInForeground = false
@@ -67,11 +68,11 @@ class WorkflowHudService : Service() {
             }
         }
 
-        override fun onActivityCreated(activity: android.app.Activity, savedInstanceState: Bundle?) {}
-        override fun onActivitySaveInstanceState(activity: android.app.Activity, outState: Bundle) {}
-        override fun onActivityResumed(activity: android.app.Activity) {}
-        override fun onActivityPaused(activity: android.app.Activity) {}
-        override fun onActivityDestroyed(activity: android.app.Activity) {}
+        override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+        override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+        override fun onActivityResumed(activity: Activity) {}
+        override fun onActivityPaused(activity: Activity) {}
+        override fun onActivityDestroyed(activity: Activity) {}
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

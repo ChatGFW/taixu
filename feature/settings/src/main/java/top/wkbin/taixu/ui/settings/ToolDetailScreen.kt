@@ -69,6 +69,10 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.StatusBadge
+import kotlinx.coroutines.delay
+import top.wkbin.taixu.core.database.ToolEntity
+import top.wkbin.taixu.core.model.ToolManifest
+import top.wkbin.taixu.feature.components.R
 
 /**
  * 太墟 · 插件配置详情页 (Tool Detail & Configuration Screen)
@@ -310,9 +314,9 @@ private fun DetailToolAvatar(
     val key = toolId.lowercase().trim()
     val (logoRes, emoji, brandColor) = when {
         key.contains("claude") || key.contains("anthropic") ->
-            Triple(top.wkbin.taixu.feature.components.R.drawable.components_ic_provider_anthropic, null, Color(0xFFD97757))
+            Triple(R.drawable.components_ic_provider_anthropic, null, Color(0xFFD97757))
         key.contains("codex") || key.contains("openai") ->
-            Triple(top.wkbin.taixu.feature.components.R.drawable.components_ic_provider_openai, null, Color(0xFF10A37F))
+            Triple(R.drawable.components_ic_provider_openai, null, Color(0xFF10A37F))
         key.contains("android") ->
             Triple(null, "🤖", Color(0xFF3DDC84))
         key.contains("devtools") || key.contains("base-devtools") ->
@@ -366,8 +370,8 @@ private fun DetailToolAvatar(
 /** 1. 工具概览 */
 @Composable
 private fun ToolOverviewCard(
-    tool: top.wkbin.taixu.core.database.ToolEntity,
-    manifest: top.wkbin.taixu.core.model.ToolManifest?,
+    tool: ToolEntity,
+    manifest: ToolManifest?,
     gatewayRunning: Boolean,
     gatewayOperating: Boolean,
 ) {
@@ -1097,8 +1101,8 @@ private fun AccessLinkCard(
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun ToolMetadataCard(
-    tool: top.wkbin.taixu.core.database.ToolEntity,
-    manifest: top.wkbin.taixu.core.model.ToolManifest,
+    tool: ToolEntity,
+    manifest: ToolManifest,
 ) {
     RuntimeCard(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -1320,7 +1324,7 @@ internal fun UninstallToolConfirmDialog(
 
     LaunchedEffect(toolName) {
         while (countdown > 0) {
-            kotlinx.coroutines.delay(1000)
+            delay(1000)
             countdown--
         }
     }

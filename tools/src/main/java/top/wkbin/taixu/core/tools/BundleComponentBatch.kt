@@ -5,6 +5,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
@@ -156,7 +157,7 @@ internal class BundleComponentBatch(
         }
     }
 
-    private suspend fun kotlinx.coroutines.flow.FlowCollector<InstallEvent>.executeSteps(
+    private suspend fun FlowCollector<InstallEvent>.executeSteps(
         steps: List<String>,
         compNames: String,
         title: String,

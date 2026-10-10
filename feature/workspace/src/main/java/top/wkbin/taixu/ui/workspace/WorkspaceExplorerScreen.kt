@@ -177,6 +177,7 @@ fun WorkspaceExplorerScreen(
                                 leadingIcon = { RuntimeIcon(RuntimeIconName.File, Modifier.size(18.dp)) },
                                 onClick = {
                                     showCreateMenu = false
+                                    viewModel.clearMessage()
                                     newFileName = ""
                                     showCreateFileDialog = true
                                 },
@@ -186,6 +187,7 @@ fun WorkspaceExplorerScreen(
                                 leadingIcon = { RuntimeIcon(RuntimeIconName.Folder, Modifier.size(18.dp)) },
                                 onClick = {
                                     showCreateMenu = false
+                                    viewModel.clearMessage()
                                     newFolderName = ""
                                     showCreateFolderDialog = true
                                 },
@@ -287,6 +289,7 @@ fun WorkspaceExplorerScreen(
                                     }
                                 },
                                 onRename = {
+                                    viewModel.clearMessage()
                                     renameTarget = item
                                     renameInput = item.name
                                 },
@@ -313,112 +316,51 @@ fun WorkspaceExplorerScreen(
         }
     }
 
-    // 新建文件对话框
     if (showCreateFileDialog) {
-        RuntimeAlertDialog(
-            onDismissRequest = { showCreateFileDialog = false },
-            title = { Text(stringResource(R.string.workspace_new_file), fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = newFileName,
-                        onValueChange = { newFileName = it },
-                        label = { Text(stringResource(R.string.workspace_file_name)) },
-                        placeholder = { Text("main.py / app.js / config.json") },
-                        isError = newFileNameError != null,
-                        supportingText = newFileNameError?.let { error -> { Text(error) } },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.createFile(newFileName)
-                        showCreateFileDialog = false
-                    },
-                    enabled = newFileName.isNotBlank() && newFileNameError == null && !busy,
-                ) {
-                    if (busy) {
-                        CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.workspace_create), color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            },
-            dismissButton = { TextButton(onClick = { showCreateFileDialog = false }) { Text(stringResource(R.string.workspace_cancel)) } },
+        WorkspaceNameDialog(
+            title = stringResource(R.string.workspace_new_file),
+            label = stringResource(R.string.workspace_file_name),
+            value = newFileName,
+            onValueChange = { newFileName = it; viewModel.clearMessage() },
+            validationError = newFileNameError,
+            operationError = message.takeIf { messageIsError },
+            busy = busy,
+            actionLabel = stringResource(R.string.workspace_create),
+            enabled = newFileName.isNotBlank() && newFileNameError == null,
+            onSubmit = { viewModel.clearMessage(); viewModel.createFile(newFileName) { showCreateFileDialog = false } },
+            onDismiss = { showCreateFileDialog = false },
         )
     }
 
-    // 新建文件夹对话框
     if (showCreateFolderDialog) {
-        RuntimeAlertDialog(
-            onDismissRequest = { showCreateFolderDialog = false },
-            title = { Text(stringResource(R.string.workspace_new_folder), fontWeight = FontWeight.Bold) },
-            text = {
-                OutlinedTextField(
-                    value = newFolderName,
-                    onValueChange = { newFolderName = it },
-                    label = { Text(stringResource(R.string.workspace_folder_name)) },
-                    placeholder = { Text("src / models / tests") },
-                    isError = newFolderNameError != null,
-                    supportingText = newFolderNameError?.let { error -> { Text(error) } },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.createDirectory(newFolderName)
-                        showCreateFolderDialog = false
-                    },
-                    enabled = newFolderName.isNotBlank() && newFolderNameError == null && !busy,
-                ) {
-                    if (busy) {
-                        CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.workspace_create), color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            },
-            dismissButton = { TextButton(onClick = { showCreateFolderDialog = false }) { Text(stringResource(R.string.workspace_cancel)) } },
+        WorkspaceNameDialog(
+            title = stringResource(R.string.workspace_new_folder),
+            label = stringResource(R.string.workspace_folder_name),
+            value = newFolderName,
+            onValueChange = { newFolderName = it; viewModel.clearMessage() },
+            validationError = newFolderNameError,
+            operationError = message.takeIf { messageIsError },
+            busy = busy,
+            actionLabel = stringResource(R.string.workspace_create),
+            enabled = newFolderName.isNotBlank() && newFolderNameError == null,
+            onSubmit = { viewModel.clearMessage(); viewModel.createDirectory(newFolderName) { showCreateFolderDialog = false } },
+            onDismiss = { showCreateFolderDialog = false },
         )
     }
 
-    // 重命名对话框
     renameTarget?.let { target ->
-        RuntimeAlertDialog(
-            onDismissRequest = { renameTarget = null },
-            title = { Text(stringResource(R.string.workspace_rename_title, target.name), fontWeight = FontWeight.Bold) },
-            text = {
-                OutlinedTextField(
-                    value = renameInput,
-                    onValueChange = { renameInput = it },
-                    label = { Text(stringResource(R.string.workspace_new_name)) },
-                    isError = renameNameError != null,
-                    supportingText = renameNameError?.let { error -> { Text(error) } },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.renameItem(target.relativePath, renameInput)
-                        renameTarget = null
-                    },
-                    enabled = renameInput.isNotBlank() && renameInput != target.name && renameNameError == null && !busy,
-                ) {
-                    if (busy) {
-                        CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.workspace_save), color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            },
-            dismissButton = { TextButton(onClick = { renameTarget = null }) { Text(stringResource(R.string.workspace_cancel)) } },
+        WorkspaceNameDialog(
+            title = stringResource(R.string.workspace_rename_title, target.name),
+            label = stringResource(R.string.workspace_new_name),
+            value = renameInput,
+            onValueChange = { renameInput = it; viewModel.clearMessage() },
+            validationError = renameNameError,
+            operationError = message.takeIf { messageIsError },
+            busy = busy,
+            actionLabel = stringResource(R.string.workspace_save),
+            enabled = renameInput.isNotBlank() && renameNameError == null && renameInput != target.name,
+            onSubmit = { viewModel.clearMessage(); viewModel.renameItem(target.relativePath, renameInput) { renameTarget = null } },
+            onDismiss = { renameTarget = null },
         )
     }
 

@@ -123,13 +123,13 @@ internal fun buildResponsesRequest(model: ModelConfig, messages: List<ApiMessage
 
     val dynamicTools = if (model.pureChatMode) emptyList() else ProviderClient.buildDynamicTools()
     // JSON_TEXT 模式：工具定义写进 instructions，模型用文本输出工具调用
-    if (!model.pureChatMode && model.toolCallMode == ToolCallMode.JSON_TEXT && dynamicTools.isNotEmpty()) {
+    if (model.capabilities.textTools && dynamicTools.isNotEmpty()) {
         systemPrompt.append("\n\n## 可用工具 JSON 定义（必须严格按此 name 与参数输出）\n")
             .append(ProviderClient.buildToolsTextDescription(dynamicTools))
     }
     // NATIVE 模式下 tools 数组独立于 input，输出预算必须显式扣掉 schema
     val toolSchemaTokens =
-        if (!model.pureChatMode && model.toolCallMode == ToolCallMode.NATIVE) {
+        if (model.capabilities.nativeTools) {
             ContextWindowPolicy.estimateToolDefinitionTokens(dynamicTools)
         } else {
             0
@@ -156,7 +156,7 @@ internal fun buildResponsesRequest(model: ModelConfig, messages: List<ApiMessage
         if (systemPrompt.isNotBlank()) put("instructions", systemPrompt.toString())
         put("input", inputItems)
         // 仅 NATIVE 模式注入标准 tools；纯净模式与 JSON_TEXT / DISABLED 均不注入
-        if (!model.pureChatMode && model.toolCallMode == ToolCallMode.NATIVE && dynamicTools.isNotEmpty()) {
+        if (model.capabilities.nativeTools && dynamicTools.isNotEmpty()) {
             put(
                 "tools",
                 buildJsonArray {

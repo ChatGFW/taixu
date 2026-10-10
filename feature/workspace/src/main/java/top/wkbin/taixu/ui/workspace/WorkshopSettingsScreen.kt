@@ -62,7 +62,8 @@ fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, on
     val scripts by viewModel.managedScripts.collectAsStateWithLifecycle()
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val bindings by viewModel.projectBindings.collectAsStateWithLifecycle()
-    var editing by remember { mutableStateOf<BuildScriptEntity?>(null) }
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    val editing = scripts.firstOrNull { it.id == editingId }
     var creating by rememberSaveable { mutableStateOf(false) }
     var deleteScriptTarget by remember { mutableStateOf<BuildScriptEntity?>(null) }
     Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = { RuntimeTopBar(stringResource(R.string.workshop_settings_title), onBack, stringResource(R.string.workshop_settings_subtitle)) }) { padding ->
@@ -88,7 +89,7 @@ fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, on
             scripts.forEach { script -> item(key = script.id) {
                 ManagedScriptCard(
                     script = script,
-                    onEdit = { editing = script },
+                    onEdit = { editingId = script.id },
                     onClone = { viewModel.cloneScript(script) },
                     onDelete = { deleteScriptTarget = script },
                 )
@@ -114,12 +115,11 @@ fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, on
         if (error == null) creating = false
         error
     }
-    editing?.let { script -> ManagedScriptEditorDialog(script, onDismiss = { editing = null }) { name, description, type, content ->
+    editing?.let { script -> ManagedScriptEditorDialog(script, onDismiss = { editingId = null }) { name, description, type, content ->
         val error = viewModel.saveManagedScript(script.id, name, description, type, content)
-        if (error == null) editing = null
+        if (error == null) editingId = null
         error
     } }
-    // 删除构建脚本二次确认（破坏性操作）
     deleteScriptTarget?.let { script ->
         RuntimeAlertDialog(
             onDismissRequest = { deleteScriptTarget = null },
@@ -207,12 +207,12 @@ private fun ProjectScriptBindingRow(projectName: String, projectType: ProjectTyp
 private fun ManagedScriptEditorDialog(script: BuildScriptEntity?, onDismiss: () -> Unit, onSave: (String, String, ProjectType, String) -> String?) {
     val defaultAndroidTemplate = "#!/bin/sh\n# 太墟标准 Android 构建脚本入口\nset -eu\nPROJECT_DIR=\"\${1:-.}\"\nTASK=\"\${2:-assembleDebug}\"\nexec /bin/sh /opt/taixu/scripts/taixu-build.sh android \"\$PROJECT_DIR\" \"\$TASK\"\n"
     val defaultFlutterTemplate = "#!/bin/sh\n# 太墟标准 Flutter 构建脚本入口\nset -eu\nPROJECT_DIR=\"\${1:-.}\"\nTARGET=\"\${2:-apk --debug --target-platform android-arm64}\"\nexec /bin/sh /opt/taixu/scripts/taixu-build.sh flutter \"\$PROJECT_DIR\" \$TARGET\n"
-    var name by remember(script) { mutableStateOf(script?.name.orEmpty()) }
-    var description by remember(script) { mutableStateOf(script?.description.orEmpty()) }
-    var type by remember(script) { mutableStateOf(runCatching { ProjectType.valueOf(script?.projectType ?: ProjectType.ANDROID.name) }.getOrDefault(ProjectType.ANDROID)) }
-    var content by remember(script) { mutableStateOf(script?.content ?: if (type == ProjectType.FLUTTER) defaultFlutterTemplate else defaultAndroidTemplate) }
+    var name by androidx.compose.runtime.saveable.rememberSaveable(script?.id) { mutableStateOf(script?.name.orEmpty()) }
+    var description by androidx.compose.runtime.saveable.rememberSaveable(script?.id) { mutableStateOf(script?.description.orEmpty()) }
+    var type by androidx.compose.runtime.saveable.rememberSaveable(script?.id) { mutableStateOf(runCatching { ProjectType.valueOf(script?.projectType ?: ProjectType.ANDROID.name) }.getOrDefault(ProjectType.ANDROID)) }
+    var content by androidx.compose.runtime.saveable.rememberSaveable(script?.id) { mutableStateOf(script?.content ?: if (type == ProjectType.FLUTTER) defaultFlutterTemplate else defaultAndroidTemplate) }
     var typeExpanded by remember { mutableStateOf(false) }
-    var saveError by remember(script) { mutableStateOf<String?>(null) }
+    var saveError by androidx.compose.runtime.saveable.rememberSaveable(script?.id) { mutableStateOf<String?>(null) }
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(if (script == null) R.string.workshop_script_editor_new else R.string.workshop_script_editor_edit), fontWeight = FontWeight.Bold) },

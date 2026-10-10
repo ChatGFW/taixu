@@ -1,7 +1,15 @@
 package top.wkbin.taixu.runtime.webchat
 
+import android.R
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.net.wifi.WifiManager
+import android.os.Build
+import android.os.PowerManager
+import androidx.core.app.NotificationCompat
 import java.io.File
+import java.util.UUID
 import java.io.InputStream
 import java.net.Inet4Address
 import java.net.InetSocketAddress
@@ -15,6 +23,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,6 +47,7 @@ import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.database.QuickPhraseRepository
 import top.wkbin.taixu.core.database.WorkspaceRepository
+import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.WorkspaceFileService
 import top.wkbin.taixu.runtime.WorkspaceManager
 
@@ -62,7 +72,7 @@ class WebChatBridgeServer(
     private val workspaces: WorkspaceRepository,
     private val workspaceManager: WorkspaceManager,
     internal val workspaceFiles: WorkspaceFileService,
-    private val linuxRuntime: top.wkbin.taixu.runtime.LinuxRuntime,
+    private val linuxRuntime: LinuxRuntime,
     private val agentGateway: WebChatAgentGateway,
     private val logger: AppLogger,
 ) {
@@ -78,11 +88,17 @@ class WebChatBridgeServer(
     }
 
     private val sseEmitters = ConcurrentHashMap.newKeySet<AndroidHttpExchange>()
-    private val taskSessions = ConcurrentHashMap<String, String>()
-    private val sessionObservers = ConcurrentHashMap<String, Job>()
+    private val runTracker = WebChatRunTracker(scope, agentGateway,
+        messages = { sessionId, snapshot -> broadcastEvent("messages_replaced", buildJsonObject {
+            put("conversationId", sessionId); put("conversationMode", "normal")
+            put("messages", messageArray(snapshot.messages))
+        }.toString()) },
+        event = { taskId, kind, sessionId, approvals -> broadcastEvent("chat_task_event", taskEvent(taskId, kind, sessionId, approvals)) },
+        failure = { logger.e("Web task observation failed", it) },
+    )
     private var heartbeatJob: Job? = null
-    private var wakeLock: android.os.PowerManager.WakeLock? = null
-    private var wifiLock: android.net.wifi.WifiManager.WifiLock? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
 
     fun start(port: Int = DEFAULT_WEBCHAT_PORT, pin: String? = null): Boolean {
         if (_status.value.isRunning) return true
@@ -100,6 +116,7 @@ class WebChatBridgeServer(
             // 远程终端桥：/webchat/api/terminal*（列表/创建/SSE 输出/输入/缩放/关闭）。
             terminalBridge.registerRoutes(server)
             server.createContext("/", StaticAssetHandler())
+            runTracker.enable()
             server.start()
             httpServer = server
 
@@ -132,9 +149,7 @@ class WebChatBridgeServer(
             heartbeatJob = null
             releaseLocks()
             hideNotification()
-            sessionObservers.values.forEach(Job::cancel)
-            sessionObservers.clear()
-            taskSessions.clear()
+            runTracker.stop()
             sseEmitters.forEach { runCatching { it.close() } }
             sseEmitters.clear()
             httpServer?.stop(0)
@@ -304,7 +319,7 @@ class WebChatBridgeServer(
                             ?: throw IllegalArgumentException("缺少审批决定")
                         val accepted = agentGateway.resolveApproval(sessionId, parts[2], approved)
                         require(accepted) { "审批请求不存在、已处理或不属于当前会话" }
-                        val taskId = taskSessions.entries.firstOrNull { it.value == sessionId }?.key
+                        val taskId = runTracker.requestForSession(sessionId)
                         sendJson(exchange, 200, buildJsonObject {
                             put("accepted", true)
                             taskId?.let { put("taskId", it) }
@@ -315,8 +330,11 @@ class WebChatBridgeServer(
                     }
                     else -> sendText(exchange, 404, "接口不存在")
                 }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
             } catch (throwable: Throwable) {
-                sendJson(exchange, 400, errorJson(throwable.message ?: "会话操作失败"))
+                val error = WebChatRunProtocol.failure(throwable)
+                sendJson(exchange, error.status, errorJson(error.message))
             }
         }
     }
@@ -324,50 +342,16 @@ class WebChatBridgeServer(
     private suspend fun startRun(exchange: AndroidHttpExchange, sessionId: String) {
         requireNotNull(sessions.findById(sessionId)) { "会话不存在" }
         val body = requestJson(exchange)
-        val text = body["userMessage"]?.jsonPrimitive?.content.orEmpty()
-        val imageUrls = body["attachments"]?.jsonArray.orEmpty().mapNotNull { item ->
-            item.jsonObject["dataUrl"]?.jsonPrimitive?.content?.takeIf { it.startsWith("data:image/") }
-        }
-        require(text.isNotBlank() || imageUrls.isNotEmpty()) { "消息不能为空" }
+        val input = WebChatRunProtocol.parse(body)
         val taskId = body["taskId"]?.jsonPrimitive?.content?.takeIf(String::isNotBlank)
-            ?: "web-${System.currentTimeMillis()}"
-        taskSessions[taskId] = sessionId
-        agentGateway.send(sessionId, text, imageUrls)
-        observeRun(sessionId, taskId)
+            ?: "web-${UUID.randomUUID()}"
+        val receipt = runTracker.submit(sessionId, taskId) { agentGateway.send(sessionId, input.text, input.images, input.mode) }
         sendJson(exchange, 200, buildJsonObject {
             put("taskId", taskId)
             put("conversationMode", "normal")
+            put("input", WebChatRunProtocol.receiptJson(receipt))
             put("conversation", conversationJson(requireNotNull(sessions.findById(sessionId))))
         })
-    }
-
-    private fun observeRun(sessionId: String, taskId: String) {
-        sessionObservers.remove(sessionId)?.cancel()
-        sessionObservers[sessionId] = scope.launch {
-            var observedRunning = false
-            var waitingEventSent = false
-            agentGateway.observeSession(sessionId).collect { snapshot ->
-                if (snapshot.running) {
-                    observedRunning = true
-                    waitingEventSent = false
-                }
-                broadcastEvent("messages_replaced", buildJsonObject {
-                    put("conversationId", sessionId)
-                    put("conversationMode", "normal")
-                    put("messages", messageArray(snapshot.messages))
-                }.toString())
-                if (snapshot.waitingApproval) {
-                    if (!waitingEventSent) {
-                        broadcastEvent("chat_task_event", taskEvent(taskId, "waiting_approval", sessionId, snapshot.approvals))
-                        waitingEventSent = true
-                    }
-                } else if (observedRunning && !snapshot.running) {
-                    broadcastEvent("chat_task_event", taskEvent(taskId, if (snapshot.error == null) "completed" else "error", sessionId))
-                    taskSessions.remove(taskId)
-                    cancel()
-                }
-            }
-        }
     }
 
     private inner class TasksHandler : AndroidHttpHandler {
@@ -378,9 +362,7 @@ class WebChatBridgeServer(
             val parts = suffix.split('/').filter(String::isNotBlank)
             if (parts.size == 2 && parts[1] == "cancel" && exchange.requestMethod == "POST") {
                 val taskId = parts[0]
-                val sessionId = taskSessions.remove(taskId)
-                if (sessionId != null) agentGateway.cancel(sessionId)
-                sendJson(exchange, 200, buildJsonObject { put("cancelled", sessionId != null) })
+                sendJson(exchange, 200, buildJsonObject { put("cancelled", runTracker.cancel(taskId)) })
             } else {
                 sendText(exchange, 404, "任务接口不存在")
             }
@@ -541,21 +523,21 @@ class WebChatBridgeServer(
         workspaces.findByName(project) != null
     }.getOrDefault(false)
 
-    private suspend fun <T> kotlinx.coroutines.flow.Flow<T>.firstValue(): T = first()
+    private suspend fun <T> Flow<T>.firstValue(): T = first()
 
     private fun acquireLocks() {
-        val power = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
-        wakeLock = power?.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "taixu:webchat_bridge_wake")?.apply {
+        val power = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        wakeLock = power?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "taixu:webchat_bridge_wake")?.apply {
             setReferenceCounted(false)
             acquire(24 * 60 * 60 * 1000L)
         }
-        val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+        val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
         // API 34+ 用 LOW_LATENCY 模式更契合实时桥接；旧版本保留 HIGH_PERF（已废弃但仍是该级别的最优档）
-        val wifiMode = if (android.os.Build.VERSION.SDK_INT >= 34) {
-            android.net.wifi.WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+        val wifiMode = if (Build.VERSION.SDK_INT >= 34) {
+            WifiManager.WIFI_MODE_FULL_LOW_LATENCY
         } else {
             @Suppress("DEPRECATION")
-            android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF
+            WifiManager.WIFI_MODE_FULL_HIGH_PERF
         }
         wifiLock = wifi?.createWifiLock(wifiMode, "taixu:webchat_bridge_wifi")?.apply {
             setReferenceCounted(false)
@@ -571,30 +553,30 @@ class WebChatBridgeServer(
     }
 
     private fun showNotification(url: String, pin: String) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager ?: return
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(
-                android.app.NotificationChannel(
+                NotificationChannel(
                     NOTIFICATION_CHANNEL_ID,
                     "太墟智枢 Web 协作台",
-                    android.app.NotificationManager.IMPORTANCE_LOW,
+                    NotificationManager.IMPORTANCE_LOW,
                 ).apply { description = "太墟智枢局域网协作服务"; setShowBadge(false) },
             )
         }
         manager.notify(
             NOTIFICATION_ID,
-            androidx.core.app.NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.stat_notify_sync)
+            NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
+                .setSmallIcon(R.drawable.stat_notify_sync)
                 .setContentTitle("太墟智枢 Web 协作台运行中")
                 .setContentText("$url（配对码：$pin）")
                 .setOngoing(true)
-                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_LOW)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build(),
         )
     }
 
     private fun hideNotification() {
-        (context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager)?.cancel(NOTIFICATION_ID)
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)?.cancel(NOTIFICATION_ID)
     }
 
     private fun getMimeType(path: String): String = when {

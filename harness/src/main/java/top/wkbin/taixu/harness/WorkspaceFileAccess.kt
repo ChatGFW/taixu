@@ -34,7 +34,7 @@ data class WorkspaceEditOutcome(
 class WorkspaceFileAccess(
     private val root: File,
     private val globalRootCanonical: File? = null,
-) {
+) : WorkspaceToolOperations {
     private val rootCanonical: File = root.absoluteFile.canonicalFile
 
     suspend fun list(path: String): AppResult<List<WorkspaceEntry>> = withContext(Dispatchers.IO) {
@@ -64,7 +64,7 @@ class WorkspaceFileAccess(
      * 无参调用对小文件返回全文；超过 [DEFAULT_READ_LINES] 行的大文件自动限窗，
      * 并在范围头里给出续读偏移，避免模型在不知道截断的情况下基于半份内容做分析。
      */
-    suspend fun read(path: String, offset: Int? = null, limit: Int? = null): AppResult<String> = withContext(Dispatchers.IO) {
+    override suspend fun read(path: String, offset: Int?, limit: Int?): AppResult<String> = withContext(Dispatchers.IO) {
         try {
             val file = resolveRequired(path)
             check(file.isFile) { "不是文件：${display(path)}" }
@@ -100,7 +100,7 @@ class WorkspaceFileAccess(
      * 读取图片等二进制文件的原始字节（供沙箱多模态视觉直通使用）。
      * 与文本 [read] 分开：不做 UTF-8 解码，避免图片被当文本读出乱码或触发字符集异常。
      */
-    suspend fun readRawBytes(path: String): AppResult<ByteArray> = withContext(Dispatchers.IO) {
+    override suspend fun readRawBytes(path: String): AppResult<ByteArray> = withContext(Dispatchers.IO) {
         try {
             val file = resolveRequired(path)
             check(file.isFile) { "不是文件：${display(path)}" }
@@ -113,7 +113,7 @@ class WorkspaceFileAccess(
         }
     }
 
-    suspend fun write(path: String, content: String): AppResult<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun write(path: String, content: String): AppResult<Unit> = withContext(Dispatchers.IO) {
         try {
             val contentBytes = content.toByteArray(Charsets.UTF_8).size
             require(contentBytes <= MAX_WRITE_BYTES) { "内容过长（$contentBytes 字节，上限 $MAX_WRITE_BYTES）" }
@@ -170,7 +170,7 @@ class WorkspaceFileAccess(
      * 返回命中策略与文件级 Unified Diff（供 ToolResult.metadata["diff"] 前端渲染）；
      * 模型上下文仍只收到简短文本，不含 diff 正文。
      */
-    suspend fun editDetailed(path: String, oldText: String, newText: String): AppResult<WorkspaceEditOutcome> =
+    override suspend fun editDetailed(path: String, oldText: String, newText: String): AppResult<WorkspaceEditOutcome> =
         withContext(Dispatchers.IO) {
             try {
                 require(oldText.isNotEmpty()) { "oldText 不能为空" }
@@ -220,7 +220,7 @@ class WorkspaceFileAccess(
      * 读取指定路径当前内容；文件不存在或无权限读取时返回 null（不抛异常）。
      * 供 checkpoint 快照在写工具触碰前捕获轮初内容。
      */
-    suspend fun previewOrNull(path: String): String? = withContext(Dispatchers.IO) {
+    override suspend fun previewOrNull(path: String): String? = withContext(Dispatchers.IO) {
         try {
             val file = resolveRequired(path)
             if (!file.isFile) null else file.readText(Charsets.UTF_8)
@@ -230,7 +230,7 @@ class WorkspaceFileAccess(
     }
 
     /** 文件字节数（路径越界/非文件/不存在返回 null）；供 checkpoint 预判是否跳过超大文件快照。 */
-    suspend fun fileSizeOrNull(path: String): Long? = withContext(Dispatchers.IO) {
+    override suspend fun fileSizeOrNull(path: String): Long? = withContext(Dispatchers.IO) {
         try {
             val file = resolveRequired(path)
             if (file.isFile) file.length() else null

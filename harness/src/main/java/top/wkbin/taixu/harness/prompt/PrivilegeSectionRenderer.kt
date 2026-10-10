@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness.prompt
 import android.content.Context
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
+import top.wkbin.taixu.harness.R
 
 /**
  * 系统提示词中"执行权限章节"的渲染端口。
@@ -25,9 +26,9 @@ class DefaultPrivilegeSectionRenderer(
         val privilegeInfo = runCatching { privilegeManager.getPrivilegeInfo() }.getOrNull()
         return when {
             privilegeInfo == null ->
-                context.getString(top.wkbin.taixu.harness.R.string.harness_prompt_privilege_unavailable)
+                context.getString(R.string.harness_prompt_privilege_unavailable)
             privilegeInfo.mode == ExecutionMode.PROOT || !privilegeInfo.modeActive ->
-                context.getString(top.wkbin.taixu.harness.R.string.harness_prompt_privilege_proot)
+                context.getString(R.string.harness_prompt_privilege_proot)
             privilegeInfo.mode == ExecutionMode.SHIZUKU ->
                 promptAssets.render("prompts/privilege_shizuku.md")
             else ->

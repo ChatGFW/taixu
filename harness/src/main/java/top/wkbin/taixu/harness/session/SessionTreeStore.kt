@@ -2,6 +2,8 @@ package top.wkbin.taixu.harness.session
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.common.logging.AppLogger
@@ -75,6 +77,22 @@ class SessionTreeStore(
         if (throwable is CancellationException) throw throwable
         logger.e("Failed to load harness branch for $sessionId/$laneName: ${throwable.message}", throwable)
     }.getOrDefault(emptyList())
+
+    /** Read-only durable history; storage errors must not masquerade as an empty completed run. */
+    suspend fun loadStrict(sessionId: String, laneName: String = MAIN_LANE): List<HarnessMessage> = try {
+        currentCoroutineContext().ensureActive()
+        val lane = repository.findLane(sessionId, laneName)
+        currentCoroutineContext().ensureActive()
+        val messages = if (lane == null) emptyList() else
+            repository.branchTail(sessionId, lane.leafId, MAX_LIVE_ENTRIES)
+                .filter { it.entryType == "message" }
+                .map { json.decodeFromString(HarnessMessage.serializer(), it.payloadJson) }
+        currentCoroutineContext().ensureActive()
+        messages
+    } catch (failure: Exception) {
+        currentCoroutineContext().ensureActive()
+        throw failure
+    }
 
     suspend fun loadAt(sessionId: String, leafId: String?): List<HarnessMessage> = runCatching {
         repository.branchTail(sessionId, leafId, MAX_LIVE_ENTRIES).mapNotNull(::decode)

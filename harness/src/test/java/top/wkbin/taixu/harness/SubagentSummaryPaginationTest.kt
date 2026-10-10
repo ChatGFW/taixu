@@ -9,6 +9,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import top.wkbin.taixu.core.model.SubagentTaskSpec
+import top.wkbin.taixu.core.common.result.AppResult
 
 internal class SubagentSummaryPaginationTest {
 
@@ -74,7 +75,7 @@ internal class SubagentSummaryPaginationTest {
         val readBack = scoped.read(relativePath, null, null)
         assertTrue(
             "read 应能取回落盘内容，实际=$readBack",
-            readBack is top.wkbin.taixu.core.common.result.AppResult.Success,
+            readBack is AppResult.Success,
         )
     }
 

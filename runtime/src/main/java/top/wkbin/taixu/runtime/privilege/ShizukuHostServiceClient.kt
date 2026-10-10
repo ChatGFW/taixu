@@ -3,9 +3,11 @@ package top.wkbin.taixu.runtime.privilege
 import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
 import android.os.IBinder
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -71,7 +73,7 @@ class ShizukuHostServiceClient(
     private suspend fun requireService(): IShizukuHostService = connectionMutex.withLock {
         service?.takeIf { it.asBinder().isBinderAlive }?.let { return@withLock it }
         check(Shizuku.pingBinder()) { "Shizuku 服务未运行" }
-        check(Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED) { "Shizuku 未授权" }
+        check(Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) { "Shizuku 未授权" }
 
         // UserService 由 Shizuku fork 独立进程，首次冷启动需加载 APK classloader + AIDL Stub，
         // 中低端设备可能超过 8 秒；放宽超时并允许一次重试，覆盖进程冷启动与 Binder 交付抖动。
@@ -84,7 +86,7 @@ class ShizukuHostServiceClient(
                 service = null
                 runCatching { Shizuku.unbindUserService(serviceArgs, connection, false) }
                 if (attempt < BIND_MAX_RETRIES - 1) {
-                    kotlinx.coroutines.delay(BIND_RETRY_DELAY_MS)
+                    delay(BIND_RETRY_DELAY_MS)
                 }
             }
         }

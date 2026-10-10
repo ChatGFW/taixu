@@ -9,12 +9,31 @@
 | 模块 | 关键文件 | 职责 |
 | --- | --- | --- |
 | `harness/HarnessLoop.kt` | 主循环，多会话并发 | Agent 主循环 |
+| `harness/session/SessionControl.kt` / `InteractiveSessionControl.kt` | 共享控制与前台交互契约，同一执行 singleton | 会话控制接口 |
+| `harness/session/SessionInputController.kt` | 锁内输入接收、任务/队列提交、启动/排队/拒绝回执 | 接收屏障 |
+| `runtime/webchat/WebChatRunProtocol.kt` / `app/.../webchat/TaiXuWebChatAgentGateway.kt` | REST 输入模式、回执与错误分类；显式会话控制适配 | Web 控制边界 |
+| `runtime/webchat/WebChatRunTracker.kt` / `webchat/src/taskEvents.ts` | 按关联 ID 跟踪持久化任务结果；客户端会话/任务事件隔离 | Web 结果观察 |
+| `harness/core/.../AgentTurnRunner.kt` / `TurnContracts.kt` | 纯 Kotlin 轮次状态机、`prepareRequest` / `finishTurn`、预算与追问调度 | 可复用轮次核心 |
+| `harness/core/.../DurableToolRunner.kt` | 意图提交 → 执行 → 结果提交；区分提交失败与工具失败 | 工具持久化屏障 |
+| `harness/core/.../ToolBackend.kt` / `ToolCheckpoints.kt` | 泛型工具后端、按序等待的前置否决与后置说明；异常和取消规则 | 纯 Kotlin 工具契约 |
+| `harness/core/.../SessionProjection.kt` | 存储无关的保留消息、并发补回、摘要与召回贡献规则；来源和诊断类型 | 纯 Kotlin 会话投影 |
+| `harness/session/SessionContextProjector.kt` | 捕获 Lane 叶子，解码快照并选择分支窗口；检查与模型上下文共用来源 | 可检查上下文 |
+| `harness/compaction/CompactionManager.kt` | 压缩持久化、`inspect` / `project` 入口与轻量摘要横幅快照 | 压缩编排 |
+| `harness/TurnRunner.kt` | 将 Provider 响应与文本工具协议适配到轮次核心 | 协议适配 |
+| `harness/core/.../ModelDescriptor.kt` / `harness/ModelConfig.kt` | 协议标识、无凭证能力描述；兼容现有模型档案字段 | 模型能力 |
+| `harness/ProviderModelResolver.kt` | 档案/variant 选择、密钥读取、上下文容量和全局推理偏好 | 模型解析 |
+| `harness/LlmApiAdapter.kt` / `ProviderTransport.kt` | 三种协议统一入口、密钥轮换、超时、诊断和取消语义 | 请求边界 |
+| `harness/subagent/SubagentToolRoundRunner.kt` | Lane 工具执行、写租约与审批移交证据，共用持久化屏障 | 子任务工具回合 |
 | `harness/HarnessProviderRunner.kt` | 模型能力选择、流式请求与重试、助手回复结算 | 模型回合 |
 | `harness/diagnostics/*` | 最终请求体脱敏快照、内存保留预算；聊天圆环「最近请求上下文」入口 | 请求诊断（详见 [CONTEXT_DIAGNOSTICS.md](CONTEXT_DIAGNOSTICS.md)） |
 | `harness/ResponsesApi.kt` / `ResponsesRequestBuilder.kt` / `ResponsesTurn.kt` | 原生 output 保存与回放、作用域校验、调用 ID 映射；主会话与子智能体共用投影 | Responses 历史（详见 [RESPONSES_HISTORY.md](RESPONSES_HISTORY.md)） |
 | `harness/HarnessToolRoundRunner.kt` | 工具参数校验、单轮限额、执行与审批暂停 | 工具回合 |
 | `harness/HarnessWorkspaceRecommendations.kt` | 工作区路径边界、MCP 推荐扫描与前台投影 | MCP 推荐 |
-| `harness/ToolExecutor.kt` | `read / write / edit / base / process / host / download / build_script / subagent` 等内置工具分派 |
+| `harness/ToolExecutor.kt` | 内置工具策略与分派；文件操作转交后端，保留审批和 PLAN 门控 | 工具执行门面 |
+| `harness/ToolExecutionBoundary.kt` / `ToolExecutionRequest.kt` | 检查点观察快照、否决及说明脱敏；保留结果标识与审批状态 | 扩展控制边界 |
+| `harness/WorkspaceToolBackend.kt` / `WorkspaceToolOperations.kt` | read/write/edit 语义与可替换工作区操作接口；本地实现为 `WorkspaceFileAccess` | 文件工具后端 |
+| `harness/WorkspaceMutationSnapshots.kt` | 写入前后快照与大小保护，文件后端和下载工具复用 | 写入恢复证据 |
+| `harness/di/harness/ToolBackendModule.kt` | 工具门面、默认检查点、工作区后端与快照的 Koin 装配 | 工具依赖装配 |
 | `harness/ApprovalPolicyEngine.kt` | 工具调用的审批策略（normal / high / critical 三档） |
 | `harness/ToolRoundDispatcher.kt` | 单回合多工具并发调度（mutation 互斥 / read-only 4 并发） |
 | `harness/SubagentOrchestrator.kt` | 子智能体 Lane 编排 |
@@ -95,10 +114,6 @@
 | `feature/navigation/.../TaiXuNavHost.kt` | `GitRepositoryDestination(projectName)` | 路由注册 |
 
 > JGit 在宿主侧直接打开工作区仓库（`RepositoryBuilder` + 空的 system/user 配置规避 Android 路径问题），不依赖沙箱内 git 安装。
-
-## 🤝 Web Reverse MCP 参考
-
-项目内置浏览器/MCP 设计借鉴自 `mnjh666/WebReverse-MCP`（模块切分 / 工具动词集 / 风险矩阵），不复用其代码。
 
 ## 💾 本地数据备份与恢复
 

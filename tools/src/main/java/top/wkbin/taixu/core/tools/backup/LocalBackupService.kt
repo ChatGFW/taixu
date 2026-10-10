@@ -13,6 +13,7 @@ import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.datastore.BackupPreferenceStore
 import top.wkbin.taixu.core.model.*
 import top.wkbin.taixu.core.tools.AiProfileTransferFormat
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.util.UUID
@@ -126,7 +127,7 @@ class LocalBackupService(
         val atomic = AtomicFile(journalFile)
         if (!journalFile.exists() && !File(journalFile.path + ".bak").exists()) return
         val text = atomic.openRead().use { input ->
-            val output = java.io.ByteArrayOutputStream()
+            val output = ByteArrayOutputStream()
             val buffer = ByteArray(8192)
             while (true) { val n = input.read(buffer); if (n < 0) break
                 check(output.size() + n <= 1024 * 1024) { "恢复日志过大" }; output.write(buffer, 0, n)

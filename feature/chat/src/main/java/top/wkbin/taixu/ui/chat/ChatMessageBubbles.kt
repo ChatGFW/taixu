@@ -87,6 +87,13 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import java.io.File
+import kotlinx.coroutines.flow.MutableStateFlow
+import org.koin.core.context.GlobalContext
+import top.wkbin.taixu.core.common.navigation.AppNavigationTarget
+import top.wkbin.taixu.core.common.navigation.GlobalNavigationBus
+import top.wkbin.taixu.core.common.translation.TranslationManager
+import top.wkbin.taixu.core.common.translation.TranslationModelStatus
 
 /** 消息气泡：用户/助手气泡、思考块、任务计划卡、能力事件卡。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -349,8 +356,8 @@ internal fun ImageThumbnail(
     val thumbnailPx = with(LocalDensity.current) { 130.dp.roundToPx() }
     val request = remember(imageUrl, cacheKey, thumbnailPx) {
         val data: Any = when {
-            imageUrl.startsWith("file://") -> java.io.File(imageUrl.removePrefix("file://"))
-            imageUrl.startsWith("/") -> java.io.File(imageUrl)
+            imageUrl.startsWith("file://") -> File(imageUrl.removePrefix("file://"))
+            imageUrl.startsWith("/") -> File(imageUrl)
             else -> imageUrl
         }
         ImageRequest.Builder(context)
@@ -759,16 +766,16 @@ internal fun ThinkingBlock(
     val scope = rememberCoroutineScope()
 
     val translationManager = remember {
-        org.koin.core.context.GlobalContext.getOrNull()
-            ?.getOrNull<top.wkbin.taixu.core.common.translation.TranslationManager>()
+        GlobalContext.getOrNull()
+            ?.getOrNull<TranslationManager>()
     }
     val globalNavigationBus = remember {
-        org.koin.core.context.GlobalContext.getOrNull()
-            ?.getOrNull<top.wkbin.taixu.core.common.navigation.GlobalNavigationBus>()
+        GlobalContext.getOrNull()
+            ?.getOrNull<GlobalNavigationBus>()
     }
     val fallbackStatusFlow = remember {
-        kotlinx.coroutines.flow.MutableStateFlow<top.wkbin.taixu.core.common.translation.TranslationModelStatus>(
-            top.wkbin.taixu.core.common.translation.TranslationModelStatus.Checking
+        MutableStateFlow<TranslationModelStatus>(
+            TranslationModelStatus.Checking
         )
     }
     val translationModelStatus by (translationManager?.status ?: fallbackStatusFlow)
@@ -1007,8 +1014,8 @@ internal fun ThinkingBlock(
     }
 
     if (showMissingModelDialog) {
-        val isDownloading = translationModelStatus is top.wkbin.taixu.core.common.translation.TranslationModelStatus.Downloading
-        val downloadingStatus = translationModelStatus as? top.wkbin.taixu.core.common.translation.TranslationModelStatus.Downloading
+        val isDownloading = translationModelStatus is TranslationModelStatus.Downloading
+        val downloadingStatus = translationModelStatus as? TranslationModelStatus.Downloading
         RuntimeAlertDialog(
             onDismissRequest = { showMissingModelDialog = false },
             title = {
@@ -1034,7 +1041,7 @@ internal fun ThinkingBlock(
                         if (onNavigateToSettings != null) {
                             onNavigateToSettings()
                         } else {
-                            globalNavigationBus?.navigateTo(top.wkbin.taixu.core.common.navigation.AppNavigationTarget.AgentSettings)
+                            globalNavigationBus?.navigateTo(AppNavigationTarget.AgentSettings)
                         }
                     }
                 ) {

@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.sql.DriverManager
+import java.time.Instant
 
 /**
  * Robolectric 自带 SQLite 未编 JSON1，无法跑 Room 的 json_extract 查询。
@@ -30,8 +31,8 @@ class HarnessDailyAggregateSqlTest {
                 """.trimIndent(),
             )
             val shanghaiOffsetMs = 8L * 60 * 60 * 1000
-            val afternoon = java.time.Instant.parse("2026-09-17T15:00:00Z").toEpochMilli()
-            val evening = java.time.Instant.parse("2026-09-17T16:00:00Z").toEpochMilli()
+            val afternoon = Instant.parse("2026-09-17T15:00:00Z").toEpochMilli()
+            val evening = Instant.parse("2026-09-17T16:00:00Z").toEpochMilli()
             conn.prepareStatement(
                 "INSERT INTO harness_entries(id, sessionId, parentId, createdAt, entryType, customType, payloadJson) VALUES (?,?,?,?,?,?,?)",
             ).use { stmt ->

@@ -466,12 +466,12 @@ private fun QuickPhraseEditorDialog(
         isEnabled: Boolean,
     ) -> Unit,
 ) {
-    var title by remember { mutableStateOf(phrase?.title.orEmpty()) }
-    var description by remember { mutableStateOf(phrase?.description.orEmpty()) }
-    var content by remember { mutableStateOf(phrase?.content.orEmpty()) }
-    var iconName by remember { mutableStateOf(phrase?.iconName ?: "Play") }
-    var targetProjectType by remember { mutableStateOf(phrase?.targetProjectType) }
-    var isEnabled by remember { mutableStateOf(phrase?.isEnabled ?: true) }
+    var title by androidx.compose.runtime.saveable.rememberSaveable(phrase?.id) { mutableStateOf(phrase?.title.orEmpty()) }
+    var description by androidx.compose.runtime.saveable.rememberSaveable(phrase?.id) { mutableStateOf(phrase?.description.orEmpty()) }
+    var content by androidx.compose.runtime.saveable.rememberSaveable(phrase?.id) { mutableStateOf(phrase?.content.orEmpty()) }
+    var iconName by androidx.compose.runtime.saveable.rememberSaveable(phrase?.id) { mutableStateOf(phrase?.iconName ?: "Play") }
+    var targetProjectType by androidx.compose.runtime.saveable.rememberSaveable(phrase?.id) { mutableStateOf(phrase?.targetProjectType) }
+    var isEnabled by androidx.compose.runtime.saveable.rememberSaveable(phrase?.id) { mutableStateOf(phrase?.isEnabled ?: true) }
     var projectTypeDropdownExpanded by remember { mutableStateOf(false) }
 
     val iconOptions = listOf(

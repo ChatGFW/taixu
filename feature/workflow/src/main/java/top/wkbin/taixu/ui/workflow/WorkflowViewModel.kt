@@ -38,6 +38,7 @@ import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.runtime.gui.WorkflowGuiHudBridge
 import top.wkbin.taixu.ui.workflow.hud.WorkflowHudService
 import java.io.File
+import top.wkbin.taixu.core.model.workflow.WorkflowLayout
 
 data class DiscoveredApk(
     val file: File,
@@ -89,9 +90,9 @@ class WorkflowViewModel(
         viewModelScope.launch { runCatching { scheduleRepository.setEnabled(id, enabled) } }
     }
     private val _error = MutableStateFlow<String?>(null)
-    val error = _error.asStateFlow()
+    val error = combine(_error, runManager.historyErrors, ::workflowHistoryError)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     fun clearError() { _error.value = null }
-
     /** 进程级注册表中的全部活跃/近期运行（含后台运行），供「后台运行中」指示与切换。 */
     val allRuns: StateFlow<Map<String, WorkflowRuntimeState>> = runManager.activeRuns
     val running: StateFlow<Boolean> = runManager.running
@@ -305,7 +306,7 @@ class WorkflowViewModel(
 
     fun updateNode(node: WorkflowNode) = mutate(selectedNodeId = node.id) { WorkflowGraphEditor.updateNode(it, node) }
 
-    fun autoLayout() = mutate { top.wkbin.taixu.core.model.workflow.WorkflowLayout.arrange(it) }
+    fun autoLayout() = mutate { WorkflowLayout.arrange(it) }
 
     fun moveNode(nodeId: String, x: Float, y: Float) = mutate(selectedNodeId = nodeId) { definition ->
         val node = definition.nodes.firstOrNull { it.id == nodeId } ?: return@mutate definition

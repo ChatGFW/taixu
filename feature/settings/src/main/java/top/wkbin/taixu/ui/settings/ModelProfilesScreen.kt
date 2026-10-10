@@ -75,6 +75,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import java.util.Locale
 
 /**
  * 模型档案管理全屏独立页面
@@ -499,7 +500,7 @@ private fun ModelProfileCard(
 private fun formatProfileContextWindow(tokens: Int): String = when {
     tokens <= 0 -> "0"
     tokens % 1_000_000 == 0 -> "${tokens / 1_000_000}M"
-    tokens >= 1_000_000 -> String.format(java.util.Locale.US, "%.1fM", tokens / 1_000_000.0)
+    tokens >= 1_000_000 -> String.format(Locale.US, "%.1fM", tokens / 1_000_000.0)
     tokens % 1_000 == 0 -> "${tokens / 1_000}k"
-    else -> String.format(java.util.Locale.US, "%.1fk", tokens / 1_000.0)
+    else -> String.format(Locale.US, "%.1fk", tokens / 1_000.0)
 }

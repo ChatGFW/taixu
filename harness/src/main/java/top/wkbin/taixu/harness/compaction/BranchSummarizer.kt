@@ -10,6 +10,7 @@ import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ModelConfig
 import top.wkbin.taixu.harness.session.SessionTreeStore
+import kotlinx.coroutines.CancellationException
 
 /**
  * 分支摘要（对齐 pi branch-summarization.ts）：切换分支时把被放弃的分支段
@@ -104,7 +105,7 @@ class BranchSummarizer(
         if (model != null && summarizer != null) {
             val llm = try {
                 summarizer.generateSummary(model, abandoned)
-            } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (throwable: Throwable) {
                 logger.w("LLM 分支摘要失败，回退机械摘要：${throwable.message}")

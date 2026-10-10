@@ -83,6 +83,11 @@ import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import top.wkbin.taixu.ui.components.RuntimeIconButton
 
 @Composable
 internal fun CollapsibleChatWorkbenchStrip(
@@ -643,7 +648,7 @@ private fun MiniBadge(text: String, color: Color) {
 @Composable
 internal fun RuntimeTimelineSheet(
     events: List<HarnessEvent>,
-    messages: List<top.wkbin.taixu.harness.HarnessMessage>,
+    messages: List<HarnessMessage>,
     memories: List<AgentMemoryEntity> = emptyList(),
     scratchpads: List<AgentScratchpadEntity> = emptyList(),
     onDeleteMemory: (String) -> Unit = {},
@@ -725,7 +730,7 @@ internal fun RuntimeTimelineSheet(
                                                 overflow = TextOverflow.Ellipsis,
                                             )
                                         }
-                                        top.wkbin.taixu.ui.components.RuntimeIconButton(
+                                        RuntimeIconButton(
                                             onClick = { onDeleteMemory(memory.id) },
                                             modifier = Modifier.size(24.dp),
                                         ) {
@@ -782,7 +787,7 @@ internal fun RuntimeTimelineSheet(
                                                 overflow = TextOverflow.Ellipsis,
                                             )
                                         }
-                                        top.wkbin.taixu.ui.components.RuntimeIconButton(
+                                        RuntimeIconButton(
                                             onClick = { onDeleteScratchpad(pad.key) },
                                             modifier = Modifier.size(24.dp),
                                         ) {
@@ -918,7 +923,7 @@ internal class RoundGroup(
     var displayIndex: Int = 0,
     val modelId: String?,
     val startedAt: Long,
-    var userPromptMessage: top.wkbin.taixu.harness.UserMessage? = null,
+    var userPromptMessage: UserMessage? = null,
 ) {
     val entries = mutableListOf<TimelineEntry>()
 }
@@ -932,7 +937,7 @@ internal sealed interface TimelineEntry {
         val entryId: String,
         val inputTokens: Long,
         val outputTokens: Long,
-        val message: top.wkbin.taixu.harness.AssistantText?,
+        val message: AssistantText?,
     ) : TimelineEntry
 
     data class Tool(
@@ -940,8 +945,8 @@ internal sealed interface TimelineEntry {
         val callId: String,
         var name: String,
         var settled: HarnessEvent.ToolCallSettled?,
-        var callMessage: top.wkbin.taixu.harness.ToolCall?,
-        var result: top.wkbin.taixu.harness.ToolResult?,
+        var callMessage: ToolCall?,
+        var result: ToolResult?,
     ) : TimelineEntry
 
     data class Approval(override val timestamp: Long, val toolName: String, val riskLevel: String) : TimelineEntry
@@ -950,13 +955,13 @@ internal sealed interface TimelineEntry {
 /** 把扁平事件流切成（轮次组，会话级生命周期）两段；tool call 与 settled 结果就地配对。 */
 internal fun buildRoundGroups(
     events: List<HarnessEvent>,
-    messages: List<top.wkbin.taixu.harness.HarnessMessage>,
+    messages: List<HarnessMessage>,
 ): Pair<List<RoundGroup>, List<HarnessEvent>> {
-    val toolResultsById = messages.filterIsInstance<top.wkbin.taixu.harness.ToolResult>()
+    val toolResultsById = messages.filterIsInstance<ToolResult>()
         .associateBy { it.toolCallId }
-    val callsById = messages.filterIsInstance<top.wkbin.taixu.harness.ToolCall>().associateBy { it.id }
-    val assistantsById = messages.filterIsInstance<top.wkbin.taixu.harness.AssistantText>().associateBy { it.id }
-    val userMessages = messages.filterIsInstance<top.wkbin.taixu.harness.UserMessage>()
+    val callsById = messages.filterIsInstance<ToolCall>().associateBy { it.id }
+    val assistantsById = messages.filterIsInstance<AssistantText>().associateBy { it.id }
+    val userMessages = messages.filterIsInstance<UserMessage>()
 
     val rounds = mutableListOf<RoundGroup>()
     val lifecycle = mutableListOf<HarnessEvent>()
@@ -1256,7 +1261,7 @@ private fun ToolExpandContent(entry: TimelineEntry.Tool) {
 }
 
 @Composable
-private fun AssistantExpandContent(message: top.wkbin.taixu.harness.AssistantText) {
+private fun AssistantExpandContent(message: AssistantText) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (message.text.isNotBlank()) {
             PayloadBox(
@@ -1286,11 +1291,11 @@ private fun PayloadBox(label: String, text: String) {
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            top.wkbin.taixu.ui.components.RuntimeIconButton(
+            RuntimeIconButton(
                 onClick = {
-                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-                    clipboard?.setPrimaryClip(android.content.ClipData.newPlainText(label, text))
-                    android.widget.Toast.makeText(context, "已复制", android.widget.Toast.LENGTH_SHORT).show()
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    clipboard?.setPrimaryClip(ClipData.newPlainText(label, text))
+                    Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier.size(20.dp),
             ) {
