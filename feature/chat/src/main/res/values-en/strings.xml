@@ -227,7 +227,7 @@
     <string name="chat_mcp_category">MCP service</string>
     <string name="chat_downloading_prefix">Downloading:</string>
     <string name="chat_verifying_download">Verifying downloaded file</string>
-    <!-- Branch & runtime workbench -->
+    <!-- Branch &amp; runtime workbench -->
     <string name="chat_main_line">Main</string>
     <string name="chat_branch_count">%1$d paths</string>
     <string name="chat_branch_pill_title">Branch</string>
@@ -327,7 +327,7 @@
     <string name="chat_rewind_switched">Switched to the rewind branch</string>
     <string name="chat_rewind_no_checkpoint">No undoable changes recorded for this turn (only turns with file writes are recorded)</string>
     <string name="chat_rewind_failed">Rewind failed: %1$s</string>
-    <!-- Top bar menu & permission snackbar -->
+    <!-- Top bar menu &amp; permission snackbar -->
     <string name="chat_snackbar_grant">Grant</string>
     <string name="chat_snackbar_got_it">Got it</string>
     <string name="chat_workbench_menu">Agent workbench menu</string>
@@ -356,7 +356,7 @@
     <string name="chat_run_mode_hint">Decides whether the agent acts or only plans this round. Orthogonal to the approval mode above — they can combine, e.g. "Full access + Plan":</string>
     <string name="chat_run_mode_build_title">Build mode (act)</string>
     <string name="chat_run_mode_plan_title">Plan mode (read-only)</string>
-    <!-- Capability chips & badges -->
+    <!-- Capability chips &amp; badges -->
     <string name="chat_pinned_badge">Pinned</string>
     <string name="chat_attach_button">Mount</string>
     <string name="chat_pinned_on">📌 Pinned</string>
@@ -371,7 +371,7 @@
     <string name="chat_model_switch_pending_fmt">Will compact earlier messages for the %1$s window on the next turn</string>
     <string name="chat_collapse">Collapse</string>
     <string name="chat_expand_more">Show %1$d more steps (of %2$d)%3$s</string>
-    <!-- Attachment menu & processing -->
+    <!-- Attachment menu &amp; processing -->
     <string name="chat_send_image">Send images</string>
     <string name="chat_send_file">Send files / artifacts</string>
     <string name="chat_remove_attachment">Remove attachment</string>
@@ -402,7 +402,7 @@
     <string name="chat_clear_scratchpad_message">• All task scratchpads in this session will be cleared. This cannot be undone.</string>
     <string name="chat_delete_memory_title">Delete this memory?</string>
     <string name="chat_delete_memory_message">• The model will no longer remember this fact. This cannot be undone.</string>
-    <!-- Tool & MCP state semantics -->
+    <!-- Tool &amp; MCP state semantics -->
     <string name="chat_tool_state_running">Tool running</string>
     <string name="chat_tool_state_success">Tool succeeded</string>
     <string name="chat_tool_state_failed">Tool failed</string>
@@ -421,7 +421,7 @@
     <string name="chat_tool_detail_args_truncated">… (truncated)</string>
     <string name="chat_tool_detail_view_raw">View raw arguments</string>
     <string name="chat_tool_detail_hide_raw">Hide raw arguments</string>
-    <!-- Code block & artifact -->
+    <!-- Code block &amp; artifact -->
     <string name="chat_code_badge">CODE</string>
     <string name="chat_artifact_preview">Preview</string>
     <string name="chat_artifact_mode_preview">Preview</string>
@@ -491,4 +491,36 @@
     <string name="chat_share_chip_summarize">Summarize</string>
     <string name="chat_share_chip_translate">Translate to Chinese</string>
     <string name="chat_share_chip_save">Save to sandbox</string>
+    <!-- Sandbox toolchain panel -->
+    <string name="toolchain_title">Sandbox Toolchain</string>
+    <string name="toolchain_subtitle">Reverse · Build · Debug probes</string>
+    <string name="toolchain_entry">Toolchain</string>
+    <string name="toolchain_entry_gap">Toolchain •</string>
+    <string name="toolchain_detecting">Probing sandbox tools…</string>
+    <string name="toolchain_detect_failed">Probe failed: sandbox may not be running. Initialize the Linux sandbox first.</string>
+    <string name="toolchain_repair_all">Repair %1$d items</string>
+    <string name="toolchain_repairing">Repairing…</string>
+    <string name="toolchain_recheck">Recheck</string>
+    <string name="toolchain_group_native">Native build</string>
+    <string name="toolchain_group_reverse">Reverse engineering</string>
+    <string name="toolchain_group_debug">Debug &amp; tracing</string>
+    <string name="toolchain_status_ready">Ready</string>
+    <string name="toolchain_status_outdated">Outdated</string>
+    <string name="toolchain_status_missing">Missing</string>
+    <string name="toolchain_status_needs_root">Needs root</string>
+    <string name="toolchain_status_unknown">Unknown</string>
+    <string name="toolchain_chip_ready">Ready %1$d</string>
+    <string name="toolchain_chip_missing">Missing %1$d</string>
+    <string name="toolchain_chip_outdated">Outdated %1$d</string>
+    <string name="toolchain_chip_needs_root">Root %1$d</string>
+    <string name="toolchain_chip_unknown">Unknown %1$d</string>
+    <string name="toolchain_root_banner">Installed, but requires root to drive: %1$s</string>
+    <string name="toolchain_manual_only">Cannot auto-repair, install manually via dev suite: %1$s</string>
+    <string name="toolchain_log_empty">No auto-repairable items (install the rest manually via dev suite)</string>
+    <string name="toolchain_confirm_title">Confirm toolchain repair</string>
+    <string name="toolchain_confirm_components">Dev-kit components: %1$s</string>
+    <string name="toolchain_confirm_packages">apt packages: %1$s</string>
+    <string name="toolchain_confirm_large">Android components are large downloads and may take a while.</string>
+    <string name="toolchain_confirm_ok">Install</string>
+    <string name="toolchain_confirm_cancel">Cancel</string>
 </resources>
