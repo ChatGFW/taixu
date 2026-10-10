@@ -36,7 +36,6 @@ import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import androidx.compose.material3.ButtonDefaults
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -124,8 +123,6 @@ fun HomeScreen(
     onNavigate: (MainDestination) -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenToolCenter: () -> Unit = {},
-    onStartCustomIteration: () -> Unit = {},
-    onStartRoundtable: () -> Unit = {},
     viewModel: HomeViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
@@ -142,8 +139,6 @@ fun HomeScreen(
     val activeDistroId by viewModel.activeDistroId.collectAsStateWithLifecycle()
     val switchingDistro by viewModel.switchingDistro.collectAsStateWithLifecycle()
     val modeStatus by viewModel.executionModeStatus.collectAsStateWithLifecycle()
-    val webChatStatus by viewModel.webChatStatus.collectAsStateWithLifecycle()
-    val sentinelState by viewModel.sentinelState.collectAsStateWithLifecycle()
 
     val allFilesPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -270,23 +265,7 @@ fun HomeScreen(
                 onOpenModeSettings = { onNavigate(MainDestination.Settings) },
             )
 
-            // 1.5 首页快捷入口：一句话做 App · AI 圆桌 · 晨报哨兵
-            CustomIterationHeroCard(onClick = onStartCustomIteration)
-            RoundtableEntryCard(onClick = onStartRoundtable)
-            MorningReportSentinelCard(
-                state = sentinelState,
-                onEnable = { viewModel.enableSentinel(sentinelState.hour, sentinelState.minute) },
-                onDisable = viewModel::disableSentinel,
-                onTimeChange = { h, m -> viewModel.enableSentinel(h, m) },
-            )
-
-            // 2. WebChat 电脑大屏协作卡片 (Dashboard Bridge Card)
-            WebChatDashboardCard(
-                status = webChatStatus,
-                onToggle = viewModel::toggleWebChat,
-            )
-
-            // 3. 运行与开发环境体检自愈中心 (TaiXu Doctor & Auto-Fix)
+            // 2. 运行与开发环境体检自愈中心 (TaiXu Doctor & Auto-Fix)
             EnvironmentDoctorCard(
                 report = doctorReport,
                 isChecking = isCheckingDoctor,
@@ -1358,121 +1337,3 @@ private fun PulsingStatusDot(color: Color, isPulsing: Boolean) {
         )
     }
 }
-
-/** WebChat 电脑大屏协作卡片 (Dashboard Bridge Card) */
-@Composable
-private fun WebChatDashboardCard(
-    status: top.wkbin.taixu.runtime.webchat.WebChatServerStatus,
-    onToggle: (Boolean) -> Unit,
-) {
-    val context = LocalContext.current
-    val directUrl = "${status.accessUrl}?token=${status.pinCode}"
-
-    RuntimeCard(
-        modifier = Modifier.fillMaxWidth(),
-        // 减强调：运行态仅保留容器色强调，不再叠加主色描边
-        containerColor = if (status.isRunning) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.40f) else MaterialTheme.colorScheme.surfaceContainer,
-        contentPadding = PaddingValues(16.dp),
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    IconTile(
-                        icon = RuntimeIconName.Globe,
-                        size = 36.dp,
-                        color = if (status.isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Column {
-                        Text(
-                            text = stringResource(R.string.home_webchat_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Text(
-                            text = if (status.isRunning) stringResource(R.string.home_webchat_running) else stringResource(R.string.home_webchat_idle),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (status.isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-
-                RuntimeSwitch(
-                    checked = status.isRunning,
-                    onCheckedChange = onToggle,
-                )
-            }
-
-            if (status.isRunning) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-                // 访问地址独立成行：统一 Monospace 等宽字体、颜色与大小
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = stringResource(R.string.home_webchat_url_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = status.accessUrl,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                        ),
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-
-                // 配对码独立成行显示
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = stringResource(R.string.home_webchat_pin_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = status.pinCode,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 2.sp,
-                        ),
-                        color = MaterialTheme.colorScheme.secondary,
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("WebChat Direct URL", directUrl))
-                        Toast.makeText(context, context.getString(R.string.home_webchat_copied), Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = 10.dp),
-                ) {
-                    RuntimeIcon(RuntimeIconName.Copy, Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.home_webchat_copy))
-                }
-
-                Text(
-                    text = stringResource(R.string.home_webchat_hint, status.activeConnections),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
