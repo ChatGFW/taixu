@@ -19,7 +19,7 @@ import androidx.core.content.ContextCompat
 import top.wkbin.taixu.R
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.model.SessionRunState
-import top.wkbin.taixu.harness.HarnessLoop
+import top.wkbin.taixu.harness.session.SessionControl
 import top.wkbin.taixu.lifecycle.ProcessingPowerLease
 import top.wkbin.taixu.lifecycle.RuntimeLifecycleSupervisor
 import kotlinx.coroutines.CoroutineScope
@@ -43,7 +43,7 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 class AgentForegroundService : Service() {
 
-    val harnessLoop: HarnessLoop by inject()
+    val harnessLoop: SessionControl by inject()
     val sessionDao: HarnessSessionRepository by inject()
     val lifeCycleSupervisor: RuntimeLifecycleSupervisor by inject()
 

@@ -127,7 +127,7 @@ class HarnessProviderRunner(
         // 与请求构造同口径：messages + provider 可见 tools schema（仅 NATIVE 模式独立于 messages）。
         // 漏掉 schema 会低估真实输入规模，余量被吃光后以 400/413 溢出。
         val toolSchemaTokens =
-            if (!model.pureChatMode && model.toolCallMode == ToolCallMode.NATIVE) {
+            if (model.capabilities.nativeTools) {
                 ContextWindowPolicy.estimateToolDefinitionTokens(ProviderClient.buildDynamicTools())
             } else {
                 0

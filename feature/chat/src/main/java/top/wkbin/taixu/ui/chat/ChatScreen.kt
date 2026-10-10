@@ -1152,11 +1152,11 @@ private fun McpRecommendationBanner(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                TextButton(onClick = { onEnable(recommendation.presetId) }) {
-                    Text(stringResource(R.string.chat_enable), color = MaterialTheme.colorScheme.onSecondaryContainer)
+                TextButton(onClick = { onEnable(recommendation.presetId) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)) {
+                    Text(stringResource(R.string.chat_enable), color = MaterialTheme.colorScheme.onSecondaryContainer, maxLines = 1)
                 }
-                TextButton(onClick = { onDismiss(recommendation.presetId) }) {
-                    Text(stringResource(R.string.chat_ignore), color = MaterialTheme.colorScheme.onSecondaryContainer)
+                TextButton(onClick = { onDismiss(recommendation.presetId) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)) {
+                    Text(stringResource(R.string.chat_ignore), color = MaterialTheme.colorScheme.onSecondaryContainer, maxLines = 1)
                 }
             }
         }

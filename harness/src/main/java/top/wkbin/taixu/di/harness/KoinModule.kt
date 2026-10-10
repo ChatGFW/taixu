@@ -11,7 +11,6 @@ import top.wkbin.taixu.harness.HarnessPathResolver
 import top.wkbin.taixu.harness.HarnessProviderRunner
 import top.wkbin.taixu.harness.HarnessToolRoundRunner
 import top.wkbin.taixu.harness.HarnessWorkspaceRecommendations
-import top.wkbin.taixu.harness.ProviderClient
 import top.wkbin.taixu.harness.ProviderResponseNormalizer
 import top.wkbin.taixu.harness.SubagentOrchestrator
 import top.wkbin.taixu.harness.ToolExecutor
@@ -109,10 +108,7 @@ val harnessModule = module {
     single<BuildScriptToolExecutor> { BuildScriptToolExecutor(repository = get()) }
 
     single<SessionTurnCoordinator> {
-        SessionTurnCoordinatorImpl(
-            preferences = get(),
-            logger = get(),
-        )
+        SessionTurnCoordinatorImpl(preferences = get(), logger = get())
     }
 
     single<HarnessLoop> {
@@ -148,6 +144,8 @@ val harnessModule = module {
             turnCoordinator = get(),
         )
     }
+    single<top.wkbin.taixu.harness.session.SessionControl> { get<HarnessLoop>() }
+    single<top.wkbin.taixu.harness.session.InteractiveSessionControl> { get<HarnessLoop>() }
     single<HarnessPathResolver> { HarnessPathResolver() }
 
     single { top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore(redactor = get()) }
@@ -188,16 +186,7 @@ val harnessModule = module {
         )
     }
 
-    single<ProviderClient> {
-        ProviderClient(
-            okHttpClient = get(),
-            providerRepository = get(),
-            modelDao = get(),
-            mcpManager = get(),
-            settingsDataStore = get(),
-            json = get(),
-        )
-    }
+    includes(providerModule)
     single<ProviderResponseNormalizer> { ProviderResponseNormalizer(json = get()) }
 
     single<SubagentOrchestrator> {
@@ -214,43 +203,7 @@ val harnessModule = module {
         )
     }
 
-    single<ToolExecutor> {
-        ToolExecutor(
-            fileAccess = get(),
-            linuxRuntime = get(),
-            pathResolver = get(),
-            approvalPolicyEngine = get(),
-            secretRedactor = get(),
-            fileDownloader = get(),
-            linuxEnvironmentManager = get(),
-            approvalRepository = get(),
-            sessionDao = get(),
-            subagentOrchestrator = get(),
-            mcpManager = get(),
-            contextExecutor = get(),
-            messageStore = get(),
-            eventBus = get(),
-            privilegeManager = get(),
-            androidAppManager = get(),
-            androidAppRepository = get(),
-            shizukuApis = get(),
-            hostGuiController = get(),
-            virtualDisplayCoordinator = get(),
-            virtualScreenToolkit = get(),
-            buildScriptToolExecutor = get(),
-            promptRouter = get(),
-            checkpointStore = get(),
-            dualAgentCoordinator = get(),
-            embeddedAdbManager = get(),
-            workflowSignals = get(),
-            sessionApprovalGrants = get(),
-            compactionManager = get(),
-            providerClient = get(),
-            skillRepository = get(),
-            settingsDataStore = get(),
-            phoneAgentServices = get(),
-        )
-    }
+    includes(toolBackendModule)
 
     single<ToolRoundDispatcher> { ToolRoundDispatcher() }
 
@@ -578,9 +531,9 @@ val harnessModule = module {
     single<WorkflowRunManager> {
         WorkflowRunManager(
             scheduler = get(),
-            repository = get(),
-            linuxRuntime = get(),
+            repository = get(), linuxRuntime = get(),
             json = get(),
+            logger = get(),
         )
     }
 

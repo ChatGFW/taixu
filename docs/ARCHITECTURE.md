@@ -40,6 +40,7 @@ LinuxAIRuntime/
 ├── runtime/              # Linux 沙箱与 PRoot 核心：命令/进程注册、PTY、工作区导入导出与构建
 ├── project-template/     # 标准化项目模板：manifest、变量表单协议、导入导出、物化与内置模板资产
 ├── harness/              # Agent 智能体核心：Agent 循环、流式推理、内置工具/审批、MCP
+│   └── core/            # 纯 Kotlin 轮次核心与模型能力契约；不依赖 Android/Room/网络/PRoot
 ├── tools/                # 工具生态中心：Registry、本地插件、安装事务、批量组件安装、Provider 安全
 └── feature/              # Compose UI 业务特性层
     ├── components/      # 太墟 M3 Expressive 设计规范、通用组件 (RuntimeCard, TopBar, Icons)
@@ -69,6 +70,8 @@ LinuxAIRuntime/
 3. **纯模型层隔离**：
    - `:core:model` 必须保持 Pure Kotlin，**严禁**引入 `android.*`、`androidx.*` 或 Compose 依赖。
    - `architectureCheck` 任务已接入 `app:preBuild` 验证阶段，严密阻断模型层平台化与违规依赖。
+   - `:harness:core` 的 `SessionProjectionBuilder` 处理存储无关的上下文贡献。Android 层 `SessionContextProjector` 负责捕获叶子、读取分支窗口和解码；`CompactionManager.inspect()` 提供来源与诊断，`project()` 从同一结果生成模型上下文。压缩后的查询继续避免加载已折叠消息 Blob，检查接口不创建或移动 Lane。
+   - 多入口依赖 `SessionControl` / `InteractiveSessionControl`，均由同一 `HarnessLoop` singleton 实现。`SessionInputController` 在会话锁内校验、记录任务并提交输入；Web REST 等待接收回执，执行结果沿状态流报告。启动恢复保留具体实现入口，子任务保留独立 Lane 调度。
 4. **命令执行边界**：
    - 短时、有明确退出状态的前台命令调用 `LinuxRuntime.execute()` / Harness `base`。
    - 跨调用持续运行的服务或长任务调用 `LinuxRuntime.startBackground()` / Harness `process`，统一由 `ProcessRegistry` 托管 PID、生命周期与环形日志缓冲。
@@ -80,6 +83,8 @@ LinuxAIRuntime/
 
 ## 4. 依赖装配（Koin）
 
+- Provider 边界由 `harness/di/harness/ProviderModule.kt` 装配：`ProviderModelResolver` 管理档案、凭证与偏好，`ProviderTransport` 管理请求策略，`LlmApiRegistry` 按模型的 API 选择协议实现。兼容门面 `ProviderClient` 保留已有调用入口；纯 `ModelDescriptor` 不含密钥或端点。
+- 工具边界由 `harness/di/harness/ToolBackendModule.kt` 装配：纯 JVM `ToolBackend` / `ToolCheckpoints` 定义可等待契约；`WorkspaceToolBackend` 通过 `WorkspaceToolOperations` 使用受限工作区访问与写入快照。`ToolExecutor` 保留审批、PLAN、宿主权限和其他工具分派；检查点只允许否决或追加经脱敏的说明，不能授予权限或替换结果状态。默认检查点为空，应用代码可注入受信任实现。
 - 各模块的 `src/main/java/top/wkbin/taixu/di/**/KoinModule.kt` 声明本模块构造器与接口绑定；`app/di/TaiXuModules.kt` 汇总完整依赖图，Application 启动时注册应用 Context，并禁止定义覆盖。
 - 业务类使用普通构造器；仅 Android 创建的 Application、Activity、Service、Receiver 和 Compose ViewModel 入口访问 Koin。新增构造依赖时同步更新所属模块注册，并运行 `:app:testDebugUnitTest` 的依赖图测试。
 - 原进程单例使用 `single`，无作用域对象使用 `factory`，ViewModel 使用 `viewModel`，保留 Navigation3 的 ViewModelStoreOwner 归属。

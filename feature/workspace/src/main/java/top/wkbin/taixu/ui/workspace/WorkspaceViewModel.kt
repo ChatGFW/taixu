@@ -290,9 +290,6 @@ class WorkspaceViewModel(
     private val _openedFilePath = MutableStateFlow<String?>(null)
     val openedFilePath: StateFlow<String?> = _openedFilePath.asStateFlow()
 
-    private val _openedFileExtension = MutableStateFlow("")
-    val openedFileExtension: StateFlow<String> = _openedFileExtension.asStateFlow()
-
     private val _fileContent = MutableStateFlow("")
     val fileContent: StateFlow<String> = _fileContent.asStateFlow()
 
@@ -300,8 +297,7 @@ class WorkspaceViewModel(
     /** 文件内容整文加载/重置版本号：仅在 openFile 或 resetContent 时递增，打字过程中不变化 */
     val contentRevision: StateFlow<Long> = _contentRevision.asStateFlow()
 
-    private var originalContent: String = ""
-    private var currentDraftContent: String = ""
+    private val editorDraft = EditorDraft()
 
     private val _isDirty = MutableStateFlow(false)
     val isDirty: StateFlow<Boolean> = _isDirty.asStateFlow()
@@ -408,15 +404,7 @@ class WorkspaceViewModel(
                 percent = null,
             )
             val result = workspaceManager.importGithubProject(name, directoryPath, projectType, gitUrl, transport) { chunk ->
-                // git 进度用 \r 原地刷新，取 chunk 内最后一个非空片段作为最新状态
-                val latest = chunk.split('\r', '\n').lastOrNull { it.isNotBlank() }?.trim()
-                if (latest != null) {
-                    _githubImportProgress.value = GithubImportProgress(
-                        text = latest,
-                        percent = GIT_PERCENT_REGEX.findAll(latest).lastOrNull()
-                            ?.groupValues?.get(1)?.toIntOrNull()?.coerceIn(0, 100),
-                    )
-                }
+                workspaceImportProgress(chunk)?.let { _githubImportProgress.value = it }
             }
             _message.value = result.errorOrNull()?.message ?: context.getString(R.string.workspace_project_imported)
             _messageIsError.value = result.isFailure
@@ -543,63 +531,67 @@ class WorkspaceViewModel(
     private fun runFileOp(
         successMessage: suspend () -> String,
         fallbackError: Int,
+        onSuccess: () -> Unit = {},
         op: suspend () -> AppResult<Unit>,
     ) {
-        val proj = _selectedProject.value ?: return
+        if (_selectedProject.value == null || _busy.value) return
+        _busy.value = true
         viewModelScope.launch {
-            _busy.value = true
-            val result = op()
-            if (result.isSuccess) {
-                notify(successMessage())
-                refreshDirectory()
-            } else {
-                notify(result.errorOrNull()?.message ?: context.getString(fallbackError), isError = true)
+            try {
+                val result = op()
+                if (result.isSuccess) {
+                    notify(successMessage())
+                    refreshDirectory()
+                    onSuccess()
+                } else {
+                    notify(result.errorOrNull()?.message ?: context.getString(fallbackError), isError = true)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                notify(e.message ?: context.getString(fallbackError), isError = true)
+            } finally {
+                _busy.value = false
             }
-            _busy.value = false
         }
     }
 
-    fun createFile(name: String) {
-        val proj = _selectedProject.value ?: return
+    private fun validatedEntryName(name: String): String? {
         val trimmed = name.trim()
-        if (trimmed.isBlank()) return
-        if (!isValidWorkspaceEntryName(trimmed)) {
-            notify(context.getString(R.string.workspace_invalid_name), isError = true)
-            return
-        }
+        if (isValidWorkspaceEntryName(trimmed)) return trimmed
+        notify(context.getString(R.string.workspace_invalid_name), isError = true)
+        return null
+    }
+
+    fun createFile(name: String, onSuccess: () -> Unit = {}) {
+        val proj = _selectedProject.value ?: return
+        val trimmed = validatedEntryName(name) ?: return
         val fullRelative = if (_currentPath.value.isBlank()) trimmed else "${_currentPath.value}/$trimmed"
         runFileOp(
             successMessage = { context.getString(R.string.workspace_file_created, trimmed) },
             fallbackError = R.string.workspace_create_file_failed,
+            onSuccess = onSuccess,
         ) { workspaceManager.createFile(proj, fullRelative) }
     }
 
-    fun createDirectory(name: String) {
+    fun createDirectory(name: String, onSuccess: () -> Unit = {}) {
         val proj = _selectedProject.value ?: return
-        val trimmed = name.trim()
-        if (trimmed.isBlank()) return
-        if (!isValidWorkspaceEntryName(trimmed)) {
-            notify(context.getString(R.string.workspace_invalid_name), isError = true)
-            return
-        }
+        val trimmed = validatedEntryName(name) ?: return
         val fullRelative = if (_currentPath.value.isBlank()) trimmed else "${_currentPath.value}/$trimmed"
         runFileOp(
             successMessage = { context.getString(R.string.workspace_directory_created, trimmed) },
             fallbackError = R.string.workspace_create_directory_failed,
+            onSuccess = onSuccess,
         ) { workspaceManager.createDirectory(proj, fullRelative) }
     }
 
-    fun renameItem(oldRelativePath: String, newName: String) {
+    fun renameItem(oldRelativePath: String, newName: String, onSuccess: () -> Unit = {}) {
         val proj = _selectedProject.value ?: return
-        val trimmed = newName.trim()
-        if (trimmed.isBlank()) return
-        if (!isValidWorkspaceEntryName(trimmed)) {
-            notify(context.getString(R.string.workspace_invalid_name), isError = true)
-            return
-        }
+        val trimmed = validatedEntryName(newName) ?: return
         runFileOp(
             successMessage = { context.getString(R.string.workspace_renamed, trimmed) },
             fallbackError = R.string.workspace_rename_failed,
+            onSuccess = onSuccess,
         ) { workspaceManager.renameItem(proj, oldRelativePath, trimmed) }
     }
 
@@ -613,18 +605,20 @@ class WorkspaceViewModel(
 
     // ==================== 编辑器操作 ====================
 
+    fun editorText(project: String, path: String): String =
+        if (editorDraft.matches(project, path)) editorDraft.text else ""
+
     fun openFile(projectName: String, relativePath: String) {
         _selectedProject.value = projectName
         _openedFilePath.value = relativePath
-        val ext = relativePath.substringAfterLast('.', "")
-        _openedFileExtension.value = ext
+        if (editorDraft.matches(projectName, relativePath)) return
         viewModelScope.launch {
             _loadingFiles.value = true
             val result = workspaceManager.readFile(projectName, relativePath)
+            if (_selectedProject.value != projectName || _openedFilePath.value != relativePath) return@launch
             if (result.isSuccess) {
                 val content = result.getOrNull().orEmpty()
-                originalContent = content
-                currentDraftContent = content
+                editorDraft.load(projectName, relativePath, content)
                 _fileContent.value = content
                 _isDirty.value = false
                 _contentRevision.value++
@@ -636,13 +630,14 @@ class WorkspaceViewModel(
     }
 
     fun onContentChanged(newText: String) {
-        currentDraftContent = newText
-        _isDirty.value = newText != originalContent
+        if (_loadingFiles.value || !editorDraft.matches(_selectedProject.value, _openedFilePath.value)) return
+        editorDraft.edit(newText)
+        _isDirty.value = editorDraft.isDirty
     }
 
     fun resetContent() {
-        currentDraftContent = originalContent
-        _fileContent.value = originalContent
+        editorDraft.reset()
+        _fileContent.value = editorDraft.text
         _isDirty.value = false
         _contentRevision.value++
     }
@@ -650,17 +645,20 @@ class WorkspaceViewModel(
     fun saveFile(content: String? = null, onSuccess: (() -> Unit)? = null) {
         val proj = _selectedProject.value ?: return
         val path = _openedFilePath.value ?: return
-        val text = content ?: currentDraftContent.ifEmpty { _fileContent.value }
+        if (_isSaving.value || _loadingFiles.value || !editorDraft.matches(proj, path)) return
+        content?.let(editorDraft::edit)
+        val snapshot = editorDraft.snapshot()
+        _isSaving.value = true
         viewModelScope.launch {
-            _isSaving.value = true
-            val result = workspaceManager.writeFile(proj, path, text)
+            val result = workspaceManager.writeFile(proj, path, snapshot.text)
             if (result.isSuccess) {
-                originalContent = text
-                currentDraftContent = text
-                _fileContent.value = text
-                _isDirty.value = false
+                val stillOpen = editorDraft.markSaved(snapshot)
+                if (stillOpen) {
+                    _fileContent.value = snapshot.text
+                    _isDirty.value = editorDraft.isDirty
+                }
                 notify(context.getString(R.string.workspace_file_saved))
-                onSuccess?.invoke()
+                if (stillOpen && !editorDraft.isDirty) onSuccess?.invoke()
             } else {
                 notify(result.errorOrNull()?.message ?: context.getString(R.string.workspace_save_failed), isError = true)
             }
@@ -671,48 +669,7 @@ class WorkspaceViewModel(
     fun closeFile() {
         _openedFilePath.value = null
         _fileContent.value = ""
-        originalContent = ""
-        currentDraftContent = ""
+        editorDraft.clear()
         _isDirty.value = false
     }
 }
-
-/**
- * 文件/文件夹名称合法性校验（UI 与 VM 共用同一规则）：
- * 不允许路径分隔符（/ 与 \\）、首尾空格、以 `.` 开头（隐藏文件）以及 `.` / `..` 等特殊名称。
- */
-internal fun isValidWorkspaceEntryName(name: String): Boolean {
-    if (name.isEmpty()) return false
-    if (name.trim() != name) return false
-    if (name.startsWith(".")) return false
-    if (name == "." || name == "..") return false
-    if (name.contains('/') || name.contains('\\')) return false
-    return true
-}
-
-/**
- * 计算文件浏览器跳转或重入时的目标路径：
- * - 切换到不同项目：使用目标路径（未指定时为根目录 ""）；
- * - 同一项目重入且未显式指定子目录（targetPath 为空）：保留已有子目录，避免打开代码编辑等页面返回后被重置到根目录；
- * - 同一项目显式传入非空子目录：跳转到该目标路径；
- * - 同一项目当前处于根目录且 targetPath 为空：保持根目录。
- */
-internal fun computeExplorerPath(
-    currentProject: String?,
-    currentPath: String,
-    targetProject: String,
-    targetPath: String,
-): String {
-    val cleanTarget = targetPath.trim().removePrefix("/")
-    val isSameProject = currentProject == targetProject
-    return if (!isSameProject) {
-        cleanTarget
-    } else if (cleanTarget.isNotBlank() || currentPath.isBlank()) {
-        cleanTarget
-    } else {
-        currentPath
-    }
-}
-
-/** 从 git 克隆进度行提取百分比，如 "Receiving objects: 45% (50/110), 1.2 MiB"。 */
-private val GIT_PERCENT_REGEX = Regex("""(\d{1,3})%""")

@@ -360,14 +360,8 @@ class DistroConfigurator(
         installHostBridgeScripts(distroId)
     }
 
-    /**
-     * 安装宿主桥接沙箱端脚本与 API 密钥。
-     *
-     * 写入三个文件到 /opt/taixu/（bind-mounted 到沙箱）：
-     * - bin/taixu-host        — 桥接 CLI（install-apk / shell / health）
-     * - bin/taixu-android-exec — Android 二进制执行包装器（设置正确的 linker 环境）
-     * - .bridge-key           — API 认证密钥
-     */
+    /** 安装宿主桥接沙箱端脚本与 API 密钥到 /opt/taixu/（bind-mounted 到沙箱）：
+     *  bin/taixu-host 桥接 CLI（install-apk / shell / health）、bin/taixu-android-exec 链接环境包装器、.bridge-key API 密钥。 */
     private fun installHostBridgeScripts(distroId: String) {
         val binDir = pathManager.taixuBinDir(distroId)
         binDir.mkdirs()
@@ -383,8 +377,10 @@ class DistroConfigurator(
         androidExecScript.writeText(TAIXU_ANDROID_EXEC_SCRIPT)
         runCatching { android.system.Os.chmod(androidExecScript.absolutePath, 0x1ED) }
 
-        // API 密钥 — 每次配置时刷新（确保 app 重启后密钥同步）
-        File(rootDir, ".bridge-key").writeText(hostBridge.bridgeKey)
+        // API 密钥 — 每次配置时刷新；显式 0600 收紧读取面（SECURITY_SURFACE #5）
+        val bridgeKeyFile = File(rootDir, ".bridge-key")
+        bridgeKeyFile.writeText(hostBridge.bridgeKey)
+        runCatching { android.system.Os.chmod(bridgeKeyFile.absolutePath, 0x180) } // 0600 = 仅属主可读写
 
         logger.i("HostBridge scripts installed for distro: $distroId")
     }

@@ -45,7 +45,7 @@
     <string name="workspace_projects_section">Isolated workspace projects</string>
     <string name="workspace_projects_description">Located under /workspace in the Linux sandbox with real-time agent access</string>
     <string name="workspace_no_projects">No workspace projects yet</string>
-    <string name="workspace_no_projects_description">Create a project in the top-right, or import one from a local ZIP or GitHub</string>
+    <string name="workspace_no_projects_description">Create a project or import an existing project from a local ZIP or GitHub</string>
     <string name="workspace_building_device">Building for device…</string>
     <string name="workspace_run_ready">Ready to run</string>
     <string name="workspace_run_failed">Run failed</string>

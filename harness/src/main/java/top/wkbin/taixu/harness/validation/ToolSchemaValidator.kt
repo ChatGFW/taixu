@@ -10,6 +10,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.model.McpToolInfo
 import top.wkbin.taixu.harness.ProviderClient
+import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 import top.wkbin.taixu.harness.mcp.McpToolApiName
 
 /**
@@ -199,6 +200,10 @@ object ToolSchemaValidator {
             "history.read" -> "history_read"
             else -> toolName
         }
+        // host 的校验面 = 执行器接受面（direct ∪ deferred 并集）：provider 声明面只宣告
+        // direct 高频动作（prompt 减负），deferred 动作经 use_capability 或旧式直接调用
+        // 进入时必须仍然可校验、可执行，否则旧会话重放与模型历史模仿会被 enum 硬拒。
+        if (apiName == "host") return HostCapabilityDirectory.validationSchema()
         return ProviderClient.TOOLS.firstOrNull { it.function.name == apiName }?.function?.parameters
     }
 

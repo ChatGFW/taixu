@@ -3,6 +3,8 @@ package top.wkbin.taixu.webchat
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
@@ -15,7 +17,7 @@ import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.CapabilityEvent
-import top.wkbin.taixu.harness.HarnessLoop
+import top.wkbin.taixu.harness.session.SessionControl
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.SkillSuggestion
@@ -26,12 +28,19 @@ import top.wkbin.taixu.runtime.webchat.WebChatAgentGateway
 import top.wkbin.taixu.runtime.webchat.WebChatApproval
 import top.wkbin.taixu.runtime.webchat.WebChatMessage
 import top.wkbin.taixu.runtime.webchat.WebChatSessionSnapshot
+import top.wkbin.taixu.runtime.webchat.WebChatInputMode
+import top.wkbin.taixu.runtime.webchat.WebChatInputReceipt
+import top.wkbin.taixu.harness.queue.PromptQueue
+import top.wkbin.taixu.harness.session.PromptSubmission
+import top.wkbin.taixu.core.database.task.AgentTaskRepository
+import top.wkbin.taixu.runtime.webchat.WebChatTaskState
 
 class TaiXuWebChatAgentGateway(
-    private val harnessLoop: HarnessLoop,
+    private val harnessLoop: SessionControl,
     private val sessions: HarnessSessionRepository,
     private val models: AiModelRepository,
     private val approvals: AgentApprovalRepository,
+    private val tasks: AgentTaskRepository,
 ) : WebChatAgentGateway {
 
     override suspend fun createSession(title: String, workspace: String): String {
@@ -56,10 +65,16 @@ class TaiXuWebChatAgentGateway(
     override suspend fun deleteSession(sessionId: String) = harnessLoop.deleteSession(sessionId)
 
     override suspend fun messages(sessionId: String): List<WebChatMessage> =
-        harnessLoop.prepareRemoteSession(sessionId).map(::toWebMessage)
+        harnessLoop.persistedMessages(sessionId).map(::toWebMessage)
 
     override suspend fun pendingApprovals(sessionId: String): List<WebChatApproval> =
         approvals.pendingNow(sessionId).map(::toWebApproval)
+
+    override fun observeTask(sessionId: String, taskId: String): Flow<WebChatTaskState> =
+        tasks.observeTask(taskId).map { task ->
+            if (task == null || task.sessionId != sessionId) WebChatTaskState.MISSING
+            else WebChatTaskState.entries.find { it.name == task.status } ?: WebChatTaskState.UNKNOWN
+        }.distinctUntilChanged()
 
     override fun observeSession(sessionId: String): Flow<WebChatSessionSnapshot> =
         combine(
@@ -78,10 +93,19 @@ class TaiXuWebChatAgentGateway(
             )
         }
 
-    override suspend fun send(sessionId: String, text: String, imageUrls: List<String>) {
-        harnessLoop.prepareRemoteSession(sessionId)
-        harnessLoop.send(text, sessionId, imageUrls)
-    }
+    override suspend fun send(sessionId: String, text: String, imageUrls: List<String>,
+        mode: WebChatInputMode): WebChatInputReceipt =
+        when (val result = harnessLoop.submit(sessionId, text, imageUrls,
+            PromptQueue.entries.single { it.id == mode.id })) {
+            is PromptSubmission.Accepted -> WebChatInputReceipt(
+                result.disposition.name.lowercase(), result.taskId, result.queue?.id, result.queueItemId)
+            is PromptSubmission.Rejected -> throw IllegalArgumentException(when (result.reason) {
+                PromptSubmission.Rejection.INVALID_SESSION -> "会话 ID 不能为空"
+                PromptSubmission.Rejection.EMPTY_INPUT -> "消息不能为空"
+                PromptSubmission.Rejection.SESSION_NOT_FOUND -> "会话不存在"
+                PromptSubmission.Rejection.LAUNCH_REJECTED -> "会话启动失败"
+            })
+        }
 
     override suspend fun resolveApproval(sessionId: String, requestId: String, approved: Boolean): Boolean {
         val request = approvals.find(requestId) ?: return false

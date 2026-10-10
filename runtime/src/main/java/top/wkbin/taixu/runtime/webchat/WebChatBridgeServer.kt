@@ -78,8 +78,14 @@ class WebChatBridgeServer(
     }
 
     private val sseEmitters = ConcurrentHashMap.newKeySet<AndroidHttpExchange>()
-    private val taskSessions = ConcurrentHashMap<String, String>()
-    private val sessionObservers = ConcurrentHashMap<String, Job>()
+    private val runTracker = WebChatRunTracker(scope, agentGateway,
+        messages = { sessionId, snapshot -> broadcastEvent("messages_replaced", buildJsonObject {
+            put("conversationId", sessionId); put("conversationMode", "normal")
+            put("messages", messageArray(snapshot.messages))
+        }.toString()) },
+        event = { taskId, kind, sessionId, approvals -> broadcastEvent("chat_task_event", taskEvent(taskId, kind, sessionId, approvals)) },
+        failure = { logger.e("Web task observation failed", it) },
+    )
     private var heartbeatJob: Job? = null
     private var wakeLock: android.os.PowerManager.WakeLock? = null
     private var wifiLock: android.net.wifi.WifiManager.WifiLock? = null
@@ -100,6 +106,7 @@ class WebChatBridgeServer(
             // 远程终端桥：/webchat/api/terminal*（列表/创建/SSE 输出/输入/缩放/关闭）。
             terminalBridge.registerRoutes(server)
             server.createContext("/", StaticAssetHandler())
+            runTracker.enable()
             server.start()
             httpServer = server
 
@@ -132,9 +139,7 @@ class WebChatBridgeServer(
             heartbeatJob = null
             releaseLocks()
             hideNotification()
-            sessionObservers.values.forEach(Job::cancel)
-            sessionObservers.clear()
-            taskSessions.clear()
+            runTracker.stop()
             sseEmitters.forEach { runCatching { it.close() } }
             sseEmitters.clear()
             httpServer?.stop(0)
@@ -304,7 +309,7 @@ class WebChatBridgeServer(
                             ?: throw IllegalArgumentException("缺少审批决定")
                         val accepted = agentGateway.resolveApproval(sessionId, parts[2], approved)
                         require(accepted) { "审批请求不存在、已处理或不属于当前会话" }
-                        val taskId = taskSessions.entries.firstOrNull { it.value == sessionId }?.key
+                        val taskId = runTracker.requestForSession(sessionId)
                         sendJson(exchange, 200, buildJsonObject {
                             put("accepted", true)
                             taskId?.let { put("taskId", it) }
@@ -315,8 +320,11 @@ class WebChatBridgeServer(
                     }
                     else -> sendText(exchange, 404, "接口不存在")
                 }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
             } catch (throwable: Throwable) {
-                sendJson(exchange, 400, errorJson(throwable.message ?: "会话操作失败"))
+                val error = WebChatRunProtocol.failure(throwable)
+                sendJson(exchange, error.status, errorJson(error.message))
             }
         }
     }
@@ -324,50 +332,16 @@ class WebChatBridgeServer(
     private suspend fun startRun(exchange: AndroidHttpExchange, sessionId: String) {
         requireNotNull(sessions.findById(sessionId)) { "会话不存在" }
         val body = requestJson(exchange)
-        val text = body["userMessage"]?.jsonPrimitive?.content.orEmpty()
-        val imageUrls = body["attachments"]?.jsonArray.orEmpty().mapNotNull { item ->
-            item.jsonObject["dataUrl"]?.jsonPrimitive?.content?.takeIf { it.startsWith("data:image/") }
-        }
-        require(text.isNotBlank() || imageUrls.isNotEmpty()) { "消息不能为空" }
+        val input = WebChatRunProtocol.parse(body)
         val taskId = body["taskId"]?.jsonPrimitive?.content?.takeIf(String::isNotBlank)
-            ?: "web-${System.currentTimeMillis()}"
-        taskSessions[taskId] = sessionId
-        agentGateway.send(sessionId, text, imageUrls)
-        observeRun(sessionId, taskId)
+            ?: "web-${java.util.UUID.randomUUID()}"
+        val receipt = runTracker.submit(sessionId, taskId) { agentGateway.send(sessionId, input.text, input.images, input.mode) }
         sendJson(exchange, 200, buildJsonObject {
             put("taskId", taskId)
             put("conversationMode", "normal")
+            put("input", WebChatRunProtocol.receiptJson(receipt))
             put("conversation", conversationJson(requireNotNull(sessions.findById(sessionId))))
         })
-    }
-
-    private fun observeRun(sessionId: String, taskId: String) {
-        sessionObservers.remove(sessionId)?.cancel()
-        sessionObservers[sessionId] = scope.launch {
-            var observedRunning = false
-            var waitingEventSent = false
-            agentGateway.observeSession(sessionId).collect { snapshot ->
-                if (snapshot.running) {
-                    observedRunning = true
-                    waitingEventSent = false
-                }
-                broadcastEvent("messages_replaced", buildJsonObject {
-                    put("conversationId", sessionId)
-                    put("conversationMode", "normal")
-                    put("messages", messageArray(snapshot.messages))
-                }.toString())
-                if (snapshot.waitingApproval) {
-                    if (!waitingEventSent) {
-                        broadcastEvent("chat_task_event", taskEvent(taskId, "waiting_approval", sessionId, snapshot.approvals))
-                        waitingEventSent = true
-                    }
-                } else if (observedRunning && !snapshot.running) {
-                    broadcastEvent("chat_task_event", taskEvent(taskId, if (snapshot.error == null) "completed" else "error", sessionId))
-                    taskSessions.remove(taskId)
-                    cancel()
-                }
-            }
-        }
     }
 
     private inner class TasksHandler : AndroidHttpHandler {
@@ -378,9 +352,7 @@ class WebChatBridgeServer(
             val parts = suffix.split('/').filter(String::isNotBlank)
             if (parts.size == 2 && parts[1] == "cancel" && exchange.requestMethod == "POST") {
                 val taskId = parts[0]
-                val sessionId = taskSessions.remove(taskId)
-                if (sessionId != null) agentGateway.cancel(sessionId)
-                sendJson(exchange, 200, buildJsonObject { put("cancelled", sessionId != null) })
+                sendJson(exchange, 200, buildJsonObject { put("cancelled", runTracker.cancel(taskId)) })
             } else {
                 sendText(exchange, 404, "任务接口不存在")
             }

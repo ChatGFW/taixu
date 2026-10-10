@@ -3,7 +3,10 @@ package top.wkbin.taixu.harness
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.BuiltinMcpPresets
+import top.wkbin.taixu.core.model.McpToolAnnotations
 import top.wkbin.taixu.core.model.McpToolInfo
+import top.wkbin.taixu.harness.approval.AnnotationEscalation
+import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 import top.wkbin.taixu.harness.mcp.McpToolApiName
 import java.util.UUID
 import kotlinx.serialization.json.JsonObject
@@ -44,6 +47,7 @@ class ApprovalPolicyEngine(
         args: JsonObject,
         workspace: String,
         rawToolName: String? = null,
+        annotations: McpToolAnnotations? = null,
     ): ApprovalDecision {
         // 宿主特权命令作用于真实 Android 系统。只读操作始终放行；
         // 完全访问 = 用户显式授权一切宿主操作（含 exec / 卸载应用），全部自动放行；
@@ -52,13 +56,13 @@ class ApprovalPolicyEngine(
         // REQUEST 模式对所有可变宿主操作仍要求确认。
         if (tool == HarnessTool.HOST) {
             val action = args["action"]?.jsonPrimitive?.content.orEmpty().trim().lowercase()
-            if (action in HOST_READ_ONLY_ACTIONS) {
+            if (action in HostCapabilityDirectory.READ_ONLY_ACTIONS) {
                 return ApprovalDecision(false)
             }
             if (mode == ApprovalMode.FULL_ACCESS) {
                 return ApprovalDecision(false)
             }
-            if (mode == ApprovalMode.ASSISTED && action in HOST_GUI_ASSISTED_ACTIONS) {
+            if (mode == ApprovalMode.ASSISTED && action in HostCapabilityDirectory.GUI_ASSISTED_ACTIONS) {
                 return ApprovalDecision(false)
             }
             val critical = action == "exec" || action == "package_uninstall_user"
@@ -85,6 +89,12 @@ class ApprovalPolicyEngine(
         ) {
             return ApprovalDecision(false)
         }
+        // use_capability(call, server="host")：低频宿主/虚拟屏能力经目录按需发现后由此进入，
+        // 展平为等价 host 参数后复用与直接 host 调用完全一致的风险矩阵——
+        // ASSISTED 的 GUI 放行、PLAN 只读约束与 critical 判定均不因路由改变。
+        if (tool == HarnessTool.MCP && HostCapabilityDirectory.isCapabilityCall(args, rawToolName)) {
+            return decide(mode, HarnessTool.HOST, HostCapabilityDirectory.flattenToHostArgs(args), workspace)
+        }
         // 内置浏览器 MCP 工具按风险矩阵细化审批：只读（LOW）工具在任何模式下免审。
         // use_capability(call) 从 arguments 里取 (server, tool) 合成内部工具名，套用同一矩阵。
         if (tool == HarnessTool.MCP && mcpBrowserRisk(effectiveMcpToolName(tool, args, rawToolName)) == "low") {
@@ -103,7 +113,10 @@ class ApprovalPolicyEngine(
 
         val summary = summarize(tool, args, rawToolName)
         if (mode == ApprovalMode.REQUEST) {
-            return ApprovalDecision(true, "normal", "当前权限模式要求所有会改变状态或产生外部副作用的工具操作先获得批准。", summary)
+            // REQUEST 模式统一要求审批；注解升级只调整风险等级——声明了破坏性的
+            // MCP 工具升到 high，从而也不可被「本会话内记住」一揽子豁免。
+            val base = ApprovalDecision(true, "normal", "当前权限模式要求所有会改变状态或产生外部副作用的工具操作先获得批准。", summary)
+            return if (tool == HarnessTool.MCP) AnnotationEscalation.escalate(base, annotations) else base
         }
 
         return when (tool) {
@@ -132,12 +145,15 @@ class ApprovalPolicyEngine(
             HarnessTool.DOWNLOAD -> ApprovalDecision(true, "high", "下载会访问外部网络并写入工作区文件。", summary)
             HarnessTool.BUILD_SCRIPT -> ApprovalDecision(true, "normal", "操作将修改构建脚本或项目挂载关系。", summary)
             HarnessTool.HOST -> error("HOST 已在审批策略入口处理")
-            HarnessTool.MCP -> when (mcpBrowserRisk(effectiveMcpToolName(tool, args, rawToolName))) {
-                "medium" -> ApprovalDecision(true, "medium", "浏览器操作会改变页面状态或新开会话。", summary)
-                "high" -> ApprovalDecision(true, "high", "浏览器操作将修改页面内容或写入本地存储。", summary)
-                "critical" -> ApprovalDecision(true, "critical", "浏览器操作涉及代码执行或读取敏感数据（Cookie/页面源码）。", summary)
-                else -> ApprovalDecision(true, "high", "MCP 工具可能访问外部服务或产生工作区之外的副作用。", summary)
-            }
+            HarnessTool.MCP -> AnnotationEscalation.escalate(
+                when (mcpBrowserRisk(effectiveMcpToolName(tool, args, rawToolName))) {
+                    "medium" -> ApprovalDecision(true, "medium", "浏览器操作会改变页面状态或新开会话。", summary)
+                    "high" -> ApprovalDecision(true, "high", "浏览器操作将修改页面内容或写入本地存储。", summary)
+                    "critical" -> ApprovalDecision(true, "critical", "浏览器操作涉及代码执行或读取敏感数据（Cookie/页面源码）。", summary)
+                    else -> ApprovalDecision(true, "high", "MCP 工具可能访问外部服务或产生工作区之外的副作用。", summary)
+                },
+                annotations,
+            )
             HarnessTool.READ, HarnessTool.MEMORY, HarnessTool.PLAN, HarnessTool.SCRATCHPAD,
             HarnessTool.HISTORY_SEARCH, HarnessTool.HISTORY_READ, HarnessTool.SUBAGENT, HarnessTool.LOAD_RULE,
             HarnessTool.LOAD_SKILL, HarnessTool.RENDER_SURFACE,
@@ -175,16 +191,19 @@ class ApprovalPolicyEngine(
         }
         HarnessTool.HOST -> {
             val action = args["action"]?.jsonPrimitive?.content.orEmpty().trim().lowercase()
-            if (action in HOST_READ_ONLY_ACTIONS) {
+            if (action in HostCapabilityDirectory.READ_ONLY_ACTIONS) {
                 null
             } else {
                 "宿主操作仅允许只读查询（status / settings_get / package_list / app_list / logcat / device_status / screen_observe），不允许改动真实 Android 系统。"
             }
         }
-        HarnessTool.MCP -> if (isReadOnlyMcpCall(args, rawToolName)) {
-            null
-        } else {
-            "MCP 仅允许只读能力查询（use_capability 的 list / inspect / decline）与低风险浏览器只读工具。"
+        HarnessTool.MCP -> when {
+            // 宿主能力域的 deferred 调用：按直接 host 调用的只读约束判定
+            // （deferred 动作全部是非只读管理/虚拟屏动作，只读规划下一律拦截）。
+            HostCapabilityDirectory.isCapabilityCall(args, rawToolName) ->
+                planBlock(HarnessTool.HOST, HostCapabilityDirectory.flattenToHostArgs(args))
+            isReadOnlyMcpCall(args, rawToolName) -> null
+            else -> "MCP 仅允许只读能力查询（use_capability 的 list / inspect / decline）与低风险浏览器只读工具。"
         }
         HarnessTool.BUILD_SCRIPT -> if (args["action"]?.jsonPrimitive?.content.orEmpty().trim().lowercase() in setOf("list", "get")) {
             null
@@ -233,27 +252,8 @@ class ApprovalPolicyEngine(
     companion object {
         /** 审批有效期：超时未决的请求自动失效，恢复执行前也会复核。 */
         const val APPROVAL_TTL_MS: Long = 10 * 60 * 1000L
-        private val HOST_READ_ONLY_ACTIONS = setOf(
-            "status",
-            "settings_get",
-            "package_list",
-            "app_list",
-            "logcat",
-            "device_status",
-            "screen_observe",
-        )
-        /** ASSISTED 下自动放行的 GUI 原语（仍受 REQUEST / 危险动作策略约束）。 */
-        private val HOST_GUI_ASSISTED_ACTIONS = setOf(
-            "screen_click",
-            "screen_double_click",
-            "screen_long_press",
-            "screen_swipe",
-            "screen_scroll",
-            "screen_input_text",
-            "paste_text",
-            "screen_key",
-            "app_launch", "virtual_screen_task", "virtual_screen_click", "virtual_screen_double_click", "virtual_screen_long_press", "virtual_screen_swipe", "virtual_screen_scroll", "virtual_screen_key", "virtual_screen_input_text", "virtual_screen_screenshot",
-        )
+        // 宿主动作分类（只读 / ASSISTED 自动放行）已迁至 HostCapabilityDirectory：
+        // direct/deferred 拆分与审批分类在目录中保持同一事实源。
 
         /** argumentsJson 的 SHA-256 十六进制摘要；创建时写入，执行前复核。 */
         fun argsHash(argumentsJson: String): String {
@@ -317,11 +317,6 @@ class ApprovalPolicyEngine(
         else -> tool.name.lowercase()
     }
 
-    /**
-     * 解析 MCP 工具名（mcp__<server>__<tool>__<hash>）并映射内置浏览器工具风险档位。
-     * 仅当 server 段确认为内置 browser server（编码截断段或 legacy 完整 id）时才套用浏览器风险矩阵，
-     * 防止外部 MCP server 用同名工具冒充内置白名单；非内置浏览器工具返回 null。
-     */
     /**
      * 解析代理调用的实际目标工具名：use_capability(call) 从 arguments 合成
      * mcp__<server>__<tool> 形式以复用浏览器风险矩阵；其余原样返回 rawToolName。

@@ -12,6 +12,9 @@ interface AgentTaskDao {
     fun observeAllTasks(): Flow<List<AgentTaskEntity>>
 
     @Query("SELECT * FROM agent_tasks WHERE id = :id LIMIT 1")
+    fun observeTask(id: String): Flow<AgentTaskEntity?>
+
+    @Query("SELECT * FROM agent_tasks WHERE id = :id LIMIT 1")
     suspend fun getTaskById(id: String): AgentTaskEntity?
 
     @Query("SELECT * FROM agent_tasks WHERE status = :status ORDER BY updatedAt DESC")

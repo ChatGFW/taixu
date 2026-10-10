@@ -1,6 +1,8 @@
 package top.wkbin.taixu.harness.session
 
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -176,30 +178,30 @@ class SessionTurnCoordinatorTest {
         // 全局槽位只有 1 个
         val coordinator: SessionTurnCoordinator = SessionTurnCoordinatorImpl(initialMaxConcurrentTurns = 1)
         val executionOrder = mutableListOf<String>()
+        val releaseSlot = CompletableDeferred<Unit>()
 
-        // 占用唯一槽位
-        val occupyingJob = launch {
+        // 同步执行到首个挂起点，保证槽位已占用、两个 waiter 都已注册后才释放。
+        val occupyingJob = launch(start = CoroutineStart.UNDISPATCHED) {
             coordinator.withSessionTurn("occupying-session") {
-                delay(100)
+                releaseSlot.await()
             }
         }
-        delay(20)
 
         // 普通优先级排队
-        val normalJob = launch {
+        val normalJob = launch(start = CoroutineStart.UNDISPATCHED) {
             coordinator.withSessionTurn("normal-session", TurnPriority.NORMAL) {
                 executionOrder.add("normal")
             }
         }
-        delay(10)
 
         // 高优先级排队（模拟审批续跑或用户打断）
-        val highJob = launch {
+        val highJob = launch(start = CoroutineStart.UNDISPATCHED) {
             coordinator.withSessionTurn("high-session", TurnPriority.HIGH) {
                 executionOrder.add("high")
             }
         }
 
+        releaseSlot.complete(Unit)
         occupyingJob.join()
         highJob.join()
         normalJob.join()

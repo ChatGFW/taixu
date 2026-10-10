@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness
 
 import kotlinx.coroutines.runBlocking
+import top.wkbin.taixu.harness.core.TurnOutcome
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

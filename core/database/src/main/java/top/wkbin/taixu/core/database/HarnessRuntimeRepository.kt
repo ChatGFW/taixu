@@ -47,6 +47,11 @@ interface HarnessRuntimeRepository {
     suspend fun listActiveOperations(sessionId: String): List<HarnessOperationEntity>
     suspend fun acceptOperation(entry: HarnessEntryEntity, lane: HarnessLaneEntity, operation: HarnessOperationEntity)
     suspend fun acceptQueuedOperation(queueItemId: String, entry: HarnessEntryEntity, lane: HarnessLaneEntity, operation: HarnessOperationEntity)
+    /** Atomically claims a queued task with its full input and operation, including queue consumption. */
+    suspend fun acceptTaskOperation(taskId: String, entry: HarnessEntryEntity, lane: HarnessLaneEntity,
+        operation: HarnessOperationEntity, queueItemId: String? = null) {
+        error("Atomic task admission is not supported by this repository")
+    }
     suspend fun beginOperation(lane: HarnessLaneEntity, operation: HarnessOperationEntity)
     suspend fun saveOperation(operation: HarnessOperationEntity)
     suspend fun settleEffect(entry: HarnessEntryEntity?, usage: HarnessUsageEntity?, operation: HarnessOperationEntity, lane: HarnessLaneEntity)
@@ -219,6 +224,13 @@ class RoomHarnessRuntimeRepository(
 
     override suspend fun beginOperation(lane: HarnessLaneEntity, operation: HarnessOperationEntity) =
         dao.beginOperation(lane, operation)
+
+    override suspend fun acceptTaskOperation(taskId: String, entry: HarnessEntryEntity, lane: HarnessLaneEntity,
+        operation: HarnessOperationEntity, queueItemId: String?) {
+        require(lane.leafId == entry.id) { "Admission lane must point to the input entry" }
+        val unique = ensureUniqueStorageEntry(entry)
+        dao.acceptTaskOperation(taskId, sanitizeForStorage(unique), lane.copy(leafId = unique.id), operation, queueItemId)
+    }
     override suspend fun saveOperation(operation: HarnessOperationEntity) = dao.upsertOperation(operation)
     override suspend fun settleEffect(entry: HarnessEntryEntity?, usage: HarnessUsageEntity?, operation: HarnessOperationEntity, lane: HarnessLaneEntity) {
         val uniqueEntry = entry?.let { ensureUniqueStorageEntry(it) }

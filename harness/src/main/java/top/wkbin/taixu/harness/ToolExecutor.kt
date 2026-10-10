@@ -4,6 +4,7 @@ import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.harness.session.SessionTreeStore
 import top.wkbin.taixu.harness.skill.SkillResourceReader
+import top.wkbin.taixu.harness.directory.annotationsForCall
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.model.ApprovalMode
@@ -14,7 +15,6 @@ import top.wkbin.taixu.core.network.FileDownloader
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.LinuxEnvironmentManager
 import top.wkbin.taixu.runtime.shell.ShellCommand
-import top.wkbin.taixu.harness.checkpoint.CheckpointStore
 import top.wkbin.taixu.harness.effects.OutputRetention
 import top.wkbin.taixu.harness.effects.ToolOutputRetention
 import top.wkbin.taixu.harness.effects.foldOverlongLines
@@ -37,6 +37,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
+import top.wkbin.taixu.harness.core.ToolCheckpoints
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -48,8 +49,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * - read / write / edit → [WorkspaceFileAccess]（工作区路径安全层）
  * - base → [LinuxRuntime.execute]（PRoot 沙箱内执行命令，带超时与输出截断）
  *
- * 任何工具失败都不会抛异常，而是以结构化的 [ToolResult] 返回给 HarnessLoop，
- * 由模型决定下一步（自我纠正）。
+ * 普通执行失败以 [ToolResult] 返回；取消传播，持久化屏障由调用层负责。
  */
 class ToolExecutor(
     private val fileAccess: WorkspaceFileAccess,
@@ -85,8 +85,53 @@ class ToolExecutor(
     private val skillRepository: top.wkbin.taixu.core.database.AgentSkillRepository? = null,
     private val settingsDataStore: AgentPreferences? = null,
     private val phoneAgentServices: PhoneAgentServices? = null,
+    private val toolCheckpoints: ToolCheckpoints<ToolExecutionRequest, ToolResult> = ToolCheckpoints(),
+    workspaceToolBackend: WorkspaceToolBackend? = null,
 ) {
+    private val mutationSnapshots = WorkspaceMutationSnapshots(checkpointStore, eventBus)
+    private val workspaceTools = workspaceToolBackend ?: WorkspaceToolBackend(
+        operationsFor = { workspace -> if (workspace.isNotBlank()) fileAccess.withBase(workspace) else fileAccess },
+        snapshots = mutationSnapshots,
+    )
+
+    /**
+     * use_capability 统一代理分发器（自本类零增长迁出）。
+     * 宿主能力域（server="host"）复用本执行器的 host 通道：与直接 host 调用共用
+     * 输出上限、截图 metadata 附带与特权实时复核。嵌套调用经 NestedCalls 留痕，
+     * 参数/错误用本执行器的脱敏器处理。
+     */
+    private val capabilityRouter = top.wkbin.taixu.harness.directory.CapabilityToolRouter(
+        mcpManager,
+        argRedactor = { secretRedactor.redact(it) },
+    ) { args, op, sid, meta ->
+        executeHost(args, op, sid, meta)
+    }
+
+    private val executionBoundary = ToolExecutionBoundary(toolCheckpoints) { request, output ->
+        linuxEnvironmentManager?.refreshIfNeeded()
+        val redacted = secretRedactor.redact(
+            output, linuxEnvironmentManager?.values?.value?.values.orEmpty(),
+            privacyMode = settingsDataStore?.environmentPrivacyMode?.first() ?: true,
+        )
+        truncateOutput(redacted, request.call.rawToolName ?: HarnessApiMapper.apiName(request.call.tool),
+            if (request.workspace.isNotBlank()) fileAccess.withBase(request.workspace) else null)
+    }
+
     suspend fun execute(
+        toolCall: ToolCall,
+        sessionId: String = "",
+        workspace: String = "",
+        bypassApproval: Boolean = false,
+        allowApprovalRequest: Boolean = true,
+        progressReporter: (suspend (String) -> Unit)? = null,
+        operationId: String? = null,
+    ): ToolResult {
+        return executionBoundary.execute(ToolExecutionRequest(toolCall, sessionId, workspace, operationId)) {
+            executeWithPolicy(toolCall, sessionId, workspace, bypassApproval, allowApprovalRequest, progressReporter, operationId)
+        }
+    }
+
+    private suspend fun executeWithPolicy(
         toolCall: ToolCall,
         sessionId: String = "",
         workspace: String = "",
@@ -144,7 +189,16 @@ class ToolExecutor(
                         )
                     }
                 }
-                val decision = approvalPolicyEngine.decide(mode, toolCall.tool, toolCall.args, workspace, toolCall.rawToolName)
+                val decision = approvalPolicyEngine.decide(
+                    mode, toolCall.tool, toolCall.args, workspace, toolCall.rawToolName,
+                    // MCP 注解升级（escalation-only）：只采信服务端显式声明抬高审批等级，
+                    // 未缓存/非 MCP 调用为 null，行为与旧版完全一致。
+                    annotations = if (toolCall.tool == HarnessTool.MCP) {
+                        mcpManager.annotationsForCall(toolCall.args, toolCall.rawToolName)
+                    } else {
+                        null
+                    },
+                )
                 // 「本会话内记住」授权表豁免：用户此前对该操作类别批准过并勾选了记住，
                 // 同类后续操作免审批直接执行。表只存内存、随会话销毁，无永久授权；
                 // 只豁免本条 required 判定，策略引擎的其余约束不受影响。
@@ -199,7 +253,7 @@ class ToolExecutor(
                     )
                 }
             }
-            executeTool(toolCall.tool, toolCall.args, toolCall.rawToolName, sessionId, workspace, progressReporter, operationId, toolMetadata)
+            executeTool(toolCall.tool, toolCall.args, toolCall.rawToolName, toolCall.id, sessionId, workspace, progressReporter, operationId, toolMetadata)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (throwable: Throwable) {
@@ -299,6 +353,7 @@ class ToolExecutor(
         tool: HarnessTool,
         rawArgs: JsonObject,
         rawToolName: String?,
+        parentToolCallId: String,
         sessionId: String,
         workspace: String,
         progressReporter: (suspend (String) -> Unit)?,
@@ -312,68 +367,17 @@ class ToolExecutor(
         )
         val activeFileAccess = if (workspace.isNotBlank()) fileAccess.withBase(workspace) else fileAccess
         return when (tool) {
-            HarnessTool.READ -> {
-                val path = requireString(args, "path")
-                val imageMime = resolveImageMime(path)
-                if (imageMime != null) {
-                    // 沙箱图片多模态直通：不做 UTF-8 解码，转 Base64 data URL 交给
-                    // ApiMessageProjector 在 visionEnabled 时注入图片消息。
-                    when (val bytesResult = activeFileAccess.readRawBytes(path)) {
-                        is AppResult.Success -> {
-                            val base64 = java.util.Base64.getEncoder().encodeToString(bytesResult.data)
-                            metadata["image_payload"] = ImagePayloadCompressor.downscaleDataUrl(
-                                "data:$imageMime;base64,$base64",
-                            )
-                            true to "已读取图片文件 $path（${bytesResult.data.size} 字节，$imageMime）。" +
-                                "图像已作为多模态附件随本次工具结果提供。" +
-                                "若这是虚拟屏截图，点击坐标用 0–1000 相对位置，不要用图上的像素。" +
-                                "若当前模型不支持视觉，请改用文字/脚本方式描述图片内容。"
-                        }
-                        is AppResult.Failure -> bytesResult.toToolOutput(actionName = "read")
-                    }
-                } else {
-                    val offset = args["offset"]?.jsonPrimitive?.content?.trim()?.toIntOrNull()
-                    val limit = args["limit"]?.jsonPrimitive?.content?.trim()?.toIntOrNull()
-                    activeFileAccess.read(path, offset, limit).toToolOutput(actionName = "read")
-                }
-            }
-            HarnessTool.WRITE -> {
-                val path = requireString(args, "path")
-                val content = requireString(args, "content")
-                captureBeforeWrite(sessionId, activeFileAccess, path)
-                val linesAdded = content.lines().size
-                val output = activeFileAccess.write(path, content).toToolOutput("已写入 $path\nDIFF_STAT: +$linesAdded -0", actionName = "write")
-                if (output.first) captureAfterWrite(sessionId, activeFileAccess, path, knownContent = content)
-                output
-            }
-            HarnessTool.EDIT -> {
-                val path = requireString(args, "path")
-                val oldText = requireString(args, "oldText")
-                val newText = requireString(args, "newText")
-                captureBeforeWrite(sessionId, activeFileAccess, path)
-                val linesAdded = newText.lines().size
-                val linesDeleted = oldText.lines().size
-                val outcome = activeFileAccess.editDetailed(path, oldText, newText)
-                val output = outcome.toToolOutput(actionName = "edit")
-                // 成功时：命中策略回给模型（简短文本），Unified Diff 只进 metadata 供前端渲染，
-                // 绝不把 diff 正文注入模型上下文，避免重复占用 Token。
-                val finalOutput = if (output.first && outcome is AppResult.Success) {
-                    outcome.data.diff?.let { metadata["diff"] = it }
-                    true to "已修改 $path（匹配策略：${outcome.data.strategy}，替换 ${outcome.data.replacements} 处）\n" +
-                        "DIFF_STAT: +$linesAdded -$linesDeleted"
-                } else {
-                    output
-                }
-                // edit 的结果内容不等于 newText：从盘上重读最终状态作改动后凭据
-                if (finalOutput.first) captureAfterWrite(sessionId, activeFileAccess, path, knownContent = null)
-                finalOutput
+            HarnessTool.READ, HarnessTool.WRITE, HarnessTool.EDIT -> {
+                val outcome = workspaceTools.execute(WorkspaceToolRequest(tool, args, sessionId, workspace))
+                metadata.putAll(outcome.metadata)
+                outcome.success to outcome.output
             }
             HarnessTool.BASE -> executeBase(args, workspace)
             HarnessTool.PROCESS -> executeProcess(args, workspace)
             HarnessTool.HOST -> executeHost(args, operationId, sessionId, metadata)
             HarnessTool.DOWNLOAD -> {
                 val destinationPath = args.stringArg("destination")
-                if (destinationPath != null) captureBeforeWrite(sessionId, activeFileAccess, destinationPath)
+                if (destinationPath != null) mutationSnapshots.before(sessionId, activeFileAccess, destinationPath)
                 executeDownload(args, activeFileAccess, progressReporter)
             }
             HarnessTool.MEMORY -> contextExecutor?.executeMemory(args, sessionId, workspace) ?: (false to "未初始化记忆执行器")
@@ -392,7 +396,7 @@ class ToolExecutor(
                 subagentOrchestrator?.executeSubagents(args, sessionId) ?: (false to "未初始化子智能体编排器")
             }
             HarnessTool.MCP -> if (rawToolName == "use_capability") {
-                executeCapability(args, workspace)
+                executeCapability(args, workspace, parentToolCallId, operationId, sessionId, metadata)
             } else {
                 // 兼容路径：对话历史/模型习惯中仍可能出现直接 mcp__ 调用（schema 已不再宣告）
                 mcpManager?.executeTool(rawToolName ?: "mcp", args, workspace) ?: (false to "未初始化 MCP 管理器")
@@ -966,81 +970,18 @@ class ToolExecutor(
 
 
     /**
-     * use_capability 统一代理的分发（对齐 Reasonix）：
-     * - list：列出已启用的服务与缓存工具数，**不启动任何服务器进程**；
-     * - inspect：查看某服务的工具清单与参数（缓存为空时按需发现一次——模型必须拿到
-     *   完整清单才能构造 call；失败时回 getLastError 给出可读原因）；
-     * - call：按 (server, tool) 执行——未连接的服务在此按需启动并发现；
-     * - decline：模型显式放弃某能力，确认即回。
+     * use_capability 统一代理入口：分发已迁至 [top.wkbin.taixu.harness.directory.CapabilityToolRouter]
+     * （零增长迁移）。宿主能力域（server="host"）在其中复用 [executeHost] 的完整执行通道；
+     * 其余服务按 (server, tool) 交给 MCP 管理器。审批与 PLAN 门禁在 [execute] 入口已完成。
      */
-    private suspend fun executeCapability(args: JsonObject, workspace: String): Pair<Boolean, String> {
-        val manager = mcpManager ?: return false to "未初始化 MCP 管理器"
-        val action = args.stringArg("action").orEmpty().trim().lowercase()
-        return when (action) {
-            "list" -> {
-                val summaries = manager.enabledServerSummaries()
-                if (summaries.isEmpty()) {
-                    false to "当前没有启用任何 MCP 服务。可在「设置 → MCP 插件与协议生态」启用内置能力或添加自定义服务。"
-                } else {
-                    true to buildString {
-                        appendLine("已启用的 MCP 服务（未连接的服务在首次 call 时自动启动并发现工具）：")
-                        summaries.forEach { summary ->
-                            appendLine(
-                                "- ${summary.id} · ${summary.name} · 已缓存 ${summary.cachedToolCount} 个工具 · " +
-                                    if (summary.connected) "已连接" else "未连接",
-                            )
-                        }
-                        append("用 inspect 查看某服务的工具清单与参数，用 call 调用。")
-                    }
-                }
-            }
-            "inspect" -> {
-                val serverId = args.stringArg("server")?.trim().orEmpty()
-                if (serverId.isBlank()) return false to "inspect 需要 server 参数（先用 list 查看可用的服务 id）"
-                // 缓存为空 = 服务尚未连接过：按需发现一次（唯一会拉起进程的 inspect 场景——
-                // 模型无从得知未连接服务的工具名，必须给它完整清单才能构造 call）
-                var tools = manager.cachedToolsOf(serverId)
-                if (tools.isEmpty()) {
-                    tools = manager.discoverServerTools(serverId)
-                }
-                if (tools.isEmpty()) {
-                    val lastError = manager.getLastError(serverId)
-                    return false to "MCP[$serverId] 工具发现失败或服务不可用${lastError?.let { "：$it" } ?: "（未启用或不存在）"}。" +
-                        "可稍后重试 inspect，或检查该服务的设置与沙箱环境。"
-                }
-                val rendered = tools.joinToString("\n\n") { tool ->
-                    buildString {
-                        appendLine("### ${tool.name}")
-                        if (tool.description.isNotBlank()) appendLine(tool.description.trim().take(400))
-                        if (tool.parametersJson.isNotBlank() && tool.parametersJson != "{}") {
-                            appendLine("参数：${tool.parametersJson.take(1200)}")
-                        }
-                    }
-                }
-                val body = if (rendered.length > MAX_INSPECT_CHARS) {
-                    rendered.take(MAX_INSPECT_CHARS) + "\n…[清单过长已截断，可直接按已知工具名 call]"
-                } else {
-                    rendered
-                }
-                true to "MCP[$serverId] 工具清单（${tools.size} 个）：\n$body"
-            }
-            "call" -> {
-                val serverId = args.stringArg("server")?.trim().orEmpty()
-                val tool = args.stringArg("tool")?.trim().orEmpty()
-                if (serverId.isBlank() || tool.isBlank()) {
-                    return false to "call 需要 server 与 tool 参数（先 inspect 查看可用的工具名与参数）"
-                }
-                val callArgs = args["arguments"] as? JsonObject ?: JsonObject(emptyMap())
-                manager.executeCapabilityTool(serverId, tool, callArgs, workspace)
-            }
-            "decline" -> {
-                val serverId = args.stringArg("server").orEmpty().trim()
-                val tool = args.stringArg("tool").orEmpty().trim()
-                true to "已记录：不再尝试 ${if (serverId.isNotBlank()) "$serverId." else ""}$tool。请改用其他方式完成任务或向用户说明障碍。"
-            }
-            else -> false to "action 必须是 list / inspect / call / decline 之一"
-        }
-    }
+    private suspend fun executeCapability(
+        args: JsonObject,
+        workspace: String,
+        parentToolCallId: String,
+        operationId: String?,
+        sessionId: String,
+        metadata: MutableMap<String, String>,
+    ): Pair<Boolean, String> = capabilityRouter.execute(args, workspace, parentToolCallId, operationId, sessionId, metadata)
 
     private suspend fun executeHistoryRead(args: JsonObject, sessionId: String): Pair<Boolean, String> {
         val messageId = args["message_id"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }
@@ -1348,76 +1289,6 @@ class ToolExecutor(
     }
 
 
-    /** 写工具触碰前，捕获该路径的轮初内容进 checkpoint（同轮同路径去重）。 */
-    private suspend fun captureBeforeWrite(
-        sessionId: String,
-        activeFileAccess: WorkspaceFileAccess,
-        path: String,
-    ) {
-        val normalized = path.trim().trimStart('/')
-        // 超过快照上限的文件整体跳过：避免大文件整读入堆内存（OOM 风险），
-        // 且 commit 恢复走 write（同样受 1MiB 上限约束），快照了也恢复不回去。
-        // 注意不能返回 null 充当"文件不存在"快照——那会让 rewind 误删该文件。
-        val size = activeFileAccess.fileSizeOrNull(normalized)
-        if (size != null && size > CheckpointStore.SNAPSHOT_MAX_BYTES) {
-            eventBus?.emit(
-                top.wkbin.taixu.harness.events.HarnessEvent.RecoveryApplied(
-                    sessionId = sessionId,
-                    timestamp = System.currentTimeMillis(),
-                    operationId = null,
-                    outcome = "checkpoint_incomplete",
-                    detail = "文件 $normalized 超过 ${CheckpointStore.SNAPSHOT_MAX_BYTES} bytes，无法完整捕获轮前快照；本轮 rewind 不能保证恢复该文件。",
-                ),
-            )
-            return
-        }
-        checkpointStore?.capture(sessionId, normalized, activeFileAccess.previewOrNull(normalized))
-    }
-
-    /**
-     * 写工具成功后，把该路径的最终状态记录为改动后凭据（restore 冲突检测的比对基准）。
-     * [knownContent] 非空时直接采用（write 的入参即最终内容）；edit 从盘上重读。
-     * 超大文件跳过（与 pre-image 同一上限）；checkpointStore 未配置时静默跳过。
-     */
-    private suspend fun captureAfterWrite(
-        sessionId: String,
-        activeFileAccess: WorkspaceFileAccess,
-        path: String,
-        knownContent: String?,
-    ) {
-        if (sessionId.isBlank()) return
-        val store = checkpointStore ?: return
-        val normalized = path.trim().trimStart('/')
-        val size = activeFileAccess.fileSizeOrNull(normalized)
-        if (size == null || size > CheckpointStore.SNAPSHOT_MAX_BYTES) return
-        val content = knownContent ?: activeFileAccess.previewOrNull(normalized) ?: return
-        store.captureAfterImage(sessionId, normalized, content)
-    }
-
-    private fun AppResult<Any>.toToolOutput(successMessage: String = "", actionName: String = ""): Pair<Boolean, String> = when (this) {
-        is AppResult.Success -> true to successMessage.ifBlank { data.toString() }
-        is AppResult.Failure -> {
-            val baseError = error.message
-            val reflectionHint = when (actionName) {
-                "edit" -> "\n\n【文本替换失败反思与纠错要求】\n未在目标文件中找到唯一匹配的 oldText。请立即调用 read 查看该文件的最新真实内容与行号，获取精确匹配的内容后再发起 edit，严禁盲目猜测或重复相同内容！"
-                "read" -> "\n\n【文件读取失败反思与纠错要求】\n无法读取指定路径文件。请调用 base 执行 ls 或 find 确定文件的真实存在路径，切勿盲目重复错误路径！"
-                else -> ""
-            }
-            false to (baseError + reflectionHint)
-        }
-    }
-
-    /** 图片后缀探针：仅光栅格式走多模态直通，SVG 仍按文本读取（更利于模型审阅源码）。 */
-    private fun resolveImageMime(path: String): String? = when (path.substringAfterLast('.', "").lowercase()) {
-        "png" -> "image/png"
-        "jpg", "jpeg" -> "image/jpeg"
-        "gif" -> "image/gif"
-        "webp" -> "image/webp"
-        "bmp" -> "image/bmp"
-        "ico" -> "image/x-icon"
-        else -> null
-    }
-
     private fun JsonObject.stringArg(key: String): String? =
         this[key]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
 
@@ -1456,7 +1327,7 @@ class ToolExecutor(
         const val MAX_ARG_LENGTH = 1024 * 1024
 
         /** use_capability inspect 清单的输出上限：超出截断并指引直接 call。 */
-        const val MAX_INSPECT_CHARS = 16_000
+        // use_capability 的 inspect 输出上限已随分发迁至 CapabilityToolRouter.MAX_INSPECT_CHARS
         const val MAX_HISTORY_READ_OUTPUT = 48 * 1024
 
         /**

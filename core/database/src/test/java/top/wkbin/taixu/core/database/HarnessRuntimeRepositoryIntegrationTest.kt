@@ -27,6 +27,66 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class HarnessRuntimeRepositoryIntegrationTest {
 
+    private suspend fun queuedTask(sessionId: String = "s", status: String = "QUEUED") {
+        database.agentTaskDao().upsertTask(top.wkbin.taixu.core.database.task.AgentTaskEntity(
+            id = "task", sessionId = sessionId, title = "input", description = "input",
+            status = status, createdAt = 1, updatedAt = 1))
+    }
+
+    @Test fun `task admission commits recovery state with input and operation`() = runBlocking {
+        queuedTask()
+        repository.acceptTaskOperation("task", entry("input", "s", null),
+            lane("s", leafId = "input", currentOperationId = "op"), operation("op", "s"))
+        val restored = database.agentTaskDao().getTaskById("task")!!
+        assertEquals("RUNNING", restored.status)
+        assertEquals("op", restored.operationId)
+        assertEquals(1, restored.attemptCount)
+        assertNotNull(repository.findEntry("s", "input"))
+        assertNotNull(repository.findOperation("op"))
+    }
+
+    @Test fun `queued task consumption commits its recovery state in the same transaction`() = runBlocking {
+        queuedTask()
+        repository.enqueue(HarnessQueueItemEntity("queue", "s", "main", null, "next_run", 1, "{}"))
+        repository.acceptTaskOperation("task", entry("input", "s", null),
+            lane("s", leafId = "input", currentOperationId = "op"), operation("op", "s"), "queue")
+        assertTrue(repository.listQueue("s", "main", "next_run").isEmpty())
+        assertEquals("RUNNING", database.agentTaskDao().getTaskById("task")!!.status)
+        assertEquals("op", database.agentTaskDao().getTaskById("task")!!.operationId)
+    }
+
+    @Test fun `failed entry commit rolls back task claim and preserves queued input`() = runBlocking {
+        queuedTask()
+        repository.enqueue(HarnessQueueItemEntity("queue", "s", "main", null, "next_run", 1, "{}"))
+        dao.insertEntry(entry("input", "other-session", null))
+        try {
+            dao.acceptTaskOperation("task", entry("input", "s", null),
+                lane("s", leafId = "input", currentOperationId = "op"), operation("op", "s"), "queue")
+            fail("must roll back")
+        } catch (_: IllegalStateException) { }
+        val task = database.agentTaskDao().getTaskById("task")!!
+        assertEquals("QUEUED", task.status)
+        assertEquals(0, task.attemptCount)
+        assertNull(task.operationId)
+        assertEquals(1, repository.listQueue("s", "main", "next_run").size)
+        assertNull(repository.findOperation("op"))
+        assertNull(repository.findLane("s", "main"))
+    }
+
+    @Test fun `cancelled or foreign task cannot accept input or create operation`() = runBlocking {
+        for ((owner, status) in listOf("s" to "CANCELLED", "other" to "QUEUED")) {
+            queuedTask(owner, status)
+            try {
+                repository.acceptTaskOperation("task", entry("input", "s", null),
+                    lane("s", leafId = "input", currentOperationId = "op"), operation("op", "s"))
+                fail("must reject")
+            } catch (_: IllegalStateException) { }
+            assertNull(repository.findEntry("s", "input"))
+            assertNull(repository.findOperation("op"))
+            assertEquals(status, database.agentTaskDao().getTaskById("task")!!.status)
+        }
+    }
+
     private lateinit var database: AppDatabase
     private lateinit var dao: HarnessRuntimeDao
     private lateinit var repository: HarnessRuntimeRepository

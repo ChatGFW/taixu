@@ -1,10 +1,12 @@
 package top.wkbin.taixu.core.database.task
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /** Stable persistence port for durable Agent runs. Harness never talks to the Room DAO directly. */
 interface AgentTaskRepository {
     fun observeAll(): Flow<List<AgentTaskEntity>>
+    fun observeTask(id: String): Flow<AgentTaskEntity?> = observeAll().map { tasks -> tasks.find { it.id == id } }
     suspend fun find(id: String): AgentTaskEntity?
     suspend fun listByStatus(statuses: List<String>): List<AgentTaskEntity>
     suspend fun listForSession(sessionId: String, statuses: List<String>): List<AgentTaskEntity>
@@ -43,6 +45,7 @@ class RoomAgentTaskRepository(
     private val dao: AgentTaskDao,
 ) : AgentTaskRepository {
     override fun observeAll() = dao.observeAllTasks()
+    override fun observeTask(id: String) = dao.observeTask(id)
     override suspend fun find(id: String) = dao.getTaskById(id)
     override suspend fun listByStatus(statuses: List<String>) = dao.listTasksByStatus(statuses)
     override suspend fun listForSession(sessionId: String, statuses: List<String>) =

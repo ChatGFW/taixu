@@ -5,6 +5,7 @@
 ## 1. 纯粹模型层隔离 (Model Layer Purity)
 
 - `:core:model` **严禁** 引入 `android.*`、`androidx.*` 或 Compose 依赖，必须保持 Pure Kotlin。
+- `:harness:core` 同样保持 Pure Kotlin，只承载轮次解释器、执行契约与存储无关的会话投影规则；不得依赖 Android、网络客户端、DI、数据库或运行时实现。工具副作用必须在意图提交完成后执行，结果提交完成后才能进入下一轮。
 - `architectureCheck` 已接入 `app:preBuild` 验证阶段，会主动阻止模型层平台化、非法 feature 横向依赖和业务层直连 DAO。
 - **治理策略即代码**：上述门禁的全部规则登记在根目录 [`architecture-policy.json`](../architecture-policy.json)（模块依赖白名单 `requires`、依赖环检查、`importBans` import 黑名单、`maxFileLines` 文件尺寸棘轮）。该文件是唯一事实源——**新增模块或调整模块依赖时必须同步登记**，否则门禁失败。
 - 存量超限文件（>400 行）登记在 `.architecture-baseline.json` 棘轮基线：行数**只许缩减不许上涨**；新文件必须合规。缩减代码后运行 `architectureBaselineSync` 下调基线。

@@ -195,6 +195,7 @@ private fun manager(
     repository = repository,
     linuxRuntime = runtime,
     json = testJson(),
+    logger = top.wkbin.taixu.core.common.logging.AppLogger(android.content.ContextWrapper(null)) { it },
 )
 
 private fun testJson(): Json = Json { ignoreUnknownKeys = true; encodeDefaults = true }

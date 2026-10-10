@@ -16,7 +16,7 @@ import top.wkbin.taixu.core.database.McpServerRepository
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.datastore.AgentPreferences
-import top.wkbin.taixu.harness.HarnessLoop
+import top.wkbin.taixu.harness.session.InteractiveSessionControl
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.SkillSuggestion
 import top.wkbin.taixu.harness.UserMessage
@@ -96,7 +96,7 @@ enum class OnboardingPrivilege { SANDBOX, SANDBOX_UNLOCKABLE, SHIZUKU_READY, ROO
 class ChatViewModel(
     private val context: Context,
     private val savedStateHandle: SavedStateHandle,
-    private val harnessLoop: HarnessLoop,
+    private val harnessLoop: InteractiveSessionControl,
     private val requestDiagnostics: top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore,
     private val systemPromptBuilder: SystemPromptBuilder,
     private val sessionDao: HarnessSessionRepository,

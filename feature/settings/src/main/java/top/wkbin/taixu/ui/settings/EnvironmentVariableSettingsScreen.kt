@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
@@ -19,7 +21,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -107,10 +108,10 @@ fun EnvironmentVariableSettingsScreen(
                 "环境变量",
                 onBack,
                 actions = {
-                    IconButton(onClick = { viewModel.refreshEnvironmentVariables() }, enabled = !loading && runtimeState is top.wkbin.taixu.core.model.RuntimeState.Ready) {
+                    IconButton(onClick = { viewModel.refreshEnvironmentVariables() }, contentDescription = "刷新环境变量", enabled = !loading && runtimeState is top.wkbin.taixu.core.model.RuntimeState.Ready) {
                         RuntimeIcon(RuntimeIconName.Refresh)
                     }
-                    IconButton(onClick = { openEnvironmentEditor(null, "", "") }, enabled = !loading && runtimeState is top.wkbin.taixu.core.model.RuntimeState.Ready) {
+                    IconButton(onClick = { openEnvironmentEditor(null, "", "") }, contentDescription = "添加环境变量", enabled = !loading && runtimeState is top.wkbin.taixu.core.model.RuntimeState.Ready) {
                         RuntimeIcon(RuntimeIconName.Plus)
                     }
                 },
@@ -223,8 +224,8 @@ fun EnvironmentVariableSettingsScreen(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
-                            IconButton(onClick = { openEnvironmentEditor(entry, entry.key, values[entry.key].orEmpty()) }) { RuntimeIcon(RuntimeIconName.Edit) }
-                            IconButton(onClick = { deleteKey = entry.id }) { RuntimeIcon(RuntimeIconName.Trash, tint = MaterialTheme.colorScheme.error) }
+                            IconButton(onClick = { openEnvironmentEditor(entry, entry.key, values[entry.key].orEmpty()) }, contentDescription = "编辑 ${entry.key}") { RuntimeIcon(RuntimeIconName.Edit) }
+                            IconButton(onClick = { deleteKey = entry.id }, contentDescription = "删除 ${entry.key}") { RuntimeIcon(RuntimeIconName.Trash, tint = MaterialTheme.colorScheme.error) }
                         }
                     }
                 }
@@ -283,14 +284,14 @@ private fun EnvironmentVariableEditor(
     onDismiss: () -> Unit,
     onSave: (String, String, String) -> Unit,
 ) {
-    var key by remember(entry?.id, initialKey) { mutableStateOf(initialKey) }
-    var value by remember(entry?.id, initialKey) { mutableStateOf(currentValue) }
-    var note by remember(entry) { mutableStateOf(entry?.note.orEmpty()) }
+    var key by androidx.compose.runtime.saveable.rememberSaveable(entry?.id, initialKey) { mutableStateOf(initialKey) }
+    var value by androidx.compose.runtime.saveable.rememberSaveable(entry?.id, initialKey) { mutableStateOf(currentValue) }
+    var note by androidx.compose.runtime.saveable.rememberSaveable(entry?.id, initialKey) { mutableStateOf(entry?.note.orEmpty()) }
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (entry != null) "编辑环境变量" else if (initialKey.isNotBlank()) "配置环境变量" else "添加环境变量") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
                     RuntimeIcon(RuntimeIconName.Alert, Modifier.size(18.dp), MaterialTheme.colorScheme.tertiary)
                     Text(
@@ -303,9 +304,9 @@ private fun EnvironmentVariableEditor(
                         color = MaterialTheme.colorScheme.tertiary,
                     )
                 }
-                OutlinedTextField(value = key, onValueChange = { key = it.uppercase() }, label = { Text("名称") }, singleLine = true)
-                OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text("值") }, singleLine = true)
-                OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("备注（可选）") }, singleLine = true)
+                OutlinedTextField(value = key, onValueChange = { key = it.uppercase() }, label = { Text("名称") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text("值") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("备注（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
         },

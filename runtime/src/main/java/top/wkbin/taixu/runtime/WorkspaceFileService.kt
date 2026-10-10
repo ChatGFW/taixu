@@ -2,6 +2,7 @@ package top.wkbin.taixu.runtime
 
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.files.SafeFileTree
 import top.wkbin.taixu.core.common.result.AppError
@@ -45,14 +46,7 @@ class WorkspaceFileService(
         }
         val file = resolve(projectName, relativePath, allowMissing = true)
         require(!file.isDirectory) { "目标是目录：${displayPath(projectName, relativePath)}" }
-        file.parentFile?.mkdirs()
-        val temporary = File(file.parentFile, ".${file.name}.tmp-${System.nanoTime()}")
-        try {
-            temporary.writeText(content, Charsets.UTF_8)
-            if (!temporary.renameTo(file)) temporary.copyTo(file, overwrite = true)
-        } finally {
-            temporary.delete()
-        }
+        WorkspaceAtomicWriter.write(file) { it.writeText(content, Charsets.UTF_8) }
     }
 
     /** 二进制写入（WebChat 上传等场景）：临时文件 + rename 的原子落盘与 [writeFile] 一致。 */
@@ -63,14 +57,7 @@ class WorkspaceFileService(
         }
         val file = resolve(projectName, relativePath, allowMissing = true)
         require(!file.isDirectory) { "目标是目录：${displayPath(projectName, relativePath)}" }
-        file.parentFile?.mkdirs()
-        val temporary = File(file.parentFile, ".${file.name}.tmp-${System.nanoTime()}")
-        try {
-            temporary.writeBytes(bytes)
-            if (!temporary.renameTo(file)) temporary.copyTo(file, overwrite = true)
-        } finally {
-            temporary.delete()
-        }
+        WorkspaceAtomicWriter.write(file) { it.writeBytes(bytes) }
     }
 
     suspend fun createFile(projectName: String, relativePath: String): AppResult<Unit> = ioResult("创建文件失败") {
@@ -88,9 +75,12 @@ class WorkspaceFileService(
 
     suspend fun renameItem(projectName: String, oldRelativePath: String, newName: String): AppResult<Unit> = ioResult("重命名失败") {
         val safeName = newName.trim()
-        require(safeName.isNotBlank() && '/' !in safeName && '\\' !in safeName) { "新名称不合法" }
+        require(safeName.isNotBlank() && safeName !in setOf(".", "..") && '/' !in safeName && '\\' !in safeName) { "新名称不合法" }
         val file = resolve(projectName, oldRelativePath)
+        val root = projectRoot(projectName).canonicalFile
+        check(file.canonicalFile != root) { "不能通过此接口重命名工作区根目录" }
         val target = File(file.parentFile, safeName)
+        require(isInside(root, target.canonicalFile)) { "重命名目标路径越界" }
         check(!target.exists()) { "目标已存在：$safeName" }
         check(file.renameTo(target)) { "重命名失败" }
     }
@@ -146,6 +136,7 @@ class WorkspaceFileService(
         try {
             AppResult.Success(block())
         } catch (throwable: Throwable) {
+            if (throwable is CancellationException) throw throwable
             AppResult.Failure(AppError(ErrorCode.IO, throwable.message ?: fallback, throwable))
         }
     }

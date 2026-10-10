@@ -104,4 +104,25 @@ class KoinAndroidIntegrationTest {
         T::class.java.classLoader,
         arrayOf(T::class.java),
     ) { _, method, _ -> error("Unexpected external operation: ${method.name}") } as T
+
+    @Test
+    fun sessionEntryPointsResolveOneRuntimeAndRejectMissingRemoteSession() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        context.applicationInfo.nativeLibraryDir = context.filesDir.absolutePath
+        val application = startKoin { androidContext(context); modules(taiXuModule) }
+        val koin = application.koin
+        try {
+            val loop = koin.get<top.wkbin.taixu.harness.HarnessLoop>()
+            val control = koin.get<top.wkbin.taixu.harness.session.SessionControl>()
+            assertSame(loop, control)
+            assertSame(loop, koin.get<top.wkbin.taixu.harness.session.InteractiveSessionControl>())
+            val foreground = control.currentSessionId.value
+            assertEquals(top.wkbin.taixu.harness.session.PromptSubmission.Rejected(
+                top.wkbin.taixu.harness.session.PromptSubmission.Rejection.SESSION_NOT_FOUND),
+                control.submit("missing-remote", "hello"))
+            assertEquals(foreground, control.currentSessionId.value)
+        } finally {
+            koin.get<top.wkbin.taixu.core.database.AppDatabase>().close()
+        }
+    }
 }

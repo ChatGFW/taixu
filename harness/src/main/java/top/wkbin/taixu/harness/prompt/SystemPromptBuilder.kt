@@ -403,10 +403,10 @@ class SystemPromptBuilder(
         if (builtinLines.isEmpty() && customLines.isEmpty()) return ""
         val protocol = buildString {
             append("\n\n## 系统核心 MCP 能力（经 use_capability 统一代理发现与调用）\n")
-            append("MCP 工具的名称与参数不在本轮工具列表里，发现与调用全部通过 use_capability：\n")
+            append("MCP 工具与内置低频宿主能力的名称与参数不在本轮工具列表里，发现与调用全部通过 use_capability（虚拟屏等宿主能力域用 server=\"host\"）：\n")
             append("1. action=\"list\"：列出已启用的服务（不启动任何进程）；\n")
             append("2. action=\"inspect\" + server=\"<id>\"：查看该服务的工具清单与参数说明；\n")
-            append("3. action=\"call\" + server=\"<id>\" + tool=\"<工具名>\" + arguments={...}：调用工具（未连接的服务会自动启动，首次启动可能需要数秒）。\n")
+            append("3. action=\"call\" + server=\"<id>\" + tool=\"<工具名>\" + arguments={...}：调用工具（未连接的服务会自动启动，首次启动可能需要数秒）；4. action=\"script\" + code=\"<JS>\"：写一段 JS 批量/循环/条件调用能力（capability.call 返回 {ok, output}），把多轮 call 合并成一次，每条内层调用照常校验、审批与留痕。\n")
             if (toolCallMode == ToolCallMode.JSON_TEXT) {
                 append("（当前为文本工具协议：use_capability 的调用标记同样按工具调用协议输出。）\n")
             }
