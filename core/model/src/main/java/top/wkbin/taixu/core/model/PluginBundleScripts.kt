@@ -90,7 +90,7 @@ internal object PluginBundleScripts {
     private fun components(ids: Set<String>): List<PluginComponent> =
         BuiltinPluginBundles.bundles.flatMap { it.components }.filter { it.id in ids }
 
-    private fun preparationSteps(): MutableList<String> = mutableListOf(
+    fun preparationSteps(): MutableList<String> = mutableListOf(
         "mkdir -p /etc/dpkg/dpkg.cfg.d /usr/bin /usr/sbin /usr/lib 2>/dev/null || true",
         "printf 'force-unsafe-io\\nforce-overwrite\\n' > /etc/dpkg/dpkg.cfg.d/taixu-proot 2>/dev/null || true",
         "rm -rf /var/lib/dpkg/updates/* /var/lib/dpkg/lock* /var/lib/apt/lists/lock /var/cache/apt/archives/lock /usr/bin/*.dpkg-new /usr/sbin/*.dpkg-new /usr/lib/*.dpkg-new 2>/dev/null || true",
@@ -98,7 +98,7 @@ internal object PluginBundleScripts {
         "DEBIAN_FRONTEND=noninteractive dpkg --configure -a 2>/dev/null || true",
     )
 
-    private fun aptOptions(): String =
+    fun aptOptions(): String =
         "-o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 " +
             "-o Acquire::ForceIPv4=true -o Acquire::Languages=en"
 

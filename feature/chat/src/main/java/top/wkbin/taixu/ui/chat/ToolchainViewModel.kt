@@ -15,19 +15,20 @@ import top.wkbin.taixu.runtime.doctor.ToolchainInspector
 /**
  * 🧰 沙箱工具链 ViewModel
  *
- * 职责：
- * - 检测：调用 [ToolchainInspector] 全量探针；
- * - 补齐：**委托 [ToolManager].startBackgroundBatchInstall** 走开发套件安装
- *   （白名单 + PRoot 准备步骤 + 应用级互斥锁 + 后台任务），不自己拼 apt/删锁/换源。
- *
- * 生命周期：安装用 ToolManager 的应用级 managerScope 承载，离开聊天页也不会被打断；
- * 本 VM 只订阅 [ToolManager.bundleInstallState] 刷新 UI。
+ * 检测走 [ToolchainInspector]；补齐分两路串行编排：
+ *  1. 开发套件组件（cmake/ninja/aapt2/apksigner/zipalign/jadx/apktool）
+ *     → [ToolManager].startBackgroundBatchInstall（白名单+PRoot 准备+互斥锁+后台任务）；
+ *  2. 套件未覆盖的 apt 工具（patchelf/baksmali/dex2jar/readelf/strace/ltrace/gdb）
+ *     → [ToolchainRepairer]（复用 PluginBundleScripts 准备步骤 + aptOptions，逐包安装，
+ *       经 ToolManager.runExclusive 与套件安装共用同一把互斥锁）。
  */
 class ToolchainViewModel(
     private val inspector: ToolchainInspector,
     private val toolManager: ToolManager,
-    private val linuxRuntime: LinuxRuntime,
+    linuxRuntime: LinuxRuntime,
 ) : ViewModel() {
+
+    private val repairer = ToolchainRepairer(linuxRuntime, toolManager)
 
     private val _report = MutableStateFlow<ToolchainReport?>(null)
     val report: StateFlow<ToolchainReport?> = _report.asStateFlow()
@@ -38,20 +39,17 @@ class ToolchainViewModel(
     private val _failed = MutableStateFlow(false)
     val failed: StateFlow<Boolean> = _failed.asStateFlow()
 
-    /** 顶部入口是否需要亮红点（有可一键补齐的缺口即亮）。 */
     private val _hasGap = MutableStateFlow(false)
     val hasGap: StateFlow<Boolean> = _hasGap.asStateFlow()
 
-    /** 安装进度（来自开发套件批量安装的实时日志）。 */
-    val installLog: StateFlow<List<String>> = toolManager.bundleInstallLog
+    /** 面板实时日志（补齐过程可见）。 */
+    private val _logs = MutableStateFlow<List<String>>(emptyList())
+    val logs: StateFlow<List<String>> = _logs.asStateFlow()
 
-    /** 安装状态文案（null = 空闲）。 */
+    /** 开发套件安装进度（来自 ToolManager）。 */
     val installState: StateFlow<String?> = toolManager.bundleInstallState
 
-    /**
-     * 当前发行版是否 Debian 系（packageManager == "apt"）。
-     * 非 Debian 系（alpine/arch/fedora）没有 apt，开发套件安装不适用，UI 层据此隐藏补齐按钮。
-     */
+    /** 当前发行版是否 Debian 系（packageManager == "apt"），非 Debian 系隐藏补齐。 */
     val debBased: Boolean
         get() {
             val activeId = linuxRuntime.activeDistroId.value
@@ -60,18 +58,22 @@ class ToolchainViewModel(
         }
 
     init {
-        // 安装状态结束后自动刷新检测结果与红点
+        // 套件批量安装状态归零（结束）时自动刷新检测结果
         viewModelScope.launch {
             toolManager.bundleInstallState.collect { state ->
-                _busy.value = toolManager.isBatchInstalling.value
-                if (state == null && _report.value != null) {
+                _busy.value = toolManager.isBatchInstalling.value || _aptRunning
+                if (state == null && _report.value != null && !_aptRunning) {
                     refresh()
                 }
             }
         }
     }
 
-    /** 全量检测；沙箱不可用时如实置 failed，不谎报「工具缺失」。 */
+    /** apt 补齐运行标志（跨协程可见）。 */
+    @Volatile
+    private var _aptRunning: Boolean = false
+
+    /** 全量检测；沙箱不可用时如实置 failed。 */
     fun refresh() {
         if (_busy.value) return
         viewModelScope.launch {
@@ -91,24 +93,53 @@ class ToolchainViewModel(
     }
 
     /**
-     * 一键补齐：把 [ToolchainReport.repairable] 里走开发套件的项映射到组件 id，
-     * 交给 ToolManager 后台批量安装。
+     * 一键补齐（串行两路）：
+     * 先套件组件（若 busy 则等它结束——bundleInstallState collect 已处理），
+     * 再 apt 项；全程日志实时回显，结束后自动刷新检测。
      */
     fun repairMissing() {
         val current = _report.value ?: return
-        val targets = current.repairable
-        if (targets.isEmpty() || _busy.value) return
+        if (_busy.value || _aptRunning) return
 
-        val componentIds = targets
+        val bundleIds = current.repairable
             .mapNotNull { it.probe.repair as? RepairStrategy.ByBundleComponents }
             .flatMap { it.componentIds }
             .distinct()
             .toSet()
 
-        if (componentIds.isEmpty()) return
+        viewModelScope.launch {
+            _aptRunning = true
+            _busy.value = true
+            try {
+                // ---- 路 1：套件组件安装（同步等待完成）----
+                if (bundleIds.isNotEmpty()) {
+                    _logs.value += "==> [1/2] 安装开发套件组件: ${bundleIds.joinToString(", ")}"
+                    runCatching {
+                        toolManager.batchInstallComponents(bundleIds, reinstall = false)
+                            .collect { /* 进度经 bundleInstallState/bundleInstallLog 呈现 */ }
+                    }.onFailure { _logs.value += "套件安装失败: ${it.message}" }
+                }
 
-        toolManager.startBackgroundBatchInstall(componentIds, reinstall = false, onCompleted = {
-            viewModelScope.launch { refresh() }
-        })
+                // ---- 路 2：apt 补齐（逐包，失败不拖累整批）----
+                val fresh = _report.value ?: current
+                val aptTargets = repairer.aptTargets(fresh)
+                if (aptTargets.isNotEmpty()) {
+                    _logs.value += "==> [2/2] 安装 apt 工具: ${aptTargets.joinToString(", ") { it.first }}"
+                    val outcome = repairer.repair(fresh) { line -> _logs.value += line }
+                    if (outcome.failures.isNotEmpty()) {
+                        _logs.value += "补齐完成，${outcome.failures.size} 项失败（详见上方日志）"
+                    }
+                }
+
+                // ---- 刷新检测（更新 checkedAt 与红点）----
+                runCatching { inspector.inspect() }.onSuccess { report ->
+                    _report.value = report
+                    _hasGap.value = report.repairable.isNotEmpty()
+                }
+            } finally {
+                _aptRunning = false
+                _busy.value = false
+            }
+        }
     }
 }

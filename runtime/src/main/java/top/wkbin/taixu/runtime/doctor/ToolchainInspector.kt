@@ -90,7 +90,9 @@ class ToolchainInspector(
                 val shellCmd = versionCmd
                     .replace("{cmd}", "\$res")
                     .replace("{path}", "\$res")
-                "if [ -n \"\$res\" ]; then v=\$(timeout 5 sh -c '$shellCmd' 2>&1 | head -2 | tr '\\n' ' '); echo \"__TX__${probe.id}__VER__\$v\"; else echo \"__TX__${probe.id}__VER__\"; fi; "
+                // 注意：sh -c 必须用双引号包裹，否则内层 shell 看不到外层展开的 $res（实测踩坑：
+                // 单引号写法导致 CMake/Ninja 版本探测输出 "--version: not found" 而被误判待确认）
+                "if [ -n \"\$res\" ]; then v=\$(timeout 5 sh -c \"$shellCmd\" 2>&1 | head -2 | tr '\\n' ' '); echo \"__TX__${probe.id}__VER__\$v\"; else echo \"__TX__${probe.id}__VER__\"; fi; "
             }
 
             sb.append(resolve).append(version)

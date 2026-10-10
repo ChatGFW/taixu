@@ -210,9 +210,10 @@ object SandboxToolchainCatalog {
             commands = listOf("apksigner"),
             candidatePaths = listOf(
                 "/opt/android-sdk/build-tools/35.0.0/apksigner",
-                "/usr/local/bin/apksigner",
+                "/usr/bin/apksigner",
             ),
-            versionCommand = "{cmd} version",
+            // apksigner version 输出的是内部工具版本（0.9），不是 build-tools 版本，比较无意义；
+            // 命令存在即视为就绪
             group = ToolchainGroup.NATIVE_BUILD,
             repair = RepairStrategy.ByBundleComponents(
                 componentIds = listOf("android-core"),
@@ -224,7 +225,7 @@ object SandboxToolchainCatalog {
             displayName = "Zipalign",
             purpose = "APK 对齐优化，影响安装效率与体积",
             commands = listOf("zipalign"),
-            versionCommand = "{cmd} 2>&1 | head -1",
+            // zipalign 没有 version 子命令（裸跑 exit=2 输出 usage），命令存在即就绪
             group = ToolchainGroup.NATIVE_BUILD,
             repair = RepairStrategy.ByBundleComponents(
                 componentIds = listOf("android-core"),

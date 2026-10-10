@@ -53,7 +53,7 @@ internal fun ToolchainPanel(
     val report by viewModel.report.collectAsState()
     val busy by viewModel.busy.collectAsState()
     val failed by viewModel.failed.collectAsState()
-    val installLog by viewModel.installLog.collectAsState()
+    val logs by viewModel.logs.collectAsState()
     val installState by viewModel.installState.collectAsState()
     val debBased = viewModel.debBased
 
@@ -170,14 +170,14 @@ internal fun ToolchainPanel(
             }
 
             // ---------- 安装日志 ----------
-            val logs = installState?.let { listOf(it) }.orEmpty() + installLog
-            if (logs.isNotEmpty()) {
+            val allLogs = installState?.let { listOf(it) }.orEmpty() + logs
+            if (allLogs.isNotEmpty()) {
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     shape = RoundedCornerShape(8.dp),
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
-                        logs.takeLast(12).forEach {
+                        allLogs.takeLast(12).forEach {
                             Text(
                                 text = it,
                                 style = MaterialTheme.typography.labelSmall,

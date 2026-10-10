@@ -93,6 +93,15 @@ class ToolManager(
 ) {
     private val managerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val installMutex = Mutex()
+
+    /**
+     * 在与套件/工具安装同一把互斥锁下执行 [block]。
+     *
+     * 供沙箱工具链 apt 补齐等旁路安装通道使用：保证同一时间只有一方在动 dpkg/apt，
+     * 避免并发把 dpkg 状态搞坏（review 第 8 条「与开发套件安装共用的互斥锁」）。
+     */
+    suspend fun <T> runExclusive(block: suspend () -> T): T = installMutex.withLock { block() }
+
     private val installJobs = mutableMapOf<String, Job>()
     private val _installProgress = MutableStateFlow<Map<String, ToolInstallProgress>>(emptyMap())
     val installProgress: StateFlow<Map<String, ToolInstallProgress>> = _installProgress.asStateFlow()
