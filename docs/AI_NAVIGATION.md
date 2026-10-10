@@ -21,7 +21,7 @@
 | **沙箱执行后端选型（为何不用 chroot）** | [`docs/ADR_SANDBOX_BACKEND.md`](ADR_SANDBOX_BACKEND.md) | PRoot vs chroot/namespace 决策、Android SELinux/seccomp/namespace 约束 |
 | **工作流定义、调度语义与安全边界** | [`docs/WORKFLOW.md`](WORKFLOW.md) | DAG 模型、并发调度、审批、执行器、入口与当前能力边界 |
 | **已知问题与避坑指南** | [`docs/KNOWN_ISSUES.md`](KNOWN_ISSUES.md) | PRoot 沙箱环境已知限制、架构设计历史考量与规避方案 |
-| **pi 1.1.0 设计借鉴与阶段进度** | [`docs/PI_DESIGN_ADOPTION.md`](PI_DESIGN_ADOPTION.md) | 纯 Kotlin 轮次核心、Provider/工具边界、会话投影、共享控制、状态归属审计与统一工具目录 |
+| **pi 1.1.0 设计借鉴与阶段进度** | [`docs/PI_DESIGN_ADOPTION.md`](PI_DESIGN_ADOPTION.md) | 纯 Kotlin 轮次核心、Provider/工具边界、会话投影、共享控制、状态归属审计、统一工具目录与 codemode |
 | **安全边界与凭证暴露面** | [`docs/SECURITY_SURFACE.md`](SECURITY_SURFACE.md) | 权限域总览、密钥流与脱敏边界、PRoot 挂载清单、HostBridge 信任模型与风险登记 |
 | **存储分类与清理边界** | [`docs/STORAGE_MANAGEMENT.md`](STORAGE_MANAGEMENT.md) | 六类空间归属、清理计划、运行时互斥与后续管理建议 |
 

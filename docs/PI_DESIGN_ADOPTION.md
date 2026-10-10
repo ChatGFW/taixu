@@ -312,3 +312,19 @@ host 工具拆分：17 个高频动作保留 direct（status / exec / settings_g
 新增测试：`HostCapabilityDirectoryTest`（拆分覆盖不变量、只读留 direct、校验面 = 执行器接受面、deferred 调用与直接调用的审批等价、PLAN 委派拦截、路由器零 MCP 依赖、嵌套记录脱敏与 blocked 审计）、`AnnotationEscalationTest`（升级只升不降、缺省不参与、openWorld 被只读声明压制、免审判定不受影响）；`BuiltinToolContractTest` 的 host 合同改为 direct/deferred 双向断言。
 
 已知边界：注解升级对外部 MCP 服务的实际效力有限——非浏览器外部工具的基础判定已是 high，escalation 仅对浏览器 medium 档与 REQUEST 模式的 rememberability 产生可观察效果；目录注解的完整价值待后续把 per-tool 元数据接入目录后兑现。model-only 暴露级别未引入（ask_user 等派发型工具暂无被组合工具递归调用的通路），留待组合执行落地时一并评估。真机 deferred「发现 → 调用」两跳交互与压缩/导出对 nestedCalls 的消费留待对应功能接入。
+
+## 阶段 8：codemode 脚本引擎
+
+pi 的 codemode 暴露级别落地：模型把多轮能力调用合并成一段 JS（循环、条件、聚合），减少往返轮次。引擎选型 Rhino（纯 JVM、Android 可用、MPL-2.0 与 GPL-3.0 兼容）——Android 必须解释模式（optimizationLevel=-1，dex 不支持 Rhino 运行期字节码生成）。
+
+| 边界 | 太墟实现 |
+| --- | --- |
+| 入口 | `use_capability` 新增 `action="script"`：`code`（必填，≤32 KiB）+ `timeout_seconds`（1-300，默认 60） |
+| 脚本 API | `capability.call(server, tool, args)` → `{ok, output}`；`capability.list()` / `capability.inspect(server)` → 能力域 JSON；脚本返回值（字符串或可 JSON 化对象）即结果正文（64 KiB 截断） |
+| 审批不绕行 | 每条内层调用经 `CapabilityToolRouter.invokeCapability`——直接 call 与脚本共用同一校验、审批矩阵、NestedCalls 留痕与脱敏；被拒调用以 `{ok:false}` 暴露给脚本自行改道 |
+| 沙箱化 | ClassShutter 全禁 Java 互操作（脚本无法触达 java.*/反射）；无文件/网络/进程 API；指令观察器按 deadline 熔断死循环 |
+| 结构 | `CapabilityToolRouter` 抽出 `invokeCapability` 内层核心供 call 与 script 共用；`HostCapabilityDirectory.flattenHostArgs` 复用参数展平 |
+
+新增测试：`CapabilityScriptRunnerTest` 7 项（多调用编排、Java 全禁、deadline 熔断、blocked 感知与改道、内层错误可见、超长代码拒绝、对象 JSON 化）+ 路由器集成测试（script 动作的内层嵌套记录逐条落 metadata）。`use_capability` schema 的 action 枚举扩为 5 值并新增 code/timeout_seconds 参数（护栏测试不受影响）。
+
+已知边界：脚本内暂不支持 MCP 能力域的自动发现（inspect 需在脚本外先做，发现结果按名传入）；内层调用 `runBlocking` 占用单个 IO 线程至完成；prompt 侧 script 用例引导需真机会话检验；安全边界同步登记于 [`SECURITY_SURFACE.md`](SECURITY_SURFACE.md) 第 6 节。
