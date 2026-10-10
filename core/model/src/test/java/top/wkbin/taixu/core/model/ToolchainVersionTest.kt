@@ -196,4 +196,46 @@ class ToolchainVersionTest {
             assertTrue("组件 id 不存在于开发套件: $id", id in validIds)
         }
     }
+
+    @Test
+    fun dex2jarIsNotRepairable() {
+        val probe = SandboxToolchainCatalog.probes.first { it.id == "dex2jar" }
+        assertTrue(probe.repair is RepairStrategy.None)
+        val missing = ToolchainProbeResult(probe, null, null, ToolchainStatus.MISSING, "")
+        val report = ToolchainReport(results = listOf(missing))
+        assertTrue(report.repairable.isEmpty())
+        assertEquals(1, report.manualOnly.size)
+        assertEquals("dex2jar", report.manualOnly.single().probe.id)
+    }
+
+    @Test
+    fun jadxAndApktoolUseTheDevSuiteBundleName() {
+        val bundleName = BuiltinPluginBundles.bundles
+            .first { bundle -> bundle.components.any { it.id == "android-re" } }
+            .name
+        listOf("jadx", "apktool").forEach { id ->
+            val repair = SandboxToolchainCatalog.probes.first { it.id == id }.repair
+                as RepairStrategy.ByBundleComponents
+            assertEquals(listOf("android-re"), repair.componentIds)
+            assertEquals(bundleName, repair.suiteName)
+        }
+    }
+
+    @Test
+    fun apktoolCandidateIsNotABareJar() {
+        val probe = SandboxToolchainCatalog.probes.first { it.id == "apktool" }
+        assertTrue(probe.candidatePaths.isNotEmpty())
+        assertTrue(probe.candidatePaths.none { it.endsWith(".jar") })
+        assertEquals("{cmd} --version", probe.versionCommand)
+    }
+
+    @Test
+    fun allUnknownReportIsProbeFailure() {
+        val results = SandboxToolchainCatalog.probes.map { probe ->
+            ToolchainProbeResult(probe, null, null, ToolchainStatus.UNKNOWN, "")
+        }
+        assertTrue(ToolchainReport(results).probeFailed)
+        val mixed = results.dropLast(1) + results.last().copy(status = ToolchainStatus.MISSING)
+        assertFalse(ToolchainReport(mixed).probeFailed)
+    }
 }

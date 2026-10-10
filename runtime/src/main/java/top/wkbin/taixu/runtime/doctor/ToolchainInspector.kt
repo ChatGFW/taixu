@@ -2,13 +2,15 @@ package top.wkbin.taixu.runtime.doctor
 
 import top.wkbin.taixu.core.model.SandboxToolchainCatalog
 import top.wkbin.taixu.core.model.ToolchainProbe
-import top.wkbin.taixu.core.model.ToolchainProbeResult
 import top.wkbin.taixu.core.model.ToolchainReport
-import top.wkbin.taixu.core.model.ToolchainStatus
-import top.wkbin.taixu.core.model.ToolchainVersion
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -26,8 +28,38 @@ import kotlinx.coroutines.withContext
 class ToolchainInspector(
     private val linuxRuntime: LinuxRuntime,
 ) {
+    private val cacheMutex = Mutex()
 
-    suspend fun inspect(): ToolchainReport = withContext(Dispatchers.IO) {
+    @Volatile
+    private var cached: ToolchainReport? = null
+
+    private val _report = MutableStateFlow<ToolchainReport?>(null)
+    val report: StateFlow<ToolchainReport?> = _report.asStateFlow()
+
+    /** 未过期的上次报告；过期或不存在时返回 null。 */
+    fun cachedIfFresh(now: Long = System.currentTimeMillis()): ToolchainReport? {
+        val hit = cached ?: return null
+        return hit.takeIf { now - it.checkedAt < CACHE_TTL_MS }
+    }
+
+    /**
+     * 全量探针。[force] 为 false 且缓存未超过 [CACHE_TTL_MS] 时直接返回上次报告。
+     * 结果写入 [report]，供仍在前台的界面观察；补齐结束后用 force 刷新。
+     */
+    suspend fun inspect(force: Boolean = false): ToolchainReport = cacheMutex.withLock {
+        if (!force) {
+            cachedIfFresh()?.let { hit ->
+                if (_report.value != hit) _report.value = hit
+                return@withLock hit
+            }
+        }
+        val fresh = probe()
+        cached = fresh
+        _report.value = fresh
+        fresh
+    }
+
+    private suspend fun probe(): ToolchainReport = withContext(Dispatchers.IO) {
         val probes = SandboxToolchainCatalog.probes
         if (probes.isEmpty()) return@withContext ToolchainReport()
 
@@ -43,19 +75,19 @@ class ToolchainInspector(
         // 沙箱不可达 / 执行抛异常：全部如实 UNKNOWN
         if (raw == null) {
             return@withContext ToolchainReport(
-                results = probes.map { unknownResult(it) },
+                results = probes.map { ToolchainProbeParser.unknown(it) },
             )
         }
 
         // 命令超时或非 0 退出：全部 UNKNOWN，不误报缺失
         if (raw.exitCode != 0) {
             return@withContext ToolchainReport(
-                results = probes.map { unknownResult(it) },
+                results = probes.map { ToolchainProbeParser.unknown(it) },
             )
         }
 
-        val parsed = parseProbeOutput(raw.stdout, probes)
-        val results = probes.map { probe -> parsed[probe.id] ?: unknownResult(probe) }
+        val parsed = ToolchainProbeParser.parse(raw.stdout, probes)
+        val results = probes.map { probe -> parsed[probe.id] ?: ToolchainProbeParser.unknown(probe) }
         ToolchainReport(results = results)
     }
 
@@ -100,60 +132,11 @@ class ToolchainInspector(
         return sb.toString()
     }
 
-    /** 解析探针脚本输出。缺少 PATH 或 VER 标记的探针会被标记为 UNKNOWN（由调用方兜底）。 */
-    private fun parseProbeOutput(
-        stdout: String,
-        probes: List<ToolchainProbe>,
-    ): Map<String, ToolchainProbeResult> {
-        val pathById = mutableMapOf<String, String>()
-        val verById = mutableMapOf<String, String>()
+    companion object {
+        /** 聊天页反复进入时复用上次报告，避免每次都跑完整 15 项探针。 */
+        const val CACHE_TTL_MS = 10 * 60 * 1000L
 
-        stdout.lineSequence()
-            .map { it.trim() }
-            .filter { it.startsWith(TAG) }
-            .forEach { line ->
-                val rest = line.removePrefix(TAG)
-                val kind = if (rest.contains(PATH_MARK)) PATH_MARK else VER_MARK
-                val idx = rest.indexOf(kind)
-                if (idx <= 0) return@forEach
-                val id = rest.substring(0, idx)
-                val value = rest.substring(idx + kind.length).trim()
-                if (id.isBlank()) return@forEach
-                if (kind == PATH_MARK) pathById[id] = value else verById[id] = value
-            }
-
-        val out = mutableMapOf<String, ToolchainProbeResult>()
-        probes.forEach { probe ->
-            // 缺少 PATH 标记 → 该工具探测被截断/异常，判 UNKNOWN 而非 MISSING
-            if (!pathById.containsKey(probe.id)) {
-                out[probe.id] = unknownResult(probe)
-                return@forEach
-            }
-            val resolved = pathById[probe.id]?.takeIf { it.isNotBlank() }
-            val version = ToolchainVersion.extractVersion(verById[probe.id])
-            val status = ToolchainVersion.resolveStatusWithRoot(probe, resolved, version, reachable = true)
-            out[probe.id] = ToolchainProbeResult(
-                probe = probe,
-                resolvedPath = resolved,
-                version = version,
-                status = status,
-                summary = "",
-            )
-        }
-        return out
-    }
-
-    private fun unknownResult(probe: ToolchainProbe): ToolchainProbeResult = ToolchainProbeResult(
-        probe = probe,
-        status = ToolchainStatus.UNKNOWN,
-        summary = "",
-    )
-
-    private companion object {
         // 15 个探针串行，含 jadx/apktool 等 JVM --version，给足 60 秒避免误判
-        const val PROBE_TIMEOUT_MS = 60_000L
-        const val TAG = "__TX__"
-        const val PATH_MARK = "__PATH__"
-        const val VER_MARK = "__VER__"
+        private const val PROBE_TIMEOUT_MS = 60_000L
     }
 }

@@ -503,4 +503,10 @@
     <string name="toolchain_root_banner">Installed, but requires root to drive: %1$s</string>
     <string name="toolchain_manual_only">Cannot auto-repair, install manually via dev suite: %1$s</string>
     <string name="toolchain_log_empty">No auto-repairable items (install the rest manually via dev suite)</string>
+    <string name="toolchain_confirm_title">Confirm toolchain repair</string>
+    <string name="toolchain_confirm_components">Dev-kit components: %1$s</string>
+    <string name="toolchain_confirm_packages">apt packages: %1$s</string>
+    <string name="toolchain_confirm_large">Android components are large downloads and may take a while.</string>
+    <string name="toolchain_confirm_ok">Install</string>
+    <string name="toolchain_confirm_cancel">Cancel</string>
 </resources>

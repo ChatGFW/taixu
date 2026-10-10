@@ -456,7 +456,7 @@ class ToolManager(
      */
     fun batchInstallComponents(componentIds: Set<String>, reinstall: Boolean = false): Flow<InstallEvent> =
         bundleBatch.install(componentIds, reinstall)
-
+    suspend fun <T> runExclusive(block: suspend () -> T): T = installMutex.withLock { block() }
     /** 卸载选中组件。仍被其他已装配组件使用的目录和软件包会保留。 */
     fun batchUninstallComponents(componentIds: Set<String>): Flow<InstallEvent> =
         bundleBatch.uninstall(componentIds)

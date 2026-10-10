@@ -14,7 +14,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 /**
  * 沙箱工具链入口项 —— 从 [CollapsibleChatWorkbenchStrip] 抽出，单独成文件。
  *
- * 红点主动亮：入口项随工具条首次组合时即触发一次全量检测，
+ * 红点主动亮：入口组合时读取进程级缓存（约 10 分钟内不重复跑全量探针）。
  * 检测到缺口时 [hasGap] 置真、红点亮起，无需用户先打开面板。
  */
 @Composable
@@ -25,8 +25,8 @@ internal fun ToolchainStripEntry(
     val viewModel: ToolchainViewModel = koinViewModel()
     val hasGap by viewModel.hasGap.collectAsState()
 
-    // 首次组合主动检测，让入口红点不依赖面板是否打开
-    LaunchedEffect(Unit) { viewModel.refresh() }
+    // 缓存未过期时不会重跑 15 项探针
+    LaunchedEffect(Unit) { viewModel.refresh(force = false) }
 
     StatusDivider()
     WorkbenchStatusItem(

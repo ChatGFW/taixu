@@ -11,8 +11,9 @@ import kotlinx.serialization.Serializable
  * - 本清单**只负责检测**：探针回答「工具在不在、版本够不够新」；
  * - **补齐**不再由探针直接拼 apt 命令，而是把工具映射到开发套件组件 id，
  *   交给 ToolManager / BundleComponentBatch 安装（复用其白名单、PRoot 准备步骤与互斥锁）；
- * - 仅开发套件未覆盖的工具（strace/ltrace/gdb-multiarch/patchelf/binutils/smali/dex2jar）
+ * - 仅开发套件未覆盖的工具（strace/ltrace/gdb-multiarch/patchelf/binutils/smali）
  *   才走 apt 补齐，且同样复用 PluginBundleScripts 的准备步骤与 aptOptions。
+ *   dex2jar 在 Debian 12 / Ubuntu 22.04/24.04 没有对应软件包，策略为 None。
  *
  * 本文件是纯数据 + 纯函数模块：不依赖 Android、不依赖沙箱，
  * 因此可以在 JVM 单元测试里完整覆盖版本比较与状态判定逻辑。
@@ -137,6 +138,13 @@ data class ToolchainReport(
         get() = results.filter { it.status == ToolchainStatus.NEEDS_ROOT }
 
     val isAllReady: Boolean get() = results.isNotEmpty() && repairable.isEmpty() && manualOnly.isEmpty()
+
+    /**
+     * 每个探针都是 UNKNOWN：沙箱不可达或输出被截断。
+     * UI 把它当成探测失败（失败横幅），而不是一份「全部待确认」的正常报告。
+     */
+    val probeFailed: Boolean
+        get() = results.isNotEmpty() && results.all { it.status == ToolchainStatus.UNKNOWN }
 }
 
 /**
@@ -146,10 +154,16 @@ data class ToolchainReport(
  * - cmake / ninja → android-ndk
  * - apktool / jadx → android-re
  * - aapt2 / apksigner / zipalign → android-core
- * 其余开发套件未覆盖的工具（patchelf / binutils / smali / dex2jar / strace / ltrace / gdb）
- * 走 ByAptPackages；frida 走 None（依赖 pip + root，无法可靠自动补齐）。
+ * 其余开发套件未覆盖的工具（patchelf / binutils / smali / strace / ltrace / gdb）
+ * 走 ByAptPackages；dex2jar / frida 走 None（仓库无包，或依赖 pip + root）。
  */
 object SandboxToolchainCatalog {
+
+    private fun bundleName(componentId: String): String =
+        BuiltinPluginBundles.bundles
+            .first { bundle -> bundle.components.any { it.id == componentId } }
+            .name
+
 
     val probes: List<ToolchainProbe> = listOf(
         // ---------- 原生构建链 ----------
@@ -164,7 +178,7 @@ object SandboxToolchainCatalog {
             group = ToolchainGroup.NATIVE_BUILD,
             repair = RepairStrategy.ByBundleComponents(
                 componentIds = listOf("android-ndk"),
-                suiteName = "Android & 移动全栈开发套件",
+                suiteName = bundleName("android-ndk"),
             ),
         ),
         ToolchainProbe(
@@ -178,7 +192,7 @@ object SandboxToolchainCatalog {
             group = ToolchainGroup.NATIVE_BUILD,
             repair = RepairStrategy.ByBundleComponents(
                 componentIds = listOf("android-ndk"),
-                suiteName = "Android & 移动全栈开发套件",
+                suiteName = bundleName("android-ndk"),
             ),
         ),
         ToolchainProbe(
@@ -200,7 +214,7 @@ object SandboxToolchainCatalog {
             group = ToolchainGroup.NATIVE_BUILD,
             repair = RepairStrategy.ByBundleComponents(
                 componentIds = listOf("android-core"),
-                suiteName = "Android & 移动全栈开发套件",
+                suiteName = bundleName("android-core"),
             ),
         ),
         ToolchainProbe(
@@ -217,7 +231,7 @@ object SandboxToolchainCatalog {
             group = ToolchainGroup.NATIVE_BUILD,
             repair = RepairStrategy.ByBundleComponents(
                 componentIds = listOf("android-core"),
-                suiteName = "Android & 移动全栈开发套件",
+                suiteName = bundleName("android-core"),
             ),
         ),
         ToolchainProbe(
@@ -229,7 +243,7 @@ object SandboxToolchainCatalog {
             group = ToolchainGroup.NATIVE_BUILD,
             repair = RepairStrategy.ByBundleComponents(
                 componentIds = listOf("android-core"),
-                suiteName = "Android & 移动全栈开发套件",
+                suiteName = bundleName("android-core"),
             ),
         ),
         // ---------- 逆向分析 ----------
@@ -246,7 +260,7 @@ object SandboxToolchainCatalog {
             group = ToolchainGroup.REVERSE_ENGINEERING,
             repair = RepairStrategy.ByBundleComponents(
                 componentIds = listOf("android-re"),
-                suiteName = "Android 逆向分析套件",
+                suiteName = bundleName("android-re"),
             ),
         ),
         ToolchainProbe(
@@ -254,12 +268,18 @@ object SandboxToolchainCatalog {
             displayName = "Apktool",
             purpose = "APK 资源与 Smali 回编译，改包名/资源/流程必用",
             commands = listOf("apktool"),
-            candidatePaths = listOf("/opt/taixu/tools/android-suite-offline/lib/apktool.jar"),
+            // 用套件安装的 apktool 包装脚本，不要把 apktool.jar 当成可执行文件直接跑。
+            candidatePaths = listOf(
+                "/opt/taixu/bin/apktool",
+                "/usr/local/bin/apktool",
+                "/usr/bin/apktool",
+                "/opt/taixu/tools/android-suite-offline/bin/apktool",
+            ),
             versionCommand = "{cmd} --version",
             group = ToolchainGroup.REVERSE_ENGINEERING,
             repair = RepairStrategy.ByBundleComponents(
                 componentIds = listOf("android-re"),
-                suiteName = "Android 逆向分析套件",
+                suiteName = bundleName("android-re"),
             ),
         ),
         ToolchainProbe(
@@ -277,7 +297,8 @@ object SandboxToolchainCatalog {
             purpose = "Dex 转 Jar，便于用常规 Java 工具分析字节码",
             commands = listOf("d2j-dex2jar", "d2j-dex2jar.sh"),
             group = ToolchainGroup.REVERSE_ENGINEERING,
-            repair = RepairStrategy.ByAptPackages(listOf("dex2jar")),
+            // Debian 12 / Ubuntu 22.04 / 24.04 的官方源没有 dex2jar 包，装它只会让补齐失败并把红点留着。
+            repair = RepairStrategy.None,
         ),
         ToolchainProbe(
             id = "readelf",

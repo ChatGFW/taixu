@@ -35,8 +35,8 @@ internal fun ToolchainSheet(
     val viewModel: ToolchainViewModel = koinViewModel()
     val hasGap by viewModel.hasGap.collectAsState()
 
-    // 首次组合触发全量检测；检测完成后 hasGap 变化会通过下面的 LaunchedEffect 回报红点
-    LaunchedEffect(Unit) { viewModel.refresh() }
+    // 打开面板只在缓存过期时重测；用户点「重新检测」才会强制刷新
+    LaunchedEffect(Unit) { viewModel.refresh(force = false) }
     LaunchedEffect(hasGap) { onGapChanged(hasGap) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {

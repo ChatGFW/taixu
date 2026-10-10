@@ -560,4 +560,10 @@
     <string name="toolchain_root_banner">以下工具已装好，但实际驱动需要 root 权限：%1$s</string>
     <string name="toolchain_manual_only">以下工具无法自动补齐，请在开发套件手动安装：%1$s</string>
     <string name="toolchain_log_empty">没有可自动补齐的项（其余需在开发套件手动安装）</string>
+    <string name="toolchain_confirm_title">确认补齐工具链</string>
+    <string name="toolchain_confirm_components">开发套件组件：%1$s</string>
+    <string name="toolchain_confirm_packages">apt 软件包：%1$s</string>
+    <string name="toolchain_confirm_large">Android 组件体积较大，下载可能需要较长时间。</string>
+    <string name="toolchain_confirm_ok">开始安装</string>
+    <string name="toolchain_confirm_cancel">取消</string>
 </resources>

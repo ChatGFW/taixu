@@ -25,6 +25,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,12 +36,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import top.wkbin.taixu.core.model.BuiltinPluginBundles
+import top.wkbin.taixu.core.model.RepairStrategy
 import top.wkbin.taixu.core.model.ToolchainGroup
 import top.wkbin.taixu.core.model.ToolchainProbeResult
 import top.wkbin.taixu.core.model.ToolchainReport
 import top.wkbin.taixu.core.model.ToolchainStatus
+import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 
 /**
  * 🧰 沙箱工具链面板
@@ -51,11 +58,14 @@ internal fun ToolchainPanel(
     modifier: Modifier = Modifier,
 ) {
     val report by viewModel.report.collectAsState()
-    val busy by viewModel.busy.collectAsState()
+    val checkBusy by viewModel.checkBusy.collectAsState()
+    val installBusy by viewModel.installBusy.collectAsState()
     val failed by viewModel.failed.collectAsState()
     val logs by viewModel.logs.collectAsState()
     val installState by viewModel.installState.collectAsState()
     val debBased = viewModel.debBased
+    val actionBusy = checkBusy || installBusy
+    var showRepairConfirm by remember { mutableStateOf(false) }
 
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -118,8 +128,8 @@ internal fun ToolchainPanel(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Button(onClick = { viewModel.repairMissing() }, enabled = !busy) {
-                        if (busy) {
+                    Button(onClick = { showRepairConfirm = true }, enabled = !actionBusy) {
+                        if (installBusy) {
                             CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(6.dp))
                             Text(stringResource(R.string.toolchain_repairing), fontSize = 12.sp)
@@ -133,16 +143,27 @@ internal fun ToolchainPanel(
                             Text(stringResource(R.string.toolchain_repair_all, repairables.size), fontSize = 12.sp)
                         }
                     }
-                    if (!busy) {
-                        TextButton(onClick = { viewModel.refresh() }) {
+                    if (!actionBusy) {
+                        TextButton(onClick = { viewModel.refresh(force = true) }) {
                             Text(stringResource(R.string.toolchain_recheck), fontSize = 12.sp)
                         }
                     }
                 }
-            } else if (current != null && current.results.isNotEmpty() && !busy) {
-                TextButton(onClick = { viewModel.refresh() }) {
+            } else if (!actionBusy && (failed || (current != null && current.results.isNotEmpty()))) {
+                TextButton(onClick = { viewModel.refresh(force = true) }) {
                     Text(stringResource(R.string.toolchain_recheck), fontSize = 12.sp)
                 }
+            }
+
+            if (showRepairConfirm && current != null) {
+                ToolchainRepairConfirmDialog(
+                    report = current,
+                    onConfirm = {
+                        showRepairConfirm = false
+                        viewModel.repairMissing()
+                    },
+                    onDismiss = { showRepairConfirm = false },
+                )
             }
 
             // ---------- 无法自动补齐提示 ----------
@@ -207,6 +228,50 @@ internal fun ToolchainPanel(
             }
         }
     }
+}
+
+@Composable
+private fun ToolchainRepairConfirmDialog(
+    report: ToolchainReport,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val components = report.repairable
+        .mapNotNull { it.probe.repair as? RepairStrategy.ByBundleComponents }
+        .flatMap { it.componentIds }
+        .distinct()
+        .map { id ->
+            BuiltinPluginBundles.bundles.flatMap { it.components }.firstOrNull { it.id == id }?.name ?: id
+        }
+    val packages = report.repairable
+        .mapNotNull { it.probe.repair as? RepairStrategy.ByAptPackages }
+        .flatMap { it.packages }
+        .distinct()
+    RuntimeAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.toolchain_confirm_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (components.isNotEmpty()) {
+                    Text(stringResource(R.string.toolchain_confirm_components, components.joinToString(", ")))
+                    Text(stringResource(R.string.toolchain_confirm_large))
+                }
+                if (packages.isNotEmpty()) {
+                    Text(stringResource(R.string.toolchain_confirm_packages, packages.joinToString(", ")))
+                }
+            }
+        },
+        confirmButton = {
+            RuntimeTextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.toolchain_confirm_ok))
+            }
+        },
+        dismissButton = {
+            RuntimeTextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.toolchain_confirm_cancel))
+            }
+        },
+    )
 }
 
 @Composable

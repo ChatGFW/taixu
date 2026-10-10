@@ -3,16 +3,18 @@ package top.wkbin.taixu.di.feature.chat
 import org.koin.dsl.module
 import top.wkbin.taixu.ui.chat.ChatViewModel
 import top.wkbin.taixu.ui.chat.ToolchainViewModel
-import top.wkbin.taixu.runtime.doctor.ToolchainInspector
-import top.wkbin.taixu.core.tools.ToolManager
-import top.wkbin.taixu.runtime.LinuxRuntime
 import org.koin.core.module.dsl.viewModel
 
 /** Dependency registrations owned by the feature:chat module. */
 val featureChatModule = module {
-    // 沙箱工具链面板：检测走 ToolchainInspector，补齐委托 ToolManager 开发套件安装
+    // 检测走 ToolchainInspector；补齐走进程级 ToolchainRepairer（不跟 ViewModel 取消）
     viewModel<ToolchainViewModel> {
-        ToolchainViewModel(inspector = get(), toolManager = get(), linuxRuntime = get())
+        ToolchainViewModel(
+            inspector = get(),
+            repairer = get(),
+            toolManager = get(),
+            linuxRuntime = get(),
+        )
     }
 
     viewModel<ChatViewModel> {

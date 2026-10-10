@@ -18,6 +18,8 @@ import top.wkbin.taixu.core.tools.ProviderRepository
 import top.wkbin.taixu.core.tools.RuntimeManagerImpl
 import top.wkbin.taixu.core.tools.RuntimeRepository
 import top.wkbin.taixu.core.tools.ToolManager
+import top.wkbin.taixu.core.tools.ToolManagerToolchainInstalls
+import top.wkbin.taixu.runtime.doctor.ToolchainInstalls
 import top.wkbin.taixu.core.tools.ToolNotificationNotifier
 import top.wkbin.taixu.core.tools.ToolRegistry
 import top.wkbin.taixu.core.tools.ToolRepository
@@ -114,6 +116,8 @@ val toolsModule = module {
             installerAdapters = get(named("toolAdapters")),
         )
     }
+
+    single<ToolchainInstalls> { ToolManagerToolchainInstalls(toolManager = get()) }
 
     single<ToolNotificationNotifier> { ToolNotificationNotifier(context = get()) }
 

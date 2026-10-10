@@ -2,39 +2,39 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import top.wkbin.taixu.core.model.RepairStrategy
 import top.wkbin.taixu.core.model.ToolchainReport
 import top.wkbin.taixu.core.tools.ToolManager
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.doctor.ToolchainInspector
+import top.wkbin.taixu.runtime.doctor.ToolchainRepairer
 
 /**
- * 🧰 沙箱工具链 ViewModel
+ * 沙箱工具链 ViewModel。
  *
- * 检测走 [ToolchainInspector]；补齐分两路串行编排：
- *  1. 开发套件组件（cmake/ninja/aapt2/apksigner/zipalign/jadx/apktool）
- *     → [ToolManager].startBackgroundBatchInstall（白名单+PRoot 准备+互斥锁+后台任务）；
- *  2. 套件未覆盖的 apt 工具（patchelf/baksmali/dex2jar/readelf/strace/ltrace/gdb）
- *     → [ToolchainRepairer]（复用 PluginBundleScripts 准备步骤 + aptOptions，逐包安装，
- *       经 ToolManager.runExclusive 与套件安装共用同一把互斥锁）。
+ * 只负责发起检测 / 补齐并观察状态。补齐的两步（套件组件，然后 apt）在
+ * [ToolchainRepairer] 自己的协程里跑，离开聊天不会把 apt/dpkg 杀掉。
+ * [checkBusy] 与 [installBusy] 分开：重新检测不会把正在进行的安装清掉。
  */
 class ToolchainViewModel(
     private val inspector: ToolchainInspector,
+    private val repairer: ToolchainRepairer,
     private val toolManager: ToolManager,
     private val linuxRuntime: LinuxRuntime,
 ) : ViewModel() {
 
-    private val repairer = ToolchainRepairer(linuxRuntime)
-
     private val _report = MutableStateFlow<ToolchainReport?>(null)
     val report: StateFlow<ToolchainReport?> = _report.asStateFlow()
 
-    private val _busy = MutableStateFlow(false)
-    val busy: StateFlow<Boolean> = _busy.asStateFlow()
+    private val _checkBusy = MutableStateFlow(false)
+    val checkBusy: StateFlow<Boolean> = _checkBusy.asStateFlow()
+
+    /** 补齐是否在跑。来自进程级 [ToolchainRepairer]，刷新检测不会写它。 */
+    val installBusy: StateFlow<Boolean> = repairer.running
 
     private val _failed = MutableStateFlow(false)
     val failed: StateFlow<Boolean> = _failed.asStateFlow()
@@ -42,11 +42,11 @@ class ToolchainViewModel(
     private val _hasGap = MutableStateFlow(false)
     val hasGap: StateFlow<Boolean> = _hasGap.asStateFlow()
 
-    /** 面板实时日志（补齐过程可见）。 */
-    private val _logs = MutableStateFlow<List<String>>(emptyList())
-    val logs: StateFlow<List<String>> = _logs.asStateFlow()
+    val logs: StateFlow<List<String>> = repairer.logs
 
-    /** 开发套件安装进度（来自 ToolManager）。 */
+    val outcome: StateFlow<ToolchainRepairer.RepairOutcome?> = repairer.outcome
+
+    /** 开发套件安装进度（来自 ToolManager，与本面板的 apt 日志拼在一起展示）。 */
     val installState: StateFlow<String?> = toolManager.bundleInstallState
 
     /** 当前发行版是否 Debian 系（packageManager == "apt"），非 Debian 系隐藏补齐。 */
@@ -58,88 +58,58 @@ class ToolchainViewModel(
         }
 
     init {
-        // 套件批量安装状态归零（结束）时自动刷新检测结果
         viewModelScope.launch {
-            toolManager.bundleInstallState.collect { state ->
-                _busy.value = toolManager.isBatchInstalling.value || _aptRunning
-                if (state == null && _report.value != null && !_aptRunning) {
-                    refresh()
-                }
+            inspector.report.collect { report ->
+                if (report != null) publish(report)
             }
-        }
-    }
-
-    /** apt 补齐运行标志（跨协程可见）。 */
-    @Volatile
-    private var _aptRunning: Boolean = false
-
-    /** 全量检测；沙箱不可用时如实置 failed。 */
-    fun refresh() {
-        if (_busy.value) return
-        viewModelScope.launch {
-            _busy.value = true
-            runCatching { inspector.inspect() }
-                .onSuccess { report ->
-                    _failed.value = false
-                    _report.value = report
-                    _hasGap.value = report.repairable.isNotEmpty()
-                }
-                .onFailure {
-                    _failed.value = true
-                    _report.value = null
-                }
-            _busy.value = false
         }
     }
 
     /**
-     * 一键补齐（串行两路）：
-     * 先套件组件（若 busy 则等它结束——bundleInstallState collect 已处理），
-     * 再 apt 项；全程日志实时回显，结束后自动刷新检测。
+     * 检测。默认走 [ToolchainInspector] 的 10 分钟缓存；
+     * [force] 为 true 时忽略缓存（用户点「重新检测」，或补齐结束后由 repairer 自己强制刷新）。
      */
-    fun repairMissing() {
-        val current = _report.value ?: return
-        if (_busy.value || _aptRunning) return
-
-        val bundleIds = current.repairable
-            .mapNotNull { it.probe.repair as? RepairStrategy.ByBundleComponents }
-            .flatMap { it.componentIds }
-            .distinct()
-            .toSet()
-
-        viewModelScope.launch {
-            _aptRunning = true
-            _busy.value = true
-            try {
-                // ---- 路 1：套件组件安装（同步等待完成）----
-                if (bundleIds.isNotEmpty()) {
-                    _logs.value += "==> [1/2] 安装开发套件组件: ${bundleIds.joinToString(", ")}"
-                    runCatching {
-                        toolManager.batchInstallComponents(bundleIds, reinstall = false)
-                            .collect { /* 进度经 bundleInstallState/bundleInstallLog 呈现 */ }
-                    }.onFailure { _logs.value += "套件安装失败: ${it.message}" }
-                }
-
-                // ---- 路 2：apt 补齐（逐包，失败不拖累整批）----
-                val fresh = _report.value ?: current
-                val aptTargets = repairer.aptTargets(fresh)
-                if (aptTargets.isNotEmpty()) {
-                    _logs.value += "==> [2/2] 安装 apt 工具: ${aptTargets.joinToString(", ") { it.first }}"
-                    val outcome = repairer.repair(fresh) { line -> _logs.value += line }
-                    if (outcome.failures.isNotEmpty()) {
-                        _logs.value += "补齐完成，${outcome.failures.size} 项失败（详见上方日志）"
-                    }
-                }
-
-                // ---- 刷新检测（更新 checkedAt 与红点）----
-                runCatching { inspector.inspect() }.onSuccess { report ->
-                    _report.value = report
-                    _hasGap.value = report.repairable.isNotEmpty()
-                }
-            } finally {
-                _aptRunning = false
-                _busy.value = false
+    fun refresh(force: Boolean = false) {
+        if (_checkBusy.value) return
+        if (!force) {
+            val cached = inspector.cachedIfFresh()
+            if (cached != null) {
+                publish(cached)
+                return
             }
         }
+        _checkBusy.value = true
+        viewModelScope.launch {
+            try {
+                inspector.inspect(force)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                _failed.value = true
+                _report.value = null
+                _hasGap.value = false
+            } finally {
+                _checkBusy.value = false
+            }
+        }
+    }
+
+    /** 用户确认后才调用。已有补齐在跑时 [ToolchainRepairer.start] 会拒绝。 */
+    fun repairMissing() {
+        val current = _report.value ?: return
+        if (current.repairable.isEmpty()) return
+        repairer.start(current)
+    }
+
+    private fun publish(report: ToolchainReport) {
+        if (report.probeFailed) {
+            _failed.value = true
+            _report.value = null
+            _hasGap.value = false
+            return
+        }
+        _failed.value = false
+        _report.value = report
+        _hasGap.value = report.repairable.isNotEmpty()
     }
 }
