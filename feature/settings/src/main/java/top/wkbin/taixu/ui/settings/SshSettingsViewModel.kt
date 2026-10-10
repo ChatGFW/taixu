@@ -19,6 +19,7 @@ import top.wkbin.taixu.core.datastore.SshPreferences
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.SshRuntimeConfig
 import top.wkbin.taixu.runtime.SshServiceManager
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 data class SshSettingsUiState(
     val distroId: String = "ubuntu",
@@ -47,7 +48,7 @@ class SshSettingsViewModel(
     val vpnActive: StateFlow<Boolean> = _vpnActive.asStateFlow()
     private var vpnCallback: ConnectivityManager.NetworkCallback? = null
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class)
     val settings: StateFlow<SshSettingsUiState> = linuxRuntime.activeDistroId
         .flatMapLatest { distroId ->
             combine(

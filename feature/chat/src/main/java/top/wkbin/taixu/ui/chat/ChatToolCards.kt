@@ -58,6 +58,9 @@ import kotlinx.serialization.json.put
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.feature.a2uipoc.A2uiPocSurfaceCard
 import top.wkbin.taixu.harness.AskUserQuestions
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 
 /** 工具调用卡与审批请求卡。 */
 private val DotRunning = Color(0xFFB25E00)
@@ -246,7 +249,7 @@ internal fun ToolCard(
 
 @Composable
 internal fun ApprovalRequestCard(
-    request: top.wkbin.taixu.core.database.AgentApprovalRequestEntity,
+    request: AgentApprovalRequestEntity,
     onApprove: (rememberForSession: Boolean) -> Unit,
     onReject: () -> Unit,
 ) {
@@ -359,7 +362,7 @@ internal fun AskUserCard(
     val questions = remember(request.id) {
         runCatching {
             AskUserQuestions.parse(
-                kotlinx.serialization.json.Json.parseToJsonElement(request.argumentsJson).jsonObject,
+                Json.parseToJsonElement(request.argumentsJson).jsonObject,
             )
         }.getOrNull().orEmpty()
     }
@@ -445,13 +448,13 @@ internal fun AskUserCard(
                 Button(
                     onClick = {
                         resolving = true
-                        val answers = kotlinx.serialization.json.buildJsonArray {
+                        val answers = buildJsonArray {
                             questions.indices.forEach { index ->
                                 val answer = custom[index]?.trim()?.ifBlank { null }
                                     ?: selected[index]?.trim()?.ifBlank { null }
                                     ?: return@forEach
                                 add(
-                                    kotlinx.serialization.json.buildJsonObject {
+                                    buildJsonObject {
                                         put("index", index)
                                         put("answer", answer)
                                     },

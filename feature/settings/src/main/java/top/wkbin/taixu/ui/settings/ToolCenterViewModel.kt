@@ -19,6 +19,11 @@ import top.wkbin.taixu.core.tools.ToolManager
 import top.wkbin.taixu.core.tools.ToolVerification
 import top.wkbin.taixu.runtime.LinuxRuntime
 import android.net.Uri
+import kotlinx.coroutines.Dispatchers
+import top.wkbin.taixu.core.model.BuiltinPluginBundles
+import top.wkbin.taixu.core.model.PluginBundle
+import top.wkbin.taixu.core.model.PluginComponent
+import top.wkbin.taixu.core.tools.LocalPluginImportState
 
 class ToolCenterViewModel(
     private val toolManager: ToolManager,
@@ -54,7 +59,7 @@ class ToolCenterViewModel(
         _operationError.value = null
     }
 
-    val localPluginImport: StateFlow<top.wkbin.taixu.core.tools.LocalPluginImportState> = toolManager.localPluginImportState
+    val localPluginImport: StateFlow<LocalPluginImportState> = toolManager.localPluginImportState
 
     /** 首次进入插件中心的离线包导入引导：false 表示尚未看过，需要展示遮罩引导。 */
     val importGuideShown: StateFlow<Boolean> = firstUseGuidePreferences.firstUseGuidesShown
@@ -179,13 +184,13 @@ class ToolCenterViewModel(
     }
 
     // ==================== 聚合大插件套件与子组件状态管理 ====================
-    val pluginBundles: List<top.wkbin.taixu.core.model.PluginBundle> = top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles
+    val pluginBundles: List<PluginBundle> = BuiltinPluginBundles.bundles
 
     private val _installedComponentIds = MutableStateFlow<Set<String>>(emptySet())
     val installedComponentIds: StateFlow<Set<String>> = _installedComponentIds.asStateFlow()
 
-    private val _activeBundle = MutableStateFlow<top.wkbin.taixu.core.model.PluginBundle?>(null)
-    val activeBundle: StateFlow<top.wkbin.taixu.core.model.PluginBundle?> = _activeBundle.asStateFlow()
+    private val _activeBundle = MutableStateFlow<PluginBundle?>(null)
+    val activeBundle: StateFlow<PluginBundle?> = _activeBundle.asStateFlow()
 
     private val _selectedComponents = MutableStateFlow<Set<String>>(emptySet())
     val selectedComponents: StateFlow<Set<String>> = _selectedComponents.asStateFlow()
@@ -195,7 +200,7 @@ class ToolCenterViewModel(
     val componentInstallLog: StateFlow<List<String>> = toolManager.bundleInstallLog
 
     fun refreshInstalledStatus() {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val installed = toolManager.probeInstalledComponents()
                 _installedComponentIds.value = installed
@@ -205,7 +210,7 @@ class ToolCenterViewModel(
         }
     }
 
-    fun openBundleSetup(bundle: top.wkbin.taixu.core.model.PluginBundle) {
+    fun openBundleSetup(bundle: PluginBundle) {
         val installed = _installedComponentIds.value
         // 只默认勾选尚未安装的必选基座；已安装的组件不再勾选
         val uninstalledRequired = bundle.components.filter { it.id !in installed && it.isRequired }.map { it.id }.toSet()
@@ -217,7 +222,7 @@ class ToolCenterViewModel(
         _activeBundle.value = null
     }
 
-    fun toggleComponent(component: top.wkbin.taixu.core.model.PluginComponent) {
+    fun toggleComponent(component: PluginComponent) {
         val installed = _installedComponentIds.value
         if (component.id in installed) return // 已安装组件无需重复勾选
         val isUninstalledRequired = component.isRequired && component.id !in installed
@@ -239,7 +244,7 @@ class ToolCenterViewModel(
         }
     }
 
-    fun reinstallComponent(component: top.wkbin.taixu.core.model.PluginComponent) {
+    fun reinstallComponent(component: PluginComponent) {
         if (toolManager.isBatchInstalling.value) return
         _operationError.value = null
         _activeBundle.value = null
@@ -249,8 +254,8 @@ class ToolCenterViewModel(
     }
 
     /** 仍有其他已装配组件依赖它时返回原因，并写到操作错误横幅。 */
-    fun uninstallBlockedReason(component: top.wkbin.taixu.core.model.PluginComponent): String? {
-        val blockers = top.wkbin.taixu.core.model.BuiltinPluginBundles.blockingDependents(
+    fun uninstallBlockedReason(component: PluginComponent): String? {
+        val blockers = BuiltinPluginBundles.blockingDependents(
             component.id,
             _installedComponentIds.value,
         )
@@ -260,7 +265,7 @@ class ToolCenterViewModel(
         return message
     }
 
-    fun uninstallComponent(component: top.wkbin.taixu.core.model.PluginComponent) {
+    fun uninstallComponent(component: PluginComponent) {
         if (toolManager.isBatchInstalling.value) return
         if (uninstallBlockedReason(component) != null) return
         _activeBundle.value = null
@@ -270,7 +275,7 @@ class ToolCenterViewModel(
     }
 
     // 兼容原 devSuites 接口
-    val devSuites: List<top.wkbin.taixu.core.model.PluginBundle> get() = pluginBundles
+    val devSuites: List<PluginBundle> get() = pluginBundles
     val showSuiteDialog: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
     val selectedSuites: StateFlow<Set<String>> = MutableStateFlow(emptySet<String>()).asStateFlow()
     val isInstallingSuites: StateFlow<Boolean> get() = isInstallingComponents

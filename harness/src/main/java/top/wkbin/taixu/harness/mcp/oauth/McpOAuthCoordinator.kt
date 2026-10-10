@@ -17,6 +17,12 @@ import top.wkbin.taixu.core.database.McpOAuthCredential
 import top.wkbin.taixu.core.database.McpOAuthCredentialRepository
 import top.wkbin.taixu.core.database.McpOAuthTransaction
 import top.wkbin.taixu.core.model.McpServerConfig
+import java.io.IOException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import org.json.JSONObject
+import top.wkbin.taixu.core.model.McpAuthMode
+import top.wkbin.taixu.core.model.McpAuthState
 
 /**
  * Authorization Code + PKCE coordinator. Browser/UI integration calls begin() and callback().
@@ -27,17 +33,17 @@ class McpOAuthCoordinator(
     private val client: OkHttpClient,
 ) {
     private val locks = ConcurrentHashMap<String, Mutex>()
-    private val _states = kotlinx.coroutines.flow.MutableStateFlow<Map<String, top.wkbin.taixu.core.model.McpAuthState>>(emptyMap())
-    val states: kotlinx.coroutines.flow.StateFlow<Map<String, top.wkbin.taixu.core.model.McpAuthState>> = _states
+    private val _states = MutableStateFlow<Map<String, McpAuthState>>(emptyMap())
+    val states: StateFlow<Map<String, McpAuthState>> = _states
 
     suspend fun begin(server: McpServerConfig, now: Long = System.currentTimeMillis()): String {
-        require(server.authMode == top.wkbin.taixu.core.model.McpAuthMode.OAUTH) { "MCP 服务未配置 OAuth" }
+        require(server.authMode == McpAuthMode.OAUTH) { "MCP 服务未配置 OAuth" }
         require(server.oauthClientId.isNotBlank()) { "OAuth client_id 未配置" }
         require(server.oauthAuthorizationEndpoint.isNotBlank()) { "OAuth authorization endpoint 未配置" }
         require(server.oauthTokenEndpoint.isNotBlank()) { "OAuth token endpoint 未配置" }
         OAuthEndpointPolicy.requireSecure(server.oauthAuthorizationEndpoint)
         OAuthEndpointPolicy.requireSecure(server.oauthTokenEndpoint)
-        _states.value = _states.value + (server.id to top.wkbin.taixu.core.model.McpAuthState.Authorizing)
+        _states.value = _states.value + (server.id to McpAuthState.Authorizing)
         val state = OAuthPkce.randomState()
         val verifier = OAuthPkce.codeVerifier()
         credentials.saveTransaction(
@@ -83,7 +89,7 @@ class McpOAuthCoordinator(
             return CallbackResult.Invalid("OAuth state 已被消费")
         }
         if (error != null) {
-            _states.value = _states.value + (transaction.serverId to top.wkbin.taixu.core.model.McpAuthState.Error(error))
+            _states.value = _states.value + (transaction.serverId to McpAuthState.Error(error))
             return CallbackResult.Cancelled(error)
         }
         val token = try {
@@ -93,7 +99,7 @@ class McpOAuthCoordinator(
             throw cancellation
         } catch (failure: Throwable) {
             _states.value = _states.value + (
-                transaction.serverId to top.wkbin.taixu.core.model.McpAuthState.Error(
+                transaction.serverId to McpAuthState.Error(
                     failure.message ?: "OAuth token exchange failed",
                 )
             )
@@ -143,7 +149,7 @@ class McpOAuthCoordinator(
                 .apply { current.resource?.let { add("resource", it) } }
                 .build()
             val request = Request.Builder().url(endpoint).post(body).build()
-            _states.value = _states.value + (serverId to top.wkbin.taixu.core.model.McpAuthState.Authorizing)
+            _states.value = _states.value + (serverId to McpAuthState.Authorizing)
             try {
                 val token = executeTokenRequest(request, now)
                 credentials.saveCredential(
@@ -162,7 +168,7 @@ class McpOAuthCoordinator(
                 _states.value = _states.value - serverId
                 throw cancellation
             } catch (failure: Throwable) {
-                _states.value = _states.value + (serverId to top.wkbin.taixu.core.model.McpAuthState.Error(failure.message ?: "OAuth token refresh failed"))
+                _states.value = _states.value + (serverId to McpAuthState.Error(failure.message ?: "OAuth token refresh failed"))
                 throw failure
             }
         }
@@ -193,7 +199,7 @@ class McpOAuthCoordinator(
             val call = client.newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : okhttp3.Callback {
-                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                override fun onFailure(call: okhttp3.Call, e: IOException) {
                     if (continuation.isActive) continuation.resumeWithException(e)
                 }
 
@@ -206,7 +212,7 @@ class McpOAuthCoordinator(
                         response.use {
                             val text = it.body.string()
                             check(it.isSuccessful) { "OAuth token request failed (HTTP ${it.code})" }
-                            val json = org.json.JSONObject(text)
+                            val json = JSONObject(text)
                             val access = json.optString("access_token").takeIf { value -> value.isNotBlank() }
                                 ?: error("OAuth token response missing access_token")
                             val expires = json.optLong("expires_in", Long.MIN_VALUE).takeIf { value -> value != Long.MIN_VALUE }

@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ToolCall
+import top.wkbin.taixu.harness.ToolResult
 
 private fun call(id: String, tool: HarnessTool, raw: String? = null) =
     ToolCall(id = id, createdAt = 1L, tool = tool, args = buildJsonObject { }, rawToolName = raw)
@@ -56,8 +57,8 @@ class DanglingToolCallPlannerTest {
     }
 
     private object ToolResultAnswered {
-        fun stubOf(call: ToolCall): top.wkbin.taixu.harness.ToolResult =
-            top.wkbin.taixu.harness.ToolResult(
+        fun stubOf(call: ToolCall): ToolResult =
+            ToolResult(
                 id = "res-${call.id}",
                 createdAt = 2L,
                 toolCallId = call.id,

@@ -22,6 +22,7 @@ import top.wkbin.taixu.runtime.browser.BrowserEngine
 import top.wkbin.taixu.runtime.browser.BrowserEventBus
 import top.wkbin.taixu.runtime.browser.BrowserSessionToken
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
+import top.wkbin.taixu.runtime.browser.BrowserEvent
 
 class McpToolDispatcherTest {
 
@@ -132,7 +133,7 @@ private class FakeBrowserEngine : BrowserEngine {
     var cookies: String = ""
 
     init {
-        runBlocking { eventBus.publish(top.wkbin.taixu.runtime.browser.BrowserEvent.PageChanged(active.tabId, active.url, "Example")) }
+        runBlocking { eventBus.publish(BrowserEvent.PageChanged(active.tabId, active.url, "Example")) }
     }
 
     override suspend fun openTab(url: String?, activate: Boolean) = active

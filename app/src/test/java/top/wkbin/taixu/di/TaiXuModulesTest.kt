@@ -18,15 +18,20 @@ import okhttp3.OkHttpClient
 import top.wkbin.taixu.harness.WorkspaceFileAccess
 import top.wkbin.taixu.harness.WorkspaceToolBackend
 import top.wkbin.taixu.harness.core.ToolCheckpoints
+import top.wkbin.taixu.harness.directory.CapabilityToolGateway
 import top.wkbin.taixu.harness.subagent.SubagentLaneRunner
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpResources
 import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
+import kotlinx.coroutines.Job
+import top.wkbin.taixu.core.browser.BrowserPreferences
 import top.wkbin.taixu.core.security.SecretRedactor
+import top.wkbin.taixu.core.tools.backup.BackupLocations
 import top.wkbin.taixu.harness.projection.CurrentSessionTracker
 import top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore
 import top.wkbin.taixu.harness.workflow.VirtualScreenWorkflowRuns
 import top.wkbin.taixu.runtime.virtualdisplay.PhoneTaskRegistry
+import top.wkbin.taixu.runtime.virtualdisplay.PhoneTaskState
 
 @OptIn(KoinExperimentalAPI::class)
 class TaiXuModulesTest {
@@ -37,12 +42,13 @@ class TaiXuModulesTest {
             injections = injectedParameters(
                 definition<WorkspaceFileAccess>(File::class),
                 definition<WorkspaceToolBackend>(Function1::class),
+                definition<CapabilityToolGateway>(Function5::class),
                 definition<ToolCheckpoints<*, *>>(List::class),
-                definition<top.wkbin.taixu.core.tools.backup.BackupLocations>(File::class),
+                definition<BackupLocations>(File::class),
                 definition<HttpClient>(HttpClientEngine::class),
                 definition<OkHttpClient>(OkHttpClient.Builder::class),
                 definition<SubagentLaneRunner>(Function0::class),
-                definition<BrowserMcpTools>(List::class, Function1::class, top.wkbin.taixu.core.browser.BrowserPreferences::class),
+                definition<BrowserMcpTools>(List::class, Function1::class, BrowserPreferences::class),
                 definition<BrowserMcpResources>(Function0::class),
             ),
             extraTypes = listOf(Context::class, Application::class, SavedStateHandle::class, WorkerParameters::class),
@@ -74,9 +80,9 @@ class TaiXuModulesTest {
         try {
             val runs = application.koin.get<VirtualScreenWorkflowRuns>()
             assertSame(runs, application.koin.get<VirtualScreenWorkflowRuns>())
-            val job = kotlinx.coroutines.Job()
+            val job = Job()
             runs.begin("test", job)
-            runs.end("test", top.wkbin.taixu.runtime.virtualdisplay.PhoneTaskState.COMPLETED)
+            runs.end("test", PhoneTaskState.COMPLETED)
             assertSame(registry, application.koin.get<PhoneTaskRegistry>())
             job.cancel()
         } finally { application.close() }

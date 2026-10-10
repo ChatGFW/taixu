@@ -18,6 +18,9 @@ import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolCallMode
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
+import kotlinx.serialization.json.JsonPrimitive
+import top.wkbin.taixu.core.model.SubagentTaskSpec
+import top.wkbin.taixu.harness.SubagentOrchestrator
 
 class SubagentLaneContractsTest {
 
@@ -417,14 +420,14 @@ class SubagentLaneContractsTest {
     // ---------- 疑似 shell 写软检测 ----------
 
     private fun baseCall(id: String, command: String, success: Boolean = true) = listOf(
-        top.wkbin.taixu.harness.ToolCall(id, 1L, top.wkbin.taixu.harness.HarnessTool.BASE, buildJsonObject { put("command", kotlinx.serialization.json.JsonPrimitive(command)) }, rawToolName = "base"),
-        top.wkbin.taixu.harness.ToolResult("r$id", 2L, id, success = success, output = "ok"),
+        ToolCall(id, 1L, HarnessTool.BASE, buildJsonObject { put("command", JsonPrimitive(command)) }, rawToolName = "base"),
+        ToolResult("r$id", 2L, id, success = success, output = "ok"),
     )
 
     @Test
     fun `suspected shell writes are detected for narrow or readonly claims`() {
         val transcript = listOf(
-            top.wkbin.taixu.harness.UserMessage("u1", 1L, "任务"),
+            UserMessage("u1", 1L, "任务"),
         ) + baseCall("c1", "echo done | tee /tmp/x.txt") + baseCall("c2", "grep foo app/src/Main.kt") + baseCall("c3", "sed -i 's/a/b/' docs/g.md")
 
         val hits = detectSuspectedShellWrites(transcript, writePaths = listOf("docs/"))
@@ -467,8 +470,8 @@ class SubagentLaneContractsTest {
 
     @Test
     fun `summary exposes suspected shell writes`() {
-        val outcome = top.wkbin.taixu.harness.SubagentOrchestrator.SubagentExecutionOutcome(
-            spec = top.wkbin.taixu.core.model.SubagentTaskSpec(taskName = "审查", role = "reviewer", prompt = "检查"),
+        val outcome = SubagentOrchestrator.SubagentExecutionOutcome(
+            spec = SubagentTaskSpec(taskName = "审查", role = "reviewer", prompt = "检查"),
             subSessionId = "subagent:reviewer:abc",
             isSuccess = true,
             summary = "完成",

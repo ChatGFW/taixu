@@ -18,6 +18,7 @@ import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.harness.directory.CapabilityToolGateway
 import top.wkbin.taixu.harness.directory.NestedCalls
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
 import top.wkbin.taixu.core.database.RoomHarnessSessionRepository
@@ -71,8 +72,18 @@ class HarnessApprovalBoundaryTest {
             val preferences = AgentPreferences(SettingsDataStore(context, SecretManager()))
             val resolver = HarnessPathResolver()
             val executor = ToolExecutor(
-                WorkspaceFileAccess(context.cacheDir), unusedPort<LinuxRuntime>(), resolver,
-                ApprovalPolicyEngine(resolver), SecretRedactor(), unusedPort<FileDownloader>(),
+                WorkspaceFileAccess(context.cacheDir), resolver,
+                ApprovalPolicyEngine(resolver), SecretRedactor(),
+                hostToolBackend = HostCapabilityToolBackend(secretRedactor = SecretRedactor()),
+                linuxCommandToolBackend = LinuxCommandToolBackend(unusedPort<LinuxRuntime>(), resolver),
+                downloadToolBackend = DownloadToolBackend(
+                    unusedPort<FileDownloader>(), WorkspaceFileAccess(context.cacheDir), WorkspaceMutationSnapshots(),
+                ),
+                contextMemoryToolBackend = ContextMemoryToolBackend(),
+                askUserToolBackend = AskUserToolBackend(ApprovalPolicyEngine(resolver), approvals),
+                promptAssetToolBackend = PromptAssetToolBackend(),
+                harnessServiceToolBackend = HarnessServiceToolBackend(),
+                capabilityToolGateway = CapabilityToolGateway(null) { _, _, _, _ -> error("unexpected host dispatch") },
                 approvalRepository = approvals, sessionDao = sessions,
             )
             val runner = HarnessToolRoundRunner(

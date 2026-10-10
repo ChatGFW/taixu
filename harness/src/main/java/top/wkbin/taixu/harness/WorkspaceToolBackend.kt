@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.harness.core.ToolBackend
+import java.util.Base64
 
 data class WorkspaceToolRequest(
     val tool: HarnessTool,
@@ -29,11 +30,11 @@ class WorkspaceToolBackend(
     override suspend fun execute(request: WorkspaceToolRequest): WorkspaceToolOutcome {
         currentCoroutineContext().ensureActive()
         val operations = operationsFor(request.workspace)
-        val path = request.args.required("path")
+        val path = JsonArgs.requireString(request.args, "path")
         val outcome = when (request.tool) {
             HarnessTool.READ -> read(operations, path, request.args)
             HarnessTool.WRITE -> {
-                val content = request.args.required("content")
+                val content = JsonArgs.requireString(request.args, "content")
                 snapshots.before(request.sessionId, operations, path)
                 currentCoroutineContext().ensureActive()
                 val written = operations.write(path, content)
@@ -42,8 +43,8 @@ class WorkspaceToolBackend(
                 written.output("已写入 $path\nDIFF_STAT: +${content.lines().size} -0", "write")
             }
             HarnessTool.EDIT -> {
-                val oldText = request.args.required("oldText")
-                val newText = request.args.required("newText")
+                val oldText = JsonArgs.requireString(request.args, "oldText")
+                val newText = JsonArgs.requireString(request.args, "newText")
                 snapshots.before(request.sessionId, operations, path)
                 currentCoroutineContext().ensureActive()
                 val edited = operations.editDetailed(path, oldText, newText)
@@ -73,7 +74,7 @@ class WorkspaceToolBackend(
         return when (val bytes = operations.readRawBytes(path)) {
             is AppResult.Success -> {
                 currentCoroutineContext().ensureActive()
-                val base64 = java.util.Base64.getEncoder().encodeToString(bytes.data)
+                val base64 = Base64.getEncoder().encodeToString(bytes.data)
                 WorkspaceToolOutcome(
                     true, "已读取图片文件 $path（${bytes.data.size} 字节，$mime）。" +
                         "图像已作为多模态附件随本次工具结果提供。" +
@@ -96,13 +97,6 @@ class WorkspaceToolBackend(
             }
             WorkspaceToolOutcome(false, error.message + hint)
         }
-    }
-
-    private fun JsonObject.required(key: String): String {
-        val value = this[key]?.jsonPrimitive?.content
-        require(!value.isNullOrBlank()) { "缺少参数：$key" }
-        require(value.length <= ToolExecutor.MAX_ARG_LENGTH) { "参数 $key 过长（${value.length} 字符，上限 ${ToolExecutor.MAX_ARG_LENGTH}）" }
-        return value
     }
 
     private fun imageMime(path: String): String? = when (path.substringAfterLast('.', "").lowercase()) {

@@ -61,6 +61,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import android.widget.Toast
 
 /**
  * 分支管理（参考 MGit）：
@@ -80,7 +81,7 @@ fun GitScreen(
 
     LaunchedEffect(state.notice) {
         state.notice?.let {
-            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
             viewModel.clearNotice()
         }
     }

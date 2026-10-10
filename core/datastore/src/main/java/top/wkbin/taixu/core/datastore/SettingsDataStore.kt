@@ -8,9 +8,16 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import top.wkbin.taixu.core.model.AgentPlugin
+import top.wkbin.taixu.core.model.BuiltinPlugins
+import top.wkbin.taixu.core.model.EnvironmentVariable
+import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.core.security.SecretManager
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 
@@ -171,7 +178,7 @@ class SettingsDataStore(
         context.settingsDataStore.edit { it.remove(workshopAndroidScriptKey); it.remove(workshopFlutterScriptKey) }
     }
 
-    private suspend fun setWorkshopValue(key: androidx.datastore.preferences.core.Preferences.Key<String>, value: String) {
+    private suspend fun setWorkshopValue(key: Preferences.Key<String>, value: String) {
         context.settingsDataStore.edit { prefs -> if (value.isBlank()) prefs.remove(key) else prefs[key] = value }
     }
     private val developerModeKey = booleanPreferencesKey("developer_mode")
@@ -208,7 +215,7 @@ class SettingsDataStore(
     private val skillEvolutionSuggestionsKey = booleanPreferencesKey("skill_evolution_suggestions")
     /** 已忽略或已应用的技能进化建议 id 集合（防止杀进程后重复展示） */
     private val dismissedSkillSuggestionsKey = stringSetPreferencesKey("dismissed_skill_suggestions")
-    private val environmentJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val environmentJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     val environmentPrivacyMode: Flow<Boolean> = context.settingsDataStore.data.map { it[environmentPrivacyModeKey] ?: true }
 
     /** 对话结束后自动建议「沉淀新技能 / 修复既有技能」（自进化闭环） */
@@ -262,9 +269,9 @@ class SettingsDataStore(
         context.settingsDataStore.edit { it.remove(legacyEnvironmentVariablesKey) }
     }
 
-    @kotlinx.serialization.Serializable
+    @Serializable
     private data class StoredEnvironmentVariable(
-        val metadata: top.wkbin.taixu.core.model.EnvironmentVariable,
+        val metadata: EnvironmentVariable,
         val encryptedValue: String,
     )
 
@@ -312,40 +319,40 @@ class SettingsDataStore(
     }
 
     /** 实际生效模式；高权限失效时可临时回落为 PRoot。 */
-    val effectiveExecutionMode: Flow<top.wkbin.taixu.core.model.ExecutionMode> = context.settingsDataStore.data.map { preferences ->
-        top.wkbin.taixu.core.model.ExecutionMode.fromId(preferences[executionModeKey] ?: top.wkbin.taixu.core.model.ExecutionMode.PROOT.id)
+    val effectiveExecutionMode: Flow<ExecutionMode> = context.settingsDataStore.data.map { preferences ->
+        ExecutionMode.fromId(preferences[executionModeKey] ?: ExecutionMode.PROOT.id)
     }
 
     /** 用户最后一次成功选择的模式；缺少新键时从旧 execution_mode 无损迁移。 */
-    val preferredExecutionMode: Flow<top.wkbin.taixu.core.model.ExecutionMode> = context.settingsDataStore.data.map { preferences ->
-        top.wkbin.taixu.core.model.ExecutionMode.fromId(
+    val preferredExecutionMode: Flow<ExecutionMode> = context.settingsDataStore.data.map { preferences ->
+        ExecutionMode.fromId(
             preferences[preferredExecutionModeKey]
                 ?: preferences[executionModeKey]
-                ?: top.wkbin.taixu.core.model.ExecutionMode.PROOT.id,
+                ?: ExecutionMode.PROOT.id,
         )
     }
 
     /** 兼容旧消费者：executionMode 始终表示实际生效模式。 */
-    val executionMode: Flow<top.wkbin.taixu.core.model.ExecutionMode> = effectiveExecutionMode
+    val executionMode: Flow<ExecutionMode> = effectiveExecutionMode
 
-    suspend fun setExecutionMode(mode: top.wkbin.taixu.core.model.ExecutionMode) {
+    suspend fun setExecutionMode(mode: ExecutionMode) {
         context.settingsDataStore.edit { preferences ->
             preferences[executionModeKey] = mode.id
             preferences[preferredExecutionModeKey] = mode.id
         }
     }
 
-    suspend fun setPreferredExecutionMode(mode: top.wkbin.taixu.core.model.ExecutionMode) {
+    suspend fun setPreferredExecutionMode(mode: ExecutionMode) {
         context.settingsDataStore.edit { it[preferredExecutionModeKey] = mode.id }
     }
 
-    suspend fun setEffectiveExecutionMode(mode: top.wkbin.taixu.core.model.ExecutionMode) {
+    suspend fun setEffectiveExecutionMode(mode: ExecutionMode) {
         context.settingsDataStore.edit { it[executionModeKey] = mode.id }
     }
 
     suspend fun setExecutionModes(
-        preferred: top.wkbin.taixu.core.model.ExecutionMode,
-        effective: top.wkbin.taixu.core.model.ExecutionMode,
+        preferred: ExecutionMode,
+        effective: ExecutionMode,
     ) {
         context.settingsDataStore.edit {
             it[preferredExecutionModeKey] = preferred.id
@@ -411,10 +418,10 @@ class SettingsDataStore(
     }
 
     // 终端外观与显示定制
-    private val terminalFontSizeKey = androidx.datastore.preferences.core.intPreferencesKey("terminal_font_size")
+    private val terminalFontSizeKey = intPreferencesKey("terminal_font_size")
     private val terminalColorSchemeKey = stringPreferencesKey("terminal_color_scheme")
     private val terminalHapticsEnabledKey = booleanPreferencesKey("terminal_haptics_enabled")
-    private val appFontScaleKey = androidx.datastore.preferences.core.floatPreferencesKey("app_font_scale")
+    private val appFontScaleKey = floatPreferencesKey("app_font_scale")
 
     val terminalFontSize: Flow<Int> = context.settingsDataStore.data.map { prefs ->
         prefs[terminalFontSizeKey] ?: 13
@@ -647,13 +654,13 @@ class SettingsDataStore(
     // ==================== Agent 智能体核心配置 ====================
 
     private val contextCompactionEnabledKey = booleanPreferencesKey("agent_context_compaction_enabled")
-    private val maxConcurrentAgentTurnsKey = androidx.datastore.preferences.core.intPreferencesKey("agent_max_concurrent_turns")
-    private val maxToolRoundsKey = androidx.datastore.preferences.core.intPreferencesKey("agent_max_tool_rounds")
+    private val maxConcurrentAgentTurnsKey = intPreferencesKey("agent_max_concurrent_turns")
+    private val maxToolRoundsKey = intPreferencesKey("agent_max_tool_rounds")
     private val roundLimitAutoContinuationsKey =
-        androidx.datastore.preferences.core.intPreferencesKey("agent_round_limit_auto_continuations")
+        intPreferencesKey("agent_round_limit_auto_continuations")
     private val autoWorkspaceCwdKey = booleanPreferencesKey("agent_auto_workspace_cwd")
     private val commandOutputCompressionEnabledKey = booleanPreferencesKey("agent_command_output_compression_enabled")
-    private val baseCommandTimeoutSecondsKey = androidx.datastore.preferences.core.intPreferencesKey("agent_base_command_timeout_seconds")
+    private val baseCommandTimeoutSecondsKey = intPreferencesKey("agent_base_command_timeout_seconds")
 
     /** 全局最大并发 Agent 轮次数（默认 2，受移动端性能/API 限流制约） */
     val maxConcurrentAgentTurns: Flow<Int> = context.settingsDataStore.data.map {
@@ -708,7 +715,7 @@ class SettingsDataStore(
      * 上下文 Token 预算（默认 128000）。当模型未单独配置 contextTokens 时作为兜底，
      * apiMessages 据此做滑动窗口裁剪，防止长会话撞上下文窗口上限。
      */
-    private val contextBudgetTokensKey = androidx.datastore.preferences.core.intPreferencesKey("agent_context_budget_tokens")
+    private val contextBudgetTokensKey = intPreferencesKey("agent_context_budget_tokens")
     val contextBudgetTokens: Flow<Int> = context.settingsDataStore.data.map { it[contextBudgetTokensKey] ?: 128_000 }
     suspend fun setContextBudgetTokens(value: Int) { context.settingsDataStore.edit { it[contextBudgetTokensKey] = value.coerceIn(4_000, 2_000_000) } }
 
@@ -718,7 +725,7 @@ class SettingsDataStore(
      * 100 = 对齐主流 harness：`contextWindow - reserveTokens - toolSchemaReserve - systemTokens`；
      * 低于 100 会让历史更早进入摘要，主要用于主动节省 input token 成本。
      */
-    private val contextFoldingRatioPercentKey = androidx.datastore.preferences.core.intPreferencesKey("agent_context_folding_ratio_percent")
+    private val contextFoldingRatioPercentKey = intPreferencesKey("agent_context_folding_ratio_percent")
     val contextFoldingRatioPercent: Flow<Int> = context.settingsDataStore.data.map { it[contextFoldingRatioPercentKey] ?: 100 }
     suspend fun setContextFoldingRatioPercent(value: Int) { context.settingsDataStore.edit { it[contextFoldingRatioPercentKey] = value.coerceIn(10, 100) } }
 
@@ -726,7 +733,7 @@ class SettingsDataStore(
      * 单轮最多允许执行的工具调用数量（默认 12）。超过则本轮回填占位结果并提示模型，
      * 防止一次爆发大量工具调用耗尽上下文或陷入失控循环。
      */
-    private val maxToolsPerRoundKey = androidx.datastore.preferences.core.intPreferencesKey("agent_max_tools_per_round")
+    private val maxToolsPerRoundKey = intPreferencesKey("agent_max_tools_per_round")
     val maxToolsPerRound: Flow<Int> = context.settingsDataStore.data.map { it[maxToolsPerRoundKey] ?: 12 }
     suspend fun setMaxToolsPerRound(value: Int) { context.settingsDataStore.edit { it[maxToolsPerRoundKey] = value.coerceIn(1, 50) } }
 
@@ -734,13 +741,13 @@ class SettingsDataStore(
      * 连续失败熔断阈值（默认 8）。当连续 N 轮工具调用全部失败时，主动终止循环并提示用户，
      * 避免模型在"调用→失败→再调用"中死循环空转。
      */
-    private val maxConsecutiveFailuresKey = androidx.datastore.preferences.core.intPreferencesKey("agent_max_consecutive_failures")
+    private val maxConsecutiveFailuresKey = intPreferencesKey("agent_max_consecutive_failures")
     val maxConsecutiveFailures: Flow<Int> = context.settingsDataStore.data.map { it[maxConsecutiveFailuresKey] ?: 8 }
     suspend fun setMaxConsecutiveFailures(value: Int) { context.settingsDataStore.edit { it[maxConsecutiveFailuresKey] = value.coerceIn(1, 50) } }
 
     // ==================== 内置 ADB（宿主桥接插件） ====================
 
-    private val adbWirelessPortKey = androidx.datastore.preferences.core.intPreferencesKey("adb_wireless_debug_port")
+    private val adbWirelessPortKey = intPreferencesKey("adb_wireless_debug_port")
     private val adbPairedOnceKey = booleanPreferencesKey("adb_wireless_paired_once")
     private val adbNotificationEnabledKey = booleanPreferencesKey("adb_notification_enabled")
 
@@ -905,17 +912,17 @@ class SettingsDataStore(
     /** 获取所有 Plugin（预置），根据用户启用状态计算 isEnabled */
     private val enabledPluginsKey = stringSetPreferencesKey("agent_enabled_plugin_ids")
 
-    val allPlugins: Flow<List<top.wkbin.taixu.core.model.AgentPlugin>> = context.settingsDataStore.data.map { prefs ->
-        val defaults = top.wkbin.taixu.core.model.BuiltinPlugins.presets
+    val allPlugins: Flow<List<AgentPlugin>> = context.settingsDataStore.data.map { prefs ->
+        val defaults = BuiltinPlugins.presets
             .filter { it.isEnabled }
             .mapTo(mutableSetOf()) { it.id }
         val enabledIds = prefs[enabledPluginsKey] ?: defaults
-        top.wkbin.taixu.core.model.BuiltinPlugins.presets.map { plugin -> plugin.copy(isEnabled = plugin.id in enabledIds) }
+        BuiltinPlugins.presets.map { plugin -> plugin.copy(isEnabled = plugin.id in enabledIds) }
     }
 
     suspend fun setPluginEnabled(pluginId: String, enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
-            val defaults = top.wkbin.taixu.core.model.BuiltinPlugins.presets
+            val defaults = BuiltinPlugins.presets
                 .filter { it.isEnabled }
                 .mapTo(mutableSetOf()) { it.id }
             val current = (prefs[enabledPluginsKey] ?: defaults).toMutableSet()

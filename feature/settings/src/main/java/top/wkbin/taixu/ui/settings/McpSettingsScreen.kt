@@ -86,6 +86,9 @@ import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import kotlinx.coroutines.delay
 
 @Composable
 fun McpSettingsScreen(
@@ -538,7 +541,7 @@ private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewMode
     var runtimeTick by remember { mutableIntStateOf(0) }
     LaunchedEffect(state.enabled, state.port, state.allowRemote, state.token) {
         runtimeTick++
-        kotlinx.coroutines.delay(700)
+        delay(700)
         runtimeTick++
     }
     val running = remember(runtimeTick) { AgentMcpAccess.running }
@@ -741,11 +744,11 @@ private fun CopyableLine(label: String, value: String, context: Context) {
 
 /** 探测本机局域网 IPv4（用于展示可被外部设备访问的连接地址）；失败返回 null。 */
 private fun detectLanIp(): String? = try {
-    java.net.NetworkInterface.getNetworkInterfaces()
+    NetworkInterface.getNetworkInterfaces()
         ?.asSequence()
         ?.filter { !it.isLoopback && it.isUp }
         ?.flatMap { it.inetAddresses.asSequence() }
-        ?.firstOrNull { it is java.net.Inet4Address && !it.isLoopbackAddress }
+        ?.firstOrNull { it is Inet4Address && !it.isLoopbackAddress }
         ?.hostAddress
         ?.takeIf { it.isNotBlank() && it != "127.0.0.1" }
 } catch (_: Exception) {

@@ -16,6 +16,7 @@ import java.io.BufferedInputStream
 import java.io.FilterInputStream
 import java.io.InputStream
 import java.io.IOException
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 import java.security.KeyFactory
@@ -169,7 +170,7 @@ class ToolRegistry(
                 return null
             }
             archive.use { zip ->
-                var manifestEntry: java.util.zip.ZipEntry? = null
+                var manifestEntry: ZipEntry? = null
                 val entries = zip.entries()
                 while (entries.hasMoreElements()) {
                     val entry = entries.nextElement()

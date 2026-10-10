@@ -19,6 +19,7 @@ import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.harness.compaction.CompactionManager
+import java.io.IOException
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -42,7 +43,7 @@ class SessionProjectionCancellationTest {
     }
 
     @Test fun `repository failure cannot become an empty successful provider context`() = runBlocking {
-        val failure = java.io.IOException("storage unavailable")
+        val failure = IOException("storage unavailable")
         val repository = object : HarnessRuntimeRepository by unusedRepository() {
             override suspend fun findLane(sessionId: String, laneName: String): HarnessLaneEntity? = throw failure
         }
@@ -106,7 +107,7 @@ class SessionProjectionCancellationTest {
             override suspend fun findLane(sessionId: String, laneName: String): HarnessLaneEntity? = withContext(NonCancellable) {
                 entered.complete(Unit)
                 release.await()
-                throw java.io.IOException("late storage failure")
+                throw IOException("late storage failure")
             }
         }
         var caught: Throwable? = null

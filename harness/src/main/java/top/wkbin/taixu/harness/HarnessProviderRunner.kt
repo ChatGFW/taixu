@@ -20,6 +20,10 @@ import top.wkbin.taixu.harness.projection.SessionMessageProjector
 import top.wkbin.taixu.harness.projection.SessionStateMirrors
 import top.wkbin.taixu.harness.session.ApiContextAssembler
 import kotlin.time.Duration.Companion.milliseconds
+import java.io.EOFException
+import java.io.InterruptedIOException
+import java.net.SocketException
+import top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore
 
 /**
  * 本地流式增量处理（消息投影 / 持久化 / UI 派生）失败。
@@ -41,7 +45,7 @@ internal inline fun <T> withinStreamHandling(block: () -> T): T = try {
 /** 模型能力选择、流式请求重试及助手回复持久化；不持有会话调度状态。 */
 class HarnessProviderRunner(
     private val providerClient: ProviderClient,
-    private val requestDiagnostics: top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore,
+    private val requestDiagnostics: RequestDiagnosticsStore,
     private val messageStore: SessionTreeStore,
     private val operationCoordinator: OperationCoordinator,
     private val stateMirrors: SessionStateMirrors,
@@ -647,10 +651,10 @@ class HarnessProviderRunner(
             var cause: Throwable? = throwable
             var depth = 0
             while (cause != null && depth < 10) {
-                if (cause is java.net.SocketException ||
-                    cause is java.io.InterruptedIOException ||
+                if (cause is SocketException ||
+                    cause is InterruptedIOException ||
                     cause is javax.net.ssl.SSLException ||
-                    cause is java.io.EOFException ||
+                    cause is EOFException ||
                     cause is TransientHttpException
                 ) {
                     return true

@@ -1,6 +1,7 @@
-﻿package top.wkbin.taixu.runtime
+package top.wkbin.taixu.runtime
 
 import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
+import top.wkbin.taixu.runtime.shell.CommandResult
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import top.wkbin.taixu.runtime.shell.ShellExecutor
 import java.io.File
@@ -57,7 +58,7 @@ class RuntimeHealthChecker(
     }
 
     private fun buildFailureDetail(
-        probe: top.wkbin.taixu.runtime.shell.CommandResult,
+        probe: CommandResult,
         workspaceWritable: Boolean,
     ): String {
         val details = buildList {
@@ -67,10 +68,10 @@ class RuntimeHealthChecker(
         return details.ifEmpty { listOf("Health probe returned empty output") }.joinToString("; ")
     }
 
-    private fun top.wkbin.taixu.runtime.shell.CommandResult.isBlankOrFailed(): Boolean =
+    private fun CommandResult.isBlankOrFailed(): Boolean =
         !isSuccess || stdout.isBlank()
 
-    private fun top.wkbin.taixu.runtime.shell.CommandResult.describeFailure(
+    private fun CommandResult.describeFailure(
         label: String,
     ): String {
         val output = (stderr.ifBlank { stdout }).trim().replace(Regex("\\s+"), " ")
@@ -97,7 +98,7 @@ class RuntimeHealthChecker(
     )
 
     private fun failedCommandResult(throwable: Throwable) =
-        top.wkbin.taixu.runtime.shell.CommandResult(
+        CommandResult(
             exitCode = 126,
             stdout = "",
             stderr = throwable.message ?: throwable.javaClass.simpleName,

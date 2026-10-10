@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.buildJsonObject
 
 class ContextWindowPolicyTest {
     @Test
@@ -49,7 +50,7 @@ class ContextWindowPolicyTest {
 
     @Test
     fun `exhausted budget does not orphan the only tool result`() {
-        val call = ToolCall("call", 1, HarnessTool.BASE, kotlinx.serialization.json.buildJsonObject {})
+        val call = ToolCall("call", 1, HarnessTool.BASE, buildJsonObject {})
         val messages = listOf(call, ToolResult("result", 2, "call", true, "ok"))
 
         val keepFrom = ContextWindowPolicy.computeKeepFromIndex(messages, budget = 0, systemTokens = 0)
@@ -198,7 +199,7 @@ class ContextWindowPolicyTest {
             "call",
             2,
             HarnessTool.BASE,
-            kotlinx.serialization.json.buildJsonObject {},
+            buildJsonObject {},
             reasoning = "x".repeat(4_000),
         )
         val messages = listOf(
@@ -220,10 +221,10 @@ class ContextWindowPolicyTest {
             "call-1",
             2,
             HarnessTool.BASE,
-            kotlinx.serialization.json.buildJsonObject {},
+            buildJsonObject {},
             reasoning = "x".repeat(4_000),
         )
-        val call2 = ToolCall("call-2", 3, HarnessTool.READ, kotlinx.serialization.json.buildJsonObject {})
+        val call2 = ToolCall("call-2", 3, HarnessTool.READ, buildJsonObject {})
         val messages = listOf(
             UserMessage("old-user", 1, "old request"),
             call1,
@@ -247,7 +248,7 @@ class ContextWindowPolicyTest {
     fun `interrupted cross-turn tool result pulls its call back into the window`() {
         val messages = listOf(
             UserMessage("old-user", 1, "old request"),
-            ToolCall("call", 2, HarnessTool.BASE, kotlinx.serialization.json.buildJsonObject {}),
+            ToolCall("call", 2, HarnessTool.BASE, buildJsonObject {}),
             UserMessage("latest-user", 3, "latest request"),
             ToolResult("late-result", 4, "call", true, "late"),
         )
@@ -268,7 +269,7 @@ class ContextWindowPolicyTest {
             "call",
             2,
             HarnessTool.BASE,
-            kotlinx.serialization.json.buildJsonObject { put("command", "./gradlew test") },
+            buildJsonObject { put("command", "./gradlew test") },
         )
         val summary = ContextWindowPolicy.buildHistorySummary(
             listOf(
@@ -291,7 +292,7 @@ class ContextWindowPolicyTest {
         val messages = listOf(
             UserMessage("u1", 1, "Hello world"),
             AssistantText("a1", 2, "I will check the files."),
-            ToolCall("t1", 3, HarnessTool.BASE, kotlinx.serialization.json.buildJsonObject {
+            ToolCall("t1", 3, HarnessTool.BASE, buildJsonObject {
                 put("command", "ls -la")
             }),
             ToolResult("r1", 4, "t1", true, "file1.txt\nfile2.txt"),
@@ -390,7 +391,7 @@ class ContextWindowPolicyTest {
             add(UserMessage("u0", 1, "start"))
             add(UserMessage("u1", 3, "huge task"))
             repeat(8) { index ->
-                add(ToolCall("call-$index", 4L + index * 3, HarnessTool.BASE, kotlinx.serialization.json.buildJsonObject {}))
+                add(ToolCall("call-$index", 4L + index * 3, HarnessTool.BASE, buildJsonObject {}))
                 add(ToolResult("result-$index", 5L + index * 3, "call-$index", true, "x".repeat(3_000)))
                 add(AssistantText("note-$index", 6L + index * 3, "n".repeat(1_500)))
             }
@@ -495,13 +496,13 @@ class ContextWindowPolicyTest {
             add(UserMessage("u0", 1, "start"))
             repeat(8) { index ->
                 val callId = "call-$index"
-                add(ToolCall(callId, 2L + index, HarnessTool.MCP, kotlinx.serialization.json.buildJsonObject {}))
+                add(ToolCall(callId, 2L + index, HarnessTool.MCP, buildJsonObject {}))
                 add(ToolResult("result-$index", 3L + index, callId, true, "{\"refs\":[${"e$index,".repeat(100)}]}"))
             }
             add(UserMessage("latest", 20, "now"))
             repeat(3) { index ->
                 val callId = "current-call-$index"
-                add(ToolCall(callId, 21L + index, HarnessTool.MCP, kotlinx.serialization.json.buildJsonObject {}))
+                add(ToolCall(callId, 21L + index, HarnessTool.MCP, buildJsonObject {}))
                 add(ToolResult("current-result-$index", 22L + index, callId, true, "{\"refs\":[${"c$index,".repeat(100)}]}"))
             }
         }
@@ -537,7 +538,7 @@ class ContextWindowPolicyTest {
     @Test
     fun `stale results below the tool threshold stay verbatim`() {
         val messages = listOf(
-            ToolCall("call-read", 1, HarnessTool.READ, kotlinx.serialization.json.buildJsonObject {}),
+            ToolCall("call-read", 1, HarnessTool.READ, buildJsonObject {}),
             ToolResult("short", 2, "call-read", true, "line\n".repeat(5)),
             ToolResult("also-short", 3, "call-read", true, "y".repeat(200)),
         )
@@ -751,7 +752,7 @@ class ContextWindowPolicyTest {
         val huge = "错误日志\n".repeat(80_000)
         val messages = listOf(
             UserMessage("u1", 1, "请排查"),
-            ToolCall("c1", 2, HarnessTool.BASE, kotlinx.serialization.json.buildJsonObject {}),
+            ToolCall("c1", 2, HarnessTool.BASE, buildJsonObject {}),
             ToolResult("r1", 3, "c1", true, huge),
         )
         assertTrue(ContextWindowPolicy.estimateHarnessPayloadBytes(messages) > 200_000)
@@ -799,13 +800,13 @@ class ContextWindowPolicyTest {
             add(UserMessage("old", 1, "old request"))
             repeat(8) { index ->
                 val callId = "call-$index"
-                add(ToolCall(callId, 2L + index, HarnessTool.BASE, kotlinx.serialization.json.buildJsonObject {}))
+                add(ToolCall(callId, 2L + index, HarnessTool.BASE, buildJsonObject {}))
                 add(ToolResult("result-$index", 3L + index, callId, true, big))
             }
             add(UserMessage("latest", 20, "now"))
             repeat(3) { index ->
                 val callId = "current-$index"
-                add(ToolCall(callId, 21L + index, HarnessTool.BASE, kotlinx.serialization.json.buildJsonObject {}))
+                add(ToolCall(callId, 21L + index, HarnessTool.BASE, buildJsonObject {}))
                 add(ToolResult("current-result-$index", 22L + index, callId, true, big))
             }
         }
@@ -845,7 +846,7 @@ class ContextWindowPolicyTest {
             add(UserMessage("old", 1, "old"))
             repeat(12) { index ->
                 val callId = "c-$index"
-                add(ToolCall(callId, 2L + index, HarnessTool.BASE, kotlinx.serialization.json.buildJsonObject {}))
+                add(ToolCall(callId, 2L + index, HarnessTool.BASE, buildJsonObject {}))
                 add(ToolResult("r-$index", 3L + index, callId, true, big))
             }
             add(UserMessage("latest", 50, "now"))

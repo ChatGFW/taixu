@@ -99,6 +99,8 @@ import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.distroIconFor
 import top.wkbin.taixu.ui.components.StatusBadge
 import top.wkbin.taixu.ui.components.isLiquidGlassThemeActive
+import android.os.SystemClock
+import top.wkbin.taixu.core.model.InstalledDistro
 
 /** 自动体检防抖间隔：ON_RESUME 触发时距上次不足该间隔则跳过。 */
 private const val DOCTOR_CHECK_MIN_INTERVAL_MS = 30_000L
@@ -187,7 +189,7 @@ fun HomeScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 // 防抖：间隔过短（如切 Tab / 亮灭屏）时跳过自动体检，避免每次切回都闪检查态。
                 // 用户点顶栏刷新仍无条件执行。
-                val now = android.os.SystemClock.elapsedRealtime()
+                val now = SystemClock.elapsedRealtime()
                 if (now - lastAutoDoctorCheckAt > DOCTOR_CHECK_MIN_INTERVAL_MS) {
                     lastAutoDoctorCheckAt = now
                     viewModel.runDoctorCheck()
@@ -829,7 +831,7 @@ private fun joinQqGroup(context: Context) {
 private fun RuntimeEngineStatusCard(
     state: RuntimeState,
     metrics: SystemResourceMetrics,
-    installedDistros: List<top.wkbin.taixu.core.model.InstalledDistro> = emptyList(),
+    installedDistros: List<InstalledDistro> = emptyList(),
     activeDistroId: String = "ubuntu",
     switchingDistro: Boolean = false,
     modeStatus: ExecutionModeStatus = ExecutionModeStatus(),

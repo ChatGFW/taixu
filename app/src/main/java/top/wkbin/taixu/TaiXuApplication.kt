@@ -7,6 +7,7 @@ import org.koin.core.context.startKoin
 import top.wkbin.taixu.di.taiXuModule
 import android.annotation.SuppressLint
 import android.app.Application
+import android.database.CursorWindow
 import android.util.Log
 import androidx.work.Configuration
 import top.wkbin.taixu.core.common.logging.CrashReporter
@@ -17,6 +18,7 @@ import top.wkbin.taixu.core.datastore.AppStatsPreferences
 import top.wkbin.taixu.core.database.AgentSkillRepository
 import top.wkbin.taixu.core.database.McpServerRepository
 import top.wkbin.taixu.service.AgentForegroundService
+import top.wkbin.taixu.service.WorkflowForegroundService
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.harness.browser.BrowserMcpBootstrap
 import top.wkbin.taixu.harness.agent.AgentMcpBootstrap
@@ -161,7 +163,7 @@ class TaiXuApplication : Application(), Configuration.Provider {
             launch {
                 workflowRunManager.running.collectLatest { running ->
                     if (running) {
-                        runCatching { top.wkbin.taixu.service.WorkflowForegroundService.start(this@TaiXuApplication) }
+                        runCatching { WorkflowForegroundService.start(this@TaiXuApplication) }
                     }
                 }
             }
@@ -194,7 +196,7 @@ class TaiXuApplication : Application(), Configuration.Provider {
     @SuppressLint("DiscouragedPrivateApi")
     private fun configureCursorWindowSize() {
         runCatching {
-            val field = android.database.CursorWindow::class.java.getDeclaredField("sCursorWindowSize")
+            val field = CursorWindow::class.java.getDeclaredField("sCursorWindowSize")
             field.isAccessible = true
             field.set(null, 100 * 1024 * 1024) // 100MB
         }.onFailure {

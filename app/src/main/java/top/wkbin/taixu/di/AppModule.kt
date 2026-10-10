@@ -2,6 +2,7 @@ package top.wkbin.taixu.di
 
 import android.content.Context
 import androidx.room.Room
+import java.io.File
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.MIGRATION_27_28
 import top.wkbin.taixu.core.database.MIGRATION_28_29
@@ -52,6 +53,12 @@ import top.wkbin.taixu.core.database.QuickPhraseDao
 import top.wkbin.taixu.core.database.HarnessRuntimeDao
 import top.wkbin.taixu.core.database.AndroidAppDao
 import top.wkbin.taixu.harness.WorkspaceFileAccess
+import top.wkbin.taixu.harness.checkpoint.CheckpointStore
+import top.wkbin.taixu.harness.checkpoint.FileCheckpointPersistence
+import top.wkbin.taixu.core.database.AgentContextDao
+import top.wkbin.taixu.core.database.RoomWorkflowScheduleStore
+import top.wkbin.taixu.core.database.WorkflowScheduleStore
+import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.core.tools.RuntimeManager
 import top.wkbin.taixu.core.tools.RuntimeManagerImpl
 import top.wkbin.taixu.core.tools.DependencyManager
@@ -101,7 +108,7 @@ object AppModule {
 
     fun provideWorkflowScheduleDao(database: AppDatabase): WorkflowScheduleDao = database.workflowScheduleDao()
 
-    fun provideWorkflowScheduleStore(store: top.wkbin.taixu.core.database.RoomWorkflowScheduleStore): top.wkbin.taixu.core.database.WorkflowScheduleStore = store
+    fun provideWorkflowScheduleStore(store: RoomWorkflowScheduleStore): WorkflowScheduleStore = store
 
     fun provideRuntimeDao(database: AppDatabase): RuntimeDao = database.runtimeDao()
 
@@ -113,7 +120,7 @@ object AppModule {
 
     fun provideTerminalSessionDao(database: AppDatabase): TerminalSessionDao = database.terminalSessionDao()
 
-    fun provideAgentContextDao(database: AppDatabase): top.wkbin.taixu.core.database.AgentContextDao = database.agentContextDao()
+    fun provideAgentContextDao(database: AppDatabase): AgentContextDao = database.agentContextDao()
 
     fun provideAgentSubagentDao(database: AppDatabase): AgentSubagentDao = database.agentSubagentDao()
 
@@ -141,16 +148,16 @@ object AppModule {
 
     fun provideAgentTaskDao(database: AppDatabase): AgentTaskDao = database.agentTaskDao()
 
-    fun provideWorkspaceFileAccess(pathManager: top.wkbin.taixu.runtime.RuntimePathManager): WorkspaceFileAccess =
+    fun provideWorkspaceFileAccess(pathManager: RuntimePathManager): WorkspaceFileAccess =
         WorkspaceFileAccess(pathManager.workspaceDir)
 
     /** checkpoint 快照落盘到应用私有目录（linux-runtime/checkpoints/<sessionId>/），模型不可见。 */
     fun provideCheckpointStore(
-        pathManager: top.wkbin.taixu.runtime.RuntimePathManager,
-    ): top.wkbin.taixu.harness.checkpoint.CheckpointStore =
-        top.wkbin.taixu.harness.checkpoint.CheckpointStore().apply {
-            persistence = top.wkbin.taixu.harness.checkpoint.FileCheckpointPersistence(
-                java.io.File(pathManager.baseDir, "checkpoints"),
+        pathManager: RuntimePathManager,
+    ): CheckpointStore =
+        CheckpointStore().apply {
+            persistence = FileCheckpointPersistence(
+                File(pathManager.baseDir, "checkpoints"),
             )
         }
 

@@ -54,6 +54,47 @@ import top.wkbin.taixu.ui.workspace.CodeEditorScreen
 import top.wkbin.taixu.ui.workspace.WorkspaceExplorerScreen
 import top.wkbin.taixu.ui.workspace.WorkspaceScreen
 import kotlinx.serialization.Serializable
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import top.wkbin.taixu.core.common.navigation.AppNavigationTarget
+import top.wkbin.taixu.core.common.navigation.GlobalNavigationBus
+import top.wkbin.taixu.feature.a2uipoc.A2uiPocScreen
+import top.wkbin.taixu.ui.browser.BrowserPane
+import top.wkbin.taixu.ui.browser.BrowserViewModel
+import top.wkbin.taixu.ui.git.GitScreen
+import top.wkbin.taixu.ui.settings.AboutCommunityScreen
+import top.wkbin.taixu.ui.settings.AgentEcoSettingsScreen
+import top.wkbin.taixu.ui.settings.AgentSettingsCategory
+import top.wkbin.taixu.ui.settings.AppManagementScreen
+import top.wkbin.taixu.ui.settings.AppearanceSettingsScreen
+import top.wkbin.taixu.ui.settings.CcSwitchScreen
+import top.wkbin.taixu.ui.settings.DistroManagementScreen
+import top.wkbin.taixu.ui.settings.EnvironmentVariableSettingsScreen
+import top.wkbin.taixu.ui.settings.FeatureHubScreen
+import top.wkbin.taixu.ui.settings.FtpSettingsScreen
+import top.wkbin.taixu.ui.settings.LinuxEnvironmentSettingsScreen
+import top.wkbin.taixu.ui.settings.McpSettingsScreen
+import top.wkbin.taixu.ui.settings.PhoneAgentSettingsScreen
+import top.wkbin.taixu.ui.settings.QuickPhrasesScreen
+import top.wkbin.taixu.ui.settings.SponsorScreen
+import top.wkbin.taixu.ui.settings.SshSettingsScreen
+import top.wkbin.taixu.ui.settings.StorageMountSettingsScreen
+import top.wkbin.taixu.ui.settings.StorageUsageScreen
+import top.wkbin.taixu.ui.settings.SystemDevSettingsScreen
+import top.wkbin.taixu.ui.settings.ToolCenterScreen
+import top.wkbin.taixu.ui.settings.ToolDetailScreen
+import top.wkbin.taixu.ui.settings.ToolSelfHealingHelper
+import top.wkbin.taixu.ui.settings.permission.PermissionGuideScreen
+import top.wkbin.taixu.ui.settings.search.SettingsSearchScreen
+import top.wkbin.taixu.ui.settings.search.SettingsSearchTarget
+import top.wkbin.taixu.ui.settings.stats.StatsScreen
+import top.wkbin.taixu.ui.workflow.WorkflowScreen
+import top.wkbin.taixu.ui.workspace.WorkshopEnvironmentSettingsScreen
+import top.wkbin.taixu.ui.workspace.WorkshopScriptEditorScreen
+import top.wkbin.taixu.ui.workspace.WorkshopScriptType
+import top.wkbin.taixu.ui.workspace.WorkshopSettingsScreen
+import top.wkbin.taixu.ui.workspace.WorkshopSigningScreen
 
 @Serializable
 sealed interface AppDestination : NavKey
@@ -116,7 +157,7 @@ sealed interface AppDestination : NavKey
 /** 太墟核心导航分发系统：采用 Navigation 3，为每个 Tab 独立维护持久回退栈与状态生命周期 */
 @Composable
 fun TaiXuNavHost(
-    globalNavigationBus: top.wkbin.taixu.core.common.navigation.GlobalNavigationBus? = null,
+    globalNavigationBus: GlobalNavigationBus? = null,
 ) {
     // Root tab entries are removed from composition when another tab becomes active. Keep the
     // conversation owner at the Activity scope so switching back to 智枢 does not rebuild Koin's
@@ -124,7 +165,7 @@ fun TaiXuNavHost(
     val chatViewModel: ChatViewModel = koinViewModel()
     // 浏览器引擎是全局单例：BrowserViewModel 同样挂到 Activity 作用域，
     // 使智枢内嵌浏览器面板与独立浏览器页共享同一份 tab/URL/共浏览状态。
-    val browserViewModel: top.wkbin.taixu.ui.browser.BrowserViewModel = koinViewModel()
+    val browserViewModel: BrowserViewModel = koinViewModel()
     val browserUiState by browserViewModel.uiState.collectAsStateWithLifecycle()
     // SettingsViewModel owns dozens of eagerly shared DataStore/database streams and performs
     // repository initialization. Let the settings navigation graph share the Activity-scoped
@@ -151,7 +192,7 @@ fun TaiXuNavHost(
     LaunchedEffect(globalNavigationBus) {
         globalNavigationBus?.events?.collect { target ->
             when (target) {
-                top.wkbin.taixu.core.common.navigation.AppNavigationTarget.AdbLogcat -> {
+                AppNavigationTarget.AdbLogcat -> {
                     selectedMain = MainDestination.Settings
                     if (settingsStack.lastOrNull() != AdbLogcatDestination) {
                         if (settingsStack.lastOrNull() == SettingsDestination) {
@@ -165,20 +206,20 @@ fun TaiXuNavHost(
                     }
                     globalNavigationBus.clearLatest(target)
                 }
-                is top.wkbin.taixu.core.common.navigation.AppNavigationTarget.WorkflowRun -> {
+                is AppNavigationTarget.WorkflowRun -> {
                     // 工作流通知点入：切到智枢栈并打开运行页
                     selectedMain = MainDestination.Agent
                     agentStack.pushRaw(WorkflowDestination(executionId = target.executionId))
                     globalNavigationBus.clearLatest(target)
                 }
-                top.wkbin.taixu.core.common.navigation.AppNavigationTarget.AgentSettings -> {
+                AppNavigationTarget.AgentSettings -> {
                     selectedMain = MainDestination.Settings
                     if (settingsStack.lastOrNull() != AgentSettingsDestination) {
                         settingsStack.pushRaw(AgentSettingsDestination)
                     }
                     globalNavigationBus.clearLatest(target)
                 }
-                is top.wkbin.taixu.core.common.navigation.AppNavigationTarget.SharedText -> {
+                is AppNavigationTarget.SharedText -> {
                     // 系统分享入口：切到智枢并预填输入框（不自动发送，由用户选择快捷指令或直接发送）
                     selectedMain = MainDestination.Agent
                     chatViewModel.onSharedTextReceived(target.text)
@@ -259,7 +300,7 @@ fun TaiXuNavHost(
                         // 内嵌浏览器面板：与独立浏览器页共享 Activity 级 BrowserViewModel，
                         // 手机端左右滑动切换对话/浏览器，宽屏双栏可切"终端/浏览器"
                         browserPane = { onExit ->
-                            top.wkbin.taixu.ui.browser.BrowserPane(
+                            BrowserPane(
                                 viewModel = browserViewModel,
                                 onExit = onExit,
                             )
@@ -289,7 +330,7 @@ fun TaiXuNavHost(
             }
             entry<WorkflowDestination> { destination ->
                 GuardedEntry(destination) {
-                    top.wkbin.taixu.ui.workflow.WorkflowScreen(
+                    WorkflowScreen(
                         projectName = destination.projectName,
                         initialWorkflowId = destination.workflowId,
                         initialVariables = destination.initialVariables,
@@ -300,7 +341,7 @@ fun TaiXuNavHost(
             }
             entry<WorkshopSettingsDestination> {
                 GuardedEntry(WorkshopSettingsDestination) {
-                    top.wkbin.taixu.ui.workspace.WorkshopSettingsScreen(
+                    WorkshopSettingsScreen(
                         onBack = ::popBack,
                         onOpenEnvironment = { workspaceStack.push(WorkshopSettingsDestination, WorkshopEnvironmentSettingsDestination) },
                         onOpenSigning = { workspaceStack.push(WorkshopSettingsDestination, WorkshopSigningSettingsDestination) },
@@ -310,18 +351,18 @@ fun TaiXuNavHost(
             }
             entry<WorkshopEnvironmentSettingsDestination> {
                 GuardedEntry(WorkshopEnvironmentSettingsDestination) {
-                    top.wkbin.taixu.ui.workspace.WorkshopEnvironmentSettingsScreen(onBack = ::popBack)
+                    WorkshopEnvironmentSettingsScreen(onBack = ::popBack)
                 }
             }
             entry<WorkshopSigningSettingsDestination> {
                 GuardedEntry(WorkshopSigningSettingsDestination) {
-                    top.wkbin.taixu.ui.workspace.WorkshopSigningScreen(onBack = ::popBack)
+                    WorkshopSigningScreen(onBack = ::popBack)
                 }
             }
             entry<WorkshopScriptEditorDestination> { destination ->
                 GuardedEntry(destination) {
-                    top.wkbin.taixu.ui.workspace.WorkshopScriptEditorScreen(
-                        type = top.wkbin.taixu.ui.workspace.WorkshopScriptType.valueOf(destination.type),
+                    WorkshopScriptEditorScreen(
+                        type = WorkshopScriptType.valueOf(destination.type),
                         onBack = ::popBack,
                     )
                 }
@@ -367,76 +408,76 @@ fun TaiXuNavHost(
             }
             entry<SettingsSearchDestination> {
                 GuardedEntry(SettingsSearchDestination) {
-                    top.wkbin.taixu.ui.settings.search.SettingsSearchScreen(
+                    SettingsSearchScreen(
                         onBack = ::popBack,
                         onNavigateToTarget = { target ->
                             when (target) {
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.MODEL_PROFILES -> settingsStack.push(SettingsSearchDestination, ModelProfilesDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.MODEL_EDITOR_NEW -> settingsStack.push(SettingsSearchDestination, ModelEditorDestination())
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.LOCAL_LLM -> settingsStack.push(SettingsSearchDestination, LocalLlmDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.QUICK_PHRASES -> settingsStack.push(SettingsSearchDestination, QuickPhrasesDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.STATS -> settingsStack.push(SettingsSearchDestination, StatsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.TOOL_CENTER -> settingsStack.push(SettingsSearchDestination, ToolCenterDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.CC_SWITCH -> settingsStack.push(SettingsSearchDestination, CcSwitchDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.AGENT_EXECUTION -> settingsStack.push(SettingsSearchDestination, AgentSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.AGENT_SUBAGENTS -> settingsStack.push(SettingsSearchDestination, AgentSubagentSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.AGENT_SKILLS -> settingsStack.push(SettingsSearchDestination, AgentSkillSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.MCP_SETTINGS -> settingsStack.push(SettingsSearchDestination, McpSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.DISTRO_MANAGEMENT -> settingsStack.push(SettingsSearchDestination, DistroManagementDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.STORAGE_USAGE -> settingsStack.push(SettingsSearchDestination, StorageUsageDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.STORAGE_MOUNTS -> settingsStack.push(SettingsSearchDestination, StorageMountSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ENV_VARS -> settingsStack.push(SettingsSearchDestination, EnvironmentVariableSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.SSH_SETTINGS -> settingsStack.push(SettingsSearchDestination, SshSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.FTP_SETTINGS -> settingsStack.push(SettingsSearchDestination, FtpSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.WEB_CHAT,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.PRIVILEGE_MODE -> settingsStack.push(SettingsSearchDestination, LinuxEnvSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.APP_MANAGEMENT -> settingsStack.push(SettingsSearchDestination, AppManagementDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.APPEARANCE_SETTINGS,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.THEME_MODE,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.DYNAMIC_COLOR,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.LIQUID_GLASS,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.FONT_SCALE,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.TERMINAL_SETTINGS,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.LANGUAGE_SETTINGS -> settingsStack.push(SettingsSearchDestination, AppearanceSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.BATTERY_OPTIMIZATION,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.PHANTOM_PROCESS -> settingsStack.push(SettingsSearchDestination, SystemDevSettingsDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.DEVELOPER_OPTIONS -> settingsStack.push(SettingsSearchDestination, DeveloperDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ADB_LOGCAT -> settingsStack.push(SettingsSearchDestination, AdbLogcatDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.CUSTOM_ITERATION -> settingsStack.push(SettingsSearchDestination, CustomIterationDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.PERMISSION_GUIDE -> settingsStack.push(SettingsSearchDestination, PermissionGuideDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.WORKSHOP_SETTINGS -> {
+                                SettingsSearchTarget.MODEL_PROFILES -> settingsStack.push(SettingsSearchDestination, ModelProfilesDestination)
+                                SettingsSearchTarget.MODEL_EDITOR_NEW -> settingsStack.push(SettingsSearchDestination, ModelEditorDestination())
+                                SettingsSearchTarget.LOCAL_LLM -> settingsStack.push(SettingsSearchDestination, LocalLlmDestination)
+                                SettingsSearchTarget.QUICK_PHRASES -> settingsStack.push(SettingsSearchDestination, QuickPhrasesDestination)
+                                SettingsSearchTarget.STATS -> settingsStack.push(SettingsSearchDestination, StatsDestination)
+                                SettingsSearchTarget.TOOL_CENTER -> settingsStack.push(SettingsSearchDestination, ToolCenterDestination)
+                                SettingsSearchTarget.CC_SWITCH -> settingsStack.push(SettingsSearchDestination, CcSwitchDestination)
+                                SettingsSearchTarget.AGENT_EXECUTION -> settingsStack.push(SettingsSearchDestination, AgentSettingsDestination)
+                                SettingsSearchTarget.AGENT_SUBAGENTS -> settingsStack.push(SettingsSearchDestination, AgentSubagentSettingsDestination)
+                                SettingsSearchTarget.AGENT_SKILLS -> settingsStack.push(SettingsSearchDestination, AgentSkillSettingsDestination)
+                                SettingsSearchTarget.MCP_SETTINGS -> settingsStack.push(SettingsSearchDestination, McpSettingsDestination)
+                                SettingsSearchTarget.DISTRO_MANAGEMENT -> settingsStack.push(SettingsSearchDestination, DistroManagementDestination)
+                                SettingsSearchTarget.STORAGE_USAGE -> settingsStack.push(SettingsSearchDestination, StorageUsageDestination)
+                                SettingsSearchTarget.STORAGE_MOUNTS -> settingsStack.push(SettingsSearchDestination, StorageMountSettingsDestination)
+                                SettingsSearchTarget.ENV_VARS -> settingsStack.push(SettingsSearchDestination, EnvironmentVariableSettingsDestination)
+                                SettingsSearchTarget.SSH_SETTINGS -> settingsStack.push(SettingsSearchDestination, SshSettingsDestination)
+                                SettingsSearchTarget.FTP_SETTINGS -> settingsStack.push(SettingsSearchDestination, FtpSettingsDestination)
+                                SettingsSearchTarget.WEB_CHAT,
+                                SettingsSearchTarget.PRIVILEGE_MODE -> settingsStack.push(SettingsSearchDestination, LinuxEnvSettingsDestination)
+                                SettingsSearchTarget.APP_MANAGEMENT -> settingsStack.push(SettingsSearchDestination, AppManagementDestination)
+                                SettingsSearchTarget.APPEARANCE_SETTINGS,
+                                SettingsSearchTarget.THEME_MODE,
+                                SettingsSearchTarget.DYNAMIC_COLOR,
+                                SettingsSearchTarget.LIQUID_GLASS,
+                                SettingsSearchTarget.FONT_SCALE,
+                                SettingsSearchTarget.TERMINAL_SETTINGS,
+                                SettingsSearchTarget.LANGUAGE_SETTINGS -> settingsStack.push(SettingsSearchDestination, AppearanceSettingsDestination)
+                                SettingsSearchTarget.BATTERY_OPTIMIZATION,
+                                SettingsSearchTarget.PHANTOM_PROCESS -> settingsStack.push(SettingsSearchDestination, SystemDevSettingsDestination)
+                                SettingsSearchTarget.DEVELOPER_OPTIONS -> settingsStack.push(SettingsSearchDestination, DeveloperDestination)
+                                SettingsSearchTarget.ADB_LOGCAT -> settingsStack.push(SettingsSearchDestination, AdbLogcatDestination)
+                                SettingsSearchTarget.CUSTOM_ITERATION -> settingsStack.push(SettingsSearchDestination, CustomIterationDestination)
+                                SettingsSearchTarget.PERMISSION_GUIDE -> settingsStack.push(SettingsSearchDestination, PermissionGuideDestination)
+                                SettingsSearchTarget.WORKSHOP_SETTINGS -> {
                                     selectedMain = MainDestination.Workspace
                                     workspaceStack.pushRaw(WorkshopSettingsDestination)
                                 }
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.WORKSHOP_ENVIRONMENT -> {
+                                SettingsSearchTarget.WORKSHOP_ENVIRONMENT -> {
                                     selectedMain = MainDestination.Workspace
                                     workspaceStack.pushRaw(WorkshopSettingsDestination)
                                     workspaceStack.pushRaw(WorkshopEnvironmentSettingsDestination)
                                 }
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.WORKSHOP_SIGNING -> {
+                                SettingsSearchTarget.WORKSHOP_SIGNING -> {
                                     selectedMain = MainDestination.Workspace
                                     workspaceStack.pushRaw(WorkshopSettingsDestination)
                                     workspaceStack.pushRaw(WorkshopSigningSettingsDestination)
                                 }
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.WORKFLOWS -> {
+                                SettingsSearchTarget.WORKFLOWS -> {
                                     selectedMain = MainDestination.Workspace
                                     workspaceStack.pushRaw(WorkflowDestination())
                                 }
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.NAV_HOME ->
+                                SettingsSearchTarget.NAV_HOME ->
                                     selectedMain = MainDestination.Home
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.NAV_AGENT_CHAT ->
+                                SettingsSearchTarget.NAV_AGENT_CHAT ->
                                     selectedMain = MainDestination.Agent
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.NAV_WORKSPACE ->
+                                SettingsSearchTarget.NAV_WORKSPACE ->
                                     selectedMain = MainDestination.Workspace
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.NAV_TERMINAL -> {
+                                SettingsSearchTarget.NAV_TERMINAL -> {
                                     activeStack.pushRaw(TerminalDestination())
                                 }
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.NAV_BROWSER -> {
+                                SettingsSearchTarget.NAV_BROWSER -> {
                                     activeStack.pushRaw(BrowserDestination)
                                 }
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ABOUT_COMMUNITY,
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ABOUT_UPDATE -> settingsStack.push(SettingsSearchDestination, AboutCommunityDestination)
-                                top.wkbin.taixu.ui.settings.search.SettingsSearchTarget.ABOUT_SPONSOR -> settingsStack.push(SettingsSearchDestination, SponsorDestination)
+                                SettingsSearchTarget.ABOUT_COMMUNITY,
+                                SettingsSearchTarget.ABOUT_UPDATE -> settingsStack.push(SettingsSearchDestination, AboutCommunityDestination)
+                                SettingsSearchTarget.ABOUT_SPONSOR -> settingsStack.push(SettingsSearchDestination, SponsorDestination)
                             }
                         }
                     )
@@ -444,7 +485,7 @@ fun TaiXuNavHost(
             }
             entry<AppearanceSettingsDestination> {
                 GuardedEntry(AppearanceSettingsDestination) {
-                    top.wkbin.taixu.ui.settings.AppearanceSettingsScreen(
+                    AppearanceSettingsScreen(
                         onBack = ::popBack,
                         viewModel = settingsViewModel,
                     )
@@ -452,7 +493,7 @@ fun TaiXuNavHost(
             }
             entry<AgentEcoSettingsDestination> {
                 GuardedEntry(AgentEcoSettingsDestination) {
-                    top.wkbin.taixu.ui.settings.AgentEcoSettingsScreen(
+                    AgentEcoSettingsScreen(
                         onBack = ::popBack,
                         onOpenModelProfiles = { settingsStack.push(AgentEcoSettingsDestination, ModelProfilesDestination) },
                         onOpenLocalLlm = { settingsStack.push(AgentEcoSettingsDestination, LocalLlmDestination) },
@@ -471,7 +512,7 @@ fun TaiXuNavHost(
             }
             entry<LinuxEnvSettingsDestination> {
                 GuardedEntry(LinuxEnvSettingsDestination) {
-                    top.wkbin.taixu.ui.settings.LinuxEnvironmentSettingsScreen(
+                    LinuxEnvironmentSettingsScreen(
                         onBack = ::popBack,
                         onOpenDistroManagement = { settingsStack.push(LinuxEnvSettingsDestination, DistroManagementDestination) },
                         onOpenStorageMounts = { settingsStack.push(LinuxEnvSettingsDestination, StorageMountSettingsDestination) },
@@ -486,7 +527,7 @@ fun TaiXuNavHost(
             }
             entry<SystemDevSettingsDestination> {
                 GuardedEntry(SystemDevSettingsDestination) {
-                    top.wkbin.taixu.ui.settings.SystemDevSettingsScreen(
+                    SystemDevSettingsScreen(
                         onBack = ::popBack,
                         onOpenDeveloper = { settingsStack.push(SystemDevSettingsDestination, DeveloperDestination) },
                         onOpenAdbLogcat = { settingsStack.push(SystemDevSettingsDestination, AdbLogcatDestination) },
@@ -498,14 +539,14 @@ fun TaiXuNavHost(
             }
             entry<PermissionGuideDestination> {
                 GuardedEntry(PermissionGuideDestination) {
-                    top.wkbin.taixu.ui.settings.permission.PermissionGuideScreen(
+                    PermissionGuideScreen(
                         onBack = ::popBack,
                     )
                 }
             }
             entry<AboutCommunityDestination> {
                 GuardedEntry(AboutCommunityDestination) {
-                    top.wkbin.taixu.ui.settings.AboutCommunityScreen(
+                    AboutCommunityScreen(
                         onBack = ::popBack,
                         onOpenSponsor = { settingsStack.push(AboutCommunityDestination, SponsorDestination) },
                         viewModel = settingsViewModel,
@@ -514,12 +555,12 @@ fun TaiXuNavHost(
             }
             entry<SponsorDestination> {
                 GuardedEntry(SponsorDestination) {
-                    top.wkbin.taixu.ui.settings.SponsorScreen(onBack = ::popBack)
+                    SponsorScreen(onBack = ::popBack)
                 }
             }
             entry<DistroManagementDestination> {
                 GuardedEntry(DistroManagementDestination) {
-                    top.wkbin.taixu.ui.settings.DistroManagementScreen(
+                    DistroManagementScreen(
                         onBack = ::popBack,
                         viewModel = settingsViewModel,
                     )
@@ -529,24 +570,24 @@ fun TaiXuNavHost(
                 GuardedEntry(AgentSettingsDestination) {
                     AgentSettingsScreen(
                         onBack = ::popBack,
-                        category = top.wkbin.taixu.ui.settings.AgentSettingsCategory.EXECUTION,
+                        category = AgentSettingsCategory.EXECUTION,
                         viewModel = settingsViewModel,
                     )
                 }
             }
             entry<AgentSubagentSettingsDestination> {
                 GuardedEntry(AgentSubagentSettingsDestination) {
-                    AgentSettingsScreen(onBack = ::popBack, category = top.wkbin.taixu.ui.settings.AgentSettingsCategory.SUBAGENTS, viewModel = settingsViewModel)
+                    AgentSettingsScreen(onBack = ::popBack, category = AgentSettingsCategory.SUBAGENTS, viewModel = settingsViewModel)
                 }
             }
             entry<AgentSkillSettingsDestination> {
                 GuardedEntry(AgentSkillSettingsDestination) {
-                    AgentSettingsScreen(onBack = ::popBack, category = top.wkbin.taixu.ui.settings.AgentSettingsCategory.SKILLS, viewModel = settingsViewModel)
+                    AgentSettingsScreen(onBack = ::popBack, category = AgentSettingsCategory.SKILLS, viewModel = settingsViewModel)
                 }
             }
             entry<McpSettingsDestination> {
                 GuardedEntry(McpSettingsDestination) {
-                    top.wkbin.taixu.ui.settings.McpSettingsScreen(
+                    McpSettingsScreen(
                         onBack = ::popBack,
                         viewModel = settingsViewModel,
                     )
@@ -554,12 +595,12 @@ fun TaiXuNavHost(
             }
             entry<ToolCenterDestination> {
                 GuardedEntry(ToolCenterDestination) {
-                    top.wkbin.taixu.ui.settings.ToolCenterScreen(
+                    ToolCenterScreen(
                         onBack = ::popBack,
                         onLaunchPty = { toolId -> activeStack.push(ToolCenterDestination, TerminalDestination(toolId = toolId)) },
                         onOpenToolDetail = { toolId -> activeStack.push(ToolCenterDestination, ToolDetailDestination(toolId = toolId)) },
                         onStartAiHealing = { toolId, toolName, logs ->
-                            val prompt = top.wkbin.taixu.ui.settings.ToolSelfHealingHelper.buildHealingPrompt(toolId, toolName, logs)
+                            val prompt = ToolSelfHealingHelper.buildHealingPrompt(toolId, toolName, logs)
                             pendingHealingTask = HealingTask("🔧 自愈: $toolName", prompt)
                             selectedMain = MainDestination.Agent
                         },
@@ -569,18 +610,18 @@ fun TaiXuNavHost(
             entry<CcSwitchDestination> {
                 GuardedEntry(CcSwitchDestination) {
                     val context = androidx.compose.ui.platform.LocalContext.current
-                    top.wkbin.taixu.ui.settings.CcSwitchScreen(
+                    CcSwitchScreen(
                         onBack = ::popBack,
                         onLaunchTerminal = { executable -> activeStack.push(CcSwitchDestination, TerminalDestination(toolId = executable)) },
                         onOpenBrowser = { url ->
                             val targetUrl = url.ifBlank { "http://127.0.0.1:19870" }
-                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(targetUrl)).apply {
-                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
                             runCatching {
                                 context.startActivity(intent)
                             }.onFailure {
-                                android.widget.Toast.makeText(context, "无法唤起外部浏览器: ${it.localizedMessage}", android.widget.Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "无法唤起外部浏览器: ${it.localizedMessage}", Toast.LENGTH_SHORT).show()
                             }
                         },
                     )
@@ -588,12 +629,12 @@ fun TaiXuNavHost(
             }
             entry<ToolDetailDestination> { destination ->
                 GuardedEntry(destination) {
-                    top.wkbin.taixu.ui.settings.ToolDetailScreen(
+                    ToolDetailScreen(
                         toolId = destination.toolId,
                         onBack = ::popBack,
                         onLaunchTerminal = { toolId -> activeStack.push(destination, TerminalDestination(toolId = toolId)) },
                         onStartAiHealing = { toolId, toolName, logs ->
-                            val prompt = top.wkbin.taixu.ui.settings.ToolSelfHealingHelper.buildHealingPrompt(toolId, toolName, logs)
+                            val prompt = ToolSelfHealingHelper.buildHealingPrompt(toolId, toolName, logs)
                             pendingHealingTask = HealingTask("🔧 自愈: $toolName", prompt)
                             selectedMain = MainDestination.Agent
                         },
@@ -602,7 +643,7 @@ fun TaiXuNavHost(
             }
             entry<StorageMountSettingsDestination> {
                 GuardedEntry(StorageMountSettingsDestination) {
-                    top.wkbin.taixu.ui.settings.StorageMountSettingsScreen(
+                    StorageMountSettingsScreen(
                         onBack = ::popBack,
                         viewModel = settingsViewModel,
                     )
@@ -610,17 +651,17 @@ fun TaiXuNavHost(
             }
             entry<StorageUsageDestination> {
                 GuardedEntry(StorageUsageDestination) {
-                    top.wkbin.taixu.ui.settings.StorageUsageScreen(onBack = ::popBack)
+                    StorageUsageScreen(onBack = ::popBack)
                 }
             }
             entry<AppManagementDestination> {
                 GuardedEntry(AppManagementDestination) {
-                    top.wkbin.taixu.ui.settings.AppManagementScreen(onBack = ::popBack)
+                    AppManagementScreen(onBack = ::popBack)
                 }
             }
             entry<EnvironmentVariableSettingsDestination> {
                 GuardedEntry(EnvironmentVariableSettingsDestination) {
-                    top.wkbin.taixu.ui.settings.EnvironmentVariableSettingsScreen(
+                    EnvironmentVariableSettingsScreen(
                         onBack = ::popBack,
                         viewModel = settingsViewModel,
                     )
@@ -628,12 +669,12 @@ fun TaiXuNavHost(
             }
             entry<SshSettingsDestination> {
                 GuardedEntry(SshSettingsDestination) {
-                    top.wkbin.taixu.ui.settings.SshSettingsScreen(onBack = ::popBack)
+                    SshSettingsScreen(onBack = ::popBack)
                 }
             }
             entry<FtpSettingsDestination> {
                 GuardedEntry(FtpSettingsDestination) {
-                    top.wkbin.taixu.ui.settings.FtpSettingsScreen(onBack = ::popBack)
+                    FtpSettingsScreen(onBack = ::popBack)
                 }
             }
             entry<ModelProfilesDestination> {
@@ -656,7 +697,7 @@ fun TaiXuNavHost(
             }
             entry<PhoneAgentSettingsDestination> {
                 GuardedEntry(PhoneAgentSettingsDestination) {
-                    top.wkbin.taixu.ui.settings.PhoneAgentSettingsScreen(onBack = ::popBack)
+                    PhoneAgentSettingsScreen(onBack = ::popBack)
                 }
             }
             entry<ModelEditorDestination> { destination ->
@@ -671,7 +712,7 @@ fun TaiXuNavHost(
             }
             entry<QuickPhrasesDestination> {
                 GuardedEntry(QuickPhrasesDestination) {
-                    top.wkbin.taixu.ui.settings.QuickPhrasesScreen(
+                    QuickPhrasesScreen(
                         onBack = ::popBack,
                         viewModel = settingsViewModel,
                     )
@@ -679,7 +720,7 @@ fun TaiXuNavHost(
             }
             entry<StatsDestination> {
                 GuardedEntry(StatsDestination) {
-                    top.wkbin.taixu.ui.settings.stats.StatsScreen(onBack = ::popBack)
+                    StatsScreen(onBack = ::popBack)
                 }
             }
             entry<DeveloperDestination> {
@@ -702,12 +743,12 @@ fun TaiXuNavHost(
             }
             entry<A2uiPocDestination> {
                 GuardedEntry(A2uiPocDestination) {
-                    top.wkbin.taixu.feature.a2uipoc.A2uiPocScreen(onBack = ::popBack)
+                    A2uiPocScreen(onBack = ::popBack)
                 }
             }
             entry<FeatureHubDestination> {
                 GuardedEntry(FeatureHubDestination) {
-                    top.wkbin.taixu.ui.settings.FeatureHubScreen(
+                    FeatureHubScreen(
                         onBack = ::popBack,
                         onOpenCustomIteration = { settingsStack.push(FeatureHubDestination, CustomIterationDestination) },
                         onStartRoundtable = { pendingHealingTask = HealingTask(AgentPresets.ROUNDTABLE_TITLE, AgentPresets.ROUNDTABLE_PROMPT); selectedMain = MainDestination.Agent },
@@ -734,7 +775,7 @@ fun TaiXuNavHost(
             }
             entry<GitRepositoryDestination> { destination ->
                 GuardedEntry(destination) {
-                    top.wkbin.taixu.ui.git.GitScreen(projectName = destination.projectName, onBack = ::popBack)
+                    GitScreen(projectName = destination.projectName, onBack = ::popBack)
                 }
             }
     }

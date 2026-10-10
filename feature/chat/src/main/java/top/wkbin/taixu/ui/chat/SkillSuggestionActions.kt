@@ -3,6 +3,7 @@ package top.wkbin.taixu.ui.chat
 import java.util.UUID
 import top.wkbin.taixu.core.model.AgentSkill
 import top.wkbin.taixu.harness.SkillSuggestion
+import top.wkbin.taixu.harness.HarnessMessage
 
 /**
  * 把技能进化建议转成 [AgentSkill]，口径与设置页新增自定义技能对齐：
@@ -61,7 +62,7 @@ internal object SkillSuggestionActions {
         persisted: Set<String>,
         local: Set<String>,
         skills: List<AgentSkill>,
-        messages: List<top.wkbin.taixu.harness.HarnessMessage>,
+        messages: List<HarnessMessage>,
     ): Set<String> {
         val autoDismissedFromExistingSkills = messages.asSequence()
             .filterIsInstance<SkillSuggestion>()

@@ -46,6 +46,7 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeSwitch
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.runtime.webchat.WebChatServerStatus
 
 @Composable
 internal fun SettingsGroup(content: @Composable () -> Unit) {
@@ -171,7 +172,7 @@ internal fun ToggleRow(
 
 @Composable
 fun WebChatBridgeDialog(
-    status: top.wkbin.taixu.runtime.webchat.WebChatServerStatus,
+    status: WebChatServerStatus,
     toggling: Boolean = false,
     onToggle: (Boolean) -> Unit,
     onDismiss: () -> Unit,

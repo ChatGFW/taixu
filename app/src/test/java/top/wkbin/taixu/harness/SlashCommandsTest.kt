@@ -1,5 +1,6 @@
 package top.wkbin.taixu.harness
 
+import top.wkbin.taixu.core.model.AgentSkill
 import top.wkbin.taixu.ui.chat.SlashCommands
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -24,7 +25,7 @@ class SlashCommandsTest {
 
     @Test
     fun filtersActiveSkillsCommands() {
-        val skill = top.wkbin.taixu.core.model.AgentSkill(
+        val skill = AgentSkill(
             id = "custom_test",
             name = "Rust测试专家",
             description = "测试描述",

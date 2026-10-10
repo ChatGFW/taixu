@@ -19,16 +19,40 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import top.wkbin.taixu.core.datastore.FirstUseGuidePreferences
+import top.wkbin.taixu.core.datastore.WorkshopKeystore
+import top.wkbin.taixu.core.datastore.WorkshopPreferences
+import top.wkbin.taixu.core.model.BuiltinPluginBundles
+import top.wkbin.taixu.core.model.PluginBundle
+import top.wkbin.taixu.core.model.PluginComponent
+import top.wkbin.taixu.core.model.RuntimeState
+import top.wkbin.taixu.core.tools.ToolManager
+import top.wkbin.taixu.runtime.ApkImportSource
+import top.wkbin.taixu.runtime.GitTransport
+import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.ProjectArchiveSource
+import top.wkbin.taixu.runtime.ProjectTemplate
+import top.wkbin.taixu.runtime.ProjectType
+import top.wkbin.taixu.runtime.build.BuildRunProgress
+import top.wkbin.taixu.runtime.build.WorkshopBuildType
+import top.wkbin.taixu.runtime.tools.InstallEvent
 
 class WorkspaceViewModel(
     private val context: Context,
     private val workspaceManager: WorkspaceManager,
     private val buildCoordinator: WorkspaceBuildTaskCoordinator,
-    private val toolManager: top.wkbin.taixu.core.tools.ToolManager,
-    private val linuxRuntime: top.wkbin.taixu.runtime.LinuxRuntime,
-    private val workshopPreferences: top.wkbin.taixu.core.datastore.WorkshopPreferences,
+    private val toolManager: ToolManager,
+    private val linuxRuntime: LinuxRuntime,
+    private val workshopPreferences: WorkshopPreferences,
     private val projectTemplateStore: ProjectTemplateStore,
-    private val firstUseGuidePreferences: top.wkbin.taixu.core.datastore.FirstUseGuidePreferences,
+    private val firstUseGuidePreferences: FirstUseGuidePreferences,
 ) : ViewModel() {
 
     /** 首次使用引导登记（统一存于偏好存储，设置页可整体清空重看）。 */
@@ -45,18 +69,18 @@ class WorkspaceViewModel(
     val templateScriptPreview: StateFlow<String?> = _templateScriptPreview.asStateFlow()
 
     // ==================== 聚合开发套件与子组件状态 ====================
-    val pluginBundles: List<top.wkbin.taixu.core.model.PluginBundle> = top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles
+    val pluginBundles: List<PluginBundle> = BuiltinPluginBundles.bundles
 
     private val _installedComponentIds = MutableStateFlow<Set<String>>(emptySet())
     val installedComponentIds: StateFlow<Set<String>> = _installedComponentIds.asStateFlow()
 
     /** Linux 沙箱是否已初始化就绪（组件探针依赖它，未就绪时探针结果不可信）。 */
     val runtimeReady: StateFlow<Boolean> = linuxRuntime.state
-        .map { it is top.wkbin.taixu.core.model.RuntimeState.Ready }
+        .map { it is RuntimeState.Ready }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    private val _activeBundleForSetup = MutableStateFlow<top.wkbin.taixu.core.model.PluginBundle?>(null)
-    val activeBundleForSetup: StateFlow<top.wkbin.taixu.core.model.PluginBundle?> = _activeBundleForSetup.asStateFlow()
+    private val _activeBundleForSetup = MutableStateFlow<PluginBundle?>(null)
+    val activeBundleForSetup: StateFlow<PluginBundle?> = _activeBundleForSetup.asStateFlow()
 
     private val _selectedComponents = MutableStateFlow<Set<String>>(emptySet())
     val selectedComponents: StateFlow<Set<String>> = _selectedComponents.asStateFlow()
@@ -73,17 +97,17 @@ class WorkspaceViewModel(
     }
 
     fun refreshProjectTemplates() {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             _projectTemplates.value = projectTemplateStore.list()
         }
     }
 
     fun importProjectTemplate(uri: String) {
         if (_busy.value) return
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             _busy.value = true
             runCatching {
-                val input = requireNotNull(context.contentResolver.openInputStream(android.net.Uri.parse(uri))) {
+                val input = requireNotNull(context.contentResolver.openInputStream(Uri.parse(uri))) {
                     "无法读取模板文件"
                 }
                 input.use(projectTemplateStore::importZip)
@@ -99,10 +123,10 @@ class WorkspaceViewModel(
 
     fun exportProjectTemplate(id: String, uri: String) {
         if (_busy.value) return
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             _busy.value = true
             runCatching {
-                val output = requireNotNull(context.contentResolver.openOutputStream(android.net.Uri.parse(uri), "wt")) {
+                val output = requireNotNull(context.contentResolver.openOutputStream(Uri.parse(uri), "wt")) {
                     "无法创建模板文件"
                 }
                 output.use { projectTemplateStore.exportZip(id, it) }
@@ -117,7 +141,7 @@ class WorkspaceViewModel(
 
     fun deleteProjectTemplate(id: String) {
         if (_busy.value) return
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             _busy.value = true
             runCatching { projectTemplateStore.delete(id) }
                 .onSuccess {
@@ -130,7 +154,7 @@ class WorkspaceViewModel(
     }
 
     fun showTemplateScripts(id: String) {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             _templateScriptPreview.value = runCatching {
                 projectTemplateStore.hookScripts(id).joinToString("\n\n") { (path, script) ->
                     "===== $path =====\n$script"
@@ -144,7 +168,7 @@ class WorkspaceViewModel(
     }
 
     fun refreshInstalledStatus() {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 _installedComponentIds.value = toolManager.probeInstalledComponents()
             } catch (_: Exception) {}
@@ -167,7 +191,7 @@ class WorkspaceViewModel(
         _activeBundleForSetup.value = targetBundle
     }
 
-    fun selectBundleTab(bundle: top.wkbin.taixu.core.model.PluginBundle) {
+    fun selectBundleTab(bundle: PluginBundle) {
         val installed = _installedComponentIds.value
         val initial = bundle.components.filter { it.isRequired || it.id in installed }.map { it.id }.toSet()
         _selectedComponents.value = if (initial.isEmpty()) bundle.components.map { it.id }.toSet() else initial
@@ -180,7 +204,7 @@ class WorkspaceViewModel(
         }
     }
 
-    fun toggleComponent(component: top.wkbin.taixu.core.model.PluginComponent) {
+    fun toggleComponent(component: PluginComponent) {
         if (component.isRequired) return // 锁定必选
         val current = _selectedComponents.value
         _selectedComponents.value = if (component.id in current) current - component.id else current + component.id
@@ -190,11 +214,11 @@ class WorkspaceViewModel(
         val selected = _selectedComponents.value
         if (selected.isEmpty()) return
 
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             _isInstallingComponents.value = true
             try {
                 toolManager.batchInstallComponents(selected).collect { event ->
-                    if (event is top.wkbin.taixu.runtime.tools.InstallEvent.Progress) {
+                    if (event is InstallEvent.Progress) {
                         _suiteInstallProgress.value = event.message
                     }
                 }
@@ -211,7 +235,7 @@ class WorkspaceViewModel(
     }
 
     // 兼容原 devSuites 接口
-    val devSuites: List<top.wkbin.taixu.core.model.PluginBundle> get() = pluginBundles
+    val devSuites: List<PluginBundle> get() = pluginBundles
     val showDevSuiteDialog: StateFlow<Boolean> get() = MutableStateFlow(_activeBundleForSetup.value != null).asStateFlow()
     val selectedDevSuites: StateFlow<Set<String>> get() = _selectedComponents
     val isInstallingSuites: StateFlow<Boolean> get() = _isInstallingComponents
@@ -250,7 +274,7 @@ class WorkspaceViewModel(
     val githubImportProgress: StateFlow<GithubImportProgress?> = _githubImportProgress.asStateFlow()
 
     // 运行/构建状态
-    val buildProgress: StateFlow<top.wkbin.taixu.runtime.build.BuildRunProgress?> = buildCoordinator.state
+    val buildProgress: StateFlow<BuildRunProgress?> = buildCoordinator.state
         .map { it?.progress }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), buildCoordinator.state.value?.progress)
 
@@ -262,7 +286,7 @@ class WorkspaceViewModel(
     val isBuildDialogVisible: StateFlow<Boolean> = _isBuildDialogVisible.asStateFlow()
 
     /** 工坊已登记的 Android 签名（Release 构建时选择）。 */
-    val keystores: StateFlow<List<top.wkbin.taixu.core.datastore.WorkshopKeystore>> = workshopPreferences.keystores
+    val keystores: StateFlow<List<WorkshopKeystore>> = workshopPreferences.keystores
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     // ==================== 文件浏览器状态 ====================
@@ -339,9 +363,9 @@ class WorkspaceViewModel(
         name: String,
         storage: WorkspaceStorage = WorkspaceStorage.INTERNAL,
         directoryPath: String = "",
-        template: top.wkbin.taixu.runtime.ProjectTemplate = top.wkbin.taixu.runtime.ProjectTemplate.EMPTY,
+        template: ProjectTemplate = ProjectTemplate.EMPTY,
         packageName: String = "",
-        apkSource: top.wkbin.taixu.runtime.ApkImportSource? = null,
+        apkSource: ApkImportSource? = null,
         exportApkToDownload: Boolean = false,
         gitUrl: String = "",
         templateVariables: Map<String, String> = emptyMap(),
@@ -375,8 +399,8 @@ class WorkspaceViewModel(
     fun importLocalProject(
         name: String,
         directoryPath: String,
-        projectType: top.wkbin.taixu.runtime.ProjectType,
-        source: top.wkbin.taixu.runtime.ProjectArchiveSource,
+        projectType: ProjectType,
+        source: ProjectArchiveSource,
     ) {
         if (_busy.value) return
         viewModelScope.launch {
@@ -392,9 +416,9 @@ class WorkspaceViewModel(
     fun importGithubProject(
         name: String,
         directoryPath: String,
-        projectType: top.wkbin.taixu.runtime.ProjectType,
+        projectType: ProjectType,
         gitUrl: String,
-        transport: top.wkbin.taixu.runtime.GitTransport,
+        transport: GitTransport,
     ) {
         if (_busy.value) return
         viewModelScope.launch {
@@ -428,8 +452,8 @@ class WorkspaceViewModel(
 
     fun runProject(
         project: WorkspaceProject,
-        buildType: top.wkbin.taixu.runtime.build.WorkshopBuildType = top.wkbin.taixu.runtime.build.WorkshopBuildType.DEBUG,
-        keystore: top.wkbin.taixu.core.datastore.WorkshopKeystore? = null,
+        buildType: WorkshopBuildType = WorkshopBuildType.DEBUG,
+        keystore: WorkshopKeystore? = null,
     ) {
         if (buildCoordinator.state.value?.progress?.isRunning == true) {
             _isBuildDialogVisible.value = true
@@ -518,13 +542,13 @@ class WorkspaceViewModel(
     }
 
     private fun hasSharedStorageAccess(): Boolean =
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            android.os.Environment.isExternalStorageManager()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
         } else {
             androidx.core.content.ContextCompat.checkSelfPermission(
                 context,
-                android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            ) == PackageManager.PERMISSION_GRANTED
         }
 
     /** 文件增删改的统一模板：取项目 → 执行 → 成功刷新目录/失败写消息 → 复位 busy */
@@ -546,7 +570,7 @@ class WorkspaceViewModel(
                 } else {
                     notify(result.errorOrNull()?.message ?: context.getString(fallbackError), isError = true)
                 }
-            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 notify(e.message ?: context.getString(fallbackError), isError = true)

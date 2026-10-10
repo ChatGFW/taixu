@@ -1,6 +1,7 @@
 package top.wkbin.taixu.runtime.browser.cdp
 
 import android.util.Log
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -184,7 +185,7 @@ class CdpManager(
             }
             if (attempt < 2) delay(300)
         }
-        throw java.io.IOException(
+        throw IOException(
             "webview devtools socket 连接失败（已重试 3 次；" +
                 "候选=${discovery.candidates}; /proc/net/unix=${discovery.scanError ?: "readable"}; " +
                 "${WebViewDebugging.diagnostics()}）: ${lastError?.message}",

@@ -12,6 +12,15 @@ import top.wkbin.taixu.runtime.service.LocalServiceSpec
 import top.wkbin.taixu.runtime.tools.InstallEvent
 import top.wkbin.taixu.runtime.shell.LinuxSession
 import top.wkbin.taixu.runtime.shell.ManagedProcess
+import top.wkbin.taixu.runtime.shell.CommandResult
+import top.wkbin.taixu.runtime.shell.SessionConfig
+import top.wkbin.taixu.runtime.shell.ShellCommand
+import top.wkbin.taixu.runtime.tools.GenericRecipeInstaller
+import top.wkbin.taixu.runtime.tools.ToolCommandLinker
+import top.wkbin.taixu.runtime.scripts.RuntimeAssetSynchronizer
+import top.wkbin.taixu.core.model.BuiltinPluginBundles
+import top.wkbin.taixu.core.database.ToolSettingsRepository
+import top.wkbin.taixu.core.datastore.ToolPreferences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -80,12 +89,12 @@ class ToolManager(
     private val linuxRuntime: LinuxRuntime,
     private val backgroundTaskRegistry: BackgroundTaskRegistry,
     private val providerManager: ProviderManager,
-    private val toolCommandLinker: top.wkbin.taixu.runtime.tools.ToolCommandLinker,
+    private val toolCommandLinker: ToolCommandLinker,
     private val notificationNotifier: ToolNotificationNotifier,
     private val secretRedactor: SecretRedactor,
-    private val toolSettingsRepository: top.wkbin.taixu.core.database.ToolSettingsRepository,
-    private val settingsDataStore: top.wkbin.taixu.core.datastore.ToolPreferences,
-    private val assetSynchronizer: top.wkbin.taixu.runtime.scripts.RuntimeAssetSynchronizer,
+    private val toolSettingsRepository: ToolSettingsRepository,
+    private val settingsDataStore: ToolPreferences,
+    private val assetSynchronizer: RuntimeAssetSynchronizer,
     private val flutterSdkDownloader: FlutterSdkDownloader,
     private val localPluginPayloadManager: LocalPluginPayloadManager,
     private val serviceController: ToolServiceController,
@@ -331,7 +340,7 @@ class ToolManager(
         staticInstallerById[toolId]?.let { return it }
         val manifest = toolRepository.manifest(toolId) ?: return null
         if (!manifest.installScript.isNullOrBlank() || manifest.installMethod.isNotBlank()) {
-            return top.wkbin.taixu.runtime.tools.GenericRecipeInstaller(
+            return GenericRecipeInstaller(
                 manifest = manifest,
                 linuxRuntime = linuxRuntime,
                 dependencyManager = dependencyManager,
@@ -433,11 +442,11 @@ class ToolManager(
      */
     suspend fun probeInstalledComponents(): Set<String> {
         val distroId = currentDistroId()
-        val allComponents = top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles.flatMap { it.components }
+        val allComponents = BuiltinPluginBundles.bundles.flatMap { it.components }
         val installed = mutableSetOf<String>()
         allComponents.forEach { comp ->
             val result = linuxRuntime.execute(
-                top.wkbin.taixu.runtime.shell.ShellCommand(
+                ShellCommand(
                     commandLine = comp.checkCommand,
                     workingDirectory = "/root",
                     timeoutMs = 5000L,
@@ -473,7 +482,7 @@ class ToolManager(
     ): Job = bundleBatch.startUninstall(componentIds, onCompleted)
 
     fun batchInstallSuites(suiteIds: Set<String>): Flow<InstallEvent> {
-        val componentIds = top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles
+        val componentIds = BuiltinPluginBundles.bundles
             .filter { it.id in suiteIds }
             .flatMap { it.components }
             .map { it.id }
@@ -731,7 +740,7 @@ class ToolManager(
         _verifications.value = emptyMap()
     }
 
-    suspend fun launch(toolId: String): top.wkbin.taixu.runtime.shell.CommandResult {
+    suspend fun launch(toolId: String): CommandResult {
         requireInstalledTool(toolId)
         return requireAdapter(toolId).launch()
     }
@@ -744,7 +753,7 @@ class ToolManager(
             requireAdapter(toolId).interactiveSessionConfig()
         }
         return if (config == null) {
-            linuxRuntime.startSession(top.wkbin.taixu.runtime.shell.SessionConfig(workingDirectory = workingDirectory))
+            linuxRuntime.startSession(SessionConfig(workingDirectory = workingDirectory))
         } else {
             linuxRuntime.startSession(config.copy(workingDirectory = workingDirectory))
         }
@@ -961,7 +970,7 @@ class ToolManager(
     private fun ToolActionResult.toUninstallOutcome(): UninstallOutcome =
         UninstallOutcome(success, message)
 
-    private fun top.wkbin.taixu.runtime.shell.CommandResult.toUninstallOutcome(): UninstallOutcome =
+    private fun CommandResult.toUninstallOutcome(): UninstallOutcome =
         UninstallOutcome(isSuccess, stderr.ifBlank { stdout })
 
     private companion object {

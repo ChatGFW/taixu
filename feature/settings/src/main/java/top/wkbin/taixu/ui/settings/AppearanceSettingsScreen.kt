@@ -64,6 +64,8 @@ import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import android.content.Intent
+import android.net.Uri
 
 /**
  * 太墟 · 外观、字号与终端深度定制页面 (Appearance & Terminal Settings)
@@ -98,7 +100,7 @@ fun AppearanceSettingsScreen(
         runCatching {
             context.contentResolver.takePersistableUriPermission(
                 uri,
-                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
             )
         }
         viewModel.setChengmingBackgroundUri(uri.toString())
@@ -531,7 +533,7 @@ private fun ChengmingBackgroundPreview(uri: String) {
     val context = LocalContext.current
     val bitmap = remember(uri) {
         runCatching {
-            context.contentResolver.openInputStream(android.net.Uri.parse(uri))?.use(BitmapFactory::decodeStream)
+            context.contentResolver.openInputStream(Uri.parse(uri))?.use(BitmapFactory::decodeStream)
         }.getOrNull()
     }
     if (bitmap != null) {

@@ -20,6 +20,7 @@ import top.wkbin.taixu.core.datastore.SshPreferences
 import top.wkbin.taixu.runtime.FtpServiceManager
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.SshServiceManager
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 data class FtpSettingsUiState(
     val distroId: String = "ubuntu",
@@ -63,7 +64,7 @@ class FtpSettingsViewModel(
     val vpnActive: StateFlow<Boolean> = _vpnActive.asStateFlow()
     private var vpnCallback: ConnectivityManager.NetworkCallback? = null
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class)
     val settings: StateFlow<FtpSettingsUiState> = linuxRuntime.activeDistroId
         .flatMapLatest { distroId ->
             combine(

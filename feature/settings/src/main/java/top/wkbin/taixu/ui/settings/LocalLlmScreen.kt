@@ -48,6 +48,8 @@ import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import java.util.Locale
+import kotlinx.coroutines.delay
 
 @Composable
 fun LocalLlmScreen(
@@ -624,7 +626,7 @@ private fun DeleteModelConfirmDialog(
 
     LaunchedEffect(fileName) {
         while (countdown > 0) {
-            kotlinx.coroutines.delay(1000)
+            delay(1000)
             countdown--
         }
     }
@@ -671,9 +673,9 @@ private fun DeleteModelConfirmDialog(
 }
 
 private fun formatBytes(bytes: Long): String = when {
-    bytes >= 1024L * 1024L * 1024L -> String.format(java.util.Locale.US, "%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
-    bytes >= 1024L * 1024L -> String.format(java.util.Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0))
-    bytes >= 1024L -> String.format(java.util.Locale.US, "%.1f KB", bytes / 1024.0)
+    bytes >= 1024L * 1024L * 1024L -> String.format(Locale.US, "%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+    bytes >= 1024L * 1024L -> String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0))
+    bytes >= 1024L -> String.format(Locale.US, "%.1f KB", bytes / 1024.0)
     else -> "$bytes B"
 }
 

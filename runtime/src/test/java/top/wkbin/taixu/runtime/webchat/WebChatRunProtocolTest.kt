@@ -1,6 +1,7 @@
 package top.wkbin.taixu.runtime.webchat
 
 import kotlinx.serialization.json.*
+import java.io.IOException
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -40,7 +41,7 @@ class WebChatRunProtocolTest {
         assertFalse(steering.containsKey("durableTaskId"))
     }
     @Test fun infrastructureFailureHasServerStatusAndDoesNotExposeRawDetails() {
-        val failure = WebChatRunProtocol.failure(java.io.IOException("secret storage details"))
+        val failure = WebChatRunProtocol.failure(IOException("secret storage details"))
         assertEquals(500, failure.status)
         assertEquals("会话操作失败", failure.message)
         assertEquals(WebChatRunProtocol.Failure(400, "会话不存在"),

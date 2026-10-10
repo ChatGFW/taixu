@@ -1,6 +1,8 @@
 package top.wkbin.taixu.core.model
 
 import kotlinx.serialization.Serializable
+import java.io.File
+import java.io.Serializable as JavaSerializable
 
 /**
  * 宿主 (Android) 与沙箱 (Linux PRoot) 存储挂载绑定
@@ -14,7 +16,7 @@ data class StorageMountBinding(
     val guestPath: String,
     val enabled: Boolean = true,
     val isSystemDefault: Boolean = false,
-) : java.io.Serializable {
+) : JavaSerializable {
 
     companion object {
         /** 容器内允许的挂载根：绑定 guestPath 必须落在其中之一 */
@@ -44,10 +46,10 @@ data class StorageMountBinding(
 
         /** 宿主路径（canonical 后）是否位于共享存储根内 */
         fun isHostPathAllowed(hostPath: String): Boolean {
-            val sharedRoot = java.io.File(SHARED_STORAGE_ROOT).canonicalFile
-            val host = java.io.File(hostPath).canonicalFile
+            val sharedRoot = File(SHARED_STORAGE_ROOT).canonicalFile
+            val host = File(hostPath).canonicalFile
             return host == sharedRoot ||
-                host.absolutePath.startsWith(sharedRoot.absolutePath + java.io.File.separator)
+                host.absolutePath.startsWith(sharedRoot.absolutePath + File.separator)
         }
 
         /**

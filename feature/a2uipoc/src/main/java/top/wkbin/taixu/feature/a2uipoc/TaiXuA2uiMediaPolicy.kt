@@ -3,6 +3,7 @@ package top.wkbin.taixu.feature.a2uipoc
 import java.net.URI
 import java.text.NumberFormat
 import java.util.Locale
+import android.icu.text.PluralRules
 
 /**
  * A2UI 媒体与文案的纯逻辑。
@@ -80,7 +81,7 @@ internal object TaiXuA2uiMediaPolicy {
     }
 
     private fun selectPluralCategory(locale: Locale, value: Double): String = runCatching {
-        android.icu.text.PluralRules.forLocale(locale).select(value)
+        PluralRules.forLocale(locale).select(value)
     }.getOrElse {
         if (value == 1.0) "one" else "other"
     }

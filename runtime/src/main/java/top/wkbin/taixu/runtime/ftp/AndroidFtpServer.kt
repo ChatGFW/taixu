@@ -17,6 +17,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import java.net.BindException
 import java.nio.file.Files
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -133,9 +134,9 @@ class AndroidFtpServer(
         }
         val msg = lastException?.message ?: "端口 $port 绑定失败"
         if (msg.contains("EADDRINUSE", ignoreCase = true) || msg.contains("already in use", ignoreCase = true)) {
-            throw java.net.BindException("FTP 端口 $port 正在被占用或尚未完全释放，请稍后再试或更换端口。($msg)")
+            throw BindException("FTP 端口 $port 正在被占用或尚未完全释放，请稍后再试或更换端口。($msg)")
         } else {
-            throw (lastException ?: java.net.BindException("FTP 端口 $port 启动失败：$msg"))
+            throw (lastException ?: BindException("FTP 端口 $port 启动失败：$msg"))
         }
     }
 
@@ -878,7 +879,7 @@ internal class FtpSession(
                 // 必须带分隔符边界："/data/rootfs" 的纯前缀匹配会把同级目录
                 // rootfs.staging / rootfs.previous 也放进可访问范围
                 canonicalTarget.absolutePath == root.absolutePath ||
-                    canonicalTarget.absolutePath.startsWith(root.absolutePath + java.io.File.separator)
+                    canonicalTarget.absolutePath.startsWith(root.absolutePath + File.separator)
             }
             if (isContained) targetFile else null
         } catch (_: Throwable) {

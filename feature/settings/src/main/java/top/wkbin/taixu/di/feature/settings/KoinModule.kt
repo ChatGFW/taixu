@@ -17,10 +17,11 @@ import top.wkbin.taixu.ui.settings.ToolDetailViewModel
 import top.wkbin.taixu.ui.settings.stats.StatsRepository
 import top.wkbin.taixu.ui.settings.stats.StatsViewModel
 import org.koin.core.module.dsl.viewModel
+import top.wkbin.taixu.ui.settings.LocalBackupViewModel
 
 /** Dependency registrations owned by the feature:settings module. */
 val featureSettingsModule = module {
-    viewModel { top.wkbin.taixu.ui.settings.LocalBackupViewModel(context = get(), service = get()) }
+    viewModel { LocalBackupViewModel(context = get(), service = get()) }
     viewModel<AppManagementViewModel> { AppManagementViewModel(repository = get(), appManager = get()) }
     viewModel { PhoneAgentSettingsViewModel(preferences = get(), connectionTester = get()) }
 

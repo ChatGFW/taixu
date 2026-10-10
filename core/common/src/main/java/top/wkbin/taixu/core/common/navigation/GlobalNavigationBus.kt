@@ -1,5 +1,6 @@
 package top.wkbin.taixu.core.common.navigation
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -39,7 +40,7 @@ class GlobalNavigationBus() {
     }
 
     /** 消费并重置当前重放事件，防止同一目标在旋转屏幕或重组时被重复处理。 */
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun clearLatest(target: AppNavigationTarget) {
         _events.resetReplayCache()
     }

@@ -15,6 +15,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.wkbin.taixu.harness.directory.CapabilityScriptRunner
+import org.mozilla.javascript.Context
+import org.mozilla.javascript.EvaluatorException
 
 /**
  * codemode 脚本运行器合同：编排价值（批量/循环合并轮次）与安全边界
@@ -119,9 +121,9 @@ class CapabilityScriptRunnerTest {
     @Test
     fun `android context rejects Java JSON conversion while preserving native JS data`() = runBlocking {
         val runner = runner(inner = { _, _, args ->
-            val context = org.mozilla.javascript.Context.getCurrentContext()
+            val context = Context.getCurrentContext()
             val failure = runCatching { context.javaToJSONConverter.apply(Any()) }.exceptionOrNull()
-            assertTrue(failure is org.mozilla.javascript.EvaluatorException)
+            assertTrue(failure is EvaluatorException)
             assertTrue(failure!!.message.orEmpty().contains("Java object JSON conversion is disabled"))
             assertEquals("{\"items\":[1,true,null,{\"text\":\"太墟\"}]}", args.toString())
             true to "ok"

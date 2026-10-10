@@ -21,6 +21,9 @@ import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.database.HarnessUsageEntity
 import top.wkbin.taixu.harness.WorkspaceFileAccess
+import top.wkbin.taixu.core.database.DailyCountRow
+import top.wkbin.taixu.core.database.HarnessLaneResultEntity
+import top.wkbin.taixu.core.database.UsageAggregateRow
 
 class SessionForkConversationRewinderTest {
 
@@ -73,10 +76,10 @@ class SessionForkConversationRewinderTest {
         // 用量聚合（SQL 层）：生产实现走 json_extract + GROUP BY 以避免 OOM。
         // 本 Fake 不模拟聚合语义，返回空列表即可——本测试不涉及用量统计。
         override suspend fun aggregateUsageInRange(start: Long?, end: Long?) =
-            emptyList<top.wkbin.taixu.core.database.UsageAggregateRow>()
+            emptyList<UsageAggregateRow>()
 
         override suspend fun aggregateDailyCounts(start: Long?, end: Long?, tzOffsetMs: Long) =
-            emptyList<top.wkbin.taixu.core.database.DailyCountRow>()
+            emptyList<DailyCountRow>()
         override suspend fun branch(sessionId: String, leafId: String?): List<HarnessEntryEntity> {
             if (leafId == null) return emptyList()
             val byId = entries.associateBy { it.id }
@@ -105,7 +108,7 @@ class SessionForkConversationRewinderTest {
         override suspend fun beginOperation(lane: HarnessLaneEntity, operation: HarnessOperationEntity) = Unit
         override suspend fun saveOperation(operation: HarnessOperationEntity) = Unit
         override suspend fun settleEffect(entry: HarnessEntryEntity?, usage: HarnessUsageEntity?, operation: HarnessOperationEntity, lane: HarnessLaneEntity) = Unit
-        override suspend fun finishOperation(result: top.wkbin.taixu.core.database.HarnessLaneResultEntity, lane: HarnessLaneEntity) = Unit
+        override suspend fun finishOperation(result: HarnessLaneResultEntity, lane: HarnessLaneEntity) = Unit
         override suspend fun enqueue(item: HarnessQueueItemEntity) = Unit
         override suspend fun listQueue(sessionId: String, laneName: String, queueType: String) = emptyList<HarnessQueueItemEntity>()
         override suspend fun listAllQueues(sessionId: String, laneName: String) = emptyList<HarnessQueueItemEntity>()

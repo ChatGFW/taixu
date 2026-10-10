@@ -8,6 +8,7 @@ import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.core.model.workflow.HostWorkflowActions
 import top.wkbin.taixu.core.model.workflow.HostWorkflowPrivilege
@@ -23,6 +24,9 @@ import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.gui.HostGuiController
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.runtime.shell.ShellCommand
+import android.R
+import kotlinx.coroutines.CancellationException
+import top.wkbin.taixu.runtime.gui.ScrollDirection
 
 class ConditionNodeExecutor() : NodeExecutor {
     override val supportedTypes = setOf(WorkflowNodeType.CONDITION_BRANCH)
@@ -130,7 +134,7 @@ class HostActionNodeExecutor(
             .fold(
                 onSuccess = { it },
                 onFailure = { err ->
-                    if (err is kotlinx.coroutines.CancellationException) throw err
+                    if (err is CancellationException) throw err
                     NodeExecutionOutput(
                         status = NodeRunStatus.FAILED,
                         exitCode = 1,
@@ -172,7 +176,7 @@ class HostActionNodeExecutor(
                     ?: context.globalVariables["APK_PATH"]?.takeIf { it.isNotBlank() }
                     ?: cfg("path").takeIf { it.isNotBlank() }
                     ?: error("未找到 APK：请配置 artifactFrom、path 或变量 APK_PATH")
-                shellViaBridge("taixu-host install-apk ${posixQuote(artifact)}", context, artifacts = listOf(artifact))
+                shellViaBridge("taixu-host install-apk ${ShellQuote.of(artifact)}", context, artifacts = listOf(artifact))
             }
             "device_status" -> privileged(
                 "echo '[battery]'; dumpsys battery | grep -E 'level|status|temperature'" +
@@ -184,7 +188,7 @@ class HostActionNodeExecutor(
                 val lines = cfg("tail_lines").toIntOrNull()?.coerceIn(1, 2_000) ?: 200
                 val tag = cfg("tag")
                 val cmd = if (tag.isBlank()) "/system/bin/logcat -d -t $lines"
-                else "/system/bin/logcat -d -t $lines -s ${shellQuote("$tag:*")}"
+                else "/system/bin/logcat -d -t $lines -s ${ShellQuote.of("$tag:*")}"
                 privileged(cmd)
             }
             "app_launch" -> gui.launchApp(requireCfg("package")).toOutput()
@@ -192,17 +196,17 @@ class HostActionNodeExecutor(
             "app_clear_data" -> gui.clearAppData(requireCfg("package")).toOutput()
             "app_freeze", "package_disable" -> {
                 val user = cfg("user").ifBlank { "0" }
-                privileged("/system/bin/pm disable-user --user $user ${shellQuote(requireCfg("package"))}")
+                privileged("/system/bin/pm disable-user --user $user ${ShellQuote.of(requireCfg("package"))}")
             }
             "app_unfreeze", "package_enable" -> {
                 val user = cfg("user").ifBlank { "0" }
-                privileged("/system/bin/pm enable --user $user ${shellQuote(requireCfg("package"))}")
+                privileged("/system/bin/pm enable --user $user ${ShellQuote.of(requireCfg("package"))}")
             }
             "app_grant_permission" -> privileged(
-                "/system/bin/pm grant ${shellQuote(requireCfg("package"))} ${shellQuote(requireCfg("permission"))}",
+                "/system/bin/pm grant ${ShellQuote.of(requireCfg("package"))} ${ShellQuote.of(requireCfg("permission"))}",
             )
             "app_revoke_permission" -> privileged(
-                "/system/bin/pm revoke ${shellQuote(requireCfg("package"))} ${shellQuote(requireCfg("permission"))}",
+                "/system/bin/pm revoke ${ShellQuote.of(requireCfg("package"))} ${ShellQuote.of(requireCfg("permission"))}",
             )
             "wait_foreground" -> {
                 val timeout = (cfg("timeoutSeconds").toDoubleOrNull() ?: 15.0).coerceIn(1.0, 120.0)
@@ -217,8 +221,8 @@ class HostActionNodeExecutor(
                 val fg = cfg("foreground").equals("true", true)
                 val verb = if (fg) "start-foreground-service" else "startservice"
                 val cmd = buildString {
-                    append("/system/bin/am $verb -n ${shellQuote(component)}")
-                    cfg("intentAction").takeIf { it.isNotBlank() }?.let { append(" -a ${shellQuote(it)}") }
+                    append("/system/bin/am $verb -n ${ShellQuote.of(component)}")
+                    cfg("intentAction").takeIf { it.isNotBlank() }?.let { append(" -a ${ShellQuote.of(it)}") }
                     append(amExtras(parseExtras(cfg("extras"))))
                 }
                 privileged(cmd)
@@ -226,7 +230,7 @@ class HostActionNodeExecutor(
             "settings_get" -> {
                 val ns = requireNamespace(cfg("namespace"))
                 val key = requireCfg("key")
-                val result = privileged("/system/bin/settings get $ns ${shellQuote(key)}")
+                val result = privileged("/system/bin/settings get $ns ${ShellQuote.of(key)}")
                 val value = result.textOutput.lines().lastOrNull { it.isNotBlank() }.orEmpty().trim()
                 val varName = cfg("outputVariable").ifBlank { "SETTINGS_VALUE" }
                 result.copy(variables = result.variables + mapOf(varName to value, "SETTINGS_KEY" to key))
@@ -239,12 +243,12 @@ class HostActionNodeExecutor(
                     ok("[Android API] settings put system $key = $value")
                 } else {
                     val cmd = if (ns == "system" && key == "screen_brightness") {
-                        val quoted = shellQuote(value)
+                        val quoted = ShellQuote.of(value)
                         "/system/bin/settings put system screen_brightness_mode 0; " +
                             "/system/bin/settings put system screen_brightness $quoted; " +
                             "echo \"requested=$quoted actual=\$(/system/bin/settings get system screen_brightness)\""
                     } else {
-                        "/system/bin/settings put $ns ${shellQuote(key)} ${shellQuote(value)}"
+                        "/system/bin/settings put $ns ${ShellQuote.of(key)} ${ShellQuote.of(value)}"
                     }
                     privileged(cmd)
                 }
@@ -295,10 +299,10 @@ class HostActionNodeExecutor(
             ).toOutput()
             "screen_scroll" -> {
                 val direction = when (requireCfg("direction").lowercase()) {
-                    "up" -> top.wkbin.taixu.runtime.gui.ScrollDirection.UP
-                    "down" -> top.wkbin.taixu.runtime.gui.ScrollDirection.DOWN
-                    "left" -> top.wkbin.taixu.runtime.gui.ScrollDirection.LEFT
-                    "right" -> top.wkbin.taixu.runtime.gui.ScrollDirection.RIGHT
+                    "up" -> ScrollDirection.UP
+                    "down" -> ScrollDirection.DOWN
+                    "left" -> ScrollDirection.LEFT
+                    "right" -> ScrollDirection.RIGHT
                     else -> error("direction 仅支持 up/down/left/right")
                 }
                 val ratio = cfg("distanceRatio").toFloatOrNull()?.coerceIn(0.15f, 0.8f) ?: 0.45f
@@ -359,9 +363,9 @@ class HostActionNodeExecutor(
         }
         requirePrivilege()?.let { error(it) }
         val cmd = buildString {
-            append("/system/bin/am broadcast -a ${shellQuote(action)}")
-            pkg?.let { append(" -p ${shellQuote(it)}") }
-            component?.let { append(" -n ${shellQuote(it)}") }
+            append("/system/bin/am broadcast -a ${ShellQuote.of(action)}")
+            pkg?.let { append(" -p ${ShellQuote.of(it)}") }
+            component?.let { append(" -n ${ShellQuote.of(it)}") }
             append(amExtras(extras))
         }
         return privileged(cmd)
@@ -382,10 +386,10 @@ class HostActionNodeExecutor(
         requirePrivilege()?.let { error(it) }
         val cmd = buildString {
             append("/system/bin/am start")
-            component?.let { append(" -n ${shellQuote(it)}") }
-            intentAction?.let { append(" -a ${shellQuote(it)}") }
-            dataUri?.let { append(" -d ${shellQuote(it)}") }
-            mime?.let { append(" -t ${shellQuote(it)}") }
+            component?.let { append(" -n ${ShellQuote.of(it)}") }
+            intentAction?.let { append(" -a ${ShellQuote.of(it)}") }
+            dataUri?.let { append(" -d ${ShellQuote.of(it)}") }
+            mime?.let { append(" -t ${ShellQuote.of(it)}") }
             append(amExtras(extras))
         }
         return privileged(cmd)
@@ -400,7 +404,7 @@ class HostActionNodeExecutor(
             )
         }
         val notification = Notification.Builder(appContext, channelId)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
@@ -493,18 +497,15 @@ class HostActionNodeExecutor(
                 else -> rawKey to "string"
             }
             when (type) {
-                "int" -> append(" --ei ${shellQuote(key)} ${value.toInt()}")
-                "long" -> append(" --el ${shellQuote(key)} ${value.toLong()}")
-                "bool", "boolean" -> append(" --ez ${shellQuote(key)} ${parseBool(value)}")
-                "float" -> append(" --ef ${shellQuote(key)} ${value.toFloat()}")
-                "uri" -> append(" --eu ${shellQuote(key)} ${shellQuote(value)}")
-                else -> append(" --es ${shellQuote(key)} ${shellQuote(value)}")
+                "int" -> append(" --ei ${ShellQuote.of(key)} ${value.toInt()}")
+                "long" -> append(" --el ${ShellQuote.of(key)} ${value.toLong()}")
+                "bool", "boolean" -> append(" --ez ${ShellQuote.of(key)} ${parseBool(value)}")
+                "float" -> append(" --ef ${ShellQuote.of(key)} ${value.toFloat()}")
+                "uri" -> append(" --eu ${ShellQuote.of(key)} ${ShellQuote.of(value)}")
+                else -> append(" --es ${ShellQuote.of(key)} ${ShellQuote.of(value)}")
             }
         }
     }
-
-    private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
-    private fun posixQuote(value: String): String = "'" + value.replace("'", "'\"'\"'") + "'"
 }
 
 internal fun interpolate(template: String, context: WorkflowRuntimeContext): String =

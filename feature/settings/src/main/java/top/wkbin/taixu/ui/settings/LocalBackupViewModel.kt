@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.tools.backup.LocalBackupService
 import top.wkbin.taixu.core.tools.backup.PreparedBackup
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
 
 data class LocalBackupUiState(
     val busy: Boolean = false,
@@ -81,7 +82,7 @@ class LocalBackupViewModel(private val context: Context, private val service: Lo
     override fun onCleared() {
         val old = mutableState.value
         // Work already in the service's commit section finishes without cancellation; never delete its source here.
-        if (!old.busy) kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch { service.discard(old.prepared); old.exportFile?.delete() }
+        if (!old.busy) CoroutineScope(Dispatchers.IO).launch { service.discard(old.prepared); old.exportFile?.delete() }
         super.onCleared()
     }
 }

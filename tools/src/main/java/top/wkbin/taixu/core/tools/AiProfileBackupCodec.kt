@@ -5,6 +5,7 @@ import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.model.AiModelProfileBundle
 import top.wkbin.taixu.core.model.AiModelProfileExport
 import kotlinx.coroutines.CancellationException
+import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.model.AiProfileImportMode
 
 /**
@@ -51,7 +52,7 @@ class AiProfileBackupCodec(
         }
     }
 
-    private suspend fun readKeys(entity: top.wkbin.taixu.core.database.AiModelEntity, includeApiKeys: Boolean): List<String> {
+    private suspend fun readKeys(entity: AiModelEntity, includeApiKeys: Boolean): List<String> {
         check(!includeApiKeys || entity.apiKeyCount == 0 || entity.secretRef.isNotBlank()) { "模型凭据引用缺失，请重新配置后再导出" }
         return if (includeApiKeys && entity.secretRef.isNotBlank()) {
             providerRepository.readModelApiKeys(entity.secretRef).also {
@@ -63,7 +64,7 @@ class AiProfileBackupCodec(
     }
 
     private fun entityToExport(
-        entity: top.wkbin.taixu.core.database.AiModelEntity,
+        entity: AiModelEntity,
         keys: List<String>,
         includeCredentials: Boolean,
     ) = AiModelProfileExport(

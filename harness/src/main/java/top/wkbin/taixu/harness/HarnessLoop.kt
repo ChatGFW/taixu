@@ -53,6 +53,16 @@ import top.wkbin.taixu.harness.projection.CurrentSessionTracker
 import top.wkbin.taixu.harness.projection.SessionMessageProjector
 import top.wkbin.taixu.harness.projection.SessionStateMirrors
 import top.wkbin.taixu.harness.skill.SkillEvolutionAdvisor
+import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
+import top.wkbin.taixu.core.database.task.AgentTaskStatus
+import top.wkbin.taixu.harness.checkpoint.CheckpointMeta
+import top.wkbin.taixu.harness.checkpoint.RewindPlan
+import top.wkbin.taixu.harness.checkpoint.RewindResult
+import top.wkbin.taixu.harness.checkpoint.RewindScope
+import top.wkbin.taixu.harness.session.InteractiveSessionControl
+import top.wkbin.taixu.harness.session.PromptSubmission
+import top.wkbin.taixu.harness.session.SessionInputController
+import top.wkbin.taixu.harness.session.SessionInputRuntime
 
 /** Agent 单次运行的结构化结果，外层据此设置会话状态，避免内部失败被误标为 COMPLETED。 */
 private sealed interface RunResult {
@@ -97,7 +107,7 @@ class HarnessLoop(
     private val branchSummarizer: BranchSummarizer,
     private val skillEvolutionAdvisor: SkillEvolutionAdvisor? = null,
     private val turnCoordinator: SessionTurnCoordinator,
-) : top.wkbin.taixu.harness.session.InteractiveSessionControl {
+) : InteractiveSessionControl {
     private val loopScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override val currentSessionId: StateFlow<String> get() = sessionTracker.currentSessionId
@@ -127,25 +137,25 @@ class HarnessLoop(
         messageProjector.messagesFlow(sessionId)
 
     // ---- Checkpoints & Rewind（每轮文件快照安全网，供 UI / 未来 MCP 调用） ----
-    override fun sessionCheckpoints(sessionId: String): List<top.wkbin.taixu.harness.checkpoint.CheckpointMeta> =
+    override fun sessionCheckpoints(sessionId: String): List<CheckpointMeta> =
         rewindController.checkpoints(sessionId)
 
     override fun prepareRewind(
         sessionId: String,
         turn: Int,
-        scope: top.wkbin.taixu.harness.checkpoint.RewindScope,
-    ): top.wkbin.taixu.harness.checkpoint.RewindPlan = rewindController.prepare(sessionId, turn, scope)
+        scope: RewindScope,
+    ): RewindPlan = rewindController.prepare(sessionId, turn, scope)
 
     override suspend fun commitRewind(
-        plan: top.wkbin.taixu.harness.checkpoint.RewindPlan,
+        plan: RewindPlan,
         workspace: String,
-    ): top.wkbin.taixu.harness.checkpoint.RewindResult = rewindController.commit(plan, workspace)
+    ): RewindResult = rewindController.commit(plan, workspace)
 
     /** 撤销最近一次 rewind（单层级）；null = 当前没有可撤销的 rewind。 */
     override suspend fun undoRewind(
         sessionId: String,
         workspace: String,
-    ): top.wkbin.taixu.harness.checkpoint.RewindResult? = rewindController.undoLastRewind(sessionId, workspace)
+    ): RewindResult? = rewindController.undoLastRewind(sessionId, workspace)
 
     /** Loads persisted history without changing the Android UI's foreground session. */
     override suspend fun prepareRemoteSession(sessionId: String): List<HarnessMessage> = messageProjector.preparedForLoad(sessionId).value
@@ -293,7 +303,7 @@ class HarnessLoop(
         }
 
         agentTaskStateMachine.activeForSession(sessId)?.let { activeTask ->
-            if (activeTask.status == top.wkbin.taixu.core.database.task.AgentTaskStatus.WAITING_APPROVAL) {
+            if (activeTask.status == AgentTaskStatus.WAITING_APPROVAL) {
                 agentTaskStateMachine.markFailed(activeTask.id, "审批或提问已过期")
             }
         }
@@ -573,8 +583,8 @@ class HarnessLoop(
         }
     }
 
-    private val inputController = top.wkbin.taixu.harness.session.SessionInputController(
-        turnCoordinator, object : top.wkbin.taixu.harness.session.SessionInputRuntime {
+    private val inputController = SessionInputController(
+        turnCoordinator, object : SessionInputRuntime {
             override suspend fun exists(sessionId: String) =
                 !tombstonedSessions.contains(sessionId) && sessionDao.findById(sessionId) != null
             override fun busy(sessionId: String) = isSessionBusy(sessionId)
@@ -595,8 +605,8 @@ class HarnessLoop(
         },
     )
     override suspend fun submit(sessionId: String, text: String, imageUrls: List<String>, queue: PromptQueue):
-        top.wkbin.taixu.harness.session.PromptSubmission = inputController.submit(sessionId, text, imageUrls, queue).also {
-            if (it is top.wkbin.taixu.harness.session.PromptSubmission.Accepted) startForegroundServiceSafe()
+        PromptSubmission = inputController.submit(sessionId, text, imageUrls, queue).also {
+            if (it is PromptSubmission.Accepted) startForegroundServiceSafe()
         }
     override fun send(text: String, targetSessionId: String?, imageUrls: List<String>) =
         submitAsync(PromptQueue.NEXT_RUN, text, targetSessionId, imageUrls)
@@ -996,7 +1006,7 @@ class HarnessLoop(
         for (request in pending) {
             if (!approvalRepository.claimPending(
                     request.id,
-                    top.wkbin.taixu.core.database.AgentApprovalRequestEntity.STATUS_REJECTED,
+                    AgentApprovalRequestEntity.STATUS_REJECTED,
                 )
             ) {
                 continue
@@ -1474,7 +1484,7 @@ class HarnessLoop(
             }
             val sessId = request.sessionId
             cancelApprovalTimeout(sessId)
-            if (request.status != top.wkbin.taixu.core.database.AgentApprovalRequestEntity.STATUS_PENDING) {
+            if (request.status != AgentApprovalRequestEntity.STATUS_PENDING) {
                 logger.w("resolveApproval: request not pending (status=${request.status}), ignoring: $requestId")
                 return@launch
             }
@@ -1488,7 +1498,7 @@ class HarnessLoop(
             val verdict = resumePolicy.evaluate(request, approved)
             if (!approvalRepository.claimPending(request.id, verdict.claimStatus)) return@launch
             val durableTaskId = agentTaskStateMachine.activeForSession(sessId)
-                ?.takeIf { it.status == top.wkbin.taixu.core.database.task.AgentTaskStatus.WAITING_APPROVAL }
+                ?.takeIf { it.status == AgentTaskStatus.WAITING_APPROVAL }
                 ?.id
 
             // Approval resumption is the legitimate successor to a WAITING_APPROVAL run;
@@ -1559,8 +1569,8 @@ class HarnessLoop(
                         withContext(NonCancellable) {
                             approvalRepository.mark(
                                 request.id,
-                                if (approved) top.wkbin.taixu.core.database.AgentApprovalRequestEntity.STATUS_FAILED
-                                else top.wkbin.taixu.core.database.AgentApprovalRequestEntity.STATUS_REJECTED,
+                                if (approved) AgentApprovalRequestEntity.STATUS_FAILED
+                                else AgentApprovalRequestEntity.STATUS_REJECTED,
                             )
                             repairDanglingToolCalls(sessId, interrupted = true)
                         }
@@ -1573,7 +1583,7 @@ class HarnessLoop(
                 } catch (throwable: Throwable) {
                     logger.e("Approval resolution failed for request ${request.id}", throwable)
                     if (!approvalResultPersisted) {
-                        approvalRepository.mark(request.id, top.wkbin.taixu.core.database.AgentApprovalRequestEntity.STATUS_FAILED)
+                        approvalRepository.mark(request.id, AgentApprovalRequestEntity.STATUS_FAILED)
                         messageProjector.append(
                             sessId,
                             ToolResult(
@@ -1606,7 +1616,7 @@ class HarnessLoop(
             }
             val sessId = request.sessionId
             cancelApprovalTimeout(sessId)
-            if (request.status != top.wkbin.taixu.core.database.AgentApprovalRequestEntity.STATUS_PENDING) {
+            if (request.status != AgentApprovalRequestEntity.STATUS_PENDING) {
                 logger.w("resolveQuestion: request not pending (status=${request.status}), ignoring: $requestId")
                 return@launch
             }
@@ -1617,7 +1627,7 @@ class HarnessLoop(
             }
             if (verdict.isInvalid) {
                 val durableTaskId = agentTaskStateMachine.activeForSession(sessId)
-                    ?.takeIf { it.status == top.wkbin.taixu.core.database.task.AgentTaskStatus.WAITING_APPROVAL }
+                    ?.takeIf { it.status == AgentTaskStatus.WAITING_APPROVAL }
                     ?.id
                 startClaimedSessionRun(sessId, durableTaskId) {
                     val result = ToolResult(
@@ -1632,7 +1642,7 @@ class HarnessLoop(
                 return@launch
             }
             val durableTaskId = agentTaskStateMachine.activeForSession(sessId)
-                ?.takeIf { it.status == top.wkbin.taixu.core.database.task.AgentTaskStatus.WAITING_APPROVAL }
+                ?.takeIf { it.status == AgentTaskStatus.WAITING_APPROVAL }
                 ?.id
             startClaimedSessionRun(sessId, durableTaskId) {
                 var resultPersisted = false
@@ -1651,13 +1661,13 @@ class HarnessLoop(
                     } else {
                         messageProjector.append(sessId, result)
                     }
-                    approvalRepository.mark(request.id, top.wkbin.taixu.core.database.AgentApprovalRequestEntity.STATUS_EXECUTED)
+                    approvalRepository.mark(request.id, AgentApprovalRequestEntity.STATUS_EXECUTED)
                     resultPersisted = true
                     runLoopInternal(sessId, startedAt = now(), taskId = durableTaskId)
                 } catch (cancellation: CancellationException) {
                     if (!resultPersisted) {
                         withContext(NonCancellable) {
-                            approvalRepository.mark(request.id, top.wkbin.taixu.core.database.AgentApprovalRequestEntity.STATUS_FAILED)
+                            approvalRepository.mark(request.id, AgentApprovalRequestEntity.STATUS_FAILED)
                             repairDanglingToolCalls(sessId, interrupted = true)
                         }
                     }
@@ -1668,7 +1678,7 @@ class HarnessLoop(
                 } catch (throwable: Throwable) {
                     logger.e("Question resolution failed for request ${request.id}", throwable)
                     if (!resultPersisted) {
-                        approvalRepository.mark(request.id, top.wkbin.taixu.core.database.AgentApprovalRequestEntity.STATUS_FAILED)
+                        approvalRepository.mark(request.id, AgentApprovalRequestEntity.STATUS_FAILED)
                     }
                     RunResult.Failed(throwable.message ?: "提交回答失败：${throwable::class.simpleName}")
                 }

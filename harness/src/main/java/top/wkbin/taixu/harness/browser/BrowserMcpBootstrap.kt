@@ -12,6 +12,11 @@ import top.wkbin.taixu.runtime.browser.engine.AndroidInAppBrowserEngine
 import top.wkbin.taixu.runtime.browser.engine.WebViewTabPool
 import top.wkbin.taixu.runtime.browser.cdp.WebViewDebugging
 import top.wkbin.taixu.core.browser.BrowserFamily
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import top.wkbin.taixu.core.browser.BrowserPreferences
+import top.wkbin.taixu.core.browser.TaiXuNewTab
+import top.wkbin.taixu.core.datastore.BrowserPreferences as DataStoreBrowserPreferences
 
 /**
  * 把 in-process 浏览器 MCP server 注入到 harness 流水线，并负责：
@@ -28,7 +33,7 @@ class BrowserMcpBootstrap(
     private val context: Context,
     private val runtime: Lazy<McpServerRuntime>,
     private val registry: BrowserRegistry,
-    private val browserPrefs: top.wkbin.taixu.core.datastore.BrowserPreferences,
+    private val browserPrefs: DataStoreBrowserPreferences,
 ) {
     /** 注册引擎并启动 HTTP server；幂等。按用户偏好（#4）决定绑定面：allowRemote 时绑定 0.0.0.0。 */
     suspend fun bootstrap(): Boolean {
@@ -41,7 +46,7 @@ class BrowserMcpBootstrap(
             // 开启失败不阻断普通浏览；错误已留日志，debug_attach 会再次尝试并透传原因。
             try {
                 WebViewDebugging.setEnabled(prefs.allowCdp)
-            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "初始化 WebView 调试开关失败", e)
@@ -78,11 +83,11 @@ class BrowserMcpBootstrap(
     }
 
     /** 启动时读一次真实偏好（IO 协程内调用，单次 DataStore first() 毫秒级；失败兜底 DEFAULT）。 */
-    private fun readPrefs(): top.wkbin.taixu.core.browser.BrowserPreferences = runCatching {
+    private fun readPrefs(): BrowserPreferences = runCatching {
         runBlocking {
-            top.wkbin.taixu.core.browser.BrowserPreferences(
+            BrowserPreferences(
                 defaultFamily = browserPrefs.defaultFamily().first(),
-                homeUrl = browserPrefs.homeUrl().first().ifBlank { top.wkbin.taixu.core.browser.TaiXuNewTab.URL },
+                homeUrl = browserPrefs.homeUrl().first().ifBlank { TaiXuNewTab.URL },
                 coBrowsingEnabled = browserPrefs.coBrowsingEnabled().first(),
                 allowRemoteConnect = browserPrefs.allowRemoteConnect().first(),
                 allowEvalJs = browserPrefs.allowEvalJs().first(),
@@ -93,9 +98,9 @@ class BrowserMcpBootstrap(
                 maxCaptureBytes = browserPrefs.maxCaptureBytes().first(),
             )
         }
-    }.getOrDefault(top.wkbin.taixu.core.browser.BrowserPreferences.DEFAULT)
+    }.getOrDefault(BrowserPreferences.DEFAULT)
 
-    private fun generateToken(): String = java.util.UUID.randomUUID().toString().replace("-", "")
+    private fun generateToken(): String = UUID.randomUUID().toString().replace("-", "")
 
     fun stop() {
         try {

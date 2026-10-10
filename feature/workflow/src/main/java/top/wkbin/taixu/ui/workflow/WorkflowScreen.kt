@@ -61,6 +61,9 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun WorkflowScreen(
@@ -398,7 +401,7 @@ private fun WorkflowCatalog(
                     Column(Modifier.weight(1f)) {
                         Text(
                             "${run.definition.name} · ${runStatusLabel(run.status)} · ${
-                                java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(run.startedAt ?: 0))
+                                SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(run.startedAt ?: 0))
                             }",
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 2,

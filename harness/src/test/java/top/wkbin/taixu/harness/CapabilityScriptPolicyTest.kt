@@ -63,8 +63,18 @@ class CapabilityScriptPolicyTest {
 
     private fun executor(hooks: List<ToolCheckpoint<ToolExecutionRequest, ToolResult>> = emptyList(), mcp: McpManager? = null): ToolExecutor {
         val paths = HarnessPathResolver()
-        return ToolExecutor(WorkspaceFileAccess(context.cacheDir), unusedPort<LinuxRuntime>(), paths,
-            ApprovalPolicyEngine(paths), SecretRedactor(), unusedPort<FileDownloader>(),
+        return ToolExecutor(WorkspaceFileAccess(context.cacheDir), paths,
+            ApprovalPolicyEngine(paths), SecretRedactor(),
+            hostToolBackend = HostCapabilityToolBackend(secretRedactor = SecretRedactor()),
+            linuxCommandToolBackend = LinuxCommandToolBackend(unusedPort<LinuxRuntime>(), paths),
+            downloadToolBackend = DownloadToolBackend(
+                unusedPort<FileDownloader>(), WorkspaceFileAccess(context.cacheDir), WorkspaceMutationSnapshots(),
+            ),
+            contextMemoryToolBackend = ContextMemoryToolBackend(),
+            askUserToolBackend = AskUserToolBackend(ApprovalPolicyEngine(paths), approvals),
+            promptAssetToolBackend = PromptAssetToolBackend(),
+            harnessServiceToolBackend = HarnessServiceToolBackend(),
+            capabilityToolGateway = CapabilityToolGateway(mcp) { _, _, _, _ -> error("unexpected host dispatch") },
             approvalRepository = approvals, sessionDao = sessions, toolCheckpoints = ToolCheckpoints(hooks), mcpManager = mcp)
     }
 

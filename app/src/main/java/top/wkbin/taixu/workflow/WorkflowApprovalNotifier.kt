@@ -20,6 +20,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.harness.workflow.WorkflowRunManager
+import top.wkbin.taixu.R
+import top.wkbin.taixu.MainActivity
+import top.wkbin.taixu.service.WorkflowForegroundService
 
 /**
  * 后台审批通知：App 在后台时出现待审批工作流节点，发 IMPORTANCE_HIGH 通知
@@ -103,14 +106,14 @@ class WorkflowApprovalNotifier(
             val openRun = PendingIntent.getActivity(
                 context,
                 executionId.hashCode().absoluteValue,
-                Intent(context, top.wkbin.taixu.MainActivity::class.java)
-                    .setAction(top.wkbin.taixu.service.WorkflowForegroundService.ACTION_OPEN_RUN)
+                Intent(context, MainActivity::class.java)
+                    .setAction(WorkflowForegroundService.ACTION_OPEN_RUN)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    .putExtra(top.wkbin.taixu.service.WorkflowForegroundService.EXTRA_EXECUTION_ID, executionId),
+                    .putExtra(WorkflowForegroundService.EXTRA_EXECUTION_ID, executionId),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(top.wkbin.taixu.R.drawable.taixu_notification)
+                .setSmallIcon(R.drawable.taixu_notification)
                 .setContentTitle("工作流等待审批")
                 .setContentText(title.ifBlank { "节点 $nodeId 需要你批准后继续执行" })
                 .setStyle(
@@ -121,8 +124,8 @@ class WorkflowApprovalNotifier(
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
-                .addAction(NotificationCompat.Action(top.wkbin.taixu.R.drawable.taixu_notification, "批准", approvePending))
-                .addAction(NotificationCompat.Action(top.wkbin.taixu.R.drawable.taixu_notification, "拒绝", denyPending))
+                .addAction(NotificationCompat.Action(R.drawable.taixu_notification, "批准", approvePending))
+                .addAction(NotificationCompat.Action(R.drawable.taixu_notification, "拒绝", denyPending))
                 .build()
             manager.notify(notificationId(executionId), notification)
         }.onFailure { Log.w(TAG, "发布审批通知失败", it) }

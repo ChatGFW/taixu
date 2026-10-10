@@ -1,9 +1,10 @@
-﻿package top.wkbin.taixu.runtime.tools
+package top.wkbin.taixu.runtime.tools
 
 import top.wkbin.taixu.core.common.files.SafeFileTree
 import top.wkbin.taixu.core.common.result.AppError
 import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.common.result.ErrorCode
+import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.core.tools.ToolActionResult
 import top.wkbin.taixu.core.tools.ToolRuntimeAdapter
 import top.wkbin.taixu.runtime.LinuxRuntime
@@ -26,7 +27,7 @@ class HelloToolInstaller(
         val targetDir = File(pathManager.taixuToolsDir(distroId), toolId)
         val stagingDir = File(pathManager.taixuRootDir(distroId), ".staging-$toolId")
         try {
-            if (linuxRuntime.state.value !is top.wkbin.taixu.core.model.RuntimeState.Ready) {
+            if (linuxRuntime.state.value !is RuntimeState.Ready) {
                 throw IllegalStateException("Linux Runtime 未就绪，请先初始化 Linux")
             }
             emit(InstallEvent.Progress(toolId, "创建安装事务", 0.25f, InstallEvent.Phase.PREPARING))

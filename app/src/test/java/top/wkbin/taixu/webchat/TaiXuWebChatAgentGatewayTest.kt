@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.*
 import org.junit.Test
 import top.wkbin.taixu.core.database.*
+import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.queue.PromptQueue
 import top.wkbin.taixu.harness.session.PromptSubmission
 import top.wkbin.taixu.harness.session.SessionControl
@@ -80,7 +81,7 @@ class TaiXuWebChatAgentGatewayTest {
         val gateway = gateway(control { name, args ->
             assertEquals("persistedMessages", name)
             assertEquals("remote", args[0])
-            listOf(top.wkbin.taixu.harness.AssistantText("final", 1, "committed answer"))
+            listOf(AssistantText("final", 1, "committed answer"))
         })
         assertEquals("final", gateway.messages("remote").single().id)
     }

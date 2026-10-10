@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Environment
+import top.wkbin.taixu.core.model.BuiltinPluginBundles
 import top.wkbin.taixu.core.model.DoctorCategory
 import top.wkbin.taixu.core.model.DoctorItem
 import top.wkbin.taixu.core.model.DoctorReport
@@ -363,7 +364,7 @@ class EnvironmentDoctor(
      * 复用插件中心 android-core 组件的同一探针命令，保证体检与插件安装的状态判定口径一致。
      */
     private suspend fun checkAndroidEnvironment(): DoctorItem {
-        val checkCommand = top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles
+        val checkCommand = BuiltinPluginBundles.bundles
             .firstOrNull { it.id == "android-suite" }
             ?.components?.firstOrNull { it.id == "android-core" }
             ?.checkCommand

@@ -39,6 +39,8 @@ import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
+import top.wkbin.taixu.core.model.EnvironmentVariable
+import top.wkbin.taixu.core.model.RuntimeState
 
 @Composable
 fun EnvironmentVariableSettingsScreen(
@@ -63,7 +65,7 @@ fun EnvironmentVariableSettingsScreen(
     val showDelete = deleteKey?.let { key -> entries.firstOrNull { it.id == key } }
 
     fun openEnvironmentEditor(
-        entry: top.wkbin.taixu.core.model.EnvironmentVariable?,
+        entry: EnvironmentVariable?,
         key: String,
         value: String,
     ) {
@@ -108,10 +110,10 @@ fun EnvironmentVariableSettingsScreen(
                 "环境变量",
                 onBack,
                 actions = {
-                    IconButton(onClick = { viewModel.refreshEnvironmentVariables() }, contentDescription = "刷新环境变量", enabled = !loading && runtimeState is top.wkbin.taixu.core.model.RuntimeState.Ready) {
+                    IconButton(onClick = { viewModel.refreshEnvironmentVariables() }, contentDescription = "刷新环境变量", enabled = !loading && runtimeState is RuntimeState.Ready) {
                         RuntimeIcon(RuntimeIconName.Refresh)
                     }
-                    IconButton(onClick = { openEnvironmentEditor(null, "", "") }, contentDescription = "添加环境变量", enabled = !loading && runtimeState is top.wkbin.taixu.core.model.RuntimeState.Ready) {
+                    IconButton(onClick = { openEnvironmentEditor(null, "", "") }, contentDescription = "添加环境变量", enabled = !loading && runtimeState is RuntimeState.Ready) {
                         RuntimeIcon(RuntimeIconName.Plus)
                     }
                 },
@@ -277,7 +279,7 @@ fun EnvironmentVariableSettingsScreen(
 
 @Composable
 private fun EnvironmentVariableEditor(
-    entry: top.wkbin.taixu.core.model.EnvironmentVariable?,
+    entry: EnvironmentVariable?,
     initialKey: String,
     currentValue: String,
     error: String?,

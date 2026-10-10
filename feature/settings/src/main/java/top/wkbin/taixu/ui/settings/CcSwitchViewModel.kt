@@ -34,6 +34,7 @@ import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import java.net.Inet4Address
 import java.net.NetworkInterface
+import top.wkbin.taixu.core.common.result.AppResult
 
 data class CcSwitchUiState(
     val isInstalled: Boolean = true,
@@ -721,7 +722,7 @@ EOF
                             RuntimeRequirement(RuntimeName.NODE),
                             "cc-switch",
                         )
-                        if (depRes is top.wkbin.taixu.core.common.result.AppResult.Failure) {
+                        if (depRes is AppResult.Failure) {
                             log("[!] 依赖管理器未命中预置包，降级使用 apt-get 安装 nodejs & npm (请耐心等待)...")
                             val aptRes = linuxRuntime.execute(
                                 ShellCommand(

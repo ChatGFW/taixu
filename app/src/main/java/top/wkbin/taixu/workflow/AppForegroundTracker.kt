@@ -2,6 +2,7 @@ package top.wkbin.taixu.workflow
 
 import android.app.Activity
 import android.app.Application
+import android.os.Bundle
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,10 +33,10 @@ class AppForegroundTracker() {
                     if (startedActivities == 0) _inForeground.value = false
                 }
 
-                override fun onActivityCreated(activity: Activity, savedInstanceState: android.os.Bundle?) {}
+                override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
                 override fun onActivityResumed(activity: Activity) {}
                 override fun onActivityPaused(activity: Activity) {}
-                override fun onActivitySaveInstanceState(activity: Activity, outState: android.os.Bundle) {}
+                override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
                 override fun onActivityDestroyed(activity: Activity) {}
             },
         )

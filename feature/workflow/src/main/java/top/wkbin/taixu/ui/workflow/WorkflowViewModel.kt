@@ -38,6 +38,7 @@ import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.runtime.gui.WorkflowGuiHudBridge
 import top.wkbin.taixu.ui.workflow.hud.WorkflowHudService
 import java.io.File
+import top.wkbin.taixu.core.model.workflow.WorkflowLayout
 
 data class DiscoveredApk(
     val file: File,
@@ -305,7 +306,7 @@ class WorkflowViewModel(
 
     fun updateNode(node: WorkflowNode) = mutate(selectedNodeId = node.id) { WorkflowGraphEditor.updateNode(it, node) }
 
-    fun autoLayout() = mutate { top.wkbin.taixu.core.model.workflow.WorkflowLayout.arrange(it) }
+    fun autoLayout() = mutate { WorkflowLayout.arrange(it) }
 
     fun moveNode(nodeId: String, x: Float, y: Float) = mutate(selectedNodeId = nodeId) { definition ->
         val node = definition.nodes.firstOrNull { it.id == nodeId } ?: return@mutate definition

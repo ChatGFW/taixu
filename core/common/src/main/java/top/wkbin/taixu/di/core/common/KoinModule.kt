@@ -4,6 +4,7 @@ import org.koin.dsl.module
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.common.logging.CrashReporter
 import top.wkbin.taixu.core.common.navigation.GlobalNavigationBus
+import top.wkbin.taixu.core.common.translation.TranslationManager
 
 /** Dependency registrations owned by the core:common module. */
 val coreCommonModule = module {
@@ -13,7 +14,7 @@ val coreCommonModule = module {
 
     single<GlobalNavigationBus> { GlobalNavigationBus() }
 
-    single<top.wkbin.taixu.core.common.translation.TranslationManager> {
-        top.wkbin.taixu.core.common.translation.TranslationManager(context = get(), appLogger = get())
+    single<TranslationManager> {
+        TranslationManager(context = get(), appLogger = get())
     }
 }

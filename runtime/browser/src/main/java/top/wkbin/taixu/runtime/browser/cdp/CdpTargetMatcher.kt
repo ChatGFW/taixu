@@ -2,6 +2,7 @@ package top.wkbin.taixu.runtime.browser.cdp
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -93,7 +94,7 @@ class CdpTargetMatcher(
         }
         val session = CdpSession(ws, scope)
         session.start(object : CdpSession.EventListener {
-            override suspend fun onEvent(method: String, params: kotlinx.serialization.json.JsonObject, sessionId: String?) = Unit
+            override suspend fun onEvent(method: String, params: JsonObject, sessionId: String?) = Unit
             override suspend fun onClosed() = Unit
         })
         try {
@@ -105,7 +106,7 @@ class CdpTargetMatcher(
                 },
                 timeoutMs = 3_000,
             )
-            (resp["result"] as? kotlinx.serialization.json.JsonObject)
+            (resp["result"] as? JsonObject)
                 ?.get("result")?.jsonObject
                 ?.get("value")?.jsonPrimitive?.contentOrNull
         } finally {

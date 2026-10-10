@@ -8,8 +8,12 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.CancellationException
 import java.io.File
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class ProcessShellExecutor(
@@ -69,7 +73,7 @@ class ProcessShellExecutor(
                 stderr = drained?.get(1).orEmpty(),
                 durationMs = System.currentTimeMillis() - startedAt,
             )
-        } catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
+        } catch (timeout: TimeoutCancellationException) {
             process.destroyForcibly()
             // 等进程树真正消亡：PRoot 被强杀后，被 ptrace 的 npm/node 由内核
             // 异步清除，若立刻开始回滚删除目录，可能撞上仍在写入的残留进程。
@@ -102,7 +106,7 @@ class ProcessShellExecutor(
                 },
                 durationMs = System.currentTimeMillis() - startedAt,
             )
-        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+        } catch (cancellation: CancellationException) {
             // 用户主动取消编译：强杀 PRoot 进程树，避免 Gradle 后台继续跑
             process.destroyForcibly()
             throw cancellation
@@ -117,7 +121,7 @@ class ProcessShellExecutor(
      * 打破阻塞中的 `read()`（InterruptedIOException，视为 EOF 兜底）。
      */
     private fun readFully(
-        stream: java.io.InputStream,
+        stream: InputStream,
         onOutput: ((String) -> Unit)? = null,
     ): String = try {
         stream.use { input ->
@@ -142,7 +146,7 @@ class ProcessShellExecutor(
                     try {
                         callback(chunk)
                         consecutiveCallbackFailures = 0
-                    } catch (cancellation: kotlinx.coroutines.CancellationException) {
+                    } catch (cancellation: CancellationException) {
                         throw cancellation
                     } catch (t: Throwable) {
                         consecutiveCallbackFailures++
@@ -165,9 +169,9 @@ class ProcessShellExecutor(
                 }
             }
         }
-    } catch (cancellation: kotlinx.coroutines.CancellationException) {
+    } catch (cancellation: CancellationException) {
         throw cancellation
-    } catch (io: java.io.IOException) {
+    } catch (io: IOException) {
         // Timeout teardown closes the process streams from this thread while a
         // reader is blocked in read(); Android surfaces that as
         // InterruptedIOException. Treat it as EOF: the timeout already produced

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
+import androidx.room.PrimaryKey
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.Dispatchers
@@ -16,13 +17,14 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.model.BuiltinMcpPresets
+import top.wkbin.taixu.core.model.McpAuthMode
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.core.security.SecretManager
 
 @Entity(tableName = "mcp_servers")
 data class McpServerEntity(
-    @androidx.room.PrimaryKey val id: String,
+    @PrimaryKey val id: String,
     val name: String,
     val description: String,
     val transportType: String,
@@ -158,7 +160,7 @@ private fun McpServerEntity.toModel(json: Json, secretManager: SecretManager): M
         ?.let { plaintext -> runCatching { json.decodeFromString<Map<String, String>>(plaintext) }.getOrDefault(emptyMap()) }
         .orEmpty(),
     serverUrl = serverUrl,
-    authMode = runCatching { top.wkbin.taixu.core.model.McpAuthMode.valueOf(authMode) }.getOrDefault(top.wkbin.taixu.core.model.McpAuthMode.NONE),
+    authMode = runCatching { McpAuthMode.valueOf(authMode) }.getOrDefault(McpAuthMode.NONE),
     oauthClientId = oauthClientId,
     oauthAuthorizationEndpoint = oauthAuthorizationEndpoint,
     oauthTokenEndpoint = oauthTokenEndpoint,

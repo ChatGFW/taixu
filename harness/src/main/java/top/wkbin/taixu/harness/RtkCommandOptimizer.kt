@@ -1,5 +1,7 @@
 package top.wkbin.taixu.harness
 
+import top.wkbin.taixu.core.common.shell.ShellQuote
+
 /**
  * Prepares safe, foreground Agent commands for RTK without changing terminal,
  * MCP, process, or file-tool behaviour. RTK itself decides whether a supported
@@ -110,7 +112,7 @@ internal object RtkCommandOptimizer {
     }
 
     private fun wrapWithFallback(command: String): String {
-        val quotedCommand = shellQuote(command)
+        val quotedCommand = ShellQuote.of(command)
         return """
             if [ -x "$RTK_BINARY" ]; then
                 _taixu_rtk_rewritten="${'$'}("$RTK_BINARY" rewrite $quotedCommand 2>/dev/null)"
@@ -129,6 +131,4 @@ internal object RtkCommandOptimizer {
             fi
         """.trimIndent()
     }
-
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
 }

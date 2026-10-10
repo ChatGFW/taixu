@@ -66,6 +66,7 @@ import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.StatusBadge
+import top.wkbin.taixu.core.model.CcSwitchDaemonStatus
 
 /**
  * 太墟 · CC-Switch 智能体中枢主界面
@@ -495,7 +496,7 @@ private fun DaemonServiceCard(
 }
 
 @Composable
-private fun TokenUsageCard(daemon: top.wkbin.taixu.core.model.CcSwitchDaemonStatus) {
+private fun TokenUsageCard(daemon: CcSwitchDaemonStatus) {
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,

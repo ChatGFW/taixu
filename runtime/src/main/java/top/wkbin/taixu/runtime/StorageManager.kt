@@ -1,6 +1,7 @@
 package top.wkbin.taixu.runtime
 
 import android.content.Context
+import android.os.Process
 import android.os.StatFs
 import android.system.Os
 import android.system.OsConstants
@@ -13,6 +14,7 @@ import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.attribute.FileTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -87,7 +89,7 @@ class StorageManager(
     ) {
         val id: String get() = "$category:$root"
     }
-    private data class Target(val path: Path, val size: Long, val modified: java.nio.file.attribute.FileTime, val key: Any?)
+    private data class Target(val path: Path, val size: Long, val modified: FileTime, val key: Any?)
     private data class Plan(val rule: Rule, val targets: List<Target>)
     private val mutex = Mutex()
     private var plans: Map<String, Plan> = emptyMap()
@@ -122,7 +124,7 @@ class StorageManager(
             val stat = runCatching { Os.lstat(path.toString()) }.getOrNull() ?: return false
             val excluded = ProotMountLayout.isRestrictedPlaceholder(
                 path, mountCandidates, OsConstants.S_ISDIR(stat.st_mode), stat.st_mode and 0xFFF,
-                stat.st_uid, android.os.Process.myUid(),
+                stat.st_uid, Process.myUid(),
             )
             if (excluded) excludedMountPoints.add(path)
             return excluded
@@ -296,10 +298,10 @@ class StorageManager(
             val stat = Os.lstat(path.toString())
             append("\n权限：").append(Integer.toOctalString(stat.st_mode and 0xFFF))
             append(" · UID：").append(stat.st_uid).append(" · GID：").append(stat.st_gid)
-            append(" · 应用 UID：").append(android.os.Process.myUid())
+            append(" · 应用 UID：").append(Process.myUid())
             if (OsConstants.S_ISLNK(stat.st_mode)) {
                 append("\n链接目标：").append(Os.readlink(path.toString()))
-            } else if (OsConstants.S_ISDIR(stat.st_mode) && stat.st_uid == android.os.Process.myUid()) {
+            } else if (OsConstants.S_ISDIR(stat.st_mode) && stat.st_uid == Process.myUid()) {
                 val needed = OsConstants.S_IRUSR or OsConstants.S_IXUSR
                 if (stat.st_mode and needed != needed) {
                     append("\n该目录的所有者权限缺少读取或进入权限；与共享存储授权不同。")

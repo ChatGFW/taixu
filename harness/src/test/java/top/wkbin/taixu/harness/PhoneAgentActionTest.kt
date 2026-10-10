@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 class PhoneAgentActionTest {
     @Test
@@ -74,7 +75,7 @@ class PhoneAgentActionTest {
             PhoneAgentAction.Note("订单已提交"),
             parsePhoneAgentAction("""<answer>do(action="Note", message="订单已提交")</answer>"""),
         )
-        assertTrue(phoneAgentSystemPrompt(java.time.LocalDate.of(2026, 10, 9)).contains("do(action=\"Launch\""))
+        assertTrue(phoneAgentSystemPrompt(LocalDate.of(2026, 10, 9)).contains("do(action=\"Launch\""))
     }
 
     @Test

@@ -22,17 +22,21 @@ import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.core.database.HarnessUsageEntity
 import top.wkbin.taixu.harness.ChatUsage
 import top.wkbin.taixu.harness.UserMessage
+import top.wkbin.taixu.core.database.DailyCountRow
+import top.wkbin.taixu.core.database.UsageAggregateRow
+import top.wkbin.taixu.harness.events.HarnessEvent
+import top.wkbin.taixu.harness.events.HarnessEventBus
 
 class OperationCoordinatorTest {
 
     private lateinit var repository: FakeRuntimeRepository
-    private lateinit var eventBus: top.wkbin.taixu.harness.events.HarnessEventBus
+    private lateinit var eventBus: HarnessEventBus
     private lateinit var coordinator: OperationCoordinator
 
     @Before
     fun setUp() {
         repository = FakeRuntimeRepository()
-        eventBus = top.wkbin.taixu.harness.events.HarnessEventBus()
+        eventBus = HarnessEventBus()
         coordinator = OperationCoordinator(repository, Json, eventBus)
     }
 
@@ -175,7 +179,7 @@ class OperationCoordinatorTest {
 
     @Test
     fun `operation lifecycle emits structured events`() = runBlocking {
-        val events = mutableListOf<top.wkbin.taixu.harness.events.HarnessEvent>()
+        val events = mutableListOf<HarnessEvent>()
         val job = GlobalScope.launch(Dispatchers.Unconfined) {
             eventBus.events.collect { events += it }
         }
@@ -190,7 +194,7 @@ class OperationCoordinatorTest {
             assertTrue(kinds.contains("ProviderRoundStarted"))
             assertTrue(kinds.contains("ProviderRoundSettled"))
             assertTrue(kinds.contains("OperationFinished"))
-            val finished = events.filterIsInstance<top.wkbin.taixu.harness.events.HarnessEvent.OperationFinished>().single()
+            val finished = events.filterIsInstance<HarnessEvent.OperationFinished>().single()
             assertEquals("completed", finished.outcome)
             assertEquals("s8", finished.sessionId)
             assertEquals(operationId, finished.operationId)
@@ -240,10 +244,10 @@ class OperationCoordinatorTest {
         // 用量聚合（SQL 层）：生产实现走 json_extract + GROUP BY 以避免 OOM。
         // 本 Fake 不模拟聚合语义，返回空列表即可——本测试不涉及用量统计。
         override suspend fun aggregateUsageInRange(start: Long?, end: Long?) =
-            emptyList<top.wkbin.taixu.core.database.UsageAggregateRow>()
+            emptyList<UsageAggregateRow>()
 
         override suspend fun aggregateDailyCounts(start: Long?, end: Long?, tzOffsetMs: Long) =
-            emptyList<top.wkbin.taixu.core.database.DailyCountRow>()
+            emptyList<DailyCountRow>()
         override suspend fun branch(sessionId: String, leafId: String?): List<HarnessEntryEntity> {
             if (leafId == null) return emptyList()
             val byId = entryList.associateBy { it.id }

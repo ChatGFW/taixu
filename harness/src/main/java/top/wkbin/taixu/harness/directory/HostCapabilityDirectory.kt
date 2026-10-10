@@ -8,6 +8,8 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import top.wkbin.taixu.harness.ApiFunctionDefinition
 import top.wkbin.taixu.harness.ApiToolDefinition
+import kotlinx.serialization.json.Json as SerializationJson
+import kotlinx.serialization.json.JsonArray
 
 /**
  * 宿主能力目录 —— host 工具 direct / deferred 拆分与动作分类的唯一事实源。
@@ -32,7 +34,7 @@ object HostCapabilityDirectory {
     const val SERVER_ID = "host"
 
     /** 必须是本 object 的首个属性：PARAM_POOL 等后续初始化器会经由 jsonObj() 读到它。 */
-    private val Json = kotlinx.serialization.json.Json
+    private val Json = SerializationJson
 
     /** 保留在 provider 工具面的高频动作。 */
     val DIRECT_ACTIONS: List<String> = listOf(
@@ -170,7 +172,7 @@ object HostCapabilityDirectory {
                     put("type", "string")
                     put(
                         "enum",
-                        kotlinx.serialization.json.JsonArray(
+                        JsonArray(
                             (DIRECT_ACTIONS + DEFERRED_ACTIONS.map { it.name }).map { JsonPrimitive(it) },
                         ),
                     )
@@ -178,7 +180,7 @@ object HostCapabilityDirectory {
             )
             PARAM_POOL.forEach { (key, schema) -> put(key, schema) }
         }
-        put("required", kotlinx.serialization.json.JsonArray(listOf(JsonPrimitive("action"))))
+        put("required", JsonArray(listOf(JsonPrimitive("action"))))
     }
 
     /** use_capability list 中本域的摘要行。 */
@@ -209,7 +211,7 @@ object HostCapabilityDirectory {
                 deferred.params.forEach { key -> PARAM_POOL[key]?.let { put(key, it) } }
             }
             if (deferred.required.isNotEmpty()) {
-                put("required", kotlinx.serialization.json.JsonArray(deferred.required.map { JsonPrimitive(it) }))
+                put("required", JsonArray(deferred.required.map { JsonPrimitive(it) }))
             }
         }
     }

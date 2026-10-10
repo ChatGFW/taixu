@@ -20,6 +20,13 @@ import top.wkbin.taixu.harness.operation.OperationCoordinator
 import top.wkbin.taixu.harness.prompt.PromptAssetLoader
 import top.wkbin.taixu.harness.session.SessionTreeStore
 import top.wkbin.taixu.harness.R
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import top.wkbin.taixu.harness.ApiToolCallSpec
+import top.wkbin.taixu.harness.ChatResult
+import top.wkbin.taixu.harness.ModelConfig
+import top.wkbin.taixu.harness.UserMessage
+import top.wkbin.taixu.harness.session.ApiMessageProjector
 
 data class SubagentLaneResult(
     val success: Boolean,
@@ -57,7 +64,7 @@ class SubagentLaneRunner(
         workspace: String,
         modelId: String? = null,
         modelVariant: String? = null,
-        modelConfig: top.wkbin.taixu.harness.ModelConfig? = null,
+        modelConfig: ModelConfig? = null,
         /**
          * 子任务声明的写租约。非 null 时启用执行期写闸门：空列表 = 只读任务，
          * write/edit/download 在本 Lane 内被强制拦截。
@@ -68,7 +75,7 @@ class SubagentLaneRunner(
          */
         writePaths: List<String>? = null,
     ): SubagentLaneResult {
-        val user = top.wkbin.taixu.harness.UserMessage(UUID.randomUUID().toString(), now(), prompt)
+        val user = UserMessage(UUID.randomUUID().toString(), now(), prompt)
         val operationId = operations.acceptRun(sessionId, user, laneName)
         val toolRoundRunner = SubagentToolRoundRunner(operations, json) { call, session, cwd, operation ->
             toolExecutor().execute(call, session, cwd, allowApprovalRequest = false, operationId = operation)
@@ -204,11 +211,11 @@ class SubagentLaneRunner(
                 pendingApprovals = deferredApprovals.toList(),
                 blockedWrites = blockedWrites.toList(),
             )
-        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+        } catch (cancellation: CancellationException) {
             // 结构化取消（用户停止或编排层超时）必须向上重抛；
             // 否则 lane operation 永远停留在 RUNNING，形成僵尸行。
             // finish 自身是挂起点，需在 NonCancellable 下落盘（与主循环清理链同一模式）。
-            withContext(kotlinx.coroutines.NonCancellable) {
+            withContext(NonCancellable) {
                 operations.finish(sessionId, "aborted", details = "已取消", laneName = laneName)
             }
             throw cancellation
@@ -229,7 +236,7 @@ class SubagentLaneRunner(
      * Lane 历史的 token 预算。子循环没有主循环那套压缩管线，只做"够用就不动、超了才收紧"，
      * 并给系统提示词、工具 schema 与本轮输出留出余量。
      */
-    private suspend fun laneHistoryBudget(model: top.wkbin.taixu.harness.ModelConfig): Int {
+    private suspend fun laneHistoryBudget(model: ModelConfig): Int {
         val budget = ContextWindowPolicy.clampedBudget(
             model.contextTokens,
             runCatching { settingsDataStore.contextBudgetTokens.first() }.getOrDefault(DEFAULT_CONTEXT_BUDGET_TOKENS),
@@ -243,7 +250,7 @@ class SubagentLaneRunner(
         sessionId: String,
         laneName: String,
         forceFinalAnswer: Boolean,
-        model: top.wkbin.taixu.harness.ModelConfig,
+        model: ModelConfig,
         historyBudgetTokens: Int,
     ): List<ApiMessage> {
         val toolCallMode = model.effectiveToolCallMode
@@ -272,15 +279,15 @@ class SubagentLaneRunner(
     }
 
     private suspend fun chatWithRetry(
-        model: top.wkbin.taixu.harness.ModelConfig,
+        model: ModelConfig,
         messages: List<ApiMessage>,
         text: StringBuilder,
-    ): top.wkbin.taixu.harness.ChatResult {
+    ): ChatResult {
         var lastFailure: IOException? = null
         repeat(NETWORK_ATTEMPTS) { attempt ->
             try {
                 return providerClient.chatStream(model, messages, onReasoning = {}) { text.append(it) }
-            } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (failure: IOException) {
                 lastFailure = failure
@@ -370,15 +377,15 @@ internal fun isolatedProviderMessages(
         ""
     }
     add(ApiMessage(role = "system", content = systemPrompt + finalInstruction))
-    val taskStart = messages.indexOfLast { it is top.wkbin.taixu.harness.UserMessage }
+    val taskStart = messages.indexOfLast { it is UserMessage }
         .takeIf { it >= 0 } ?: messages.size
     val task = budgetedLaneMessages(messages.drop(taskStart), historyBudgetTokens)
-    addAll(top.wkbin.taixu.harness.session.ApiMessageProjector.project(task, toolCallMode, visionEnabled = true))
+    addAll(ApiMessageProjector.project(task, toolCallMode, visionEnabled = true))
 }
 
 internal fun isDirectSubagentConclusion(
     assistantText: String,
-    structuredCalls: List<top.wkbin.taixu.harness.ApiToolCallSpec>,
+    structuredCalls: List<ApiToolCallSpec>,
     textNormalization: TextToolCallCodec.Normalization,
 ): Boolean = assistantText.isNotBlank() && structuredCalls.isEmpty() && !textNormalization.hasMarkers
 

@@ -1,8 +1,10 @@
 package top.wkbin.taixu.runtime.proot
 
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.model.StorageMountBinding
 import top.wkbin.taixu.runtime.EnvironmentResolver
+import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -82,7 +84,7 @@ class ProotCommandBuilder private constructor(
         optDir: File = File(rootfsDir.parentFile, "opt/taixu"),
         tmpDir: File = File(rootfsDir.parentFile, "tmp"),
         attachmentsDir: File = File(rootfsDir.parentFile, "attachments"),
-        config: top.wkbin.taixu.runtime.shell.SessionConfig,
+        config: SessionConfig,
         ptyMarker: String? = null,
         nativePty: Boolean = false,
         mounts: List<StorageMountBinding> = emptyList(),
@@ -163,7 +165,7 @@ class ProotCommandBuilder private constructor(
      */
     private fun wrapInPty(commandLine: String): String =
         "if command -v script >/dev/null 2>&1; then " +
-            "exec script -qfec " + shellQuote(commandLine) + " /dev/null; " +
+            "exec script -qfec " + ShellQuote.of(commandLine) + " /dev/null; " +
             "else $commandLine; fi"
 
     private fun shellCommand(
@@ -172,13 +174,10 @@ class ProotCommandBuilder private constructor(
     ): String {
         val exports = environment.entries.joinToString("; ") { (key, value) ->
             require(ENVIRONMENT_KEY.matches(key)) { "Invalid environment variable name: $key" }
-            "export $key=${shellQuote(value)}"
+            "export $key=${ShellQuote.of(value)}"
         }
         return if (exports.isBlank()) commandLine else "$exports; $commandLine"
     }
-
-    private fun shellQuote(value: String): String =
-        "'${value.replace("'", "'\\\''")}'"
 
     /** Add PRoot QEMU user-mode emulation for a dedicated x86_64 guest only. */
     private fun MutableList<String>.addEmulator(emulatorBinary: File?) {

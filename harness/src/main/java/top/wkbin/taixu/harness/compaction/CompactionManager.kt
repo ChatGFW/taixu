@@ -17,6 +17,7 @@ import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ModelConfig
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.session.SessionTreeStore
+import top.wkbin.taixu.harness.session.SessionContextProjector
 
 /** compress 锚点解析结果。 */
 sealed interface CompressAnchorResult {
@@ -43,7 +44,7 @@ class CompactionManager(
     private val _compactionRevision = MutableStateFlow(0L)
     val compactionRevision: StateFlow<Long> = _compactionRevision.asStateFlow()
 
-    private val contextProjector = top.wkbin.taixu.harness.session.SessionContextProjector(repository, json)
+    private val contextProjector = SessionContextProjector(repository, json)
 
     /** Canonical source entries and recovery diagnostics used by the provider projection. */
     suspend fun inspect(sessionId: String, laneName: String = SessionTreeStore.MAIN_LANE) =
@@ -92,7 +93,7 @@ class CompactionManager(
         val llmSummary = if (model != null && summarizer != null && collapsedForSummary.isNotEmpty()) {
             try {
                 summarizer.generateSummary(model, collapsedForSummary, previousSummaries, summaryContext)
-            } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (throwable: Throwable) {
                 Log.w(

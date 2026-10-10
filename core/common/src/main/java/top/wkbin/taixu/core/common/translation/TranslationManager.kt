@@ -1,6 +1,7 @@
 package top.wkbin.taixu.core.common.translation
 
 import android.content.Context
+import java.util.Locale
 import com.google.android.gms.tasks.Task
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.common.model.RemoteModelManager
@@ -45,8 +46,8 @@ sealed interface TranslationModelStatus {
         val detailText: String
             get() {
                 return if (downloadedBytes > 0L && totalBytes > 0L) {
-                    val dlMb = String.format(java.util.Locale.US, "%.1f", downloadedBytes.toDouble() / (1024 * 1024))
-                    val totMb = String.format(java.util.Locale.US, "%.1f", totalBytes.toDouble() / (1024 * 1024))
+                    val dlMb = String.format(Locale.US, "%.1f", downloadedBytes.toDouble() / (1024 * 1024))
+                    val totMb = String.format(Locale.US, "%.1f", totalBytes.toDouble() / (1024 * 1024))
                     val pct = ((downloadedBytes.toDouble() / totalBytes) * 100).toInt().coerceIn(0, 100)
                     "$dlMb MB / $totMb MB ($pct%)"
                 } else if (progress != null) {

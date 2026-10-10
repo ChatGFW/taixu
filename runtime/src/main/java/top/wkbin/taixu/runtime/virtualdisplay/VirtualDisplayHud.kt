@@ -8,6 +8,7 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.text.TextUtils
+import android.util.DisplayMetrics
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -128,7 +129,7 @@ object VirtualDisplayHud {
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-        val screen = android.util.DisplayMetrics()
+        val screen = DisplayMetrics()
         @Suppress("DEPRECATION")
         wm.defaultDisplay.getRealMetrics(screen)
         val px = { dp: Int -> (dp * screen.density).toInt() }

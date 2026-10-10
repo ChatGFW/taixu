@@ -9,6 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.util.concurrent.Executor
 
 class CheckpointPersistenceTest {
 
@@ -20,7 +21,7 @@ class CheckpointPersistenceTest {
         val store = CheckpointStore()
         store.persistence = FileCheckpointPersistence(root)
         // 落盘改异步后，测试用同步直执行保证确定性（写入即刻可见）
-        store.diskWriteExecutor = java.util.concurrent.Executor { it.run() }
+        store.diskWriteExecutor = Executor { it.run() }
         return store to root
     }
 

@@ -49,6 +49,12 @@ import top.wkbin.taixu.harness.prompt.PrivilegeSectionRenderer
 import top.wkbin.taixu.harness.prompt.PromptAssetLoader
 import top.wkbin.taixu.harness.prompt.PromptRouter
 import top.wkbin.taixu.harness.prompt.SystemPromptBuilder
+import kotlinx.serialization.json.JsonPrimitive
+import top.wkbin.taixu.core.database.AgentMemoryEntity
+import top.wkbin.taixu.core.database.AgentPlanEntity
+import top.wkbin.taixu.core.database.AgentSkillEntity
+import top.wkbin.taixu.harness.HarnessMessage
+import top.wkbin.taixu.harness.session.SessionTreeStore
 
 /**
  * API 上下文组装器全栈集成测试：真实 Room（会话树 + 压缩树）+ 真实 DataStore 偏好 +
@@ -60,7 +66,7 @@ import top.wkbin.taixu.harness.prompt.SystemPromptBuilder
 class ApiContextAssemblerTest {
 
     private lateinit var database: AppDatabase
-    private lateinit var store: top.wkbin.taixu.harness.session.SessionTreeStore
+    private lateinit var store: SessionTreeStore
     private lateinit var assembler: ApiContextAssembler
     private lateinit var compactionManager: CompactionManager
     private lateinit var agentContextRepository: RoomAgentContextRepository
@@ -77,7 +83,7 @@ class ApiContextAssemblerTest {
         val json = Json { ignoreUnknownKeys = true }
         val agentPrefs = AgentPreferences(SettingsDataStore(context, SecretManager()))
 
-        store = top.wkbin.taixu.harness.session.SessionTreeStore(runtimeRepo, json, logger)
+        store = SessionTreeStore(runtimeRepo, json, logger)
         compactionManager = CompactionManager(runtimeRepo, json, store)
         agentContextRepository = RoomAgentContextRepository(database.agentContextDao())
 
@@ -121,7 +127,7 @@ class ApiContextAssemblerTest {
         visionEnabled = vision,
     )
 
-    private suspend fun push(sessionId: String, vararg messages: top.wkbin.taixu.harness.HarnessMessage) {
+    private suspend fun push(sessionId: String, vararg messages: HarnessMessage) {
         messages.forEach { store.append(sessionId, it) }
     }
 
@@ -311,7 +317,7 @@ class ApiContextAssemblerTest {
             id = "call-mcp",
             createdAt = 2L,
             tool = HarnessTool.MCP,
-            args = buildJsonObject { put("query", kotlinx.serialization.json.JsonPrimitive("Kotlin coroutines")) },
+            args = buildJsonObject { put("query", JsonPrimitive("Kotlin coroutines")) },
             rawToolName = "mcp__mcp_websearch__search",
         )
         val mcpResult = ToolResult(
@@ -334,7 +340,7 @@ class ApiContextAssemblerTest {
 
     private suspend fun saveProjectMemory(sessionId: String, keyword: String) {
         agentContextRepository.saveMemory(
-            top.wkbin.taixu.core.database.AgentMemoryEntity(
+            AgentMemoryEntity(
                 id = "mem-$sessionId-$keyword",
                 scope = "project",
                 ownerId = "/ws",
@@ -389,7 +395,7 @@ class ApiContextAssemblerTest {
 
     private suspend fun saveActivePlan(sessionId: String, goal: String, stepsJson: String) {
         agentContextRepository.savePlan(
-            top.wkbin.taixu.core.database.AgentPlanEntity(
+            AgentPlanEntity(
                 sessionId = sessionId,
                 goal = goal,
                 stepsJson = stepsJson,
@@ -496,7 +502,7 @@ class ApiContextAssemblerTest {
     fun `skill mentioned once stays injected for the session`() = runBlocking {
         // 累计提及语义：u1 提及技能，u2 未提及——技能章节仍应常驻本会话 system prompt
         database.agentSkillDao().upsert(
-            top.wkbin.taixu.core.database.AgentSkillEntity(
+            AgentSkillEntity(
                 id = "skill-reviewer", name = "reviewer", description = "审查",
                 systemPrompt = "REVIEWER_MARKER_PROMPT 专项审查规则", triggerCommand = "/reviewer",
                 iconName = "", isEnabled = true, isBuiltin = false, isImmutable = false,

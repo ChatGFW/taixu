@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.wkbin.taixu.core.model.SubagentTaskSpec
+import top.wkbin.taixu.harness.subagent.SubagentTermination
 
 class SubagentBackgroundTextTest {
     @Test
@@ -39,7 +40,7 @@ class SubagentBackgroundTextTest {
             isSuccess = false,
             summary = "超时",
             toolCallCount = 2,
-            termination = top.wkbin.taixu.harness.subagent.SubagentTermination.TIMEOUT,
+            termination = SubagentTermination.TIMEOUT,
         )
 
         val rendered = renderSummaryMarkdown(listOf(outcome))

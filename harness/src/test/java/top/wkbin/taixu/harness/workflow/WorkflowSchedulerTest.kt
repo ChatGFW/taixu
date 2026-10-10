@@ -18,6 +18,9 @@ import top.wkbin.taixu.core.model.workflow.WorkflowRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeContext
 import top.wkbin.taixu.core.model.workflow.WorkflowValidator
 import top.wkbin.taixu.core.model.workflow.previousOutput
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeout
 
 class WorkflowSchedulerTest {
     @Test
@@ -25,7 +28,7 @@ class WorkflowSchedulerTest {
         val broker = WorkflowApprovalBroker()
         val scheduler = WorkflowScheduler(emptySet(), broker)
         // Unconfined executes validation and completion before execute returns a handle.
-        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined)
+        val scope = CoroutineScope(Dispatchers.Unconfined)
         val handle = scheduler.execute(
             definition(nodes = listOf(node("a"), node("b")), edges = listOf(edge("a", "b"), edge("b", "a"))),
             emptyMap(), "/workspace/test", scope,
@@ -150,7 +153,7 @@ class WorkflowSchedulerTest {
         val scheduler = WorkflowScheduler(setOf(fakeExecutor { _, _ -> delay(1000); NodeExecutionOutput(NodeRunStatus.SUCCESS) }), WorkflowApprovalBroker())
         val handle = scheduler.execute(definition(listOf(node("a"))), emptyMap(), "/workspace/test", this)
         handle.cancel()
-        val result = kotlinx.coroutines.withTimeout(2000) { handle.state.first { it.status in TERMINAL } }
+        val result = withTimeout(2000) { handle.state.first { it.status in TERMINAL } }
         assertEquals(WorkflowRunStatus.CANCELLED, result.status)
     }
 

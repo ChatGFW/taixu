@@ -25,6 +25,12 @@ import top.wkbin.taixu.harness.PendingMessage
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.queue.PromptQueue
 import top.wkbin.taixu.harness.queue.PromptQueueManager
+import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
+import top.wkbin.taixu.core.database.HarnessEntryEntity
+import top.wkbin.taixu.core.database.HarnessRuntimeRepository
+import top.wkbin.taixu.harness.HarnessMessage
+import top.wkbin.taixu.harness.session.SessionTreeStore
 
 /**
  * Compaction 与持久化队列的集成测试（真实 Room）：
@@ -36,8 +42,8 @@ import top.wkbin.taixu.harness.queue.PromptQueueManager
 class HarnessCompactionAndQueueIntegrationTest {
 
     private lateinit var database: AppDatabase
-    private lateinit var repository: top.wkbin.taixu.core.database.HarnessRuntimeRepository
-    private lateinit var store: top.wkbin.taixu.harness.session.SessionTreeStore
+    private lateinit var repository: HarnessRuntimeRepository
+    private lateinit var store: SessionTreeStore
     private lateinit var compaction: CompactionManager
     private lateinit var queues: PromptQueueManager
 
@@ -48,10 +54,10 @@ class HarnessCompactionAndQueueIntegrationTest {
             .allowMainThreadQueries()
             .build()
         repository = RoomHarnessRuntimeRepository(database.harnessRuntimeDao())
-        store = top.wkbin.taixu.harness.session.SessionTreeStore(
+        store = SessionTreeStore(
             repository,
             Json,
-            top.wkbin.taixu.core.common.logging.AppLogger(context, top.wkbin.taixu.core.common.logging.SensitiveDataRedactor { it }),
+            AppLogger(context, SensitiveDataRedactor { it }),
         )
         compaction = CompactionManager(repository, Json, store)
         queues = PromptQueueManager(repository, Json, store)
@@ -73,7 +79,7 @@ class HarnessCompactionAndQueueIntegrationTest {
         for (index in 0 until 10) {
             repository.appendToLane(
                 sessionId, "main",
-                top.wkbin.taixu.core.database.HarnessEntryEntity(
+                HarnessEntryEntity(
                     id = "m-$index",
                     sessionId = sessionId,
                     parentId = repository.findLane(sessionId, "main")!!.leafId,
@@ -81,7 +87,7 @@ class HarnessCompactionAndQueueIntegrationTest {
                     entryType = "message",
                     customType = if (index % 2 == 0) "user" else "assistant",
                     payloadJson = Json.encodeToString(
-                        top.wkbin.taixu.harness.HarnessMessage.serializer(),
+                        HarnessMessage.serializer(),
                         message(index),
                     ),
                 ),
@@ -119,7 +125,7 @@ class HarnessCompactionAndQueueIntegrationTest {
         for (index in 0 until 8) {
             repository.appendToLane(
                 sessionId, "main",
-                top.wkbin.taixu.core.database.HarnessEntryEntity(
+                HarnessEntryEntity(
                     id = "m-$index",
                     sessionId = sessionId,
                     parentId = repository.findLane(sessionId, "main")!!.leafId,
@@ -127,7 +133,7 @@ class HarnessCompactionAndQueueIntegrationTest {
                     entryType = "message",
                     customType = "user",
                     payloadJson = Json.encodeToString(
-                        top.wkbin.taixu.harness.HarnessMessage.serializer(),
+                        HarnessMessage.serializer(),
                         message(index),
                     ),
                 ),
@@ -140,7 +146,7 @@ class HarnessCompactionAndQueueIntegrationTest {
         for (index in 8 until 10) {
             repository.appendToLane(
                 sessionId, "main",
-                top.wkbin.taixu.core.database.HarnessEntryEntity(
+                HarnessEntryEntity(
                     id = "m-$index",
                     sessionId = sessionId,
                     parentId = repository.findLane(sessionId, "main")!!.leafId,
@@ -148,7 +154,7 @@ class HarnessCompactionAndQueueIntegrationTest {
                     entryType = "message",
                     customType = "assistant",
                     payloadJson = Json.encodeToString(
-                        top.wkbin.taixu.harness.HarnessMessage.serializer(),
+                        HarnessMessage.serializer(),
                         message(index),
                     ),
                 ),
@@ -166,7 +172,7 @@ class HarnessCompactionAndQueueIntegrationTest {
     private suspend fun appendMessageEntry(sessionId: String, id: String, text: String, createdAt: Long) {
         repository.appendToLane(
             sessionId, "main",
-            top.wkbin.taixu.core.database.HarnessEntryEntity(
+            HarnessEntryEntity(
                 id = id,
                 sessionId = sessionId,
                 parentId = repository.findLane(sessionId, "main")!!.leafId,
@@ -174,7 +180,7 @@ class HarnessCompactionAndQueueIntegrationTest {
                 entryType = "message",
                 customType = "user",
                 payloadJson = Json.encodeToString(
-                    top.wkbin.taixu.harness.HarnessMessage.serializer(),
+                    HarnessMessage.serializer(),
                     UserMessage(id = id, createdAt = createdAt, text = text),
                 ),
             ),
@@ -221,7 +227,7 @@ class HarnessCompactionAndQueueIntegrationTest {
             // 分支摘要落在同一窗口同样会被 afterSequence 过滤排除，须一并自愈补回
             repository.appendToLane(
                 sessionId, "main",
-                top.wkbin.taixu.core.database.HarnessEntryEntity(
+                HarnessEntryEntity(
                     id = "bs-late",
                     sessionId = sessionId,
                     parentId = repository.findLane(sessionId, "main")!!.leafId,
@@ -279,7 +285,7 @@ class HarnessCompactionAndQueueIntegrationTest {
         assertEquals(2, repository.listEntries(sessionId).size)
         assertEquals("第二条", repository.findLane(sessionId, "main")!!.leafId?.let { leafId ->
             repository.listEntries(sessionId).first { it.id == leafId }
-                .let { entry -> Json.decodeFromString(top.wkbin.taixu.harness.HarnessMessage.serializer(), entry.payloadJson) }
+                .let { entry -> Json.decodeFromString(HarnessMessage.serializer(), entry.payloadJson) }
                 .let { (it as UserMessage).text }
         })
     }
@@ -318,7 +324,7 @@ class HarnessCompactionAndQueueIntegrationTest {
         assertEquals(listOf("子 lane 消息"), consumed.map { it.text })
         assertEquals("子 lane 消息", repository.findLane(sessionId, "subagent:test:1")!!.leafId?.let { leafId ->
             repository.listEntries(sessionId).first { it.id == leafId }
-                .let { entry -> Json.decodeFromString(top.wkbin.taixu.harness.HarnessMessage.serializer(), entry.payloadJson) }
+                .let { entry -> Json.decodeFromString(HarnessMessage.serializer(), entry.payloadJson) }
                 .let { (it as UserMessage).text }
         })
         // 主 lane 队列不受影响

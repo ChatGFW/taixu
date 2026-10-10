@@ -45,6 +45,11 @@ import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.MarkdownText
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.widget.Toast
+import top.wkbin.taixu.core.model.AppUpdateInfo
+import top.wkbin.taixu.core.model.UpdateCheckState
 
 /**
  * 二级子页 4：关于、版本更新与官方社区
@@ -68,7 +73,7 @@ fun AboutCommunityScreen(
 
     // 版本更新弹窗
     when (val state = updateCheckState) {
-        is top.wkbin.taixu.core.model.UpdateCheckState.Success -> {
+        is UpdateCheckState.Success -> {
             if (state.info.hasUpdate) {
                 UpdateInfoDialog(
                     info = state.info,
@@ -107,7 +112,7 @@ fun AboutCommunityScreen(
                 )
             }
         }
-        is top.wkbin.taixu.core.model.UpdateCheckState.Error -> {
+        is UpdateCheckState.Error -> {
             RuntimeAlertDialog(
                 onDismissRequest = { viewModel.clearUpdateState() },
                 title = {
@@ -169,10 +174,10 @@ fun AboutCommunityScreen(
                         icon = RuntimeIconName.Update,
                         title = "检查新版本",
                         subtitle = "基于 GitHub Releases 自动检测与在线升级",
-                        value = if (updateCheckState is top.wkbin.taixu.core.model.UpdateCheckState.Checking) "检查中…" else "v$currentVersion",
+                        value = if (updateCheckState is UpdateCheckState.Checking) "检查中…" else "v$currentVersion",
                         onClick = {
                             // 检查进行中禁止重复触发
-                            if (updateCheckState !is top.wkbin.taixu.core.model.UpdateCheckState.Checking) {
+                            if (updateCheckState !is UpdateCheckState.Checking) {
                                 viewModel.checkForUpdates(currentVersion)
                             }
                         },
@@ -202,10 +207,10 @@ fun AboutCommunityScreen(
                         subtitle = "重新展示插件中心、工作坊、多会话终端等首次使用引导",
                         onClick = {
                             viewModel.replayFirstUseGuides()
-                            android.widget.Toast.makeText(
+                            Toast.makeText(
                                 context,
                                 "已重置功能引导，下次进入相应页面会重新展示",
-                                android.widget.Toast.LENGTH_SHORT,
+                                Toast.LENGTH_SHORT,
                             ).show()
                         },
                     )
@@ -304,7 +309,7 @@ private fun AboutAppDialog(
 
 @Composable
 private fun UpdateInfoDialog(
-    info: top.wkbin.taixu.core.model.AppUpdateInfo,
+    info: AppUpdateInfo,
     downloadProgress: Float?,
     isDownloading: Boolean,
     onDownload: () -> Unit,
@@ -401,10 +406,10 @@ private fun joinQqGroup(context: Context, groupId: String = "964382207") {
         context.startActivity(intent)
     }.onFailure {
         // 剪贴板兜底
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-        val clip = android.content.ClipData.newPlainText("太墟官方交流群", groupId)
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val clip = ClipData.newPlainText("太墟官方交流群", groupId)
         clipboard?.setPrimaryClip(clip)
-        android.widget.Toast.makeText(context, "已复制 QQ 群号：$groupId，可打开 QQ 搜索加入", android.widget.Toast.LENGTH_LONG).show()
+        Toast.makeText(context, "已复制 QQ 群号：$groupId，可打开 QQ 搜索加入", Toast.LENGTH_LONG).show()
     }
 }
 
@@ -415,10 +420,10 @@ private fun openBrowser(context: Context, url: String) {
         }
         context.startActivity(intent)
     }.onFailure {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-        val clip = android.content.ClipData.newPlainText("URL", url)
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val clip = ClipData.newPlainText("URL", url)
         clipboard?.setPrimaryClip(clip)
-        android.widget.Toast.makeText(context, "已复制链接：$url", android.widget.Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "已复制链接：$url", Toast.LENGTH_SHORT).show()
     }
 }
 

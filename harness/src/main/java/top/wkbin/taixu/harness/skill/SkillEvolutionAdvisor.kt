@@ -25,6 +25,8 @@ import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.projection.SessionMessageProjector
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
 
 /**
  * 技能进化顾问（交互形态借鉴千问/QwenWork 的「对话结束后建议沉淀或修复技能」）。
@@ -54,7 +56,7 @@ class SkillEvolutionAdvisor(
         scope.launch {
             try {
                 analyzeAndEmit(sessId)
-            } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (t: Throwable) {
                 logger.w("SkillEvolution: analyze failed for $sessId", t)
@@ -101,7 +103,7 @@ class SkillEvolutionAdvisor(
         )
         val proposal = parseAdvisorResponse(result.content.orEmpty()) ?: return
         val normalized = normalizeProposal(proposal, skills) ?: return
-        projector.append(sessId, normalized.toMessage(java.util.UUID.randomUUID().toString(), System.currentTimeMillis()))
+        projector.append(sessId, normalized.toMessage(UUID.randomUUID().toString(), System.currentTimeMillis()))
     }
 
     private suspend fun resolveModel(sessId: String): ModelConfig? =

@@ -4,6 +4,9 @@ import android.util.Log
 import android.content.Context
 import android.os.Environment
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -69,8 +72,8 @@ class AppLogger(
         Log.d(TAG, "[$safeTag][$safeSessionId] $safeMessage" + if (stack.isBlank()) "" else "\n$stack")
         ioScope.launch {
             runCatching {
-                val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.US)
-                    .format(java.util.Date())
+                val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+                    .format(Date())
                 append(
                     fileName = AGENT_LOG_FILE,
                     content = "[$timestamp][$safeTag][session:$safeSessionId] $safeMessage" +

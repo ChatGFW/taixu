@@ -19,6 +19,7 @@ import top.wkbin.taixu.harness.events.HarnessEventBus
 import top.wkbin.taixu.harness.operation.OperationCoordinator
 import top.wkbin.taixu.harness.queue.*
 import top.wkbin.taixu.harness.task.AgentStateMachine
+import top.wkbin.taixu.harness.recovery.RecoveryManager
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -108,7 +109,7 @@ class SessionInputPersistenceTest {
         // Process death here: no Job or provider request has been started.
         val freshTasks = AgentStateMachine(RoomAgentTaskRepository(f.db.agentTaskDao()))
         val freshOperations = OperationCoordinator(f.repository, Json, HarnessEventBus())
-        val recovery = top.wkbin.taixu.harness.recovery.RecoveryManager(
+        val recovery = RecoveryManager(
             f.repository, freshOperations, json = Json, eventBus = HarnessEventBus())
         recovery.recoverSession("s")
         val recoverable = freshTasks.recoverable().single()

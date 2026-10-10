@@ -1,5 +1,6 @@
 package top.wkbin.taixu.runtime
 
+import top.wkbin.taixu.core.model.BuiltinPluginBundles
 import top.wkbin.taixu.core.model.DoctorStatus
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.runtime.doctor.EnvironmentDoctor
@@ -45,7 +46,7 @@ class EnvironmentDoctorTest {
             CommandResult(0, "", "", 1)
         runtime.commandResults["node --version 2>/dev/null || /opt/taixu/bin/node --version 2>/dev/null || /usr/bin/node --version 2>/dev/null"] =
             CommandResult(0, "v22.22.3\n", "", 1)
-        top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles
+        BuiltinPluginBundles.bundles
             .firstOrNull { it.id == "android-suite" }
             ?.components?.firstOrNull { it.id == "android-core" }
             ?.checkCommand?.let { cmd ->
@@ -161,7 +162,7 @@ class EnvironmentDoctorTest {
             CommandResult(0, "", "", 1)
         runtime.commandResults["node --version 2>/dev/null || /opt/taixu/bin/node --version 2>/dev/null || /usr/bin/node --version 2>/dev/null"] =
             CommandResult(0, "v22.22.3\n", "", 1)
-        top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles
+        BuiltinPluginBundles.bundles
             .firstOrNull { it.id == "android-suite" }
             ?.components?.firstOrNull { it.id == "android-core" }
             ?.checkCommand?.let { cmd ->
@@ -210,7 +211,7 @@ class EnvironmentDoctorTest {
         runtime.commandResults["node --version 2>/dev/null || /opt/taixu/bin/node --version 2>/dev/null || /usr/bin/node --version 2>/dev/null"] =
             CommandResult(0, "v22.22.3\n", "", 1)
 
-        val androidCoreCheckCmd = top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles
+        val androidCoreCheckCmd = BuiltinPluginBundles.bundles
             .firstOrNull { it.id == "android-suite" }
             ?.components?.firstOrNull { it.id == "android-core" }
             ?.checkCommand
