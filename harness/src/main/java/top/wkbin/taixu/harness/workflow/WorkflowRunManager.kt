@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
+import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.WorkflowRepository
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.core.model.workflow.WorkflowApprovalRequest
@@ -37,14 +38,16 @@ class WorkflowRunManager(
     private val repository: WorkflowRepository,
     private val linuxRuntime: LinuxRuntime,
     private val json: Json,
+    private val logger: AppLogger,
 ) {
     internal constructor(
         scheduler: WorkflowScheduler,
         repository: WorkflowRepository,
         linuxRuntime: LinuxRuntime,
         json: Json,
+        logger: AppLogger,
         scopeOverride: CoroutineScope,
-    ) : this(scheduler, repository, linuxRuntime, json) {
+    ) : this(scheduler, repository, linuxRuntime, json, logger) {
         runScopeOverride = scopeOverride
     }
 
@@ -53,6 +56,8 @@ class WorkflowRunManager(
     private val runScope: CoroutineScope get() = runScopeOverride ?: defaultRunScope
 
     private val handles = ConcurrentHashMap<String, WorkflowRunHandle>()
+    private val historyWriter = WorkflowHistoryWriter(repository) { message, error -> logger.e(message, error) }
+    val historyErrors: StateFlow<Map<String, String>> = historyWriter.errors
     private val runningIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     private val _activeRuns = MutableStateFlow<Map<String, WorkflowRuntimeState>>(emptyMap())
@@ -101,9 +106,7 @@ class WorkflowRunManager(
                     finishedAt = System.currentTimeMillis(),
                     error = failure,
                 )
-                runCatching {
-                    repository.saveExecution(failedState, trigger.triggerSource, (trigger as? WorkflowRunTrigger.Schedule)?.scheduleId)
-                }
+                historyWriter.save(failedState, trigger.triggerSource, (trigger as? WorkflowRunTrigger.Schedule)?.scheduleId)
                 return WorkflowStartResult(executionId, failure)
             }
         }
@@ -119,7 +122,7 @@ class WorkflowRunManager(
 
     /** 启动对账：进程死亡遗留的非终态历史补写 CANCELLED，节点状态与日志保留可回看。 */
     suspend fun reconcileInterruptedRuns() {
-        val unfinished = runCatching { repository.findUnfinishedExecutions() }.getOrDefault(emptyList())
+        val unfinished = repository.findUnfinishedExecutions()
         unfinished.forEach { row ->
             val state = runCatching { json.decodeFromString<WorkflowRuntimeState>(row.finalContextJson) }.getOrNull() ?: return@forEach
             if (state.status in TERMINAL) return@forEach
@@ -128,7 +131,7 @@ class WorkflowRunManager(
                 finishedAt = System.currentTimeMillis(),
                 error = "进程曾被系统终止，可重新运行",
             )
-            runCatching { repository.saveExecution(reconciled, row.triggerSource, row.scheduleId) }
+            historyWriter.save(reconciled, row.triggerSource, row.scheduleId)
         }
     }
 
@@ -152,8 +155,7 @@ class WorkflowRunManager(
                 val now = System.currentTimeMillis()
                 // 首帧必写 RUNNING 面包屑；此后按间隔节流；终态必写最终快照
                 if (terminal || lastPersistAt == 0L || now - lastPersistAt >= BREADCRUMB_INTERVAL_MS) {
-                    lastPersistAt = now
-                    runCatching { repository.saveExecution(state, source, scheduleId) }
+                    if (historyWriter.save(state, source, scheduleId)) lastPersistAt = now
                 }
                 terminal
             }
@@ -173,6 +175,7 @@ class WorkflowRunManager(
                 delay(RECLAIM_DELAY_MS)
                 handles.remove(executionId)
                 _activeRuns.update { it - executionId }
+                historyWriter.forget(executionId)
             }
         }
     }

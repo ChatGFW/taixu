@@ -578,9 +578,9 @@ val harnessModule = module {
     single<WorkflowRunManager> {
         WorkflowRunManager(
             scheduler = get(),
-            repository = get(),
-            linuxRuntime = get(),
+            repository = get(), linuxRuntime = get(),
             json = get(),
+            logger = get(),
         )
     }
 

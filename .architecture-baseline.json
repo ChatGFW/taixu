@@ -80,7 +80,7 @@
         "feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkspaceExplorerScreen.kt": 790,
         "feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkspaceImportDialog.kt": 421,
         "feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkspaceScreen.kt": 487,
-        "feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkspaceViewModel.kt": 718,
+        "feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkspaceViewModel.kt": 707,
         "harness/src/main/java/top/wkbin/taixu/di/harness/KoinModule.kt": 600,
         "harness/src/main/java/top/wkbin/taixu/harness/AnthropicApi.kt": 645,
         "harness/src/main/java/top/wkbin/taixu/harness/ApprovalPolicyEngine.kt": 502,

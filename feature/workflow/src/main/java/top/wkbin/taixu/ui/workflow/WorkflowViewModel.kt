@@ -89,9 +89,9 @@ class WorkflowViewModel(
         viewModelScope.launch { runCatching { scheduleRepository.setEnabled(id, enabled) } }
     }
     private val _error = MutableStateFlow<String?>(null)
-    val error = _error.asStateFlow()
+    val error = combine(_error, runManager.historyErrors, ::workflowHistoryError)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     fun clearError() { _error.value = null }
-
     /** 进程级注册表中的全部活跃/近期运行（含后台运行），供「后台运行中」指示与切换。 */
     val allRuns: StateFlow<Map<String, WorkflowRuntimeState>> = runManager.activeRuns
     val running: StateFlow<Boolean> = runManager.running

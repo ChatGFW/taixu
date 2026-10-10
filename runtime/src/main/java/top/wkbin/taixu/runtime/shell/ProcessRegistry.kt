@@ -3,14 +3,12 @@ package top.wkbin.taixu.runtime.shell
 import top.wkbin.taixu.core.model.StorageMountBinding
 import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
-import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -54,22 +52,17 @@ class ProcessRegistryImpl(
     private val prootCommandBuilder: ProotCommandBuilder,
 ) : ProcessRegistry {
     private val mutex = Mutex()
-    private val processes = LinkedHashMap<String, ManagedProcess>()
+    private val processes = ConcurrentHashMap<String, ManagedProcess>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val logsMap = ConcurrentHashMap<String, MutableStateFlow<List<String>>>()
+    private val logs = ProcessLogStore()
 
-    private fun getOrCreateLogFlow(key: String): MutableStateFlow<List<String>> =
-        logsMap.computeIfAbsent(key) { MutableStateFlow(emptyList()) }
-
-    private fun appendLog(key: String, line: String) {
-        val flow = getOrCreateLogFlow(key)
-        val current = flow.value
-        val updated = if (current.size >= 500) {
-            current.drop(current.size - 499) + line
-        } else {
-            current + line
+    init {
+        scope.launch {
+            while (true) {
+                delay(60_000)
+                logs.prune()
+            }
         }
-        flow.value = updated
     }
 
     override suspend fun start(
@@ -99,9 +92,10 @@ class ProcessRegistryImpl(
         )
 
         val logKey = toolId ?: id
-        appendLog(logKey, "[TaiXu] 正在启动服务进程...")
-        if (toolId != null && toolId != id) {
-            appendLog(id, "[TaiXu] 正在启动服务进程...")
+        val logKeys = setOf(logKey, id)
+        logKeys.forEach { key ->
+            logs.retain(key)
+            logs.append(key, "[TaiXu] 正在启动服务进程...")
         }
 
         scope.launch {
@@ -110,18 +104,15 @@ class ProcessRegistryImpl(
                     terminalOutput.text.lineSequence()
                         .filter { it.isNotBlank() }
                         .forEach { line ->
-                            appendLog(logKey, line)
-                            if (toolId != null && toolId != id) {
-                                appendLog(id, line)
-                            }
+                            logKeys.forEach { logs.append(it, line) }
                         }
                 }
             } catch (_: Exception) {
             } finally {
                 val exitNotice = "[TaiXu] 服务进程已停止"
-                appendLog(logKey, exitNotice)
-                if (toolId != null && toolId != id) {
-                    appendLog(id, exitNotice)
+                logKeys.forEach { key ->
+                    logs.append(key, exitNotice)
+                    logs.release(key)
                 }
             }
         }
@@ -153,15 +144,15 @@ class ProcessRegistryImpl(
         dead.size
     }
 
-    override fun list(): List<ManagedProcess> = processes.values.toList()
+    override fun list(): List<ManagedProcess> = processes.values.toList().sortedBy { it.startedAt }
 
     override fun observeLogs(idOrToolId: String): Flow<List<String>> =
-        getOrCreateLogFlow(idOrToolId).asStateFlow()
+        logs.observe(idOrToolId)
 
     override fun getLogs(idOrToolId: String): List<String> =
-        getOrCreateLogFlow(idOrToolId).value
+        logs.get(idOrToolId)
 
     override fun clearLogs(idOrToolId: String) {
-        getOrCreateLogFlow(idOrToolId).value = emptyList()
+        logs.clear(idOrToolId)
     }
 }

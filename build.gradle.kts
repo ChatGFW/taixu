@@ -78,6 +78,8 @@ val architectureModuleDirs = policyModules(architecturePolicyData)
 tasks.register("architectureCheck") {
     group = "verification"
     description = "Policy-driven checks: dependency whitelist, cycles, import bans, size ratchet."
+    // Sync writes the baseline this check reads; order them when both are explicitly requested.
+    mustRunAfter("architectureBaselineSync")
 
     inputs.files(architecturePolicyFile)
     if (architectureBaselineFile.isFile) inputs.files(architectureBaselineFile)

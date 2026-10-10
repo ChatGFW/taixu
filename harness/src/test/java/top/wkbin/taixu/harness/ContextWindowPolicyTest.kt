@@ -356,9 +356,13 @@ class ContextWindowPolicyTest {
 
         // 预算必须高过固定预留（输出 8,192 + 工具 schema 预留）后仍有正的折叠线，
         // 否则只会走最小保留兜底，测不到轮内切割。
-        val budget = 24_000
+        val budget = 28_000
         val limit = ContextWindowPolicy.foldingLimitFor(budget, ratioPercent = 70, systemTokens = 10)
         assertTrue("fixture 预算必须让折叠线为正，limit=$limit", limit > 0)
+        // 引擎至少保留最近两条；fixture 必须容纳它们，才能验证其余轮内消息被折叠。
+        val mandatoryRecentTokens = messages.takeLast(2).filterIsInstance<AssistantText>()
+            .sumOf { ContextWindowPolicy.estimateTokens(it.text) }
+        assertTrue("fixture must fit the mandatory recent messages", limit >= mandatoryRecentTokens)
         val keepFrom = ContextWindowPolicy.computeKeepFromIndex(messages, budget = budget, systemTokens = 10, foldingRatioPercent = 70)
 
         // 旧行为会把整个巨型轮次保留（keepFrom == 2 起点且 kept 超限）；必须在轮内切

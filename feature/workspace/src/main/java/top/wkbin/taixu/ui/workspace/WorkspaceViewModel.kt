@@ -408,15 +408,7 @@ class WorkspaceViewModel(
                 percent = null,
             )
             val result = workspaceManager.importGithubProject(name, directoryPath, projectType, gitUrl, transport) { chunk ->
-                // git 进度用 \r 原地刷新，取 chunk 内最后一个非空片段作为最新状态
-                val latest = chunk.split('\r', '\n').lastOrNull { it.isNotBlank() }?.trim()
-                if (latest != null) {
-                    _githubImportProgress.value = GithubImportProgress(
-                        text = latest,
-                        percent = GIT_PERCENT_REGEX.findAll(latest).lastOrNull()
-                            ?.groupValues?.get(1)?.toIntOrNull()?.coerceIn(0, 100),
-                    )
-                }
+                workspaceImportProgress(chunk)?.let { _githubImportProgress.value = it }
             }
             _message.value = result.errorOrNull()?.message ?: context.getString(R.string.workspace_project_imported)
             _messageIsError.value = result.isFailure
@@ -713,6 +705,3 @@ internal fun computeExplorerPath(
         currentPath
     }
 }
-
-/** 从 git 克隆进度行提取百分比，如 "Receiving objects: 45% (50/110), 1.2 MiB"。 */
-private val GIT_PERCENT_REGEX = Regex("""(\d{1,3})%""")

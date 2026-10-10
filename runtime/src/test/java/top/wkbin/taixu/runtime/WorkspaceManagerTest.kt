@@ -110,6 +110,18 @@ class WorkspaceManagerTest {
     }
 
     @Test
+    fun rejectsRenamingWorkspaceRootThroughRelativeOrAbsolutePaths() = runTest {
+        manager.createProject("safe-proj")
+        manager.writeFile("safe-proj", "keep.txt", "keep")
+        listOf("", ".", "/workspace/safe-proj").forEach { path ->
+            assertFalse(manager.renameItem("safe-proj", path, "moved").isSuccess)
+        }
+        assertFalse(File(workspaceDir, "moved").exists())
+        assertEquals("keep", manager.readFile("safe-proj", "keep.txt").getOrNull())
+        assertFalse(manager.renameItem("safe-proj", "keep.txt", "..").isSuccess)
+    }
+
+    @Test
     fun linksExistingInternalDirectoryWithoutDeletingItsFiles() = runTest {
         val existing = File(pathManager.workspaceDir, "existing-source").apply {
             mkdirs()
