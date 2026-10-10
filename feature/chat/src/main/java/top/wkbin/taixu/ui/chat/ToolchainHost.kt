@@ -22,7 +22,12 @@ import org.koin.compose.viewmodel.koinViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ToolchainHost(visible: Boolean, onDismiss: () -> Unit, onGapChanged: (Boolean) -> Unit) {
-    if (visible) ToolchainSheet(onDismiss, onGapChanged)
+    if (visible) {
+        ToolchainSheet(
+            onDismiss = onDismiss,
+            onReportChanged = { report -> onGapChanged(report.repairable.isNotEmpty()) },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

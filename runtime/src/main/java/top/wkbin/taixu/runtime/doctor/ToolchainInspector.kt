@@ -98,9 +98,10 @@ class ToolchainInspector(
             val version = if (versionCmd == null) {
                 ""
             } else {
+                // 注意：这里必须是 Kotlin 字面量 $，用 \$res 拼接（Kotlin 模板会把 $r 当变量解析）
                 val shellCmd = versionCmd
-                    .replace("{cmd}", "$res")
-                    .replace("{path}", "$res")
+                    .replace("{cmd}", "\$res")
+                    .replace("{path}", "\$res")
                 "if [ -n \"\$res\" ]; then v=\$($shellCmd 2>&1 | head -2 | tr '\\n' ' '); echo \"__TX__${probe.id}__VER__\$v\"; else echo \"__TX__${probe.id}__VER__\"; fi; "
             }
 

@@ -78,7 +78,7 @@ internal fun ToolchainPanel(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 RuntimeIcon(
-                    name = RuntimeIconName.Wrench,
+                    name = RuntimeIconName.Hammer,
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.primary,
                 )

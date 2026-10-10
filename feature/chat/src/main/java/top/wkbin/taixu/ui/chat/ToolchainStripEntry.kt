@@ -18,7 +18,7 @@ internal fun ToolchainStripEntry(
 ) {
     StatusDivider()
     WorkbenchStatusItem(
-        icon = RuntimeIconName.Wrench,
+        icon = RuntimeIconName.Hammer,
         label = if (toolchainHighlight) "工具链 •" else "工具链",
         tint = if (toolchainHighlight) Color(0xFFC62828) else MaterialTheme.colorScheme.onSurfaceVariant,
         highlight = toolchainHighlight,
