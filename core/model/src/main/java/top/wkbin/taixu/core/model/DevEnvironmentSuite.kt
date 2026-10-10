@@ -302,6 +302,12 @@ object BuiltinPluginBundles {
     fun buildBatchUninstallScript(selectedComponentIds: Set<String>, retainedComponentIds: Set<String>): List<String> =
         PluginBundleScripts.uninstallScript(selectedComponentIds, retainedComponentIds)
 
+    /** PRoot 下 apt/dpkg 准备步骤（force-unsafe-io、dpkg 状态修复）。供沙箱工具链补齐复用。 */
+    fun bundlePreparationSteps(): List<String> = PluginBundleScripts.preparationSteps()
+
+    /** 统一的 apt 选项（重试/超时/IPv4）。供沙箱工具链补齐复用，保证与套件安装行为一致。 */
+    fun bundleAptOptions(): String = PluginBundleScripts.aptOptions()
+
     /** 仍装配着、且声明依赖 [componentId] 的组件。这些组件不在 [alsoRemoving] 里时，不能先卸依赖基座。 */
     fun blockingDependents(
         componentId: String,

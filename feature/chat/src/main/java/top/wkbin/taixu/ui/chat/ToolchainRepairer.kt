@@ -1,9 +1,9 @@
 package top.wkbin.taixu.ui.chat
 
-import top.wkbin.taixu.core.model.PluginBundleScripts
+import kotlinx.coroutines.sync.withLock
+import top.wkbin.taixu.core.model.BuiltinPluginBundles
 import top.wkbin.taixu.core.model.RepairStrategy
 import top.wkbin.taixu.core.model.ToolchainReport
-import top.wkbin.taixu.core.tools.ToolManager
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.shell.ShellCommand
 
@@ -18,12 +18,11 @@ import top.wkbin.taixu.runtime.shell.ShellCommand
  *   含 PRoot 的 force-unsafe-io/force-overwrite 准备、dpkg 状态修复、超时/重试选项，
  *   绝不自己删锁、换源、动 setuid；
  * - **逐包安装**：单个包失败不拖累其余包（review 第 5 条「合成一次 install 一个包找不到整批失败」）；
- * - 通过 [ToolManager.runExclusive] 与套件安装共用互斥锁，避免并发动 dpkg（review 第 8 条）；
+ * - 通过 [ToolchainInstallGuard] 进程级互斥闸防重入；与套件安装的时序互斥由 ViewModel 串行编排保证（review 第 8 条）；
  * - 每步实时回调 [onLog]，安装过程界面可見（review 第 6 条）。
  */
 class ToolchainRepairer(
     private val linuxRuntime: LinuxRuntime,
-    private val toolManager: ToolManager,
 ) {
 
     /**
@@ -44,16 +43,17 @@ class ToolchainRepairer(
     suspend fun repair(
         report: ToolchainReport,
         onLog: (String) -> Unit,
-    ): RepairOutcome = toolManager.runExclusive {
+    ): RepairOutcome = ToolchainInstallGuard.mutex.withLock {
         val targets = aptTargets(report)
-        if (targets.isEmpty()) return@runExclusive RepairOutcome(emptyList(), emptyList())
+        if (targets.isEmpty()) return@withLock RepairOutcome(emptyList(), emptyList())
 
         val installed = mutableListOf<String>()
         val failures = mutableListOf<String>()
 
         // 1) 复用开发套件的 PRoot 准备步骤（force-unsafe-io / dpkg 状态修复，不删业务锁之外的任何东西）
-        val aptOpts = PluginBundleScripts.aptOptions()
-        val prep = PluginBundleScripts.preparationSteps()
+        // 经 BuiltinPluginBundles 的 public 委托访问（PluginBundleScripts 是 internal）
+        val aptOpts = BuiltinPluginBundles.bundleAptOptions()
+        val prep = BuiltinPluginBundles.bundlePreparationSteps()
         onLog("==> [工具链补齐] 执行 PRoot 准备步骤（复用开发套件 PluginBundleScripts）")
         prep.forEach { step ->
             val r = linuxRuntime.execute(ShellCommand(commandLine = step, timeoutMs = STEP_TIMEOUT_MS))

@@ -28,7 +28,7 @@ class ToolchainViewModel(
     linuxRuntime: LinuxRuntime,
 ) : ViewModel() {
 
-    private val repairer = ToolchainRepairer(linuxRuntime, toolManager)
+    private val repairer = ToolchainRepairer(linuxRuntime)
 
     private val _report = MutableStateFlow<ToolchainReport?>(null)
     val report: StateFlow<ToolchainReport?> = _report.asStateFlow()
