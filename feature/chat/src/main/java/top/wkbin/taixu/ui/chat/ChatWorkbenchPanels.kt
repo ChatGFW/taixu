@@ -102,8 +102,7 @@ internal fun CollapsibleChatWorkbenchStrip(
     browserHighlight: Boolean = false,
     onOpenRepository: (() -> Unit)? = null,
     repositoryHighlight: Boolean = false,
-    toolchainHighlight: Boolean = false,
-    onOpenToolchain: () -> Unit,
+    toolchainHighlight: Boolean = false, onOpenToolchain: () -> Unit,
 ) {
     val roundCount = runtimeEvents.count { it is HarnessEvent.ProviderRoundStarted }
     val activeModelName = activeModel?.let { entity ->
@@ -144,7 +143,6 @@ internal fun CollapsibleChatWorkbenchStrip(
             )
 
             StatusDivider()
-
             // 2. 审批模式/权重项
             WorkbenchStatusItem(
                 icon = RuntimeIconName.Shield,
@@ -154,7 +152,6 @@ internal fun CollapsibleChatWorkbenchStrip(
             )
 
             StatusDivider()
-
             // 2b. 运行意图项（构建 / 规划），与审批模式正交
             WorkbenchStatusItem(
                 icon = runModeIcon(runMode),
@@ -164,7 +161,6 @@ internal fun CollapsibleChatWorkbenchStrip(
             )
 
             StatusDivider()
-
             // 3. 分支状态项
             WorkbenchStatusItem(
                 icon = RuntimeIconName.Hub,
@@ -174,7 +170,6 @@ internal fun CollapsibleChatWorkbenchStrip(
             )
 
             StatusDivider()
-
             // 4. 运行时/轮次状态项
             WorkbenchStatusItem(
                 icon = RuntimeIconName.Logs,
@@ -211,16 +206,7 @@ internal fun CollapsibleChatWorkbenchStrip(
                     onClick = onOpenBrowser,
                 )
             }
-
-            // 7. 沙箱工具链入口：沙箱缺工具/版本落后时高亮红点，点开可全量检测并一键补齐
-            StatusDivider()
-            WorkbenchStatusItem(
-                icon = RuntimeIconName.Wrench,
-                label = if (toolchainHighlight) "工具链 •" else "工具链",
-                tint = if (toolchainHighlight) Color(0xFFC62828) else MaterialTheme.colorScheme.onSurfaceVariant,
-                highlight = toolchainHighlight,
-                onClick = onOpenToolchain,
-            )
+            ToolchainStripEntry(toolchainHighlight = toolchainHighlight, onOpenToolchain = onOpenToolchain)
         }
     }
 }

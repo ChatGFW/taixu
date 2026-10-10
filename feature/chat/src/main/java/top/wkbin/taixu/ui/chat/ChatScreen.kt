@@ -378,10 +378,7 @@ fun ChatScreen(
     // onOpenBrowser 非空时工具条末尾追加"浏览器"入口（agent 有新动态时高亮）。
     // onOpenRepository 非空即追加"仓库"入口（Git 分支管理）；未绑定项目时点击给提示而非隐藏。
     val noProjectHint = stringResource(R.string.chat_repository_no_project)
-    // 沙箱工具链面板：全量探针 + 一键补齐（缺失/落后项走国内镜像补装）
-    var showToolchainPanel by remember { mutableStateOf(false) }
-    // 检测到缺失或版本落后时，顶部「工具链」入口显示红点提示
-    var toolchainHighlight by remember { mutableStateOf(false) }
+    var toolchainGap by remember { mutableStateOf(false) }; var showToolchainPanel by remember { mutableStateOf(false) }
 
     val chatTopBar: @Composable (onOpenBrowser: (() -> Unit)?, browserHighlight: Boolean) -> Unit =
         { onOpenBrowser, browserHighlight ->
@@ -415,8 +412,7 @@ fun ChatScreen(
                     }
                 },
                 repositoryHighlight = repositoryHighlight,
-                toolchainHighlight = toolchainHighlight,
-                onOpenToolchain = { showToolchainPanel = true },
+                toolchainHighlight = toolchainGap, onOpenToolchain = { showToolchainPanel = true },
             )
         }
 
@@ -462,17 +458,13 @@ fun ChatScreen(
                     onOpenFile = onOpenFile,
                     onEditMessage = { editTargetMessageId = it.id },
                     onDeleteMessage = viewModel::deleteMessage,
-                    onRewindMessage = viewModel::rewindToMessage,
-                    error = error,
+                    onRewindMessage = viewModel::rewindToMessage, error = error,
                     onClearError = viewModel::clearError,
-                    matchingCommands = matchingCommands,
-                    matchingMentions = matchingMentions,
-                    attachedMentions = attachedMentions,
-                    knownMentionNames = knownMentionNames,
+                    matchingCommands = matchingCommands, matchingMentions = matchingMentions,
+                    attachedMentions = attachedMentions, knownMentionNames = knownMentionNames,
                     queuedPrompts = queuedPrompts,
                     onEditQueuedPrompt = viewModel::editQueuedPrompt,
-                    onRemoveQueuedPrompt = viewModel::removeQueuedPrompt,
-                    onConvertToSteer = viewModel::convertQueuedPromptToSteer,
+                    onRemoveQueuedPrompt = viewModel::removeQueuedPrompt, onConvertToSteer = viewModel::convertQueuedPromptToSteer,
                     sendMode = sendMode,
                     input = input,
                     onInputChanged = viewModel::onInputChanged,
@@ -841,14 +833,7 @@ fun ChatScreen(
         )
     }
 
-    // 沙箱工具链面板：全量探针 + 一键补齐。关闭时顺带刷新红点提示。
-    if (showToolchainPanel) {
-        ToolchainSheet(
-            onDismiss = { showToolchainPanel = false },
-            onReportChanged = { report -> toolchainHighlight = report.repairable.isNotEmpty() },
-        )
-    }
-
+    ToolchainHost(showToolchainPanel, { showToolchainPanel = false }) { toolchainGap = it }
     if (showRuntimeTimeline) {
         RuntimeTimelineSheet(
             events = runtimeEvents,

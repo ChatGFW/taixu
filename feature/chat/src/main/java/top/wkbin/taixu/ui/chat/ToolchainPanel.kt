@@ -16,8 +16,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,10 +24,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,7 +32,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import top.wkbin.taixu.core.model.SandboxToolchainCatalog
 import top.wkbin.taixu.core.model.ToolchainGroup
 import top.wkbin.taixu.core.model.ToolchainProbe
 import top.wkbin.taixu.core.model.ToolchainProbeResult
@@ -45,7 +39,6 @@ import top.wkbin.taixu.core.model.ToolchainReport
 import top.wkbin.taixu.core.model.ToolchainStatus
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * 🧰 沙箱工具链面板
@@ -298,32 +291,6 @@ private fun ToolchainRow(item: ToolchainProbeResult) {
                     color = dotColor.copy(alpha = 0.85f),
                 )
             }
-        }
-    }
-}
-
-/**
- * 沙箱工具链 BottomSheet 宿主。
- *
- * 通过 Koin 取得 [ToolchainViewModel]；打开面板时静默探一次，
- * 让顶部「工具链」入口在有缺口时立即显示红点。
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun ToolchainSheet(
-    onDismiss: () -> Unit,
-    onReportChanged: (ToolchainReport) -> Unit,
-) {
-    val viewModel: ToolchainViewModel = koinViewModel()
-
-    val report by viewModel.report.collectAsState()
-    LaunchedEffect(report) {
-        report?.let(onReportChanged)
-    }
-
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Box(modifier = Modifier.padding(bottom = 24.dp)) {
-            ToolchainPanel(viewModel = viewModel)
         }
     }
 }
