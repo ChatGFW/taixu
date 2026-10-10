@@ -17,6 +17,13 @@ class TaiXuA2uiInputNormalizerTest {
             "{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"$id\"]}," +
             "{\"id\":\"$id\",\"component\":\"$component\",\"label\":\"L\",\"value\":$valueJson}]}}]"
 
+    /** 与 [payload] 相同，但组件**不带 value 字段**。 */
+    private fun missingValuePayload(component: String, id: String = "c1") =
+        "[{\"createSurface\":{\"surfaceId\":\"s1\",\"catalogId\":\"catalog.json\"}}," +
+            "{\"updateComponents\":{\"surfaceId\":\"s1\",\"components\":[" +
+            "{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"$id\"]}," +
+            "{\"id\":\"$id\",\"component\":\"$component\",\"label\":\"L\"}]}}]"
+
     /** 取「非 root」的那个组件（与消息条数无关，避免用固定下标）。 */
     private fun component(json: String) =
         Json.parseToJsonElement(json).jsonArray
@@ -98,6 +105,29 @@ class TaiXuA2uiInputNormalizerTest {
         assertEquals(path, seed(result.messagesJson)["path"]!!.jsonPrimitive.content)
         assertEquals("a/b~c", component(result.messagesJson)["id"]!!.jsonPrimitive.content)
         assertEquals(path, result.paths["s1"]!!["a/b~c"])
+    }
+
+    @Test
+    fun `Text field without value gets a proxied empty seed so it stays interactive`() {
+        val result = TaiXuA2uiInputNormalizer.normalize(missingValuePayload("TextField"))
+
+        assertEquals(1, result.fixedCount)
+        val value = component(result.messagesJson)["value"]!!.jsonObject
+        assertEquals("/__taixu_inputs/c1", value["path"]!!.jsonPrimitive.content)
+        assertEquals("", seed(result.messagesJson)["value"]!!.jsonPrimitive.content)
+        // 幂等：补种后再次归一化不再改动
+        assertEquals(0, TaiXuA2uiInputNormalizer.normalize(result.messagesJson).fixedCount)
+    }
+
+    @Test
+    fun `required-value components missing value are left for render-time validation`() {
+        // 这四个的 value 在官方 Catalog 里是必填，缺了属于模型漏写，应交给渲染期校验如实报错，
+        // 归一化器不替它猜默认值。
+        listOf("CheckBox", "ChoicePicker", "Slider", "DateTimeInput").forEach { type ->
+            val result = TaiXuA2uiInputNormalizer.normalize(missingValuePayload(type))
+            assertEquals("$type 缺 value 不应被静默补默认", 0, result.fixedCount)
+            assertFalse(component(result.messagesJson).containsKey("value"))
+        }
     }
 
     @Test

@@ -213,6 +213,12 @@ object TaiXuA2uiRenderer {
                         )
                     }
                     is A2uiClientErrorMessage -> {
+                        // 重复创建（already exists）是卡片重复投喂时的预期噪声，processMessages 内部
+                        // 已把它吞掉（去重/流式重渲染路径），这里同样抑制，避免同一错误"一处吞、一处漏"
+                        // 地回传给智能体，把模型引向"修正组件定义"的错误方向。
+                        if (message.message.contains("already exists", ignoreCase = true)) {
+                            return@collect
+                        }
                         // 组件被 Catalog 校验拒绝等运行时错误此前被静默吞掉，界面只会一直转圈；
                         // 回传给智能体让模型自纠。同一 surface 的错误按冷却窗口限流：
                         // 引擎对每个非法组件各发一条错误，不节流会刷出一堆排队任务
