@@ -101,7 +101,7 @@
 | 2 | `/api/health` 免认证返回特权状态 | 低 | localhost 限制下可接受；如需收紧可复用 Bearer |
 | 3 | `resolveSandboxPath` 兜底允许任意宿主绝对路径（限 `.apk`） | 低-中 | 记录在案；如需收紧可加目录白名单 |
 | 4 | Root / Shizuku 通道未清空子进程环境 | 低 | App env 无用户密钥；若未来注入敏感 env 需先补 clear |
-| 5 | `.bridge-key` 文件权限依赖默认 umask | 待确认 | 建议显式 `chmod 600`（与脚本 0755 同一处理点） |
+| 5 | `.bridge-key` 文件权限依赖默认 umask | 已修复 | 写入后显式 `Os.chmod(…, 0600)`（`DistroConfigurator.installHostBridgeScripts`，与脚本 0755 同一处理点） |
 | 6 | SecretRedactor 启发式局限 | 提示 | 见 2.3；高危场景叠加人工检查 |
 | 7 | 用户配置的 MCP / 环境变量明文进沙箱 | 提示 | 配置页宜加风险提示文案 |
 
