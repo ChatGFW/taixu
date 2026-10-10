@@ -328,3 +328,35 @@ pi 的 codemode 暴露级别落地：模型把多轮能力调用合并成一段 
 新增测试：`CapabilityScriptRunnerTest` 7 项（多调用编排、Java 全禁、deadline 熔断、blocked 感知与改道、内层错误可见、超长代码拒绝、对象 JSON 化）+ 路由器集成测试（script 动作的内层嵌套记录逐条落 metadata）。`use_capability` schema 的 action 枚举扩为 5 值并新增 code/timeout_seconds 参数（护栏测试不受影响）。
 
 已知边界：脚本内暂不支持 MCP 能力域的自动发现（inspect 需在脚本外先做，发现结果按名传入）；内层调用 `runBlocking` 占用单个 IO 线程至完成；prompt 侧 script 用例引导需真机会话检验；安全边界同步登记于 [`SECURITY_SURFACE.md`](SECURITY_SURFACE.md) 第 6 节。
+
+## 真机验证清单
+
+汇总阶段 4/6/7 所有「尚未真机验证」项的手工核验步骤。前置：真机 + Shizuku 或 Root 授权 + ASSISTED 与 REQUEST 各一个会话；可选一个已启用 MCP 服务。
+
+### A. deferred 两跳（阶段 6 主路径）
+
+1. **发现 → 调用**：ASSISTED 会话下达「在虚拟屏打开设置并截图」——预期模型先 `use_capability(action="inspect", server="host")` 再 `action="call"` 调 `virtual_screen_task`；悬浮窗弹出，标题栏实时显示步骤。
+2. **transcript 无重复条目**：确认上述调用在会话里只有 inspect 与 call 两条工具记录，内层执行不产生独立条目。
+3. **PLAN 拦截**：只读规划下同类请求 → 虚拟屏调用被硬拦截，文案指向「只读规划仅允许只读查询」。
+
+### B. 审批等价性（直接调用 vs 经代理）
+
+4. **ASSISTED GUI 放行**：直接 `host + virtual_screen_click` → 自动放行，与经代理调用行为一致。
+5. **REQUEST 逐条审批 + 不可记住**：REQUEST 会话经代理调用 `virtual_screen_task` → 弹审批；「本会话内记住」不可用（critical 级）。
+
+### C. codemode（阶段 8）
+
+6. **批量编排**：让模型用 `action="script"` 循环取 3 次虚拟屏状态 → 一次工具调用完成 3 条内层；REQUEST 模式下审批按内层逐条弹出。
+7. **超时熔断**：脚本 `while(true){}` → 60 秒中止，提示部分结果可用。
+8. **无 Java 逃逸**：脚本尝试 `java.lang.Runtime` → 失败信息确认被 ClassShutter 拦截。
+
+### D. 校验面与重放
+
+9. **旧会话重放**：升级前会话里直接 `host + virtual_screen_*` 的调用 → 恢复/重放不被 enum 校验拒绝（校验面 = 执行器接受面）。
+10. **模型历史模仿**：新会话模型直接发 `host + virtual_screen_*` → 校验放行（union 面）、审批矩阵照旧；提示词引导仍应优先指向 use_capability。
+
+### E. 观测与卫生
+
+11. **嵌套留痕持久化**：use_capability 结果在 Room 中携带 `metadata["nested_calls"]`（UI 未消费时验证持久化即可）。
+12. **脱敏抽查**：触发含密钥样式的工具输出 → logcat 与会话存储中经 SecretRedactor 遮蔽。
+13. **MCP 首次自动启动**：inspect 未连接的 MCP 服务 → 按需拉起进程并返回清单。
