@@ -20,3 +20,12 @@
 -keep class io.ktor.** { *; }
 -keep class kotlinx.coroutines.** { *; }
 -dontwarn io.ktor.**
+
+# Rhino's optional JavaBean JSON converter references desktop-only java.beans APIs.
+# CapabilityScriptRunner blocks Java interop and installs its own rejecting converter;
+# these missing types are never needed for the supported JS-only execution path.
+-dontwarn java.beans.BeanDescriptor
+-dontwarn java.beans.BeanInfo
+-dontwarn java.beans.IntrospectionException
+-dontwarn java.beans.Introspector
+-dontwarn java.beans.PropertyDescriptor

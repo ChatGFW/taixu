@@ -117,6 +117,26 @@ class CapabilityScriptRunnerTest {
     }
 
     @Test
+    fun `android context rejects Java JSON conversion while preserving native JS data`() = runBlocking {
+        val runner = runner(inner = { _, _, args ->
+            val context = org.mozilla.javascript.Context.getCurrentContext()
+            val failure = runCatching { context.javaToJSONConverter.apply(Any()) }.exceptionOrNull()
+            assertTrue(failure is org.mozilla.javascript.EvaluatorException)
+            assertTrue(failure!!.message.orEmpty().contains("Java object JSON conversion is disabled"))
+            assertEquals("{\"items\":[1,true,null,{\"text\":\"太墟\"}]}", args.toString())
+            true to "ok"
+        })
+
+        val (ok, output) = runner.execute(
+            "var data = {items: [1, true, null, {text: '太墟'}]}; capability.call('host', 'test', data); data;",
+            10_000,
+        )
+
+        assertTrue(output, ok)
+        assertEquals("{\"items\":[1,true,null,{\"text\":\"太墟\"}]}", output)
+    }
+
+    @Test
     fun `parent cancellation cancels inner call and prevents later dispatch even inside JS catch`() = runBlocking {
         val entered = CompletableDeferred<Unit>()
         val cancelled = CompletableDeferred<Unit>()
