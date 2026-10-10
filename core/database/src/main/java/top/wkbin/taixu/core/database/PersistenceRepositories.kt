@@ -4,6 +4,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import top.wkbin.taixu.core.model.QuickPhrase
 
+/** Encrypted diagnostics archive. Blocking operations must run off the UI/request thread. */
+interface RequestDiagnosticsRepository {
+    fun read(): String?
+    fun write(redactedArchive: String)
+}
+
 /** Stable persistence ports consumed by feature, harness, and runtime layers. */
 interface HarnessSessionRepository {
     fun observeAll(): Flow<List<HarnessSessionEntity>>
@@ -194,15 +200,6 @@ class RoomWorkspaceRepository(private val dao: WorkspaceDao) : WorkspaceReposito
     override suspend fun findByName(name: String) = dao.findByName(name)
     override suspend fun upsert(workspace: WorkspaceEntity) = dao.upsert(workspace)
     override suspend fun delete(name: String) = dao.delete(name)
-}
-
-class RoomTerminalSessionRepository(private val dao: TerminalSessionDao) : TerminalSessionRepository {
-    override fun observeAll() = dao.observeAll()
-    override suspend fun listAll() = dao.listAll()
-    override suspend fun nextOrder() = dao.nextOrder()
-    override suspend fun upsert(session: TerminalSessionEntity) = dao.upsert(session)
-    override suspend fun delete(id: String) = dao.delete(id)
-    override suspend fun deleteAll() = dao.deleteAll()
 }
 
 class RoomAgentContextRepository(private val dao: AgentContextDao) : AgentContextRepository {

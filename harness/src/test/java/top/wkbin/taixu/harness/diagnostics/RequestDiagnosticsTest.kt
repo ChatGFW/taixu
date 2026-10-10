@@ -45,13 +45,14 @@ class RequestDiagnosticsTest {
         assertTrue(snapshot.bodyBytes > snapshot.sections.sumOf { it.preview.length })
     }
 
-    @Test fun isolatesSessionsAndRetainsOnlyCurrentRunAndRecentAttempts() {
-        repeat(3) { record("""{"model":"m$it"}""", attempt = it + 1) }
+    @Test fun isolatesSessionsAndRetainsBoundedHistoryAcrossRuns() {
+        repeat(RequestDiagnosticsStore.MAX_REQUESTS_PER_SESSION + 1) { record("""{"model":"m$it"}""", attempt = it + 1) }
         record("""{"model":"other"}""", session = "other")
-        assertEquals(listOf(2, 3), store.snapshots.value.getValue("s").map { it.attempt })
+        assertEquals((2..9).toList(), store.snapshots.value.getValue("s").map { it.attempt })
         assertFalse(preview().contains("other"))
         record("""{"model":"new-run"}""", operation = "new")
-        assertEquals(1, store.snapshots.value.getValue("s").size)
+        assertEquals(RequestDiagnosticsStore.MAX_REQUESTS_PER_SESSION, store.snapshots.value.getValue("s").size)
+        assertEquals(listOf("op", "new"), store.snapshots.value.getValue("s").map { it.operationId }.distinct())
         store.removeSession("s")
         assertFalse(store.snapshots.value.containsKey("s"))
         assertTrue(store.snapshots.value.containsKey("other"))

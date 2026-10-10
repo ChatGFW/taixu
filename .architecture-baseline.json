@@ -10,7 +10,7 @@
     "maxFileLines": 400,
     "fileCount": 111,
     "files": {
-        "core/database/src/main/java/top/wkbin/taixu/core/database/PersistenceRepositories.kt": 439,
+        "core/database/src/main/java/top/wkbin/taixu/core/database/PersistenceRepositories.kt": 436,
         "core/datastore/src/main/java/top/wkbin/taixu/core/datastore/SettingsDataStore.kt": 1009,
         "core/model/src/main/java/top/wkbin/taixu/core/model/workflow/BuiltinWorkflows.kt": 551,
         "core/model/src/main/java/top/wkbin/taixu/core/model/workflow/HostWorkflowActions.kt": 408,
@@ -85,7 +85,7 @@
         "harness/src/main/java/top/wkbin/taixu/harness/AnthropicApi.kt": 644,
         "harness/src/main/java/top/wkbin/taixu/harness/ApprovalPolicyEngine.kt": 502,
         "harness/src/main/java/top/wkbin/taixu/harness/ContextWindowPolicy.kt": 1074,
-        "harness/src/main/java/top/wkbin/taixu/harness/HarnessLoop.kt": 1723,
+        "harness/src/main/java/top/wkbin/taixu/harness/HarnessLoop.kt": 1717,
         "harness/src/main/java/top/wkbin/taixu/harness/HarnessProviderRunner.kt": 672,
         "harness/src/main/java/top/wkbin/taixu/harness/ProviderClient.kt": 1399,
         "harness/src/main/java/top/wkbin/taixu/harness/SubagentOrchestrator.kt": 843,

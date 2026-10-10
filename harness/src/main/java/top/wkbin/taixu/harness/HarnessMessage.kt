@@ -170,4 +170,6 @@ data class ToolResult(
      * 追加为图片消息发给多模态模型；非视觉模型会被忽略。旧数据默认 null。
      */
     val imageDataUrl: String? = null,
+    /** Stable recovery error code. Old results have no code; success remains false for unknown outcomes. */
+    val errorCode: String? = null,
 ) : HarnessMessage

@@ -1,8 +1,6 @@
 package top.wkbin.taixu.harness.diagnostics
 
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -10,10 +8,20 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
+import top.wkbin.taixu.core.database.RequestDiagnosticsRepository
+import java.security.MessageDigest
 
-data class RequestContextSection(val label: String, val preview: String)
+@Serializable
+data class RequestContextSection(
+    val label: String,
+    val preview: String,
+    /** Digest of the complete redacted, media-stripped section before display clipping. */
+    val fingerprint: String? = null,
+    val previewTruncated: Boolean = false,
+)
 
 /** A redacted view of a constructed request; this is not proof of successful delivery. */
+@Serializable
 data class RequestContextSnapshot(
     val sessionId: String,
     val operationId: String,
@@ -24,15 +32,20 @@ data class RequestContextSnapshot(
     val bodyBytes: Long,
     val sections: List<RequestContextSection>,
     val previewTruncated: Boolean,
+    val omittedSectionCount: Int = 0,
 )
 
-/** Bounded, process-local diagnostics. No raw requests, headers or credentials are retained. */
-class RequestDiagnosticsStore(private val redactor: SensitiveDataRedactor) {
+/** Bounded redacted diagnostics, optionally backed by an encrypted archive. */
+class RequestDiagnosticsStore(private val redactor: SensitiveDataRedactor, repository: RequestDiagnosticsRepository? = null) {
     private val json = Json { prettyPrint = true }
-    private val mutableSnapshots = MutableStateFlow<Map<String, List<RequestContextSnapshot>>>(emptyMap())
-    val snapshots = mutableSnapshots.asStateFlow()
+    private val archive = RequestDiagnosticsArchive(repository)
+    val snapshots = archive.snapshots
+    val archiveStatus = archive.status
 
-    fun removeSession(sessionId: String) = mutableSnapshots.update { it - sessionId }
+    fun removeSession(sessionId: String) = archive.remove(sessionId)
+    suspend fun removeSessionDurably(sessionId: String) { removeSession(sessionId); awaitPersistence() }
+    suspend fun awaitPersistence() = archive.awaitPersistence()
+    fun close() = archive.close()
 
     fun record(
         sessionId: String,
@@ -44,6 +57,7 @@ class RequestDiagnosticsStore(private val redactor: SensitiveDataRedactor) {
         bodyBytes: Long,
         secrets: Collection<String> = emptyList(),
     ) {
+        if (sessionId.length > 256 || operationId.length > 256 || protocol.length > 256) return
         // Remove known credentials before parsing, and redact the entire entry before clipping.
         // This also removes secret echoes in a different message in the same request.
         var safeBody = body
@@ -71,24 +85,23 @@ class RequestDiagnosticsStore(private val redactor: SensitiveDataRedactor) {
         val previews = redactor.redact(allSections.joinToString("\u0000") { it.preview }).split('\u0000')
         var remaining = MAX_PREVIEW_CHARS
         var truncated = allSections.size > MAX_SECTIONS
-        val sections = allSections.zip(previews).take(MAX_SECTIONS).mapNotNull { (section, preview) ->
-            if (remaining <= 0) { truncated = true; return@mapNotNull null }
+        val sections = allSections.zip(previews).filter { it.first.label.length <= 256 }.take(MAX_SECTIONS).map { (section, preview) ->
             val length = minOf(preview.length, MAX_SECTION_CHARS, remaining)
             if (length < preview.length) truncated = true
             remaining -= length
-            section.copy(preview = preview.take(length))
+            section.copy(
+                preview = preview.take(length),
+                fingerprint = MessageDigest.getInstance("SHA-256").digest(preview.toByteArray(Charsets.UTF_8))
+                    .joinToString("") { "%02x".format(it) },
+                previewTruncated = length < preview.length,
+            )
         }
+        truncated = truncated || sections.size < allSections.size
         val snapshot = RequestContextSnapshot(
             sessionId, operationId, round, attempt, System.currentTimeMillis(),
-            protocol, bodyBytes, sections, truncated,
+            protocol, bodyBytes, sections, truncated, (allSections.size - sections.size).coerceAtLeast(0),
         )
-        mutableSnapshots.update { existing ->
-            val history = (existing[sessionId].orEmpty().filter { it.operationId == operationId } + snapshot)
-                .takeLast(MAX_REQUESTS_PER_SESSION)
-            // Keep the recently recorded sessions, including when an existing key is updated.
-            ((existing - sessionId) + (sessionId to history)).entries.toList().takeLast(MAX_SESSIONS)
-                .associate { it.key to it.value }
-        }
+        archive.append(snapshot)
     }
 
     private fun stripMedia(element: JsonElement, key: String = ""): JsonElement = when {
@@ -106,6 +119,6 @@ class RequestDiagnosticsStore(private val redactor: SensitiveDataRedactor) {
         const val MAX_SECTION_CHARS = 8_000
         const val MAX_SECTIONS = 128
         const val MAX_SESSIONS = 8
-        const val MAX_REQUESTS_PER_SESSION = 2
+        const val MAX_REQUESTS_PER_SESSION = 8
     }
 }

@@ -55,7 +55,7 @@ class HarnessProviderRunner(
     private val contextAssembler: ApiContextAssembler,
     private val compactionManager: CompactionManager,
 ) {
-    fun clearDiagnostics(sessionId: String) = requestDiagnostics.removeSession(sessionId)
+    suspend fun clearDiagnostics(sessionId: String) = requestDiagnostics.removeSessionDurably(sessionId)
 
     /**
      * 记录本轮 @提及 的能力挂载事件（UI 展示用）。

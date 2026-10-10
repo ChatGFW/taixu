@@ -532,7 +532,7 @@ class HarnessLoop(
                 val restored = messageProjector.loadHistory(id)
                 messageProjector.replaceAll(id, restored)
                 stateMirrors.setRunState(id, SessionRunState.IDLE)
-                stateMirrors.setStatus(id, "上次工具执行被中断，发送消息即可继续")
+                stateMirrors.setStatus(id, "上次工具结果未知，继续前需核验实际状态")
                 true
             }
             is RecoveryOutcome.Suspended -> {
@@ -749,13 +749,7 @@ class HarnessLoop(
                         )
                     }
                 }
-                is DanglingToolCallPlanner.Stubbed -> ToolResult(
-                    id = newId(),
-                    createdAt = now(),
-                    toolCallId = action.call.id,
-                    success = false,
-                    output = action.note,
-                )
+                is DanglingToolCallPlanner.Stubbed -> action.result(newId(), now())
             }
             messageProjector.append(sessId, result)
         }

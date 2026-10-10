@@ -1,6 +1,11 @@
 package top.wkbin.taixu.di.core.database
 
 import org.koin.dsl.module
+import android.content.Context
+import java.io.File
+import top.wkbin.taixu.core.database.EncryptedRequestDiagnosticsRepository
+import top.wkbin.taixu.core.database.RequestDiagnosticsRepository
+import top.wkbin.taixu.core.security.SecretManager
 import top.wkbin.taixu.core.database.AgencyAgentCatalogLoader
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.AgentContextRepository
@@ -38,6 +43,13 @@ import top.wkbin.taixu.core.database.task.RoomAgentTaskRepository
 
 /** Dependency registrations owned by the core:database module. */
 val coreDatabaseModule = module {
+    single<RequestDiagnosticsRepository> {
+        EncryptedRequestDiagnosticsRepository(
+            location = { File(get<Context>().noBackupFilesDir, "request-diagnostics/requests.enc") },
+            encrypt = { get<SecretManager>().encrypt(it) },
+            decrypt = { get<SecretManager>().decrypt(it) },
+        )
+    }
     single<DatabaseBackupRepository> { RoomDatabaseBackupRepository(database = get()) }
     single<AgencyAgentCatalogLoader> { AgencyAgentCatalogLoader(context = get(), json = get()) }
 

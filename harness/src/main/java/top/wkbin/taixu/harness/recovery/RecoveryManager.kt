@@ -4,7 +4,7 @@ import java.util.UUID
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
-import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.effects.ToolRecoveryNotice
 import top.wkbin.taixu.harness.events.HarnessEvent
 import top.wkbin.taixu.harness.events.HarnessEventBus
 import top.wkbin.taixu.harness.operation.OperationCoordinator
@@ -42,7 +42,7 @@ class RecoveryManager(
             if (outcome !is RecoveryOutcome.Clean) {
                 val detail = when (outcome) {
                     is RecoveryOutcome.Suspended -> outcome.reason
-                    is RecoveryOutcome.ToolInterrupted -> "不可重放工具已写入中断结果"
+                    is RecoveryOutcome.ToolInterrupted -> "工具结果未知，已写入核验指引"
                     RecoveryOutcome.WaitingApproval -> "存在等待中的审批"
                     RecoveryOutcome.Clean -> null
                 }
@@ -83,20 +83,18 @@ class RecoveryManager(
             return RecoveryOutcome.Suspended(operation.id, "运行状态损坏")
         }
 
-        if (snapshot.phase == OperationPhase.TOOL_INTENT.id && operation.replayPolicy == ReplayPolicy.NEVER.id) {
+        if (snapshot.phase == OperationPhase.TOOL_INTENT.id && operation.replayPolicy != ReplayPolicy.SAFE.id) {
             val toolCallId = snapshot.effectId ?: operation.pendingEffectId ?: "unknown"
             coordinator.toolSettled(
                 operationId = operation.id,
-                message = ToolResult(
+                message = ToolRecoveryNotice.unknown().result(
                     id = UUID.randomUUID().toString(),
                     createdAt = System.currentTimeMillis(),
                     toolCallId = toolCallId,
-                    success = false,
-                    output = "工具执行期间应用进程中断。该工具声明为不可安全重放，因此未再次执行。",
                 ),
                 round = snapshot.round,
             )
-            coordinator.suspendOperation(operation.id, "不可重放工具已写入中断结果，等待恢复运行")
+            coordinator.suspendOperation(operation.id, "工具结果未知，需核验实际状态后继续")
             return RecoveryOutcome.ToolInterrupted(operation.id, toolCallId)
         }
 

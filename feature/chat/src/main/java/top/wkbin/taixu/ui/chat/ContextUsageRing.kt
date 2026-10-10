@@ -95,6 +95,6 @@ fun ContextUsageRing(
                 onInspectRequest = { showDialog = false; inspectRequest = true },
             )
         }
-        if (inspectRequest) RequestContextDialog(usage.requests, onDismiss = { inspectRequest = false })
+        if (inspectRequest) RequestContextDialog(usage.requests, usage.requestArchiveStatus, onDismiss = { inspectRequest = false })
     }
 }

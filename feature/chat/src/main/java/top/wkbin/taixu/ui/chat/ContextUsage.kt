@@ -3,6 +3,7 @@ package top.wkbin.taixu.ui.chat
 import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.harness.ContextUsageBreakdown
 import top.wkbin.taixu.harness.diagnostics.RequestContextSnapshot
+import top.wkbin.taixu.harness.diagnostics.RequestArchiveStatus
 
 data class ContextUsage(
     val usedTokens: Int = 0,
@@ -28,5 +29,6 @@ data class ContextUsage(
     val cacheHitRatePercent: Int? = null,
     val breakdown: ContextUsageBreakdown = ContextUsageBreakdown(),
     val requests: List<RequestContextSnapshot> = emptyList(),
+    val requestArchiveStatus: RequestArchiveStatus = RequestArchiveStatus.LOADING,
 )
 
