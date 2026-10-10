@@ -68,7 +68,7 @@ class RoomDatabaseBackupRepository(private val database: AppDatabase) : Database
                         values.values.map<JsonElement, Any?> { value -> if (value == JsonNull) null else value.jsonPrimitive.let {
                             when {
                                 it.isString -> it.content
-                                it.booleanOrNull != null -> if (it.boolean!!) 1 else 0
+                                it.booleanOrNull != null -> if (it.booleanOrNull == true) 1 else 0
                                 else -> it.longOrNull ?: it.doubleOrNull
                             }
                         } }.toTypedArray())

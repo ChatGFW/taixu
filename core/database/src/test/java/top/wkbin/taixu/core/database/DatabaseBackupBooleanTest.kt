@@ -3,19 +3,27 @@ package top.wkbin.taixu.core.database
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.junit.After
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import top.wkbin.taixu.core.model.BackupRecords
 
 /**
- * Verifies that JsonPrimitive(boolean) values in backup data are correctly
- * validated and stored as SQLite integers (1/0) rather than being silently
- * written as NULL.
+ * JsonPrimitive(boolean) on an allowlisted INTEGER column must pass [RoomDatabaseBackupRepository.validate]
+ * and restore as SQLite 1/0. A string in that column stays invalid.
+ *
+ * `agent_skills.isEnabled` is INTEGER NOT NULL (see AgentSkillEntity / schema 54).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -26,7 +34,8 @@ class DatabaseBackupBooleanTest {
     @Before
     fun setup() {
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
-            .allowMainThreadQueries().build()
+            .allowMainThreadQueries()
+            .build()
         repo = RoomDatabaseBackupRepository(db)
     }
 
@@ -34,86 +43,58 @@ class DatabaseBackupBooleanTest {
     fun close() = db.close()
 
     @Test
-    fun `boolean JsonPrimitive passes INTEGER column validation`() = runBlocking {
-        // Create a minimal backup with a harness_operations row using JsonPrimitive(true)
-        val rows = listOf(buildJsonObject {
-            put("id", JsonPrimitive(1))
-            put("operationId", JsonPrimitive("op-bool"))
-            put("table", JsonPrimitive("harness_sessions"))
-            put("recordKey", JsonPrimitive("hk-bool"))
-            put("direction", JsonPrimitive(1))
-            put("status", JsonPrimitive(0))
-            put("faulted", JsonPrimitive(false))  // boolean, not integer!
-            put("payload", JsonPrimitive("{}"))
-            put("startedAt", JsonPrimitive(0L))
-            put("finishedAt", JsonPrimitive(0L))
-            put("sequence", JsonPrimitive(1L))
-        })
-        val backup = BackupRecords(mapOf("harness_operations" to rows))
-
-        // Should NOT throw "备份字段类型无效"
-        assertDoesNotThrow { repo.validate(backup) }
+    fun `boolean true on agent_skills isEnabled validates and restores as 1`() = runBlocking {
+        restoreAndAssert(JsonPrimitive(true), "skill-true", 1)
     }
 
     @Test
-    fun `boolean true is stored as 1 in SQLite`() = runBlocking {
-        // Insert a session first so harness_operations row is valid
-        db.openHelper.writableDatabase.execSQL(
-            "INSERT INTO harness_sessions(id, title, createdAt, updatedAt) VALUES('s1', 'test', 0, 0)"
-        )
-        val rows = listOf(buildJsonObject {
-            put("id", JsonPrimitive(1))
-            put("operationId", JsonPrimitive("op-bool-2"))
-            put("table", JsonPrimitive("harness_sessions"))
-            put("recordKey", JsonPrimitive("hk-bool-2"))
-            put("direction", JsonPrimitive(1))
-            put("status", JsonPrimitive(0))
-            put("faulted", JsonPrimitive(true))  // boolean true
-            put("payload", JsonPrimitive("{}"))
-            put("startedAt", JsonPrimitive(0L))
-            put("finishedAt", JsonPrimitive(0L))
-            put("sequence", JsonPrimitive(1L))
-        })
-        val expected = repo.snapshot()
-        val records = BackupRecords(mapOf("harness_operations" to rows))
-        repo.merge(expected, records, "op-bool-2") {}
-
-        // Verify the faulted column was stored as 1, not NULL
-        db.openHelper.writableDatabase.rawQuery(
-            "SELECT faulted FROM harness_operations WHERE operationId='op-bool-2'", null
-        ).use { cursor ->
-            assertTrue("Row not found", cursor.moveToFirst())
-            assertEquals(1, cursor.getInt(0))  // true → 1, NOT NULL
-        }
+    fun `boolean false on agent_skills isEnabled validates and restores as 0`() = runBlocking {
+        restoreAndAssert(JsonPrimitive(false), "skill-false", 0)
     }
 
     @Test
-    fun `boolean false is stored as 0 in SQLite`() = runBlocking {
-        db.openHelper.writableDatabase.execSQL(
-            "INSERT INTO harness_sessions(id, title, createdAt, updatedAt) VALUES('s2', 'test2', 0, 0)"
-        )
-        val rows = listOf(buildJsonObject {
-            put("id", JsonPrimitive(2))
-            put("operationId", JsonPrimitive("op-bool-3"))
-            put("table", JsonPrimitive("harness_sessions"))
-            put("recordKey", JsonPrimitive("hk-bool-3"))
-            put("direction", JsonPrimitive(1))
-            put("status", JsonPrimitive(0))
-            put("faulted", JsonPrimitive(false))  // boolean false
-            put("payload", JsonPrimitive("{}"))
-            put("startedAt", JsonPrimitive(0L))
-            put("finishedAt", JsonPrimitive(0L))
-            put("sequence", JsonPrimitive(2L))
-        })
-        val expected = repo.snapshot()
-        val records = BackupRecords(mapOf("harness_operations" to rows))
-        repo.merge(expected, records, "op-bool-3") {}
-
-        db.openHelper.writableDatabase.rawQuery(
-            "SELECT faulted FROM harness_operations WHERE operationId='op-bool-3'", null
-        ).use { cursor ->
-            assertTrue("Row not found", cursor.moveToFirst())
-            assertEquals(0, cursor.getInt(0))  // false → 0
+    fun `string in INTEGER column is rejected`() = runBlocking {
+        val records = backup(skill(isEnabled = JsonPrimitive("true"), id = "skill-bad"))
+        val failure = runCatching { repo.validate(records) }
+        assertTrue(failure.isFailure)
+        assertEquals("备份字段类型无效", failure.exceptionOrNull()?.message)
+        db.openHelper.writableDatabase.query("SELECT COUNT(*) FROM agent_skills").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(0, cursor.getInt(0))
         }
+    }
+
+    private suspend fun restoreAndAssert(isEnabled: JsonPrimitive, id: String, stored: Int) {
+        val records = backup(skill(isEnabled = isEnabled, id = id))
+        repo.validate(records)
+        assertEquals(1, repo.merge(repo.snapshot(), records, "op-$id") {})
+        db.openHelper.writableDatabase.query(
+            "SELECT isEnabled FROM agent_skills WHERE id = ?",
+            arrayOf(id),
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertFalse("isEnabled was NULL", cursor.isNull(0))
+            assertEquals(stored, cursor.getInt(0))
+        }
+    }
+
+    private fun backup(row: JsonObject): BackupRecords = BackupRecords(
+        BackupRecordPolicy.tables.associateWith { table ->
+            if (table == "agent_skills") listOf(row) else emptyList()
+        },
+    )
+
+    private fun skill(isEnabled: JsonPrimitive, id: String) = buildJsonObject {
+        put("id", id)
+        put("name", "demo")
+        put("description", "desc")
+        put("systemPrompt", "prompt")
+        put("triggerCommand", JsonNull)
+        put("iconName", "icon")
+        put("isEnabled", isEnabled)
+        put("isBuiltin", JsonPrimitive(0))
+        put("isImmutable", JsonPrimitive(0))
+        put("category", "custom")
+        put("resourcePath", JsonNull)
     }
 }
