@@ -127,9 +127,11 @@ class ToolchainInstaller(
             onLog("$prefix 成功")
             return
         }
+        // lineSequence() 返回 Sequence，而 takeLast 只在 List 上存在，必须先 toList() 再截取
         val detail = result.stderr.ifBlank { result.stdout }.lineSequence()
             .map { it.trim() }
             .filter { it.isNotBlank() }
+            .toList()
             .takeLast(3)
             .joinToString(" | ")
         onLog("$prefix 未完全成功${if (detail.isBlank()) "" else "：$detail"}")
