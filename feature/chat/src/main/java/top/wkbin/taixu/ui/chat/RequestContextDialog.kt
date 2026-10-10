@@ -23,15 +23,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.diagnostics.RequestContextSnapshot
+import top.wkbin.taixu.harness.diagnostics.RequestContextDiff
+import top.wkbin.taixu.harness.diagnostics.RequestArchiveStatus
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import java.text.DateFormat
 import java.util.Date
 
 @Composable
-fun RequestContextDialog(requests: List<RequestContextSnapshot>, onDismiss: () -> Unit) {
+fun RequestContextDialog(requests: List<RequestContextSnapshot>, archiveStatus: RequestArchiveStatus, onDismiss: () -> Unit) {
     var selected by remember(requests) { mutableStateOf(requests.lastIndex.coerceAtLeast(0)) }
     val snapshot = requests.getOrNull(selected)
+    val previous = requests.getOrNull(selected - 1)
+    val diff = remember(previous, snapshot) {
+        if (previous != null && snapshot != null) RequestContextDiff.between(previous, snapshot) else null
+    }
     var query by remember { mutableStateOf("") }
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
@@ -45,6 +51,14 @@ fun RequestContextDialog(requests: List<RequestContextSnapshot>, onDismiss: () -
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(stringResource(R.string.chat_request_context_notice), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(when (archiveStatus) {
+                    RequestArchiveStatus.MEMORY_ONLY -> R.string.chat_request_archive_memory
+                    RequestArchiveStatus.LOADING -> R.string.chat_request_archive_loading
+                    RequestArchiveStatus.SAVING -> R.string.chat_request_archive_saving
+                    RequestArchiveStatus.SAVED -> R.string.chat_request_archive_saved
+                    RequestArchiveStatus.ERROR -> R.string.chat_request_archive_error
+                }), style = MaterialTheme.typography.bodySmall,
+                    color = if (archiveStatus == RequestArchiveStatus.ERROR) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                 if (snapshot == null) {
                     Text(stringResource(R.string.chat_request_context_empty))
                 } else {
@@ -53,8 +67,8 @@ fun RequestContextDialog(requests: List<RequestContextSnapshot>, onDismiss: () -
                             Text(
                                 stringResource(
                                     R.string.chat_request_context_attempt,
-                                    request.round, request.attempt,
-                                    DateFormat.getTimeInstance(DateFormat.MEDIUM).format(Date(request.capturedAt)),
+                                    request.operationId.take(8), request.round, request.attempt,
+                                    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM).format(Date(request.capturedAt)),
                                 ),
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 color = if (selected == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -65,6 +79,19 @@ fun RequestContextDialog(requests: List<RequestContextSnapshot>, onDismiss: () -
                         stringResource(R.string.chat_request_context_metadata, snapshot.protocol, snapshot.bodyBytes),
                         style = MaterialTheme.typography.labelMedium,
                     )
+                    if (diff != null) {
+                        Text(
+                            stringResource(R.string.chat_request_context_diff_summary,
+                                diff.added.size, diff.removed.size, diff.changed.size, diff.unchangedCount),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                        Text(stringResource(R.string.chat_request_context_diff_notice), style = MaterialTheme.typography.bodySmall)
+                        if (!diff.complete) Text(stringResource(R.string.chat_request_context_diff_partial),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        if (diff.added.isNotEmpty()) Text(stringResource(R.string.chat_request_context_diff_added, diff.added.joinToString(", ")))
+                        if (diff.removed.isNotEmpty()) Text(stringResource(R.string.chat_request_context_diff_removed, diff.removed.joinToString(", ")))
+                        if (diff.changed.isNotEmpty()) Text(stringResource(R.string.chat_request_context_diff_changed, diff.changed.joinToString(", ")))
+                    }
                     if (snapshot.previewTruncated) {
                         Text(
                             stringResource(R.string.chat_request_context_clipped),
@@ -95,7 +122,20 @@ fun RequestContextDialog(requests: List<RequestContextSnapshot>, onDismiss: () -
                                     )
                                 }
                                 if (expanded) SelectionContainer {
-                                    Text(section.preview, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                                    Column {
+                                        val previousSection = previous?.sections?.firstOrNull { it.label == section.label }
+                                            ?.takeIf { section.label in diff?.changed.orEmpty() }
+                                        if (previousSection != null) {
+                                            Text(stringResource(R.string.chat_request_context_previous), style = MaterialTheme.typography.labelMedium)
+                                            Text(previousSection.preview, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                                            if (previousSection.previewTruncated) Text(stringResource(R.string.chat_request_context_clipped),
+                                                style = MaterialTheme.typography.bodySmall)
+                                            Text(stringResource(R.string.chat_request_context_current), style = MaterialTheme.typography.labelMedium)
+                                        }
+                                        Text(section.preview, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                                        if (section.previewTruncated) Text(stringResource(R.string.chat_request_context_clipped),
+                                            style = MaterialTheme.typography.bodySmall)
+                                    }
                                 }
                             }
                         }

@@ -1,5 +1,5 @@
 package top.wkbin.taixu.di.harness
-
+import org.koin.dsl.onClose
 import org.koin.dsl.module
 import android.content.Context
 import java.io.File
@@ -151,7 +151,7 @@ val harnessModule = module {
     single<InteractiveSessionControl> { get<HarnessLoop>() }
     single<HarnessPathResolver> { HarnessPathResolver() }
 
-    single { RequestDiagnosticsStore(redactor = get()) }
+    single { RequestDiagnosticsStore(redactor = get(), repository = get()) }.onClose { it?.close() }
     factory<HarnessProviderRunner> {
         HarnessProviderRunner(
             providerClient = get(),

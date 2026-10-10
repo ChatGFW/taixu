@@ -226,10 +226,10 @@ class ChatViewModel(
             linuxRuntime.switchActiveDistro(distroId)
         }
     }
-
+    private val sessionDeletionFeedback = SessionDeletionFeedback()
     val messages: StateFlow<List<HarnessMessage>> = harnessLoop.messages
     val running: StateFlow<Boolean> = harnessLoop.running
-    val error: StateFlow<String?> = harnessLoop.error
+    val error: StateFlow<String?> = sessionDeletionFeedback.errors(harnessLoop.error, viewModelScope)
     val status: StateFlow<String?> = harnessLoop.status
     val thinkingLive: StateFlow<Boolean> = harnessLoop.thinkingLive
     val workspace: StateFlow<String> = harnessLoop.workspace
@@ -737,8 +737,8 @@ class ChatViewModel(
         // 首屏卡顿修复（P1）：estimateEffectiveUsage 与两次 filterIsInstance 求和都是 O(消息数)，
         // stateIn 默认在 Main 执行；首订阅（空列表 → 全量）时会整段压在主线程，与首帧布局争抢。
         .flowOn(Dispatchers.Default)
-        .combine(combine(currentSessionId, requestDiagnostics.snapshots) { id, snapshots -> snapshots[id].orEmpty() }) { usage, requests ->
-            usage.copy(requests = requests)
+        .combine(combine(currentSessionId, requestDiagnostics.snapshots, requestDiagnostics.archiveStatus) { id, snapshots, status -> snapshots[id].orEmpty() to status }) { usage, diagnostics ->
+            usage.copy(requests = diagnostics.first, requestArchiveStatus = diagnostics.second)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ContextUsage())
 
@@ -1144,7 +1144,7 @@ class ChatViewModel(
 
     fun clearPendingMessages() = harnessLoop.clearPendingMessages()
 
-    fun clearError() = harnessLoop.clearError()
+    fun clearError() { sessionDeletionFeedback.clear(); harnessLoop.clearError() }
 
     /** 新建会话（支持自定义标题并关联工作区）。 */
     fun createSession(title: String = "", workspace: String = "", projectType: String = "") {
@@ -1158,7 +1158,7 @@ class ChatViewModel(
     }
 
     fun deleteSession(id: String) {
-        viewModelScope.launch { A2uiChatBridge.releaseSession(id); harnessLoop.deleteSession(id) }
+        sessionDeletionFeedback.delete(viewModelScope, harnessLoop, id, context.getString(R.string.chat_request_archive_delete_error))
     }
 
     fun renameSession(id: String, title: String) {

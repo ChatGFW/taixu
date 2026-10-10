@@ -11,6 +11,7 @@ import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertSame
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -19,6 +20,10 @@ import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.HarnessRuntimeDao
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
+import top.wkbin.taixu.core.database.HarnessEntryEntity
+import top.wkbin.taixu.core.database.HarnessLaneEntity
+import top.wkbin.taixu.core.database.HarnessOperationEntity
+import top.wkbin.taixu.core.database.HarnessUsageEntity
 import top.wkbin.taixu.core.database.HarnessLaneResultEntity
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
 import top.wkbin.taixu.harness.AssistantText
@@ -35,6 +40,8 @@ import kotlinx.serialization.json.buildJsonObject
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.events.HarnessEvent
+import top.wkbin.taixu.harness.core.DurableToolRunner
+import top.wkbin.taixu.harness.effects.ToolRecoveryNotice
 
 /**
  * 崩溃恢复集成测试：真实 Room 持久化 + OperationCoordinator + RecoveryManager 全链路。
@@ -141,7 +148,81 @@ class HarnessRecoveryIntegrationTest {
         assertEquals("call-1", toolResult!!.toolCallId)
         assertTrue(!toolResult.success)
         assertTrue(toolResult.output.contains("未再次执行"))
+        assertEquals(ToolRecoveryNotice.OUTCOME_UNKNOWN, toolResult.errorCode)
+        assertTrue(toolResult.output.contains("禁止直接重新发起"))
     }
+
+    @Test
+    fun `side effect survives result commit failure and repeated recovery never executes again`() = runBlocking {
+        val sessionId = "s-commit-failure"
+        val operationId = coordinator.acceptRun(sessionId, user("write"))
+        val call = ToolCall("write-call", 2L, HarnessTool.WRITE, buildJsonObject { })
+        val failure = IllegalStateException("result storage unavailable")
+        val durableRepository = repository
+        val failingRepository = object : HarnessRuntimeRepository by durableRepository {
+            override suspend fun settleEffect(entry: HarnessEntryEntity?, usage: HarnessUsageEntity?,
+                operation: HarnessOperationEntity, lane: HarnessLaneEntity) {
+                if (operation.phase == OperationPhase.TOOL_SETTLED.id) throw failure
+                durableRepository.settleEffect(entry, usage, operation, lane)
+            }
+        }
+        val failingCoordinator = OperationCoordinator(failingRepository, Json, eventBus)
+        val externalFile = StringBuilder()
+        val actual = runCatching {
+            DurableToolRunner.run(
+                commitIntent = { failingCoordinator.toolIntent(operationId, call, "{}", ReplayPolicy.NEVER, 0) },
+                execute = {
+                    externalFile.append("written once")
+                    ToolResult("original-result", 3L, call.id, true, "written")
+                },
+                commitResult = { failingCoordinator.toolSettled(operationId, it, 0) },
+                executionFailure = { error("must not convert storage failure") },
+            )
+        }.exceptionOrNull()
+        assertSame(failure, actual)
+        assertEquals(OperationPhase.TOOL_INTENT.id, repository.findOperation(operationId)?.phase)
+        assertTrue(results(sessionId).isEmpty())
+
+        rebuildRuntime()
+        assertTrue(recoveryManager.recoverSession(sessionId) is RecoveryOutcome.ToolInterrupted)
+        rebuildRuntime()
+        recoveryManager.recoverSession(sessionId)
+        val result = results(sessionId).single()
+        assertEquals(ToolRecoveryNotice.OUTCOME_UNKNOWN, result.errorCode)
+        assertEquals(call.id, result.toolCallId)
+        assertTrue(result.output.contains("结果未知"))
+        assertEquals("written once", externalFile.toString())
+    }
+
+    @Test
+    fun `committed success is preserved by recovery`() = runBlocking {
+        val sessionId = "s-settled"
+        val operationId = coordinator.acceptRun(sessionId, user("write"))
+        val call = ToolCall("settled-call", 2L, HarnessTool.WRITE, buildJsonObject { })
+        coordinator.toolIntent(operationId, call, "{}", ReplayPolicy.NEVER, 0)
+        val result = ToolResult("settled-result", 3L, call.id, true, "written")
+        coordinator.toolSettled(operationId, result, 0)
+        rebuildRuntime()
+        recoveryManager.recoverSession(sessionId)
+        assertEquals(result, results(sessionId).single())
+    }
+
+    @Test
+    fun `missing replay declaration is treated as unknown instead of safe`() = runBlocking {
+        val sessionId = "s-missing-replay"
+        val operationId = coordinator.acceptRun(sessionId, user("write"))
+        val call = ToolCall("unknown-policy", 2L, HarnessTool.WRITE, buildJsonObject { })
+        coordinator.toolIntent(operationId, call, "{}", ReplayPolicy.NEVER, 0)
+        repository.saveOperation(repository.findOperation(operationId)!!.copy(replayPolicy = null))
+        rebuildRuntime()
+        assertTrue(recoveryManager.recoverSession(sessionId) is RecoveryOutcome.ToolInterrupted)
+        assertEquals(ToolRecoveryNotice.OUTCOME_UNKNOWN, results(sessionId).single().errorCode)
+    }
+
+    private suspend fun results(sessionId: String): List<ToolResult> = repository.listEntries(sessionId)
+        .filter { it.entryType == "message" }
+        .map { Json.decodeFromString(HarnessMessage.serializer(), it.payloadJson) }
+        .filterIsInstance<ToolResult>()
 
     @Test
     fun `safe replay tool interrupts with distinct reason`() = runBlocking {
