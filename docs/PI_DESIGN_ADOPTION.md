@@ -253,3 +253,62 @@ $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"
 已核对 Debug APK 的 DEX 包含 WebChatRunTracker；包内 index.html 引用的 JS 存在，且其 SHA-256 与本次 Vite dist 文件完全一致。
 
 尚未进行设备或 LAN 客户端端到端验证，也未提供 SSE 断线重放或跨请求持久化幂等保证。
+
+## 状态归属审计（借鉴 pi 状态分层）
+
+以 v1.1.0 extensions 文档的状态归属表（工具态跟随分支 → tool-result details；持久不进上下文 → appendEntry；发给模型 → sendMessage；跨会话 → 外部存储）与三条语义作为检查模板，逐个核验状态消费者：**分支敏感状态必须从当前分支重建；不得从全部历史条目重建（废弃分支是替代历史）；任务执行状态不因切换历史分支而被回滚**。本轮为只读审计，未修改实现。
+
+| 状态消费者 | 存储位置 | 归属判定 | 从分支重建？ | 结论 |
+| --- | --- | --- | --- | --- |
+| 模型可见上下文 | Room 不可变会话树，`SessionContextProjector` 固定叶子经 `branch()` / `branchWindow()` 读取 | 分支（Lane 叶子） | ✅ 唯一从分支重建的消费者 | 符合语义 1、2 |
+| RunMode（PLAN/BUILD） | `harness_sessions.runMode`（会话级，默认 build）+ `agent_approval_settings.runMode`（全局默认回落） | 会话 + 全局 | ❌ DB 直读 | 任务执行态，切分支不回滚 ✅ |
+| 计划内容 | `agent_plans` 表（sessionId 键），plan 工具写入，`MemoryRecallSelector.planBlock(sessionId)` 注入提示词 | 会话 | ❌ DB 直读 | 同上；fork 不带入（缺口 2） |
+| scratchpad | `agent_scratchpads` 表（sessionId, key），子代理 Lane 复用父 sessionId，跨 Lane 共享 | 会话 | ❌ DB 直读 | 同上；跨 Lane 共享见缺口 3 |
+| 恢复运行态 | `OperationCoordinator` 持久化 OperationSnapshot per (sessionId, laneName)，含 phase 与 ReplayPolicy；`RecoveryManager` 按 Lane 遍历恢复 | (会话, Lane) | ❌ 快照直读 | 崩溃恢复不依赖 transcript ✅ |
+| 文件回滚快照 | `CheckpointStore`：per-session 轮次 pre-image + 改动后凭据，MAX_KEPT=100 轮 + 64MB 预算，落盘 App 私有目录，懒恢复 | 会话（跨分支共享） | ❌ 磁盘直读 | 覆盖子代理写入（快照按 sessionId 是正确结果） |
+| 审批授权缓存 | `SessionApprovalGrants`：纯内存 per-sessionId，无持久化，revoke 随会话删除；high/critical 不可记 | 会话 + 进程生命周期 | ❌ 刻意不重建 | 重启即清空 = 保守正确 ✅ |
+| 工具面 / 工具激活 | 请求期从静态集合 + 模型能力投影派生；MCP 发现缓存为进程级 `ConcurrentHashMap<serverId, CachedTools>` | 请求期派生 / 全局进程 | ❌ | 见阶段 6 缺口 1（对统一工具目录的前置约束） |
+
+pi 三条语义对照全部成立：模型上下文是唯一分支敏感状态（语义 1）；对话回滚走 `SessionForkConversationRewinder` fork 新 sessionId、原树不动（语义 2）；执行侧状态全部 DB/内存直读，切分支绝不回滚（语义 3）。缺口四项：① per-session 工具激活必须落 transcript（阶段 6 已遵循）；② fork 不复制 plans/scratchpads（设计确认项，保守正确）；③ scratchpad 跨 Lane 同 key 后写覆盖（低风险，需要隔离时加 laneName 前缀）；④ 授权缓存对用户不可见（设置页增强项）。
+
+## 阶段 6：统一工具目录与注解升级
+
+参考 v1.1.0 extensions 文档的工具暴露分级（direct / model-only / codemode / deferred / hidden）与 tool.annotations 语义。借鉴其边界而不引入 TypeScript 扩展机制：太墟的目录是编译期静态事实源，审批仍由 `ApprovalPolicyEngine` 独家决定，检查点继续只观察或否决。
+
+| 边界 | 太墟实现 |
+| --- | --- |
+| 宿主能力目录 | `harness/directory/HostCapabilityDirectory`：direct/deferred 拆分、只读与 GUI-Assisted 动作分类、共享参数池、隐藏位的唯一事实源；provider 工具面的 host 声明由目录生成 |
+| 代理分发 | `harness/directory/CapabilityToolRouter`：use_capability 的 list/inspect/call/decline 自 ToolExecutor 零增长迁出；server="host" 走与直接 host 调用完全相同的执行通道（输出上限、截图 metadata 附带、特权实时复核） |
+| 注解升级 | `harness/approval/AnnotationEscalation`：escalation-only——显式 `destructiveHint=true` → 至少 high；`openWorldHint=true` 且非只读 → 至少 medium；永不降级，缺省 hint 不参与（存量服务零回归） |
+| 注解数据面 | `McpToolAnnotations`（core:model）随 `McpToolDto` → `McpToolInfo` 透传；`annotationsForCall` 从发现缓存解析注解，未缓存一律 null（保守不升级） |
+| REQUEST 模式 | 统一要求审批不变；注解升级只抬高 MCP 风险等级（声明破坏性 → high，从而不可被「本会话内记住」一揽子豁免） |
+
+host 工具拆分：17 个高频动作保留 direct（status / exec / settings_get / package_list / app_list / logcat / device_status / 主屏 screen_* GUI / paste_text / app_launch），24 个低频动作（设置修改、应用管理变更、screen_capture、全部 virtual_screen_*）迁入按需发现域。巨型说明与参数表不再进入每轮工具声明，改为 inspect 按需输出——inspect 结果是普通工具结果，天然随分支回放，无需额外激活状态（遵循状态归属审计的结论）。
+
+审批等价性（由测试锁定）：deferred 调用经 `flattenToHostArgs` 展平后由引擎委派回 HOST 分支——ASSISTED 的 GUI 自动放行、critical 判定与 PLAN 只读拦截均与直接调用一致；`SessionApprovalGrants` 的 `mcp:host:<tool>` 类别键继续生效。`hidden` 不只从提示词摘除：路由器在调用入口真正拒绝执行。**校验面 = 执行器接受面**：`ToolSchemaValidator` 对 host 走 `validationSchema()`（direct ∪ deferred 并集），provider 声明面只宣告 direct 用于 prompt 减负，旧式直接调用（重放/沙箱直调/历史模仿）不被 enum 硬拒——该不变量由 `HostCapabilityDirectoryTest` 锁定。
+
+### 重新接线追记
+
+阶段 6/7 的接线曾随并行重构提交（c7822283，基于旧版文件快照的 harness/core 重构）被覆盖回退：ProviderClient 恢复巨型 host schema、引擎/执行器失去目录引用，孤儿文件（与 HEAD API 兼容）留在工作区。已按用户决策在新架构上完成重放——ProviderClient host 目录引用、引擎注解升级与 host 委派、ToolExecutor 路由与 parentToolCallId 穿透、校验面 union override、提示词引导、AGENTS.md 规则全部恢复；全项目 test + `:harness:core:test` + `architectureCheck` + `:app:assembleDebug` 重新通过。
+
+## 阶段 7：组合工具嵌套调用记录契约
+
+参考 v1.1.0 extensions 文档的嵌套调用契约：子调用不产生独立 transcript 条目，结果只回给调用方工具；会话在父结果上保留**有界审计记录**（名称、参数、状态、时长、错误；绝不存结果正文）。采纳其契约但按状态归属审计的结论划分适用面：
+
+| 组合路径 | 记录方式 |
+| --- | --- |
+| `invoke_subagent` / `invoke_dual_agent` / workflow 推理节点 | **不适用本契约**：三者均经 `SubagentLaneRunner` 拥有独立模型循环与持久化 Lane，保留完整历史以支持恢复、审批移交与写入证据；父会话只接收摘要与 Lane 引用 |
+| `use_capability` 统一代理（MCP 工具 + 宿主 deferred 能力） | **首个落地者**：内层调用在父结果 metadata 留下有界 nestedCalls 记录 |
+
+| 边界 | 太墟实现 |
+| --- | --- |
+| 契约类型 | `harness/directory/NestedCallRecord`：`NestedCallRecord`（toolCallId=`<parentToolCallId>/<n>`、name、status、durationMs、argumentsPreview、error）+ `NestedCallLog`（complete 标记 + 有界列表） |
+| 写入点 | `CapabilityToolRouter.call()`：宿主 deferred 与 MCP 两条内层路径统一计时并落 `metadata["nested_calls"]`；被目录拒绝的尝试记为 `blocked`，元操作 list/inspect/decline 不记录 |
+| 有界化 | 最多 256 条（超出丢最旧并置 `complete=false`）；参数摘要截断 8 KiB、错误截断 512 字符 |
+| 脱敏 | `argRedactor` 由调用方注入（ToolExecutor 传 `SecretRedactor.redact`）——参数与错误即使不存结果正文也可能含密钥 |
+| 上下文与持久化 | metadata 随 ToolResult 持久化但**不进入模型上下文**；写入证据语义不变 |
+| usage 归属 | 当前落地者均为非模型消耗型内层调用，无重复计费面；模型驱动组合工具的「内层 usage 逐层累加进父结果、父只报自身消耗」规则随契约生效 |
+
+新增测试：`HostCapabilityDirectoryTest`（拆分覆盖不变量、只读留 direct、校验面 = 执行器接受面、deferred 调用与直接调用的审批等价、PLAN 委派拦截、路由器零 MCP 依赖、嵌套记录脱敏与 blocked 审计）、`AnnotationEscalationTest`（升级只升不降、缺省不参与、openWorld 被只读声明压制、免审判定不受影响）；`BuiltinToolContractTest` 的 host 合同改为 direct/deferred 双向断言。
+
+已知边界：注解升级对外部 MCP 服务的实际效力有限——非浏览器外部工具的基础判定已是 high，escalation 仅对浏览器 medium 档与 REQUEST 模式的 rememberability 产生可观察效果；目录注解的完整价值待后续把 per-tool 元数据接入目录后兑现。model-only 暴露级别未引入（ask_user 等派发型工具暂无被组合工具递归调用的通路），留待组合执行落地时一并评估。真机 deferred「发现 → 调用」两跳交互与压缩/导出对 nestedCalls 的消费留待对应功能接入。
