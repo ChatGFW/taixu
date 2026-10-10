@@ -24,6 +24,8 @@ import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
 import top.wkbin.taixu.runtime.build.WorkshopSigningManager
 import top.wkbin.taixu.runtime.build.WorkspaceBuildRunner
 import top.wkbin.taixu.runtime.doctor.EnvironmentDoctor
+import top.wkbin.taixu.runtime.doctor.ToolchainInspector
+import top.wkbin.taixu.runtime.doctor.ToolchainRepairer
 import top.wkbin.taixu.runtime.doctor.EnvironmentRepairer
 import top.wkbin.taixu.runtime.gui.GuiAccessibilityEnabler
 import top.wkbin.taixu.runtime.gui.HostGuiController
@@ -202,6 +204,12 @@ val runtimeModule = module {
     single<EnvironmentDoctor> { EnvironmentDoctor(context = get(), linuxRuntime = get()) }
 
     single<EnvironmentRepairer> { EnvironmentRepairer(linuxRuntime = get(), environmentDoctor = get()) }
+
+    // 沙箱工具链检测与补齐：单例活过聊天页，离开界面不会取消 apt/dpkg
+    single<ToolchainInspector> { ToolchainInspector(linuxRuntime = get()) }
+    single<ToolchainRepairer> {
+        ToolchainRepairer(linuxRuntime = get(), installs = get(), inspector = get())
+    }
 
     single<GuiAccessibilityEnabler> { GuiAccessibilityEnabler(context = get(), privilegeManager = get()) }
 

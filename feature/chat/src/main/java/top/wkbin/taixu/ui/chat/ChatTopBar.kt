@@ -61,6 +61,8 @@ internal fun ChatTopBar(
     browserHighlight: Boolean = false,
     onOpenRepository: (() -> Unit)? = null,
     repositoryHighlight: Boolean = false,
+    toolchainHighlight: Boolean = false,
+    onOpenToolchain: () -> Unit,
 ) {
     val context = LocalContext.current
     Column(
@@ -160,6 +162,8 @@ internal fun ChatTopBar(
             browserHighlight = browserHighlight,
             onOpenRepository = onOpenRepository,
             repositoryHighlight = repositoryHighlight,
+            toolchainHighlight = toolchainHighlight,
+            onOpenToolchain = onOpenToolchain,
         )
     }
 }

@@ -107,6 +107,7 @@ internal fun CollapsibleChatWorkbenchStrip(
     browserHighlight: Boolean = false,
     onOpenRepository: (() -> Unit)? = null,
     repositoryHighlight: Boolean = false,
+    toolchainHighlight: Boolean = false, onOpenToolchain: () -> Unit,
 ) {
     val roundCount = runtimeEvents.count { it is HarnessEvent.ProviderRoundStarted }
     val activeModelName = activeModel?.let { entity ->
@@ -147,7 +148,6 @@ internal fun CollapsibleChatWorkbenchStrip(
             )
 
             StatusDivider()
-
             // 2. 审批模式/权重项
             WorkbenchStatusItem(
                 icon = RuntimeIconName.Shield,
@@ -157,7 +157,6 @@ internal fun CollapsibleChatWorkbenchStrip(
             )
 
             StatusDivider()
-
             // 2b. 运行意图项（构建 / 规划），与审批模式正交
             WorkbenchStatusItem(
                 icon = runModeIcon(runMode),
@@ -167,7 +166,6 @@ internal fun CollapsibleChatWorkbenchStrip(
             )
 
             StatusDivider()
-
             // 3. 分支状态项
             WorkbenchStatusItem(
                 icon = RuntimeIconName.Hub,
@@ -177,7 +175,6 @@ internal fun CollapsibleChatWorkbenchStrip(
             )
 
             StatusDivider()
-
             // 4. 运行时/轮次状态项
             WorkbenchStatusItem(
                 icon = RuntimeIconName.Logs,
@@ -214,12 +211,13 @@ internal fun CollapsibleChatWorkbenchStrip(
                     onClick = onOpenBrowser,
                 )
             }
+            ToolchainStripEntry(toolchainHighlight = toolchainHighlight, onOpenToolchain = onOpenToolchain)
         }
     }
 }
 
 @Composable
-private fun StatusDivider() {
+internal fun StatusDivider() {
     Box(
         modifier = Modifier
             .padding(horizontal = 2.dp)
@@ -229,7 +227,7 @@ private fun StatusDivider() {
 }
 
 @Composable
-private fun WorkbenchStatusItem(
+internal fun WorkbenchStatusItem(
     icon: RuntimeIconName,
     label: String,
     tint: Color,
