@@ -22,6 +22,7 @@ import top.wkbin.taixu.core.tools.ToolManager
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.LocalLlmManager
 import top.wkbin.taixu.runtime.LocalModelTransfer
+import kotlinx.coroutines.flow.Flow
 
 data class LocalModelTransferUiState(
     val running: Boolean = false,
@@ -191,7 +192,7 @@ class LocalLlmViewModel(
 
     private fun startTransfer(
         label: String,
-        source: () -> kotlinx.coroutines.flow.Flow<LocalModelTransfer>,
+        source: () -> Flow<LocalModelTransfer>,
     ) {
         if (transferJob?.isActive == true) {
             showMessage("已有模型传输任务正在进行", isError = true)

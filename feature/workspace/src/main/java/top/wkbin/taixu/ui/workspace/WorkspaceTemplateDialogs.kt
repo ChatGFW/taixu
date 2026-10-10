@@ -30,6 +30,8 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 
 /** 项目模板管理弹窗：导入 / 导出 / 删除 / 规格说明。 */
 @Composable
@@ -51,10 +53,10 @@ internal fun TemplateManagerDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    top.wkbin.taixu.ui.components.RuntimeButton(onClick = onImport, enabled = !busy, modifier = Modifier.weight(1f)) {
+                    RuntimeButton(onClick = onImport, enabled = !busy, modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.workspace_template_import_zip))
                     }
-                    top.wkbin.taixu.ui.components.RuntimeOutlinedButton(onClick = onShowSpec, modifier = Modifier.weight(1f)) {
+                    RuntimeOutlinedButton(onClick = onShowSpec, modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.workspace_template_spec))
                     }
                 }

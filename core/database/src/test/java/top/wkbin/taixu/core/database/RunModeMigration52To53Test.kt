@@ -1,6 +1,7 @@
 package top.wkbin.taixu.core.database
 
 import androidx.room.testing.MigrationTestHelper
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -38,7 +39,7 @@ class RunModeMigration52To53Test {
         InstrumentationRegistry.getInstrumentation().targetContext.getDatabasePath(TEST_DB).absolutePath
 
     // dflt_value 对无默认值的列是 NULL，故值类型可空。
-    private fun defaultsOf(db: androidx.sqlite.db.SupportSQLiteDatabase, table: String): Map<String, String?> =
+    private fun defaultsOf(db: SupportSQLiteDatabase, table: String): Map<String, String?> =
         buildMap {
             db.query("PRAGMA table_info(`$table`)").use { cursor ->
                 while (cursor.moveToNext()) {

@@ -18,6 +18,7 @@ import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.session.ApiMessageProjector
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * 会话文本序列化（对齐 pi 的 serializeConversation）：
@@ -100,7 +101,7 @@ object ConversationText {
         val args = call.args.entries.joinToString(", ") { (key, value) ->
             val rendered = runCatching {
                 when {
-                    value is kotlinx.serialization.json.JsonPrimitive -> value.jsonPrimitive.contentOrNull.orEmpty()
+                    value is JsonPrimitive -> value.jsonPrimitive.contentOrNull.orEmpty()
                     else -> value.toString()
                 }
             }.getOrDefault(value.toString())

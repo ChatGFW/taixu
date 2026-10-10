@@ -16,6 +16,7 @@ import top.wkbin.taixu.harness.ToolCallMode
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.harness.UserMessage
+import top.wkbin.taixu.harness.ResponsesReplay
 
 /**
  * Harness 消息 → 提供商协议消息的统一投影。
@@ -150,7 +151,7 @@ object ApiMessageProjector {
                         tool_calls = toolCalls.takeIf { it.isNotEmpty() },
                     )
                     val turn = (message as? AssistantText)?.responsesTurn?.takeIf {
-                        top.wkbin.taixu.harness.ResponsesReplay.canProject(it, projected, msgs.subList(i, j).filterIsInstance<ToolCall>(), msgs)
+                        ResponsesReplay.canProject(it, projected, msgs.subList(i, j).filterIsInstance<ToolCall>(), msgs)
                     }
                     add(projected.copy(responsesTurn = turn))
                     i = j

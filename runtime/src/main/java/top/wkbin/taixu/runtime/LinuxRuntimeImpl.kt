@@ -6,7 +6,10 @@ import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.common.result.AppError
 import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.common.result.ErrorCode
+import top.wkbin.taixu.core.database.StorageMountBindingRepository
+import top.wkbin.taixu.core.datastore.RuntimePreferences
 import top.wkbin.taixu.core.model.CpuArch
+import top.wkbin.taixu.core.model.InstalledDistro
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.core.model.StorageMountBinding
 import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
@@ -32,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CancellationException
@@ -48,8 +52,8 @@ class LinuxRuntimeImpl(
     private val shellExecutor: ShellExecutor,
     private val healthChecker: RuntimeHealthChecker,
     private val processRegistry: ProcessRegistry,
-    private val settingsDataStore: top.wkbin.taixu.core.datastore.RuntimePreferences,
-    private val storageMountBindingRepository: top.wkbin.taixu.core.database.StorageMountBindingRepository,
+    private val settingsDataStore: RuntimePreferences,
+    private val storageMountBindingRepository: StorageMountBindingRepository,
     private val hostBridge: HostBridge,
     private val distroConfigurator: DistroConfigurator,
     private val logger: AppLogger,
@@ -61,8 +65,8 @@ class LinuxRuntimeImpl(
     private val _activeDistroId = MutableStateFlow("ubuntu")
     override val activeDistroId: StateFlow<String> = _activeDistroId.asStateFlow()
 
-    private val _installedDistros = MutableStateFlow<List<top.wkbin.taixu.core.model.InstalledDistro>>(emptyList())
-    override val installedDistros: StateFlow<List<top.wkbin.taixu.core.model.InstalledDistro>> = _installedDistros.asStateFlow()
+    private val _installedDistros = MutableStateFlow<List<InstalledDistro>>(emptyList())
+    override val installedDistros: StateFlow<List<InstalledDistro>> = _installedDistros.asStateFlow()
 
     private val initializeMutex = Mutex()
     private val storageActivities = StorageActivityGate()
@@ -78,7 +82,7 @@ class LinuxRuntimeImpl(
             val size = pathManager.distroSizeBytes(id)
             val marker = pathManager.rootfsInstalledMarker(id)
             val installedTime = if (marker.exists()) marker.lastModified() else System.currentTimeMillis()
-            top.wkbin.taixu.core.model.InstalledDistro(
+            InstalledDistro(
                 id = id,
                 displayName = spec.displayName,
                 sizeBytes = size,
@@ -768,7 +772,7 @@ class LinuxRuntimeImpl(
 
     override suspend fun cleanupDeadBackground(): Int = processRegistry.cleanupDeadProcesses()
 
-    override fun observeBackgroundLogs(idOrToolId: String): kotlinx.coroutines.flow.Flow<List<String>> =
+    override fun observeBackgroundLogs(idOrToolId: String): Flow<List<String>> =
         processRegistry.observeLogs(idOrToolId)
 
     override fun getBackgroundLogs(idOrToolId: String): List<String> =

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
+import androidx.room.PrimaryKey
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -11,7 +12,7 @@ import top.wkbin.taixu.core.model.StorageMountBinding
 
 @Entity(tableName = "storage_mount_bindings")
 data class StorageMountBindingEntity(
-    @androidx.room.PrimaryKey val id: String,
+    @PrimaryKey val id: String,
     val name: String,
     val hostPath: String,
     val guestPath: String,

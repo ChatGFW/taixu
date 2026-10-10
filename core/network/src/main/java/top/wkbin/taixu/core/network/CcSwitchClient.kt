@@ -13,6 +13,7 @@ import top.wkbin.taixu.core.model.CcProviderProfile
 import top.wkbin.taixu.core.model.CcSwitchDaemonStatus
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import org.json.JSONObject
 
 class CcSwitchClient(
     httpClientProvider: HttpClientProvider,
@@ -96,7 +97,7 @@ class CcSwitchClient(
                 .addPathSegment(agentId)
                 .addPathSegment("switch")
                 .build()
-            val payload = org.json.JSONObject().put("providerId", providerId).toString()
+            val payload = JSONObject().put("providerId", providerId).toString()
             val request = Request.Builder()
                 .url(url)
                 .post(payload.toRequestBody(jsonMediaType))
@@ -147,7 +148,7 @@ class CcSwitchClient(
                 .addPathSegment("install")
                 .build()
             val payload = if (version != null) {
-                org.json.JSONObject().put("version", version).toString()
+                JSONObject().put("version", version).toString()
             } else {
                 "{}"
             }

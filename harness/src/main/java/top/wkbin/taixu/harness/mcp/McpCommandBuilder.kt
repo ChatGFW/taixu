@@ -1,5 +1,6 @@
 package top.wkbin.taixu.harness.mcp
 
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.model.McpServerConfig
 
 /**
@@ -9,7 +10,7 @@ import top.wkbin.taixu.core.model.McpServerConfig
 class McpCommandBuilder() {
     fun commandLine(server: McpServerConfig): String {
         require(server.command.isNotBlank()) { "MCP STDIO server requires a non-blank command" }
-        val argv = (listOf(server.command) + server.args).joinToString(" ", transform = ::shellQuote)
+        val argv = (listOf(server.command) + server.args).joinToString(" ", transform = ShellQuote::of)
         return "stty raw -echo; exec " + argv
     }
 
@@ -29,11 +30,6 @@ class McpCommandBuilder() {
         if (server.args[idx + 1] != DEFAULT_REPOSITORY) return server
         if (repo == DEFAULT_REPOSITORY) return server
         return server.copy(args = server.args.toMutableList().also { it[idx + 1] = repo })
-    }
-
-    fun shellQuote(value: String): String {
-        val escaped = value.replace("'", "'" + "\"" + "'" + "\"" + "'")
-        return "'" + escaped + "'"
     }
 
     private companion object {

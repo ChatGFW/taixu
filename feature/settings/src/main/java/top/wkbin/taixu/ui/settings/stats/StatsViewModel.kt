@@ -10,6 +10,8 @@ import top.wkbin.taixu.core.model.StatsDateRange
 import top.wkbin.taixu.core.model.StatsDateRangePreset
 import top.wkbin.taixu.core.model.StatsSnapshot
 import java.time.LocalDate
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 
 data class StatsUiState(
     val range: StatsDateRange = StatsDateRange.allTime(),
@@ -60,10 +62,10 @@ class StatsViewModel(
                     snapshot = snapshot,
                     isLoading = false,
                 )
-            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                android.util.Log.e("StatsViewModel", "Failed to build stats snapshot: ${e.message}", e)
+                Log.e("StatsViewModel", "Failed to build stats snapshot: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = "统计数据加载失败，请点击重试",

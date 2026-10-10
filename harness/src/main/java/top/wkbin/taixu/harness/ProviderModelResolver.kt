@@ -9,6 +9,7 @@ import top.wkbin.taixu.core.tools.ProviderRepository
 import top.wkbin.taixu.harness.ProviderClient.Companion.DEFAULT_BASE_URL
 import top.wkbin.taixu.harness.ProviderClient.Companion.DEFAULT_MODEL
 import top.wkbin.taixu.harness.ProviderClient.Companion.inferProtocol
+import top.wkbin.taixu.core.database.AiModelEntity
 
 /** Resolves catalogs, encrypted credentials and user preferences without sending requests. */
 internal class ProviderModelResolver(
@@ -149,8 +150,8 @@ internal class ProviderModelResolver(
 
 
     /** Room 实体 → 运行配置：推理参数原样透传，协议按 Base URL / 厂商名自动推断。 */
-    private suspend fun top.wkbin.taixu.core.database.AiModelEntity.toModelConfig(
-        providerRepository: top.wkbin.taixu.core.tools.ProviderRepository,
+    private suspend fun AiModelEntity.toModelConfig(
+        providerRepository: ProviderRepository,
     ): ModelConfig {
         val baseUrl = this.baseUrl.ifBlank { DEFAULT_BASE_URL }
         val resolvedProtocol = inferProtocol(baseUrl, provider)
@@ -206,7 +207,7 @@ internal data class RequestedModelTarget(
 )
 
 internal fun selectRequestedModelTarget(
-    profiles: List<top.wkbin.taixu.core.database.AiModelEntity>,
+    profiles: List<AiModelEntity>,
     selection: String,
 ): RequestedModelTarget? {
     val requested = selection.trim()

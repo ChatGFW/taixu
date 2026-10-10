@@ -32,11 +32,12 @@ import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeSwitch
+import top.wkbin.taixu.runtime.webchat.WebChatServerStatus
 
 /** WebChat 电脑大屏协作卡片 (Dashboard Bridge Card) */
 @Composable
 internal fun WebChatDashboardCard(
-    status: top.wkbin.taixu.runtime.webchat.WebChatServerStatus,
+    status: WebChatServerStatus,
     onToggle: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current

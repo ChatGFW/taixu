@@ -30,6 +30,11 @@ import top.wkbin.taixu.harness.operation.OperationCoordinator
 import top.wkbin.taixu.harness.operation.OperationPhase
 import top.wkbin.taixu.harness.operation.OperationStatus
 import top.wkbin.taixu.harness.operation.ReplayPolicy
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import top.wkbin.taixu.harness.HarnessMessage
+import top.wkbin.taixu.harness.HarnessTool
+import top.wkbin.taixu.harness.events.HarnessEvent
 
 /**
  * 崩溃恢复集成测试：真实 Room 持久化 + OperationCoordinator + RecoveryManager 全链路。
@@ -111,9 +116,9 @@ class HarnessRecoveryIntegrationTest {
         val toolCall = ToolCall(
             id = "call-1",
             createdAt = 2L,
-            tool = top.wkbin.taixu.harness.HarnessTool.BASE,
-            args = kotlinx.serialization.json.buildJsonObject {
-                put("command", kotlinx.serialization.json.JsonPrimitive("rm -rf /tmp/x"))
+            tool = HarnessTool.BASE,
+            args = buildJsonObject {
+                put("command", JsonPrimitive("rm -rf /tmp/x"))
             },
             rawToolName = "base",
         )
@@ -129,7 +134,7 @@ class HarnessRecoveryIntegrationTest {
         // 中断结果作为 ToolResult entry 写入树中（不重放执行）
         val entries = repository.listEntries(sessionId)
         val toolResult = entries.mapNotNull { entry ->
-            runCatching { Json.decodeFromString(top.wkbin.taixu.harness.HarnessMessage.serializer(), entry.payloadJson) }
+            runCatching { Json.decodeFromString(HarnessMessage.serializer(), entry.payloadJson) }
                 .getOrNull() as? ToolResult
         }.singleOrNull()
         assertTrue("应写入一条中断 ToolResult", toolResult != null)
@@ -145,9 +150,9 @@ class HarnessRecoveryIntegrationTest {
         val toolCall = ToolCall(
             id = "call-2",
             createdAt = 2L,
-            tool = top.wkbin.taixu.harness.HarnessTool.READ,
-            args = kotlinx.serialization.json.buildJsonObject {
-                put("path", kotlinx.serialization.json.JsonPrimitive("a.txt"))
+            tool = HarnessTool.READ,
+            args = buildJsonObject {
+                put("path", JsonPrimitive("a.txt"))
             },
         )
         coordinator.toolIntent(operationId, toolCall, """{"path":"a.txt"}""", ReplayPolicy.SAFE, round = 0)
@@ -211,14 +216,14 @@ class HarnessRecoveryIntegrationTest {
         val operationId = coordinator.acceptRun(sessionId, user("hi"))
         coordinator.providerIntent(operationId, "a-1", 0, 1, 1)
 
-        val events = mutableListOf<top.wkbin.taixu.harness.events.HarnessEvent>()
+        val events = mutableListOf<HarnessEvent>()
         val job = GlobalScope.launch(Dispatchers.Unconfined) {
             eventBus.events.collect { events += it }
         }
         try {
             rebuildRuntime()
             recoveryManager.recoverSession(sessionId)
-            assertTrue(events.any { it is top.wkbin.taixu.harness.events.HarnessEvent.RecoveryApplied })
+            assertTrue(events.any { it is HarnessEvent.RecoveryApplied })
         } finally {
             job.cancel()
         }

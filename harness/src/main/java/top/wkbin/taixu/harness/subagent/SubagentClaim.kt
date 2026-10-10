@@ -3,13 +3,13 @@ package top.wkbin.taixu.harness.subagent
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.HarnessTool
+import top.wkbin.taixu.harness.JsonArgs
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.normalizeWritePath
+import kotlinx.serialization.json.JsonObject
 
 /**
  * 子智能体完成 claim 的 host 裁定（对齐 Reasonix 的 complete_subtask 语义）。
@@ -248,5 +248,4 @@ internal fun statusLabel(status: String): String = when (status) {
 private fun normalizeCommand(command: String): String =
     command.replace(Regex("\\s+"), " ").trim().removePrefix("./").trim()
 
-private fun kotlinx.serialization.json.JsonObject.stringArg(key: String): String? =
-    (this[key] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+private fun JsonObject.stringArg(key: String): String? = JsonArgs.optionalString(this, key)

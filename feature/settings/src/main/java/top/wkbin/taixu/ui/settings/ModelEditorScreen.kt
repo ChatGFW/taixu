@@ -95,6 +95,8 @@ import top.wkbin.taixu.ui.components.RuntimeSlider
 import top.wkbin.taixu.ui.components.RuntimeSwitch
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import java.util.Locale
+import top.wkbin.taixu.core.tools.ProviderProtocol
 
 /**
  * 模型编辑与连接测试全屏独立页面
@@ -589,7 +591,7 @@ private fun ModelEditorContent(
                         label = { Text("Base URL") },
                         placeholder = {
                             Text(
-                                if (provider.protocol == top.wkbin.taixu.core.tools.ProviderProtocol.ANTHROPIC) {
+                                if (provider.protocol == ProviderProtocol.ANTHROPIC) {
                                     "https://api.anthropic.com/v1 或中转站地址"
                                 } else {
                                     "https://api.openai.com/v1"
@@ -1426,9 +1428,9 @@ private fun ModelEditorContent(
 private fun formatContextWindow(tokens: Int): String = when {
     tokens <= 0 -> "0"
     tokens % 1_000_000 == 0 -> "${tokens / 1_000_000}M"
-    tokens >= 1_000_000 -> String.format(java.util.Locale.US, "%.1fM", tokens / 1_000_000.0)
+    tokens >= 1_000_000 -> String.format(Locale.US, "%.1fM", tokens / 1_000_000.0)
     tokens % 1_000 == 0 -> "${tokens / 1_000}K"
-    else -> String.format(java.util.Locale.US, "%.1fK", tokens / 1_000.0)
+    else -> String.format(Locale.US, "%.1fK", tokens / 1_000.0)
 }
 
 internal fun filterCandidateModels(models: List<String>, query: String): List<String> {

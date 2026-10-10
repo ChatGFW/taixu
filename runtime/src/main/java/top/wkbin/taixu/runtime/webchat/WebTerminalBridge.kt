@@ -1,6 +1,7 @@
 package top.wkbin.taixu.runtime.webchat
 
 import java.io.IOException
+import java.net.URLDecoder
 import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -9,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
@@ -304,7 +306,7 @@ internal class WebTerminalBridge(
             ?.split('&')
             ?.firstOrNull { it.substringBefore('=') == "token" }
             ?.substringAfter('=', "")
-            ?.let { java.net.URLDecoder.decode(it, Charsets.UTF_8.name()) }
+            ?.let { URLDecoder.decode(it, Charsets.UTF_8.name()) }
             ?: exchange.requestHeaders.getFirst("Authorization")?.removePrefix("Bearer ")
         return token != null && token == pinProvider()
     }
@@ -316,7 +318,7 @@ internal class WebTerminalBridge(
 
     private fun errorJson(message: String) = buildJsonObject { put("error", message) }
 
-    private fun sendJson(exchange: AndroidHttpExchange, code: Int, payload: kotlinx.serialization.json.JsonElement) =
+    private fun sendJson(exchange: AndroidHttpExchange, code: Int, payload: JsonElement) =
         sendResponse(exchange, code, "application/json; charset=utf-8", payload.toString().toByteArray())
 
     private fun sendText(exchange: AndroidHttpExchange, code: Int, text: String) =

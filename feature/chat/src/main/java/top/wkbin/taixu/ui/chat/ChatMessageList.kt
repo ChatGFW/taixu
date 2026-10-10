@@ -71,6 +71,8 @@ import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.database.AgentPlanEntity
 import top.wkbin.taixu.harness.compaction.CompactionSnapshot
 import top.wkbin.taixu.runtime.ProjectType
+import top.wkbin.taixu.harness.AskUserQuestions
+import top.wkbin.taixu.harness.session.ConversationBranch
 
 /**
  * 工具卡片折叠状态 Saver：Map 本身不能存入 Bundle（rememberSaveable 会抛 IllegalArgumentException），
@@ -121,8 +123,8 @@ internal fun ChatMessageList(
     onResolveApproval: (String, Boolean, Boolean) -> Unit,
     onResolveQuestion: (String, String) -> Unit = { _, _ -> },
     onViewSubagentLanes: () -> Unit = {},
-    subagentBranches: List<top.wkbin.taixu.harness.session.ConversationBranch> = emptyList(),
-    onOpenSubagent: (top.wkbin.taixu.harness.session.ConversationBranch) -> Unit = {},
+    subagentBranches: List<ConversationBranch> = emptyList(),
+    onOpenSubagent: (ConversationBranch) -> Unit = {},
     hiddenSkillSuggestions: Set<String> = emptySet(),
     onApplySkillSuggestion: (SkillSuggestion, Boolean) -> Unit = { _, _ -> },
     onDismissSkillSuggestion: (String) -> Unit = {},
@@ -285,7 +287,7 @@ internal fun ChatMessageList(
         }
         item {
             pendingApprovals.firstOrNull()?.let { request ->
-                if (request.toolName == top.wkbin.taixu.harness.AskUserQuestions.TOOL_NAME) {
+                if (request.toolName == AskUserQuestions.TOOL_NAME) {
                     AskUserCard(
                         request = request,
                         onAnswer = onResolveQuestion,

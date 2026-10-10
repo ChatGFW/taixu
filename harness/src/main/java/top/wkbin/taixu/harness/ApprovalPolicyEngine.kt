@@ -11,6 +11,7 @@ import top.wkbin.taixu.harness.mcp.McpToolApiName
 import java.util.UUID
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.security.MessageDigest
 
 
 data class ApprovalDecision(
@@ -258,7 +259,7 @@ class ApprovalPolicyEngine(
 
         /** argumentsJson 的 SHA-256 十六进制摘要；创建时写入，执行前复核。 */
         fun argsHash(argumentsJson: String): String {
-            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            val digest = MessageDigest.getInstance("SHA-256")
                 .digest(argumentsJson.toByteArray(Charsets.UTF_8))
             return digest.joinToString("") { "%02x".format(it) }
         }

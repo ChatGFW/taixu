@@ -1,6 +1,7 @@
 package top.wkbin.taixu.core.database
 
 import kotlinx.coroutines.flow.Flow
+import java.util.UUID
 
 /** Persistence port used by the harness runtime; feature modules never depend on its DAO. */
 interface HarnessRuntimeRepository {
@@ -146,10 +147,10 @@ class RoomHarnessRuntimeRepository(
                 // Idempotent retry of the same logical entry.
                 return candidate
             }
-            val randomSuffix = java.util.UUID.randomUUID().toString().replace("-", "").take(8)
+            val randomSuffix = UUID.randomUUID().toString().replace("-", "").take(8)
             candidate = entry.copy(id = "${entry.id}_$randomSuffix")
         }
-        val fallback = java.util.UUID.randomUUID().toString().replace("-", "")
+        val fallback = UUID.randomUUID().toString().replace("-", "")
         val resolved = entry.copy(id = "${entry.id}_$fallback")
         check(dao.findEntry(resolved.id) == null) {
             "Unable to allocate a unique harness entry id for ${entry.id}"

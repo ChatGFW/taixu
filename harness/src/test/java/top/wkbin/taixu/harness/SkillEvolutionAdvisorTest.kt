@@ -7,6 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.wkbin.taixu.core.model.AgentSkill
 import top.wkbin.taixu.harness.skill.SkillEvolutionAdvisor
+import kotlinx.serialization.json.JsonObject
 
 /**
  * 技能进化顾问（借鉴千问「对话后技能沉淀/进化」）的纯逻辑测试：
@@ -77,7 +78,7 @@ class SkillEvolutionAdvisorTest {
             UserMessage(id = "u0", createdAt = 0, text = "更早的请求"),
             AssistantText(id = "a0", createdAt = 1, text = "更早的回复"),
             UserMessage(id = "u1", createdAt = 2, text = "本次请求"),
-            ToolCall(id = "t1", createdAt = 3, tool = HarnessTool.READ, args = kotlinx.serialization.json.JsonObject(emptyMap())),
+            ToolCall(id = "t1", createdAt = 3, tool = HarnessTool.READ, args = JsonObject(emptyMap())),
             ToolResult(id = "r1", createdAt = 4, toolCallId = "t1", success = true, output = hugeOutput),
         )
         val digest = SkillEvolutionAdvisor.buildConversationDigest(messages)!!

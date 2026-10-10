@@ -8,6 +8,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import top.wkbin.taixu.harness.HarnessApiMapper
 import top.wkbin.taixu.harness.HarnessTool
+import top.wkbin.taixu.harness.JsonArgs
 import top.wkbin.taixu.harness.ProviderClient
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolExecutor
@@ -108,7 +109,7 @@ class HarnessToolProvider(
         "$what 属于写入/执行层，当前未开启。请在「设置 → MCP → 服务端（被控方）」中开启「允许写入与执行」后重试。"
 
     private fun JsonObject.stringArg(key: String): String =
-        (this[key] as? JsonPrimitive)?.content?.trim().orEmpty()
+        JsonArgs.optionalString(this, key)?.trim().orEmpty()
 
     private fun textResult(text: String, isError: Boolean): JsonObject = buildJsonObject {
         put("content", JsonArray(listOf(buildJsonObject {

@@ -98,6 +98,12 @@ import top.wkbin.taixu.harness.mcp.McpWorkspaceRecommender
 import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.ui.chat.ChatRenderItem
 import top.wkbin.taixu.ui.chat.projectChatMessages
+import top.wkbin.taixu.feature.a2uipoc.LocalA2uiSessionId
+import top.wkbin.taixu.harness.HarnessTool
+import top.wkbin.taixu.harness.SkillSuggestion
+import top.wkbin.taixu.harness.checkpoint.RewindScope
+import top.wkbin.taixu.harness.session.ConversationBranch
+import top.wkbin.taixu.runtime.DistributionCatalog
 
 // 悬浮玻璃底栏实际占高 = 上下 8dp padding + 64dp 条体 = 80dp，留 2dp 微缝防贴死
 private val AgentBottomBarHeight = 82.dp
@@ -107,10 +113,10 @@ private val BrowserBottomBarHeight = 80.dp
 
 /** 会改动工作区文件的工具：这些工具执行后「仓库」入口按需高亮提示新改动 */
 private val REPOSITORY_HIGHLIGHT_TOOLS = setOf(
-    top.wkbin.taixu.harness.HarnessTool.WRITE,
-    top.wkbin.taixu.harness.HarnessTool.EDIT,
-    top.wkbin.taixu.harness.HarnessTool.BASE,
-    top.wkbin.taixu.harness.HarnessTool.PROCESS,
+    HarnessTool.WRITE,
+    HarnessTool.EDIT,
+    HarnessTool.BASE,
+    HarnessTool.PROCESS,
 )
 
 @Composable
@@ -233,7 +239,7 @@ fun ChatScreen(
         activeWorkspaceProject?.let { project -> override?.let { project.copy(projectType = it) } ?: project }
     }
     val distroDisplayName = remember(activeDistroId) {
-        runCatching { top.wkbin.taixu.runtime.DistributionCatalog.require(activeDistroId).displayName }
+        runCatching { DistributionCatalog.require(activeDistroId).displayName }
             .getOrDefault(activeDistroId)
     }
 
@@ -405,7 +411,7 @@ fun ChatScreen(
                             lastRepositoryVisitAt = System.currentTimeMillis()
                             open(project.name)
                         } else {
-                            android.widget.Toast.makeText(appContext, noProjectHint, android.widget.Toast.LENGTH_SHORT).show()
+                            Toast.makeText(appContext, noProjectHint, Toast.LENGTH_SHORT).show()
                         }
                     }
                 },
@@ -415,7 +421,7 @@ fun ChatScreen(
 
     // 模型回复里的 /workspace、/attachments 等沙箱路径在此翻译为宿主真实文件，
     // 否则 Coil 会按 Android 根文件系统路径加载而必然失败。
-    CompositionLocalProvider(LocalSandboxHostRoots provides viewModel.sandboxHostRoots, top.wkbin.taixu.feature.a2uipoc.LocalA2uiSessionId provides currentSessionId) {
+    CompositionLocalProvider(LocalSandboxHostRoots provides viewModel.sandboxHostRoots, LocalA2uiSessionId provides currentSessionId) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -709,7 +715,7 @@ fun ChatScreen(
                 }
             },
             dismissButton = {
-                top.wkbin.taixu.ui.components.RuntimeTextButton(
+                TextButton(
                     onClick = { showFloatingPermissionDialog = false },
                 ) {
                     Text(stringResource(R.string.chat_floating_permission_cancel))
@@ -932,7 +938,7 @@ private fun ChatPaneContent(
     onOpenFile: ((projectName: String, relativePath: String) -> Unit)?,
     onEditMessage: (UserMessage) -> Unit,
     onDeleteMessage: (String) -> Unit,
-    onRewindMessage: (String, top.wkbin.taixu.harness.checkpoint.RewindScope) -> Unit = { _, _ -> },
+    onRewindMessage: (String, RewindScope) -> Unit = { _, _ -> },
     error: String?,
     onClearError: () -> Unit,
     matchingCommands: List<SlashCommandItem>,
@@ -981,10 +987,10 @@ private fun ChatPaneContent(
     quickPhrases: List<QuickPhrase> = emptyList(),
     onSelectPhrase: (QuickPhrase) -> Unit = {},
     onViewSubagentLanes: () -> Unit = {},
-    subagentBranches: List<top.wkbin.taixu.harness.session.ConversationBranch> = emptyList(),
-    onOpenSubagentBranch: (top.wkbin.taixu.harness.session.ConversationBranch) -> Unit = {},
+    subagentBranches: List<ConversationBranch> = emptyList(),
+    onOpenSubagentBranch: (ConversationBranch) -> Unit = {},
     hiddenSkillSuggestions: Set<String> = emptySet(),
-    onApplySkillSuggestion: (top.wkbin.taixu.harness.SkillSuggestion, Boolean) -> Unit = { _, _ -> },
+    onApplySkillSuggestion: (SkillSuggestion, Boolean) -> Unit = { _, _ -> },
     onDismissSkillSuggestion: (String) -> Unit = {},
 ) {
     Column(modifier = modifier) {

@@ -27,6 +27,10 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 import top.wkbin.taixu.harness.mcp.McpToolApiName
+import java.net.URI
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 
 /** HTTP 429 的结构化错误，供 Harness 区分临时限流与账户额度耗尽。 */
 class LlmRateLimitException(
@@ -394,17 +398,17 @@ internal class ChatApi(
             } else {
                 0
             }
-        val requestJson = kotlinx.serialization.json.buildJsonObject {
-            put("model", kotlinx.serialization.json.JsonPrimitive(model.model))
-            put("stream", kotlinx.serialization.json.JsonPrimitive(stream))
+        val requestJson = buildJsonObject {
+            put("model", JsonPrimitive(model.model))
+            put("stream", JsonPrimitive(stream))
             if (stream && includeUsage) {
                 // 请求最终 usage 块（OpenAI 官方规范字段；DeepSeek/DashScope/GLM/OpenRouter 均支持）
-                put("stream_options", kotlinx.serialization.json.buildJsonObject {
-                    put("include_usage", kotlinx.serialization.json.JsonPrimitive(true))
+                put("stream_options", buildJsonObject {
+                    put("include_usage", JsonPrimitive(true))
                 })
             }
-            model.temperature?.let { put("temperature", kotlinx.serialization.json.JsonPrimitive(it)) }
-            put("max_tokens", kotlinx.serialization.json.JsonPrimitive(
+            model.temperature?.let { put("temperature", JsonPrimitive(it)) }
+            put("max_tokens", JsonPrimitive(
                 ContextWindowPolicy.outputBudget(
                     model.maxTokens,
                     8_192,
@@ -415,30 +419,30 @@ internal class ChatApi(
                     toolSchemaTokens,
                 ),
             ))
-            model.topP?.let { put("top_p", kotlinx.serialization.json.JsonPrimitive(it)) }
+            model.topP?.let { put("top_p", JsonPrimitive(it)) }
             // 推理开关/强度：按厂商能力翻译（reasoning_effort / thinking_config / thinking / reasoning）
             ReasoningAdapter.openAiFields(model).forEach { (key, value) -> put(key, value) }
             // 工具调用：纯净模式与 DISABLED 模式完全不注入工具相关参数；仅 NATIVE 模式注入标准 tools
             if (model.capabilities.nativeTools && tools.isNotEmpty()) {
-                put("tools", json.encodeToJsonElement(kotlinx.serialization.builtins.ListSerializer(ApiToolDefinition.serializer()), tools))
+                put("tools", json.encodeToJsonElement(ListSerializer(ApiToolDefinition.serializer()), tools))
             }
-            put("messages", kotlinx.serialization.json.buildJsonArray {
+            put("messages", buildJsonArray {
                 effectiveMessages.forEach { msg ->
-                    add(kotlinx.serialization.json.buildJsonObject {
-                        put("role", kotlinx.serialization.json.JsonPrimitive(msg.role))
+                    add(buildJsonObject {
+                        put("role", JsonPrimitive(msg.role))
                         if (msg.imageUrls.isNotEmpty()) {
-                            put("content", kotlinx.serialization.json.buildJsonArray {
+                            put("content", buildJsonArray {
                                 if (!msg.content.isNullOrBlank()) {
-                                    add(kotlinx.serialization.json.buildJsonObject {
-                                        put("type", kotlinx.serialization.json.JsonPrimitive("text"))
-                                        put("text", kotlinx.serialization.json.JsonPrimitive(msg.content))
+                                    add(buildJsonObject {
+                                        put("type", JsonPrimitive("text"))
+                                        put("text", JsonPrimitive(msg.content))
                                     })
                                 }
                                 msg.imageUrls.forEach { url ->
-                                    add(kotlinx.serialization.json.buildJsonObject {
-                                        put("type", kotlinx.serialization.json.JsonPrimitive("image_url"))
-                                        put("image_url", kotlinx.serialization.json.buildJsonObject {
-                                            put("url", kotlinx.serialization.json.JsonPrimitive(url))
+                                    add(buildJsonObject {
+                                        put("type", JsonPrimitive("image_url"))
+                                        put("image_url", buildJsonObject {
+                                            put("url", JsonPrimitive(url))
                                         })
                                     })
                                 }
@@ -447,12 +451,12 @@ internal class ChatApi(
                             // Strict OpenAI-compatible gateways deserialize content as a required
                             // String; never omit it. Assistant tool-call turns legitimately have no
                             // text, so send an empty string instead.
-                            put("content", kotlinx.serialization.json.JsonPrimitive(msg.content ?: ""))
+                            put("content", JsonPrimitive(msg.content ?: ""))
                         }
-                        msg.reasoning_content?.let { put("reasoning_content", kotlinx.serialization.json.JsonPrimitive(it)) }
-                        msg.tool_call_id?.let { put("tool_call_id", kotlinx.serialization.json.JsonPrimitive(it)) }
+                        msg.reasoning_content?.let { put("reasoning_content", JsonPrimitive(it)) }
+                        msg.tool_call_id?.let { put("tool_call_id", JsonPrimitive(it)) }
                         msg.tool_calls?.let { calls ->
-                            put("tool_calls", json.encodeToJsonElement(kotlinx.serialization.builtins.ListSerializer(ApiToolCall.serializer()), calls))
+                            put("tool_calls", json.encodeToJsonElement(ListSerializer(ApiToolCall.serializer()), calls))
                         }
                     })
                 }
@@ -686,7 +690,7 @@ data class ApiToolDefinition(
 data class ApiFunctionDefinition(
     val name: String,
     val description: String,
-    val parameters: kotlinx.serialization.json.JsonObject,
+    val parameters: JsonObject,
 )
 
 @Serializable
@@ -840,7 +844,7 @@ class ProviderClient internal constructor(
 
         /** Anthropic 协议自动识别：官方域名或厂商名含 anthropic/claude。 */
         fun inferProtocol(baseUrl: String, provider: String): ApiProtocol {
-            val host = runCatching { java.net.URI(baseUrl.trim()).host?.lowercase() }.getOrNull().orEmpty()
+            val host = runCatching { URI(baseUrl.trim()).host?.lowercase() }.getOrNull().orEmpty()
             val providerLower = provider.lowercase()
             return if (host == "api.anthropic.com" ||
                 providerLower.contains("anthropic") ||

@@ -60,12 +60,13 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.feature.settings.R
 
 // 赞赏码与赞助邮箱
 private const val SPONSOR_EMAIL = "wangkebin1997@gmail.com"
 // 收款码已打包进 settings 模块 mipmap 资源（settings_qr_*），离线可用、不依赖外网
-private val SPONSOR_ALIPAY_QR_RES = top.wkbin.taixu.feature.settings.R.mipmap.settings_qr_alipay
-private val SPONSOR_WECHAT_QR_RES = top.wkbin.taixu.feature.settings.R.mipmap.settings_qr_wechat
+private val SPONSOR_ALIPAY_QR_RES = R.mipmap.settings_qr_alipay
+private val SPONSOR_WECHAT_QR_RES = R.mipmap.settings_qr_wechat
 private val SponsorAccent: Color = Color(0xFFFF4D6D)
 
 /**

@@ -15,6 +15,13 @@ import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.events.HarnessEvent
 import top.wkbin.taixu.harness.events.HarnessEventBus
 import top.wkbin.taixu.harness.session.SessionTreeStore
+import top.wkbin.taixu.harness.AssistantText
+import top.wkbin.taixu.harness.CapabilityEvent
+import top.wkbin.taixu.harness.ModelSwitchEvent
+import top.wkbin.taixu.harness.SkillSuggestion
+import top.wkbin.taixu.harness.ToolCall
+import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.UserMessage
 
 /** Owns all durable operation transitions and their transaction boundaries. */
 class OperationCoordinator(
@@ -129,7 +136,7 @@ class OperationCoordinator(
         )
         settle(operationId, message, null, snapshot, replay)
         emitFor(operationId) { sessionId, timestamp, _ ->
-            val toolCall = message as? top.wkbin.taixu.harness.ToolCall
+            val toolCall = message as? ToolCall
             HarnessEvent.ToolCallStarted(
                 sessionId, timestamp, operationId,
                 toolCallId = message.id,
@@ -146,7 +153,7 @@ class OperationCoordinator(
             snapshot = OperationSnapshot(phase = OperationPhase.TOOL_SETTLED.id, round = round),
         )
         emitFor(operationId) { sessionId, timestamp, _ ->
-            val result = message as? top.wkbin.taixu.harness.ToolResult
+            val result = message as? ToolResult
             HarnessEvent.ToolCallSettled(
                 sessionId, timestamp, operationId,
                 toolCallId = result?.toolCallId ?: message.id,
@@ -335,11 +342,11 @@ class OperationCoordinator(
 }
 
 private fun HarnessMessage.serialType(): String = when (this) {
-    is top.wkbin.taixu.harness.UserMessage -> "user"
-    is top.wkbin.taixu.harness.AssistantText -> "assistant"
-    is top.wkbin.taixu.harness.ToolCall -> "tool_call"
-    is top.wkbin.taixu.harness.ToolResult -> "tool_result"
-    is top.wkbin.taixu.harness.CapabilityEvent -> "capability_event"
-    is top.wkbin.taixu.harness.SkillSuggestion -> "skill_suggestion"
-    is top.wkbin.taixu.harness.ModelSwitchEvent -> "model_switch"
+    is UserMessage -> "user"
+    is AssistantText -> "assistant"
+    is ToolCall -> "tool_call"
+    is ToolResult -> "tool_result"
+    is CapabilityEvent -> "capability_event"
+    is SkillSuggestion -> "skill_suggestion"
+    is ModelSwitchEvent -> "model_switch"
 }

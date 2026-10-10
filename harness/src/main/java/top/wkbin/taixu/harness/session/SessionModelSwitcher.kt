@@ -11,6 +11,8 @@ import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.ProviderClient
 import top.wkbin.taixu.harness.compaction.CompactionManager
 import top.wkbin.taixu.harness.projection.LiveMessagePort
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 
 /**
  * Session-scoped model switch: persist the binding, record it in the transcript like a
@@ -130,10 +132,10 @@ class SessionModelSwitcher(
                     compactionManager.compact(sessionId, context, keepFrom, model = targetModelConfig)
                     compacted = true
                     folded = keepFrom
-                } catch (cancellation: kotlinx.coroutines.CancellationException) {
+                } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (throwable: Throwable) {
-                    android.util.Log.w(
+                    Log.w(
                         "ContextCompaction",
                         "切换模型后压缩失败，降级为待压缩（下一次组装重试）：${throwable.message}",
                         throwable,

@@ -4,6 +4,7 @@ import android.system.Os
 import top.wkbin.taixu.core.common.logging.AppLogger
 import java.io.File
 import java.io.InputStream
+import java.io.OutputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import kotlinx.coroutines.Dispatchers
@@ -311,7 +312,7 @@ class TarStreamExtractor internal constructor(
         return result
     }
 
-    private fun copyData(input: InputStream, size: Long, output: java.io.OutputStream) {
+    private fun copyData(input: InputStream, size: Long, output: OutputStream) {
         var remaining = size
         val buffer = ByteArray(BUFFER_SIZE)
         while (remaining > 0) {

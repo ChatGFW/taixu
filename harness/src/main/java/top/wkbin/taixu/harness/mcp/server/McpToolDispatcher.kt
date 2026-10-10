@@ -6,6 +6,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import top.wkbin.taixu.runtime.browser.secret.SecretRedactingInterceptor
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
+import kotlinx.serialization.json.JsonArray
 
 /**
  * 把 `mcp__browser__<tool>` 转发到 [BrowserMcpTools] 实例，并把 [extraProviders]
@@ -36,7 +37,7 @@ class McpToolDispatcher(
         val text = SecretRedactingInterceptor.apply(
             if (res.imageAttachments.isEmpty()) res.output else buildJsonObject {
                 put("output", JsonPrimitive(res.output))
-                put("imageAttachments", kotlinx.serialization.json.JsonArray(res.imageAttachments.map { ir ->
+                put("imageAttachments", JsonArray(res.imageAttachments.map { ir ->
                     buildJsonObject {
                         put("id", JsonPrimitive(ir.id))
                         put("uri", JsonPrimitive(ir.uri))
@@ -48,7 +49,7 @@ class McpToolDispatcher(
             }.toString()
         )
         return buildJsonObject {
-            put("content", kotlinx.serialization.json.JsonArray(listOf(buildJsonObject {
+            put("content", JsonArray(listOf(buildJsonObject {
                 put("type", JsonPrimitive("text"))
                 put("text", JsonPrimitive(text))
             })))

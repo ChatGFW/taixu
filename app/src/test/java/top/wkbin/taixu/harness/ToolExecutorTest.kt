@@ -1,6 +1,8 @@
 package top.wkbin.taixu.harness
 
+import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.security.SecretRedactor
+import top.wkbin.taixu.harness.directory.CapabilityToolGateway
 import top.wkbin.taixu.core.network.DownloadEvent
 import top.wkbin.taixu.core.network.DownloadRequest
 import top.wkbin.taixu.core.network.FileDownloader
@@ -31,27 +33,35 @@ class ToolExecutorTest {
     val temporaryFolder = TemporaryFolder()
 
     private lateinit var workspaceRoot: File
+    private lateinit var workspaceFiles: WorkspaceFileAccess
     private lateinit var runtime: FakeLinuxRuntime
     private lateinit var executor: ToolExecutor
     private lateinit var downloader: RecordingDownloader
 
-    private fun toolCall(tool: HarnessTool, args: kotlinx.serialization.json.JsonObject) =
+    private fun toolCall(tool: HarnessTool, args: JsonObject) =
         ToolCall(UUID.randomUUID().toString(), 0L, tool, args)
 
     @Before
     fun setUp() {
         workspaceRoot = temporaryFolder.newFolder("workspace")
+        workspaceFiles = WorkspaceFileAccess(workspaceRoot)
         runtime = FakeLinuxRuntime()
         downloader = RecordingDownloader()
         val pathResolver = HarnessPathResolver()
         val approvalPolicyEngine = ApprovalPolicyEngine(pathResolver)
         executor = ToolExecutor(
-            fileAccess = WorkspaceFileAccess(workspaceRoot),
-            linuxRuntime = runtime,
+            fileAccess = workspaceFiles,
             pathResolver = pathResolver,
             approvalPolicyEngine = approvalPolicyEngine,
             secretRedactor = SecretRedactor(),
-            fileDownloader = downloader,
+            hostToolBackend = HostCapabilityToolBackend(secretRedactor = SecretRedactor()),
+            linuxCommandToolBackend = LinuxCommandToolBackend(runtime, pathResolver),
+            downloadToolBackend = DownloadToolBackend(downloader, workspaceFiles, WorkspaceMutationSnapshots()),
+            contextMemoryToolBackend = ContextMemoryToolBackend(),
+            askUserToolBackend = AskUserToolBackend(approvalPolicyEngine),
+            promptAssetToolBackend = PromptAssetToolBackend(),
+            harnessServiceToolBackend = HarnessServiceToolBackend(),
+            capabilityToolGateway = CapabilityToolGateway(null) { _, _, _, _ -> error("unexpected host dispatch") },
         )
     }
 
@@ -304,13 +314,18 @@ class ToolExecutorTest {
             ),
         )
         return ToolExecutor(
-            fileAccess = WorkspaceFileAccess(workspaceRoot),
-            linuxRuntime = runtime,
+            fileAccess = workspaceFiles,
             pathResolver = HarnessPathResolver(),
             approvalPolicyEngine = ApprovalPolicyEngine(HarnessPathResolver()),
             secretRedactor = SecretRedactor(),
-            fileDownloader = downloader,
-            skillRepository = AgentSkillRepository(dao),
+            hostToolBackend = HostCapabilityToolBackend(secretRedactor = SecretRedactor()),
+            linuxCommandToolBackend = LinuxCommandToolBackend(runtime, HarnessPathResolver()),
+            downloadToolBackend = DownloadToolBackend(downloader, workspaceFiles, WorkspaceMutationSnapshots()),
+            contextMemoryToolBackend = ContextMemoryToolBackend(),
+            askUserToolBackend = AskUserToolBackend(ApprovalPolicyEngine(HarnessPathResolver())),
+            promptAssetToolBackend = PromptAssetToolBackend(skillRepository = AgentSkillRepository(dao)),
+            harnessServiceToolBackend = HarnessServiceToolBackend(),
+            capabilityToolGateway = CapabilityToolGateway(null) { _, _, _, _ -> error("unexpected host dispatch") },
         )
     }
 

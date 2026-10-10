@@ -33,10 +33,11 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.ui.components.RuntimeCard
+import java.io.File
 
 /** 模板预览图：按最长边 512px 采样解码，避免大图一次全量载入内存。 */
 @Composable
-internal fun TemplatePreviewImage(file: java.io.File, modifier: Modifier = Modifier) {
+internal fun TemplatePreviewImage(file: File, modifier: Modifier = Modifier) {
     val bitmap = remember(file.absolutePath, file.lastModified()) {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.absolutePath, bounds)

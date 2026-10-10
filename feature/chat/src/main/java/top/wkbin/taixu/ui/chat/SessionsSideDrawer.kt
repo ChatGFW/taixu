@@ -72,6 +72,8 @@ import top.wkbin.taixu.ui.components.TaiXuBrandBadge
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 
 /** 按项目划分的会话组数据结构。 */
 data class ProjectSessionGroup(
@@ -300,7 +302,7 @@ internal fun SessionsSideDrawer(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
                                     RuntimeIcon(
-                                        name = top.wkbin.taixu.ui.components.RuntimeIconName.Edit,
+                                        name = RuntimeIconName.Edit,
                                         modifier = Modifier.size(17.dp),
                                         tint = MaterialTheme.colorScheme.onPrimary,
                                     )
@@ -336,7 +338,7 @@ internal fun SessionsSideDrawer(
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                                         ) {
                                             RuntimeIcon(
-                                                name = top.wkbin.taixu.ui.components.RuntimeIconName.Extension,
+                                                name = RuntimeIconName.Extension,
                                                 modifier = Modifier.size(14.dp),
                                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                             )
@@ -364,7 +366,7 @@ internal fun SessionsSideDrawer(
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                                         ) {
                                             RuntimeIcon(
-                                                name = top.wkbin.taixu.ui.components.RuntimeIconName.Logs,
+                                                name = RuntimeIconName.Logs,
                                                 modifier = Modifier.size(14.dp),
                                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                             )
@@ -486,7 +488,7 @@ internal fun SessionsSideDrawer(
                 }
             },
             dismissButton = {
-                top.wkbin.taixu.ui.components.RuntimeTextButton(onClick = { deleteTargetId = null }) {
+                RuntimeTextButton(onClick = { deleteTargetId = null }) {
                     Text(stringResource(R.string.chat_cancel))
                 }
             },
@@ -534,7 +536,7 @@ private fun DrawerHeader(
             modifier = Modifier.size(28.dp),
         ) {
             RuntimeIcon(
-                name = top.wkbin.taixu.ui.components.RuntimeIconName.Close,
+                name = RuntimeIconName.Close,
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -611,8 +613,8 @@ private fun ProjectSection(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         RuntimeIcon(
-                            name = if (isExpanded) top.wkbin.taixu.ui.components.RuntimeIconName.FolderOpen
-                            else top.wkbin.taixu.ui.components.RuntimeIconName.Folder,
+                            name = if (isExpanded) RuntimeIconName.FolderOpen
+                            else RuntimeIconName.Folder,
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary,
                         )
@@ -637,15 +639,15 @@ private fun ProjectSection(
                             modifier = Modifier.size(24.dp),
                         ) {
                             RuntimeIcon(
-                                name = top.wkbin.taixu.ui.components.RuntimeIconName.Plus,
+                                name = RuntimeIconName.Plus,
                                 modifier = Modifier.size(13.dp),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                         }
 
                         RuntimeIcon(
-                            name = if (isExpanded) top.wkbin.taixu.ui.components.RuntimeIconName.ChevronDown
-                            else top.wkbin.taixu.ui.components.RuntimeIconName.ChevronRight,
+                            name = if (isExpanded) RuntimeIconName.ChevronDown
+                            else RuntimeIconName.ChevronRight,
                             modifier = Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -837,7 +839,7 @@ private fun SessionDrawerItem(
                 modifier = Modifier.size(24.dp),
             ) {
                 RuntimeIcon(
-                    name = top.wkbin.taixu.ui.components.RuntimeIconName.Edit,
+                    name = RuntimeIconName.Edit,
                     modifier = Modifier.size(12.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 )
@@ -849,7 +851,7 @@ private fun SessionDrawerItem(
                 modifier = Modifier.size(24.dp),
             ) {
                 RuntimeIcon(
-                    name = top.wkbin.taixu.ui.components.RuntimeIconName.Trash,
+                    name = RuntimeIconName.Trash,
                     modifier = Modifier.size(12.dp),
                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
                 )

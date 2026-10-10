@@ -7,6 +7,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.Json
 
 /**
  * ask_user 工具的参数模型（对齐 opencode question 工具）：
@@ -79,10 +80,10 @@ object AskUserQuestions {
     /** 把 UI 提交的答案（`[{"index":0,"answer":"..."}]`）格式化为回写给模型的工具结果。 */
     fun formatAnswers(questionsJson: String, answersJson: String): String {
         val questions = runCatching {
-            parse(kotlinx.serialization.json.Json.parseToJsonElement(questionsJson).jsonObject)
+            parse(Json.parseToJsonElement(questionsJson).jsonObject)
         }.getOrNull().orEmpty()
         val answers = runCatching {
-            (kotlinx.serialization.json.Json.parseToJsonElement(answersJson) as? JsonArray)
+            (Json.parseToJsonElement(answersJson) as? JsonArray)
                 ?.mapNotNull { element ->
                     val item = element as? JsonObject ?: return@mapNotNull null
                     val index = item["index"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: return@mapNotNull null

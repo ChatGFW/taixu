@@ -4,14 +4,17 @@ import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
+import androidx.room.Index
+import androidx.room.PrimaryKey
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import top.wkbin.taixu.core.security.SecretManager
 
 /** OAuth metadata and encrypted token material for one HTTP MCP server. */
 @Entity(tableName = "mcp_oauth_credentials")
 data class McpOAuthCredentialEntity(
-    @androidx.room.PrimaryKey val serverId: String,
+    @PrimaryKey val serverId: String,
     val accessTokenCiphertext: String,
     val refreshTokenCiphertext: String,
     val tokenType: String = "Bearer",
@@ -30,12 +33,12 @@ data class McpOAuthCredentialEntity(
 @Entity(
     tableName = "mcp_oauth_transactions",
     indices = [
-        androidx.room.Index(value = ["serverId"]),
-        androidx.room.Index(value = ["expiresAt"]),
+        Index(value = ["serverId"]),
+        Index(value = ["expiresAt"]),
     ],
 )
 data class McpOAuthTransactionEntity(
-    @androidx.room.PrimaryKey val state: String,
+    @PrimaryKey val state: String,
     val serverId: String,
     val codeVerifierCiphertext: String,
     val redirectUri: String,
@@ -88,7 +91,7 @@ interface McpOAuthTransactionDao {
 class McpOAuthCredentialRepository(
     private val credentials: McpOAuthCredentialDao,
     private val transactions: McpOAuthTransactionDao,
-    private val secretManager: top.wkbin.taixu.core.security.SecretManager,
+    private val secretManager: SecretManager,
 ) {
     fun authorizedServerIds(): Flow<Set<String>> = credentials.observeAll().map { rows ->
         rows.filter { row ->

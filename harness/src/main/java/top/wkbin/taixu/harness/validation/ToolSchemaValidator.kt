@@ -12,6 +12,7 @@ import top.wkbin.taixu.core.model.McpToolInfo
 import top.wkbin.taixu.harness.ProviderClient
 import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 import top.wkbin.taixu.harness.mcp.McpToolApiName
+import kotlinx.serialization.json.buildJsonObject
 
 /**
  * 工具参数执行前 JSON Schema 校验（模型参数 → 校验 → 审批 → 执行 链路的第二环）。
@@ -55,7 +56,7 @@ object ToolSchemaValidator {
         // MCP 的 target/script/timeout 有自己的协议语义，不能套用内置文件/命令工具别名。
         if (!applyAliases) return unflattened
 
-        return kotlinx.serialization.json.buildJsonObject {
+        return buildJsonObject {
             unflattened.forEach { (k, v) -> put(k, v) }
             if (!unflattened.containsKey("path")) {
                 val alias = unflattened["file_path"] ?: unflattened["filePath"] ?: unflattened["file"] ?: unflattened["target"]
@@ -161,14 +162,14 @@ object ToolSchemaValidator {
     }
 
     private fun toJsonElement(value: Any?): JsonElement = when (value) {
-        null -> kotlinx.serialization.json.JsonNull
+        null -> JsonNull
         is JsonElement -> value
-        is Map<*, *> -> kotlinx.serialization.json.buildJsonObject {
+        is Map<*, *> -> buildJsonObject {
             value.forEach { (k, v) ->
                 put(k.toString(), toJsonElement(v))
             }
         }
-        else -> kotlinx.serialization.json.JsonNull
+        else -> JsonNull
     }
 
 

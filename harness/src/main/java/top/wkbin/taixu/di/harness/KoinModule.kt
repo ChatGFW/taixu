@@ -89,6 +89,9 @@ import top.wkbin.taixu.harness.workflow.WorkflowSignalBus
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpResources
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
 import org.koin.core.qualifier.named
+import top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore
+import top.wkbin.taixu.harness.session.InteractiveSessionControl
+import top.wkbin.taixu.harness.session.SessionControl
 
 /** 被控端（独立 MCP server）在 Koin 中的限定符：与浏览器自环的默认定义互不覆盖。 */
 private const val AGENT_MCP_DISPATCHER = "agentMcpToolDispatcher"
@@ -144,11 +147,11 @@ val harnessModule = module {
             turnCoordinator = get(),
         )
     }
-    single<top.wkbin.taixu.harness.session.SessionControl> { get<HarnessLoop>() }
-    single<top.wkbin.taixu.harness.session.InteractiveSessionControl> { get<HarnessLoop>() }
+    single<SessionControl> { get<HarnessLoop>() }
+    single<InteractiveSessionControl> { get<HarnessLoop>() }
     single<HarnessPathResolver> { HarnessPathResolver() }
 
-    single { top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore(redactor = get()) }
+    single { RequestDiagnosticsStore(redactor = get()) }
     factory<HarnessProviderRunner> {
         HarnessProviderRunner(
             providerClient = get(),

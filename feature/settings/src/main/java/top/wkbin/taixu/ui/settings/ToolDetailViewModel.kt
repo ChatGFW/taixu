@@ -27,6 +27,7 @@ import top.wkbin.taixu.core.tools.ToolManager
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.util.UUID
+import top.wkbin.taixu.runtime.LinuxRuntime
 
 data class ToolDetailUiState(
     val tool: ToolEntity? = null,
@@ -76,7 +77,7 @@ class ToolDetailViewModel(
     private val providerRepository: ProviderRepository,
     private val aiModelDao: AiModelRepository,
     private val toolSettingsRepository: ToolSettingsRepository,
-    private val linuxRuntime: top.wkbin.taixu.runtime.LinuxRuntime,
+    private val linuxRuntime: LinuxRuntime,
     private val logger: AppLogger,
 ) : ViewModel() {
 

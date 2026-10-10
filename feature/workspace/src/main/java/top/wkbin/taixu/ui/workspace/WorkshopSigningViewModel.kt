@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.datastore.WorkshopKeystore
 import top.wkbin.taixu.runtime.build.WorkshopSigningManager
+import kotlinx.coroutines.Dispatchers
 
 data class WorkshopSigningCreationDraft(
     val name: String = "",
@@ -52,7 +53,7 @@ class WorkshopSigningViewModel(
         onSuccess: () -> Unit = {},
     ) {
         if (_busy.value) return
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             _busy.value = true
             val result = signingManager.createKeystore(
                 name = draft.name,
@@ -79,7 +80,7 @@ class WorkshopSigningViewModel(
         onSuccess: () -> Unit = {},
     ) {
         if (_busy.value) return
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             _busy.value = true
             val result = signingManager.importKeystore(
                 uri = draft.uri,
@@ -101,7 +102,7 @@ class WorkshopSigningViewModel(
 
     fun deleteKeystore(keystore: WorkshopKeystore) {
         if (_busy.value) return
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             _busy.value = true
             val result = signingManager.deleteKeystore(keystore.id)
             _message.value = result.errorOrNull()?.message ?: "已删除签名：${keystore.name}"

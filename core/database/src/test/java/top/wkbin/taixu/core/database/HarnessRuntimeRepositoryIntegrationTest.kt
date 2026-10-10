@@ -3,6 +3,8 @@ package top.wkbin.taixu.core.database
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import top.wkbin.taixu.core.database.task.AgentTaskEntity
+import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -28,7 +30,7 @@ import org.robolectric.annotation.Config
 class HarnessRuntimeRepositoryIntegrationTest {
 
     private suspend fun queuedTask(sessionId: String = "s", status: String = "QUEUED") {
-        database.agentTaskDao().upsertTask(top.wkbin.taixu.core.database.task.AgentTaskEntity(
+        database.agentTaskDao().upsertTask(AgentTaskEntity(
             id = "task", sessionId = sessionId, title = "input", description = "input",
             status = status, createdAt = 1, updatedAt = 1))
     }
@@ -411,8 +413,8 @@ class HarnessRuntimeRepositoryIntegrationTest {
         val sessionId = "stats-daily"
         val shanghaiOffsetMs = 8L * 60 * 60 * 1000
         // UTC 2026-09-17 15:00 → 上海 23:00（17 日）；UTC 16:00 → 上海次日 00:00。
-        val utcSep17Afternoon = java.time.Instant.parse("2026-09-17T15:00:00Z").toEpochMilli()
-        val utcSep17Evening = java.time.Instant.parse("2026-09-17T16:00:00Z").toEpochMilli()
+        val utcSep17Afternoon = Instant.parse("2026-09-17T15:00:00Z").toEpochMilli()
+        val utcSep17Evening = Instant.parse("2026-09-17T16:00:00Z").toEpochMilli()
         assertEquals(utcSep17Afternoon / 86_400_000L, utcSep17Evening / 86_400_000L)
 
         dao.insertEntry(entry("user-1", sessionId, null).copy(createdAt = utcSep17Afternoon))

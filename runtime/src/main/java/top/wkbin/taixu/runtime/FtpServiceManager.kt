@@ -2,6 +2,7 @@ package top.wkbin.taixu.runtime
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.R
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -302,7 +303,7 @@ class FtpServiceManager(
         }
         val url = if (anonymous) "ftp://$host:$port/" else "ftp://$username@$host:$port/"
         val notification = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setSmallIcon(R.drawable.stat_notify_sync)
             .setContentTitle("Linux FTP 远程文件服务运行中")
             .setContentText("连接地址: $url")
             .setOngoing(true)

@@ -1,6 +1,8 @@
 package top.wkbin.taixu.runtime
 
+import top.wkbin.taixu.core.common.result.AppError
 import top.wkbin.taixu.core.common.result.AppResult
+import top.wkbin.taixu.core.common.result.ErrorCode
 import top.wkbin.taixu.core.model.InstalledDistro
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.runtime.shell.CommandResult
@@ -11,7 +13,9 @@ import top.wkbin.taixu.runtime.shell.ProcessType
 import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import java.io.File
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 
 interface LinuxRuntime {
     val state: StateFlow<RuntimeState>
@@ -27,8 +31,8 @@ interface LinuxRuntime {
     suspend fun switchActiveDistro(distroId: String): AppResult<Unit>
     suspend fun installDistro(request: RuntimeInstallRequest, onProgress: suspend (DownloadProgress) -> Unit = {}): AppResult<Unit>
     suspend fun importDistro(request: RuntimeInstallRequest, archive: File): AppResult<Unit> =
-        AppResult.Failure(top.wkbin.taixu.core.common.result.AppError(
-            top.wkbin.taixu.core.common.result.ErrorCode.INSTALLATION_FAILED,
+        AppResult.Failure(AppError(
+            ErrorCode.INSTALLATION_FAILED,
             "当前运行时不支持导入 RootFS",
         ))
     suspend fun uninstallDistro(distroId: String): AppResult<Unit>
@@ -59,7 +63,7 @@ interface LinuxRuntime {
     suspend fun stopBackground(id: String): Boolean
     fun listBackground(): List<ManagedProcess>
     suspend fun cleanupDeadBackground(): Int
-    fun observeBackgroundLogs(idOrToolId: String): kotlinx.coroutines.flow.Flow<List<String>> = kotlinx.coroutines.flow.emptyFlow()
+    fun observeBackgroundLogs(idOrToolId: String): Flow<List<String>> = emptyFlow()
     fun getBackgroundLogs(idOrToolId: String): List<String> = emptyList()
     fun clearBackgroundLogs(idOrToolId: String) = Unit
 

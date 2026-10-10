@@ -47,6 +47,10 @@ import top.wkbin.taixu.runtime.shell.ManagedProcess
 import top.wkbin.taixu.runtime.shell.ProcessType
 import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.shell.ShellCommand
+import android.content.ContextWrapper
+import kotlinx.coroutines.withTimeout
+import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.database.WorkflowExecutionLogEntity
 
 /** WorkflowRunManager：运行时就绪门、启动对账、注册表生命周期。 */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -127,7 +131,7 @@ class WorkflowRunManagerTest {
         assertTrue(result.accepted)
 
         // 空 executor set：TRIGGER 节点立即 FAILED → 运行到终态，观察者随后释放 running 标志
-        kotlinx.coroutines.withTimeout(5_000) {
+        withTimeout(5_000) {
             manager.activeRuns.first { runs -> runs[result.executionId]?.status?.let { it in WorkflowRunManager.TERMINAL } == true }
             manager.running.first { !it }
         }
@@ -195,13 +199,13 @@ private fun manager(
     repository = repository,
     linuxRuntime = runtime,
     json = testJson(),
-    logger = top.wkbin.taixu.core.common.logging.AppLogger(android.content.ContextWrapper(null)) { it },
+    logger = AppLogger(ContextWrapper(null)) { it },
 )
 
 private fun testJson(): Json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
 private fun logRow(json: Json, state: WorkflowRuntimeState, triggerSource: String, scheduleId: String?) =
-    top.wkbin.taixu.core.database.WorkflowExecutionLogEntity(
+    WorkflowExecutionLogEntity(
         executionId = state.executionId,
         workflowId = state.definition.id,
         startTime = 1L,
@@ -277,10 +281,10 @@ private data class SavedRun(
 
 private class FakeWorkflowRepository : WorkflowRepository {
     val saved = mutableListOf<SavedRun>()
-    var unfinished: List<top.wkbin.taixu.core.database.WorkflowExecutionLogEntity> = emptyList()
+    var unfinished: List<WorkflowExecutionLogEntity> = emptyList()
 
     override fun observeDefinitions(): Flow<List<WorkflowDefinition>> = MutableStateFlow(emptyList())
-    override fun observeRecentExecutions(limit: Int): Flow<List<top.wkbin.taixu.core.database.WorkflowExecutionLogEntity>> =
+    override fun observeRecentExecutions(limit: Int): Flow<List<WorkflowExecutionLogEntity>> =
         MutableStateFlow(emptyList())
 
     override suspend fun findById(id: String): WorkflowDefinition? = null
@@ -292,10 +296,10 @@ private class FakeWorkflowRepository : WorkflowRepository {
         saved.add(SavedRun(state, triggerSource, scheduleId))
     }
 
-    override suspend fun findUnfinishedExecutions(): List<top.wkbin.taixu.core.database.WorkflowExecutionLogEntity> =
+    override suspend fun findUnfinishedExecutions(): List<WorkflowExecutionLogEntity> =
         unfinished
 
-    override suspend fun findExecutionById(id: String): top.wkbin.taixu.core.database.WorkflowExecutionLogEntity? = null
+    override suspend fun findExecutionById(id: String): WorkflowExecutionLogEntity? = null
 }
 
 private class FakeLinuxRuntime(

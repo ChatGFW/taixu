@@ -27,6 +27,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 import top.wkbin.taixu.core.tools.ProviderEndpointPolicy
+import top.wkbin.taixu.core.model.AiModelProfileExport
+import top.wkbin.taixu.core.model.BuiltinPluginBundles
+import top.wkbin.taixu.core.model.PluginBundle
+import top.wkbin.taixu.core.tools.AiProfileBackupCodec
+import top.wkbin.taixu.core.tools.AiProfileWriter
+import top.wkbin.taixu.core.tools.ToolManager
+import top.wkbin.taixu.runtime.tools.InstallEvent
 
 data class OnboardingStatus(val loaded: Boolean = false, val completed: Boolean = false)
 
@@ -37,9 +44,9 @@ class OnboardingViewModel(
     private val providerRepository: ProviderRepository,
     private val providerCatalogRepository: AgentProviderCatalog,
     private val modelDiscovery: AgentModelDiscovery,
-    private val toolManager: top.wkbin.taixu.core.tools.ToolManager,
-    private val profileWriter: top.wkbin.taixu.core.tools.AiProfileWriter,
-    private val profileBackupCodec: top.wkbin.taixu.core.tools.AiProfileBackupCodec,
+    private val toolManager: ToolManager,
+    private val profileWriter: AiProfileWriter,
+    private val profileBackupCodec: AiProfileBackupCodec,
 ) : ViewModel() {
     val providerCatalog = providerCatalogRepository.providers
 
@@ -55,10 +62,10 @@ class OnboardingViewModel(
     }.stateIn(viewModelScope, SharingStarted.Eagerly, OnboardingStatus())
     val runtimeState: StateFlow<RuntimeState> = linuxRuntime.state
 
-    val devSuites: List<top.wkbin.taixu.core.model.PluginBundle> = top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles
+    val devSuites: List<PluginBundle> = BuiltinPluginBundles.bundles
 
     private val _selectedSuites = MutableStateFlow<Set<String>>(
-        top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles.map { it.id }.toSet(),
+        BuiltinPluginBundles.bundles.map { it.id }.toSet(),
     )
     val selectedSuites = _selectedSuites.asStateFlow()
 
@@ -84,7 +91,7 @@ class OnboardingViewModel(
     val baseUrl = _baseUrl.asStateFlow()
     private val _apiKey = MutableStateFlow("")
     val apiKey = _apiKey.asStateFlow()
-    private val _importedProfile = MutableStateFlow<top.wkbin.taixu.core.model.AiModelProfileExport?>(null)
+    private val _importedProfile = MutableStateFlow<AiModelProfileExport?>(null)
     val importedProfile = _importedProfile.asStateFlow()
     private val _discoveredModels = MutableStateFlow<List<String>>(emptyList())
     val discoveredModels = _discoveredModels.asStateFlow()
@@ -266,7 +273,7 @@ class OnboardingViewModel(
             _isInstallingPlugins.value = true
             try {
                 toolManager.batchInstallSuites(selected).collect { event ->
-                    if (event is top.wkbin.taixu.runtime.tools.InstallEvent.Progress) {
+                    if (event is InstallEvent.Progress) {
                         _pluginInstallProgress.value = event.message
                     }
                 }
@@ -283,7 +290,7 @@ class OnboardingViewModel(
         _modelName.value = name
     }
 
-    fun importProfileFromJson(rawJson: String): Result<top.wkbin.taixu.core.model.AiModelProfileExport> {
+    fun importProfileFromJson(rawJson: String): Result<AiModelProfileExport> {
         return profileBackupCodec.parseProfiles(rawJson).mapCatching { profiles ->
             val profile = profiles.firstOrNull() ?: error("导入包中没有模型档案")
             require(profile.model.isNotBlank() || profile.name.isNotBlank()) { "模型配置缺少模型名称或 ID" }
@@ -320,7 +327,7 @@ class OnboardingViewModel(
                 model
             }
             profileWriter.upsertProfile(
-                top.wkbin.taixu.core.tools.AiProfileWriter.UpsertRequest(
+                AiProfileWriter.UpsertRequest(
                     name = _modelName.value.ifBlank { model },
                     provider = _modelProvider.value,
                     model = modelList,

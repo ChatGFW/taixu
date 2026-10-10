@@ -15,6 +15,7 @@ import com.termux.view.TerminalViewClient
 import top.wkbin.taixu.feature.terminal.R
 import top.wkbin.taixu.runtime.terminal.TerminalSessionClientRouter
 import java.nio.charset.StandardCharsets
+import android.view.View
 
 /**
  * Bridges Termux [TerminalView] / [TerminalSession] to TaiXu UI.
@@ -193,7 +194,7 @@ class TaiXuTerminalBridge(
     override fun onSingleTapUp(e: MotionEvent) {
         val view = terminalView ?: return
         // IME is owned by TaiXuTerminalHost (parent); TerminalView itself is not focusable.
-        val imeTarget = (view.parent as? android.view.View) ?: view
+        val imeTarget = (view.parent as? View) ?: view
         imeTarget.requestFocus()
         val imm = imeTarget.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
             ?: context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager

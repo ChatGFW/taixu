@@ -94,16 +94,18 @@ import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as Circula
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.SyntaxHighlighter
+import android.util.Log
+import java.io.File
 
 /**
  * 沙箱绝对路径前缀（如 "workspace" 对应 /workspace）到宿主真实目录的映射。
  * 模型回复里的本地媒体路径（/workspace/xxx.jpg）是 PRoot 沙箱内语义，
  * Android 侧必须翻译成应用私有目录下的真实文件才能被 Coil 加载。
  */
-val LocalSandboxHostRoots = staticCompositionLocalOf<Map<String, java.io.File>> { emptyMap() }
+val LocalSandboxHostRoots = staticCompositionLocalOf<Map<String, File>> { emptyMap() }
 
 /** 把模型引用的本地路径解析为 Coil 可加载的 data model；无法映射时原样返回。 */
-private fun resolveMediaSource(source: String, hostRoots: Map<String, java.io.File>): Any {
+private fun resolveMediaSource(source: String, hostRoots: Map<String, File>): Any {
     // 模型可能输出 file:///workspace/...，统一剥掉 file:// 前缀再按沙箱绝对路径解析
     val path = if (source.startsWith("file://", ignoreCase = true)) source.substring("file://".length) else source
     if (path.startsWith("//")) return source
@@ -113,13 +115,13 @@ private fun resolveMediaSource(source: String, hostRoots: Map<String, java.io.Fi
         val workspaceRoot = hostRoots["workspace"] ?: return source
         val relative = path.removePrefix("./").substringBefore('?').substringBefore('#')
         if (relative.isBlank() || relative.split('/').any { it.isEmpty() || it == "." || it == ".." }) return source
-        return java.io.File(workspaceRoot, relative)
+        return File(workspaceRoot, relative)
     }
     val clean = path.replace('\\', '/').substringBefore('?').substringBefore('#').trimEnd('/')
     val segments = clean.trimStart('/').split('/').filter { it.isNotEmpty() && it != "." }
     if (segments.isEmpty() || segments.any { it == ".." }) return source
     val root = hostRoots[segments.first()] ?: return source
-    return if (segments.size == 1) root else java.io.File(root, segments.drop(1).joinToString("/"))
+    return if (segments.size == 1) root else File(root, segments.drop(1).joinToString("/"))
 }
 
 /**
@@ -606,7 +608,7 @@ private fun RemoteMediaBlock(block: MdRemoteMedia, cacheKey: String? = null) {
                 loaded = false
                 failed = true
                 // 诊断日志：失败时输出原始 url、解析后的 data model 与异常，便于 logcat 定位
-                android.util.Log.e(
+                Log.e(
                     "TaiXu",
                     "chat image load failed: url=${block.url}, data=$dataModel, error=${state.result.throwable}",
                 )
@@ -854,7 +856,7 @@ private fun saveImageToGallery(context: Context, mediaModel: Any, mimeType: Stri
 private fun copyImageSource(context: Context, source: Any, target: Uri) {
     context.contentResolver.openOutputStream(target)?.use { output ->
         when (source) {
-            is java.io.File -> source.inputStream().use { it.copyTo(output) }
+            is File -> source.inputStream().use { it.copyTo(output) }
             is String -> when {
                 source.startsWith("data:", ignoreCase = true) -> {
                     val payload = source.substringAfter(',', missingDelimiterValue = "")
@@ -862,7 +864,7 @@ private fun copyImageSource(context: Context, source: Any, target: Uri) {
                     ByteArrayInputStream(Base64.decode(payload, Base64.DEFAULT)).use { it.copyTo(output) }
                 }
                 source.startsWith("file://", ignoreCase = true) ->
-                    java.io.File(source.removePrefix("file://")).inputStream().use { it.copyTo(output) }
+                    File(source.removePrefix("file://")).inputStream().use { it.copyTo(output) }
                 source.startsWith("http://", true) || source.startsWith("https://", true) -> {
                     val connection = URL(source).openConnection() as HttpURLConnection
                     connection.connectTimeout = 15_000
@@ -875,7 +877,7 @@ private fun copyImageSource(context: Context, source: Any, target: Uri) {
                         connection.disconnect()
                     }
                 }
-                else -> java.io.File(source).inputStream().use { it.copyTo(output) }
+                else -> File(source).inputStream().use { it.copyTo(output) }
             }
         }
     } ?: error("Cannot open destination")

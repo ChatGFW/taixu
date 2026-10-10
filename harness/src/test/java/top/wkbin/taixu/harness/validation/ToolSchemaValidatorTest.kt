@@ -8,6 +8,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.wkbin.taixu.core.model.McpToolInfo
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 
 class ToolSchemaValidatorTest {
 
@@ -29,7 +32,7 @@ class ToolSchemaValidatorTest {
     private fun args(vararg pairs: Pair<String, Any?>): JsonObject = buildJsonObject {
         pairs.forEach { (key, value) ->
             when (value) {
-                null -> put(key, kotlinx.serialization.json.JsonNull)
+                null -> put(key, JsonNull)
                 is String -> put(key, value)
                 is Int -> put(key, value)
                 is Boolean -> put(key, value)
@@ -94,7 +97,7 @@ class ToolSchemaValidatorTest {
         val args = buildJsonObject {
             put(
                 "steps",
-                kotlinx.serialization.json.buildJsonArray {
+                buildJsonArray {
                     add(buildJsonObject { put("id", "s1"); put("status", "pending") })
                     add(buildJsonObject { put("id", "s2"); put("status", "banana") })
                     add(buildJsonObject { put("id", "s3") })
@@ -167,8 +170,8 @@ class ToolSchemaValidatorTest {
     fun `string encoded numbers and booleans pass type validation smoothly`() {
         val schema = schema("""{"type":"object","properties":{"count":{"type":"integer","minimum":1,"maximum":100},"flag":{"type":"boolean"}}}""")
         val validArgs = buildJsonObject {
-            put("count", kotlinx.serialization.json.JsonPrimitive("50"))
-            put("flag", kotlinx.serialization.json.JsonPrimitive("true"))
+            put("count", JsonPrimitive("50"))
+            put("flag", JsonPrimitive("true"))
         }
         assertTrue(ToolSchemaValidator.validate(schema, validArgs).isEmpty())
     }
@@ -183,11 +186,11 @@ class ToolSchemaValidatorTest {
         }
         val normalized = ToolSchemaValidator.normalizeArgs(raw)
         val db = normalized["database"] as? JsonObject
-        assertEquals("127.0.0.1", (db?.get("host") as? kotlinx.serialization.json.JsonPrimitive)?.content)
-        assertEquals("5432", (db?.get("port") as? kotlinx.serialization.json.JsonPrimitive)?.content)
+        assertEquals("127.0.0.1", (db?.get("host") as? JsonPrimitive)?.content)
+        assertEquals("5432", (db?.get("port") as? JsonPrimitive)?.content)
         val auth = db?.get("auth") as? JsonObject
-        assertEquals("admin", (auth?.get("user") as? kotlinx.serialization.json.JsonPrimitive)?.content)
-        assertEquals("10", (normalized["timeout_seconds"] as? kotlinx.serialization.json.JsonPrimitive)?.content)
+        assertEquals("admin", (auth?.get("user") as? JsonPrimitive)?.content)
+        assertEquals("10", (normalized["timeout_seconds"] as? JsonPrimitive)?.content)
     }
 
     @Test
@@ -198,9 +201,9 @@ class ToolSchemaValidatorTest {
         }
         val normalized = ToolSchemaValidator.normalizeArgs(raw)
         val cfg = normalized["config"] as? JsonObject
-        assertEquals("my-server", (cfg?.get("name") as? kotlinx.serialization.json.JsonPrimitive)?.content)
+        assertEquals("my-server", (cfg?.get("name") as? JsonPrimitive)?.content)
         val net = cfg?.get("network") as? JsonObject
-        assertEquals("8080", (net?.get("port") as? kotlinx.serialization.json.JsonPrimitive)?.content)
+        assertEquals("8080", (net?.get("port") as? JsonPrimitive)?.content)
     }
 
     @Test
@@ -211,8 +214,8 @@ class ToolSchemaValidatorTest {
         }
         val normalized = ToolSchemaValidator.normalizeArgs(raw)
         val opt = normalized["options"] as? JsonObject
-        assertEquals("3", (opt?.get("retries") as? kotlinx.serialization.json.JsonPrimitive)?.content)
-        assertEquals("30", (opt?.get("timeout") as? kotlinx.serialization.json.JsonPrimitive)?.content)
+        assertEquals("3", (opt?.get("retries") as? JsonPrimitive)?.content)
+        assertEquals("30", (opt?.get("timeout") as? JsonPrimitive)?.content)
     }
 
     @Test
@@ -222,7 +225,7 @@ class ToolSchemaValidatorTest {
         val single = buildJsonObject {
             put("arguments", buildJsonObject { put("command", "ls -la") })
         }
-        assertEquals("ls -la", (ToolSchemaValidator.normalizeArgs(single)["command"] as? kotlinx.serialization.json.JsonPrimitive)?.content)
+        assertEquals("ls -la", (ToolSchemaValidator.normalizeArgs(single)["command"] as? JsonPrimitive)?.content)
 
         val double = buildJsonObject {
             put("arguments", buildJsonObject {
@@ -230,7 +233,7 @@ class ToolSchemaValidatorTest {
             })
         }
         val doubleNormalized = ToolSchemaValidator.normalizeArgs(double)
-        assertEquals("ls -la", (doubleNormalized["command"] as? kotlinx.serialization.json.JsonPrimitive)?.content)
+        assertEquals("ls -la", (doubleNormalized["command"] as? JsonPrimitive)?.content)
         assertTrue(!doubleNormalized.containsKey("arguments"))
 
         val deep = buildJsonObject {
@@ -240,7 +243,7 @@ class ToolSchemaValidatorTest {
                 })
             })
         }
-        assertEquals("pwd", (ToolSchemaValidator.normalizeArgs(deep)["command"] as? kotlinx.serialization.json.JsonPrimitive)?.content)
+        assertEquals("pwd", (ToolSchemaValidator.normalizeArgs(deep)["command"] as? JsonPrimitive)?.content)
     }
 
     @Test

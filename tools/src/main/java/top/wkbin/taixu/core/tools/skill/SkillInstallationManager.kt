@@ -1,6 +1,8 @@
 package top.wkbin.taixu.core.tools.skill
 
+import top.wkbin.taixu.core.common.result.AppError
 import top.wkbin.taixu.core.common.result.AppResult
+import top.wkbin.taixu.core.common.result.ErrorCode
 import top.wkbin.taixu.core.database.AgentSkillRepository
 import top.wkbin.taixu.core.model.AgentSkill
 import top.wkbin.taixu.core.model.skill.AuditLevel
@@ -8,7 +10,9 @@ import top.wkbin.taixu.core.model.skill.SecurityAuditReport
 import top.wkbin.taixu.core.model.skill.SkillCompatibilityResult
 import top.wkbin.taixu.core.model.skill.SkillPackage
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
+import java.util.UUID
 
 /**
  * 技能安装审查上下文（包含解构后的技能包、端侧静态安全审计报告与兼容性评估结果）。
@@ -45,14 +49,14 @@ class SkillInstallationManager(
     suspend fun prepareMarketSkill(skillId: String): AppResult<SkillInstallInspection> {
         val downloadRes = clawHubClient.downloadPackage(skillId)
         if (downloadRes !is AppResult.Success) {
-            return AppResult.Failure(top.wkbin.taixu.core.common.result.AppError(top.wkbin.taixu.core.common.result.ErrorCode.DOWNLOAD, "下载市场技能包失败"))
+            return AppResult.Failure(AppError(ErrorCode.DOWNLOAD, "下载市场技能包失败"))
         }
 
         return runCatching {
             val inspection = inspectZipBytes(downloadRes.data, fallbackId = skillId)
             AppResult.Success(inspection)
         }.getOrElse { err ->
-            AppResult.Failure(top.wkbin.taixu.core.common.result.AppError(top.wkbin.taixu.core.common.result.ErrorCode.SECURITY, err.message ?: "审查失败", err))
+            AppResult.Failure(AppError(ErrorCode.SECURITY, err.message ?: "审查失败", err))
         }
     }
 
@@ -116,7 +120,7 @@ class SkillInstallationManager(
         }
 
         // 先写入独立暂存目录，成功后整体重命名：回滚时只需删除暂存目录，绝不触碰其他技能
-        val stagingDir = File(targetSkillsDir, "$skillId.staging_${java.util.UUID.randomUUID().toString().take(8)}").apply { mkdirs() }
+        val stagingDir = File(targetSkillsDir, "$skillId.staging_${UUID.randomUUID().toString().take(8)}").apply { mkdirs() }
         var renamed = false
         val targetDir = File(targetSkillsDir, skillId)
         val canonicalTarget = stagingDir.canonicalPath
@@ -135,7 +139,7 @@ class SkillInstallationManager(
 
             if (targetDir.exists()) targetDir.deleteRecursively()
             if (!stagingDir.renameTo(targetDir)) {
-                throw java.io.IOException("技能目录暂存重命名失败: ${stagingDir.absolutePath} -> ${targetDir.absolutePath}")
+                throw IOException("技能目录暂存重命名失败: ${stagingDir.absolutePath} -> ${targetDir.absolutePath}")
             }
             renamed = true
 

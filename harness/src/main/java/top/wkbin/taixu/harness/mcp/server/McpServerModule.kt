@@ -6,6 +6,8 @@ import top.wkbin.taixu.core.browser.BrowserPreferences
 import top.wkbin.taixu.runtime.browser.BrowserRegistry
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpResources
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
+import top.wkbin.taixu.core.browser.TaiXuNewTab
+import top.wkbin.taixu.core.datastore.BrowserPreferences as DataStoreBrowserPreferences
 
 /**
  * 装配进程内 MCP Server 相关的 Koin 注入。
@@ -20,7 +22,7 @@ object McpServerModule {
 
     fun provideBrowserMcpTools(
         registry: BrowserRegistry,
-        browserPrefs: top.wkbin.taixu.core.datastore.BrowserPreferences,
+        browserPrefs: DataStoreBrowserPreferences,
     ): BrowserMcpTools {
         // #14：启动时把 datastore 里的真实用户偏好映射为工具层快照。
         // 本 Provider 经 BrowserMcpBootstrap 的 Kotlin Lazy 延迟到首个 IO 协程内才构造，
@@ -30,7 +32,7 @@ object McpServerModule {
             runBlocking {
                 BrowserPreferences(
                     defaultFamily = browserPrefs.defaultFamily().first(),
-                    homeUrl = browserPrefs.homeUrl().first().ifBlank { top.wkbin.taixu.core.browser.TaiXuNewTab.URL },
+                    homeUrl = browserPrefs.homeUrl().first().ifBlank { TaiXuNewTab.URL },
                     coBrowsingEnabled = browserPrefs.coBrowsingEnabled().first(),
                     allowRemoteConnect = browserPrefs.allowRemoteConnect().first(),
                     allowEvalJs = browserPrefs.allowEvalJs().first(),

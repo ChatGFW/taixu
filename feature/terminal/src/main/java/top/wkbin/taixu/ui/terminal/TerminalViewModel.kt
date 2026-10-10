@@ -27,16 +27,20 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import top.wkbin.taixu.core.datastore.FirstUseGuidePreferences
+import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.WorkspaceProject
 
-@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class TerminalViewModel(
     private val context: Context,
     private val terminalManager: TerminalSessionManager,
     val sessionClientRouter: TerminalSessionClientRouter,
     private val workspaceManager: WorkspaceManager,
     private val settingsDataStore: TerminalPreferences,
-    private val firstUseGuidePreferences: top.wkbin.taixu.core.datastore.FirstUseGuidePreferences,
-    private val linuxRuntime: top.wkbin.taixu.runtime.LinuxRuntime,
+    private val firstUseGuidePreferences: FirstUseGuidePreferences,
+    private val linuxRuntime: LinuxRuntime,
 ) : ViewModel() {
     private var initialized = false
 
@@ -157,7 +161,7 @@ class TerminalViewModel(
 
     private fun seq(value: String): ByteArray = value.toByteArray(Charsets.UTF_8)
 
-    val workspaces: StateFlow<List<top.wkbin.taixu.runtime.WorkspaceProject>> = workspaceManager.observeProjects()
+    val workspaces: StateFlow<List<WorkspaceProject>> = workspaceManager.observeProjects()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun createSession(label: String = "", workingDirectory: String = "/root", distroId: String? = null) {

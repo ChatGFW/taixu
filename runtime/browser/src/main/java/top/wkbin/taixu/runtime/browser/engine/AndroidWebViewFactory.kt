@@ -4,6 +4,8 @@ import android.content.Context
 import android.view.ViewGroup
 import android.webkit.WebSettings
 import android.webkit.WebView
+import java.util.Collections
+import java.util.WeakHashMap
 
 /**
  * WebView 构造工厂，集中处理调试开关 / DOM storage / JavaScript / Cache。
@@ -13,8 +15,8 @@ import android.webkit.WebView
 object AndroidWebViewFactory {
 
     /** 已销毁视图标记（WeakHashMap 弱引用不泄漏视图，使 destroy 幂等）。 */
-    private val destroyedViews = java.util.Collections.newSetFromMap(
-        java.util.Collections.synchronizedMap(java.util.WeakHashMap<WebView, Boolean>())
+    private val destroyedViews = Collections.newSetFromMap(
+        Collections.synchronizedMap(WeakHashMap<WebView, Boolean>())
     )
 
     fun create(

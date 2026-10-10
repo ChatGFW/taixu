@@ -40,6 +40,7 @@ import top.wkbin.taixu.harness.mcp.server.BuiltinBrowserMcpAccess
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import top.wkbin.taixu.core.model.McpAuthMode
 
 /**
  * 远程 MCP 传输：同时支持 Streamable HTTP（2025-03-26+）与 legacy HTTP+SSE（2024-11-05）。
@@ -149,7 +150,7 @@ class McpHttpTransport(
             logger.w("MCP[${server.name}] 会话失效（${t.message}），重建后重试一次")
             dropSession(server.id, session)
             if (t is McpHttpStatusException && t.statusCode in setOf(401, 403) &&
-                server.authMode == top.wkbin.taixu.core.model.McpAuthMode.OAUTH
+                server.authMode == McpAuthMode.OAUTH
             ) {
                 oauthTokens?.forceRefresh(server.id)
             }

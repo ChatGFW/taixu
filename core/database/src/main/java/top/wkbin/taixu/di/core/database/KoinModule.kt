@@ -9,6 +9,8 @@ import top.wkbin.taixu.core.database.AgentSubagentRepository
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.database.AndroidAppRepository
 import top.wkbin.taixu.core.database.BuildScriptRepository
+import top.wkbin.taixu.core.database.DatabaseBackupRepository
+import top.wkbin.taixu.core.database.RoomDatabaseBackupRepository
 import top.wkbin.taixu.core.database.HarnessBlobStore
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.core.database.HarnessSessionRepository
@@ -36,7 +38,7 @@ import top.wkbin.taixu.core.database.task.RoomAgentTaskRepository
 
 /** Dependency registrations owned by the core:database module. */
 val coreDatabaseModule = module {
-    single<top.wkbin.taixu.core.database.DatabaseBackupRepository> { top.wkbin.taixu.core.database.RoomDatabaseBackupRepository(database = get()) }
+    single<DatabaseBackupRepository> { RoomDatabaseBackupRepository(database = get()) }
     single<AgencyAgentCatalogLoader> { AgencyAgentCatalogLoader(context = get(), json = get()) }
 
     single<AgentApprovalRepository> { AgentApprovalRepository(dao = get()) }

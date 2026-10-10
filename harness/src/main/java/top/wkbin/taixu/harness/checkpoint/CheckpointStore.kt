@@ -5,6 +5,8 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
 /**
  * 文件快照的按会话存储与重放规划。不触碰 git：
@@ -31,8 +33,8 @@ class CheckpointStore() {
      * deleteRecursively 清理）会串行阻塞其他会话每次 write/edit 前的 capture 路径。
      */
     @Volatile
-    internal var diskWriteExecutor: java.util.concurrent.Executor =
-        java.util.concurrent.Executors.newSingleThreadExecutor { runnable ->
+    internal var diskWriteExecutor: Executor =
+        Executors.newSingleThreadExecutor { runnable ->
             Thread(runnable, "checkpoint-disk").apply { isDaemon = true }
         }
 

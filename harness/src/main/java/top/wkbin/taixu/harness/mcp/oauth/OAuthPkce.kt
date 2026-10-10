@@ -3,6 +3,8 @@ package top.wkbin.taixu.harness.mcp.oauth
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
+import android.net.Uri
+import java.net.URI
 
 /** Pure OAuth PKCE/state helpers. No token or callback data is logged or persisted here. */
 object OAuthPkce {
@@ -18,7 +20,7 @@ object OAuthPkce {
     fun matchesState(expected: String, actual: String): Boolean {
         val left = expected.toByteArray(Charsets.UTF_8)
         val right = actual.toByteArray(Charsets.UTF_8)
-        return java.security.MessageDigest.isEqual(left, right)
+        return MessageDigest.isEqual(left, right)
     }
 
     private fun randomBytes(size: Int): String {
@@ -36,14 +38,14 @@ data class OAuthRedirectPolicy(
 ) {
     /** String/URI based so the callback policy remains testable on the local JVM. */
     fun accepts(uri: String): Boolean = runCatching {
-        val parsed = java.net.URI(uri)
+        val parsed = URI(uri)
         parsed.scheme == scheme && parsed.host == host && parsed.path == path
     }.getOrDefault(false)
 }
 
 object OAuthEndpointPolicy {
     fun requireSecure(url: String): String {
-        val uri = java.net.URI(url)
+        val uri = URI(url)
         val secure = uri.scheme.equals("https", ignoreCase = true)
         val loopback = uri.scheme.equals("http", ignoreCase = true) && uri.host?.lowercase() in
             setOf("localhost", "127.0.0.1", "::1", "[::1]")
@@ -53,6 +55,6 @@ object OAuthEndpointPolicy {
     }
 }
 
-fun android.net.Uri.oauthState(): String? = getQueryParameter("state")
-fun android.net.Uri.oauthCode(): String? = getQueryParameter("code")
-fun android.net.Uri.oauthError(): String? = getQueryParameter("error")
+fun Uri.oauthState(): String? = getQueryParameter("state")
+fun Uri.oauthCode(): String? = getQueryParameter("code")
+fun Uri.oauthError(): String? = getQueryParameter("error")

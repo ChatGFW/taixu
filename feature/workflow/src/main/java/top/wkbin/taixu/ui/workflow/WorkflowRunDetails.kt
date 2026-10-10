@@ -16,6 +16,9 @@ import kotlinx.coroutines.delay
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.model.workflow.*
 import top.wkbin.taixu.ui.components.*
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 internal fun WorkflowNodeDetails(run: WorkflowNodeRunState?) {
@@ -427,6 +430,6 @@ private fun formatApkSize(bytes: Long): String = when {
 
 private fun formatApkTime(timestamp: Long): String {
     if (timestamp <= 0L) return ""
-    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
-    return sdf.format(java.util.Date(timestamp))
+    val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+    return sdf.format(Date(timestamp))
 }

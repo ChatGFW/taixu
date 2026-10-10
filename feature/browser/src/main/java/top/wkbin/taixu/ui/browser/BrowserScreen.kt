@@ -54,6 +54,7 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.browser.network.NetworkTimelineSheet
 import top.wkbin.taixu.ui.browser.snapshot.SnapshotSheet
 import androidx.compose.runtime.collectAsState
+import top.wkbin.taixu.runtime.browser.cdp.DebugPausedState
 
 @Composable
 fun BrowserScreen(
@@ -315,7 +316,7 @@ private fun StatusDivider() {
  */
 @Composable
 private fun DebugPausedBanner(
-    paused: top.wkbin.taixu.runtime.browser.cdp.DebugPausedState,
+    paused: DebugPausedState,
     onResume: () -> Unit,
     modifier: Modifier = Modifier,
 ) {

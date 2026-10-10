@@ -71,6 +71,36 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 import top.wkbin.taixu.runtime.terminal.TerminalSessionManager
+import java.io.File
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import top.wkbin.taixu.core.common.navigation.AppNavigationTarget
+import top.wkbin.taixu.core.common.navigation.GlobalNavigationBus
+import top.wkbin.taixu.core.common.translation.TranslationManager
+import top.wkbin.taixu.core.database.AgentContextRepository
+import top.wkbin.taixu.core.database.AgentMemoryEntity
+import top.wkbin.taixu.core.database.AgentPlanEntity
+import top.wkbin.taixu.core.database.AgentScratchpadEntity
+import top.wkbin.taixu.core.database.QuickPhraseRepository
+import top.wkbin.taixu.core.database.WorkflowRepository
+import top.wkbin.taixu.core.model.AgentSkill
+import top.wkbin.taixu.core.model.InstalledDistro
+import top.wkbin.taixu.core.model.McpServerConfig
+import top.wkbin.taixu.core.model.QuickPhrase
+import top.wkbin.taixu.core.model.SessionRunState
+import top.wkbin.taixu.harness.MentionExtractor
+import top.wkbin.taixu.harness.checkpoint.RewindScope
+import top.wkbin.taixu.harness.compaction.CompactionManager
+import top.wkbin.taixu.harness.compaction.CompactionSnapshot
+import top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore
+import top.wkbin.taixu.harness.mcp.McpWorkspaceRecommender
+import top.wkbin.taixu.harness.session.SessionModelSwitcher
+import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.RuntimePathManager
+import top.wkbin.taixu.runtime.privilege.PrivilegeManager
+import top.wkbin.taixu.ui.components.RuntimeIconName
 
 private const val MAX_RUNTIME_EVENTS = 160
 private const val TAG = "ChatViewModel"
@@ -97,22 +127,22 @@ class ChatViewModel(
     private val context: Context,
     private val savedStateHandle: SavedStateHandle,
     private val harnessLoop: InteractiveSessionControl,
-    private val requestDiagnostics: top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore,
+    private val requestDiagnostics: RequestDiagnosticsStore,
     private val systemPromptBuilder: SystemPromptBuilder,
     private val sessionDao: HarnessSessionRepository,
     private val aiModelDao: AiModelRepository,
     private val workspaceManager: WorkspaceManager,
     private val settingsDataStore: AgentPreferences,
-    private val linuxRuntime: top.wkbin.taixu.runtime.LinuxRuntime,
+    private val linuxRuntime: LinuxRuntime,
     private val terminalSessionManager: TerminalSessionManager,
     private val mcpManager: McpManager,
     private val agentSkillRepository: AgentSkillRepository,
     private val mcpServerRepository: McpServerRepository,
     private val approvalRepository: AgentApprovalRepository,
-    private val agentContextDao: top.wkbin.taixu.core.database.AgentContextRepository,
-    private val compactionManager: top.wkbin.taixu.harness.compaction.CompactionManager,
-    private val sessionModelSwitcher: top.wkbin.taixu.harness.session.SessionModelSwitcher,
-    private val quickPhraseRepository: top.wkbin.taixu.core.database.QuickPhraseRepository,
+    private val agentContextDao: AgentContextRepository,
+    private val compactionManager: CompactionManager,
+    private val sessionModelSwitcher: SessionModelSwitcher,
+    private val quickPhraseRepository: QuickPhraseRepository,
     private val laneManager: LaneManager,
 
     private val eventBus: HarnessEventBus,
@@ -120,20 +150,20 @@ class ChatViewModel(
     private val modelDiscovery: AgentModelDiscovery,
     private val providerCatalog: AgentProviderCatalog,
     private val providerRepository: ProviderRepository,
-    private val profileWriter: top.wkbin.taixu.core.tools.AiProfileWriter,
-    private val privilegeManager: top.wkbin.taixu.runtime.privilege.PrivilegeManager,
-    private val pathManager: top.wkbin.taixu.runtime.RuntimePathManager,
-    private val workflowRepository: top.wkbin.taixu.core.database.WorkflowRepository,
-    val translationManager: top.wkbin.taixu.core.common.translation.TranslationManager? = null,
-    val globalNavigationBus: top.wkbin.taixu.core.common.navigation.GlobalNavigationBus? = null,
+    private val profileWriter: AiProfileWriter,
+    private val privilegeManager: PrivilegeManager,
+    private val pathManager: RuntimePathManager,
+    private val workflowRepository: WorkflowRepository,
+    val translationManager: TranslationManager? = null,
+    val globalNavigationBus: GlobalNavigationBus? = null,
 ) : ViewModel() {
-    private val _workflowLaunchRequests = kotlinx.coroutines.flow.MutableSharedFlow<WorkflowLaunchRequest>(extraBufferCapacity = 2)
-    val workflowLaunchRequests: kotlinx.coroutines.flow.SharedFlow<WorkflowLaunchRequest> = _workflowLaunchRequests
+    private val _workflowLaunchRequests = MutableSharedFlow<WorkflowLaunchRequest>(extraBufferCapacity = 2)
+    val workflowLaunchRequests: SharedFlow<WorkflowLaunchRequest> = _workflowLaunchRequests
     private val _workflowSuggestions = MutableStateFlow<List<ProactiveWorkflowSuggestion>>(emptyList())
     val workflowSuggestions: StateFlow<List<ProactiveWorkflowSuggestion>> = _workflowSuggestions.asStateFlow()
 
     /** 模型回复里引用的沙箱绝对路径（如 /workspace/xxx.jpg）到宿主真实目录的映射，供聊天媒体渲染把 PRoot 内路径翻译成 Android 可读文件。 */
-    val sandboxHostRoots: Map<String, java.io.File> = mapOf(
+    val sandboxHostRoots: Map<String, File> = mapOf(
         "workspace" to pathManager.workspaceDir,
         "attachments" to pathManager.attachmentsDir,
     )
@@ -152,11 +182,11 @@ class ChatViewModel(
             .stateIn(viewModelScope, SharingStarted.Lazily, null)
 
     private val _eventHistory = MutableStateFlow<Map<String, List<HarnessEvent>>>(emptyMap())
-    private val _permissionRequests = kotlinx.coroutines.flow.MutableSharedFlow<HarnessEvent.PermissionRequired>(
+    private val _permissionRequests = MutableSharedFlow<HarnessEvent.PermissionRequired>(
         extraBufferCapacity = 8,
-        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
-    val permissionRequests: kotlinx.coroutines.flow.SharedFlow<HarnessEvent.PermissionRequired> = _permissionRequests
+    val permissionRequests: SharedFlow<HarnessEvent.PermissionRequired> = _permissionRequests
 
     init {
         A2uiChatBridge.bind(harnessLoop, context)
@@ -183,11 +213,11 @@ class ChatViewModel(
         }
     }
 
-    val quickPhrases: StateFlow<List<top.wkbin.taixu.core.model.QuickPhrase>> = quickPhraseRepository.observeAll()
+    val quickPhrases: StateFlow<List<QuickPhrase>> = quickPhraseRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val activeDistroId: StateFlow<String> = linuxRuntime.activeDistroId
-    val installedDistros: StateFlow<List<top.wkbin.taixu.core.model.InstalledDistro>> = linuxRuntime.installedDistros
+    val installedDistros: StateFlow<List<InstalledDistro>> = linuxRuntime.installedDistros
 
     fun switchDistro(distroId: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -205,7 +235,7 @@ class ChatViewModel(
     val workspace: StateFlow<String> = harnessLoop.workspace
     val projectType: StateFlow<String> = harnessLoop.projectType
     /** 基于当前工作区内容自动推荐的 MCP 预设（已启用的已过滤），仅提示不自动启用。 */
-    val mcpRecommendations: StateFlow<List<top.wkbin.taixu.harness.mcp.McpWorkspaceRecommender.Recommendation>> =
+    val mcpRecommendations: StateFlow<List<McpWorkspaceRecommender.Recommendation>> =
         harnessLoop.mcpRecommendations
 
     fun enableMcpRecommendation(presetId: String) = harnessLoop.enableRecommendedMcp(presetId)
@@ -306,7 +336,7 @@ class ChatViewModel(
     private val branchEventRevision = runtimeEvents.map { events ->
         events.size to (events.lastOrNull()?.hashCode() ?: 0)
     }.distinctUntilChanged()
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class)
     val branches: StateFlow<List<ConversationBranch>> = combine(
         harnessLoop.currentSessionId,
         branchMessageRevision,
@@ -339,15 +369,15 @@ class ChatViewModel(
     /** 当前选中的会话 ID */
     val currentSessionId: StateFlow<String> = harnessLoop.currentSessionId
     /** 所有会话的多 Agent 并发运行状态映射 (IDLE / RUNNING / COMPLETED / FAILED) */
-    val sessionRunStates: StateFlow<Map<String, top.wkbin.taixu.core.model.SessionRunState>> = harnessLoop.sessionRunStates
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val sessionRunStates: StateFlow<Map<String, SessionRunState>> = harnessLoop.sessionRunStates
+    @OptIn(ExperimentalCoroutinesApi::class)
     val pendingApprovals: StateFlow<List<AgentApprovalRequestEntity>> = harnessLoop.currentSessionId.flatMapLatest { sessionId ->
-        if (sessionId.isBlank()) kotlinx.coroutines.flow.flowOf(emptyList()) else approvalRepository.pendingForSession(sessionId)
+        if (sessionId.isBlank()) flowOf(emptyList()) else approvalRepository.pendingForSession(sessionId)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** 当前会话的活跃结构化任务规划（模型通过 plan 工具写入的 AgentPlanEntity）。以 currentSessionId + 运行状态为键重新读取：一轮执行内状态多次变化，借此近似实时刷新看板进度；无规划或非活跃时为 null。 */
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val activePlan: StateFlow<top.wkbin.taixu.core.database.AgentPlanEntity?> =
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val activePlan: StateFlow<AgentPlanEntity?> =
         combine(harnessLoop.currentSessionId, harnessLoop.status) { sessionId, status ->
             // 原写法 lambda 输出恒等于 sessionId，配合下游 distinctUntilChanged 去重后，
             // status 的变化被完全吞掉；而一轮执行内状态多次变化（工具往返、压缩、等待审批），
@@ -356,15 +386,15 @@ class ChatViewModel(
         }
             .distinctUntilChanged()
             .flatMapLatest { (sessionId, _) ->
-                kotlinx.coroutines.flow.flow {
+                flow {
                     emit(if (sessionId.isBlank()) null else agentContextDao.getActivePlan(sessionId)?.takeIf { it.status == "active" })
                 }
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** 当前会话最近一次上下文压缩的快照（折叠条数 + 摘要预览）；会话从未压缩时为 null——UI 据此隐藏提示横幅。 */
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val activeCompaction: StateFlow<top.wkbin.taixu.harness.compaction.CompactionSnapshot?> =
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val activeCompaction: StateFlow<CompactionSnapshot?> =
         // 原写法 combine(currentSessionId, messages) { sessionId, _ -> sessionId }
         // 的 lambda 输出恒等于 sessionId：messages 变化虽会触发重跑，但输出值不变，
         // 若上游加了 distinctUntilChanged 则变化被吞。上下文压缩恰好伴随状态切换
@@ -375,7 +405,7 @@ class ChatViewModel(
         }
             .distinctUntilChanged()
             .flatMapLatest { (sessionId, _) ->
-                kotlinx.coroutines.flow.flow {
+                flow {
                     emit(if (sessionId.isBlank()) null else compactionManager.latestSnapshot(sessionId))
                 }
             }
@@ -385,15 +415,15 @@ class ChatViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** 全量长期记忆（memory 工具写入），供记忆抽屉管理与模型上下文核对。 */
-    val memories: StateFlow<List<top.wkbin.taixu.core.database.AgentMemoryEntity>> =
+    val memories: StateFlow<List<AgentMemoryEntity>> =
         agentContextDao.observeAllMemories()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val scratchpadRefresh = MutableStateFlow(0)
 
     /** 当前会话的草稿便签；随运行状态变化与手动刷新重建。 */
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val scratchpads: StateFlow<List<top.wkbin.taixu.core.database.AgentScratchpadEntity>> =
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val scratchpads: StateFlow<List<AgentScratchpadEntity>> =
         combine(
             harnessLoop.currentSessionId,
             harnessLoop.status,
@@ -488,7 +518,7 @@ class ChatViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun navigateToAgentSettings() {
-        globalNavigationBus?.navigateTo(top.wkbin.taixu.core.common.navigation.AppNavigationTarget.AgentSettings)
+        globalNavigationBus?.navigateTo(AppNavigationTarget.AgentSettings)
     }
 
     // 输入草稿：同步写入 SavedStateHandle，进程重建 / 旋转后可恢复
@@ -527,17 +557,17 @@ class ChatViewModel(
         _pendingShare.value = null
     }
 
-    val activeSkills: StateFlow<List<top.wkbin.taixu.core.model.AgentSkill>> = agentSkillRepository.activeSkills
+    val activeSkills: StateFlow<List<AgentSkill>> = agentSkillRepository.activeSkills
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val allSkills: StateFlow<List<top.wkbin.taixu.core.model.AgentSkill>> = agentSkillRepository.allSkills
+    val allSkills: StateFlow<List<AgentSkill>> = agentSkillRepository.allSkills
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val mcpServers: StateFlow<List<top.wkbin.taixu.core.model.McpServerConfig>> = mcpServerRepository.servers
+    val mcpServers: StateFlow<List<McpServerConfig>> = mcpServerRepository.servers
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** 真实压缩投影缓存（与引擎 ApiContextAssembler 同源）：按 (sessionId, compactionRevision) 从树读取 `CompactionManager.project()`。只在会话切换或某次压缩落库后才重读，避免流式期间（每 token 一次）对 DAO 的频繁查询。键必须同时含 revision：只发 sessionId 会被 distinctUntilChanged 吞掉压缩信号，面板就只有重进应用（ViewModel 重建）才能看到压缩后的用量。已折叠历史以摘要层形式计 token，不再重复计入对话体积。 */
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val compactedContext: StateFlow<CompactedContext?> =
         combine(harnessLoop.currentSessionId, compactionManager.compactionRevision) { sessionId, revision ->
             sessionId to revision
@@ -733,7 +763,7 @@ class ChatViewModel(
     }
 
     /** 斜杠指令建议列表（当输入以 / 开头时实时过滤展示，自动合并已激活的专精技能与可用工作流）。 */
-    val matchingCommands: StateFlow<List<SlashCommandItem>> = kotlinx.coroutines.flow.combine(
+    val matchingCommands: StateFlow<List<SlashCommandItem>> = combine(
         _input,
         agentSkillRepository.activeSkills,
         workflowRepository.observeDefinitions(),
@@ -742,17 +772,17 @@ class ChatViewModel(
         else emptyList()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private fun skillToMentionItem(skill: top.wkbin.taixu.core.model.AgentSkill): MentionItem = MentionItem(
+    private fun skillToMentionItem(skill: AgentSkill): MentionItem = MentionItem(
         id = skill.id,
         name = skill.name,
         description = skill.description,
         category = context.getString(R.string.chat_skill_category),
         type = MentionType.SKILL,
-        icon = top.wkbin.taixu.ui.components.RuntimeIconName.Brain,
+        icon = RuntimeIconName.Brain,
     )
 
     private fun mcpToMentionItem(
-        mcp: top.wkbin.taixu.core.model.McpServerConfig,
+        mcp: McpServerConfig,
         description: String = mcp.description,
     ): MentionItem = MentionItem(
         id = mcp.id,
@@ -760,11 +790,11 @@ class ChatViewModel(
         description = description,
         category = context.getString(R.string.chat_mcp_category),
         type = MentionType.MCP_SERVER,
-        icon = top.wkbin.taixu.ui.components.RuntimeIconName.Cpu,
+        icon = RuntimeIconName.Cpu,
     )
 
     /** @ 艾特唤醒建议列表（当输入包含 @ 时实时过滤技能与 MCP 插件）。 */
-    val matchingMentions: StateFlow<List<MentionItem>> = kotlinx.coroutines.flow.combine(
+    val matchingMentions: StateFlow<List<MentionItem>> = combine(
         _input,
         agentSkillRepository.allSkills,
         mcpServerRepository.servers,
@@ -789,7 +819,7 @@ class ChatViewModel(
     val pinnedMentionIds: StateFlow<Set<String>> = _pinnedMentionIds.asStateFlow()
 
     /** 当前会话中已钉选常驻的技能与 MCP 列表（默认为空，仅在用户显式钉选后常驻展示并生效）。 */
-    val pinnedCapabilities: StateFlow<List<MentionItem>> = kotlinx.coroutines.flow.combine(
+    val pinnedCapabilities: StateFlow<List<MentionItem>> = combine(
         _pinnedMentionIds,
         agentSkillRepository.allSkills,
         mcpServerRepository.servers,
@@ -828,7 +858,7 @@ class ChatViewModel(
     }
 
     /** 当前输入框中已挂载的技能与 MCP 标签列表（用于输入框顶部展示高亮双排 Chips）。 */
-    val attachedMentions: StateFlow<List<MentionItem>> = kotlinx.coroutines.flow.combine(
+    val attachedMentions: StateFlow<List<MentionItem>> = combine(
         _input,
         agentSkillRepository.allSkills,
         mcpServerRepository.servers,
@@ -887,7 +917,7 @@ class ChatViewModel(
         }
     }
 
-    fun applyQuickPhrase(phrase: top.wkbin.taixu.core.model.QuickPhrase) {
+    fun applyQuickPhrase(phrase: QuickPhrase) {
         if (phrase.content.trim() == "/clear") {
             createSession(context.getString(R.string.chat_new_session))
             setInput("")
@@ -1009,7 +1039,7 @@ class ChatViewModel(
 
         val pinnedIds = _pinnedMentionIds.value
         val effectiveText = if (pinnedIds.isNotEmpty()) {
-            val existingMentions = top.wkbin.taixu.harness.MentionExtractor.parse(rawText)
+            val existingMentions = MentionExtractor.parse(rawText)
             val missingPins = pinnedIds.filter { pin ->
                 pin.lowercase() !in existingMentions
             }
@@ -1138,7 +1168,7 @@ class ChatViewModel(
     // ---- 撤回到此轮（Checkpoint Rewind） ----
 
     /** 撤回到 [messageId] 所在用户轮：按 checkpoint 锚点定位轮次，prepare/commit 两段式执行；CONVERSATION/BOTH 会派生回退分支并切换过去。 */
-    fun rewindToMessage(messageId: String, scope: top.wkbin.taixu.harness.checkpoint.RewindScope) {
+    fun rewindToMessage(messageId: String, scope: RewindScope) {
         viewModelScope.launch(Dispatchers.IO) {
             val sessionId = harnessLoop.currentSessionId.value
             val target = harnessLoop.sessionCheckpoints(sessionId)
@@ -1169,13 +1199,13 @@ class ChatViewModel(
         }
     }
 
-    private val _rewindCompletedEvents = kotlinx.coroutines.flow.MutableSharedFlow<String>(
+    private val _rewindCompletedEvents = MutableSharedFlow<String>(
         extraBufferCapacity = 4,
-        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
     /** rewind 成功完成的事件（消息正文）；UI 以 Snackbar 呈现并附「撤销回滚」动作。 */
-    val rewindCompletedEvents: kotlinx.coroutines.flow.SharedFlow<String> = _rewindCompletedEvents
+    val rewindCompletedEvents: SharedFlow<String> = _rewindCompletedEvents
 
     /** 撤销最近一次 rewind：文件还原到 rewind 前状态（对话侧切回原会话即可）。 */
     fun undoLastRewind() {
@@ -1503,7 +1533,7 @@ data class MentionItem(
     val description: String,
     val category: String,
     val type: MentionType,
-    val icon: top.wkbin.taixu.ui.components.RuntimeIconName,
+    val icon: RuntimeIconName,
 )
 
 enum class MentionType {

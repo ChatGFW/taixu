@@ -37,6 +37,7 @@ import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import java.io.File
 
 // ==================== APK 逆向模板：已安装应用选择器 ====================
 
@@ -61,7 +62,7 @@ internal fun AppPickerDialog(
     val apps = remember {
         runCatching {
             context.packageManager.getInstalledApplications(0)
-                .filter { it.sourceDir != null && java.io.File(it.sourceDir).isFile }
+                .filter { it.sourceDir != null && File(it.sourceDir).isFile }
                 .sortedBy { it.appLabel(context).lowercase() }
         }.getOrDefault(emptyList())
     }

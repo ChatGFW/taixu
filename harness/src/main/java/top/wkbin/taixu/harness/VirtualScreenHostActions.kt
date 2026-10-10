@@ -12,6 +12,7 @@ import top.wkbin.taixu.runtime.gui.GuiPrimitive
 import top.wkbin.taixu.runtime.gui.ScrollDirection
 import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayCoordinator
 import top.wkbin.taixu.runtime.virtualdisplay.VirtualScreenToolkit
+import kotlinx.coroutines.delay
 
 /**
  * host 工具里 virtual_screen_* 的执行体。从 [ToolExecutor] 拆出来，避免那个文件继续涨过行数棘轮。
@@ -211,7 +212,7 @@ internal class VirtualScreenHostActions(
         }
         "virtual_screen_wait" -> {
             val millis = optionalLong(args, "duration_ms", 1000L, 0L, 600_000L)
-            kotlinx.coroutines.delay(millis)
+            delay(millis)
             true to "已等待 ${millis}ms"
         }
         "virtual_screen_hide" -> {

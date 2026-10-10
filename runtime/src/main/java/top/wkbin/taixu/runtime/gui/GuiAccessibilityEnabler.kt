@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.delay
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 
@@ -53,7 +54,7 @@ class GuiAccessibilityEnabler(
         }
         val joined = services.joinToString(":")
         val putServices = privilegeManager.executeShellCommand(
-            "settings put secure enabled_accessibility_services ${shellQuote(joined)}",
+            "settings put secure enabled_accessibility_services ${ShellQuote.of(joined)}",
         )
         val putFlag = privilegeManager.executeShellCommand("settings put secure accessibility_enabled 1")
         if (!putServices.success || !putFlag.success) {
@@ -80,8 +81,6 @@ class GuiAccessibilityEnabler(
         }
         return lastOk
     }
-
-    private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 
     private companion object {
         const val TAG = "TaiXu-GuiA11yEnable"

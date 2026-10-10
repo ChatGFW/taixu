@@ -32,6 +32,7 @@ import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.core.ToolCheckpoint
 import top.wkbin.taixu.harness.core.ToolCheckpoints
 import top.wkbin.taixu.harness.core.ToolGateDecision
+import top.wkbin.taixu.harness.directory.CapabilityToolGateway
 import top.wkbin.taixu.harness.events.AgentEventLogger
 import top.wkbin.taixu.harness.events.HarnessEventBus
 import top.wkbin.taixu.harness.metrics.RunMetrics
@@ -82,8 +83,18 @@ class ToolExecutorCheckpointTest {
     private fun executor(hook: ToolCheckpoint<ToolExecutionRequest, ToolResult>): ToolExecutor {
         val paths = HarnessPathResolver()
         return ToolExecutor(
-            WorkspaceFileAccess(root), unusedPort<LinuxRuntime>(), paths, ApprovalPolicyEngine(paths),
-            SecretRedactor(), unusedPort<FileDownloader>(), approvalRepository = approvals, sessionDao = sessions,
+            WorkspaceFileAccess(root), paths, ApprovalPolicyEngine(paths), SecretRedactor(),
+            hostToolBackend = HostCapabilityToolBackend(secretRedactor = SecretRedactor()),
+            linuxCommandToolBackend = LinuxCommandToolBackend(unusedPort<LinuxRuntime>(), paths),
+            downloadToolBackend = DownloadToolBackend(
+                unusedPort<FileDownloader>(), WorkspaceFileAccess(root), WorkspaceMutationSnapshots(),
+            ),
+            contextMemoryToolBackend = ContextMemoryToolBackend(),
+            askUserToolBackend = AskUserToolBackend(ApprovalPolicyEngine(paths), approvals),
+            promptAssetToolBackend = PromptAssetToolBackend(),
+            harnessServiceToolBackend = HarnessServiceToolBackend(),
+            capabilityToolGateway = CapabilityToolGateway(null) { _, _, _, _ -> error("unexpected host dispatch") },
+            approvalRepository = approvals, sessionDao = sessions,
             toolCheckpoints = ToolCheckpoints(listOf(hook)),
         )
     }

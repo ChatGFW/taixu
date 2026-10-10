@@ -23,8 +23,13 @@ import org.koin.dsl.module
 import org.koin.viewmodel.factory.KoinViewModelFactory
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.WorkflowRepository
 import top.wkbin.taixu.core.database.WorkflowScheduleStore
+import top.wkbin.taixu.harness.HarnessLoop
+import top.wkbin.taixu.harness.session.InteractiveSessionControl
+import top.wkbin.taixu.harness.session.PromptSubmission
+import top.wkbin.taixu.harness.session.SessionControl
 import top.wkbin.taixu.harness.workflow.WorkflowRunManager
 import top.wkbin.taixu.harness.workflow.WorkflowScheduler
 import top.wkbin.taixu.runtime.LinuxRuntime
@@ -112,17 +117,17 @@ class KoinAndroidIntegrationTest {
         val application = startKoin { androidContext(context); modules(taiXuModule) }
         val koin = application.koin
         try {
-            val loop = koin.get<top.wkbin.taixu.harness.HarnessLoop>()
-            val control = koin.get<top.wkbin.taixu.harness.session.SessionControl>()
+            val loop = koin.get<HarnessLoop>()
+            val control = koin.get<SessionControl>()
             assertSame(loop, control)
-            assertSame(loop, koin.get<top.wkbin.taixu.harness.session.InteractiveSessionControl>())
+            assertSame(loop, koin.get<InteractiveSessionControl>())
             val foreground = control.currentSessionId.value
-            assertEquals(top.wkbin.taixu.harness.session.PromptSubmission.Rejected(
-                top.wkbin.taixu.harness.session.PromptSubmission.Rejection.SESSION_NOT_FOUND),
+            assertEquals(PromptSubmission.Rejected(
+                PromptSubmission.Rejection.SESSION_NOT_FOUND),
                 control.submit("missing-remote", "hello"))
             assertEquals(foreground, control.currentSessionId.value)
         } finally {
-            koin.get<top.wkbin.taixu.core.database.AppDatabase>().close()
+            koin.get<AppDatabase>().close()
         }
     }
 }

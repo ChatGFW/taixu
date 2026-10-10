@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness
 
 import kotlinx.serialization.Serializable
+import top.wkbin.taixu.harness.queue.PromptQueue
 
 /** User-facing projection of a durable queued prompt. */
 @Serializable
@@ -15,6 +16,6 @@ data class PendingMessage(
 /** Durable prompt plus its delivery semantics, exposed for queue-aware UI. */
 data class QueuedPrompt(
     val id: String,
-    val queue: top.wkbin.taixu.harness.queue.PromptQueue,
+    val queue: PromptQueue,
     val message: PendingMessage,
 )

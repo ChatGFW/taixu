@@ -30,6 +30,9 @@ import top.wkbin.taixu.runtime.doctor.EnvironmentDoctor
 import top.wkbin.taixu.runtime.doctor.EnvironmentRepairer
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.runtime.privilege.PrivilegeAvailability
+import top.wkbin.taixu.runtime.shell.ProcessType
+import top.wkbin.taixu.runtime.webchat.WebChatBridgeServer
+import top.wkbin.taixu.runtime.webchat.WebChatServerStatus
 
 /** 当前运行特权模式的展示状态（首页徽章与规格卡共用）。 */
 data class ExecutionModeStatus(
@@ -69,12 +72,12 @@ class HomeViewModel(
     private val backgroundTaskRegistry: BackgroundTaskRegistry,
     private val privilegeManager: PrivilegeManager,
     private val logger: AppLogger,
-    private val webChatBridgeServer: top.wkbin.taixu.runtime.webchat.WebChatBridgeServer? = null,
+    private val webChatBridgeServer: WebChatBridgeServer? = null,
 ) : ViewModel() {
 
     // WebChat 电脑大屏协作：局域网桥接服务状态（详见 WebChatDashboardCard）
-    val webChatStatus: StateFlow<top.wkbin.taixu.runtime.webchat.WebChatServerStatus> =
-        webChatBridgeServer?.status ?: MutableStateFlow(top.wkbin.taixu.runtime.webchat.WebChatServerStatus()).asStateFlow()
+    val webChatStatus: StateFlow<WebChatServerStatus> =
+        webChatBridgeServer?.status ?: MutableStateFlow(WebChatServerStatus()).asStateFlow()
 
     fun toggleWebChat(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -277,7 +280,7 @@ class HomeViewModel(
                     storageTotalGb = totalGb,
                     storageUsagePercent = storagePercent,
                     activeProcessCount = activeProcs,
-                    runningServicesCount = bgProcesses.count { it.type == top.wkbin.taixu.runtime.shell.ProcessType.SERVICE },
+                    runningServicesCount = bgProcesses.count { it.type == ProcessType.SERVICE },
                     cpuArch = arch,
                     linuxDistro = distroDisplayName,
                     engineVersion = "proot-distro 5.9.0 · Link2Symlink",

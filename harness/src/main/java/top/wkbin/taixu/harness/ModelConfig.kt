@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness
 import top.wkbin.taixu.harness.core.LlmApi
 import top.wkbin.taixu.harness.core.ModelCapabilities
 import top.wkbin.taixu.harness.core.ModelDescriptor
+import top.wkbin.taixu.core.model.McpToolInfo
 
 /** 解析后的模型运行配置。 */
 data class ModelConfig(
@@ -31,7 +32,7 @@ data class ModelConfig(
      * DISABLED = 禁用工具（纯聊天）。
      */
     val toolCallMode: ToolCallMode = ToolCallMode.NATIVE,
-    val dynamicMcpTools: List<top.wkbin.taixu.core.model.McpToolInfo> = emptyList(),
+    val dynamicMcpTools: List<McpToolInfo> = emptyList(),
     /** 上下文 Token 容量上限（如 128000，超出时滑动窗口压缩）。 */
     val contextTokens: Int? = null,
     /**

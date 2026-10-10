@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 
 /**
@@ -184,7 +185,7 @@ class HostGuiToolkit(
         if (clipOk) {
             runCatching {
                 privilegeManager.executeShellCommand(
-                    "cmd clipboard set-primary-clip text/plain ${shellQuote(text)} >/dev/null 2>&1 || true",
+                    "cmd clipboard set-primary-clip text/plain ${ShellQuote.of(text)} >/dev/null 2>&1 || true",
                 )
             }
             delay(180)
@@ -361,8 +362,6 @@ class HostGuiToolkit(
         if (!latch.await(3, TimeUnit.SECONDS)) return false
         return error == null
     }
-
-    private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 
     private companion object {
         const val TAG = "TaiXu-GuiToolkit"

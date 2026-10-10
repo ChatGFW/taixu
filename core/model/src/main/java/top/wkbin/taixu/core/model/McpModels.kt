@@ -1,6 +1,7 @@
 package top.wkbin.taixu.core.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /**
  * MCP (Model Context Protocol) 传输协议类型
@@ -45,7 +46,7 @@ data class McpServerConfig(
      * 运行时注入用（例如内置 browser server 的自环凭据）：@Transient 保证不参与序列化，
      * 既不落 Room 也不随 [toExportJsonConfig] 导出。
      */
-    @kotlinx.serialization.Transient
+    @Transient
     val authToken: String = "",
     /** 是否启用 */
     val isEnabled: Boolean = true,

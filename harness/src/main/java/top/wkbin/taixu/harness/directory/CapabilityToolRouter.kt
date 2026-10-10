@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness.directory
 import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.model.McpToolAnnotations
 import top.wkbin.taixu.harness.mcp.McpManager
+import top.wkbin.taixu.harness.JsonArgs
 
 /**
  * use_capability 统一代理的分发器（自 ToolExecutor 零增长迁出，对齐 Reasonix 的代理入口）：
@@ -204,9 +205,9 @@ class CapabilityToolRouter(
     }
 }
 
-/** 本文件内共享的字符串参数读取：JsonPrimitive.content 去空白，缺省为 null。 */
+/** 本文件内共享的字符串参数读取：复用 [JsonArgs]，去首尾空白，空串视作缺省。 */
 private fun JsonObject.stringArg(key: String): String? =
-    (this[key] as? kotlinx.serialization.json.JsonPrimitive)?.content?.trim()?.takeIf { it.isNotEmpty() }
+    JsonArgs.optionalString(this, key)?.trim()?.takeIf { it.isNotEmpty() }
 
 /** inspect 清单输出上限：超出截断并指引直接 call。 */
 private const val MAX_INSPECT_CHARS = 16_000

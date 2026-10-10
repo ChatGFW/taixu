@@ -12,6 +12,7 @@ import top.wkbin.taixu.core.datastore.AgentServerPreferences
 import top.wkbin.taixu.harness.mcp.server.AgentMcpAccess
 import top.wkbin.taixu.harness.mcp.server.HarnessToolProvider
 import top.wkbin.taixu.harness.mcp.server.McpServerRuntime
+import java.util.UUID
 
 /**
  * MCP 被控端生命周期管理：让外部 AI 客户端（Claude Desktop / Cursor 等）通过 MCP 控制本 App。
@@ -111,7 +112,7 @@ class AgentMcpBootstrap(
         Log.i(TAG, "AgentMcpServer 已停止（$reason）")
     }
 
-    private fun generateToken(): String = java.util.UUID.randomUUID().toString().replace("-", "")
+    private fun generateToken(): String = UUID.randomUUID().toString().replace("-", "")
 
     private data class Config(
         val enabled: Boolean,

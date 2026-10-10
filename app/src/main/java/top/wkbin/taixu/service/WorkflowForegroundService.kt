@@ -23,7 +23,10 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.R
+import top.wkbin.taixu.MainActivity
 import top.wkbin.taixu.core.model.workflow.WorkflowRunStatus
+import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
+import top.wkbin.taixu.core.model.workflow.NodeRunStatus
 import top.wkbin.taixu.harness.workflow.WorkflowRunManager
 import top.wkbin.taixu.lifecycle.ProcessingPowerLease
 import top.wkbin.taixu.lifecycle.RuntimeLifecycleSupervisor
@@ -161,7 +164,7 @@ class WorkflowForegroundService : Service() {
 
 
     private fun openRunIntent(executionId: String?): PendingIntent {
-        val intent = Intent(this, top.wkbin.taixu.MainActivity::class.java)
+        val intent = Intent(this, MainActivity::class.java)
             .setAction(ACTION_OPEN_RUN)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         executionId?.let { intent.putExtra(EXTRA_EXECUTION_ID, it) }
@@ -184,7 +187,7 @@ class WorkflowForegroundService : Service() {
         .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
         .build()
 
-    private fun progressNotification(state: top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState): Notification {
+    private fun progressNotification(state: WorkflowRuntimeState): Notification {
         val active = state.nodeStates.entries.firstOrNull { it.value.status in ACTIVE_NODE_STATUSES }
         val nodeTitle = active?.let { (id, _) ->
             state.definition.nodes.firstOrNull { it.id == id }?.title ?: id
@@ -218,7 +221,7 @@ class WorkflowForegroundService : Service() {
             .build()
     }
 
-    private fun terminalNotification(state: top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState): Notification {
+    private fun terminalNotification(state: WorkflowRuntimeState): Notification {
         val (title, text) = when (state.status) {
             WorkflowRunStatus.SUCCESS -> "工作流完成" to "${state.definition.name} 全部节点执行成功"
             WorkflowRunStatus.FAILED -> "工作流失败" to "${state.definition.name}：${state.error ?: "执行失败"}"
@@ -266,9 +269,9 @@ class WorkflowForegroundService : Service() {
         private const val TAG = "WorkflowFgService"
         private const val LEASE_HOLDER_ID = "workflow"
         private val ACTIVE_NODE_STATUSES = setOf(
-            top.wkbin.taixu.core.model.workflow.NodeRunStatus.RUNNING,
-            top.wkbin.taixu.core.model.workflow.NodeRunStatus.STREAMING,
-            top.wkbin.taixu.core.model.workflow.NodeRunStatus.WAITING_APPROVAL,
+            NodeRunStatus.RUNNING,
+            NodeRunStatus.STREAMING,
+            NodeRunStatus.WAITING_APPROVAL,
         )
 
         fun start(context: Context) {

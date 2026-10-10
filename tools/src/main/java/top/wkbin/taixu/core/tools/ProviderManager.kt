@@ -1,5 +1,6 @@
 package top.wkbin.taixu.core.tools
 
+import java.net.URI
 import kotlinx.coroutines.flow.first
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -92,7 +93,7 @@ object ProviderEndpointPolicy {
                 httpUrl.scheme.equals("http", ignoreCase = true)
         }
 
-        val uri = runCatching { java.net.URI(normalized) }.getOrNull() ?: return false
+        val uri = runCatching { URI(normalized) }.getOrNull() ?: return false
         if (uri.userInfo != null || uri.host.isNullOrBlank()) return false
         return uri.scheme.equals("https", ignoreCase = true) ||
             uri.scheme.equals("http", ignoreCase = true)

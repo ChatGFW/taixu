@@ -2,6 +2,7 @@ package top.wkbin.taixu.runtime.rootfs
 
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStream
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
@@ -135,7 +136,7 @@ class LxcImagesClient(
         return target
     }
 
-    private fun hashInto(md: MessageDigest, input: java.io.InputStream) {
+    private fun hashInto(md: MessageDigest, input: InputStream) {
         val buffer = ByteArray(64 * 1024)
         while (true) {
             val n = input.read(buffer)

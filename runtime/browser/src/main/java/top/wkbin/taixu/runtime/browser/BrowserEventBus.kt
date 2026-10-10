@@ -1,6 +1,7 @@
 package top.wkbin.taixu.runtime.browser
 
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.serialization.Serializable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,7 +60,7 @@ class BrowserEventBus(
 
     // —— CDP 调试事件（debug_events 工具读）——
     /** 调试事件环内单条记录（paused/resumed 摘要）。 */
-    @kotlinx.serialization.Serializable
+    @Serializable
     data class DebugEventRecord(
         val tabId: String,
         val kind: String,           // "paused" / "resumed"

@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import top.wkbin.taixu.core.model.ToolImageRef
 
 /** Harness 基础工具，与 LLM tool-calling 协议对齐。 */
 @Serializable
@@ -156,7 +157,7 @@ data class ToolResult(
      * 工具产物中的图片附件引用列表（如 mcp__browser__screenshot 落盘的 PNG）。
      * 持久化兼容：旧数据无此字段；序列化与 Room payload 默认空数组。
      */
-    val imageAttachments: List<top.wkbin.taixu.core.model.ToolImageRef> = emptyList(),
+    val imageAttachments: List<ToolImageRef> = emptyList(),
     /**
      * 工具结果的结构化元数据（不进入模型上下文）。当前用于 edit 工具：
      * metadata["diff"] 携带 Unified Diff，供前端 DiffView 渲染对比视图。

@@ -1,6 +1,8 @@
 package top.wkbin.taixu.runtime
 
+import android.system.Os
 import java.io.File
+import java.nio.file.Files
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.runtime.bridge.HostBridge
 import top.wkbin.taixu.runtime.scripts.RuntimeAssetSynchronizer
@@ -246,7 +248,7 @@ class DistroConfigurator(
             """.trimIndent() + "\n",
         )
         runCatching {
-            android.system.Os.chmod(script.absolutePath, 0x1ED) // 0755
+            Os.chmod(script.absolutePath, 0x1ED) // 0755
         }
     }
 
@@ -259,9 +261,9 @@ class DistroConfigurator(
                     file.delete()
                 } else if (file.isFile) {
                     runCatching {
-                        val mode = android.system.Os.lstat(file.absolutePath).st_mode
+                        val mode = Os.lstat(file.absolutePath).st_mode
                         if (mode and 0xC00 != 0) {
-                            android.system.Os.chmod(file.absolutePath, mode and 0x3FF)
+                            Os.chmod(file.absolutePath, mode and 0x3FF)
                             stripped++
                         }
                     }.onFailure { failed++ }
@@ -321,7 +323,7 @@ class DistroConfigurator(
         // 必须先移除该链接（普通文件/悬空链接两种情况都要处理）再写入。
         try {
             val resolvPath = resolvConf.toPath()
-            if (java.nio.file.Files.isSymbolicLink(resolvPath) || resolvConf.exists()) {
+            if (Files.isSymbolicLink(resolvPath) || resolvConf.exists()) {
                 resolvConf.delete()
             }
         } catch (_: Exception) {
@@ -370,17 +372,17 @@ class DistroConfigurator(
         // taixu-host — 宿主桥接 CLI
         val hostScript = File(binDir, "taixu-host")
         hostScript.writeText(TAIXU_HOST_SCRIPT)
-        runCatching { android.system.Os.chmod(hostScript.absolutePath, 0x1ED) } // 0755
+        runCatching { Os.chmod(hostScript.absolutePath, 0x1ED) } // 0755
 
         // taixu-android-exec — Android 二进制执行包装器
         val androidExecScript = File(binDir, "taixu-android-exec")
         androidExecScript.writeText(TAIXU_ANDROID_EXEC_SCRIPT)
-        runCatching { android.system.Os.chmod(androidExecScript.absolutePath, 0x1ED) }
+        runCatching { Os.chmod(androidExecScript.absolutePath, 0x1ED) }
 
         // API 密钥 — 每次配置时刷新；显式 0600 收紧读取面（SECURITY_SURFACE #5）
         val bridgeKeyFile = File(rootDir, ".bridge-key")
         bridgeKeyFile.writeText(hostBridge.bridgeKey)
-        runCatching { android.system.Os.chmod(bridgeKeyFile.absolutePath, 0x180) } // 0600 = 仅属主可读写
+        runCatching { Os.chmod(bridgeKeyFile.absolutePath, 0x180) } // 0600 = 仅属主可读写
 
         logger.i("HostBridge scripts installed for distro: $distroId")
     }
