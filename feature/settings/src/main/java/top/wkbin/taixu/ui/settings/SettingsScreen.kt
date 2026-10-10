@@ -52,7 +52,6 @@ fun SettingsScreen(
     onOpenSystemDev: () -> Unit,
     onOpenAboutCommunity: () -> Unit,
     onOpenSearch: () -> Unit = {},
-    onOpenA2uiPoc: () -> Unit = {},
     onOpenFeatureHub: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {

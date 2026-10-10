@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +35,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.runtime.webchat.WebChatServerStatus
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
@@ -75,14 +77,16 @@ internal fun WebChatControlRow(
                     verticalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
                     Text(
-                        text = "WebChat 电脑大屏协作",
+                        text = stringResource(R.string.settings_feature_webchat_title),
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = if (status.isRunning) "局域网服务运行中 · 已保活" else "默认关闭 · 按需开启免耗电",
+                        text = stringResource(
+                            if (status.isRunning) R.string.settings_feature_webchat_running else R.string.settings_feature_webchat_idle,
+                        ),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (status.isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -110,7 +114,7 @@ internal fun WebChatControlRow(
 
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(
-                            text = "电脑浏览器访问地址",
+                            text = stringResource(R.string.settings_feature_webchat_url_label),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -128,7 +132,7 @@ internal fun WebChatControlRow(
 
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(
-                            text = "配对码 (PIN)",
+                            text = stringResource(R.string.settings_feature_webchat_pin_label),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -143,22 +147,24 @@ internal fun WebChatControlRow(
                         )
                     }
 
+                    val copiedMessage = stringResource(R.string.settings_feature_webchat_copied)
                     RuntimeButton(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("WebChat Direct URL", status.accessUrl))
-                            Toast.makeText(context, "已复制访问地址，发到电脑打开即可连接！", Toast.LENGTH_SHORT).show()
+                            val directUrl = "${status.accessUrl}?token=${status.pinCode}"
+                            clipboard.setPrimaryClip(ClipData.newPlainText("WebChat Direct URL", directUrl))
+                            Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(vertical = 8.dp),
                     ) {
                         RuntimeIcon(RuntimeIconName.Copy, Modifier.size(16.dp))
                         Spacer(Modifier.size(6.dp))
-                        Text("一键复制")
+                        Text(stringResource(R.string.settings_feature_webchat_copy))
                     }
 
                     Text(
-                        text = "💡 提示：电脑需与手机连接至同一 Wi-Fi；当前在线设备：${status.activeConnections} 台",
+                        text = stringResource(R.string.settings_feature_webchat_hint, status.activeConnections),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

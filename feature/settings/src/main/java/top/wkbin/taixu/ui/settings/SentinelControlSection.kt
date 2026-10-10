@@ -29,10 +29,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.harness.workflow.SentinelState
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeIcon
@@ -75,14 +77,14 @@ internal fun SentinelControlRow(
                     verticalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
                     Text(
-                        text = "晨报哨兵",
+                        text = stringResource(R.string.settings_feature_sentinel_title),
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = "每天定时只读巡检工作区，AI 汇总晨间简报",
+                        text = stringResource(R.string.settings_feature_sentinel_subtitle),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -109,20 +111,26 @@ internal fun SentinelControlRow(
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text(
-                                text = "每天 ${formatSentinelClock(state.hour, state.minute)} 自动巡检",
+                                text = stringResource(
+                                    R.string.settings_feature_sentinel_schedule,
+                                    formatSentinelClock(state.hour, state.minute),
+                                ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             state.nextRunAt?.let { next ->
                                 Text(
-                                    text = "下次巡检：${formatSentinelTimestamp(next)}",
+                                    text = stringResource(
+                                        R.string.settings_feature_sentinel_next_run,
+                                        formatSentinelTimestamp(next),
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
                         TextButton(onClick = { showTimeEditor = true }) {
-                            Text("改时间")
+                            Text(stringResource(R.string.settings_feature_sentinel_time_edit))
                         }
                     }
                 }
@@ -159,14 +167,14 @@ private fun SentinelTimeEditorDialog(
 
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("巡检时间") },
+        title = { Text(stringResource(R.string.settings_feature_sentinel_dialog_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = hourText,
                         onValueChange = { hourText = it.filter(Char::isDigit).take(2) },
-                        label = { Text("时 (0–23)") },
+                        label = { Text(stringResource(R.string.settings_feature_sentinel_hour_label)) },
                         isError = hour !in 0..23,
                         singleLine = true,
                         modifier = Modifier.weight(1f),
@@ -174,7 +182,7 @@ private fun SentinelTimeEditorDialog(
                     OutlinedTextField(
                         value = minuteText,
                         onValueChange = { minuteText = it.filter(Char::isDigit).take(2) },
-                        label = { Text("分 (0–59)") },
+                        label = { Text(stringResource(R.string.settings_feature_sentinel_minute_label)) },
                         isError = minute !in 0..59,
                         singleLine = true,
                         modifier = Modifier.weight(1f),
@@ -184,11 +192,11 @@ private fun SentinelTimeEditorDialog(
         },
         confirmButton = {
             TextButton(enabled = valid, onClick = { onConfirm(hour ?: 0, minute ?: 0) }) {
-                Text("保存")
+                Text(stringResource(R.string.settings_feature_sentinel_confirm))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_feature_sentinel_cancel)) }
         },
     )
 }

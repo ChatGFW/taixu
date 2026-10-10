@@ -10,9 +10,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 
@@ -33,7 +35,7 @@ fun FeatureHubScreen(
     val webChatStatus by viewModel.webChatStatus.collectAsStateWithLifecycle()
 
     Scaffold(
-        topBar = { RuntimeTopBar("特色功能", onBack) },
+        topBar = { RuntimeTopBar(stringResource(R.string.settings_feature_hub_title), onBack) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -44,8 +46,8 @@ fun FeatureHubScreen(
                 FeatureLinkRow(
                     icon = RuntimeIconName.Code,
                     accent = MaterialTheme.colorScheme.primary,
-                    title = "一句话做 App",
-                    subtitle = "描述需求，太墟自动构建并安装到手机",
+                    title = stringResource(R.string.settings_feature_custom_iteration_title),
+                    subtitle = stringResource(R.string.settings_feature_custom_iteration_subtitle),
                     onClick = onOpenCustomIteration,
                 )
             }
@@ -53,8 +55,8 @@ fun FeatureHubScreen(
                 FeatureLinkRow(
                     icon = RuntimeIconName.Hub,
                     accent = MaterialTheme.colorScheme.tertiary,
-                    title = "AI 圆桌会议",
-                    subtitle = "三视角并行评审，总裁判汇总辩论报告",
+                    title = stringResource(R.string.settings_feature_roundtable_title),
+                    subtitle = stringResource(R.string.settings_feature_roundtable_subtitle),
                     onClick = onStartRoundtable,
                 )
             }
@@ -75,8 +77,8 @@ fun FeatureHubScreen(
                 FeatureLinkRow(
                     icon = RuntimeIconName.Terminal,
                     accent = MaterialTheme.colorScheme.secondary,
-                    title = "A2UI 界面",
-                    subtitle = "智能体把回答画成原生界面 · 查看最近界面或注入示例",
+                    title = stringResource(R.string.settings_feature_a2ui_title),
+                    subtitle = stringResource(R.string.settings_feature_a2ui_subtitle),
                     onClick = onOpenA2uiPoc,
                 )
             }

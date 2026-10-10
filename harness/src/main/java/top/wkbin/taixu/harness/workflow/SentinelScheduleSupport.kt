@@ -12,7 +12,7 @@ import top.wkbin.taixu.core.model.workflow.WorkflowScheduleRepeat
 
 /**
  * 晨报哨兵的派生状态（由定时计划表映射而来）。
- * 首页「晨报哨兵」卡片与乾坤「特色功能」栏共用同一套状态与操作。
+ * 乾坤「特色功能」页内的晨报哨兵控制与定时计划共用同一套状态与操作。
  */
 data class SentinelState(
     val enabled: Boolean = false,

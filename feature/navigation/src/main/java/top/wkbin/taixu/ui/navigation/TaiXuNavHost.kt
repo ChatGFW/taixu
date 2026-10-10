@@ -360,7 +360,6 @@ fun TaiXuNavHost(
                         onOpenSystemDev = { settingsStack.push(SettingsDestination, SystemDevSettingsDestination) },
                         onOpenAboutCommunity = { settingsStack.push(SettingsDestination, AboutCommunityDestination) },
                         onOpenSearch = { settingsStack.push(SettingsDestination, SettingsSearchDestination) },
-                        onOpenA2uiPoc = { settingsStack.push(SettingsDestination, A2uiPocDestination) },
                         onOpenFeatureHub = { settingsStack.push(SettingsDestination, FeatureHubDestination) },
                         viewModel = settingsViewModel,
                     )
