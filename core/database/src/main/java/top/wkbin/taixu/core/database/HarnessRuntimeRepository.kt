@@ -53,6 +53,12 @@ interface HarnessRuntimeRepository {
         operation: HarnessOperationEntity, queueItemId: String? = null) {
         error("Atomic task admission is not supported by this repository")
     }
+    /** Ends a leftover run and starts its successor, with optional input, in one transaction. */
+    suspend fun acceptRunTakeover(queueItemId: String?, entry: HarnessEntryEntity?, lane: HarnessLaneEntity,
+        operation: HarnessOperationEntity, previousLane: HarnessLaneEntity,
+        previousResult: HarnessLaneResultEntity?, taskId: String?) {
+        error("Atomic run takeover is not supported by this repository")
+    }
     suspend fun beginOperation(lane: HarnessLaneEntity, operation: HarnessOperationEntity)
     suspend fun saveOperation(operation: HarnessOperationEntity)
     suspend fun settleEffect(entry: HarnessEntryEntity?, usage: HarnessUsageEntity?, operation: HarnessOperationEntity, lane: HarnessLaneEntity)
@@ -62,6 +68,9 @@ interface HarnessRuntimeRepository {
     suspend fun listAllQueues(sessionId: String, laneName: String): List<HarnessQueueItemEntity>
     suspend fun cancelQueued(itemId: String)
     suspend fun clearQueue(sessionId: String, laneName: String, queueType: String)
+    /** Moves every item of [fromType] to [toType] without rewriting payload or createdAt. */
+    suspend fun retargetQueue(sessionId: String, laneName: String, fromType: String, toType: String): Int =
+        error("Queue retarget is not supported by this repository")
     suspend fun consumeQueued(itemId: String, entry: HarnessEntryEntity, lane: HarnessLaneEntity)
     suspend fun recordUsage(usage: HarnessUsageEntity)
     suspend fun listUsage(sessionId: String): List<HarnessUsageEntity>
@@ -233,6 +242,14 @@ class RoomHarnessRuntimeRepository(
         dao.acceptTaskOperation(taskId, sanitizeForStorage(unique), lane.copy(leafId = unique.id), operation, queueItemId)
     }
     override suspend fun saveOperation(operation: HarnessOperationEntity) = dao.upsertOperation(operation)
+    override suspend fun acceptRunTakeover(queueItemId: String?, entry: HarnessEntryEntity?, lane: HarnessLaneEntity,
+        operation: HarnessOperationEntity, previousLane: HarnessLaneEntity,
+        previousResult: HarnessLaneResultEntity?, taskId: String?) {
+        require(entry == null || lane.leafId == entry.id) { "Admission lane must point to the input entry" }
+        val unique = entry?.let { ensureUniqueStorageEntry(it) }
+        dao.acceptRunTakeover(queueItemId, unique?.let(::sanitizeForStorage), lane.copy(leafId = unique?.id ?: lane.leafId),
+            operation, previousLane, previousResult, taskId)
+    }
     override suspend fun settleEffect(entry: HarnessEntryEntity?, usage: HarnessUsageEntity?, operation: HarnessOperationEntity, lane: HarnessLaneEntity) {
         val uniqueEntry = entry?.let { ensureUniqueStorageEntry(it) }
         val sanitized = uniqueEntry?.let(::sanitizeForStorage)
@@ -254,6 +271,8 @@ class RoomHarnessRuntimeRepository(
     override suspend fun cancelQueued(itemId: String) = dao.deleteQueueItem(itemId)
     override suspend fun clearQueue(sessionId: String, laneName: String, queueType: String) =
         dao.clearQueue(sessionId, laneName, queueType)
+    override suspend fun retargetQueue(sessionId: String, laneName: String, fromType: String, toType: String) =
+        dao.retargetQueue(sessionId, laneName, fromType, toType)
     override suspend fun consumeQueued(itemId: String, entry: HarnessEntryEntity, lane: HarnessLaneEntity) {
         val uniqueEntry = ensureUniqueStorageEntry(entry)
         val sanitized = sanitizeForStorage(uniqueEntry)
