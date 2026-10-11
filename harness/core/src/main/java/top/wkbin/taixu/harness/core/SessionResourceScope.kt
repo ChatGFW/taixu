@@ -42,7 +42,7 @@ class SessionResourceScope {
 
     suspend fun close() {
         check(this !in currentCoroutineContext()[ActiveScopes]?.scopes.orEmpty()) { "Cannot close a scope from its own activity" }
-        withContext(NonCancellable) {
+        withResourceDisposal(this) {
             closeMutex.withLock {
                 val running = synchronized(lock) { closing = true; activities.toList() }
                 running.forEach { it.cancel() }

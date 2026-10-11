@@ -68,3 +68,14 @@ adb logcat -s TaiXu:V HarnessLoop:V ProotProcess:V
 ```
 
 修改依赖注册后同时运行完整单元测试和 `:app:assembleDebug`。依赖注入已迁移为 Koin DSL。
+
+## 5. PTY 原生库重建与统一验收
+
+项目使用版本管理中的 ARM64 PTY 预编译库。修改 `app/src/main/cpp/pty_native.c` 后，先用 Windows Android NDK 重建，再运行统一验收：
+
+```powershell
+.\tools\build-pty-native.ps1 -NdkRoot "$env:LOCALAPPDATA\Android\Sdk\ndk\30.0.15729638"
+.\gradlew.bat test :app:assembleDebug architectureCheck --console=plain
+```
+
+脚本生成 16 KiB 对齐的 Android API 29 原生库及 `pty-native.properties`。C 源码、`app/src/main/jniLibs/arm64-v8a/libpty_native.so` 和清单应一起提交；打包前检查源码哈希、二进制哈希、全部 JNI 声明和 libc 依赖，拒绝未经重编译的源码或被替换的库。源码哈希统一按 LF 计算，不受 Windows/Git 换行转换影响。该检查不能代替真机 PTY 和 Termux 渲染验证。

@@ -22,7 +22,8 @@
 
 - 存储于 `core/security/SecretManager.kt`（AndroidKeyStore 密钥加密持久化），读取后仅存在于内存数据结构，随请求头发出（`ProviderTransport`）。
 - **不进入进程环境变量**：`RuntimePathManager.hostProcessEnvironment()` 只构造 `PROOT_L2S_DIR` / `PROOT_LOADER(_32)` / `TMPDIR` / `PROOT_TMP_DIR` / `LD_LIBRARY_PATH` 等路径变量（`RuntimePathManager.kt:229-244`）。
-- 宿主侧子进程一律先 `environment().clear()` 再放白名单（`ProcessShellExecutor.kt:32`、`ProcessLinuxSession.kt:37`、`ProotInstaller.kt:68`）→ App 进程环境不扩散到 PRoot 与宿主辅助进程。
+- 宿主侧子进程一律先 `environment().clear()` 再放白名单（`ProcessShellExecutor.kt:32`、`ProcessLinuxSession.startProcess`、`ProotInstaller.kt:68`）→ App 进程环境不扩散到 PRoot 与宿主辅助进程。
+- JNI PTY 主描述符设置 `FD_CLOEXEC`，避免 exec 后继承主端；仅主端使用非阻塞读写，slave 保留普通终端行为（`app/src/main/cpp/pty_native.c`）。信号发送与 `waitpid(WNOHANG)` 回收由 `NativePtyChild` 串行执行，回收后不再对同一 PID 发信号。前台命令和 PTY 的终止失败保留资源，禁止把未确认退出当成可清理存储的完成状态。
 - 已知例外（记录在案，风险低）：`PrivilegeManager` Root 通道 `ProcessBuilder("su", "-c", …)` 与 `ShizukuHostUserService` 的 `ProcessBuilder` 未清空环境，继承 App / Shizuku 服务进程的标准 Android 环境变量。用户密钥不在进程环境里，故不构成密钥泄漏面；**若未来向 App env 注入敏感变量，必须先给这两处补 clear**。
 
 ### 2.2 进入沙箱的环境变量

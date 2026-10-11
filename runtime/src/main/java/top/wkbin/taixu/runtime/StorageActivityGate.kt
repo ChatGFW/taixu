@@ -14,11 +14,11 @@ internal class StorageActivityGate {
         try { return block() } finally { synchronized(monitor) { active-- } }
     }
 
-    suspend fun cleanup(block: suspend () -> Unit) {
+    suspend fun <T> cleanup(block: suspend () -> T): T {
         synchronized(monitor) {
             check(!cleaning && active == 0) { "有命令或构建正在运行，请结束后再清理" }
             cleaning = true
         }
-        try { block() } finally { synchronized(monitor) { cleaning = false } }
+        try { return block() } finally { synchronized(monitor) { cleaning = false } }
     }
 }

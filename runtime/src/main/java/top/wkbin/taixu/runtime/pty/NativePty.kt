@@ -31,7 +31,8 @@ internal object NativePty {
 
     external fun killPid(pid: Int, signal: Int): Int
 
-    external fun waitPid(pid: Int)
+    /** Nonblocking reap: true when exited/already reaped, false while running. */
+    external fun pollExit(pid: Int): Boolean
 
     external fun closeFd(fd: Int)
 }

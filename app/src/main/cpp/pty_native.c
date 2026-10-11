@@ -14,6 +14,7 @@
 #include <string.h>
 #include <signal.h>
 #include <errno.h>
+#include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -102,6 +103,15 @@ Java_top_wkbin_taixu_runtime_pty_NativePty_openAndExec(
         throw_io(env, "openpty failed");
         return NULL;
     }
+    /* Only the master is nonblocking; the child keeps normal terminal semantics. */
+    int flags = fcntl(master, F_GETFL);
+    if (flags < 0 || fcntl(master, F_SETFL, flags | O_NONBLOCK) < 0 ||
+        fcntl(master, F_SETFD, FD_CLOEXEC) < 0) {
+        close(master);
+        close(slave);
+        throw_io(env, "Failed to configure PTY master");
+        return NULL;
+    }
     struct winsize ws;
     memset(&ws, 0, sizeof(ws));
     ws.ws_col = (unsigned short)(columns > 0 ? columns : 80);
@@ -164,6 +174,14 @@ Java_top_wkbin_taixu_runtime_pty_NativePty_openAndExec(
     jint pair[2] = { (jint)master, (jint)pid };
     jintArray result = (*env)->NewIntArray(env, 2);
     if (result != NULL) (*env)->SetIntArrayRegion(env, result, 0, 2, pair);
+    if (result == NULL || (*env)->ExceptionCheck(env)) {
+        /* Allocation failed after fork: no Java owner exists to release these. */
+        kill(-pid, SIGKILL);
+        kill(pid, SIGKILL);
+        close(master);
+        while (waitpid(pid, NULL, 0) < 0 && errno == EINTR) {}
+        return NULL;
+    }
     return result;
 }
 
@@ -174,13 +192,21 @@ Java_top_wkbin_taixu_runtime_pty_NativePty_readFd(
     if (buffer == NULL) return -1;
     jsize len = (*env)->GetArrayLength(env, buffer);
     if (len <= 0) return 0;
+    struct pollfd ready = { .fd = fd, .events = POLLIN };
+    int polled = poll(&ready, 1, 100);
+    if (polled == 0 || (polled < 0 && errno == EINTR)) return 0;
+    if (polled < 0) { throw_io(env, "PTY read poll failed"); return -1; }
     jbyte *tmp = (jbyte *)malloc((size_t)len);
-    if (tmp == NULL) return -1;
+    if (tmp == NULL) { throw_io(env, "PTY read allocation failed"); return -1; }
     ssize_t n = read((int)fd, tmp, (size_t)len);
+    int read_error = errno;
     if (n > 0) {
         (*env)->SetByteArrayRegion(env, buffer, 0, (jsize)n, tmp);
     }
     free(tmp);
+    if (n == 0 || (n < 0 && read_error == EIO)) return -1;
+    if (n < 0 && (read_error == EAGAIN || read_error == EINTR)) return 0;
+    if (n < 0) throw_io(env, "PTY read failed");
     return (jint)n;
 }
 
@@ -198,11 +224,18 @@ Java_top_wkbin_taixu_runtime_pty_NativePty_writeFd(
     if (offset < 0 || offset > bufLen || length > bufLen - offset) {
         return -1;
     }
+    struct pollfd ready = { .fd = fd, .events = POLLOUT };
+    int polled = poll(&ready, 1, 100);
+    if (polled == 0 || (polled < 0 && errno == EINTR)) return 0;
+    if (polled < 0) { throw_io(env, "PTY write poll failed"); return -1; }
     jbyte *tmp = (jbyte *)malloc((size_t)length);
     if (tmp == NULL) return -1;
     (*env)->GetByteArrayRegion(env, buffer, offset, length, tmp);
     ssize_t n = write((int)fd, tmp, (size_t)length);
+    int write_error = errno;
     free(tmp);
+    if (n < 0 && (write_error == EAGAIN || write_error == EINTR)) return 0;
+    if (n < 0) throw_io(env, "PTY write failed");
     return (jint)n;
 }
 
@@ -234,12 +267,14 @@ Java_top_wkbin_taixu_runtime_pty_NativePty_closeFd(
     if (fd >= 0) close(fd);
 }
 
-/* Reaps an already-dead child so it does not linger as a zombie. */
-JNIEXPORT void JNICALL
-Java_top_wkbin_taixu_runtime_pty_NativePty_waitPid(
+/* No blocking wait in a reader or closer; ECHILD also means we no longer own the PID. */
+JNIEXPORT jboolean JNICALL
+Java_top_wkbin_taixu_runtime_pty_NativePty_pollExit(
     JNIEnv *env, jclass clazz, jint pid) {
-    if (pid > 0) {
-        int status = 0;
-        waitpid(pid, &status, 0);
-    }
+    if (pid <= 0) { throw_io(env, "Invalid PTY child PID"); return JNI_FALSE; }
+    pid_t result;
+    do { result = waitpid(pid, NULL, WNOHANG); } while (result < 0 && errno == EINTR);
+    if (result == pid || (result < 0 && errno == ECHILD)) return JNI_TRUE;
+    if (result < 0) throw_io(env, "PTY child reap failed");
+    return JNI_FALSE;
 }

@@ -4,6 +4,8 @@ import com.termux.terminal.TerminalSession
 import top.wkbin.taixu.core.database.TerminalSessionEntity
 import top.wkbin.taixu.core.database.TerminalSessionRepository
 import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.checkRuntimeDisposal
+import top.wkbin.taixu.runtime.withRuntimeDisposal
 import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentFactory
 import top.wkbin.taixu.runtime.environment.LocalTerminalLaunch
@@ -140,6 +142,8 @@ class TerminalSessionManager(
     suspend fun closeSession(id: String) {
         val (owned, version) = synchronized(stateLock) { resources[id] to generation }
         if (owned == null) return
+        checkRuntimeDisposal(owned)
+        checkRuntimeDisposal(owned.disposalMutex)
         check(!owned.owns(currentCoroutineContext().job)) { "Cannot close terminal from its own creation" }
         release(owned, deleteRow = true)
         val fallback = synchronized(stateLock) {
@@ -150,7 +154,7 @@ class TerminalSessionManager(
         finally { synchronized(stateLock) { fallbackPending = false } }
     }
 
-    private suspend fun release(owned: TerminalOwnedResources, deleteRow: Boolean) = withContext(NonCancellable) {
+    private suspend fun release(owned: TerminalOwnedResources, deleteRow: Boolean) = withRuntimeDisposal(owned.disposalMutex) {
         owned.disposalMutex.withLock {
             if (synchronized(stateLock) { resources[owned.id] !== owned }) return@withLock
             owned.release()
@@ -168,6 +172,9 @@ class TerminalSessionManager(
     }
 
     suspend fun closeAllSessions() {
+        synchronized(stateLock) { resources.values.toList() }.forEach {
+            checkRuntimeDisposal(it); checkRuntimeDisposal(it.disposalMutex)
+        }
         val caller = currentCoroutineContext().job
         synchronized(stateLock) {
             check(resources.values.none { it.owns(caller) }) { "Cannot close terminals from their own creation" }

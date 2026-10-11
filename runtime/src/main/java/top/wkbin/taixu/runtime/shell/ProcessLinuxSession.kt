@@ -5,16 +5,23 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -23,25 +30,36 @@ import kotlinx.coroutines.withContext
  * 它提供 stdin/stdout 生命周期、ANSI 输出流和可注入的窗口调整回调；后续接入真正
  * forkpty backend 时无需修改 LinuxSession API。
  */
-class ProcessLinuxSession(
-    command: List<String>,
-    hostEnvironment: Map<String, String> = emptyMap(),
+class ProcessLinuxSession internal constructor(
+    private val process: Process,
     private val allowSttyResize: Boolean = true,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
     private val resizeCallback: (suspend (columns: Int, rows: Int) -> Unit)? = null,
     private val cleanupCallback: suspend () -> Unit = {},
 ) : LinuxSession {
-    private val process = ProcessBuilder(command)
-        .directory(File("/"))
-        .apply {
-            environment().clear()
-            environment().putAll(hostEnvironment)
-        }
-        .redirectErrorStream(true)
-        .start()
+    constructor(
+        command: List<String>,
+        hostEnvironment: Map<String, String> = emptyMap(),
+        allowSttyResize: Boolean = true,
+        scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+        resizeCallback: (suspend (columns: Int, rows: Int) -> Unit)? = null,
+        cleanupCallback: suspend () -> Unit = {},
+    ) : this(startProcess(command, hostEnvironment, scope), allowSttyResize, scope, resizeCallback, cleanupCallback)
+
     private val outputChannel = Channel<TerminalOutput>(OUTPUT_BUFFER_CAPACITY)
     private val closed = AtomicBoolean(false)
-    private val sessionScope = CoroutineScope(SupervisorJob() + scope.coroutineContext)
+    private val closeMutex = Mutex()
+    private var processStopped = false
+    private val released = BooleanArray(4)
+    private val releaseSteps: List<suspend () -> Unit> = listOf(
+        { process.outputStream.close() },
+        { process.inputStream.close() },
+        { process.errorStream.close() },
+        { cleanupCallback() },
+    )
+    private val sessionScope = CoroutineScope(
+        scope.coroutineContext.minusKey(Job) + SupervisorJob(scope.coroutineContext[Job]),
+    )
     private val readerJob: Job = sessionScope.launch {
         try {
             InputStreamReader(process.inputStream, Charsets.UTF_8).use { input ->
@@ -65,9 +83,8 @@ class ProcessLinuxSession(
             // close()/process.destroy() closes the stream from another thread while
             // this coroutine is blocked in read(); Android surfaces that as
             // InterruptedIOException. Treat it as EOF instead of crashing the app.
-        }
-        outputChannel.close()
-    }
+        } finally { outputChannel.close() }
+    }.also { it.invokeOnCompletion { outputChannel.close() } }
 
     override val output: Flow<TerminalOutput> = outputChannel.receiveAsFlow()
 
@@ -86,6 +103,7 @@ class ProcessLinuxSession(
     }
 
     override suspend fun resize(columns: Int, rows: Int) {
+        if (closed.get()) return
         // The Script backend records the PTY slave path and updates it through a
         // separate Runtime command. This avoids injecting `stty` into a TUI's
         // stdin while keeping the LinuxSession contract backend-independent.
@@ -98,21 +116,57 @@ class ProcessLinuxSession(
 
     override suspend fun interrupt() = write(byteArrayOf(3))
 
-    override suspend fun close() = withContext(Dispatchers.IO) {
-        if (closed.compareAndSet(false, true)) {
-            readerJob.cancel()
-            sessionScope.cancel()
-            process.destroy()
-            if (!process.waitFor(PROCESS_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
-                process.destroyForcibly()
+    override suspend fun close() {
+        val closing = currentCoroutineContext()[ClosingSessions]?.sessions.orEmpty()
+        check(this !in closing) { "进程清理回调不能再次关闭所属会话" }
+        withContext(NonCancellable + Dispatchers.IO + ClosingSessions(closing + this)) {
+            closeMutex.withLock {
+                closed.set(true)
+                readerJob.cancel()
+                sessionScope.cancel()
+                outputChannel.close()
+                // A blocking stream read needs the process to exit before it can be joined.
+                if (!processStopped) {
+                    stopProcess()
+                    processStopped = true
+                }
+                readerJob.join()
+                val failures = mutableListOf<Throwable>()
+                releaseSteps.forEachIndexed { index, release ->
+                    if (!released[index]) {
+                        try { release(); released[index] = true }
+                        catch (failure: Throwable) { failures += failure }
+                    }
+                }
+                if (failures.isNotEmpty()) throw ProcessCleanupException(failures)
             }
-            outputChannel.close()
-            runCatching { cleanupCallback() }
         }
+    }
+
+    private fun stopProcess() {
+        if (process.isAlive) process.destroy()
+        if (!process.waitFor(PROCESS_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+            process.destroyForcibly()
+            check(process.waitFor(PROCESS_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                "进程强制终止后仍未退出，保留会话供重试"
+            }
+        }
+    }
+
+    private class ClosingSessions(val sessions: Set<ProcessLinuxSession>) :
+        AbstractCoroutineContextElement(Key) {
+        companion object Key : CoroutineContext.Key<ClosingSessions>
     }
 
     private companion object {
         const val PROCESS_SHUTDOWN_TIMEOUT_MS = 500L
         const val OUTPUT_BUFFER_CAPACITY = 1024
+
+        fun startProcess(command: List<String>, hostEnvironment: Map<String, String>, scope: CoroutineScope): Process {
+            scope.coroutineContext.ensureActive()
+            return ProcessBuilder(command).directory(File("/"))
+                .apply { environment().clear(); environment().putAll(hostEnvironment) }
+                .redirectErrorStream(true).start()
+        }
     }
 }

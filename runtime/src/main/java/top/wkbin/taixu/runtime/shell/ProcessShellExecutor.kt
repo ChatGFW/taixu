@@ -14,11 +14,25 @@ import java.io.File
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.IOException
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.ConcurrentHashMap
+import top.wkbin.taixu.runtime.closeRuntimeResources
+import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext
+import kotlinx.coroutines.currentCoroutineContext
 
-class ProcessShellExecutor(
-    private val pathManager: RuntimePathManager,
+class ProcessShellExecutor internal constructor(
+    private val baseEnvironment: () -> Map<String, String>,
+    private val startProcess: (List<String>, File?, Map<String, String>) -> Process,
 ) : ShellExecutor {
+    constructor(pathManager: RuntimePathManager) : this({ pathManager.hostProcessEnvironment() }, { command, cwd, env ->
+        ProcessBuilder(command).apply {
+            cwd?.let { directory(it) }
+            environment().clear()
+            environment().putAll(env)
+        }.redirectErrorStream(false).start()
+    })
+    private val pending = ConcurrentHashMap<ShellProcessOwner, Boolean>()
+    override fun hasPending() = pending.isNotEmpty()
+    override suspend fun closePending() = closeRuntimeResources(pending.keys.toList().map { owner -> suspend { owner.close() } })
 
     override suspend fun execute(
         command: List<String>,
@@ -28,28 +42,26 @@ class ProcessShellExecutor(
         onOutput: ((String) -> Unit)?,
     ): CommandResult = withContext(Dispatchers.IO) {
         val startedAt = System.currentTimeMillis()
-        val process = ProcessBuilder(command)
-            .apply {
-                workingDirectory?.let { directory(it) }
-                // Keep the PRoot host environment deterministic. In particular,
-                // never inherit Termux's LD_PRELOAD or a stale PROOT_LOADER.
-                environment().clear()
-                environment().putAll(pathManager.hostProcessEnvironment())
-                environment().putAll(environment)
-            }
-            .redirectErrorStream(false)
-            .start()
+        var acquired: ShellProcessOwner? = null
+        val registration = currentCoroutineContext()[ExecutionEnvironmentContext]?.own { acquired?.close() }
+        val process = try { startProcess(command, workingDirectory, baseEnvironment() + environment) }
+        catch (failure: Throwable) { registration?.close(); throw failure }
+        val owned = ShellProcessOwner(process) { pending.remove(it) }
+        acquired = owned
+        owned.ownership = registration
+        pending[owned] = true
 
         // 🌟 关键修复：主动关闭子进程的标准输入（stdin），防止任何交互式脚本/命令无限阻塞在等待键盘输入上
         runCatching { process.outputStream.close() }
 
         val stdoutDeferred = async(Dispatchers.IO) {
             runInterruptible { readFully(process.inputStream, onOutput) }
-        }
+        }.also { owned.readers += it }
         val stderrDeferred = async(Dispatchers.IO) {
             runInterruptible { readFully(process.errorStream, onOutput) }
-        }
+        }.also { owned.readers += it }
 
+        var primaryFailure: Throwable? = null
         try {
             val exitCode = withTimeout(timeoutMs) {
                 runInterruptible(Dispatchers.IO) { process.waitFor() }
@@ -74,44 +86,52 @@ class ProcessShellExecutor(
                 durationMs = System.currentTimeMillis() - startedAt,
             )
         } catch (timeout: TimeoutCancellationException) {
-            process.destroyForcibly()
-            // 等进程树真正消亡：PRoot 被强杀后，被 ptrace 的 npm/node 由内核
-            // 异步清除，若立刻开始回滚删除目录，可能撞上仍在写入的残留进程。
-            runInterruptible(Dispatchers.IO) {
-                process.waitFor(PROCESS_TEARDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            try {
+                owned.stopProcess()
+                // 等进程树真正消亡：PRoot 被强杀后，被 ptrace 的 npm/node 由内核
+                // 异步清除，若立刻开始回滚删除目录，可能撞上仍在写入的残留进程。
+                // Preserve output produced before the timeout. Cancelling the
+                // readers here discarded the only useful diagnostic from long
+                // setup scripts (APT/Gradle/Flutter), leaving just the timeout
+                // sentence in the installation dialog.
+                val partialStdout = runCatching {
+                    withTimeoutOrNull(PROCESS_TEARDOWN_TIMEOUT_MS) { stdoutDeferred.await() }.orEmpty()
+                }.getOrDefault("")
+                val partialStderr = runCatching {
+                    withTimeoutOrNull(PROCESS_TEARDOWN_TIMEOUT_MS) { stderrDeferred.await() }.orEmpty()
+                }.getOrDefault("")
+                // 读取协程可能仍阻塞在孙进程持有的管道上：中断并放弃，否则 withContext
+                // 退出前 join 它们会无限挂起。
+                stdoutDeferred.cancel()
+                stderrDeferred.cancel()
+                CommandResult(
+                    exitCode = TIMEOUT_EXIT_CODE,
+                    stdout = partialStdout,
+                    stderr = buildString {
+                        if (partialStderr.isNotBlank()) {
+                            append(partialStderr.trimEnd())
+                            append('\n')
+                        }
+                        append("Command timed out after ${timeoutMs}ms")
+                    },
+                    durationMs = System.currentTimeMillis() - startedAt,
+                )
+            } catch (failure: Throwable) {
+                primaryFailure = failure
+                throw failure
             }
-            // Preserve output produced before the timeout. Cancelling the
-            // readers here discarded the only useful diagnostic from long
-            // setup scripts (APT/Gradle/Flutter), leaving just the timeout
-            // sentence in the installation dialog.
-            val partialStdout = runCatching {
-                withTimeoutOrNull(PROCESS_TEARDOWN_TIMEOUT_MS) { stdoutDeferred.await() }.orEmpty()
-            }.getOrDefault("")
-            val partialStderr = runCatching {
-                withTimeoutOrNull(PROCESS_TEARDOWN_TIMEOUT_MS) { stderrDeferred.await() }.orEmpty()
-            }.getOrDefault("")
-            // 读取协程可能仍阻塞在孙进程持有的管道上：中断并放弃，否则 withContext
-            // 退出前 join 它们会无限挂起。
-            stdoutDeferred.cancel()
-            stderrDeferred.cancel()
-            CommandResult(
-                exitCode = TIMEOUT_EXIT_CODE,
-                stdout = partialStdout,
-                stderr = buildString {
-                    if (partialStderr.isNotBlank()) {
-                        append(partialStderr.trimEnd())
-                        append('\n')
-                    }
-                    append("Command timed out after ${timeoutMs}ms")
-                },
-                durationMs = System.currentTimeMillis() - startedAt,
-            )
         } catch (cancellation: CancellationException) {
             // 用户主动取消编译：强杀 PRoot 进程树，避免 Gradle 后台继续跑
-            process.destroyForcibly()
+            primaryFailure = cancellation
             throw cancellation
+        } catch (failure: Throwable) {
+            primaryFailure = failure
+            throw failure
         } finally {
-            process.destroy()
+            try { owned.close() } catch (cleanup: Throwable) {
+                val primary = primaryFailure
+                if (primary == null) throw cleanup else primary.addSuppressed(cleanup)
+            }
         }
     }
 

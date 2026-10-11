@@ -1,11 +1,10 @@
 package top.wkbin.taixu.runtime.terminal
+import top.wkbin.taixu.runtime.withRuntimeDisposal
 
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironment
 
 /** Registered before creation; failed releases remain reachable and successful steps run once. */
@@ -26,7 +25,7 @@ internal class TerminalOwnedResources(val id: String, val creation: Job) {
         return contains(creation)
     }
 
-    suspend fun release(drainCreation: Boolean = true) = withContext(NonCancellable) {
+    suspend fun release(drainCreation: Boolean = true) = withRuntimeDisposal(this) {
         closing = true
         // Join before taking the cleanup lock: the creator's catch block also needs this lock.
         if (drainCreation && !creation.isCompleted) creation.cancelAndJoin()

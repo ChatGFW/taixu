@@ -32,7 +32,6 @@ import top.wkbin.taixu.runtime.shell.ShellCommand
 import top.wkbin.taixu.runtime.shell.ShellExecutor
 import java.io.File
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Dispatchers
@@ -71,7 +70,7 @@ class LinuxRuntimeImpl(
 
     private val initializeMutex = Mutex()
     private val storageActivities = StorageActivityGate()
-    private val interactiveSessions = ConcurrentHashMap<LinuxSession, String>()
+    private val interactiveSessions = InteractiveSessionRegistry()
 
     override fun refreshInstalledDistros() {
         pathManager.invalidateInstalledDistrosCache()
@@ -193,16 +192,15 @@ class LinuxRuntimeImpl(
     }
 
     override suspend fun uninstallDistro(distroId: String): AppResult<Unit> = initializeMutex.withLock {
-        withContext(Dispatchers.IO) {
+        withRuntimeMaintenance {
             val safeId = distroId.lowercase().trim()
             val installed = pathManager.listInstalledDistroIds()
             if (installed.size <= 1) {
-                return@withContext AppResult.Failure(
+                return@withRuntimeMaintenance AppResult.Failure(
                     AppError(ErrorCode.INSTALLATION_FAILED, "不能卸载唯一的 Linux 系统，请先安装其他系统后再卸载"),
                 )
             }
-            closeInteractiveSessions(safeId)
-            processRegistry.stopAll()
+            closeRuntimeProcesses(safeId)
             val wasActive = _activeDistroId.value == safeId
             if (wasActive) {
                 hostBridge.stop()
@@ -224,12 +222,11 @@ class LinuxRuntimeImpl(
     }
 
     override suspend fun resetSandbox(distroId: String?): AppResult<Unit> = initializeMutex.withLock {
-        withContext(Dispatchers.IO) {
+        withRuntimeMaintenance {
             val safeId = (distroId ?: _activeDistroId.value).lowercase().trim()
             val wasActive = _activeDistroId.value == safeId
             try {
-                closeInteractiveSessions(safeId)
-                processRegistry.stopAll()
+                closeRuntimeProcesses(safeId)
                 if (wasActive) {
                     hostBridge.stop()
                 }
@@ -412,15 +409,15 @@ class LinuxRuntimeImpl(
     }
 
     override suspend fun updateRootfs(distroId: String?): AppResult<Unit> = initializeMutex.withLock {
-        withContext(Dispatchers.IO) {
+        withRuntimeMaintenance {
             if (_state.value !is RuntimeState.Ready) {
-                return@withContext AppResult.Failure(
+                return@withRuntimeMaintenance AppResult.Failure(
                     AppError(ErrorCode.INSTALLATION_FAILED, "只有已就绪的 Linux Runtime 才能更新"),
                 )
             }
             try {
                 val targetDistro = distroId?.lowercase()?.trim() ?: _activeDistroId.value
-                processRegistry.stopAll()
+                closeRuntimeProcesses(targetDistro)
                 updateInitializing("更新 RootFS", 0.05f, "保留 /root 和 /opt/taixu 用户数据")
                 val distribution = DistributionCatalog.require(targetDistro)
                 val result = rootfsInstaller.updateOci(
@@ -429,7 +426,7 @@ class LinuxRuntimeImpl(
                 ) { progress -> updateDownloadProgress("更新 ${distribution.displayName}", 0.1f, 0.65f, progress) }
                 result.errorOrNull()?.let { error ->
                     _state.value = RuntimeState.Error(error.cause ?: IllegalStateException(error.message))
-                    return@withContext AppResult.Failure(error)
+                    return@withRuntimeMaintenance AppResult.Failure(error)
                 }
 
                 updateInitializing("configureRootfs", 0.75f)
@@ -443,7 +440,7 @@ class LinuxRuntimeImpl(
                     _state.value = RuntimeState.Error(
                         IllegalStateException("更新后健康检查失败：${health.detail.orEmpty()}"),
                     )
-                    return@withContext AppResult.Failure(
+                    return@withRuntimeMaintenance AppResult.Failure(
                         AppError(
                             ErrorCode.INSTALLATION_FAILED,
                             "RootFS 更新后的健康检查失败，已恢复旧版本",
@@ -567,7 +564,7 @@ class LinuxRuntimeImpl(
                     command = prepared.command,
                     hostEnvironment = prepared.hostEnvironment,
                     config = prepared.effectiveConfig,
-                    cleanup = { prepared.markerFile.delete() },
+                    cleanup = { check(!prepared.markerFile.exists() || prepared.markerFile.delete()) { "PTY marker cleanup failed" } },
                 )
             } else {
                 ptyManager.open(
@@ -577,10 +574,10 @@ class LinuxRuntimeImpl(
                     resize = { columns, rows ->
                         resizePty(prepared.markerPath, columns, rows, prepared.distroId)
                     },
-                    cleanup = { prepared.markerFile.delete() },
+                    cleanup = { check(!prepared.markerFile.exists() || prepared.markerFile.delete()) { "PTY marker cleanup failed" } },
                 )
             }
-            trackInteractiveSession(session, prepared.distroId)
+            interactiveSessions.track(session, prepared.distroId)
         } catch (throwable: Throwable) {
             prepared.markerFile.delete()
             throw throwable
@@ -782,19 +779,21 @@ class LinuxRuntimeImpl(
         processRegistry.clearLogs(idOrToolId)
     }
 
-    override suspend fun shutdown() {
-        closeInteractiveSessions()
-        processRegistry.stopAll()
+    override suspend fun shutdown() = initializeMutex.withLock { withRuntimeMaintenance {
+        closeRuntimeProcesses()
         hostBridge.stop()
         _state.value = RuntimeState.NotInitialized
         logger.i("Linux runtime shut down")
-    }
+    } }
+
+    private suspend fun <T> withRuntimeMaintenance(block: suspend () -> T): T =
+        withContext(Dispatchers.IO) { storageActivities.cleanup(block) }
 
     override suspend fun withStorageCleanup(block: suspend () -> Unit) {
         check(initializeMutex.tryLock()) { "正在安装、更新或管理环境，请完成后再清理" }
         try {
             storageActivities.cleanup {
-                check(interactiveSessions.keys.none { it.isAlive } && processRegistry.list().none { it.session.isAlive }) {
+                check(!interactiveSessions.hasSessions() && processRegistry.list().isEmpty() && !shellExecutor.hasPending()) {
                     "请先关闭终端并停止后台服务，再清理存储"
                 }
                 check(_state.value !is RuntimeState.Initializing) { "环境正在初始化，请稍后再清理" }
@@ -805,37 +804,11 @@ class LinuxRuntimeImpl(
         }
     }
 
-    private fun trackInteractiveSession(session: LinuxSession, distroId: String): LinuxSession {
-        val tracked = object : LinuxSession {
-            override val pid: Long? get() = session.pid
-            override val isAlive: Boolean get() = session.isAlive
-            override val output = session.output
-
-            override suspend fun write(data: ByteArray) = session.write(data)
-            override suspend fun resize(columns: Int, rows: Int) = session.resize(columns, rows)
-            override suspend fun interrupt() = session.interrupt()
-
-            override suspend fun close() {
-                try {
-                    session.close()
-                } finally {
-                    interactiveSessions.remove(this)
-                }
-            }
-        }
-        interactiveSessions[tracked] = distroId
-        return tracked
-    }
-
-    private suspend fun closeInteractiveSessions(distroId: String? = null) {
-        val sessions = interactiveSessions.entries
-            .filter { distroId == null || it.value == distroId }
-            .map { it.key }
-        sessions.forEach { session ->
-            runCatching { session.close() }
-                .onFailure { logger.w("Failed to close interactive session before runtime cleanup: ${it.message}") }
-        }
-    }
+    private suspend fun closeRuntimeProcesses(distroId: String? = null) = closeRuntimeResources(listOf(
+        { interactiveSessions.closeAll(distroId) },
+        { processRegistry.stopAll() },
+        { shellExecutor.closePending() },
+    ))
 
     override fun rootfsPath(distroId: String?): File =
         pathManager.rootfsDir(distroId?.lowercase()?.trim() ?: _activeDistroId.value)

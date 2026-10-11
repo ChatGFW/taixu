@@ -1,15 +1,13 @@
 package top.wkbin.taixu.harness.environment
 
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import top.wkbin.taixu.harness.HarnessPathResolver
 import top.wkbin.taixu.harness.WorkspaceFileAccess
 import top.wkbin.taixu.harness.core.SessionResourceScope
-import top.wkbin.taixu.harness.core.acquire
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.environment.*
 import top.wkbin.taixu.runtime.shell.*
 import java.util.UUID
+import kotlinx.coroutines.withContext
 
 /** The only production composition point for files and processes. Replace this factory as a whole. */
 class LocalExecutionEnvironmentFactory(
@@ -55,18 +53,15 @@ private class LocalEnvironment(
 ) : ExecutionEnvironment, LocalTerminalLaunch {
     override val artifacts = LocalExecutionArtifacts(files)
     private val resources = SessionResourceScope()
-    private val processLaunch = Mutex()
+    private val background = LocalBackgroundProcesses(commands, resources)
     override suspend fun outputSecrets() = resources.activity { variables?.redactionSecrets(id.distribution).orEmpty() }
     override val supportsSharedLocalServices get() = runtime.activeDistroId.value == id.distribution
     override fun workingDirectory(explicit: String?) = paths.resolveWorkingDirectory(explicit, id.workspace)
-    override suspend fun execute(command: ShellCommand) = resources.activity { commands.execute(command) }
-    override suspend fun startBackground(id: String, command: ShellCommand) = resources.activity {
-        processLaunch.withLock {
-            require(commands.listBackground().none { it.id == id && it.session.isAlive }) { "后台进程 $id 已在运行" }
-            resources.acquire({ commands.startBackground(id, command) }) { commands.stopBackground(it.id) }.value
-        }
+    override suspend fun execute(command: ShellCommand) = resources.activity {
+        withContext(ExecutionEnvironmentContext(this@LocalEnvironment, resources::own)) { commands.execute(command) }
     }
-    override suspend fun stopBackground(id: String) = resources.activity { commands.stopBackground(id) }
+    override suspend fun startBackground(id: String, command: ShellCommand) = background.start(id, command)
+    override suspend fun stopBackground(id: String) = background.stop(id)
     override fun listBackground() = commands.listBackground()
     override fun getBackgroundLogs(id: String) = commands.getBackgroundLogs(id)
     override suspend fun openSession(config: SessionConfig) = resources.activity {

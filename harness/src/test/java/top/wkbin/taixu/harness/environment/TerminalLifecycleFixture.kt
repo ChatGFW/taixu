@@ -51,9 +51,11 @@ internal class TerminalLifecycleFixture {
         override var isAlive = true
         var finishes = 0
         var finishFailures = 0
+        var beforeFinish: suspend () -> Unit = {}
         val inputs = mutableListOf<String>()
-        override fun finish() {
+        override suspend fun finish() {
             finishes++
+            beforeFinish()
             if (finishFailures-- > 0) error("process finish")
             isAlive = false
         }

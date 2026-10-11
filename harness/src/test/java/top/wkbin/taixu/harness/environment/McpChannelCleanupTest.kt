@@ -78,4 +78,33 @@ class McpChannelCleanupTest {
         assertEquals(1, fixture.sessionCloses)
         assertEquals(1, fixture.environmentCloses)
     }
+
+    @Test fun `channel close keeps supplied scope and sibling activities alive`() = runTest {
+        val supplied = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        val sibling = supplied.launch { awaitCancellation() }
+        val fixture = Fixture(supplied)
+        runCurrent()
+        fixture.channel.close()
+        assertTrue(supplied.coroutineContext[Job]!!.isActive)
+        assertTrue(sibling.isActive)
+        assertTrue(fixture.pumpDrained)
+        supplied.cancel()
+    }
+
+    @Test fun `channel with no supplied job still cancels and drains its pump`() = runTest {
+        val fixture = Fixture(CoroutineScope(StandardTestDispatcher(testScheduler)))
+        runCurrent()
+        fixture.channel.close()
+        assertTrue(fixture.pumpDrained)
+        assertEquals(1, fixture.sessionCloses)
+    }
+
+    @Test fun `recursive MCP cleanup is rejected and can be retried`() = runTest {
+        val cleanup = top.wkbin.taixu.harness.mcp.McpResourceCleanup()
+        assertTrue(runCatching { cleanup.close { cleanup.close {} } }.exceptionOrNull() is IllegalStateException)
+        var releases = 0
+        cleanup.close { releases++ }
+        cleanup.close { releases++ }
+        assertEquals(1, releases)
+    }
 }

@@ -1,11 +1,9 @@
 package top.wkbin.taixu.harness.core
 
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 /** A successful explicit close revokes ownership; failed disposal remains in the enclosing scope. */
 class OwnedResource<T : Any> internal constructor(private val release: suspend (T) -> Unit) {
@@ -16,13 +14,14 @@ class OwnedResource<T : Any> internal constructor(private val release: suspend (
     val value: T get() = checkNotNull(acquired)
     internal fun acquired(value: T) { acquired = value }
 
-    suspend fun close() = withContext(NonCancellable) {
+    suspend fun close() = withResourceDisposal(this) {
         mutex.withLock {
             if (!closed) {
                 acquired?.let { release(it) }
                 closed = true
-                ownership?.close()
             }
+            ownership?.close()
+            ownership = null
         }
     }
 }

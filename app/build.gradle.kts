@@ -251,6 +251,34 @@ tasks.configureEach {
             // libpty_native 必须是 NDK/Bionic 构建：若依赖 glibc 的 libc.so.6，设备上
             // dlopen 必失败并静默回退到 script PTY 路径（PTY 回显问题会随之复发）。
             val ptyNativeBytes = bundledPtyNative.asFile.readBytes()
+            val ptyManifestFile = layout.projectDirectory.file("src/main/cpp/pty-native.properties").asFile
+            check(ptyManifestFile.isFile) { "Missing PTY build manifest. Run tools/build-pty-native.ps1." }
+            val ptyManifest = Properties().apply { ptyManifestFile.inputStream().use { load(it) } }
+            fun ptyHash(bytes: ByteArray) = MessageDigest.getInstance("SHA-256")
+                .digest(bytes).joinToString("") { "%02x".format(it) }
+            val ptySource = layout.projectDirectory.file("src/main/cpp/pty_native.c").asFile
+                .readText().replace("\r\n", "\n").toByteArray(Charsets.UTF_8)
+            check(ptyManifest.getProperty("format.version") == "1" &&
+                ptyManifest.getProperty("abi") == "arm64-v8a" && ptyManifest.getProperty("api.level") == "29") {
+                "Incompatible PTY build manifest. Run tools/build-pty-native.ps1."
+            }
+            check(ptyHash(ptySource) == ptyManifest.getProperty("source.sha256")) {
+                "PTY source changed since its last NDK build. Run tools/build-pty-native.ps1."
+            }
+            check(ptyHash(ptyNativeBytes) == ptyManifest.getProperty("binary.sha256")) {
+                "Bundled PTY library does not match its build manifest. Run tools/build-pty-native.ps1."
+            }
+            val ptyNativeSymbols = ptyNativeBytes.toString(Charsets.ISO_8859_1)
+            val ptyDeclarations = rootProject.file(
+                "runtime/src/main/java/top/wkbin/taixu/runtime/pty/NativePty.kt",
+            ).readText()
+            Regex("""external\s+fun\s+(\w+)\(""").findAll(ptyDeclarations).forEach { method ->
+                val symbol = "Java_top_wkbin_taixu_runtime_pty_NativePty_${method.groupValues[1]}\u0000"
+                check(symbol in ptyNativeSymbols) {
+                    "Bundled PTY library is missing ${method.groupValues[1]}. " +
+                        "Rebuild it with tools/build-pty-native.ps1 before packaging."
+                }
+            }
             val glibcMarker = "libc.so.6".toByteArray()
             check(ptyNativeBytes.size < glibcMarker.size ||
                 (0..ptyNativeBytes.size - glibcMarker.size).none { offset ->

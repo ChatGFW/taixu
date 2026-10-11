@@ -61,7 +61,6 @@ class McpStdioTransport(
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (t: Throwable) {
-            // 连接建立失败：map 中无连接可丢弃，失败冷却已在 connectionLocked 内写入
             return false
         }
         return try {
@@ -126,7 +125,10 @@ class McpStdioTransport(
 
     suspend fun closeConnection(serverId: String) = startupMutexes.getOrPut(serverId) { Mutex() }.withLock {
         val ids = (connections.keys + downUntil.keys + serverId).filter { it == serverId || it.startsWith("$serverId@environment:") }
-        closeMcpResources(ids) { id -> downUntil.remove(id); discardConnection(id) }
+        closeMcpActions(listOf(
+            { closeMcpResources(ids) { id -> downUntil.remove(id); discardConnection(id) } },
+            { channelFactory.closePending(serverId) },
+        ))
     }
 
     private suspend fun discardConnection(serverId: String, failed: Connection? = null) {
@@ -197,7 +199,7 @@ class McpStdioTransport(
             connections[server.id] = connection
             startReaderLoop(connection)
             try { connection.ownership = currentCoroutineContext()[ExecutionEnvironmentContext]?.own { discardConnection(server.id, connection) } }
-            catch (t: Throwable) { discardConnection(server.id, connection); throw t }
+            catch (t: Throwable) { rollbackMcpFailure(t) { discardConnection(server.id, connection) } }
         }
     }
 
@@ -234,7 +236,6 @@ class McpStdioTransport(
         @Volatile
         internal var lastActivityMs: Long = System.currentTimeMillis()
 
-        /** 供空闲清扫判断"有在途请求"（旧实现等价于 mutex.isLocked）。 */
         val inFlight: Boolean get() = pending.isNotEmpty()
 
         fun markActive() {
@@ -403,7 +404,6 @@ class McpStdioTransport(
         }
     }
 
-    /** 测试钩子：覆盖请求超时（ms），使超时语义（普通异常 vs 伪取消）可在毫秒级验证。 */
     @Volatile
     internal var requestTimeoutOverrideMs: Long? = null
 
