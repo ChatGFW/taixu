@@ -27,8 +27,7 @@ object ContextWindowPolicy {
     private const val ACTIVE_TOOL_KEEP_TAIL_CHARS = 1_500
     private const val JSON_FRAMING_PER_MESSAGE = 64
     /**
-     * 历史折叠线比例默认值（%）。默认 100，对齐主流 harness：
-     * `contextWindow - reserveTokens - toolSchemaReserve - systemTokens`。
+     * 历史折叠比例默认值（%）。长窗口另有 90% 安全上限，防止估算误差耗尽窗口。
      * 调低该值可让长会话更早折叠以节省 input token 成本。
      */
     const val DEFAULT_FOLDING_RATIO_PERCENT = 100
@@ -46,9 +45,8 @@ object ContextWindowPolicy {
     /**
      * 历史折叠触发线（token），供 UI 预览与 [computeKeepFromIndex] 共用。
      *
-     * 对齐主流 harness（Pi 等）：在完整模型窗口基础上减去输出预留、工具 schema 预留与
-     * 已注入的 system tokens，得到历史可用预算；不再额外乘 75% 输入比例，也不再用 96K
-     * 硬顶。ratioPercent 仅用于用户主动想更早折叠省成本的场景。
+     * 长窗口先留 10% 估算/网关余量，再减输出、工具 schema 和 system 占用。
+     * 用户更低的折叠比例仍优先；旧设置 100% 同样受安全余量约束。
      *
      * 返回值可能为负（小预算被预留吃光）——引擎据此走最小保留兜底；UI 预览应 `coerceAtLeast(0)`。
      */
@@ -64,7 +62,7 @@ object ContextWindowPolicy {
         toolSchemaReserveTokens: Int = TOOL_SCHEMA_RESERVE_TOKENS,
     ): Int {
         if (budget <= 0) return 0
-        val safeRatio = ratioPercent.coerceIn(MIN_FOLDING_RATIO_PERCENT, MAX_FOLDING_RATIO_PERCENT)
+        val safeRatio = ratioPercent.coerceIn(MIN_FOLDING_RATIO_PERCENT, if (budget >= 64_000) 90 else MAX_FOLDING_RATIO_PERCENT)
         val scaledBudget = (budget.toLong() * safeRatio / 100L).toInt()
         return scaledBudget -
             systemTokens.coerceAtLeast(0) -
@@ -296,8 +294,7 @@ object ContextWindowPolicy {
     /**
      * One output budget calculation used by all provider request builders.
      *
-     * @param toolSchemaTokens 同一次请求里 tools 数组的 token。必须与输入估算扣同一笔账：
-     *   漏扣时 `available` 会把越线的输入当成可用输出额度补回来，输入+输出一起撞上窗口上限。
+     * @param toolSchemaTokens 同次请求的 tools token，必须计入输入占用。
      */
     fun outputBudget(
         configured: Int?,
@@ -312,7 +309,8 @@ object ContextWindowPolicy {
         val resolvedContext = contextTokens ?: ModelContextWindows.resolve(modelId, providerId)
         val context = resolvedContext?.takeIf { it > 0 }?.coerceIn(1, MAX_CONTEXT_BUDGET)
             ?: return requested
-        val available = (context - estimateApiMessages(messages, toolSchemaTokens)).coerceAtLeast(1)
+        val available = context - estimateApiMessages(messages, toolSchemaTokens)
+        requireOutputHeadroom(available, requested)
         return minOf(requested, available).coerceAtLeast(1)
     }
 
@@ -470,9 +468,7 @@ object ContextWindowPolicy {
         reserveTokens: Int? = null,
         /**
          * 历史折叠线比例（%，默认 [DEFAULT_FOLDING_RATIO_PERCENT]）。
-         * 用户设置「折叠线比例」后，折叠触发线按 `预算 × 比例%` 收窄；默认 100% 时
-         * 等价于主流 harness 的 `contextWindow - reserveTokens - toolSchemaReserve - systemTokens`。
-         * 比例仅用于主动提前折叠省 token，不会再被额外的 75% 输入比例或 96K 硬顶二次截断。
+         * 长窗口最高按 90% 计算，再扣输出、工具与系统预留；更低的用户设置仍优先。
          */
         foldingRatioPercent: Int = DEFAULT_FOLDING_RATIO_PERCENT,
         /** 工具 schema 预留，透传给 [foldingLimitFor]（见 [toolSchemaReserveTokensFor]）。 */

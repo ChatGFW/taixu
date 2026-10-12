@@ -98,9 +98,10 @@ class ResponsesNativeStreamTest {
 
     @Test fun `eof and output index gaps never create replay artifacts`() = runBlocking {
         enqueue(delta("Hello"), done(0, reasoning))
-        val partial = api.chatStream(model(), emptyList(), onDelta = {})
-        assertEquals("Hello", partial.content)
-        assertNull(partial.responsesTurn)
+        try {
+            api.chatStream(model(), emptyList(), onDelta = {})
+            fail("EOF must not become a successful partial reply")
+        } catch (_: java.io.EOFException) { }
         enqueue(done(0, reasoning), done(2, call), completed(null))
         assertNull(api.chatStream(model(), emptyList(), onDelta = {}).responsesTurn)
     }

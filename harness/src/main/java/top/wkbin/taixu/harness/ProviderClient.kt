@@ -2,7 +2,6 @@ package top.wkbin.taixu.harness
 
 import top.wkbin.taixu.harness.core.LlmApi
 import java.io.IOException
-import java.net.SocketTimeoutException
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicInteger
@@ -31,38 +30,6 @@ import java.net.URI
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-
-/** HTTP 429 的结构化错误，供 Harness 区分临时限流与账户额度耗尽。 */
-class LlmRateLimitException(
-    message: String,
-    val retryAfterSeconds: Long? = null,
-    val quotaExhausted: Boolean = false,
-) : IOException(message)
-
-/** 上游临时故障（5xx，如 Cloudflare 524 origin timeout）：可退避重试，由网络重试路径统一处理。 */
-class TransientHttpException(
-    message: String,
-    val httpCode: Int,
-    val retryAfterSeconds: Long? = null,
-) : IOException(message)
-
-/**
- * 上下文超限（HTTP 400 家族与 413 Payload Too Large）：与其他 4xx 的本质区别是可自愈——
- * 引擎捕获后执行紧急机械压缩并重试同一请求（对齐 opencode 的 overflow → compact → replay 闭环），
- * 而不是直接把失败抛给用户。HTTP 413 常见于 Nginx/中转拒绝过大 JSON，body 往往是 HTML。
- */
-class LlmContextOverflowException(message: String) : IOException(message)
-
-/** Provider rejected the requested output-token parameter, not the input context. */
-class LlmInvalidOutputTokensException(message: String) : IOException(message)
-
-/**
- * 上游以 HTTP 200 返回了"什么都没有"的一轮（无正文、无推理、无工具调用）。
- *
- * 这类响应若不显式识别，会被上层当成"模型答完了"正常收尾，前台表现为
- * 「消息发出去没有任何回复」——既不报错也没有内容，正是最无从定位的一种形态。
- */
-class LlmEmptyResponseException(message: String) : IOException(message)
 
 /** 可独立测试的 HTTP 层：OpenAI 兼容 chat/completions 请求与响应解析。 */
 internal class ChatApi(
@@ -95,8 +62,7 @@ internal class ChatApi(
                         )
                     }
                     val parsed = json.decodeFromString(ChatCompletionResponse.serializer(), body)
-                    val message = parsed.choices.firstOrNull()?.message ?: ChatResponseMessage()
-                    message.toChatResult(parsed.usage?.toChatUsage() ?: ChatUsage())
+                    parsed.toValidatedResult(ProviderClient.estimateApiMessageTokens(messages))
                 }
             } finally {
                 cancelHandle?.dispose()
@@ -146,6 +112,7 @@ internal class ChatApi(
         // 等待响应头以及首个 SSE 事件的完整阶段，避免大请求仍静默等满 callTimeout。
         val firstEventTimeoutMs = ProviderClient.resolveFirstEventTimeoutMs(
             ProviderClient.estimateApiMessageTokens(messages),
+            reasoningEnabled = model.reasoningMode != ReasoningMode.DISABLED,
         )
         val firstEventState = AtomicInteger(ProviderClient.FIRST_EVENT_WAITING)
         val firstEventWatchdog = launch {
@@ -179,11 +146,14 @@ internal class ChatApi(
                 // 既不把整段流式正文留在内存，又能在"什么都没收到"时把上游真实返回写进错误。
                 val rawHead = StringBuilder()
                 var sawSseData = false
+                var completed = false
+                var finishReason: String? = null
                 // 非 SSE 响应体：部分 OpenAI 兼容网关忽略 stream:true，直接返回整段 JSON 补全。
                 // 此前这种 body 因"没有 data: 行"被逐行丢弃，最终表现为空回复。
                 var nonSseBody: String? = null
                 while (true) {
                     val line = source.readUtf8Line() ?: break
+                    observeStreamHeartbeat(line, firstEventState, firstEventWatchdog)
                     if (!sawSseData && rawHead.length < ProviderClient.RESPONSE_HEAD_CAPTURE_CHARS) {
                         rawHead.append(line).append('\n')
                     }
@@ -200,8 +170,12 @@ internal class ChatApi(
                     }
                     sawSseData = true
                     val data = line.removePrefix("data:").trim()
-                    if (data == "[DONE]") break
+                    if (data == "[DONE]") {
+                        completed = true
+                        break
+                    }
                     val root = runCatching { json.parseToJsonElement(data) as? JsonObject }.getOrNull()
+                    if (root?.get("error") is JsonObject) throw providerStreamError(data)
                     if (root != null && firstEventState.compareAndSet(
                             ProviderClient.FIRST_EVENT_WAITING,
                             ProviderClient.FIRST_EVENT_RECEIVED,
@@ -217,6 +191,10 @@ internal class ChatApi(
                     val choice = root
                         ?.get("choices")?.let { it as? JsonArray }?.firstOrNull() as? JsonObject
                         ?: continue
+                    choice["finish_reason"]?.jsonPrimitive?.contentOrNull?.let {
+                        finishReason = it
+                        completed = true
+                    }
                     val delta = choice["delta"] as? JsonObject
                     delta?.get("content")?.let { it as? JsonPrimitive }?.contentOrNull?.let { chunk ->
                         if (chunk.isNotEmpty()) {
@@ -270,6 +248,8 @@ internal class ChatApi(
                         accum.publishProgress(onToolProgress)
                     }
                 }
+                if (sawSseData) requireStreamCompletion(completed, "Chat Completions")
+                requireOutputCompletion(finishReason, ProviderClient.estimateApiMessageTokens(messages), demuxer.fullText.length + demuxer.fullReasoning.length)
                 demuxer.flush()
                 toolCalls.values.forEach { it.publishProgress(onToolProgress, force = true) }
                 // 部分 OpenAI 兼容端对无参数函数不下发 arguments 分片，空串须兜底为 "{}"
@@ -290,19 +270,14 @@ internal class ChatApi(
                     // 绝不允许空响应继续往下走——它会一路"无工具调用 → 收尾 → Outcome=completed"，
                     // 前台看不到任何内容也没有任何错误，即用户反馈的「发消息没有回复」。
                     if (streamed.isBlankResponse) {
-                        resolveBlankStreamResult(nonSseBody, rawHead.toString())
+                        resolveBlankStreamResult(nonSseBody, rawHead.toString(), ProviderClient.estimateApiMessageTokens(messages))
                     } else {
                         streamed
                     }
                 }
             }
         } catch (io: IOException) {
-            if (firstEventState.get() == ProviderClient.FIRST_EVENT_TIMED_OUT) {
-                throw SocketTimeoutException(
-                    "等待模型首个响应超过 ${firstEventTimeoutMs / 1000}s",
-                ).apply { initCause(io) }
-            }
-            throw io
+            throw streamFailure(io, firstEventState.get(), firstEventTimeoutMs, okHttpClient.readTimeoutMillis.toLong())
         } finally {
             firstEventWatchdog.cancel()
             cancelHandle?.dispose()
@@ -338,15 +313,14 @@ internal class ChatApi(
      * 兜底仍无内容时抛 [LlmEmptyResponseException]，并附上原始响应首部——
      * 把一次"什么都没有"变成可定位、可重试的失败。
      */
-    private fun resolveBlankStreamResult(nonSseBody: String?, rawHead: String): ChatResult {
+    private fun resolveBlankStreamResult(nonSseBody: String?, rawHead: String, inputTokens: Int): ChatResult {
         val body = nonSseBody?.trim().orEmpty()
         if (body.isNotEmpty() && ProviderClient.looksLikeJsonResponse(body)) {
             val parsed = runCatching {
                 json.decodeFromString(ChatCompletionResponse.serializer(), body)
             }.getOrNull()
             if (parsed != null) {
-                val recovered = (parsed.choices.firstOrNull()?.message ?: ChatResponseMessage())
-                    .toChatResult(parsed.usage?.toChatUsage() ?: ChatUsage())
+                val recovered = parsed.toValidatedResult(inputTokens)
                 if (!recovered.isBlankResponse) return recovered
             }
         }
@@ -354,6 +328,14 @@ internal class ChatApi(
             ProviderClient.EMPTY_RESPONSE_MESSAGE +
                 ProviderClient.describeResponseHead(body.ifEmpty { rawHead }),
         )
+    }
+
+    private fun ChatCompletionResponse.toValidatedResult(inputTokens: Int): ChatResult {
+        val choice = choices.firstOrNull()
+        val result = (choice?.message ?: ChatResponseMessage()).toChatResult(usage?.toChatUsage() ?: ChatUsage())
+        requireOutputCompletion(choice?.finish_reason, inputTokens,
+            result.content.orEmpty().length + result.reasoningContent.orEmpty().length)
+        return result
     }
 
     /** 手工解析流式 chunk 顶层 usage（各 Provider 字段不统一，DTO 反而脆）。 */
@@ -727,6 +709,7 @@ data class ChatUsageResponse(
 @Serializable
 data class ChatChoice(
     val message: ChatResponseMessage = ChatResponseMessage(),
+    val finish_reason: String? = null,
 )
 
 @Serializable
@@ -775,8 +758,9 @@ class ProviderClient internal constructor(
         internal const val FIRST_EVENT_RECEIVED = 1
         internal const val FIRST_EVENT_TIMED_OUT = 2
 
-        /** 按预估输入规模放宽首字看门狗：超大上下文 Prefill 常超过默认 90s。 */
-        internal fun resolveFirstEventTimeoutMs(estimatedTokens: Int): Long = when {
+        /** 隐藏推理放宽首事件等待；关闭推理时按输入规模预留 Prefill 时间。 */
+        internal fun resolveFirstEventTimeoutMs(estimatedTokens: Int, reasoningEnabled: Boolean = false): Long = when {
+            reasoningEnabled -> REASONING_STREAM_WAIT_MS
             estimatedTokens > 80_000 -> 240_000L
             estimatedTokens > 40_000 -> 150_000L
             else -> FIRST_STREAM_EVENT_TIMEOUT_MS
@@ -919,10 +903,12 @@ class ProviderClient internal constructor(
 
         internal fun rateLimitException(code: Int, rawBody: String, retryAfter: String?): LlmRateLimitException {
             val message = formatHttpErrorMessage(code, rawBody)
-            val lower = message.lowercase()
+            val lower = rawBody.lowercase()
             val quotaExhausted = listOf(
                 "insufficient_quota",
                 "quota exceeded",
+                "quota_exceeded",
+                "quota_exhausted",
                 "allocated quota",
                 "quota exhausted",
                 "resource_exhausted",

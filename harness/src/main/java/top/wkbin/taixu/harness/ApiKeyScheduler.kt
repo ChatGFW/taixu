@@ -112,6 +112,7 @@ internal suspend fun <T> executeWithRotatedApiKey(
             return request(model.copy(apiKey = selectedKey))
         } catch (error: LlmRateLimitException) {
             scheduler.markRateLimited(selectedKey, error.retryAfterSeconds)
+            if (!error.allowImmediateKeyRotation) throw error
             excluded += selectedKey
             lastRateLimit = error
         }

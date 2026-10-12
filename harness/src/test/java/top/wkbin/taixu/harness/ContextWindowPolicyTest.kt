@@ -701,10 +701,10 @@ class ContextWindowPolicyTest {
     }
 
     @Test
-    fun `default ratio 100 folding line matches mainstream formula`() {
+    fun `saved ratio 100 still leaves estimation headroom on long contexts`() {
         val budget = 128_000
         val systemTokens = 10
-        val expected = budget - systemTokens -
+        val expected = budget * 90 / 100 - systemTokens -
             ContextWindowPolicy.RESERVED_OUTPUT_TOKENS -
             ContextWindowPolicy.TOOL_SCHEMA_RESERVE_TOKENS
         assertEquals(expected, ContextWindowPolicy.foldingLimitFor(budget, 100, systemTokens))
@@ -725,10 +725,10 @@ class ContextWindowPolicyTest {
     }
 
     @Test
-    fun `flagship 200k window uses the full window minus reserves`() {
+    fun `flagship 200k window reserves estimation headroom in addition to output`() {
         val limit = ContextWindowPolicy.foldingLimitFor(200_000, 100, systemTokens = 0)
         assertEquals(
-            200_000 - ContextWindowPolicy.RESERVED_OUTPUT_TOKENS - ContextWindowPolicy.TOOL_SCHEMA_RESERVE_TOKENS,
+            180_000 - ContextWindowPolicy.RESERVED_OUTPUT_TOKENS - ContextWindowPolicy.TOOL_SCHEMA_RESERVE_TOKENS,
             limit,
         )
         assertTrue("200k 模型折叠线应超过 96k 旧封顶，实际=$limit", limit > 96_000)
@@ -742,7 +742,7 @@ class ContextWindowPolicyTest {
         assertEquals(declared, budget)
         assertTrue(threshold < budget)
         assertEquals(
-            budget - 1_000 - ContextWindowPolicy.RESERVED_OUTPUT_TOKENS - ContextWindowPolicy.TOOL_SCHEMA_RESERVE_TOKENS,
+            budget * 90 / 100 - 1_000 - ContextWindowPolicy.RESERVED_OUTPUT_TOKENS - ContextWindowPolicy.TOOL_SCHEMA_RESERVE_TOKENS,
             threshold,
         )
     }

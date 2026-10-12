@@ -21,7 +21,7 @@ internal class ProviderTransport(
         .build()
     private val streamClient = client.newBuilder()
         .callTimeout(0, TimeUnit.MILLISECONDS)
-        .readTimeout(ProviderClient.READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .readTimeout(REASONING_STREAM_WAIT_MS, TimeUnit.MILLISECONDS)
         .build()
     private val ordinaryApis = adapters(httpClient)
     private val streamApis = adapters(streamClient)
