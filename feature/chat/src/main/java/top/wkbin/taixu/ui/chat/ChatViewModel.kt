@@ -983,18 +983,16 @@ class ChatViewModel(
         if (uris.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
             _attachmentsProcessing.value = true
-            val items = uris.mapNotNull { AttachmentHelper.processUri(context, it, isImage) }
-            val failed = uris.size - items.size
-            if (failed > 0) {
-                _notice.value = context.getString(R.string.chat_attachment_process_failed, failed)
-            }
-            _pendingAttachments.update { it + items }
+            val outcome = AttachmentHelper.processPicked(context, uris, isImage)
+            outcome.notice?.let { _notice.value = it }
+            _pendingAttachments.update { it + outcome.items }
             _attachmentsProcessing.value = false
         }
     }
 
     fun removeAttachment(attachment: ChatAttachment) {
         _pendingAttachments.update { list -> list.filter { it.id != attachment.id } }
+        AttachmentHelper.deleteHostFile(attachment.hostFilePath)
     }
 
     /** 组装附件挂载说明并委托 send() 发送；View 只需在输入框非空或有附件时触发 */

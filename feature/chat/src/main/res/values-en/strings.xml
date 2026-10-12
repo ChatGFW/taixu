@@ -377,6 +377,7 @@
     <string name="chat_remove_attachment">Remove attachment</string>
     <string name="chat_attachment_processing">Processing attachments…</string>
     <string name="chat_attachment_process_failed">%1$d attachment(s) failed to process, please retry</string>
+    <string name="chat_attachment_too_large">%1$d file(s) exceed the size limit (max %2$s) and were not added</string>
     <string name="chat_skill_suggestion_created">Created skill “%1$s”</string>
     <string name="chat_skill_suggestion_updated">Updated skill “%1$s”</string>
     <string name="chat_skill_suggestion_apply_failed">Failed to apply skill suggestion: %1$s</string>
