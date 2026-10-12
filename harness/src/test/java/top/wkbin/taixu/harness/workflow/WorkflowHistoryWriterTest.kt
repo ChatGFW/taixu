@@ -10,6 +10,8 @@ import top.wkbin.taixu.core.database.WorkflowExecutionLogEntity
 import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
 import top.wkbin.taixu.core.model.workflow.WorkflowRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
+import top.wkbin.taixu.core.model.workflow.WorkflowJournalEntry
+import top.wkbin.taixu.core.model.workflow.WorkflowJournalKind
 
 class WorkflowHistoryWriterTest {
     private fun state(status: WorkflowRunStatus) = WorkflowRuntimeState.initial(
@@ -55,6 +57,24 @@ class WorkflowHistoryWriterTest {
         assertTrue(result.exceptionOrNull() is CancellationException)
         assertEquals(1, repository.attempts)
         assertTrue(writer.errors.value.isEmpty())
+    }
+
+    @Test fun olderSnapshotsCannotOverwriteCommittedJournalOrNewContinuation() = runTest {
+        val repository = RecordingRepository()
+        val writer = WorkflowHistoryWriter(repository) { _, _ -> }
+        val started = WorkflowJournalEntry(1, "a", 1, WorkflowJournalKind.STARTED, 1L)
+        val newer = state(WorkflowRunStatus.RUNNING).copy(journalVersion = 1, journal = listOf(started))
+        assertTrue(writer.save(newer, "MANUAL", null))
+        assertTrue(writer.save(state(WorkflowRunStatus.RUNNING), "MANUAL", null))
+        assertEquals(newer, repository.savedState)
+        val terminal = newer.copy(status = WorkflowRunStatus.CANCELLED)
+        assertTrue(writer.save(terminal, "MANUAL", null))
+        assertTrue(writer.save(newer, "MANUAL", null))
+        assertEquals(terminal, repository.savedState)
+        val resumed = newer.copy(resumeCount = 1)
+        assertTrue(writer.save(resumed, "MANUAL", null))
+        assertTrue(writer.save(terminal, "MANUAL", null))
+        assertEquals(resumed, repository.savedState)
     }
 
     private class RecordingRepository : WorkflowRepository {

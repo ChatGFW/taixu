@@ -24,7 +24,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -33,7 +32,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,7 +48,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.model.workflow.NodeRunStatus
 import top.wkbin.taixu.core.database.WorkflowScheduleEntity
-import top.wkbin.taixu.core.model.workflow.WorkflowApprovalRequest
 import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
 import top.wkbin.taixu.core.model.workflow.WorkflowRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
@@ -157,9 +154,11 @@ fun WorkflowScreen(
                 history = history,
                 onHistory = viewModel::showHistory,
                 onRerun = viewModel::rerun,
+                onResume = viewModel::resume,
                 onEdit = viewModel::edit,
                 onDelete = viewModel::deleteWorkflow,
                 onCreate = viewModel::createWorkflow,
+                onImport = viewModel::importWorkflow,
                 backgroundRuns = backgroundRuns,
                 onViewBackgroundRun = viewModel::viewRun,
                 schedules = schedules,
@@ -180,7 +179,7 @@ fun WorkflowScreen(
         }
     }
     approval?.let { request ->
-        ApprovalDialog(request, onDecision = { approved, variables -> viewModel.decide(request.nodeId, approved, variables) })
+        ApprovalDialog(request, onDecision = { approved, variables -> viewModel.decide(request.nodeId, approved, variables, request.reviewToken) })
     }
     pendingRun?.let { definition ->
         // APK 扫描是全盘 walkTopDown，必须在协程里异步加载，禁止在组合期间同步执行
@@ -239,9 +238,11 @@ private fun WorkflowCatalog(
     onEdit: (WorkflowDefinition) -> Unit,
     onDelete: (WorkflowDefinition) -> Unit,
     onCreate: () -> Unit,
+    onImport: (WorkflowDefinition) -> Unit,
     history: List<WorkflowHistoryEntry>,
     onHistory: (WorkflowRuntimeState) -> Unit,
     onRerun: (WorkflowHistoryEntry) -> Unit,
+    onResume: (WorkflowRuntimeState, Set<String>) -> Unit,
     backgroundRuns: List<WorkflowRuntimeState>,
     onViewBackgroundRun: (String) -> Unit,
     schedules: List<WorkflowScheduleEntity> = emptyList(),
@@ -257,21 +258,7 @@ private fun WorkflowCatalog(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "把构建、诊断、逆向与 Git 操作编排成可观察、可暂停的 DAG。",
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.width(12.dp))
-                RuntimeButton(onClick = onCreate, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
-                    RuntimeIcon(RuntimeIconName.Plus, Modifier.size(16.dp))
-                    Text("新建", maxLines = 1)
-                }
-            }
-        }
+        item { WorkflowCatalogEntry(onCreate, onImport) }
         if (backgroundRuns.isNotEmpty()) {
             item(key = "background_banner") {
                 RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
@@ -395,36 +382,7 @@ private fun WorkflowCatalog(
             }
         if (history.isNotEmpty()) item { Text("最近运行（最近 ${history.size} 条）", style = MaterialTheme.typography.titleMedium) }
         items(history, key = { "history:${it.state.executionId}" }) { entry ->
-            val run = entry.state
-            RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "${run.definition.name} · ${runStatusLabel(run.status)} · ${
-                                SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(run.startedAt ?: 0))
-                            }",
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            when {
-                                entry.triggerSource == "SCHEDULE" && entry.scheduleId != null -> "定时计划触发"
-                                else -> "手动触发"
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    RuntimeOutlinedButton(onClick = { onRerun(entry) }, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
-                        RuntimeIcon(RuntimeIconName.Play, Modifier.size(16.dp))
-                        Text("重跑", maxLines = 1)
-                    }
-                    RuntimeOutlinedButton(onClick = { onHistory(run) }, contentPadding = PaddingValues(9.dp)) {
-                        RuntimeIcon(RuntimeIconName.List, Modifier.size(16.dp))
-                    }
-                }
-            }
+            WorkflowHistoryCard(entry, onRerun, onHistory, onResume)
         }
     }
     deleteRequested?.let { workflow ->
@@ -558,35 +516,12 @@ private fun RunSummary(state: WorkflowRuntimeState) {
             RuntimeIcon(statusIcon(state.nodeStates.values.lastOrNull()?.status ?: NodeRunStatus.PENDING), Modifier.size(20.dp), tint = color)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(runStatusLabel(state.status), fontWeight = FontWeight.SemiBold)
+                Text(workflowStatusLabel(state.status), fontWeight = FontWeight.SemiBold)
                 WorkflowElapsed(state)
                 state.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, maxLines = 2, overflow = TextOverflow.Ellipsis) }
             }
         }
     }
-}
-
-@Composable
-private fun ApprovalDialog(request: WorkflowApprovalRequest, onDecision: (Boolean, Map<String, String>) -> Unit) {
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    LaunchedEffect(request.executionId, request.nodeId) {
-        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-    }
-    val values = remember(request) { mutableStateMapOf<String, String>().apply { request.requestedVariables.forEach { put(it, "") } } }
-    RuntimeAlertDialog(
-        onDismissRequest = { onDecision(false, emptyMap()) },
-        title = { Text(request.title) },
-        text = {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (request.description.isNotBlank()) Text(request.description, style = MaterialTheme.typography.bodyMedium)
-                request.requestedVariables.forEach { key ->
-                    OutlinedTextField(value = values[key].orEmpty(), onValueChange = { values[key] = it }, label = { Text(key, maxLines = 1, overflow = TextOverflow.Ellipsis) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                }
-            }
-        },
-        dismissButton = { RuntimeOutlinedButton(onClick = { onDecision(false, emptyMap()) }) { Text("拒绝", maxLines = 1) } },
-        confirmButton = { RuntimeButton(onClick = { onDecision(true, values.toMap()) }) { Text("确认执行", maxLines = 1) } },
-    )
 }
 
 @Composable
@@ -619,7 +554,7 @@ internal fun statusLabel(status: NodeRunStatus) = when (status) {
     NodeRunStatus.CANCELLED -> "已取消"
 }
 
-private fun runStatusLabel(status: WorkflowRunStatus) = when (status) {
+internal fun workflowStatusLabel(status: WorkflowRunStatus) = when (status) {
     WorkflowRunStatus.IDLE -> "准备执行"
     WorkflowRunStatus.RUNNING -> "工作流运行中"
     WorkflowRunStatus.WAITING_APPROVAL -> "等待人工确认"

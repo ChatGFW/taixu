@@ -106,6 +106,8 @@ fun WorkflowCanvas2D(
     onRemoveNode: (String) -> Unit = {},
     onConfigureNode: (String) -> Unit = {},
 ) {
+    val expandedRun = !editable && state?.baseDefinition != null && state.definition == definition
+    val renderedDefinition = remember(definition, expandedRun) { workflowRunGraphPresentation(definition, expandedRun) }
     val density = LocalDensity.current
     val nodeWidthPx = with(density) { NodeWidth.toPx() }
     val nodeHeightPx = with(density) { NodeHeight.toPx() }
@@ -113,24 +115,9 @@ fun WorkflowCanvas2D(
     val fitPaddingPx = with(density) { 40.dp.toPx() }
     val viewConfiguration = LocalViewConfiguration.current
     val touchSlop = viewConfiguration.touchSlop
-    val positions = remember(definition.id, density) {
-        mutableStateMapOf<String, Offset>().apply {
-            definition.nodes.forEachIndexed { index, node ->
-                this[node.id] = nodePosition(node, index, density.density)
-            }
-        }
-    }
-    // 同步保证 positions 包含当前 definition 中的所有节点（无需等待异步 LaunchedEffect）
-    definition.nodes.forEachIndexed { index, node ->
-        if (!positions.containsKey(node.id)) {
-            positions[node.id] = nodePosition(node, index, density.density)
-        }
-    }
-    LaunchedEffect(definition.nodes, density) {
-        positions.keys.retainAll(definition.nodes.mapTo(mutableSetOf()) { it.id })
-    }
+    val positions = rememberWorkflowCanvasPositions(renderedDefinition, density.density)
 
-    val resolvedPositions = resolveNodePositions(definition.nodes, positions, density.density)
+    val resolvedPositions = resolveNodePositions(renderedDefinition.nodes, positions, density.density)
     val bounds = contentBounds(resolvedPositions.values, nodeWidthPx, nodeHeightPx)
 
     var viewportSize by remember { mutableStateOf(IntSize.Zero) }
@@ -207,7 +194,7 @@ fun WorkflowCanvas2D(
 
         // 连线层：在视口屏幕坐标系中渲染，绝无纹理尺寸超限问题
         WorkflowEdges(
-            definition = definition,
+            definition = renderedDefinition,
             state = state,
             positions = resolvedPositions,
             scale = scale,
@@ -221,7 +208,7 @@ fun WorkflowCanvas2D(
         )
 
         // 节点层：卡片在视口屏幕坐标系中精确定位与缩放
-        definition.nodes.forEachIndexed { index, node ->
+        renderedDefinition.nodes.forEachIndexed { index, node ->
             key(node.id) {
                 val run = state?.nodeStates?.get(node.id)
                 WorkflowNodeCard(

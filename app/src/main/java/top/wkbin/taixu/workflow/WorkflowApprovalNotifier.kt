@@ -54,7 +54,7 @@ class WorkflowApprovalNotifier(
                 approvals.forEach { (executionId, request) ->
                     val key = "$executionId:${request.nodeId}"
                     if (notifiedKeys.add(key)) {
-                        notifyApproval(appContext, executionId, request.nodeId, request.title)
+                        notifyApproval(appContext, executionId, request.nodeId, request.title, request.reviewToken != null)
                     }
                 }
                 // 已处理的审批撤通知：遍历已发布标记（快照，避免边遍历边删），
@@ -73,7 +73,7 @@ class WorkflowApprovalNotifier(
         }
     }
 
-    private fun notifyApproval(context: Context, executionId: String, nodeId: String, title: String) {
+    private fun notifyApproval(context: Context, executionId: String, nodeId: String, title: String, requiresReview: Boolean) {
         if (!hasNotificationPermission(context)) return
         runCatching {
             val manager = context.getSystemService(NotificationManager::class.java)
@@ -124,7 +124,7 @@ class WorkflowApprovalNotifier(
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
-                .addAction(NotificationCompat.Action(R.drawable.taixu_notification, "批准", approvePending))
+                .addAction(NotificationCompat.Action(R.drawable.taixu_notification, if (requiresReview) "查看提案" else "批准", if (requiresReview) openRun else approvePending))
                 .addAction(NotificationCompat.Action(R.drawable.taixu_notification, "拒绝", denyPending))
                 .build()
             manager.notify(notificationId(executionId), notification)

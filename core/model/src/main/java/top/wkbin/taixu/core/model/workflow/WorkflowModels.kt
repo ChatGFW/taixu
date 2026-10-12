@@ -2,6 +2,7 @@ package top.wkbin.taixu.core.model.workflow
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class WorkflowDefinition(
@@ -17,6 +18,7 @@ data class WorkflowDefinition(
     val defaultVariables: Map<String, String> = emptyMap(),
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L,
+    val maxParallelNodes: Int = 4,
 )
 
 @Serializable
@@ -105,6 +107,7 @@ data class NodeExecutionOutput(
     val variables: Map<String, String> = emptyMap(),
     val durationMs: Long = 0L,
     val error: String? = null,
+    val structuredResult: JsonObject? = null,
 )
 
 @Serializable
@@ -138,6 +141,11 @@ data class WorkflowRuntimeState(
     val startedAt: Long? = null,
     val finishedAt: Long? = null,
     val error: String? = null,
+    val journalVersion: Int = 0,
+    val journal: List<WorkflowJournalEntry> = emptyList(),
+    val resumeCount: Int = 0,
+    val runtimeEnvironmentId: String? = null,
+    val baseDefinition: WorkflowDefinition? = null,
 ) {
     companion object {
         fun initial(executionId: String, definition: WorkflowDefinition) = WorkflowRuntimeState(
@@ -155,10 +163,12 @@ data class WorkflowApprovalRequest(
     val title: String,
     val description: String,
     val requestedVariables: List<String> = emptyList(),
+    val reviewToken: String? = null,
 )
 
 @Serializable
 data class WorkflowApprovalDecision(
     val approved: Boolean,
     val variables: Map<String, String> = emptyMap(),
+    val reviewToken: String? = null,
 )

@@ -11,9 +11,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.feature.custom_iteration.R
 import top.wkbin.taixu.iteration.engine.CustomIterationBootstrap
+import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator
 
 class CustomIterationViewModel(
-    application: Application
+    application: Application,
+    private val buildCoordinator: TaiXuDevBuildCoordinator,
 ) : AndroidViewModel(application) {
 
     data class UiState(
@@ -25,6 +27,12 @@ class CustomIterationViewModel(
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    /** 云端构建状态机：Idle → Dispatching → Running → Downloading → Success/Failed。 */
+    private val _buildState = MutableStateFlow<TaiXuDevBuildCoordinator.BuildStatus>(
+        TaiXuDevBuildCoordinator.BuildStatus.Idle
+    )
+    val buildState: StateFlow<TaiXuDevBuildCoordinator.BuildStatus> = _buildState.asStateFlow()
 
     fun startCustomIteration(onSessionReady: (prompt: String) -> Unit) {
         if (_uiState.value.isBusy) return
@@ -61,6 +69,41 @@ class CustomIterationViewModel(
         }
     }
 
+    /**
+     * 触发 GitHub Actions 云端构建 TaiXuDev APK，并全程跟踪状态直至终态。
+     * 流水线进行中（Dispatching/Running/Downloading）时忽略重复触发。
+     */
+    fun startCloudBuild(branch: String) {
+        if (isBuildPipelineActive()) return
+        val normalizedBranch = branch.trim().ifBlank { DEFAULT_BRANCH }
+        viewModelScope.launch {
+            val status = buildCoordinator.runPipeline(
+                branch = normalizedBranch,
+            ) { updated ->
+                _buildState.value = updated
+            }
+            _buildState.value = status
+        }
+    }
+
+    /** 用户关闭构建失败提示，回到 Idle 可再次触发。 */
+    fun dismissBuildStatus() {
+        val current = _buildState.value
+        if (current is TaiXuDevBuildCoordinator.BuildStatus.Failed ||
+            current is TaiXuDevBuildCoordinator.BuildStatus.Success
+        ) {
+            _buildState.value = TaiXuDevBuildCoordinator.BuildStatus.Idle
+        }
+    }
+
+    private fun isBuildPipelineActive(): Boolean = when (_buildState.value) {
+        is TaiXuDevBuildCoordinator.BuildStatus.Dispatching,
+        is TaiXuDevBuildCoordinator.BuildStatus.Running,
+        is TaiXuDevBuildCoordinator.BuildStatus.Downloading,
+        -> true
+        else -> false
+    }
+
     /** 用户关闭错误提示。 */
     fun dismissError() {
         _uiState.value = _uiState.value.copy(errorMessage = null)
@@ -68,5 +111,6 @@ class CustomIterationViewModel(
 
     private companion object {
         const val TAG = "CustomIteration"
+        const val DEFAULT_BRANCH = "main"
     }
 }

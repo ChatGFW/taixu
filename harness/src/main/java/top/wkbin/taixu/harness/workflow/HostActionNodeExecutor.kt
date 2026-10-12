@@ -507,16 +507,3 @@ class HostActionNodeExecutor(
         }
     }
 }
-
-internal fun interpolate(template: String, context: WorkflowRuntimeContext): String =
-    HOST_VARIABLE.replace(template) { match ->
-        val key = match.groupValues[1]
-        when {
-            key == "WORKSPACE_PATH" -> context.workspacePath
-            key == "previous.output" -> context.previousOutput()
-            key.endsWith(".output") -> context.nodeOutputs[key.removeSuffix(".output")]?.textOutput.orEmpty()
-            else -> context.globalVariables[key].orEmpty()
-        }
-    }
-
-private val HOST_VARIABLE = Regex("\\$\\{([A-Za-z0-9_.\\-]+)\\}")

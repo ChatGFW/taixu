@@ -6,9 +6,6 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,8 +18,8 @@ import top.wkbin.taixu.core.model.workflow.NodeExecutionOutput
 import top.wkbin.taixu.core.model.workflow.NodeRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowApprovalDecision
 import top.wkbin.taixu.core.model.workflow.WorkflowApprovalRequest
+import top.wkbin.taixu.core.model.workflow.WorkflowApprovalTimeout
 import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
-import top.wkbin.taixu.core.model.workflow.WorkflowEdgeCondition
 import top.wkbin.taixu.core.model.workflow.WorkflowNode
 import top.wkbin.taixu.core.model.workflow.WorkflowNodeType
 import top.wkbin.taixu.core.model.workflow.WorkflowNodeRunState
@@ -30,6 +27,8 @@ import top.wkbin.taixu.core.model.workflow.WorkflowRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeContext
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
 import top.wkbin.taixu.core.model.workflow.WorkflowValidator
+import top.wkbin.taixu.core.model.workflow.WorkflowExpansions
+import top.wkbin.taixu.core.model.workflow.WorkflowExpansion
 import top.wkbin.taixu.runtime.virtualdisplay.PhoneTaskState
 
 class WorkflowRunHandle internal constructor(
@@ -37,10 +36,12 @@ class WorkflowRunHandle internal constructor(
     val approvalRequest: StateFlow<WorkflowApprovalRequest?>,
     private val cancelAction: () -> Unit,
     private val decisionAction: (String, WorkflowApprovalDecision) -> Boolean,
+    private val settledAction: () -> Boolean,
 ) {
+    internal val settled: Boolean get() = settledAction()
     fun cancel() = cancelAction()
-    fun decide(nodeId: String, approved: Boolean, variables: Map<String, String> = emptyMap()): Boolean =
-        decisionAction(nodeId, WorkflowApprovalDecision(approved, variables))
+    fun decide(nodeId: String, approved: Boolean, variables: Map<String, String> = emptyMap(), reviewToken: String? = null): Boolean =
+        decisionAction(nodeId, WorkflowApprovalDecision(approved, variables, reviewToken))
 }
 
 class WorkflowScheduler(
@@ -58,16 +59,24 @@ class WorkflowScheduler(
         initialVariables: Map<String, String>,
         workspacePath: String,
         scope: CoroutineScope,
+        checkpoint: (suspend (WorkflowRuntimeState) -> Unit)? = null,
+        restored: WorkflowRuntimeState? = null,
+        environmentId: String? = null,
     ): WorkflowRunHandle {
-        val executionId = "wf_${UUID.randomUUID()}"
-        val mutableState = MutableStateFlow(WorkflowRuntimeState.initial(executionId, definition))
+        require(restored == null || restored.definition == definition) { "恢复时不能替换工作流定义" }
+        val executionId = restored?.executionId ?: "wf_${UUID.randomUUID()}"
+        val mutableState = MutableStateFlow(restored ?: WorkflowRuntimeState.initial(executionId, definition).copy(
+            journalVersion = if (checkpoint == null) 0 else 1, runtimeEnvironmentId = environmentId,
+        ))
+        val journal = checkpoint?.let { WorkflowJournalRecorder(mutableState, it) }
         val approvalRequest = approvalBroker.currentRequestFor(executionId)
         val jobRef = AtomicReference<Job?>()
         // cancel() 与 jobRef.set() 之间的竞态标志：set 之前 cancel 只能取到 null 导致 job 未取消，
         // 置位后由 set 完成侧再检查一次补 cancel 兜底
         val cancelled = AtomicBoolean(false)
+        val settled = AtomicBoolean(false)
         val job = scope.launch {
-            runWorkflow(executionId, definition, initialVariables, workspacePath, mutableState)
+            runWorkflow(executionId, definition, initialVariables, workspacePath, mutableState, journal, restored != null)
         }
         jobRef.set(job)
         if (cancelled.get()) job.cancel(CancellationException("用户取消工作流"))
@@ -77,6 +86,7 @@ class WorkflowScheduler(
                 if (current.status in setOf(WorkflowRunStatus.SUCCESS, WorkflowRunStatus.FAILED, WorkflowRunStatus.CANCELLED)) current
                 else current.copy(status = WorkflowRunStatus.CANCELLED, finishedAt = System.currentTimeMillis())
             }
+            settled.set(true)
         }
         return WorkflowRunHandle(
             state = mutableState.asStateFlow(),
@@ -88,6 +98,7 @@ class WorkflowScheduler(
                 jobRef.get()?.cancel(CancellationException("用户取消工作流"))
             },
             decisionAction = { nodeId, decision -> approvalBroker.decide(executionId, nodeId, decision) },
+            settledAction = settled::get,
         )
     }
 
@@ -97,14 +108,16 @@ class WorkflowScheduler(
         initialVariables: Map<String, String>,
         workspacePath: String,
         state: MutableStateFlow<WorkflowRuntimeState>,
+        journal: WorkflowJournalRecorder?,
+        restoring: Boolean,
     ) {
-        val startedAt = System.currentTimeMillis()
+        val startedAt = if (restoring) state.value.startedAt ?: System.currentTimeMillis() else System.currentTimeMillis()
         val validation = WorkflowValidator.validate(definition)
         if (validation.isNotEmpty()) {
             state.update { it.copy(status = WorkflowRunStatus.FAILED, startedAt = startedAt, finishedAt = startedAt, error = validation.joinToString { issue -> issue.message }) }
             return
         }
-        var context = WorkflowRuntimeContext(
+        var context = if (restoring) requireNotNull(state.value.context) else WorkflowRuntimeContext(
             executionId = executionId,
             workflowId = definition.id,
             workspacePath = workspacePath,
@@ -114,66 +127,25 @@ class WorkflowScheduler(
             current.copy(
                 status = WorkflowRunStatus.RUNNING,
                 startedAt = startedAt,
-                nodeStates = current.nodeStates.mapValues { (_, value) -> value.copy(status = NodeRunStatus.PENDING) },
+                nodeStates = current.nodeStates.mapValues { (id, value) ->
+                    context.nodeOutputs[id]?.let { WorkflowNodeRunState(it.status, "复用已保存结果", it) }
+                        ?: value.copy(status = NodeRunStatus.PENDING, output = null)
+                },
                 context = context,
             )
         }
 
         try {
+            journal?.checkpoint()
             virtualScreenRuns?.begin(executionId, currentCoroutineContext()[Job]!!)
-            val nodesById = definition.nodes.associateBy { it.id }
-            val incoming = definition.edges.groupBy { it.toNodeId }
-            val pending = nodesById.keys.toMutableSet()
-            while (pending.isNotEmpty()) {
-                val settled = context.nodeOutputs.keys
-                val resolvable = pending.filter { nodeId -> incoming[nodeId].orEmpty().all { it.fromNodeId in settled } }
-                check(resolvable.isNotEmpty()) { "调度器无法继续，请检查工作流依赖" }
-
-                val skipped = resolvable.filter { nodeId ->
-                    val edges = incoming[nodeId].orEmpty()
-                    edges.isNotEmpty() && edges.none { edge ->
-                        context.nodeOutputs[edge.fromNodeId]?.let { WorkflowEdgeCondition.matches(edge, it) } ?: false
-                    }
-                }
-                skipped.forEach { nodeId ->
-                    val output = NodeExecutionOutput(NodeRunStatus.SKIPPED, textOutput = "上游分支未选择此节点")
-                    context = context.withOutput(nodeId, output)
-                    updateNode(state, nodeId, output.status, output.textOutput, output)
-                    pending.remove(nodeId)
-                }
-
-                val ready = resolvable.filterNot(skipped::contains).mapNotNull(nodesById::get)
-                if (ready.isEmpty()) continue
-                val waveContext = context
-                val results = coroutineScope {
-                    ready.map { node -> async {
-                        val nodeContext = waveContext.copy(upstreamNodeIds = incoming[node.id].orEmpty()
-                            .filter { edge -> waveContext.nodeOutputs[edge.fromNodeId]?.let { WorkflowEdgeCondition.matches(edge, it) } == true }
-                            .map { it.fromNodeId }.distinct())
-                        node.id to executeNode(node, nodeContext, state)
-                    } }.awaitAll()
-                }
-                results.forEach { (nodeId, output) ->
-                    context = context.withOutput(nodeId, output)
-                    pending.remove(nodeId)
-                }
-                state.update { it.copy(context = context) }
-
-                val abort = results.firstOrNull { (nodeId, output) ->
-                    output.status == NodeRunStatus.FAILED && nodesById[nodeId]?.failurePolicy != FailurePolicy.CONTINUE
-                }
-                if (abort != null) {
-                    pending.forEach { nodeId -> updateNode(state, nodeId, NodeRunStatus.CANCELLED, "因上游失败而取消") }
-                    state.update {
-                        it.copy(
-                            status = WorkflowRunStatus.FAILED,
-                            context = context,
-                            finishedAt = System.currentTimeMillis(),
-                            error = abort.second.error ?: "节点 ${abort.first} 执行失败",
-                        )
-                    }
-                    return
-                }
+            val abort = dispatchWorkflowDag(state, context) { node, nodeContext -> executeNode(node, nodeContext, state, journal) }
+            context = requireNotNull(state.value.context)
+            if (abort != null) {
+                state.update { current -> current.copy(status = WorkflowRunStatus.FAILED, finishedAt = System.currentTimeMillis(), error = abort,
+                    nodeStates = current.nodeStates.mapValues { (_, value) ->
+                        if (value.status in ACTIVE_STATUSES) value.copy(status = NodeRunStatus.CANCELLED, progressMessage = "因节点失败而取消") else value
+                    }) }
+                return
             }
 
             val hasFailure = context.nodeOutputs.values.any { it.status == NodeRunStatus.FAILED }
@@ -197,7 +169,11 @@ class WorkflowScheduler(
             }
             throw cancelled
         } catch (error: Throwable) {
-            state.update { it.copy(status = WorkflowRunStatus.FAILED, finishedAt = System.currentTimeMillis(), error = error.message ?: error::class.java.simpleName) }
+            state.update { current -> current.copy(status = WorkflowRunStatus.FAILED, finishedAt = System.currentTimeMillis(),
+                error = error.message ?: error::class.java.simpleName,
+                nodeStates = current.nodeStates.mapValues { (_, nodeState) ->
+                    if (nodeState.status in ACTIVE_STATUSES) nodeState.copy(status = NodeRunStatus.CANCELLED) else nodeState
+                }) }
         } finally {
             virtualScreenRuns?.end(executionId, when (state.value.status) {
                 WorkflowRunStatus.SUCCESS -> PhoneTaskState.COMPLETED
@@ -211,6 +187,7 @@ class WorkflowScheduler(
         node: WorkflowNode,
         context: WorkflowRuntimeContext,
         state: MutableStateFlow<WorkflowRuntimeState>,
+        journal: WorkflowJournalRecorder?,
     ): NodeExecutionOutput {
         val executor = executorMap[node.type]
             ?: return NodeExecutionOutput(NodeRunStatus.FAILED, exitCode = 127, error = "没有 ${node.type} 节点执行器")
@@ -219,15 +196,17 @@ class WorkflowScheduler(
         val maxAttempts = if (node.failurePolicy == FailurePolicy.RETRY_ONCE) 2 else 1
         var output: NodeExecutionOutput
         do {
+            var expansion: WorkflowExpansion? = null
             attempts++
             updateNode(state, node.id, NodeRunStatus.RUNNING, if (attempts > 1) "正在重试" else "正在执行")
+            journal?.started(node.id)
             val started = System.nanoTime()
             // 人工等待类节点（HUMAN_APPROVAL）默认不限时等待用户决定：默认 300s 超时会在用户
             // 迟迟未批准时把节点误判 FAILED，此后 decide() 永远无效。
-            // 显式限时走 config["timeoutSeconds"]：WorkflowValidation（清单外）强制
-            // timeoutSeconds ∈ 1..3600，无法用 0/-1 哨兵区分“未显式配置”，故另辟 config 通道。
+            // 显式限时走 config["timeoutSeconds"]；定义校验与运行共用同一解析器。
+            // 缺省不限时，显式配置只接受 1..3600 秒，不能将非法值退化为无限等待。
             val timeoutMs = if (node.type == WorkflowNodeType.HUMAN_APPROVAL) {
-                node.config["timeoutSeconds"]?.toLongOrNull()?.takeIf { it > 0 }?.times(1_000L)
+                WorkflowApprovalTimeout.milliseconds(node.config[WorkflowApprovalTimeout.CONFIG_KEY])
             } else {
                 node.timeoutSeconds * 1_000L
             }
@@ -239,10 +218,19 @@ class WorkflowScheduler(
                 }
             }
             output = try {
+                val action: suspend () -> NodeExecutionOutput = {
+                    if (WorkflowExpansions.SOURCE_KEY in node.config) {
+                        check(journal != null) { "动态扩图需要持久化执行日志" }
+                        approveExpansion(node, context, state.value.definition, approvalBroker, onProgress).let {
+                            expansion = it.patch
+                            it.output
+                        }
+                    } else executor.execute(node, context, onProgress)
+                }
                 if (timeoutMs == null) {
-                    executor.execute(node, context, onProgress)
+                    action()
                 } else {
-                    withTimeoutOrNull(timeoutMs) { executor.execute(node, context, onProgress) }
+                    withTimeoutOrNull(timeoutMs) { action() }
                         ?: NodeExecutionOutput(NodeRunStatus.FAILED, exitCode = 124, error = "节点超时（${timeoutMs / 1_000} 秒）")
                 }
             } catch (cancelled: CancellationException) {
@@ -251,6 +239,8 @@ class WorkflowScheduler(
                 NodeExecutionOutput(NodeRunStatus.FAILED, exitCode = -1, error = error.message ?: error::class.java.simpleName)
             }
             if (output.durationMs == 0L) output = output.copy(durationMs = (System.nanoTime() - started) / 1_000_000L)
+            if (output.status != NodeRunStatus.SUCCESS) expansion = null
+            journal?.settled(node.id, output, expansion)
         } while (output.status == NodeRunStatus.FAILED && attempts < maxAttempts)
 
         if (output.status == NodeRunStatus.FAILED && node.failurePolicy == FailurePolicy.ASK_USER) {
@@ -263,7 +253,7 @@ class WorkflowScheduler(
             val decision = approvalBroker.await(
                 WorkflowApprovalRequest(context.executionId, node.id, "重试“${node.title}”？", output.error.orEmpty()),
             )
-            if (decision.approved) return executeNode(node.copy(failurePolicy = FailurePolicy.ABORT), context, state)
+            if (decision.approved) return executeNode(node.copy(failurePolicy = FailurePolicy.ABORT), context, state, journal)
         }
         updateNode(state, node.id, output.status, output.error ?: output.textOutput.lineSequence().lastOrNull().orEmpty(), output)
         state.update { current ->
@@ -281,7 +271,10 @@ class WorkflowScheduler(
         output: NodeExecutionOutput? = null,
     ) {
         state.update { current ->
-            current.copy(nodeStates = current.nodeStates + (nodeId to WorkflowNodeRunState(status, message, output ?: current.nodeStates[nodeId]?.output)))
+            current.copy(
+                nodeStates = current.nodeStates + (nodeId to WorkflowNodeRunState(status, message, output ?: current.nodeStates[nodeId]?.output)),
+                context = if (output == null) current.context else current.context?.withOutput(nodeId, output),
+            )
         }
     }
 

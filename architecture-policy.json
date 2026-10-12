@@ -144,7 +144,7 @@
       "id": "feature.developer", "path": "feature/developer",
       "requires": ["core.database", "core.datastore", "runtime", "tools"]
     },
-    { "id": "feature.custom_iteration", "path": "feature/custom_iteration", "requires": [] },
+    { "id": "feature.custom_iteration", "path": "feature/custom_iteration", "requires": ["runtime"] },
     {
       "id": "feature.onboarding", "path": "feature/onboarding",
       "requires": ["core.datastore", "runtime", "tools"]

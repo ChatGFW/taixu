@@ -1,38 +1,221 @@
 package top.wkbin.taixu.iteration.engine
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.delay
+import top.wkbin.taixu.runtime.shell.CommandResult
+import top.wkbin.taixu.runtime.shell.ShellCommand
 
 /**
  * TaiXuDevBuildCoordinator — 调度 GitHub Actions 云端构建与本地产物校验。
+ *
+ * 设计要点：
+ * 1. 沙盒命令执行抽象为 [ShellRunner]：生产环境绑定 LinuxRuntime（遵循 runtime 模块
+ *    ShellCommand/CommandResult 标准契约），纯 JVM 单元测试注入假执行器；
+ * 2. 全流程 [runPipeline]：记录触发前的最新 run → 触发 workflow → 只接受更新的
+ *    workflow_dispatch → 轮询状态 → 在沙盒下载目录创建目录并下载 artifact → SHA-256 校验；
+ * 3. 每条 `gh` 命令都带 `-R` 仓库参数。分支名先做白名单校验，其余插值经 POSIX 单引号转义；
+ * 4. UI 层只渲染状态，不做业务判断；失败细节（原始日志）只进 [BuildStatus.Failed.logs]，
+ *    由调用方决定是否展示。
  */
-object TaiXuDevBuildCoordinator {
+class TaiXuDevBuildCoordinator(
+    private val shellRunner: ShellRunner,
+    private val sleep: suspend (Long) -> Unit = { delay(it) },
+    private val clock: () -> Long = { System.currentTimeMillis() },
+    private val repo: String = TaiXuDevBuildCli.DEFAULT_REPO,
+) {
+
+    /** 沙盒命令执行器抽象：生产绑定 LinuxRuntime，测试注入 Fake。 */
+    fun interface ShellRunner {
+        suspend fun execute(command: ShellCommand): CommandResult
+    }
 
     sealed interface BuildStatus {
         data object Idle : BuildStatus
-        data class Dispathing(val branch: String) : BuildStatus
-        data class Running(val runId: String, val statusText: String) : BuildStatus
-        data class Downloading(val runId: String, val progress: Int) : BuildStatus
+        data class Dispatching(val branch: String) : BuildStatus
+        data class Running(val runId: Long, val statusText: String) : BuildStatus
+        data class Downloading(val runId: Long, val progress: Int) : BuildStatus
         data class Success(val apkPath: String, val sha256: String) : BuildStatus
         data class Failed(val error: String, val logs: String? = null) : BuildStatus
     }
 
     /**
-     * 构建相关的核心 CLI 指令模板
+     * 端到端构建流水线：记录基线 → 触发 → 等待新 run → 轮询 → 下载 → 校验。
+     * 全程通过 [onStatus] 上报状态，最终返回终态（[BuildStatus.Success] 或 [BuildStatus.Failed]）。
+     *
+     * @param branch 触发构建的特性分支
+     * @param outputDir APK 下载目录（沙盒内可见路径，默认 `/sdcard/Download`）
+     * @param pollIntervalMs 构建状态轮询间隔
+     * @param maxPollAttempts 构建轮询上限（超过即超时失败）
+     * @param maxRunWaitCycles 触发后等待新 run 注册的轮询次数
+     * @param runRegisterDelayMs 新 run 注册轮询间隔
      */
-    object CliCommands {
-        fun triggerWorkflow(workflowName: String = "taixudev-build.yml", branch: String = "main"): String =
-            "gh workflow run $workflowName --ref $branch"
+    suspend fun runPipeline(
+        branch: String,
+        outputDir: String = TaiXuDevBuildCli.DEFAULT_OUTPUT_DIR,
+        pollIntervalMs: Long = 10_000L,
+        maxPollAttempts: Int = 120,
+        maxRunWaitCycles: Int = 12,
+        runRegisterDelayMs: Long = 5_000L,
+        onStatus: (BuildStatus) -> Unit,
+    ): BuildStatus {
+        TaiXuDevBuildCli.branchRejection(branch)?.let { return BuildStatus.Failed(it) }
+        TaiXuDevBuildCli.outputDirRejection(outputDir)?.let { return BuildStatus.Failed(it) }
+        TaiXuDevBuildCli.repoRejection(repo)?.let { return BuildStatus.Failed(it) }
+        val normalizedBranch = branch.trim()
+        val normalizedDir = outputDir.trim()
 
-        fun watchWorkflow(runId: String): String =
-            "gh run watch $runId --exit-status"
+        onStatus(BuildStatus.Dispatching(normalizedBranch))
 
-        fun downloadArtifact(runId: String, outputDir: String = "/storage/emulated/0/Download"): String =
-            "gh run download $runId -n taixudev-apk -D $outputDir"
+        val baselineList = execute(TaiXuDevBuildCli.listRuns(branch = normalizedBranch, repo = repo))
+        if (!baselineList.isSuccess) {
+            return BuildStatus.Failed(
+                error = "无法读取已有构建记录（exit=${baselineList.exitCode}）：${baselineList.stderr.trim().take(300)}",
+                logs = baselineList.stderr.take(2_000),
+            )
+        }
+        val knownRuns = TaiXuDevBuildCli.parseRunList(baselineList.stdout)
+            ?: return BuildStatus.Failed("无法解析已有构建记录，已中止以免把旧 run 当成新构建")
+        val baselineId = knownRuns.maxOfOrNull { it.databaseId } ?: 0L
+        val triggerAtMs = clock()
 
-        fun checkFailedLog(runId: String): String =
-            "gh run view $runId --log-failed"
+        val trigger = execute(
+            commandLine = TaiXuDevBuildCli.triggerWorkflow(branch = normalizedBranch, repo = repo),
+            timeoutMs = 60_000L,
+        )
+        if (!trigger.isSuccess) {
+            return BuildStatus.Failed(
+                error = "触发工作流失败（exit=${trigger.exitCode}）：${trigger.stderr.trim().take(300)}",
+                logs = trigger.stderr.take(2_000),
+            )
+        }
+
+        val run = waitForNewRun(
+            branch = normalizedBranch,
+            baselineId = baselineId,
+            triggerAtMs = triggerAtMs,
+            maxAttempts = maxRunWaitCycles,
+            delayMs = runRegisterDelayMs,
+        ) ?: return BuildStatus.Failed(
+            "未能获取构建 run：触发后未发现 id 大于 $baselineId 且事件为 workflow_dispatch 的新构建",
+        )
+
+        val outcome = pollUntilCompleted(run.databaseId, pollIntervalMs, maxPollAttempts, onStatus)
+        if (outcome.statusText != "completed") {
+            return BuildStatus.Failed("构建超时未完成（最后状态：${outcome.statusText}，run #${run.databaseId}）")
+        }
+        if (outcome.conclusion != "success") {
+            val logs = execute(TaiXuDevBuildCli.checkFailedLog(run.databaseId, repo), timeoutMs = 60_000L)
+            return BuildStatus.Failed(
+                error = "构建失败（conclusion=${outcome.conclusion}，run #${run.databaseId}）",
+                logs = logs.stdout.take(4_000).ifBlank { null },
+            )
+        }
+
+        val runDir = TaiXuDevBuildCli.runDownloadDir(normalizedDir, run.databaseId)
+        TaiXuDevBuildCli.outputDirRejection(runDir)?.let { return BuildStatus.Failed(it) }
+        onStatus(BuildStatus.Downloading(run.databaseId, 0))
+        val prepared = execute(TaiXuDevBuildCli.prepareRunDownloadDir(runDir), timeoutMs = 30_000L)
+        if (!prepared.isSuccess) {
+            return BuildStatus.Failed(
+                error = "创建下载目录失败（exit=${prepared.exitCode}）：${prepared.stderr.trim().take(300)}",
+            )
+        }
+        val download = execute(
+            commandLine = TaiXuDevBuildCli.downloadArtifact(run.databaseId, runDir, repo),
+            timeoutMs = 600_000L,
+        )
+        if (!download.isSuccess) {
+            return BuildStatus.Failed(
+                error = "下载 artifact 失败（exit=${download.exitCode}）：${download.stderr.trim().take(300)}",
+            )
+        }
+
+        val expected = execute(
+            commandLine = TaiXuDevBuildCli.readChecksumFile(),
+            workingDirectory = runDir,
+            timeoutMs = 30_000L,
+        ).stdout.trim().substringBefore(" ").take(64)
+        val actual = execute(
+            commandLine = TaiXuDevBuildCli.computeChecksum(),
+            workingDirectory = runDir,
+            timeoutMs = 120_000L,
+        ).stdout.trim().substringBefore(" ").take(64)
+        if (expected.length != 64 || actual.length != 64 || !expected.equals(actual, ignoreCase = true)) {
+            return BuildStatus.Failed(error = "APK SHA-256 校验失败：期望 $expected，实际 $actual")
+        }
+
+        val apkPath = "$runDir/${TaiXuDevBuildCli.APK_NAME}"
+        val success = BuildStatus.Success(apkPath = apkPath, sha256 = actual)
+        onStatus(success)
+        return success
     }
+
+    /**
+     * 在触发之后轮询 run list。两次查询之间休眠，发现合格的新 run 立即返回。
+     * 次数与（间隔大于 0 时的）截止时间共同构成上界。
+     */
+    private suspend fun waitForNewRun(
+        branch: String,
+        baselineId: Long,
+        triggerAtMs: Long,
+        maxAttempts: Int,
+        delayMs: Long,
+    ): GhWorkflowRun? {
+        if (maxAttempts <= 0) return null
+        val interval = delayMs.coerceAtLeast(0L)
+        val budgetMs = maxAttempts.toLong() * interval
+        val deadlineMs = if (budgetMs == 0L) Long.MAX_VALUE else clock() + budgetMs
+        var attempt = 0
+        while (attempt < maxAttempts && clock() <= deadlineMs) {
+            val listed = execute(TaiXuDevBuildCli.listRuns(branch = branch, repo = repo))
+            if (listed.isSuccess) {
+                val match = TaiXuDevBuildCli.parseRunList(listed.stdout).orEmpty()
+                    .filter { it.isNewRun(baselineId, triggerAtMs, branch) }
+                    .maxByOrNull { it.databaseId }
+                if (match != null) return match
+            }
+            attempt++
+            if (attempt >= maxAttempts || clock() >= deadlineMs) break
+            sleep(interval)
+        }
+        return null
+    }
+
+    private suspend fun pollUntilCompleted(
+        runId: Long,
+        pollIntervalMs: Long,
+        maxPollAttempts: Int,
+        onStatus: (BuildStatus) -> Unit,
+    ): RunOutcome {
+        var statusText = "queued"
+        var conclusion = "null"
+        val attempts = maxPollAttempts.coerceAtLeast(1)
+        for (attempt in 1..attempts) {
+            val status = execute(TaiXuDevBuildCli.runStatus(runId, repo), timeoutMs = 60_000L)
+            if (status.isSuccess) {
+                val parsed = TaiXuDevBuildCli.parseRunStatus(status.stdout)
+                if (parsed != null) {
+                    statusText = parsed.status.ifBlank { "unknown" }
+                    conclusion = parsed.conclusion?.takeIf { it.isNotBlank() && it != "null" } ?: "null"
+                    onStatus(BuildStatus.Running(runId, statusText))
+                    if (statusText == "completed") break
+                }
+            }
+            if (attempt < attempts) sleep(pollIntervalMs)
+        }
+        return RunOutcome(statusText, conclusion)
+    }
+
+    private suspend fun execute(
+        commandLine: String,
+        workingDirectory: String = "/root",
+        timeoutMs: Long = ShellCommand.DEFAULT_TIMEOUT_MS,
+    ): CommandResult = shellRunner.execute(
+        ShellCommand(
+            commandLine = commandLine,
+            workingDirectory = workingDirectory,
+            timeoutMs = timeoutMs,
+        ),
+    )
+
+    private data class RunOutcome(val statusText: String, val conclusion: String)
 }

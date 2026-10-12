@@ -13,16 +13,22 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.WorkflowRepository
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.core.model.workflow.WorkflowApprovalRequest
+import top.wkbin.taixu.core.model.workflow.NodeExecutionOutput
 import top.wkbin.taixu.core.model.workflow.WorkflowRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
 import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
 import top.wkbin.taixu.core.model.workflow.WorkflowRunTrigger
 import top.wkbin.taixu.core.model.workflow.triggerSource
+import top.wkbin.taixu.core.model.workflow.WorkflowRecovery
+import top.wkbin.taixu.core.model.workflow.WorkflowJournalKind
+import top.wkbin.taixu.core.model.workflow.WorkflowJournalEntry
 import top.wkbin.taixu.runtime.LinuxRuntime
 
 /**
@@ -59,6 +65,7 @@ class WorkflowRunManager(
     private val historyWriter = WorkflowHistoryWriter(repository) { message, error -> logger.e(message, error) }
     val historyErrors: StateFlow<Map<String, String>> = historyWriter.errors
     private val runningIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    private val resumeLock = Mutex()
 
     private val _activeRuns = MutableStateFlow<Map<String, WorkflowRuntimeState>>(emptyMap())
     val activeRuns: StateFlow<Map<String, WorkflowRuntimeState>> = _activeRuns.asStateFlow()
@@ -84,8 +91,8 @@ class WorkflowRunManager(
         stopManagedProcesses(executionId)
     }
 
-    fun decide(executionId: String, nodeId: String, approved: Boolean, variables: Map<String, String> = emptyMap()): Boolean =
-        handles[executionId]?.decide(nodeId, approved, variables) ?: false
+    fun decide(executionId: String, nodeId: String, approved: Boolean, variables: Map<String, String> = emptyMap(), reviewToken: String? = null): Boolean =
+        handles[executionId]?.decide(nodeId, approved, variables, reviewToken) ?: false
 
     /**
      * 启动一次运行。运行时未就绪（未安装沙箱/等待超时）时不启动调度，
@@ -110,7 +117,45 @@ class WorkflowRunManager(
                 return WorkflowStartResult(executionId, failure)
             }
         }
-        val handle = scheduler.execute(definition, variables, workspacePath, runScope)
+        val handle = scheduler.execute(definition, variables, workspacePath, runScope,
+            checkpoint = durableCheckpoint(trigger.triggerSource, (trigger as? WorkflowRunTrigger.Schedule)?.scheduleId),
+            environmentId = linuxRuntime.activeDistroId.value)
+        return register(handle, trigger)
+    }
+
+    /** Explicit continuation of the stored definition; retries must match the reviewed snapshot. */
+    suspend fun resume(executionId: String, retryNodeIds: Set<String>, expectedResumeCount: Int, expectedJournalSize: Int): WorkflowStartResult = resumeLock.withLock {
+        fun rejected(message: String) = WorkflowStartResult(executionId, message)
+        if (executionId in runningIds || handles[executionId]?.settled == false) return@withLock rejected("此运行正在执行或收尾，请勿重复继续")
+        val row = repository.findExecutionById(executionId) ?: return@withLock rejected("运行记录不存在")
+        val snapshot = runCatching { json.decodeFromString<WorkflowRuntimeState>(row.finalContextJson) }.getOrNull()
+            ?: return@withLock rejected("运行记录无法读取")
+        if (snapshot.executionId != executionId || snapshot.resumeCount != expectedResumeCount || snapshot.journal.size != expectedJournalSize)
+            return@withLock rejected("运行记录已变化，请重新查看恢复计划")
+        val plan = WorkflowRecovery.inspect(snapshot)
+        if (!plan.canResume) return@withLock rejected(plan.blockedReason!!)
+        if (retryNodeIds != plan.retryNodeIds) return@withLock rejected("请逐个确认所有失败或结果不确定的节点；不允许重试已完成节点")
+        if (linuxRuntime.state.value !is RuntimeState.Ready) return@withLock rejected("Linux 沙箱尚未就绪，请就绪后继续")
+        if (snapshot.runtimeEnvironmentId != linuxRuntime.activeDistroId.value) return@withLock rejected("当前发行版与原运行不同，请先切回原发行版")
+        val interrupted = snapshot.journal.groupBy { it.nodeId }.values.map { it.last() }.filter { it.kind == WorkflowJournalKind.STARTED }
+        val journal = snapshot.journal + interrupted.mapIndexed { index, entry ->
+            WorkflowJournalEntry(snapshot.journal.size + index + 1, entry.nodeId, entry.attempt, WorkflowJournalKind.INTERRUPTED, System.currentTimeMillis())
+        }
+        val previousContext = requireNotNull(snapshot.context)
+        val context = previousContext.copy(nodeOutputs = plan.cachedOutputs,
+            globalVariables = previousContext.globalVariables + plan.cachedOutputs.values.flatMap { it.variables.entries }.associate { it.key to it.value })
+        val restored = snapshot.copy(status = WorkflowRunStatus.IDLE, context = context, finishedAt = null, error = null,
+            journal = journal, resumeCount = snapshot.resumeCount + 1)
+        val trigger = row.scheduleId?.takeIf { row.triggerSource == "SCHEDULE" }?.let { WorkflowRunTrigger.Schedule(it) } ?: WorkflowRunTrigger.Manual
+        register(scheduler.execute(snapshot.definition, emptyMap(), context.workspacePath, runScope,
+            checkpoint = durableCheckpoint(row.triggerSource, row.scheduleId), restored = restored), trigger)
+    }
+
+    private fun durableCheckpoint(source: String, scheduleId: String?): suspend (WorkflowRuntimeState) -> Unit = { state ->
+        check(historyWriter.save(state, source, scheduleId)) { "执行检查点保存失败，已停止派发后续动作" }
+    }
+
+    private fun register(handle: WorkflowRunHandle, trigger: WorkflowRunTrigger): WorkflowStartResult {
         val executionId = handle.state.value.executionId
         handles[executionId] = handle
         runningIds.add(executionId)
@@ -124,6 +169,7 @@ class WorkflowRunManager(
     suspend fun reconcileInterruptedRuns() {
         val unfinished = repository.findUnfinishedExecutions()
         unfinished.forEach { row ->
+            if (row.executionId in runningIds) return@forEach
             val state = runCatching { json.decodeFromString<WorkflowRuntimeState>(row.finalContextJson) }.getOrNull() ?: return@forEach
             if (state.status in TERMINAL) return@forEach
             val reconciled = state.copy(
@@ -140,6 +186,7 @@ class WorkflowRunManager(
         val scheduleId = (trigger as? WorkflowRunTrigger.Schedule)?.scheduleId
         val source = trigger.triggerSource
         var lastPersistAt = 0L
+        var persistedOutputs = emptyMap<String, NodeExecutionOutput>()
         // 审批流订阅必须与本观察协程同生共死：否则每次运行泄漏一个挂在 StateFlow 上的收集协程
         val approvalJob = runScope.launch {
             handle.approvalRequest.collect { request ->
@@ -153,19 +200,24 @@ class WorkflowRunManager(
                 _activeRuns.update { it + (executionId to state) }
                 val terminal = state.status in TERMINAL
                 val now = System.currentTimeMillis()
-                // 首帧必写 RUNNING 面包屑；此后按间隔节流；终态必写最终快照
-                if (terminal || lastPersistAt == 0L || now - lastPersistAt >= BREADCRUMB_INTERVAL_MS) {
-                    if (historyWriter.save(state, source, scheduleId)) lastPersistAt = now
+                // 已结算结果（含结构化值与产物路径）不受日志刷新节流影响。
+                val outputs = state.context?.nodeOutputs.orEmpty()
+                if (terminal || outputs != persistedOutputs || lastPersistAt == 0L || now - lastPersistAt >= BREADCRUMB_INTERVAL_MS) {
+                    if (historyWriter.save(state, source, scheduleId)) {
+                        lastPersistAt = now
+                        persistedOutputs = outputs
+                    }
                 }
                 terminal
             }
         } finally {
             approvalJob.cancel()
-            finishRun(executionId)
+            finishRun(handle)
         }
     }
 
-    private fun finishRun(executionId: String) {
+    private fun finishRun(handle: WorkflowRunHandle) {
+        val executionId = handle.state.value.executionId
         if (runningIds.remove(executionId)) {
             _running.value = runningIds.isNotEmpty()
             _pendingApprovals.update { it - executionId }
@@ -173,9 +225,12 @@ class WorkflowRunManager(
             // 终态句柄保留一段时间供 UI 回看，之后从注册表与 activeRuns 中回收
             runScope.launch {
                 delay(RECLAIM_DELAY_MS)
-                handles.remove(executionId)
-                _activeRuns.update { it - executionId }
-                historyWriter.forget(executionId)
+                resumeLock.withLock {
+                    if (handles.remove(executionId, handle)) {
+                        _activeRuns.update { it - executionId }
+                        historyWriter.forget(executionId)
+                    }
+                }
             }
         }
     }

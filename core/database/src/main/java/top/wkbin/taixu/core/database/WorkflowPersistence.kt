@@ -244,7 +244,7 @@ class RoomWorkflowRepository(
         // The catalog exposes built-ins optimistically before Room initialization finishes.
         // Ensure the parent exists so a very fast run cannot violate the execution FK.
         dao.saveRun(
-            state.definition.toEntity(),
+            (state.baseDefinition ?: state.definition).toEntity(),
             WorkflowExecutionLogEntity(
                 executionId = state.executionId,
                 workflowId = state.definition.id,

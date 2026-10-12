@@ -1,0 +1,154 @@
+package top.wkbin.taixu.iteration.engine
+
+import java.time.Instant
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import top.wkbin.taixu.core.common.shell.ShellQuote
+
+/**
+ * GitHub CLI 命令模板、分支校验与 run JSON 解析。
+ *
+ * 所有会进入 shell 的外部值都经 [ShellQuote] 做 POSIX 单引号转义；
+ * 分支名另有白名单，拒绝在引号之前就无法构成合法 git ref 的输入。
+ */
+internal object TaiXuDevBuildCli {
+    const val WORKFLOW = "taixudev-build.yml"
+    const val ARTIFACT = "taixudev-apk"
+    const val APK_NAME = "TaiXuDev-arm64-debug.apk"
+    const val DEFAULT_REPO = "wkbin/taixu"
+
+    /**
+     * PRoot 沙盒内可见的下载目录。
+     *
+     * [top.wkbin.taixu.runtime.LinuxRuntimeImpl] 在下载挂载开启时把宿主
+     * `/storage/emulated/0/Download` 绑定到 guest `/sdcard/Download`；共享存储开启时则把
+     * `/storage/emulated/0` 绑定到 `/sdcard`。宿主路径 `/storage/emulated/0/Download`
+     * 在沙盒里没有对应目录。
+     */
+    const val DEFAULT_OUTPUT_DIR = "/sdcard/Download"
+    const val RUN_LIST_LIMIT = 30
+
+    /**
+     * 手机时钟可能略快于 GitHub。时间戳比较放宽这一小段，避免刚触发的 run 被误判为过期；
+     * 仍然要求 databaseId 大于触发前的基线，旧 run 不会因此被接受。
+     */
+    const val TRIGGER_CLOCK_SKEW_MS = 120_000L
+
+    private val BRANCH_PATTERN = Regex("^[A-Za-z0-9._/-]+$")
+    private val REPO_PATTERN = Regex("^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$")
+    private val json = Json { ignoreUnknownKeys = true }
+
+    /** 返回拒绝原因；空白、前导 `-`、`..` 以及白名单外字符都拒绝。合法时返回 null。 */
+    fun branchRejection(raw: String): String? {
+        val branch = raw.trim()
+        if (branch.isEmpty()) return "分支名不能为空"
+        if (branch.startsWith("-")) return "分支名不能以 - 开头"
+        if (".." in branch) return "分支名不能包含 .."
+        if (!BRANCH_PATTERN.matches(branch)) return "分支名含有不允许的字符"
+        return null
+    }
+
+    /** 下载目录必须是沙盒内绝对路径，且不能用 `..` 跳出该目录。 */
+    fun outputDirRejection(raw: String): String? {
+        val dir = raw.trim()
+        if (dir.isEmpty()) return "下载目录不能为空"
+        if (!dir.startsWith("/")) return "下载目录必须是沙盒内的绝对路径"
+        if (dir.any { it == '\n' || it == '\r' || it == '\u0000' }) return "下载目录含有非法字符"
+        if (dir.split('/').any { it == ".." }) return "下载目录不能包含 .."
+        return null
+    }
+
+    fun repoRejection(repo: String): String? =
+        if (REPO_PATTERN.matches(repo)) null else "仓库标识必须是 owner/name"
+
+    fun triggerWorkflow(
+        workflowName: String = WORKFLOW,
+        branch: String = "main",
+        repo: String = DEFAULT_REPO,
+    ): String = "gh workflow run ${q(workflowName)} --ref ${q(branch)} -R ${q(repo)}"
+
+    fun watchWorkflow(runId: Long, repo: String = DEFAULT_REPO): String =
+        "gh run watch $runId --exit-status -R ${q(repo)}"
+
+    fun listRuns(
+        workflowName: String = WORKFLOW,
+        branch: String = "main",
+        repo: String = DEFAULT_REPO,
+    ): String = "gh run list --workflow ${q(workflowName)} --branch ${q(branch)} " +
+        "--limit $RUN_LIST_LIMIT -R ${q(repo)} " +
+        "--json databaseId,createdAt,status,conclusion,event,headBranch"
+
+    fun runStatus(runId: Long, repo: String = DEFAULT_REPO): String =
+        "gh run view $runId -R ${q(repo)} --json status,conclusion"
+
+    fun downloadArtifact(
+        runId: Long,
+        outputDir: String = DEFAULT_OUTPUT_DIR,
+        repo: String = DEFAULT_REPO,
+    ): String = "gh run download $runId -n ${q(ARTIFACT)} -D ${q(outputDir)} -R ${q(repo)}"
+
+    /**
+     * 每次构建单独一个目录。`gh run download` 拒绝覆盖已有文件，
+     * 旧 run 留在父目录里的 apk / .sha256 也不会被拿来和新产物比对。
+     */
+    fun runDownloadDir(outputDir: String, runId: Long): String =
+        outputDir.trim().trimEnd('/') + "/taixudev-" + runId
+
+    /** 只删除这一次 run 的目录，再重建。父目录里其他文件不动。 */
+    fun prepareRunDownloadDir(runDir: String): String =
+        "rm -rf ${q(runDir)} && mkdir -p ${q(runDir)}"
+
+    fun computeChecksum(apkName: String = APK_NAME): String =
+        "sha256sum ${q(apkName)}"
+
+    fun readChecksumFile(apkName: String = APK_NAME): String =
+        "cat ${q("$apkName.sha256")}"
+
+    fun checkFailedLog(runId: Long, repo: String = DEFAULT_REPO): String =
+        "gh run view $runId --log-failed -R ${q(repo)}"
+
+    /**
+     * 解析 `gh run list --json` 的 stdout。
+     * 空输出视为没有 run；非法 JSON 返回 null，调用方必须失败关闭，不能把解析失败当成「没有旧 run」。
+     */
+    fun parseRunList(stdout: String): List<GhWorkflowRun>? {
+        val trimmed = stdout.trim()
+        if (trimmed.isEmpty()) return emptyList()
+        return runCatching { json.decodeFromString<List<GhWorkflowRun>>(trimmed) }.getOrNull()
+    }
+
+    fun parseRunStatus(stdout: String): GhRunStatus? {
+        val trimmed = stdout.trim()
+        if (trimmed.isEmpty()) return null
+        return runCatching { json.decodeFromString<GhRunStatus>(trimmed) }.getOrNull()
+    }
+
+    private fun q(value: String): String = ShellQuote.of(value)
+}
+
+@Serializable
+internal data class GhWorkflowRun(
+    val databaseId: Long = 0L,
+    val createdAt: String = "",
+    val status: String = "",
+    val conclusion: String? = null,
+    val event: String = "",
+    val headBranch: String = "",
+) {
+    fun createdAtEpochMs(): Long? = runCatching { Instant.parse(createdAt).toEpochMilli() }.getOrNull()
+
+    /** 新构建必须同时满足：id 大于基线、创建时间不早于触发时刻、事件为 workflow_dispatch、分支一致。 */
+    fun isNewRun(baselineId: Long, triggerAtMs: Long, branch: String): Boolean {
+        if (databaseId <= baselineId) return false
+        if (event != "workflow_dispatch") return false
+        if (headBranch != branch) return false
+        val created = createdAtEpochMs() ?: return false
+        return created >= triggerAtMs - TaiXuDevBuildCli.TRIGGER_CLOCK_SKEW_MS
+    }
+}
+
+@Serializable
+internal data class GhRunStatus(
+    val status: String = "",
+    val conclusion: String? = null,
+)

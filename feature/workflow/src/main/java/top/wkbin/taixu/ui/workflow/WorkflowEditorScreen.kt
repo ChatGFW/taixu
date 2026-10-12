@@ -39,7 +39,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -68,7 +67,6 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -104,7 +102,7 @@ fun WorkflowEditorView(
     onConnect: (String) -> Unit,
     onAddNode: (WorkflowNodeType) -> Unit,
     onUpdateNode: (WorkflowNode) -> Unit,
-    onUpdateMetadata: (String, String, String) -> Unit,
+    onUpdateMetadata: (String, String, String, Int) -> Unit,
     onRemoveNode: () -> Unit,
     onRemoveNodeById: (String) -> Unit = {},
     onConnectNodes: (String, String, String, String?) -> Unit = { _, _, _, _ -> },
@@ -903,7 +901,7 @@ private fun EditorInspector(
     state: WorkflowEditorUiState,
     activeRunState: WorkflowRuntimeState?,
     onUpdateNode: (WorkflowNode) -> Unit,
-    onUpdateMetadata: (String, String, String) -> Unit,
+    onUpdateMetadata: (String, String, String, Int) -> Unit,
     onBeginConnection: (String) -> Unit,
     onCancelConnection: () -> Unit,
     onRemoveNode: () -> Unit,
@@ -983,44 +981,6 @@ private fun EditorInspector(
 }
 
 @Composable
-private fun WorkflowMetadataCard(state: WorkflowEditorUiState, onApply: (String, String, String) -> Unit) {
-    var name by remember(state.definition.id, state.definition.name) { mutableStateOf(state.definition.name) }
-    var description by remember(state.definition.id, state.definition.description) { mutableStateOf(state.definition.description) }
-    var category by remember(state.definition.id, state.definition.category) { mutableStateOf(state.definition.category) }
-    var expanded by remember { mutableStateOf(false) }
-
-    RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("工作流信息", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text(
-                    text = if (expanded) "收起" else "修改",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            if (expanded) {
-                OutlinedTextField(name, { name = it }, label = { Text("工作流名称") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(category, { category = it }, label = { Text("分类") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(description, { description = it }, label = { Text("说明") }, minLines = 2, maxLines = 3, modifier = Modifier.fillMaxWidth())
-                RuntimeOutlinedButton(onClick = { onApply(name, description, category) }, modifier = Modifier.align(Alignment.End)) { Text("应用信息") }
-            } else {
-                Text(
-                    text = "${name} · [${category}] - ${description.ifBlank { "暂无说明" }}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun NodeInspectorCard(
     state: WorkflowEditorUiState,
     node: WorkflowNode,
@@ -1037,7 +997,6 @@ private fun NodeInspectorCard(
     var description by remember(node.id, node.description) { mutableStateOf(node.description) }
     var timeout by remember(node.id, node.timeoutSeconds) { mutableStateOf(node.timeoutSeconds.toString()) }
     var policy by remember(node.id, node.failurePolicy) { mutableStateOf(node.failurePolicy) }
-    var policyExpanded by remember { mutableStateOf(false) }
 
     val configMap = remember(node.id, node.config) {
         mutableStateMapOf<String, String>().apply { putAll(node.config) }
@@ -1224,55 +1183,8 @@ private fun NodeInspectorCard(
                     )
                 }
 
-                WorkflowNodeType.AGENT_INFERENCE -> {
-                    OutlinedTextField(
-                        value = configMap["prompt"].orEmpty(),
-                        onValueChange = { configMap["prompt"] = it },
-                        label = { Text("任务需求 / 提示词（必填）") },
-                        placeholder = { Text("例如：审阅上一节点的差异并提出优化建议") },
-                        supportingText = { Text("支持使用 \${previous.output} 引用上游节点输出") },
-                        minLines = 3,
-                        maxLines = 6,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = configMap["role"].orEmpty(),
-                        onValueChange = { configMap["role"] = it },
-                        label = { Text("智能体角色（可选）") },
-                        placeholder = { Text("例如：Android 资深架构师") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = configMap["modelId"].orEmpty(),
-                        onValueChange = { configMap["modelId"] = it },
-                        label = { Text("固定模型配置 ID（可选）") },
-                        placeholder = { Text("留空则使用运行时选择的 WORKFLOW_MODEL_ID") },
-                        supportingText = { Text("优先于运行对话框所选模型；一般留空即可") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-
-                WorkflowNodeType.SUBAGENT_DELEGATE -> {
-                    OutlinedTextField(
-                        value = configMap["prompt"].orEmpty(),
-                        onValueChange = { configMap["prompt"] = it },
-                        label = { Text("子任务需求（必填）") },
-                        placeholder = { Text("例如：执行单元测试并尝试修复失败用例") },
-                        minLines = 3,
-                        maxLines = 5,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = configMap["role"].orEmpty(),
-                        onValueChange = { configMap["role"] = it },
-                        label = { Text("子智能体角色（可选）") },
-                        placeholder = { Text("例如：测试修复助手") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                WorkflowNodeType.AGENT_INFERENCE -> WorkflowAgentFields(configMap, delegate = false)
+                WorkflowNodeType.SUBAGENT_DELEGATE -> WorkflowAgentFields(configMap, delegate = true)
 
                 WorkflowNodeType.TAIXU_BUILD -> {
                     var modeExpanded by remember { mutableStateOf(false) }
@@ -1334,15 +1246,7 @@ private fun NodeInspectorCard(
                 }
 
                 WorkflowNodeType.HUMAN_APPROVAL -> {
-                    OutlinedTextField(
-                        value = configMap["prompt"].orEmpty(),
-                        onValueChange = { configMap["prompt"] = it },
-                        label = { Text("审批确认说明（必填）") },
-                        placeholder = { Text("例如：是否确认将修复推送到远程仓库？") },
-                        minLines = 2,
-                        maxLines = 4,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    WorkflowApprovalFields(configMap)
                 }
 
                 WorkflowNodeType.TRIGGER -> {
@@ -1399,26 +1303,7 @@ private fun NodeInspectorCard(
                 )
             }
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = timeout,
-                    onValueChange = { timeout = it.filter(Char::isDigit).take(4) },
-                    label = { Text("超时（秒）") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                )
-                Column(Modifier.weight(1.2f)) {
-                    RuntimeOutlinedButton(onClick = { policyExpanded = true }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        Text("策略：${policy.editorLabel()}", maxLines = 1)
-                    }
-                    DropdownMenu(expanded = policyExpanded, onDismissRequest = { policyExpanded = false }) {
-                        FailurePolicy.entries.forEach { item ->
-                            DropdownMenuItem(text = { Text(item.editorLabel()) }, onClick = { policy = item; policyExpanded = false })
-                        }
-                    }
-                }
-            }
+            WorkflowNodePolicyFields(node.type, timeout, { timeout = it }, policy, { policy = it })
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RuntimeOutlinedButton(
@@ -1429,17 +1314,21 @@ private fun NodeInspectorCard(
                 }
                 RuntimeButton(
                     onClick = {
-                        val finalConfig = if (showAdvancedJson && parsedConfig != null) parsedConfig else configMap.toMap()
+                        val finalConfig = if (showAdvancedJson) parsedConfig ?: return@RuntimeButton else configMap.toMap()
+                        val timeoutValue = if (node.type == WorkflowNodeType.HUMAN_APPROVAL) node.timeoutSeconds
+                            else timeout.toIntOrNull()?.takeIf { it in 1..3600 } ?: return@RuntimeButton
                         onApply(
                             node.copy(
                                 title = title.trim().ifBlank { node.title },
                                 description = description.trim(),
-                                timeoutSeconds = timeout.toIntOrNull()?.coerceIn(1, 7200) ?: node.timeoutSeconds,
+                                timeoutSeconds = timeoutValue,
                                 config = finalConfig,
                                 failurePolicy = policy,
                             ),
                         )
                     },
+                    enabled = (node.type == WorkflowNodeType.HUMAN_APPROVAL || timeout.toIntOrNull()?.let { it in 1..3600 } == true) &&
+                        (!showAdvancedJson || parsedConfig != null),
                     modifier = Modifier.weight(1f),
                 ) {
                     Text("应用参数更改", maxLines = 1)
@@ -1994,13 +1883,6 @@ fun WorkflowNodeType.metadata(): NodeTypeMeta = when (this) {
 }
 
 private fun WorkflowNodeType.editorLabel() = metadata().label
-
-private fun FailurePolicy.editorLabel() = when (this) {
-    FailurePolicy.ABORT -> "终止流程"
-    FailurePolicy.CONTINUE -> "继续执行"
-    FailurePolicy.RETRY_ONCE -> "重试一次"
-    FailurePolicy.ASK_USER -> "询问用户"
-}
 
 private fun String.portLabel() = when (lowercase()) {
     "success" -> "成功 (success)"

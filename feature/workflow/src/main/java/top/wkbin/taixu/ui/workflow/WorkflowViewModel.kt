@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -27,6 +28,7 @@ import top.wkbin.taixu.core.model.workflow.BuiltinWorkflows
 import top.wkbin.taixu.core.model.workflow.FailurePolicy
 import top.wkbin.taixu.core.model.workflow.WorkflowApprovalRequest
 import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
+import top.wkbin.taixu.core.model.workflow.WorkflowDefinitionImport
 import top.wkbin.taixu.core.model.workflow.WorkflowEdge
 import top.wkbin.taixu.core.model.workflow.WorkflowNode
 import top.wkbin.taixu.core.model.workflow.WorkflowNodeType
@@ -39,22 +41,6 @@ import top.wkbin.taixu.runtime.gui.WorkflowGuiHudBridge
 import top.wkbin.taixu.ui.workflow.hud.WorkflowHudService
 import java.io.File
 import top.wkbin.taixu.core.model.workflow.WorkflowLayout
-
-data class DiscoveredApk(
-    val file: File,
-    val name: String,
-    val relativePath: String,
-    val sandboxPath: String,
-    val sizeBytes: Long,
-    val lastModified: Long,
-)
-
-/** 历史列表条目：运行快照 + 触发来源（供列表标注与「重跑」）。 */
-data class WorkflowHistoryEntry(
-    val state: WorkflowRuntimeState,
-    val triggerSource: String,
-    val scheduleId: String?,
-)
 
 class WorkflowViewModel(
     private val repository: WorkflowRepository,
@@ -127,7 +113,9 @@ class WorkflowViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val approvalRequest: StateFlow<WorkflowApprovalRequest?> = _viewingRunId.flatMapLatest { id ->
+    val approvalRequest: StateFlow<WorkflowApprovalRequest?> = combine(_viewingRunId, runManager.activeRuns) { id, runs ->
+        id to runs[id]?.resumeCount
+    }.distinctUntilChanged().flatMapLatest { (id, _) ->
         id?.let { runManager.approvalRequestFor(it) } ?: flowOf(null)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -156,17 +144,25 @@ class WorkflowViewModel(
         launchAndShow(definition, variables, workspace)
     }
 
-    /** 从历史快照直接重跑：沿用当时的定义、全局变量与目标工作区，不再弹确认表单。 */
+    /** 历史重跑使用扩图前定义及保存的变量/工作区，动态提案重新规划并审批。 */
     fun rerun(entry: WorkflowHistoryEntry) {
         val snapshot = entry.state
         val workspace = snapshot.context?.workspacePath?.takeIf { it.startsWith('/') } ?: "/workspace"
-        launchAndShow(snapshot.definition, snapshot.context?.globalVariables ?: emptyMap(), workspace)
+        launchAndShow(snapshot.baseDefinition ?: snapshot.definition, snapshot.context?.globalVariables ?: emptyMap(), workspace)
     }
 
     private fun launchAndShow(definition: WorkflowDefinition, variables: Map<String, String>, workspace: String) {
+        launchAndShow { runManager.start(definition, variables, workspace) }
+    }
+
+    fun resume(state: WorkflowRuntimeState, retryNodeIds: Set<String>) {
+        launchAndShow { runManager.resume(state.executionId, retryNodeIds, state.resumeCount, state.journal.size) }
+    }
+
+    private fun launchAndShow(action: suspend () -> WorkflowRunManager.WorkflowStartResult) {
         // 运行所有权在 WorkflowRunManager（进程级），离开页面/销毁 ViewModel 不再取消运行
         viewModelScope.launch {
-            val result = runManager.start(definition, variables, workspace)
+            val result = action()
             if (!result.accepted) {
                 _error.value = result.failureReason
                 return@launch
@@ -184,9 +180,9 @@ class WorkflowViewModel(
         _viewingRunId.value = executionId
     }
 
-    fun decide(nodeId: String, approved: Boolean, variables: Map<String, String> = emptyMap()) {
+    fun decide(nodeId: String, approved: Boolean, variables: Map<String, String> = emptyMap(), reviewToken: String? = null) {
         val executionId = _viewingRunId.value ?: return
-        runManager.decide(executionId, nodeId, approved, variables)
+        runManager.decide(executionId, nodeId, approved, variables, reviewToken)
     }
 
     fun cancel() {
@@ -209,24 +205,9 @@ class WorkflowViewModel(
         }
     }
 
-    fun createWorkflow() {
-        val suffix = UUID.randomUUID().toString().take(8)
-        openEditor(
-            WorkflowDefinition(
-                id = "workflow_$suffix",
-                name = "新工作流",
-                description = "在画布中添加并连接节点",
-                category = "自定义",
-                trigger = WorkflowTrigger.Manual(),
-                nodes = listOf(
-                    WorkflowNode("start", WorkflowNodeType.TRIGGER, "手动触发", canvasX = 80f, canvasY = 160f),
-                    WorkflowNode("done", WorkflowNodeType.TERMINAL_OUTPUT, "完成", canvasX = 420f, canvasY = 160f),
-                ),
-                edges = listOf(WorkflowEdge("edge_start_done", "start", "output", "done")),
-            ),
-            initiallySaved = false,
-        )
-    }
+    fun createWorkflow() = openEditor(blankWorkflowDefinition(), initiallySaved = false)
+
+    fun importWorkflow(definition: WorkflowDefinition) = openEditor(WorkflowDefinitionImport.fresh(definition), initiallySaved = false)
 
     fun edit(definition: WorkflowDefinition) {
         if (definition.isBuiltin) {
@@ -300,8 +281,8 @@ class WorkflowViewModel(
         mutate(selectedNodeId = node.id) { WorkflowGraphEditor.addNode(it, node) }
     }
 
-    fun updateMetadata(name: String, description: String, category: String) = mutate {
-        it.copy(name = name, description = description, category = category, updatedAt = System.currentTimeMillis())
+    fun updateMetadata(name: String, description: String, category: String, maxParallelNodes: Int) = mutate {
+        updatedWorkflowMetadata(it, name, description, category, maxParallelNodes)
     }
 
     fun updateNode(node: WorkflowNode) = mutate(selectedNodeId = node.id) { WorkflowGraphEditor.updateNode(it, node) }
