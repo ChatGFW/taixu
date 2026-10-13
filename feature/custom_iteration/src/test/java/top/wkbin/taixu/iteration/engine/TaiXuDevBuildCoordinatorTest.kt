@@ -4,6 +4,7 @@ import java.time.Instant
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator.BuildStatus
@@ -35,6 +36,8 @@ class TaiXuDevBuildCoordinatorTest {
         var mkdirResult = CommandResult(0, "", "", 0)
         var checksumResult = CommandResult(0, "$SHA_OK  TaiXuDev-arm64-debug.apk", "", 0)
         var checksumFileResult = CommandResult(0, "$SHA_OK  output/TaiXuDev-arm64-debug.apk", "", 0)
+        /** `git remote get-url origin` 的结果；默认失败 → 走 fallbackRepo。 */
+        var originResult: CommandResult = CommandResult(1, "", "error: No such remote 'origin'", 0)
 
         override suspend fun execute(command: ShellCommand): CommandResult {
             commands += command
@@ -50,6 +53,7 @@ class TaiXuDevBuildCoordinatorTest {
                 line.startsWith("rm ") || line.startsWith("mkdir ") -> mkdirResult
                 line.startsWith("sha256sum") -> checksumResult
                 line.startsWith("cat ") -> checksumFileResult
+                line.startsWith("git remote get-url") -> originResult
                 else -> CommandResult(1, "", "unexpected: $line", 0)
             }
         }
@@ -110,7 +114,7 @@ class TaiXuDevBuildCoordinatorTest {
         shellRunner = fake,
         sleep = { delayMs -> sleeps?.add(delayMs) },
         clock = { TRIGGER_MS },
-        repo = repo,
+        fallbackRepo = repo,
     )
 
     private suspend fun TaiXuDevBuildCoordinator.runFast(
@@ -342,6 +346,74 @@ class TaiXuDevBuildCoordinatorTest {
         ghCommands.forEach { line ->
             assertTrue(line, line.contains("-R 'wkbin/taixu'"))
         }
+    }
+
+    @Test
+    fun `origin remote overrides the fallback repository`() = runTest {
+        val fake = FakeShellRunner().apply {
+            originResult = CommandResult(0, "https://github.com/haotaoran520/taixu.git\n", "", 0)
+            seedNewRun("feature/x")
+        }
+        val final = coordinator(fake).runFast()
+
+        assertTrue(final is BuildStatus.Success)
+        val lines = fake.commands.map { it.commandLine }
+        assertTrue(
+            "every gh command must target the fork: $lines",
+            lines.filter { it.startsWith("gh ") }.all { it.contains("-R 'haotaoran520/taixu'") },
+        )
+        assertTrue(lines.none { it.contains("-R 'wkbin/taixu'") })
+        assertTrue(lines.any { it == "git remote get-url origin" })
+    }
+
+    @Test
+    fun `unparseable origin fails closed instead of hitting the official repo`() = runTest {
+        val fake = FakeShellRunner().apply {
+            originResult = CommandResult(0, "https://gitlab.com/someone/taixu.git\n", "", 0)
+        }
+        val final = coordinator(fake).runFast()
+
+        assertTrue(final is BuildStatus.Failed)
+        assertTrue(
+            "must explain the repo could not be resolved: ${(final as BuildStatus.Failed).error}",
+            final.error.contains("无法确定构建目标仓库"),
+        )
+        assertTrue(fake.commands.none { it.commandLine.startsWith("gh ") })
+    }
+
+    @Test
+    fun `missing origin falls back to the official repository`() = runTest {
+        val fake = FakeShellRunner().apply { seedNewRun("feature/x") }
+        val final = coordinator(fake).runFast()
+
+        assertTrue(final is BuildStatus.Success)
+        assertTrue(fake.commands.any { it.commandLine == "git remote get-url origin" })
+        assertTrue(
+            fake.commands.filter { it.commandLine.startsWith("gh ") }
+                .all { it.commandLine.contains("-R 'wkbin/taixu'") },
+        )
+    }
+
+    @Test
+    fun `remote url parsing covers https ssh and scp forms`() {
+        val cases = mapOf(
+            "https://github.com/owner/name.git" to "owner/name",
+            "https://github.com/owner/name" to "owner/name",
+            "https://github.com/owner/name/" to "owner/name",
+            "git@github.com:owner/name.git" to "owner/name",
+            "ssh://git@github.com/owner/name.git" to "owner/name",
+            "ssh://git@github.com:22/owner/name.git" to "owner/name",
+        )
+        cases.forEach { (url, expected) ->
+            assertEquals("url=$url", expected, TaiXuDevBuildCli.parseGitHubSlug(url))
+        }
+        listOf(
+            "",
+            "https://gitlab.com/owner/name.git",
+            "https://github.com/owner",
+            "https://github.com/a/b/c.git",
+            "not-a-url",
+        ).forEach { assertNull("url=$it", TaiXuDevBuildCli.parseGitHubSlug(it)) }
     }
 
     @Test

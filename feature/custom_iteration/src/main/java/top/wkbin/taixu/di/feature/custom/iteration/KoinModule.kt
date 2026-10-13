@@ -1,21 +1,40 @@
 package top.wkbin.taixu.di.feature.custom.iteration
 
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
-import top.wkbin.taixu.ui.iteration.CustomIterationViewModel
+import top.wkbin.taixu.iteration.engine.CustomIterationBootstrap
+import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCli
+import top.wkbin.taixu.iteration.engine.CustomIterationPaths
 import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator
 import top.wkbin.taixu.runtime.LinuxRuntime
-import org.koin.core.module.dsl.viewModel
+import top.wkbin.taixu.runtime.RuntimePathManager
+import top.wkbin.taixu.ui.iteration.CustomIterationViewModel
 
 /** Dependency registrations owned by the feature:custom_iteration module. */
 val featureCustomIterationModule = module {
-    // CI 构建协调器：ShellRunner 绑定 LinuxRuntime 标准契约，在沙盒内执行 gh 命令
+    // CI 构建协调器：ShellRunner 绑定 LinuxRuntime 标准契约，在沙盒内执行 gh 命令。
+    // 目标仓库不在此写死——协调器运行时从工作区 `origin` 解析（Fork 后自动指向主人账户）。
     factory<TaiXuDevBuildCoordinator> {
         TaiXuDevBuildCoordinator(
             shellRunner = { command -> get<LinuxRuntime>().execute(command) },
+            fallbackRepo = TaiXuDevBuildCli.DEFAULT_REPO,
+            workspaceDir = CustomIterationBootstrap.GUEST_WORKSPACE,
         )
     }
 
     viewModel<CustomIterationViewModel> {
-        CustomIterationViewModel(application = get(), buildCoordinator = get())
+        CustomIterationViewModel(
+            application = get(),
+            buildCoordinator = get(),
+            // 点击时刻解析：RootFS 安装/发行版切换会改变这些路径，不能构造期快照
+            resolvePaths = {
+                val paths = get<RuntimePathManager>()
+                CustomIterationPaths(
+                    hostHomeDir = paths.homeDir,
+                    attachmentsDir = paths.attachmentsDir,
+                    workspaceDir = paths.workspaceDir,
+                )
+            },
+        )
     }
 }
