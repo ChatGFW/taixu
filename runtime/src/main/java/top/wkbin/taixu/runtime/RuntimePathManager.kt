@@ -33,6 +33,8 @@ class RuntimePathManager(
     val attachmentsDir: File = File(baseDir, "attachments")
     private val legacyAttachmentsDir: File = File(appFilesDir, "attachments")
     val cacheDir: File = File(baseDir, "cache")
+    /** Raw command spools are outside guest mounts and Android backup. */
+    val commandOutputCacheDir: File by lazy { File(context.cacheDir, "command-output") }
     val tmpDir: File = File(baseDir, "tmp")
     val logsDir: File = File(baseDir, "logs")
     val metadataDir: File = File(baseDir, "metadata")

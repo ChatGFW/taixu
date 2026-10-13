@@ -54,6 +54,7 @@ import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.CapabilityEvent
 import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.SkillSuggestion
+import top.wkbin.taixu.harness.TaskDelivery
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.checkpoint.RewindScope
 import top.wkbin.taixu.harness.ToolResult
@@ -74,9 +75,7 @@ import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.harness.AskUserQuestions
 import top.wkbin.taixu.harness.session.ConversationBranch
 
-/**
- * 工具卡片折叠状态 Saver：Map 本身不能存入 Bundle（rememberSaveable 会抛 IllegalArgumentException），
- * 把 entries 序列化为 ArrayList<Pair<String, Boolean>>（两者均可安全保存）。
+/** 工具卡片折叠状态 Saver：Map 不能存入 Bundle，故把 entries 转为安全的 ArrayList<Pair<String, Boolean>>。
  */
 private val ExpandedOverridesSaver = Saver<Map<String, Boolean>, ArrayList<Pair<String, Boolean>>>(
     save = { state -> ArrayList(state.map { (key, value) -> key to value }) },
@@ -219,6 +218,7 @@ internal fun ChatMessageList(
                     is ChatRenderItem.MessageItem -> {
                         when (val message = item.message) {
                             is CapabilityEvent -> CapabilityEventCard(message)
+                            is TaskDelivery -> TaskDeliveryCard(message)
                             is SkillSuggestion -> if (message.id !in hiddenSkillSuggestions) {
                                 SkillSuggestionCard(
                                     suggestion = message,

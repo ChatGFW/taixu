@@ -55,6 +55,9 @@ import top.wkbin.taixu.core.database.AgentPlanEntity
 import top.wkbin.taixu.core.database.AgentSkillEntity
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.session.SessionTreeStore
+import top.wkbin.taixu.harness.operation.OperationCoordinator
+import top.wkbin.taixu.harness.operation.ReplayPolicy
+import top.wkbin.taixu.harness.events.HarnessEventBus
 
 /**
  * API 上下文组装器全栈集成测试：真实 Room（会话树 + 压缩树）+ 真实 DataStore 偏好 +
@@ -68,6 +71,7 @@ class ApiContextAssemblerTest {
     private lateinit var database: AppDatabase
     private lateinit var store: SessionTreeStore
     private lateinit var assembler: ApiContextAssembler
+    private lateinit var operations: OperationCoordinator
     private lateinit var compactionManager: CompactionManager
     private lateinit var agentContextRepository: RoomAgentContextRepository
     private val tempDir = File(System.getProperty("java.io.tmpdir"), "taixu-assembler-${System.nanoTime()}")
@@ -81,6 +85,7 @@ class ApiContextAssemblerTest {
         val runtimeRepo = RoomHarnessRuntimeRepository(database.harnessRuntimeDao())
         val logger = AppLogger(context, SensitiveDataRedactor { it })
         val json = Json { ignoreUnknownKeys = true }
+        operations = OperationCoordinator(runtimeRepo, json, HarnessEventBus())
         val agentPrefs = AgentPreferences(SettingsDataStore(context, SecretManager()))
 
         store = SessionTreeStore(runtimeRepo, json, logger)
@@ -111,6 +116,7 @@ class ApiContextAssemblerTest {
             sessionStore = store,
             memoryRecallSelector = MemoryRecallSelector(agentContextRepository),
             agentApprovalRepository = AgentApprovalRepository(database.agentApprovalDao()),
+            operationCoordinator = operations,
         )
     }
 
@@ -133,6 +139,36 @@ class ApiContextAssemblerTest {
 
     private fun jsonTextModel(vision: Boolean = false) =
         nativeModel(vision).copy(toolCallMode = ToolCallMode.JSON_TEXT)
+
+    @Test fun `failure memory survives compaction and stays outside the system prefix in both protocols`() = runBlocking {
+        val session = "failure-memory"
+        val operation = operations.acceptRun(session, UserMessage("memory-input", 1, "goal"))
+        val call = ToolCall("memory-call", 2, HarnessTool.BASE, buildJsonObject { }, rawToolName = "base")
+        operations.toolIntent(operation, call, "{}", ReplayPolicy.NEVER, 1)
+        operations.toolSettled(operation, ToolResult("memory-result", 3, call.id, false, "failed"), 1)
+        operations.providerSettled(operation, AssistantText("memory-answer", 4, "continue"), round = 2)
+        val before = compactionManager.project(session)
+        compactionManager.compact(session, before, 3)
+        assertTrue(compactionManager.project(session).messages.none { it is ToolResult })
+        for (mode in listOf(ToolCallMode.NATIVE, ToolCallMode.JSON_TEXT)) {
+            val request = assembler.assemble(session, nativeModel().copy(toolCallMode = mode), "/workspace/p")
+            assertEquals("user", request.last().role)
+            assertTrue(request.last().content!!.contains("本次运行的失败记忆"))
+            assertTrue(request.last().content!!.contains("memory-call / memory-result"))
+            assertFalse(request.filter { it.role == "system" }.any { it.content.orEmpty().contains("本次运行的失败记忆") })
+        }
+    }
+
+    @Test fun `pure chat and disabled tools do not receive operation failure background`() = runBlocking {
+        val session = "memory-disabled"
+        val operation = operations.acceptRun(session, UserMessage("disabled-input", 1, "goal"))
+        val call = ToolCall("disabled-call", 2, HarnessTool.BASE, buildJsonObject { })
+        operations.toolIntent(operation, call, "{}", ReplayPolicy.NEVER, 1)
+        operations.toolSettled(operation, ToolResult("disabled-result", 3, call.id, false, "failed"), 1)
+        for (model in listOf(nativeModel().copy(pureChatMode = true), nativeModel().copy(toolCallMode = ToolCallMode.DISABLED))) {
+            assertFalse(assembler.assemble(session, model, "/workspace/p").any { it.content.orEmpty().contains("本次运行的失败记忆") })
+        }
+    }
 
     // ---------- NATIVE 协议 ----------
 

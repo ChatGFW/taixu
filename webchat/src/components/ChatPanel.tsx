@@ -147,6 +147,7 @@ function statusLabel(status: unknown): string {
     timeout: "超时",
     interrupted: "已中断",
     cancelled: "已停止",
+    unverified: "未验证",
   } as Record<string, string>)[String(status)] ?? String(status || "已完成");
 }
 
@@ -157,6 +158,7 @@ function statusClass(status: unknown): string {
   if (value === "error") return "error";
   if (value === "timeout") return "timeout";
   if (value === "interrupted" || value === "cancelled") return "interrupted";
+  if (value === "unverified") return "unverified";
   return "running";
 }
 

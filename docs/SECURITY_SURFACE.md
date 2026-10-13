@@ -26,6 +26,8 @@
 - JNI PTY 主描述符设置 `FD_CLOEXEC`，避免 exec 后继承主端；仅主端使用非阻塞读写，slave 保留普通终端行为（`app/src/main/cpp/pty_native.c`）。信号发送与 `waitpid(WNOHANG)` 回收由 `NativePtyChild` 串行执行，回收后不再对同一 PID 发信号。前台命令和 PTY 的终止失败保留资源，禁止把未确认退出当成可清理存储的完成状态。
 - 已知例外（记录在案，风险低）：`PrivilegeManager` Root 通道 `ProcessBuilder("su", "-c", …)` 与 `ShizukuHostUserService` 的 `ProcessBuilder` 未清空环境，继承 App / Shizuku 服务进程的标准 Android 环境变量。用户密钥不在进程环境里，故不构成密钥泄漏面；**若未来向 App env 注入敏感变量，必须先给这两处补 clear**。
 
+本地重型前台命令的资源名额仅限制已识别工作负载的并发，不改变命令、环境变量、审批或宿主权限。ProcessShellExecutor 对收尾失败的资源保留 `hasUnsettled` 状态；后续重型命令在进程分配前拒绝执行，成功清理后恢复，不把超时或取消本身当作进程已退出的证据。
+
 ### 2.2 进入沙箱的环境变量
 
 - 固定基座（`EnvironmentResolver.baseEnvironment`）：`HOME` / `LANG` / `TMPDIR` / `PATH` / `TAIXU_BRIDGE_URL` / `TAIXU_BRIDGE_PORT` / `ANDROID_BIN_PATH` / `ANDROID_LIB_PATH` / `TERM` 等，无敏感项。
@@ -38,6 +40,10 @@
 - privacyMode 下叠加「已知密钥值遮蔽」：以 `LinuxEnvironmentManager` 中用户配置的环境变量值作为已知 secret 列表（`ToolExecutor.kt:96-104`）。
 - 已绑定的工具调用及子任务报告通过当前环境的 `outputSecrets` 获取已知值；本地后端固定发行版并在读取锁内复制快照，远端不会刷新手机当前发行版。子任务报告在保存到当前环境前完成同样的脱敏；刷新失败不会使用另一发行版的旧缓存。
 - 应用点：ToolExecutor 工具结果后处理（4 处调用）、`RequestDiagnosticsStore` 请求预览、浏览器 `SecretRedactingInterceptor`。
+- 本地 `base` 长输出在排水期间暂存原始字节于 Android 私有 `cacheDir/command-output`，不加入 PRoot 挂载、不进入系统备份；文件按流限制大小并在工具收尾删除，崩溃残留在下一次长输出捕获时回收。只有走完既有输出脱敏后才能进入 `.taixu-outputs`；捕获上限或排水不完整时明确标注，不能把有损捕获宣称为完整输出。此暂存仍属于 App uid 的数据，并不构成对同 uid 恶意代码的隔离边界。
+- 任务交付记录只保留已提交消息的引用和受信任后端生成的文件版本观察，不复制用户目标、工具参数、日志正文或助手结论。模型自述、命令成功和文件指纹均不升级为目标行为验证；记录明确未验证项，不授予审批权限、不触发重放。输出日志指纹按已脱敏的实际保存内容计算；APK/下载文件/图片指纹按实际二进制字节计算，不修改原文件、不复制二进制到历史记录。相对路径沿既有输出脱敏链检查，若会改变则舍弃引用并记录缺口；格式无效的元数据不原样保留。二进制指纹本身不是匿名化保证，已知内容可通过指纹关联。
+- `ToolFileArtifacts` 只接受受信任 `base`、`download`、`read` 生产者；MCP 与其他工具不能直接声明此字段。构建观察有固定目录、条目、字节和时间上限，不依赖 stdout 路径。当前环境缺少文件指纹或严格枚举能力时标记不完整，不读取手机的同名文件作为替代。读取前后属性核验仅检测常见并发修改，不是恶意并发下的原子快照；本地同 uid 和远端实际账号权限不因指纹读取而获得新的隔离边界。版本引用不保证当前文件仍存在或匹配，APK 类型按后缀分类；构建变化信号携带指纹但不会自动绕过安装审批或保证安装内容匹配该版本。
+- 运行内失败记忆只保存当前 operation 的参数指纹、经过清洗的工具名、结果类型和来源 ID，不复制参数、输出或模型编写的经验。动作建议来自固定实现，以低权威合成 user 背景资料投影，明确并非用户消息，不修改 system 权限或触发重放；来源 ID、指纹、容量与失效时间都校验。父子 Lane、新任务和其他会话不共用该记忆；普通同参成功不解除此前未知副作用的核验要求。
 - **局限（务必知道）**：正则启发式，不是密码学保证；无标签的随机串（如 HostBridge key 本身是 UUID hex）不在模式内；Base64 等编码变形与非赋值形态不保证命中。高危场景需叠加人工检查。
 - 请求诊断仅将脱敏后的有界预览和字段指纹交给 `RequestDiagnosticsRepository`，用 `SecretManager` 的 AndroidKeyStore AES/GCM 加密后原子写入 `noBackupFilesDir/request-diagnostics/requests.enc`。不保存请求头、原始请求体或媒体载荷；加密失败不回退明文。普通对话和文件内容仍可能保留，脱敏不等于匿名化。会话删除等待加密存档清理完成；存档排除系统备份，并受大小及格式校验约束。
 

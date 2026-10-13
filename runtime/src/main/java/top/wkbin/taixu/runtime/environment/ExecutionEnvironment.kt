@@ -10,6 +10,11 @@ data class WorkspaceEditOutcome(val strategy: String, val replacements: Int, val
 data class ExecutionFileEntry(val name: String, val directory: Boolean, val size: Long, val modifiedAt: Long)
 
 interface ExecutionFiles {
+    /** Optional, strict artifact inventory: absent directories are empty; incomplete/failed listing is a failure. */
+    suspend fun listArtifactEntries(path: String): AppResult<List<ExecutionFileEntry>> = listEntries(path)
+    /** Hash binary data in this world without copying it into chat. Missing capabilities fail, never fall back. */
+    suspend fun fingerprint(path: String, maxBytes: Long = MAX_FILE_FINGERPRINT_BYTES): AppResult<FileFingerprint> = AppResult.Failure(
+        top.wkbin.taixu.core.common.result.AppError(top.wkbin.taixu.core.common.result.ErrorCode.IO, "当前环境不支持文件指纹"))
     suspend fun listEntries(path: String): AppResult<List<ExecutionFileEntry>> = AppResult.Failure(
         top.wkbin.taixu.core.common.result.AppError(top.wkbin.taixu.core.common.result.ErrorCode.IO, "当前环境不支持目录浏览"))
     suspend fun read(path: String, offset: Int? = null, limit: Int? = null): AppResult<String>

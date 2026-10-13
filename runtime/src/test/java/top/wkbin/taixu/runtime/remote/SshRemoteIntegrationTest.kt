@@ -90,6 +90,23 @@ class SshRemoteIntegrationTest {
             assertTrue(world.files.delete("example.txt"))
         } finally { world.close(); world.close() }
     }
+
+    @Test fun `remote artifact hashing streams bytes beyond the raw read limit and stays confined`() = runBlocking {
+        val credentials = SshCredentials("test-password")
+        val trusted = pin(server(), credentials)
+        val world = connector.openEnvironment(trusted, credentials, ExecutionEnvironmentId("ssh", trusted.distributionId, "/workspace", "one"))
+        try {
+            val bytes = ByteArray(17 * 1024 * 1024) { (it * 13).toByte() }
+            java.io.File(folder.root, "server/workspace/artifact.apk").writeBytes(bytes)
+            assertTrue(world.files.readRawBytes("artifact.apk").isFailure)
+            val observed = world.files.fingerprint("artifact.apk", 20L * 1024 * 1024).getOrNull()!!
+            assertEquals(bytes.size.toLong(), observed.bytes)
+            assertEquals(java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }, observed.sha256)
+            assertTrue(world.files.fingerprint("artifact.apk", 8).isFailure)
+            assertTrue(world.files.fingerprint("../outside.apk").isFailure)
+            assertTrue(world.files.listArtifactEntries("missing").getOrNull()!!.isEmpty())
+        } finally { world.close() }
+    }
     @Test fun `encrypted RSA private key authenticates`() = runBlocking {
         val key = KeyPair.genKeyPair(JSch(), KeyPair.RSA, 2048)
         val output = ByteArrayOutputStream()

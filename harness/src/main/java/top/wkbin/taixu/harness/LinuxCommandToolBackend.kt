@@ -10,8 +10,11 @@ import top.wkbin.taixu.harness.workflow.WorkflowSignalBus
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.shell.ProcessType
 import top.wkbin.taixu.runtime.shell.ShellCommand
+import top.wkbin.taixu.runtime.shell.CommandResourcePolicy
+import top.wkbin.taixu.runtime.shell.CommandOutputCapture
 import top.wkbin.taixu.runtime.environment.BoundLinuxCommands
 import top.wkbin.taixu.runtime.environment.ExecutionCommands
+import top.wkbin.taixu.runtime.environment.ExecutionEnvironment
 import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
 
 data class LinuxCommandRequest(
@@ -19,6 +22,7 @@ data class LinuxCommandRequest(
     val args: JsonObject,
     val workspace: String,
     val sessionId: String = "",
+    val metadata: MutableMap<String, String>? = null,
 )
 
 /**
@@ -42,16 +46,23 @@ class LinuxCommandToolBackend(
         val directory: (String?) -> String = { explicit -> environment?.workingDirectory(explicit)
             ?: pathResolver.resolveWorkingDirectory(explicit, request.workspace) }
         return when (request.tool) {
-            HarnessTool.BASE -> executeBase(request.args, request.workspace, commands, directory)
+            HarnessTool.BASE -> executeBase(request.args, request.workspace, commands, directory, environment, request.metadata)
             HarnessTool.PROCESS -> executeProcess(request.args, commands, directory)
             else -> throw IllegalArgumentException("Unsupported tool: ${request.tool}")
         }
     }
 
-    private suspend fun executeBase(args: JsonObject, workspace: String, commands: ExecutionCommands, directory: (String?) -> String): Pair<Boolean, String> {
+    private suspend fun executeBase(args: JsonObject, workspace: String, commands: ExecutionCommands, directory: (String?) -> String,
+        environment: ExecutionEnvironment?, metadata: MutableMap<String, String>?): Pair<Boolean, String> {
         val command = JsonArgs.requireString(args, "command")
         require(command.length <= MAX_COMMAND_LENGTH) { "命令过长（${command.length} 字符，上限 $MAX_COMMAND_LENGTH）" }
         val cwd = directory(args["cwd"]?.jsonPrimitive?.content)
+        val observer = if (isLikelyBuildCommand(command) && environment != null) {
+            val base = if (cwd == environment.id.workspace || cwd == environment.logicalWorkspace) "" else
+                ToolFileArtifacts.relativePath(cwd, environment.id.workspace) ?: ToolFileArtifacts.relativePath(cwd, environment.logicalWorkspace)
+            base?.let { BuildArtifactObserver(environment.files, it) }
+        } else null
+        val before = observer?.scan()
         val commandOutputCompressionEnabled = settingsDataStore?.let { prefs ->
             runCatching { prefs.commandOutputCompressionEnabled.first() }.getOrDefault(true)
         } ?: true
@@ -67,14 +78,11 @@ class LinuxCommandToolBackend(
             min = MIN_BASE_TIMEOUT_SECONDS,
             max = MAX_BASE_TIMEOUT_SECONDS,
         )
-        val result = commands.execute(
-            ShellCommand(
-                commandLine = preparedCommand.commandLine,
-                workingDirectory = cwd,
-                environment = preparedCommand.environment,
-                timeoutMs = timeoutSeconds * 1000L,
-            ),
-        )
+        val result = CommandOutputCapture().use { capture ->
+            val executed = commands.execute(ShellCommand(preparedCommand.commandLine, cwd, preparedCommand.environment,
+                timeoutSeconds * 1000L, outputCapture = capture, memoryHeavy = CommandResourcePolicy.isHeavy(command)))
+            capture.expand(executed)
+        }
         val stdout = result.stdout.trim()
         val stderr = result.stderr.trim()
         val isSuccess = result.isSuccess
@@ -85,14 +93,19 @@ class LinuxCommandToolBackend(
             val buildError = (stderr.ifBlank { stdout }).take(4000)
             workflowSignals?.emit(WorkflowSignal.BuildFailed(projectName, cwd, buildError))
         }
-        val combinedOutput = stdout + "\n" + stderr
-        APK_PATH_REGEX.find(combinedOutput)?.let { match ->
-            val apkPath = match.value
-            workflowSignals?.emit(WorkflowSignal.ApkGenerated(projectName, cwd, apkPath))
+        if (observer != null && before != null) {
+            val artifacts = observer.after(before, observer.scan(), System.currentTimeMillis())
+            metadata?.set(ToolFileArtifacts.METADATA_KEY, ToolFileArtifacts.encode(artifacts.files, artifacts.complete))
+            if (isSuccess) artifacts.files.filter { it.origin == FileArtifactOrigin.NEW_AFTER_COMMAND || it.origin == FileArtifactOrigin.CHANGED_AFTER_COMMAND }.forEach {
+                workflowSignals?.emit(WorkflowSignal.ApkGenerated(projectName, cwd, "${environment!!.id.workspace.trimEnd('/')}/${it.path}", sha256 = it.sha256, sizeBytes = it.bytes))
+            }
+        } else if (isLikelyBuildCommand(command)) {
+            metadata?.set(ToolFileArtifacts.METADATA_KEY, ToolFileArtifacts.encode(emptyList(), complete = false))
         }
 
         val body = buildString {
             append("exit ${result.exitCode} · ${result.durationMs} ms")
+            if (result.resourceWaitMs > 0) append(" · 资源排队 ${result.resourceWaitMs} ms")
             if (stdout.isNotEmpty()) append("\n$stdout")
             if (stderr.isNotEmpty()) append("\n$stderr")
             if (!isSuccess && result.exitCode != 0) {
@@ -183,11 +196,10 @@ class LinuxCommandToolBackend(
         const val MAX_PROCESS_LOG_LINES = 500L
         const val AGENT_PROCESS_PREFIX = "agent-process:"
         val PROCESS_ID = Regex("[a-z0-9][a-z0-9._-]{0,63}")
-        private val APK_PATH_REGEX = Regex("""(?:\/[\w.\-]+)+\.apk""")
 
         private fun isLikelyBuildCommand(cmd: String): Boolean {
             val lower = cmd.lowercase()
-            return lower.contains("gradle") || lower.contains("assemble") || lower.contains("taixu-build") ||
+            return lower.contains("gradle") || lower.contains("assemble") || lower.contains("taixu-build") || lower.contains("flutter build") ||
                 lower.contains("cargo build") || lower.contains("make") || lower.contains("cmake")
         }
     }

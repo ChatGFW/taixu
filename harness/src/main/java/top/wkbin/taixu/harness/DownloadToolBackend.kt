@@ -7,6 +7,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.runtime.environment.ExecutionDownloadEvent
 import top.wkbin.taixu.runtime.environment.ExecutionDownloadRequest
 import top.wkbin.taixu.runtime.environment.ExecutionDownloads
+import top.wkbin.taixu.runtime.environment.FileFingerprint
+import top.wkbin.taixu.runtime.environment.MAX_FILE_FINGERPRINT_BYTES
 import top.wkbin.taixu.harness.environment.LocalExecutionDownloads
 import top.wkbin.taixu.core.network.FileDownloader
 import top.wkbin.taixu.harness.core.ToolBackend
@@ -16,6 +18,7 @@ data class DownloadToolRequest(
     val sessionId: String,
     val workspace: String,
     val progressReporter: (suspend (String) -> Unit)?,
+    val metadata: MutableMap<String, String>? = null,
 )
 
 /**
@@ -42,13 +45,15 @@ class DownloadToolBackend(
         if (request.args["destination"]?.jsonPrimitive?.content?.trim()?.isNotBlank() == true) {
             mutationSnapshots.before(request.sessionId, activeFileAccess, JsonArgs.requireString(request.args, "destination"))
         }
-        return executeDownload(request.args, downloads, request.progressReporter)
+        return executeDownload(request.args, downloads, request.progressReporter, request.metadata, environment?.logicalWorkspace ?: request.workspace)
     }
 
     private suspend fun executeDownload(
         args: JsonObject,
         downloads: ExecutionDownloads,
         progressReporter: (suspend (String) -> Unit)?,
+        metadata: MutableMap<String, String>?,
+        workspace: String,
     ): Pair<Boolean, String> {
         val url = JsonArgs.requireString(args, "url")
         require(url.startsWith("https://", ignoreCase = true)) { "下载地址必须使用 HTTPS" }
@@ -99,6 +104,12 @@ class DownloadToolBackend(
             }
         }
         val duplicateOf = result.duplicateOf
+        val path = ToolFileArtifacts.relativePath(destinationPath, workspace)
+        val digest = result.sha256?.takeIf { it.matches(Regex("[a-f0-9]{64}")) }
+        val artifacts = if (path != null && digest != null && result.sizeBytes in 1..MAX_FILE_FINGERPRINT_BYTES)
+            listOf(ToolFileArtifacts.observation(path, FileFingerprint(digest, result.sizeBytes),
+                FileArtifactOrigin.AFTER_DOWNLOAD, System.currentTimeMillis())) else emptyList()
+        metadata?.set(ToolFileArtifacts.METADATA_KEY, ToolFileArtifacts.encode(artifacts, artifacts.isNotEmpty()))
         val body = buildString {
             append("下载完成：").append(destinationPath)
             append("\n大小：").append(size).append(" bytes")

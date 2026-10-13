@@ -1040,8 +1040,8 @@ class HarnessLoop(
                 stateMirrors.setError(sessId, null)
                 when (val result = block()) {
                     RunResult.Completed -> {
-                        taskId?.let { agentTaskStateMachine.markCompleted(it) }
-                        operationCoordinator.finish(sessId, "completed", messageProjector.messagesFlow(sessId).value.lastOrNull()?.id)
+                        if (taskId != null) messageProjector.publishPersisted(sessId, operationCoordinator.completeTask(sessId, taskId))
+                        else operationCoordinator.finish(sessId, "completed", messageProjector.messagesFlow(sessId).value.lastOrNull()?.id)
                         stateMirrors.setRunState(sessId, SessionRunState.COMPLETED)
                         // 「对话后技能进化」：一轮有效工作结束后异步分析是否值得沉淀新技能 /
                         // 修复既有技能；失败与取消路径不触发，且内部全量容错不影响主对话。

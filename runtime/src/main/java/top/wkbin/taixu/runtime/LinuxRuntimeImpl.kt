@@ -30,6 +30,7 @@ import top.wkbin.taixu.runtime.shell.ProcessRegistry
 import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import top.wkbin.taixu.runtime.shell.ShellExecutor
+import top.wkbin.taixu.runtime.shell.ForegroundCommandAdmission
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,7 +72,7 @@ class LinuxRuntimeImpl(
     private val initializeMutex = Mutex()
     private val storageActivities = StorageActivityGate()
     private val interactiveSessions = InteractiveSessionRegistry()
-
+    private val commandAdmission = ForegroundCommandAdmission()
     override fun refreshInstalledDistros() {
         pathManager.invalidateInstalledDistrosCache()
         val ids = pathManager.listInstalledDistroIds()
@@ -495,7 +496,7 @@ class LinuxRuntimeImpl(
         val safeDistro = boundLocalDistribution(distroId, _activeDistroId.value)
         val mounts = storageMounts()
         val execution = resolveExecutionLayout(safeDistro, command.useQemuCompatibility)
-        shellExecutor.execute(
+        commandAdmission.execute(command, shellExecutor) { shellExecutor.execute(
             command = prootCommandBuilder.build(
                 prootBinary = pathManager.activeProotFile(),
                 rootfsDir = execution.rootfsDir,
@@ -511,9 +512,8 @@ class LinuxRuntimeImpl(
             environment = pathManager.hostProcessEnvironment(safeDistro, execution.rootfsDir),
             timeoutMs = command.timeoutMs,
             onOutput = command.onOutput,
-        )
+        ) }
     }
-
     private suspend fun resolveExecutionLayout(
         distroId: String,
         useQemuCompatibility: Boolean,

@@ -10,6 +10,7 @@ import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.ProviderClient
 import top.wkbin.taixu.harness.SkillSuggestion
+import top.wkbin.taixu.harness.TaskDelivery
 import top.wkbin.taixu.harness.TextToolCallCodec
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolCallMode
@@ -17,6 +18,7 @@ import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.ResponsesReplay
+import top.wkbin.taixu.harness.modelOutput
 
 /**
  * Harness 消息 → 提供商协议消息的统一投影。
@@ -69,7 +71,7 @@ object ApiMessageProjector {
             var i = 0
             while (i < msgs.size) {
                 val message = msgs[i]
-                if (message is CapabilityEvent || message is ModelSwitchEvent || message is SkillSuggestion) {
+                if (message is CapabilityEvent || message is ModelSwitchEvent || message is SkillSuggestion || message is TaskDelivery) {
                     i++
                     continue
                 }
@@ -96,7 +98,7 @@ object ApiMessageProjector {
                         is ToolResult -> {
                             val name = toolNames[message.toolCallId] ?: "工具"
                             val status = if (message.success) "成功" else "失败"
-                            val content = "【工具 $name 执行结果·$status】\n${message.output}"
+                            val content = "【工具 $name 执行结果·$status】\n${message.modelOutput()}"
                             add(ApiMessage(role = "user", content = content))
                             visionBridgeMessage(message, visionEnabled)?.let { add(it) }
                             i++
@@ -161,9 +163,9 @@ object ApiMessageProjector {
                         !message.imageDataUrl.isNullOrBlank() &&
                         message.id !in keptToolImageIds
                     val content = if (imageOmitted) {
-                        message.output + "\n[这张历史截图未再次附上，上下文只保留最近 $MAX_RECENT_TOOL_IMAGES 张画面。需要旧画面请重新截图。]"
+                        message.modelOutput() + "\n[这张历史截图未再次附上，上下文只保留最近 $MAX_RECENT_TOOL_IMAGES 张画面。需要旧画面请重新截图。]"
                     } else {
-                        message.output
+                        message.modelOutput()
                     }
                     add(
                         ApiMessage(

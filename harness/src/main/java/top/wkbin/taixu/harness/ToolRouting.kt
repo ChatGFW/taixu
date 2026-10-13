@@ -72,7 +72,7 @@ internal class ToolRouting(
             HarnessTool.WRITE to workspace,
             HarnessTool.EDIT to workspace,
             HarnessTool.BASE to { ctx ->
-                linuxCommandToolBackend.execute(LinuxCommandRequest(HarnessTool.BASE, ctx.args, ctx.workspace, ctx.sessionId))
+                linuxCommandToolBackend.execute(LinuxCommandRequest(HarnessTool.BASE, ctx.args, ctx.workspace, ctx.sessionId, ctx.metadata))
             },
             HarnessTool.PROCESS to { ctx ->
                 linuxCommandToolBackend.execute(LinuxCommandRequest(HarnessTool.PROCESS, ctx.args, ctx.workspace, ctx.sessionId))
@@ -82,7 +82,7 @@ internal class ToolRouting(
             },
             // 下载前的变更快照由 DownloadToolBackend 内部完成（与 WorkspaceToolBackend 同约定）。
             HarnessTool.DOWNLOAD to { ctx ->
-                downloadToolBackend.execute(DownloadToolRequest(ctx.args, ctx.sessionId, ctx.workspace, ctx.progressReporter))
+                downloadToolBackend.execute(DownloadToolRequest(ctx.args, ctx.sessionId, ctx.workspace, ctx.progressReporter, ctx.metadata))
             },
             // 内建服务转发（记忆/计划/草稿、子智能体、构建脚本、渲染面）统一委托 HarnessServiceToolBackend。
             HarnessTool.MEMORY to service,

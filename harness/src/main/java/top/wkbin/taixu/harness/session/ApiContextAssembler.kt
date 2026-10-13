@@ -19,6 +19,7 @@ import top.wkbin.taixu.harness.compaction.CompactionManager
 import top.wkbin.taixu.harness.compaction.SummaryRequestContext
 import top.wkbin.taixu.harness.prompt.MemoryRecallSelector
 import top.wkbin.taixu.harness.prompt.SystemPromptBuilder
+import top.wkbin.taixu.harness.operation.OperationCoordinator
 
 /**
  * API 请求上下文组装器：把会话实时消息投影成提供商协议消息列表。
@@ -41,6 +42,7 @@ class ApiContextAssembler(
     private val sessionStore: SessionTreeStore,
     private val memoryRecallSelector: MemoryRecallSelector,
     private val agentApprovalRepository: AgentApprovalRepository,
+    private val operationCoordinator: OperationCoordinator,
 ) {
     suspend fun assemble(
         sessId: String,
@@ -124,9 +126,11 @@ class ApiContextAssembler(
             ""
         }
         val systemPrompt = ContextWindowPolicy.fitSystemPrompt(rawSystemPrompt, budgetTokens)
+        val failureMemory = if (model.pureChatMode || toolCallMode == ToolCallMode.DISABLED) "" else operationCoordinator.failureMemoryBlock(sessId)
 
         // 召回后缀的 token 计入预算占用：它们会随 user 消息进入 provider 请求
-        val recallTokens = ContextWindowPolicy.estimateTokens(compactedContext.recallBlocks.values.joinToString("\n"))
+        val recallTokens = ContextWindowPolicy.estimateTokens(compactedContext.recallBlocks.values.joinToString("\n")) +
+            ContextWindowPolicy.estimateTokens(failureMemory)
 
         return buildList {
             if (systemPrompt.isNotEmpty()) {
@@ -222,7 +226,7 @@ class ApiContextAssembler(
                 toolCallMode = toolCallMode,
                 visionEnabled = model.capabilities.images,
                 recallSuffixes = compactedContext.recallBlocks,
-            )
+            ).let { if (failureMemory.isBlank()) it else it + ApiMessage(role = "user", content = failureMemory) }
             // Split-Turn 压缩后保留段可能从 assistant / tool_call 中途开始。补一条合成 user
             // 消息作为角色桥接，满足 provider 的角色交替与「首条消息必须是 user」约束
             // （Anthropic 尤其严格），并提示模型不要重复已折叠的步骤。

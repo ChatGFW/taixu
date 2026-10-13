@@ -19,6 +19,8 @@ sealed interface ExecutionDownloadEvent {
         val checksumVerified: Boolean,
         val validImage: Boolean = true,
         val duplicateOf: String? = null,
+        /** Actual observed file digest, never the request's declared checksum. Optional capability. */
+        val sha256: String? = null,
     ) : ExecutionDownloadEvent
 }
 

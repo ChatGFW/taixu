@@ -249,7 +249,19 @@ class ToolExecutorTest {
         assertTrue(result.success)
         val payload = result.imageDataUrl
         assertTrue(payload != null && payload.startsWith("data:image/png;base64,"))
-        assertTrue(result.metadata.isEmpty())
+        val artifacts = requireNotNull(ToolFileArtifacts.decode(result.metadata[ToolFileArtifacts.METADATA_KEY]))
+        assertTrue(artifacts.complete)
+        val artifact = artifacts.files.single()
+        assertEquals("chart.png", artifact.path)
+        assertEquals(FileArtifactKind.IMAGE, artifact.kind)
+        assertEquals(FileArtifactOrigin.IMAGE_READ, artifact.origin)
+        assertEquals(8L, artifact.bytes)
+        assertEquals(
+            java.security.MessageDigest.getInstance("SHA-256").digest(workspaceRoot.resolve("chart.png").readBytes())
+                .joinToString("") { "%02x".format(it) },
+            artifact.sha256,
+        )
+        assertTrue(artifact.observedAt > 0L)
     }
 
     @Test

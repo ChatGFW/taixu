@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness.effects
 
 import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.withRecoveryAdvice
 
 /** A missing result is not evidence that a side effect failed or never happened. */
 data class ToolRecoveryNotice(val code: String, val output: String) {
@@ -11,7 +12,7 @@ data class ToolRecoveryNotice(val code: String, val output: String) {
         success = false,
         output = output,
         errorCode = code,
-    )
+    ).withRecoveryAdvice()
 
     companion object {
         const val OUTCOME_UNKNOWN = "TOOL_OUTCOME_UNKNOWN"

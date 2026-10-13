@@ -11,6 +11,8 @@ import kotlinx.coroutines.sync.withLock
 import top.wkbin.taixu.core.common.result.*
 import top.wkbin.taixu.runtime.environment.*
 import java.util.UUID
+import java.security.MessageDigest
+import kotlinx.coroutines.Job
 
 internal class SshExecutionFiles(private val session: Session, private val workspace: String, private val logicalWorkspace: String, private val mutex: Mutex) : ExecutionFiles {
     private suspend fun <T> access(operation: (ChannelSftp, String) -> T): T = mutex.withLock {
@@ -95,6 +97,42 @@ internal class SshExecutionFiles(private val session: Session, private val works
     }
     override suspend fun readRawBytes(path: String): AppResult<ByteArray> = result {
         access { channel, root -> bytes(channel, resolve(channel, root, path)) }
+    }
+    override suspend fun fingerprint(path: String, maxBytes: Long): AppResult<FileFingerprint> = result {
+        require(maxBytes in 1..MAX_FILE_FINGERPRINT_BYTES)
+        // IO is interruptible; the coroutine job is checked between chunks as well.
+        val job = currentCoroutineContext()[Job]
+        access { channel, root ->
+            val target = resolve(channel, root, path)
+            val before = channel.stat(target)
+            require(before.isReg && before.size in 1..maxBytes) { "不是普通文件、为空或超过指纹限制" }
+            val digest = MessageDigest.getInstance("SHA-256")
+            var size = 0L
+            channel.get(target).use { input ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    job?.ensureActive()
+                    val read = input.read(buffer, 0, minOf(buffer.size.toLong(), maxBytes - size + 1).toInt())
+                    if (read < 0) break
+                    size += read; require(size <= maxBytes) { "超过指纹限制" }; digest.update(buffer, 0, read)
+                }
+            }
+            val after = channel.stat(target)
+            check(before.size == after.size && before.mTime == after.mTime && size == after.size) { "读取期间文件发生变化" }
+            FileFingerprint(digest.digest().joinToString("") { "%02x".format(it) }, size)
+        }
+    }
+    override suspend fun listArtifactEntries(path: String): AppResult<List<ExecutionFileEntry>> = result {
+        access { channel, root ->
+            val target = resolve(channel, root, path)
+            val entries = try { channel.ls(target).filterIsInstance<ChannelSftp.LsEntry>().filter { it.filename != "." && it.filename != ".." } }
+                catch (missing: SftpException) { if (missing.id == ChannelSftp.SSH_FX_NO_SUCH_FILE) emptyList() else throw missing }
+            require(entries.size <= 2000) { "产物目录枚举不完整" }
+            entries.map { item ->
+                val attributes = channel.stat(resolve(channel, root, path.trimEnd('/') + "/" + item.filename))
+                ExecutionFileEntry(item.filename, attributes.isDir, attributes.size, attributes.mTime.toLong() * 1000)
+            }.sortedBy { it.name }
+        }
     }
     override suspend fun write(path: String, content: String): AppResult<Unit> = result {
         access { channel, root -> writeAtomic(channel, resolve(channel, root, path), content) }

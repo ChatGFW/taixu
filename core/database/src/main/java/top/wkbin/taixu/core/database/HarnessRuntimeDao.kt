@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 /** Atomic storage primitives for the durable harness interpreter. */
 @Dao
-interface HarnessRuntimeDao {
+interface HarnessRuntimeDao : HarnessBranchQueries, HarnessTaskCompletionQueries {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertEntry(entry: HarnessEntryEntity): Long
 
@@ -122,98 +122,6 @@ interface HarnessRuntimeDao {
 
     @Query("SELECT * FROM harness_entries WHERE id = :entryId LIMIT 1")
     suspend fun findEntry(entryId: String): HarnessEntryEntity?
-
-    @Query("""
-        WITH RECURSIVE branch AS (
-            SELECT * FROM harness_entries WHERE id = :leafId AND sessionId = :sessionId
-            UNION ALL
-            SELECT parent.* FROM harness_entries AS parent
-            JOIN branch AS child ON parent.id = child.parentId
-            WHERE parent.sessionId = :sessionId
-        )
-        SELECT * FROM branch ORDER BY sequence
-    """)
-    suspend fun branch(sessionId: String, leafId: String): List<HarnessEntryEntity>
-
-    /**
-     * Return only the newest branch window to the Android process. The recursive walk still
-     * happens inside SQLite, but payloadJson for older ancestors never enters the managed heap.
-     */
-    @Query("""
-        WITH RECURSIVE branch AS (
-            SELECT * FROM harness_entries WHERE id = :leafId AND sessionId = :sessionId
-            UNION ALL
-            SELECT parent.* FROM harness_entries AS parent
-            JOIN branch AS child ON parent.id = child.parentId
-            WHERE parent.sessionId = :sessionId
-        )
-        SELECT * FROM (
-            SELECT * FROM branch ORDER BY sequence DESC LIMIT :limit
-        ) ORDER BY sequence
-    """)
-    suspend fun branchTail(sessionId: String, leafId: String, limit: Int): List<HarnessEntryEntity>
-
-    /**
-     * 按序列号水位线只返回增量条目与召回块，已被折叠的更早历史祖先条目不会加载到托管堆中。
-     */
-    @Query("""
-        WITH RECURSIVE branch AS (
-            SELECT * FROM harness_entries WHERE id = :leafId AND sessionId = :sessionId
-            UNION ALL
-            SELECT parent.* FROM harness_entries AS parent
-            JOIN branch AS child ON parent.id = child.parentId
-            WHERE parent.sessionId = :sessionId
-        )
-        SELECT * FROM branch
-        WHERE sequence >= :minSequence OR entryType = 'recall_context'
-        ORDER BY sequence
-    """)
-    suspend fun branchWindow(sessionId: String, leafId: String, minSequence: Long): List<HarnessEntryEntity>
-
-    /** Latest entry of one type on the selected immutable-tree branch. */
-    @Query("""
-        WITH RECURSIVE branch AS (
-            SELECT * FROM harness_entries WHERE id = :leafId AND sessionId = :sessionId
-            UNION ALL
-            SELECT parent.* FROM harness_entries AS parent
-            JOIN branch AS child ON parent.id = child.parentId
-            WHERE parent.sessionId = :sessionId
-        )
-        SELECT * FROM branch
-        WHERE entryType = :entryType
-        ORDER BY sequence DESC LIMIT 1
-    """)
-    suspend fun latestBranchEntryOfType(
-        sessionId: String,
-        leafId: String,
-        entryType: String,
-    ): HarnessEntryEntity?
-
-    @Query("""
-        WITH RECURSIVE branch AS (
-            SELECT * FROM harness_entries WHERE id = :leafId AND sessionId = :sessionId
-            UNION ALL
-            SELECT parent.* FROM harness_entries AS parent
-            JOIN branch AS child ON parent.id = child.parentId
-            WHERE parent.sessionId = :sessionId
-        )
-        SELECT * FROM branch
-        WHERE entryType = 'message' AND payloadJson LIKE '%' || :query || '%' ESCAPE '\'
-        ORDER BY sequence DESC LIMIT :limit
-    """)
-    suspend fun searchBranch(sessionId: String, leafId: String, query: String, limit: Int): List<HarnessEntryEntity>
-
-    @Query("""
-        WITH RECURSIVE branch AS (
-            SELECT * FROM harness_entries WHERE id = :leafId AND sessionId = :sessionId
-            UNION ALL
-            SELECT parent.* FROM harness_entries AS parent
-            JOIN branch AS child ON parent.id = child.parentId
-            WHERE parent.sessionId = :sessionId
-        )
-        SELECT * FROM branch WHERE entryType = 'message' ORDER BY sequence LIMIT 1 OFFSET :index
-    """)
-    suspend fun branchEntryAt(sessionId: String, leafId: String, index: Int): HarnessEntryEntity?
 
     @Query("SELECT * FROM harness_operations WHERE id = :operationId LIMIT 1")
     suspend fun findOperation(operationId: String): HarnessOperationEntity?
@@ -378,6 +286,29 @@ interface HarnessRuntimeDao {
         insertEntryOrThrow(entry)
         deleteQueueItem(itemId)
         upsertLane(lane)
+    }
+
+    /** Report, task terminal state and operation disposal become visible together. */
+    @Transaction
+    suspend fun completeTaskOperation(taskId: String, result: HarnessLaneResultEntity,
+        expected: HarnessLaneEntity, delivery: HarnessEntryEntity) {
+        require(result.outcome == "completed" && expected.name == "main")
+        require(result.sessionId == expected.sessionId && result.laneName == expected.name &&
+            result.operationId == expected.currentOperationId)
+        require(delivery.sessionId == expected.sessionId && delivery.parentId == expected.leafId &&
+            delivery.entryType == "message" && delivery.customType == "task_delivery")
+        val current = findLane(expected.sessionId, expected.name)
+        check(current?.currentOperationId == expected.currentOperationId && current.leafId == expected.leafId) {
+            "Lane changed before task delivery"
+        }
+        val operation = findOperation(result.operationId)
+        check(operation?.sessionId == expected.sessionId && operation.laneName == expected.name) { "Operation missing before task delivery" }
+        insertEntryOrThrow(delivery)
+        check(completeTaskRecord(taskId, expected.sessionId, result.operationId, result.completedAt) == 1) {
+            "Task changed before delivery"
+        }
+        upsertLane(expected.copy(leafId = delivery.id, updatedAt = result.completedAt))
+        finishOperation(result, expected.copy(updatedAt = result.completedAt, faulted = false))
     }
 
     @Transaction

@@ -63,6 +63,10 @@ interface HarnessRuntimeRepository {
     suspend fun saveOperation(operation: HarnessOperationEntity)
     suspend fun settleEffect(entry: HarnessEntryEntity?, usage: HarnessUsageEntity?, operation: HarnessOperationEntity, lane: HarnessLaneEntity)
     suspend fun finishOperation(result: HarnessLaneResultEntity, lane: HarnessLaneEntity)
+    suspend fun completeTaskOperation(taskId: String, result: HarnessLaneResultEntity,
+        expectedLane: HarnessLaneEntity, delivery: HarnessEntryEntity) {
+        error("Atomic task delivery is not supported by this repository")
+    }
     suspend fun enqueue(item: HarnessQueueItemEntity)
     suspend fun listQueue(sessionId: String, laneName: String, queueType: String): List<HarnessQueueItemEntity>
     suspend fun listAllQueues(sessionId: String, laneName: String): List<HarnessQueueItemEntity>
@@ -263,6 +267,9 @@ class RoomHarnessRuntimeRepository(
 
     override suspend fun finishOperation(result: HarnessLaneResultEntity, lane: HarnessLaneEntity) =
         dao.finishOperation(result, lane)
+    override suspend fun completeTaskOperation(taskId: String, result: HarnessLaneResultEntity,
+        expectedLane: HarnessLaneEntity, delivery: HarnessEntryEntity) =
+        dao.completeTaskOperation(taskId, result, expectedLane, sanitizeForStorage(delivery))
     override suspend fun enqueue(item: HarnessQueueItemEntity) = dao.insertQueueItem(item)
     override suspend fun listQueue(sessionId: String, laneName: String, queueType: String) =
         dao.listQueue(sessionId, laneName, queueType)

@@ -251,12 +251,14 @@ class SubagentLaneRunner(
         historyBudgetTokens: Int,
     ): List<ApiMessage> {
         val toolCallMode = model.effectiveToolCallMode
+        val failureMemory = operations.failureMemoryBlock(sessionId, laneName)
         return isolatedProviderMessages(
             messages = treeStore.load(sessionId, laneName),
             systemPrompt = laneSystemPrompt(toolCallMode),
             forceFinalAnswer = forceFinalAnswer,
             toolCallMode = toolCallMode,
-            historyBudgetTokens = historyBudgetTokens,
+            historyBudgetTokens = (historyBudgetTokens - ContextWindowPolicy.estimateTokens(failureMemory)).coerceAtLeast(1),
+            failureMemory = failureMemory,
         )
     }
 
@@ -367,6 +369,7 @@ internal fun isolatedProviderMessages(
     forceFinalAnswer: Boolean,
     toolCallMode: ToolCallMode = ToolCallMode.NATIVE,
     historyBudgetTokens: Int = 0,
+    failureMemory: String = "",
 ): List<ApiMessage> = buildList {
     val finalInstruction = if (forceFinalAnswer) {
         "\n这是最后一轮。禁止继续调用工具，请根据已有结果直接输出结论；信息不完整时明确说明限制。"
@@ -378,6 +381,7 @@ internal fun isolatedProviderMessages(
         .takeIf { it >= 0 } ?: messages.size
     val task = budgetedLaneMessages(messages.drop(taskStart), historyBudgetTokens)
     addAll(ApiMessageProjector.project(task, toolCallMode, visionEnabled = true))
+    if (failureMemory.isNotBlank()) add(ApiMessage(role = "user", content = failureMemory))
 }
 
 internal fun isDirectSubagentConclusion(
