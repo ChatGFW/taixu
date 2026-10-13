@@ -68,9 +68,22 @@ class SessionExecutionTargetsTest {
         try { factory.open("parent::child", "/workspace/demo", a.distributionId); fail("edited host was accepted") }
         catch (e: IllegalStateException) { assertTrue(e.message!!.contains("档案已更改")) }
     }
-    @Test fun `legacy sessions and missing durable owners fail closed`() = runBlocking {
+    @Test fun `legacy local history ignores remote default and persists binding for restart and children`() = runBlocking {
         sessions.upsert(session("legacy").copy(executionTargetJson = "unbound"))
-        for (owner in listOf("legacy", "removed")) {
+        var local = "ubuntu"
+        val targets = SessionExecutionTargets(servers, sessions) { local }
+        val target = targets.resolve("legacy", "/workspace/demo")
+        assertEquals("ubuntu", target.distribution)
+        assertNull(target.remote)
+        assertNotEquals("unbound", sessions.findById("legacy")!!.executionTargetJson)
+        local = "debian"
+        servers.select(b.id)
+        assertEquals(target, SessionExecutionTargets(servers, sessions) { local }.resolve("legacy", "/workspace/demo"))
+        assertEquals(target, targets.resolve("legacy::child", "/workspace/demo", "ubuntu"))
+    }
+    @Test fun `portable imports and missing durable owners fail closed`() = runBlocking {
+        sessions.upsert(session("imported").copy(executionTargetJson = "restore-required"))
+        for (owner in listOf("imported", "removed")) {
             try { SessionExecutionTargets(servers, sessions).resolve(owner, "/workspace/demo"); fail("unsafe identity inferred") }
             catch (_: IllegalStateException) { }
         }

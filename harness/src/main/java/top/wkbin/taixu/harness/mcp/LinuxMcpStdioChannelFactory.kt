@@ -53,12 +53,12 @@ class LinuxMcpStdioChannelFactory(
                         checkCreation(owned)
                         val prepared = mcpExecutionConfig(server, environment)
                         val config = SessionConfig(workingDirectory = environment?.workingDirectory() ?: "/root", environment = prepared.env,
-                            commandLine = commandBuilder.commandLine(prepared, configureTty = environment?.id?.backend != REMOTE_BACKEND), allowSttyResize = false)
+                            commandLine = commandBuilder.commandLine(prepared, configureTty = false), allowSttyResize = false, usePty = false)
                         requireMcpExecutable(environment, prepared)
                         checkCreation(owned)
                         owned.session = environment?.openSession(config) ?: linuxRuntime.startSession(config)
                         checkCreation(owned)
-                        val channel = LinuxMcpStdioChannel(server.id, owned.session!!, environment = owned.environment)
+                        val channel = LinuxMcpStdioChannel(server.id, owned.session!!, environment = owned.environment, secretValues = prepared.env.values)
                         owned.channel = channel
                         channel.ownership = AutoCloseable { owned.detached() }
                         checkCreation(owned)

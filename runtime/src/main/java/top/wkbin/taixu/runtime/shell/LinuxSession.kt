@@ -22,6 +22,8 @@ data class SessionConfig(
     val allowSttyResize: Boolean = commandLine == "/bin/bash -i" || commandLine == "/bin/sh -i",
     /** 终端会话进入时打印 TAIXU 横幅；MCP STDIO 等协议会话必须保持 false 以免污染输出流。 */
     val showBanner: Boolean = false,
+    /** Protocol subprocesses use pipes; terminal sessions keep PTY semantics. */
+    val usePty: Boolean = true,
 )
 
 interface LinuxSession {

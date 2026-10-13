@@ -391,12 +391,11 @@ class McpStdioTransport(
                 throw cancellation // close() 主动取消，等待者已由 close 收尾
             } catch (t: Throwable) {
                 // B5/B2: EOF/进程退出/IO 是传输层故障，只有此类失败才值得销毁重建
-                connection.failPending(McpStdioChannelException("MCP 通道读取终止：" + (t.message ?: t::class.simpleName)))
+                connection.failPending(McpStdioChannelException("MCP 通道读取终止：" +
+                    if (t is kotlinx.coroutines.channels.ClosedReceiveChannelException) "子进程输出已结束（无诊断输出）" else (t.message ?: t::class.simpleName)))
             }
         }
     }
-
-
     internal fun injectConnectionForTest(server: McpServerConfig, channel: McpStdioChannel) {
         Connection(server.id, channel, commandBuilder.fingerprint(server)).also { connection ->
             connections[server.id] = connection

@@ -14,7 +14,7 @@ interface RequestDiagnosticsRepository {
 interface HarnessSessionRepository {
     suspend fun bindExecutionTarget(id: String, target: String): String? {
         val session = findById(id) ?: return null
-        session.executionTargetJson?.let { return it }
+        session.executionTargetJson?.takeUnless { it == "unbound" }?.let { return it }
         upsert(session.copy(executionTargetJson = target))
         return target
     }

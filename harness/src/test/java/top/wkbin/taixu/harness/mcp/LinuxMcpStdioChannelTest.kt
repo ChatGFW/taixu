@@ -15,6 +15,23 @@ import top.wkbin.taixu.runtime.shell.TerminalOutput
 import top.wkbin.taixu.runtime.shell.TerminalStream
 
 class LinuxMcpStdioChannelTest {
+    @Test fun `startup EOF exposes bounded diagnostics with credentials removed`() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val session = object : LinuxSession by CompletingSession() {
+            override val output = flow {
+                emit(TerminalOutput(TerminalStream.STDOUT, "x".repeat(4096) + "\n"))
+                emit(TerminalOutput(TerminalStream.STDOUT, "python3: can't open file server.py password=private-password custom-secret\n"))
+            }
+        }
+        val channel = LinuxMcpStdioChannel("srv", session, scope, secretValues = listOf("custom-secret"))
+        try {
+            val result = kotlinx.coroutines.withTimeout(2_000) { channel.incoming.receiveCatching() }
+            val message = result.exceptionOrNull()!!.message!!
+            assertTrue(message.contains("can't open file"))
+            assertTrue(message.length < 2200)
+            assertTrue(!message.contains("private-password") && !message.contains("custom-secret"))
+        } finally { channel.close(); scope.cancel() }
+    }
 
     /** output 永不完成的会话：构造"泵挂起在 lines.send 上"的泄漏前提（消费方已离场）。 */
     private class EndlessSession : LinuxSession {

@@ -4,7 +4,7 @@ import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.model.McpServerConfig
 
 /**
- * Quoting helpers for the MCP STDIO PTY invocation. Kept separate so unit tests can lock down
+ * Quoting helpers for MCP STDIO subprocesses. Kept separate so unit tests can lock down
  * command-line construction without spinning up a Linux session.
  */
 class McpCommandBuilder() {

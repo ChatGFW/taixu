@@ -16,7 +16,7 @@
 | --- | --- |
 | read / write / edit | 当前环境的 `files`，快照通过同一文件接口读取 |
 | base / process | 当前环境的命令及后台进程接口 |
-| MCP STDIO | 协程上下文携带当前环境，通过 `openSession` 拉起协议进程 |
+| MCP STDIO | 协程上下文携带当前环境，通过 `openSession(usePty=false)` 拉起协议进程；本地使用管道，不执行 stty 或终端 PTY 包装 |
 | MCP 连接缓存 | 按 server + 执行环境身份隔离；删除会话关闭其连接，服务失效关闭该服务全部环境连接 |
 | 交互式 PTY | `openTerminal` 返回支持 input/resize/interrupt/close 的 `LinuxSession` |
 | Android Termux 终端页面 | 通过环境工厂选择后端；仅接受显式的 `LocalTerminalLaunch` 适配器 |

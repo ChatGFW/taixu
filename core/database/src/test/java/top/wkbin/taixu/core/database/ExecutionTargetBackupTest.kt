@@ -14,7 +14,7 @@ class ExecutionTargetBackupTest {
         val exported = BackupRecordPolicy.portable(BackupRecords(mapOf("harness_sessions" to listOf(row))))
         val saved = exported.tables.getValue("harness_sessions").single()
         assertEquals("history", saved.getValue("title").jsonPrimitive.content)
-        assertEquals("unbound", saved.getValue("executionTargetJson").jsonPrimitive.content)
+        assertEquals("restore-required", saved.getValue("executionTargetJson").jsonPrimitive.content)
         assertEquals("assisted", saved.getValue("approvalMode").jsonPrimitive.content)
         assertFalse(saved.toString().contains("private-host"))
     }

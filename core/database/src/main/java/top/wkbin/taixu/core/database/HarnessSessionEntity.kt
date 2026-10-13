@@ -30,13 +30,13 @@ data class HarnessSessionEntity(
     val approvalMode: String = ApprovalMode.ASSISTED.id,
     /** 运行意图（BUILD/PLAN），与 [approvalMode] 正交；新会话继承全局默认。 */
     @ColumnInfo(defaultValue = "build") val runMode: String = RunMode.BUILD.id,
-    /** Legacy sessions are deliberately unbound: their previous host cannot be inferred safely. */
+    /** Pre-SSH history binds to the local distro on first use; portable imports require a new session. */
     @ColumnInfo(defaultValue = "'unbound'") val executionTargetJson: String? = null,
 )
 
 @Dao
 interface HarnessSessionDao {
-    @Query("UPDATE harness_sessions SET executionTargetJson = :target WHERE id = :id AND executionTargetJson IS NULL")
+    @Query("UPDATE harness_sessions SET executionTargetJson = :target WHERE id = :id AND (executionTargetJson IS NULL OR executionTargetJson = 'unbound')")
     suspend fun bindExecutionTargetIfAbsent(id: String, target: String)
 
     @androidx.room.Transaction

@@ -31,6 +31,7 @@ class SshMcpExecutionConfigTest {
                 assertEquals(id.workspace, config.workingDirectory)
                 assertTrue(config.commandLine.contains("'/srv/projects/demo'"))
                 assertFalse(config.commandLine.contains("stty"))
+                assertFalse(config.usePty)
                 return fake.openSession(config)
             }
         }

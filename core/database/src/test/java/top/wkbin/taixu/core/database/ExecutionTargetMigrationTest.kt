@@ -21,7 +21,7 @@ class ExecutionTargetMigrationTest {
     @get:Rule val folder = org.junit.rules.TemporaryFolder()
     @get:Rule val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java,
         emptyList(), FrameworkSQLiteOpenHelperFactory())
-    @Test fun `upgrade preserves history and marks unknown execution targets instead of guessing`() {
+    @Test fun `upgrade preserves pre SSH local history for lazy binding`() {
         val path = java.io.File(folder.root, "upgrade-54.db").absolutePath
         helper.createDatabase(path, 54).use {
             it.execSQL("INSERT INTO harness_sessions(id,title,createdAt,updatedAt,workspace,projectType,approvalMode) VALUES('old','history',1,1,'/workspace/demo','','assisted')")
@@ -55,7 +55,7 @@ class ExecutionTargetMigrationTest {
             .setJournalMode(androidx.room.RoomDatabase.JournalMode.TRUNCATE).build()
         val db = open()
         val repository = RoomHarnessSessionRepository(db.harnessSessionDao())
-        repository.upsert(HarnessSessionEntity("one", "one", 1, 1, null))
+        repository.upsert(HarnessSessionEntity("one", "one", 1, 1, null, executionTargetJson = "unbound"))
         val results = (1..20).map { async(kotlinx.coroutines.Dispatchers.IO) { repository.bindExecutionTarget("one", "target-$it") } }.awaitAll()
         assertEquals(1, results.distinct().size)
         val target = results.first()

@@ -40,14 +40,14 @@ class SessionExecutionTargets(
             "会话已移除或尚未保存，拒绝创建执行环境"
         }
         val saved = session?.executionTargetJson
-        check(saved != "unbound") { "旧会话未记录执行环境，请新建会话以明确选择系统" }
-        val target = saved?.let { Json.decodeFromString(SessionExecutionTarget.serializer(), it) }
+        check(saved != "restore-required") { "导入的会话未记录执行环境，请新建会话以明确选择系统" }
+        val target = saved?.takeUnless { it == "unbound" }?.let { Json.decodeFromString(SessionExecutionTarget.serializer(), it) }
             ?: transient[root] ?: run {
-                val selected = selection(workspace, inherited)
+                // Before SSH existed all historical chats ran locally. Never use today's remote default.
+                val selected = selection(workspace, if (saved == "unbound") localDistribution() else inherited)
                 if (session != null) {
                     val encoded = Json.encodeToString(SessionExecutionTarget.serializer(), selected)
                     val stored = sessions!!.bindExecutionTarget(root, encoded) ?: error("会话已移除，拒绝绑定执行环境")
-                    check(stored != "unbound") { "旧会话未记录执行环境，请新建会话" }
                     Json.decodeFromString(SessionExecutionTarget.serializer(), stored)
                 } else selected.also { transient[root] = it }
             }

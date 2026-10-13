@@ -22,6 +22,7 @@ class LinuxMcpStdioChannel(
     private val maxFrameChars: Int = McpStdioTransport.MAX_FRAME_CHARS,
     private val bufferCapacity: Int = McpStdioTransport.MAX_BUFFERED_LINES,
     private val environment: top.wkbin.taixu.runtime.environment.ExecutionEnvironment? = null,
+    private val secretValues: Collection<String> = emptyList(),
 ) : McpStdioChannel {
     internal var ownership: AutoCloseable? = null
     private val cleanup = McpResourceCleanup()
@@ -38,6 +39,7 @@ class LinuxMcpStdioChannel(
         // 同一段连续超长输出只广播一条熔断错误帧：首帧已能触发在途请求失败，
         // 若每条超长行都发帧，会被协议层连续计数放大为通道级中毒断连
         var reportedOversizedFrame = false
+        val diagnostics = StringBuilder()
         try {
             session.output.collect { output ->
                 val chunk = output.text
@@ -79,10 +81,17 @@ class LinuxMcpStdioChannel(
                     buf.clear()
                     reportedOversizedFrame = false
                     if (line.startsWith("{")) lines.send(line)
+                    else if (line.isNotBlank()) {
+                        diagnostics.append(line).append('\n')
+                        if (diagnostics.length > 2048) diagnostics.delete(0, diagnostics.length - 2048)
+                    }
                     start = newline + 1
                 }
             }
-            lines.close()
+            val detail = top.wkbin.taixu.core.security.SecretRedactor().redact(diagnostics.toString())
+                .let { text -> secretValues.filter { it.isNotBlank() }.fold(text) { value, secret -> value.replace(secret, "[REDACTED]") } }
+                .trim()
+            lines.close(detail.takeIf { it.isNotBlank() }?.let { McpStdioChannelException("MCP 子进程输出已结束：$it") })
         } catch (cancellation: CancellationException) {
             lines.close(cancellation)
             throw cancellation

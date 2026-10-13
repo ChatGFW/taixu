@@ -559,24 +559,11 @@ class LinuxRuntimeImpl(
     override suspend fun startSession(config: SessionConfig, distroId: String?): LinuxSession = storageActivities.activity {
         val prepared = prepareInteractiveSession(config, distroId)
         try {
-            val session = if (ptyManager.nativeAvailable) {
-                ptyManager.openNative(
-                    command = prepared.command,
-                    hostEnvironment = prepared.hostEnvironment,
-                    config = prepared.effectiveConfig,
-                    cleanup = { check(!prepared.markerFile.exists() || prepared.markerFile.delete()) { "PTY marker cleanup failed" } },
-                )
-            } else {
-                ptyManager.open(
-                    command = prepared.fallbackCommand,
-                    hostEnvironment = prepared.hostEnvironment,
-                    config = prepared.effectiveConfig,
-                    resize = { columns, rows ->
-                        resizePty(prepared.markerPath, columns, rows, prepared.distroId)
-                    },
-                    cleanup = { check(!prepared.markerFile.exists() || prepared.markerFile.delete()) { "PTY marker cleanup failed" } },
-                )
-            }
+            val session = top.wkbin.taixu.runtime.shell.launchRuntimeSession(
+                ptyManager, prepared.effectiveConfig, prepared.command, prepared.fallbackCommand, prepared.hostEnvironment,
+                resize = { columns, rows -> resizePty(prepared.markerPath, columns, rows, prepared.distroId) },
+                cleanup = { check(!prepared.markerFile.exists() || prepared.markerFile.delete()) { "Session marker cleanup failed" } },
+            )
             interactiveSessions.track(session, prepared.distroId)
         } catch (throwable: Throwable) {
             prepared.markerFile.delete()

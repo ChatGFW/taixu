@@ -25,10 +25,10 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * 交互式会话的无 JNI backend，底层由 Debian `script` 创建 PTY。
+ * 无 JNI 的子进程 backend，通过管道读写 stdin/stdout。
  *
- * 它提供 stdin/stdout 生命周期、ANSI 输出流和可注入的窗口调整回调；后续接入真正
- * forkpty backend 时无需修改 LinuxSession API。
+ * 协议会话直接运行 PRoot 命令；兼容终端由调用方通过 Debian `script` 创建 PTY，
+ * 并提供窗口调整回调。两种模式共用 LinuxSession 的输出与清理生命周期。
  */
 class ProcessLinuxSession internal constructor(
     private val process: Process,
