@@ -48,6 +48,10 @@
 | `harness/mcp/server/*` | in-process MCP Server：`McpServerRuntime` / Auth / Tool+Resource Dispatcher |
 | `harness/HarnessMessage.kt` | `HarnessTool` 枚举 + `ToolResult` (含 `imageAttachments`) |
 
+## 💬 聊天与主导航
+
+聊天与主导航：`feature/navigation/.../TaiXuNavHost.kt` 默认进入智枢，保留各主页面独立返回栈；`feature/chat/.../ChatNavigationDrawer.kt` 共用 Activity 级会话模型并整合会话与功能入口；`feature/components/.../AppNavigation.kt` 提供导航上下文和主入口列表。`ChatTopBar.kt` / `ChatWorkbenchControls.kt` 实现会话、模型、工作区与按需展开的控制；`ChatWelcome.kt` 提供项目感知的欢迎与预填任务示例。原底部导航组件仅保留组件本身，不在主页面渲染。
+
 ## 🗂️ 模型档案迁移
 
 模型档案的备份与迁移见 [MODEL_PROFILE_TRANSFER.md](MODEL_PROFILE_TRANSFER.md)：`tools/AiProfileBackupCodec.kt` / `AiProfileTransferFormat.kt` / `AiProfileImportWriter.kt`，持久化端口为 `core/database/AiModelRepository.kt`，界面为 `feature/settings/ModelImportDialog.kt` / `ModelExportDialog.kt`。

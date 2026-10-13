@@ -192,6 +192,21 @@ object McpResponseSizeLimiter {
     }
 
     /**
+     * 获取一个可用的落盘转存文件（目录解析 → 配额回收 → 建文件），供多条通道复用同一套配额策略。
+     * 不可用（目录不可写/创建失败）时返回 null，调用方自行回退熔断路径。
+     */
+    internal fun acquireSpillFile(spillDirectory: File?, spillFilePrefix: String = "mcp_spill_"): File? {
+        val targetDir = resolveSpillDirectory(spillDirectory) ?: return null
+        if (!targetDir.isDirectory && !targetDir.mkdirs()) return null
+        cleanupOldSpills(targetDir, spillFilePrefix)
+        return try {
+            File.createTempFile(spillFilePrefix, ".txt", targetDir)
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    /**
      * 落盘配额回收：先按过期时间清理，再按「总量 + 条数」上限从最旧开始淘汰。
      * 仅靠 24h 过期回收的话，短时间连续大响应可累积 N × 4MB，撑爆移动端磁盘。
      */

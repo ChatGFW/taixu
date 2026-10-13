@@ -8,7 +8,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
@@ -30,9 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import androidx.compose.material3.ButtonDefaults
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -57,11 +53,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.database.HarnessSessionEntity
-import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.core.model.SessionRunState
-import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.ui.components.ProviderBadge
 
 /** 会话 / 模型 / 新建会话对话框。 */
@@ -184,12 +179,13 @@ internal fun SessionsDialog(
                         val isCurrent = session.id == currentSessionId
                         val runState = sessionRunStates[session.id] ?: SessionRunState.IDLE
 
+                        val semantics = semanticColors()
                         val (dotColor, stateLabel) = when (runState) {
-                            SessionRunState.RUNNING -> Color(0xFFF59E0B) to stringResource(R.string.chat_state_running)
-                            SessionRunState.WAITING_APPROVAL -> Color(0xFF8B5CF6) to stringResource(R.string.chat_state_approval)
-                            SessionRunState.FAILED -> Color(0xFFEF4444) to stringResource(R.string.chat_state_failed)
-                            SessionRunState.COMPLETED -> Color(0xFF10B981) to stringResource(R.string.chat_state_completed)
-                            SessionRunState.IDLE -> Color(0xFF10B981) to stringResource(R.string.chat_state_ready)
+                            SessionRunState.RUNNING -> semantics.warning to stringResource(R.string.chat_state_running)
+                            SessionRunState.WAITING_APPROVAL -> semantics.agent to stringResource(R.string.chat_state_approval)
+                            SessionRunState.FAILED -> MaterialTheme.colorScheme.error to stringResource(R.string.chat_state_failed)
+                            SessionRunState.COMPLETED -> semantics.success to stringResource(R.string.chat_state_completed)
+                            SessionRunState.IDLE -> semantics.success to stringResource(R.string.chat_state_ready)
                         }
 
                         Surface(
@@ -884,4 +880,3 @@ internal fun WorkspaceOption(name: String, path: String, selected: Boolean, onSe
         }
     }
 }
-

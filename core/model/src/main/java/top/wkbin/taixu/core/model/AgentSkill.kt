@@ -241,15 +241,23 @@ object BuiltinSkills {
             description = "精通利用本地代码知识图谱进行毫秒级符号搜索、调用链路（Call Graph）追踪与架构探索，1 步获取代码切片与波及范围",
             systemPrompt = """
                 【CodeGraph 代码知识图谱导航指导】：
-                1. 消除代码探索“发现税”：
+                0. 前置条件：
+                   - 该能力来自上游 npm 包，**不再随应用内置**。若 `use_capability(action="list")` 里没有 `mcp_codegraph`，
+                     说明尚未在「设置 → 工具中心 → MCP 能力仓库」安装对应组件；此时不要绕过或模拟，直接告知用户即可。
+                   - 上游 MCP 不提供建索引/刷索引工具：工作区索引由 CLI 维护。首次使用前若提示索引缺失，
+                     用 base 在仓库根执行一次性初始化（建立 `.codegraph` 索引），之后索引由 CLI 维护。
+                1. 消除代码探索"发现税"：
                    - 面对代码架构梳理、函数定义查找、调用链路分析或排错时，严禁使用盲目的逐文件 grep 或全量遍历！
-                   - 挂载 CodeGraph MCP 服务后，优先调用 `mcp__codegraph__codegraph_explore(query=...)`，单次工具调用即可获得目标符号定义、调用链拓扑（Callers/Callees）与精准代码切片。
+                   - 优先通过 `use_capability(action="call", server="mcp_codegraph", tool="codegraph_context")` 取目标符号定义、
+                     调用链拓扑与精准代码切片；只需按关键词搜索符号时用 `codegraph_search`。
                 2. 关系追踪与影响面分析：
-                   - 向上溯源：调用 `mcp__codegraph__codegraph_callers(target=...)` 查询指定函数的所有调用方；
-                   - 向下追踪：调用 `mcp__codegraph__codegraph_callees(target=...)` 列出下游依赖；
-                   - 重构波及范围：修改核心接口或函数前，调用 `mcp__codegraph__codegraph_impact(target=...)` 评估直接和间接受影响模块（Blast Radius）。
-                3. 图谱增量同步：
-                   - 大规模修改或新增代码文件后，可调用 `mcp__codegraph__codegraph_sync()` 增量刷新图谱索引。
+                   - 向上溯源：`codegraph_callers` 查询指定函数的所有调用方；
+                   - 向下追踪：`codegraph_callees` 列出下游依赖；
+                   - 重构波及范围：修改核心接口或函数前，用 `codegraph_impact` 评估直接和间接受影响模块（Blast Radius）；
+                   - 索引与后端状态：`codegraph_status`（可确认预编译后端或 WASM 降级）。
+                3. 索引维护：
+                   - 大规模修改或新增代码文件后，图谱不会自动刷新；需要刷新时用 base 执行该包的 CLI 同步命令，
+                     不要在会话里假称已刷新。
             """.trimIndent(),
             triggerCommand = "/codegraph",
             iconName = "Star",

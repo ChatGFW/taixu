@@ -423,13 +423,7 @@ internal fun LocalToolCenterContent(
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         RuntimeIcon(
-                                            name = when (bundle.iconName) {
-                                                "Android" -> RuntimeIconName.Android
-                                                "Flutter" -> RuntimeIconName.Flutter
-                                                "Globe" -> RuntimeIconName.Globe
-                                                "Search" -> RuntimeIconName.Search
-                                                else -> RuntimeIconName.Code
-                                            },
+                                            name = bundleIcon(bundle.iconName),
                                             modifier = Modifier.size(22.dp),
                                             tint = if (isCoreReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -814,7 +808,7 @@ internal fun LocalToolCenterContent(
         }
 
         activeBundle?.let { bundle ->
-            BundleComponentSetupDialog(
+            BundleSetupDialogWithUpdates(
                 bundle = bundle,
                 installedComponentIds = installedComponentIds,
                 selectedComponents = selectedComponents,

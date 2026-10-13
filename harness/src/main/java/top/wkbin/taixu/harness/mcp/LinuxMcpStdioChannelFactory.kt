@@ -23,6 +23,8 @@ class LinuxMcpStdioChannelFactory(
     private val linuxRuntime: LinuxRuntime,
     private val commandBuilder: McpCommandBuilder,
     private val environments: ExecutionEnvironmentFactory? = null,
+    /** 超长行落盘转存目录；与 McpHttpTransport 共用 cacheDir/taixu_mcp_spills。 */
+    private val spillDirectory: java.io.File? = null,
 ) : McpStdioChannelFactory {
     private data class Key(val server: String, val environment: ExecutionEnvironmentId?)
     private val locks = ConcurrentHashMap<Key, Mutex>()
@@ -55,10 +57,16 @@ class LinuxMcpStdioChannelFactory(
                         val config = SessionConfig(workingDirectory = environment?.workingDirectory() ?: "/root", environment = prepared.env,
                             commandLine = commandBuilder.commandLine(prepared, configureTty = false), allowSttyResize = false, usePty = false)
                         requireMcpExecutable(environment, prepared)
+                        if (server.requiresInstall) {
+                            val entry = checkNotNull(top.wkbin.taixu.core.model.McpCatalog.find(server.id.mcpServerKey()))
+                            val probe = ShellCommand(entry.probeCommand, timeoutMs = 5_000L)
+                            val result = environment?.execute(probe) ?: linuxRuntime.execute(probe)
+                            check(result.isSuccess) { "MCP ${server.name} 在当前环境未安装或安装已损坏" }
+                        }
                         checkCreation(owned)
                         owned.session = environment?.openSession(config) ?: linuxRuntime.startSession(config)
                         checkCreation(owned)
-                        val channel = LinuxMcpStdioChannel(server.id, owned.session!!, environment = owned.environment, secretValues = prepared.env.values)
+                        val channel = LinuxMcpStdioChannel(server.id, owned.session!!, environment = owned.environment, secretValues = prepared.env.values, spillDirectory = spillDirectory)
                         owned.channel = channel
                         channel.ownership = AutoCloseable { owned.detached() }
                         checkCreation(owned)

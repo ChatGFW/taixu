@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.theme.semanticColors
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -151,9 +152,9 @@ fun ToolActivityPill(
         val iconName = toolKind?.let { toolIcon(it) } ?: RuntimeIconName.Speed
 
         val pillAccent = when (toolKind) {
-            HarnessTool.BASE, HarnessTool.PROCESS -> Color(0xFF00E5FF)
-            HarnessTool.WRITE, HarnessTool.EDIT -> Color(0xFF10B981)
-            HarnessTool.SUBAGENT -> Color(0xFF8B5CF6)
+            HarnessTool.BASE, HarnessTool.PROCESS -> semanticColors().info
+            HarnessTool.WRITE, HarnessTool.EDIT -> semanticColors().success
+            HarnessTool.SUBAGENT -> semanticColors().agent
             else -> MaterialTheme.colorScheme.primary
         }
 

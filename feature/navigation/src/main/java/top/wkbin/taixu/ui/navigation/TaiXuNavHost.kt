@@ -1,14 +1,13 @@
 package top.wkbin.taixu.ui.navigation
 
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.ime
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -16,13 +15,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
@@ -35,8 +30,8 @@ import androidx.navigation3.ui.NavDisplay
 import top.wkbin.taixu.ui.chat.ChatScreen
 import top.wkbin.taixu.ui.chat.ChatViewModel
 import top.wkbin.taixu.ui.components.MainDestination
-import top.wkbin.taixu.ui.components.RuntimeBottomBar
-import top.wkbin.taixu.ui.theme.LocalLiquidGlassBackdrop
+import top.wkbin.taixu.ui.components.LocalAppNavigation
+import top.wkbin.taixu.ui.chat.ChatNavigationDrawer
 import top.wkbin.taixu.ui.developer.DeveloperScreen
 import top.wkbin.taixu.ui.developer.AdbLogcatScreen
 import top.wkbin.taixu.ui.preview.LiquidGlassCatalogScreen
@@ -176,7 +171,9 @@ fun TaiXuNavHost(
     val workspaceStack = rememberNavBackStack(WorkspaceDestination)
     val settingsStack = rememberNavBackStack(SettingsDestination)
     var pendingHealingTask by remember { mutableStateOf<HealingTask?>(null) }
-    var selectedMain by rememberSaveable { mutableStateOf(MainDestination.Home) } // 默认进入太墟开辟主界
+    var selectedMain by rememberSaveable { mutableStateOf(MainDestination.Agent) }
+    var showNavigation by rememberSaveable { mutableStateOf(false) }
+    var showNewSession by rememberSaveable { mutableStateOf(false) }
     /** Programmatic stack mutation (bus / workflow). */
     fun NavBackStack<NavKey>.pushRaw(destination: NavKey) {
         if (lastOrNull() != destination) add(destination)
@@ -248,6 +245,9 @@ fun TaiXuNavHost(
     fun popBack() {
         if (activeStack.size > 1) activeStack.removeLastOrNull()
     }
+    BackHandler(enabled = activeStack.size == 1 && selectedMain != MainDestination.Agent && !showNavigation && !showNewSession) {
+        navigateMain(MainDestination.Agent)
+    }
 
     @Composable
     fun GuardedEntry(
@@ -295,6 +295,7 @@ fun TaiXuNavHost(
                     ChatScreen(
                         viewModel = chatViewModel,
                         onNavigate = ::navigateMain,
+                        onOpenNavigation = { showNavigation = true }, onNewSession = { showNewSession = true }, onInstallMcp = { activeStack.pushRaw(ToolCenterDestination) },
                         // 内嵌终端面板非独立导航节点，无返回目标：隐藏顶栏返回箭头，避免点击无反馈
                         terminalPane = { project -> TerminalScreen(onBack = {}, project = project, showBackButton = false) },
                         // 内嵌浏览器面板：与独立浏览器页共享 Activity 级 BrowserViewModel，
@@ -780,14 +781,10 @@ fun TaiXuNavHost(
             }
     }
 
-    val density = LocalDensity.current
-    val liquidGlassBackdrop = LocalLiquidGlassBackdrop.current
-    val showLiquidBottomBar = liquidGlassBackdrop != null &&
-        activeStack.size == 1 &&
-        WindowInsets.ime.getBottom(density) == 0
     // Hoist decorators so tab switches (key below) do not drop entry Saveable/ViewModel state.
     // Explicit <NavKey>: outside NavDisplay's parameter context, listOf cannot infer T.
     val entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator<NavKey>(), rememberViewModelStoreNavEntryDecorator<NavKey>())
+    CompositionLocalProvider(LocalAppNavigation provides { showNavigation = true }) {
     Box(modifier = Modifier.fillMaxSize()) {
         // App background under NavDisplay so a rare uncovered frame never shows window black.
         Surface(
@@ -806,27 +803,14 @@ fun TaiXuNavHost(
                 )
             }
         }
-        if (liquidGlassBackdrop != null) {
-            // Keep the expensive glass layers composed while a secondary destination is open.
-            // Recreating both backdrop render layers in the same frame as the root screen was
-            // the main source of pop-navigation stalls. Moving the retained bar off-screen also
-            // prevents its invisible click targets from intercepting the secondary page.
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .zIndex(if (showLiquidBottomBar) 1f else -1f)
-                    .graphicsLayer {
-                        alpha = if (showLiquidBottomBar) 1f else 0f
-                        translationY = if (showLiquidBottomBar) 0f else size.height
-                    },
-            ) {
-                RuntimeBottomBar(
-                    selected = selectedMain,
-                    onNavigate = ::navigateMain,
-                )
-            }
-        }
+        ChatNavigationDrawer(chatViewModel, showNavigation, showNewSession, selectedMain,
+            onDismiss = { showNavigation = false }, onNewSession = { showNewSession = true },
+            onDismissNewSession = { showNewSession = false }, onNavigate = { destination ->
+                if (destination == MainDestination.Agent) while (agentStack.size > 1) agentStack.removeLastOrNull()
+                navigateMain(destination)
+            }, onOpenTerminal = { activeStack.pushRaw(TerminalDestination()) },
+            onOpenTools = { activeStack.pushRaw(ToolCenterDestination) })
+    }
     }
 }
 

@@ -38,6 +38,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import top.wkbin.taixu.ui.theme.LocalLiquidGlassSurfaceBackdrop
+import top.wkbin.taixu.ui.components.RuntimeDialogSystemBars
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -180,8 +183,7 @@ internal fun SessionsSideDrawer(
     onCreateInWorkspace: (WorkspaceProject) -> Unit,
     onDelete: (String) -> Unit,
     onRename: (String, String) -> Unit,
-    onOpenSkills: (() -> Unit)? = null,
-    onOpenRuntime: (() -> Unit)? = null,
+    navigationContent: @Composable () -> Unit = {},
 ) {
     if (!visible) return
 
@@ -204,7 +206,6 @@ internal fun SessionsSideDrawer(
     var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteTargetId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // 默认展开包含当前活跃会话的项目，若无则默认展开有会话的项目
     val partition = remember(sessions, workspaces) { partitionSessions(sessions, workspaces) }
     var expandedProjects by rememberSaveable {
         val initialExpanded = partition.projectGroups
@@ -221,10 +222,10 @@ internal fun SessionsSideDrawer(
             decorFitsSystemWindows = false,
         ),
     ) {
+        RuntimeDialogSystemBars()
         BackHandler { handleDismiss() }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            // 1. 半透明暗色背景遮罩（点击关闭）
             AnimatedVisibility(
                 visible = isVisible,
                 enter = fadeIn(tween(180)),
@@ -234,7 +235,7 @@ internal fun SessionsSideDrawer(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.45f))
+                        .background(Color.Black.copy(alpha = 0.24f))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -243,29 +244,29 @@ internal fun SessionsSideDrawer(
                 )
             }
 
-            // 2. 右侧侧边抽屉面板（从右往左弹出，靠近屏幕右侧）
             AnimatedVisibility(
                 visible = isVisible,
                 enter = slideInHorizontally(
-                    initialOffsetX = { it },
+                    initialOffsetX = { -it },
                     animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                 ),
                 exit = slideOutHorizontally(
-                    targetOffsetX = { it },
+                    targetOffsetX = { -it },
                     animationSpec = tween(180),
                 ),
                 modifier = Modifier
                     .fillMaxHeight()
-                    .align(Alignment.CenterEnd),
+                    .align(Alignment.CenterStart),
             ) {
+                CompositionLocalProvider(LocalLiquidGlassSurfaceBackdrop provides null) {
                 Surface(
                     modifier = Modifier
                         .fillMaxHeight()
-                        .widthIn(min = 280.dp, max = 340.dp)
-                        .fillMaxWidth(0.85f),
-                    shape = RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    tonalElevation = 6.dp,
+                        .widthIn(max = 360.dp)
+                        .fillMaxWidth(0.88f),
+                    shape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 1f),
+                    tonalElevation = 0.dp,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                 ) {
                     Column(
@@ -274,13 +275,11 @@ internal fun SessionsSideDrawer(
                             .statusBarsPadding()
                             .navigationBarsPadding(),
                     ) {
-                        // 顶部 Header：品牌 Badge + 标题 + 会话统计 + 关闭按钮
                         DrawerHeader(
                             totalSessionsCount = sessions.size,
                             onClose = handleDismiss,
                         )
 
-                        // 顶部醒目的「新任务 / 新建会话」大按钮
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -293,7 +292,7 @@ internal fun SessionsSideDrawer(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(44.dp),
+                                    .height(48.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                             ) {
@@ -315,79 +314,11 @@ internal fun SessionsSideDrawer(
                             }
                         }
 
-                        // 快捷扩展与监控入口（复刻千问侧栏辅助导航，带防截断内边距）
-                        if (onOpenSkills != null || onOpenRuntime != null) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                if (onOpenSkills != null) {
-                                    RuntimeFilledTonalButton(
-                                        onClick = {
-                                            handleDismiss()
-                                            onOpenSkills()
-                                        },
-                                        modifier = Modifier.weight(1f).height(36.dp),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        ) {
-                                            RuntimeIcon(
-                                                name = RuntimeIconName.Extension,
-                                                modifier = Modifier.size(14.dp),
-                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.chat_drawer_quick_skills),
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
-                                        }
-                                    }
-                                }
-                                if (onOpenRuntime != null) {
-                                    RuntimeFilledTonalButton(
-                                        onClick = {
-                                            handleDismiss()
-                                            onOpenRuntime()
-                                        },
-                                        modifier = Modifier.weight(1f).height(36.dp),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        ) {
-                                            RuntimeIcon(
-                                                name = RuntimeIconName.Logs,
-                                                modifier = Modifier.size(14.dp),
-                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.chat_drawer_quick_runtime),
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                         )
 
-                        // 滚动列表内容：项目分组 + 最近分组
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -396,7 +327,7 @@ internal fun SessionsSideDrawer(
                                 .padding(horizontal = 12.dp, vertical = 4.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            // 分区 1：项目 (Projects)
+                            navigationContent()
                             ProjectSection(
                                 projectGroups = partition.projectGroups,
                                 currentSessionId = currentSessionId,
@@ -429,7 +360,6 @@ internal fun SessionsSideDrawer(
                                 onDelete = { id -> deleteTargetId = id },
                             )
 
-                            // 分区 2：最近 (Recent)
                             RecentSection(
                                 recentSessions = partition.recentSessions,
                                 currentSessionId = currentSessionId,
@@ -445,6 +375,7 @@ internal fun SessionsSideDrawer(
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
+                }
                 }
             }
         }
@@ -533,7 +464,7 @@ private fun DrawerHeader(
 
         RuntimeIconButton(
             onClick = onClose,
-            modifier = Modifier.size(28.dp),
+            modifier = Modifier.size(48.dp), contentDescription = stringResource(R.string.chat_cancel),
         ) {
             RuntimeIcon(
                 name = RuntimeIconName.Close,
@@ -759,11 +690,11 @@ private fun SessionDrawerItem(
     onDelete: () -> Unit,
 ) {
     val dotColor = when (runState) {
-        SessionRunState.RUNNING -> Color(0xFFF59E0B)
-        SessionRunState.WAITING_APPROVAL -> Color(0xFF8B5CF6)
-        SessionRunState.FAILED -> Color(0xFFEF4444)
-        SessionRunState.COMPLETED -> Color(0xFF10B981)
-        SessionRunState.IDLE -> Color(0xFF10B981)
+        SessionRunState.RUNNING -> top.wkbin.taixu.ui.theme.semanticColors().warning
+        SessionRunState.WAITING_APPROVAL -> top.wkbin.taixu.ui.theme.semanticColors().agent
+        SessionRunState.FAILED -> MaterialTheme.colorScheme.error
+        SessionRunState.COMPLETED -> top.wkbin.taixu.ui.theme.semanticColors().success
+        SessionRunState.IDLE -> top.wkbin.taixu.ui.theme.semanticColors().success
     }
 
     val timeLabel = formatSessionTime(session.updatedAt)

@@ -121,8 +121,7 @@ class McpStdioTransport(
     }
 
     /** 是否为传输层故障（子进程死亡 / EOF / IO 错误），只有此类失败才值得销毁重建连接 */
-    private fun isChannelFailure(t: Throwable): Boolean =
-        t is McpStdioChannelException || t is IOException
+    private fun isChannelFailure(t: Throwable): Boolean = t is McpStdioChannelException || t is IOException
 
     suspend fun closeConnection(serverId: String) = startupMutexes.getOrPut(serverId) { Mutex() }.withLock {
         val ids = (connections.keys + downUntil.keys + serverId).filter { it == serverId || it.startsWith("$serverId@environment:") }
@@ -384,9 +383,7 @@ class McpStdioTransport(
     private fun startReaderLoop(connection: Connection) {
         connection.readerJob = scope.launch {
             try {
-                while (true) {
-                    connection.route(connection.channel.incoming.receive())
-                }
+                while (true) connection.route(connection.channel.incoming.receive())
             } catch (cancellation: CancellationException) {
                 throw cancellation // close() 主动取消，等待者已由 close 收尾
             } catch (t: Throwable) {
@@ -413,6 +410,8 @@ class McpStdioTransport(
         private const val CALL_REQUEST_TIMEOUT_MS = 600_000L
         internal const val MAX_BUFFERED_LINES = 64
         internal const val MAX_FRAME_CHARS = 1 * 1024 * 1024
+        /** STDIO 超长行落盘转存硬顶：8MB（超过则回退熔断跳过），与 McpResponseSizeLimiter 的 SSE 硬顶对齐。 */
+        internal const val MAX_SPILL_FRAME_CHARS = 8L * 1024 * 1024
         internal const val MAX_IGNORED_FRAMES = 256
         internal const val IDLE_TIMEOUT_MS = 10L * 60L * 1000L
         internal const val SWEEP_INTERVAL_MS = 60L * 1000L

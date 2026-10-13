@@ -571,9 +571,6 @@ fun Modifier.liquidGlassContent(): Modifier {
 @Composable
 fun isLiquidGlassThemeActive(): Boolean = LocalLiquidGlassBackdrop.current != null
 
-/**
- * 太墟品牌 TopBar
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RuntimeTopBar(
@@ -586,6 +583,7 @@ fun RuntimeTopBar(
     val glassBackdrop = LocalLiquidGlassSurfaceBackdrop.current
     val glassSurfaceColor = MaterialTheme.colorScheme.surface
     val glassShape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+    val openNavigation = LocalAppNavigation.current
     val topBar: @Composable () -> Unit = {
         TopAppBar(
         title = {
@@ -621,6 +619,8 @@ fun RuntimeTopBar(
                 RuntimeIconButton(onClick = onBack, contentDescription = stringResource(R.string.components_back)) {
                     RuntimeIcon(RuntimeIconName.Back, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
                 }
+            } else if (openNavigation != null) RuntimeIconButton(onClick = openNavigation, contentDescription = stringResource(R.string.components_open_navigation)) {
+                RuntimeIcon(RuntimeIconName.List, Modifier.size(20.dp))
             }
         },
         actions = actions,
@@ -718,7 +718,7 @@ fun RuntimeCard(
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     borderColor: Color = Color.Transparent,
-    shape: Shape = RoundedCornerShape(16.dp),
+    shape: Shape = MaterialTheme.shapes.large,
     onClick: (() -> Unit)? = null,
     contentPadding: PaddingValues = PaddingValues(16.dp),
     exportedBackdrop: LayerBackdrop? = null,

@@ -213,6 +213,11 @@ val ChengmingDarkColors = darkColorScheme(
 
 /**
  * Material 3 形状体系 (Shape Scale)
+ *
+ * M3 Expressive 在标准 M3 五级基础上引入更饱满的圆角：卡片 16dp、按钮全圆角（胶囊）、
+ * 强调容器 28dp。原实现把 extraSmall 压到 4dp，导致 507 处调用点各自硬编码 4/6/8/10/12dp，
+ * 形状 token 形同虚设。这里重新对齐到 M3 基线（4/8/12/16/28），
+ * 并显式提供 extraExtraLarge 供摘要类大容器使用。
  */
 val TaiXuShapes = Shapes(
     extraSmall = RoundedCornerShape(4.dp),
@@ -270,10 +275,13 @@ fun TaiXuTheme(
         typography = if (style == ThemeStyle.LIQUID_GLASS) LiquidGlassTypography else AppTypography,
         shapes = TaiXuShapes,
     ) {
-        if (style == ThemeStyle.LIQUID_GLASS) {
-            LiquidGlassRoot(content, darkTheme, backgroundUri)
-        } else {
-            content()
+        val semantics = if (darkTheme) DarkSemantics else LightSemantics
+        CompositionLocalProvider(LocalSemanticColors provides semantics) {
+            if (style == ThemeStyle.LIQUID_GLASS) {
+                LiquidGlassRoot(content, darkTheme, backgroundUri)
+            } else {
+                content()
+            }
         }
     }
 }

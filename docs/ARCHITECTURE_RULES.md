@@ -28,9 +28,10 @@
    - 开关与进度指示使用 `RuntimeSwitch`, `RuntimeLinearProgressIndicator`, `RuntimeCircularProgressIndicator`。
 2. **弹窗与表单软键盘安全（IME 防遮挡）**：
    - 所有包含 `OutlinedTextField` 或列表的 Dialog `text` 内容区域，**严禁**设置死锁的固定高宽或外层硬编码 `offset`，**必须**包裹 `modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())`，确保在移动端软键盘弹起时表单可顺畅滑动，操作按钮始终可见可达。
-3. **顶部与底部导航栏规范**：
+3. **顶部与主导航规范**：
    - 顶部导航统一使用 `RuntimeTopBar`（支持 `title`, `statusText`, `onBack`）。
-   - 底部导航统一使用基于 M3 原生 NavigationBar 的 `RuntimeBottomBar`。
+   - 首次引导完成后默认进入智枢聊天；主页面不显示底部导航栏。会话与主功能统一通过左侧抽屉进入，根页面的 `RuntimeTopBar` 使用 `LocalAppNavigation` 打开同一个抽屉；子页面保留返回按钮。
+   - 聊天顶栏突出会话与模型，工作台控制按需展开；全部放行状态始终可见。抽屉、键盘和系统导航栏均使用实际窗口 Insets，不保留旧底部栏占位。
 4. **响应式与小屏防截断/防折行**：
    - 消息气泡（如 `UserBubble`）必须采用响应式宽度（`Modifier.widthIn(max = 560.dp)`），避免在平板/折叠屏/大屏上被限制过窄。
    - 单行文本、路径或标签（如文件路径、短语标题、状态标签）必须显式声明 `maxLines = 1, overflow = TextOverflow.Ellipsis`，严禁长字符串将同行的操作按钮挤出屏幕。

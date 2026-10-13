@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.core.model.McpConnectionState
 import top.wkbin.taixu.core.model.AgentSkill
@@ -531,14 +532,7 @@ internal fun ReasoningEffortSlider(
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                         ),
-                        color = when (selectedIndex) {
-                            0 -> MaterialTheme.colorScheme.onSurfaceVariant
-                            1 -> Color(0xFF10B981)
-                            2 -> Color(0xFF3B82F6)
-                            3 -> Color(0xFF8B5CF6)
-                            4 -> Color(0xFFEC4899)
-                            else -> MaterialTheme.colorScheme.primary
-                        },
+                        color = reasoningLevelTint(selectedIndex),
                     )
                     Text(
                         text = activeLevel.second,
@@ -572,13 +566,10 @@ internal fun ReasoningEffortSlider(
                 ) {
                     levels.indices.forEach { index ->
                         val isSelected = index == selectedIndex
-                        val itemColor = when (index) {
-                            0 -> MaterialTheme.colorScheme.onSurface
-                            1 -> Color(0xFF10B981)
-                            2 -> Color(0xFF3B82F6)
-                            3 -> Color(0xFF8B5CF6)
-                            4 -> Color(0xFFEC4899)
-                            else -> MaterialTheme.colorScheme.primary
+                        val itemColor = if (isSelected) {
+                            reasoningLevelTint(index)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         }
 
                         Box(
@@ -588,14 +579,7 @@ internal fun ReasoningEffortSlider(
                                 .clip(RoundedCornerShape(18.dp))
                                 .background(
                                     if (isSelected) {
-                                        when (index) {
-                                            0 -> MaterialTheme.colorScheme.surfaceContainer
-                                            1 -> Color(0xFF10B981).copy(alpha = 0.25f)
-                                            2 -> Color(0xFF3B82F6).copy(alpha = 0.25f)
-                                            3 -> Color(0xFF8B5CF6).copy(alpha = 0.25f)
-                                            4 -> Color(0xFFEC4899).copy(alpha = 0.25f)
-                                            else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                                        }
+                                        reasoningLevelTint(index).copy(alpha = 0.25f)
                                     } else Color.Transparent,
                                 )
                                 .clickable {
@@ -650,6 +634,22 @@ internal fun ReasoningEffortSlider(
             }
         }
     }
+}
+
+/**
+ * 推理强度档位的统一配色。
+ *
+ * 档位强弱用 [MaterialTheme.colorScheme.primary] 的明度梯度表达，而非绿/蓝/紫/粉彩虹色：
+ * 彩虹色在 Material You 动态取色下与容器主色割裂，且深色主题中低饱和档位对比度不足。
+ * index 0 为「关闭」，使用 onSurfaceVariant 表达中性态。
+ */
+@Composable
+internal fun reasoningLevelTint(index: Int): Color = when (index) {
+    0 -> MaterialTheme.colorScheme.onSurfaceVariant
+    1 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.62f)
+    2 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.78f)
+    3 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+    else -> MaterialTheme.colorScheme.primary
 }
 
 /**

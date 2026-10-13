@@ -292,7 +292,7 @@ val harnessModule = module {
     }
 
     single<HarnessEventBus> { HarnessEventBus() }
-    single<LinuxMcpStdioChannelFactory> { LinuxMcpStdioChannelFactory(linuxRuntime = get(), commandBuilder = get(), environments = get()) }
+    single<LinuxMcpStdioChannelFactory> { LinuxMcpStdioChannelFactory(linuxRuntime = get(), commandBuilder = get(), environments = get(), spillDirectory = File(get<Context>().cacheDir, "taixu_mcp_spills")) }
 
     single<McpCommandBuilder> { McpCommandBuilder() }
 
@@ -306,6 +306,7 @@ val harnessModule = module {
         )
     }
 
+    single<top.wkbin.taixu.harness.mcp.McpCatalogAvailability> { top.wkbin.taixu.harness.mcp.McpCatalogAvailability(get(), get(), get()) }
     single<McpManager> {
         McpManager(
             repository = get(),
@@ -314,10 +315,9 @@ val harnessModule = module {
             commandBuilder = get(),
             linuxRuntime = get(),
             logger = get(),
-            agentEventLogger = get(), remoteServers = get(),
+            agentEventLogger = get(), remoteServers = get(), catalogAvailability = get(),
         )
     }
-
     single<McpStdioChannelFactory> { get<LinuxMcpStdioChannelFactory>() }
 
     single<McpStdioTransport> {

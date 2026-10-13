@@ -630,7 +630,7 @@ private fun SmartCleanupCards(
                     ) {
                         IconTile(
                             icon = RuntimeIconName.Shield,
-                            color = Color(0xFF10B981),
+                            color = top.wkbin.taixu.ui.theme.semanticColors().success,
                             size = 40.dp,
                         )
                         Spacer(Modifier.width(12.dp))
@@ -652,7 +652,7 @@ private fun SmartCleanupCards(
                             safeCleanableBytes.readableSize(),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF10B981),
+                            color = top.wkbin.taixu.ui.theme.semanticColors().success,
                         )
                     }
 
@@ -722,7 +722,7 @@ private fun SmartCleanupCards(
                     ) {
                         IconTile(
                             icon = RuntimeIconName.Code,
-                            color = Color(0xFFF59E0B),
+                            color = top.wkbin.taixu.ui.theme.semanticColors().warning,
                             size = 40.dp,
                         )
                         Spacer(Modifier.width(12.dp))
@@ -744,7 +744,7 @@ private fun SmartCleanupCards(
                             cautionCleanableBytes.readableSize(),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFF59E0B),
+                            color = top.wkbin.taixu.ui.theme.semanticColors().warning,
                         )
                     }
 
@@ -980,8 +980,8 @@ private fun StorageEntryRow(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = when (entry.riskLevel) {
-                                    StorageRiskLevel.SAFE -> Color(0xFF10B981)
-                                    StorageRiskLevel.CAUTION -> Color(0xFFD97706)
+                                    StorageRiskLevel.SAFE -> top.wkbin.taixu.ui.theme.semanticColors().success
+                                    StorageRiskLevel.CAUTION -> top.wkbin.taixu.ui.theme.semanticColors().warning
                                     StorageRiskLevel.DANGEROUS -> MaterialTheme.colorScheme.error
                                     StorageRiskLevel.READONLY -> MaterialTheme.colorScheme.outline
                                 },
@@ -1020,7 +1020,7 @@ private fun StorageEntryRow(
                                         .size(6.dp)
                                         .clip(CircleShape)
                                         .background(
-                                            if (sub.cleanable) Color(0xFFF59E0B) else MaterialTheme.colorScheme.outlineVariant
+                                            if (sub.cleanable) top.wkbin.taixu.ui.theme.semanticColors().warning else MaterialTheme.colorScheme.outlineVariant
                                         ),
                                 )
                                 Spacer(Modifier.width(6.dp))

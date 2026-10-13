@@ -8,21 +8,16 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.PaddingValues
+import top.wkbin.taixu.ui.components.RuntimeCard
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -48,9 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -67,6 +59,7 @@ import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -114,18 +107,6 @@ internal fun ChatComposer(
     contextUsage: ContextUsage,
 ) {
     var showReasoningSlider by rememberSaveable { mutableStateOf(false) }
-
-    // 🌟 任务执行中的主题色流光边框动效（原霓虹三色已收敛为主题色单色呼吸）
-    val infiniteTransition = rememberInfiniteTransition(label = "capsuleGlowTransition")
-    val glowOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "glowOffset",
-    )
 
     val focusRequester = remember { FocusRequester() }
     var textFieldValue by remember {
@@ -245,47 +226,17 @@ internal fun ChatComposer(
         onStop = onStop,
     )
 
-
-    // 一体化输入胶囊：运行中用主题色单色流光描边（透明度渐变呼吸，替代原霓虹三色）
-    val auroraBrush = if (running) {
-        androidx.compose.ui.graphics.Brush.linearGradient(
-            colors = listOf(
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-            ),
-            start = androidx.compose.ui.geometry.Offset(glowOffset, 0f),
-            end = androidx.compose.ui.geometry.Offset(glowOffset + 600f, 600f),
-            tileMode = androidx.compose.ui.graphics.TileMode.Repeated,
-        )
-    } else null
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 6.dp, bottom = 6.dp)
-            .then(
-                if (running && auroraBrush != null) {
-                    Modifier.border(
-                        androidx.compose.foundation.BorderStroke(
-                            1.5.dp,
-                            auroraBrush,
-                        ),
-                        RoundedCornerShape(20.dp),
-                    )
-                } else Modifier
-            ),
-        shape = RoundedCornerShape(20.dp),
-        color = if (running) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = if (!running) androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-        ) else null,
+    RuntimeCard(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp),
+        shape = RoundedCornerShape(28.dp), contentPadding = PaddingValues(0.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        borderColor = if (running) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 4.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             // 🌟 常驻/已钉选能力与临时挂载胶囊栏 (Pinned & Attached Capabilities Strip)
@@ -390,12 +341,13 @@ internal fun ChatComposer(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = 40.dp)
                     .padding(horizontal = 4.dp, vertical = 2.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 if (input.isEmpty()) {
                     Text(
-                        text = stringResource(if (running) R.string.chat_input_running else R.string.chat_input_hint),
+                        text = stringResource(if (running) R.string.chat_input_running else R.string.chat_message_placeholder),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                         maxLines = 1,
@@ -501,7 +453,7 @@ internal fun ChatComposer(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_menu_capabilities_short), fontSize = 13.sp) },
-                                leadingIcon = { RuntimeIcon(RuntimeIconName.Brain, Modifier.size(16.dp), tint = Color(0xFF10B981)) },
+                                leadingIcon = { RuntimeIcon(RuntimeIconName.Brain, Modifier.size(16.dp), tint = semanticColors().success) },
                                 onClick = {
                                     showPlusMenu = false
                                     onOpenSkillsMcp()
@@ -520,12 +472,18 @@ internal fun ChatComposer(
                         else -> stringResource(R.string.chat_depth_medium)
                     }
 
+                    // 思考深度色阶：M3 体系内用 primary 的明度梯度表达强度递进，
+                    // 避免彩虹色（绿/蓝/紫/粉）在深浅主题下对比度失控且与 colorScheme 脱钩。
                     val effortTint = when {
-                        activeModel?.reasoningMode == "disabled" -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        activeModel?.reasoningEffort == "low" -> Color(0xFF10B981)
-                        activeModel?.reasoningEffort == "extreme" || activeModel?.reasoningEffort == "max" -> Color(0xFFEC4899)
-                        activeModel?.reasoningEffort == "high" -> Color(0xFF8B5CF6)
-                        else -> Color(0xFF3B82F6)
+                        activeModel?.reasoningMode == "disabled" ->
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        activeModel?.reasoningEffort == "low" ->
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.62f)
+                        activeModel?.reasoningEffort == "extreme" || activeModel?.reasoningEffort == "max" ->
+                            MaterialTheme.colorScheme.primary
+                        activeModel?.reasoningEffort == "high" ->
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.86f)
+                        else -> MaterialTheme.colorScheme.primary
                     }
 
                     Surface(
@@ -578,7 +536,7 @@ internal fun ChatComposer(
                         ContextUsageRing(contextUsage)
                         if (canSend) {
                             val sendTint = when (sendMode) {
-                                ComposerSendMode.STEER -> Color(0xFF7C4DFF)
+                                ComposerSendMode.STEER -> semanticColors().agent
                                 ComposerSendMode.NEXT_RUN -> MaterialTheme.colorScheme.secondary
                             }
                             // STEER 是固定品牌紫（白字为其原生配对）；NEXT_RUN 跟随主题
@@ -595,7 +553,7 @@ internal fun ChatComposer(
                                 color = sendTint,
                                 modifier = Modifier
                                     .minimumInteractiveComponentSize()
-                                    .size(32.dp)
+                        .size(40.dp)
                                     .semantics { contentDescription = sendDesc },
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -640,9 +598,7 @@ internal fun ChatComposer(
                             shape = CircleShape,
                             color = if (canSend) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .size(32.dp)
+                            modifier = Modifier.minimumInteractiveComponentSize().size(40.dp)
                                 .semantics { contentDescription = sendDesc },
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -660,4 +616,3 @@ internal fun ChatComposer(
         }
     }
 }
-

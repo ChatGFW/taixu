@@ -12,6 +12,7 @@ import top.wkbin.taixu.ui.settings.SponsorListRepository
 import top.wkbin.taixu.ui.settings.SponsorListViewModel
 import top.wkbin.taixu.ui.settings.SshSettingsViewModel
 import top.wkbin.taixu.ui.settings.StorageUsageViewModel
+import top.wkbin.taixu.ui.settings.McpCatalogViewModel
 import top.wkbin.taixu.ui.settings.ToolCenterViewModel
 import top.wkbin.taixu.ui.settings.ToolDetailViewModel
 import top.wkbin.taixu.ui.settings.stats.StatsRepository
@@ -125,6 +126,16 @@ val featureSettingsModule = module {
 
     viewModel<StorageUsageViewModel> { StorageUsageViewModel(storageManager = get()) }
 
+    viewModel<McpCatalogViewModel> {
+        McpCatalogViewModel(
+            mcpServerRepository = get(),
+            toolManager = get(),
+            updater = get(),
+            remoteServers = get(),
+            logger = get(),
+        )
+    }
+
     viewModel<ToolCenterViewModel> {
         ToolCenterViewModel(
             toolManager = get(),
@@ -132,6 +143,7 @@ val featureSettingsModule = module {
             firstUseGuidePreferences = get(),
             logger = get(),
             remoteServers = get(),
+            mcpServerRepository = get(),
         )
     }
 

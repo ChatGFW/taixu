@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import java.io.File
 import java.util.Locale
@@ -269,15 +270,15 @@ fun AttachmentPreviewRow(
                             .size(24.dp)
                             .clip(CircleShape)
                             .background(
-                                if (item.isImage) Color(0xFF3B82F6).copy(alpha = 0.15f)
-                                else Color(0xFF10B981).copy(alpha = 0.15f),
+                                if (item.isImage) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                else semanticColors().success.copy(alpha = 0.15f),
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
                         RuntimeIcon(
                             name = if (item.isImage) RuntimeIconName.Image else RuntimeIconName.Attach,
                             modifier = Modifier.size(13.dp),
-                            tint = if (item.isImage) Color(0xFF3B82F6) else Color(0xFF10B981),
+                            tint = if (item.isImage) MaterialTheme.colorScheme.primary else semanticColors().success,
                         )
                     }
 

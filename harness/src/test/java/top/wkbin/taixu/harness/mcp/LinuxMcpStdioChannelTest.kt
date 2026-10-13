@@ -81,7 +81,12 @@ class LinuxMcpStdioChannelTest {
     fun `consecutive oversized lines produce a single circuit-break error frame`() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val maxFrameChars = 64
-        val channel = LinuxMcpStdioChannel("srv", OversizedSpamSession(maxFrameChars), scope = scope, maxFrameChars = maxFrameChars)
+        // 用一个已存在的普通文件充当"目录"：mkdirs 必然失败 → 落盘不可用 → 锁定回退熔断路径
+        val blockedDir = java.io.File.createTempFile("taixu-spill-blocker", ".tmp").apply { deleteOnExit() }
+        val channel = LinuxMcpStdioChannel(
+            "srv", OversizedSpamSession(maxFrameChars), scope = scope,
+            maxFrameChars = maxFrameChars, spillDirectory = blockedDir,
+        )
         val frames = mutableListOf<String>()
         withTimeoutOrNull(2_000L) {
             for (frame in channel.incoming) {
@@ -93,6 +98,73 @@ class LinuxMcpStdioChannelTest {
         val errorFrames = frames.filter { it.contains("-32603") }
         assertTrue("连续超长行只应广播一条熔断帧，实际 ${errorFrames.size} 条: $frames", errorFrames.size == 1)
         assertTrue("正常帧应照常转发", frames.any { it.contains("\"ok\":true") })
+    }
+
+    @Test
+    fun `oversized line spills to disk and delivers a synthetic tool result frame`() = runBlocking<Unit> {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val maxFrameChars = 64
+        val spillDir = java.io.File(System.getProperty("java.io.tmpdir"), "taixu-mcp-spill-test-${System.nanoTime()}").apply { mkdirs() }
+        val payload = "x".repeat(maxFrameChars + 512)
+        val oversizedLine = """{"jsonrpc":"2.0","id":"req-1","result":{"content":[{"type":"text","text":"$payload"}]}}""" + "\n"
+        val session = object : LinuxSession by CompletingSession() {
+            override val output = flow {
+                emit(TerminalOutput(TerminalStream.STDOUT, oversizedLine))
+                emit(TerminalOutput(TerminalStream.STDOUT, "{\"ok\":true}\n"))
+            }
+        }
+        val channel = LinuxMcpStdioChannel(
+            "srv", session, scope = scope,
+            maxFrameChars = maxFrameChars, spillDirectory = spillDir,
+        )
+        val frames = mutableListOf<String>()
+        withTimeoutOrNull(2_000L) {
+            for (frame in channel.incoming) frames += frame
+        }
+        scope.cancel()
+
+        val spillFrame = frames.firstOrNull { it.contains("已转存至文件") }
+        assertTrue("超长行应转存并合成 tool-result 帧: $frames", spillFrame != null)
+        assertTrue("合成帧应携带原始请求 id", spillFrame!!.contains("\"id\":\"req-1\""))
+        assertTrue("合成帧应为成功 tool-result 而非 error", spillFrame.contains("\"isError\":false"))
+        val spillFiles = spillDir.listFiles()!!.filter { it.name.startsWith("mcp_spill_") }
+        assertTrue("应恰好落盘一个文件", spillFiles.size == 1)
+        assertTrue("落盘文件应包含完整原始行内容", spillFiles[0].readText().contains(payload))
+        assertTrue("后续正常帧应照常转发", frames.any { it.contains("\"ok\":true") })
+        spillDir.deleteRecursively()
+    }
+
+    @Test
+    fun `spill beyond hard cap falls back to circuit break`() = runBlocking<Unit> {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val maxFrameChars = 64
+        val maxSpillChars = 256L
+        val spillDir = java.io.File(System.getProperty("java.io.tmpdir"), "taixu-mcp-spill-cap-${System.nanoTime()}").apply { mkdirs() }
+        val payload = "x".repeat(maxFrameChars + 2048)
+        val oversizedLine = """{"jsonrpc":"2.0","id":"req-9","result":{"content":[{"type":"text","text":"$payload"}]}}""" + "\n"
+        val session = object : LinuxSession by CompletingSession() {
+            override val output = flow {
+                emit(TerminalOutput(TerminalStream.STDOUT, oversizedLine))
+                emit(TerminalOutput(TerminalStream.STDOUT, "{\"ok\":true}\n"))
+            }
+        }
+        val channel = LinuxMcpStdioChannel(
+            "srv", session, scope = scope,
+            maxFrameChars = maxFrameChars, maxSpillChars = maxSpillChars, spillDirectory = spillDir,
+        )
+        val frames = mutableListOf<String>()
+        withTimeoutOrNull(2_000L) {
+            for (frame in channel.incoming) frames += frame
+        }
+        scope.cancel()
+
+        val errorFrames = frames.filter { it.contains("-32603") }
+        assertTrue("超过落盘硬顶应回退熔断帧: $frames", errorFrames.size == 1)
+        assertTrue("熔断帧应携带原始请求 id", errorFrames[0].contains("\"id\":\"req-9\""))
+        assertTrue("不应产生转存成功帧", frames.none { it.contains("已转存至文件") })
+        assertTrue("熔断后正常帧应照常转发", frames.any { it.contains("\"ok\":true") })
+        assertTrue("被中止的落盘残余文件应被删除", spillDir.listFiles()!!.none { it.name.startsWith("mcp_spill_") })
+        spillDir.deleteRecursively()
     }
 
     @Test

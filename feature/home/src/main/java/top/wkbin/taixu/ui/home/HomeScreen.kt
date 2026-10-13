@@ -89,7 +89,6 @@ import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.ui.components.MainDestination
 import top.wkbin.taixu.ui.components.IconTile
 import top.wkbin.taixu.ui.components.NoticeBanner
-import top.wkbin.taixu.ui.components.RuntimeBottomBar
 import top.wkbin.taixu.ui.components.liquidGlassContent
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
@@ -98,7 +97,6 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.distroIconFor
 import top.wkbin.taixu.ui.components.StatusBadge
-import top.wkbin.taixu.ui.components.isLiquidGlassThemeActive
 import android.os.SystemClock
 import top.wkbin.taixu.core.model.InstalledDistro
 
@@ -202,7 +200,6 @@ internal fun LocalHomeScreen(
         }
     }
 
-    val isLiquidGlassTheme = isLiquidGlassThemeActive()
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -237,11 +234,6 @@ internal fun LocalHomeScreen(
                 },
             )
         },
-        bottomBar = {
-            if (!isLiquidGlassTheme) {
-                RuntimeBottomBar(MainDestination.Home, onNavigate)
-            }
-        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -250,7 +242,7 @@ internal fun LocalHomeScreen(
                 .padding(top = innerPadding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp)
-                .padding(bottom = if (isLiquidGlassTheme) 104.dp else innerPadding.calculateBottomPadding() + 16.dp),
+                .padding(bottom = innerPadding.calculateBottomPadding() + 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // 1. 运行时引擎主状态卡片 (Status Banner)

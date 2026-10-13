@@ -48,10 +48,9 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
         topBar = { RuntimeTopBar(title = if (path.isBlank()) "工坊" else path.substringAfterLast('/'),
             statusText = target?.name ?: "当前服务器", onBack = if (path.isBlank()) null else ({ path = path.substringBeforeLast('/', "") }),
             actions = { RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) } }) },
-        bottomBar = { if (!isLiquidGlassThemeActive()) RuntimeBottomBar(MainDestination.Workspace, onNavigate) },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp, 16.dp, 16.dp,
-            if (isLiquidGlassThemeActive()) 120.dp else 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(20.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

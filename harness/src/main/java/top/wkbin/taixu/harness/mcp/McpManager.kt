@@ -37,6 +37,7 @@ class McpManager(
     private val logger: AppLogger,
     private val agentEventLogger: AgentEventLogger,
     private val remoteServers: top.wkbin.taixu.core.datastore.RemoteServerRepository? = null,
+    private val catalogAvailability: McpCatalogAvailability = McpCatalogAvailability(linuxRuntime, remoteServers = remoteServers),
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val standaloneScope = stdio.standaloneScope ?: remoteServers?.let { StandaloneMcpScope(it) }
@@ -71,6 +72,7 @@ class McpManager(
     }
 
     suspend fun checkConnection(server: McpServerConfig): Boolean = withContext(Dispatchers.IO) {
+        if (server.requiresInstall && catalogAvailability.resolve(listOf(server)).single().installationReady != true) return@withContext false
         // B1: 与 executeTool 一致先做 workspace 绑定，避免 fingerprint 乒乓导致进程反复重启；
         // 在线清掉旧错误、离线记录原因：状态点在线却仍挂旧故障描述会误导用户反复手动刷新。
         val bound = boundConfig(server)
@@ -85,12 +87,12 @@ class McpManager(
         removeScoped(cache, serverId)
         removeScoped(lastErrors, serverId)
         clearDiscoveryCooldown(serverId)
-        repository.servers.first().firstOrNull { it.id == serverId }?.let { closeTransportConnection(it) }
+        effectiveServers().firstOrNull { it.id == serverId }?.let { closeTransportConnection(it) }
         statuses.forget(serverId)
     }
 
     suspend fun refreshConnections() = withContext(Dispatchers.IO) {
-        val servers = repository.servers.first()
+        val servers = effectiveServers()
         servers.filterNot { it.isEnabled }.forEach { server ->
             removeScoped(cache, server.id)
             removeScoped(lastErrors, server.id)
@@ -111,7 +113,7 @@ class McpManager(
 
     /** 开关仅影响当前服务，避免重新启动和探测列表里的其他 MCP 服务。 */
     suspend fun refreshConnection(serverId: String) = withContext(Dispatchers.IO) {
-        val server = repository.servers.first().firstOrNull { it.id == serverId } ?: return@withContext
+        val server = effectiveServers().firstOrNull { it.id == serverId } ?: return@withContext
         if (!server.isEnabled) {
             removeScoped(cache, serverId)
             removeScoped(lastErrors, serverId)
@@ -125,21 +127,16 @@ class McpManager(
         checkConnection(server)
     }
 
-    /**
-     * 按需发现单个启用服务的工具清单（use_capability inspect 的兜底路径）：
-     * 缓存为空时才真正连接并发现——这是 inspect 唯一会拉起进程的场景
-     * （模型无从得知未连接服务的工具名，必须给它完整清单）。失败（冷却/超时）
-     * 返回空列表，调用方用 getLastError 给出可读原因。
-     */
+    /** inspect 的缓存缺失兜底：就绪后按需发现，失败返回空列表。 */
     suspend fun discoverServerTools(serverId: String): List<McpToolInfo> = withContext(Dispatchers.IO) {
-        val server = repository.servers.first().firstOrNull { it.id == serverId && it.isEnabled }
+        val server = effectiveServers().firstOrNull { it.id == serverId && it.isEnabled }
             ?: return@withContext emptyList()
         discoverServerIfNeeded(server)
     }
 
     suspend fun getActiveMcpTools(): List<McpToolInfo> = withContext(Dispatchers.IO) {
         sweepDisabledServers()
-        val enabledServers = repository.servers.first().filter { it.isEnabled }
+        val enabledServers = effectiveServers().filter { it.isEnabled }
         if (enabledServers.isEmpty()) return@withContext emptyList()
 
         coroutineScope {
@@ -149,19 +146,20 @@ class McpManager(
 
     /** 禁用服务的清理：清缓存/冷却并关闭传输连接（不产生任何新进程）。 */
     private suspend fun sweepDisabledServers() {
-        repository.servers.first().filterNot { it.isEnabled }.forEach { server ->
+        effectiveServers().filterNot { it.isEnabled }.forEach { server ->
             removeScoped(cache, server.id)
             clearDiscoveryCooldown(server.id)
             closeTransportConnection(server)
         }
     }
 
-    /**
-     * 单服务的按需发现（use_capability 延迟连接的核心）：缓存命中直接返回；
-     * 未缓存才真正连接并发现。list/inspect 永远不调用本方法——服务器进程
-     * 只在第一次真实调用其工具（executeCapabilityTool）时启动。
-     */
+    /** 每次先核对当前环境就绪状态，再复用缓存或按需连接。 */
     private suspend fun discoverServerIfNeeded(server: McpServerConfig): List<McpToolInfo> = withContext(Dispatchers.IO) {
+        if (server.requiresInstall && catalogAvailability.resolve(listOf(server)).single().installationReady != true) {
+            closeTransportConnection(server)
+            removeScoped(cache, server.id)
+            return@withContext emptyList()
+        }
         val key = discoveryKey(server)
         val world = kotlinx.coroutines.currentCoroutineContext()[top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext]?.environment
         if (server.transportType == McpTransportType.STDIO && (world?.id?.backend?.let { it != "ssh" } ?: (remoteServers?.activeId?.value == null))) {
@@ -229,17 +227,14 @@ class McpManager(
             }
     }
 
-    /**
-     * use_capability 的 list/inspect 数据源：**绝不启动服务器进程**。
-     * 返回启用服务摘要（缓存命中数可能小于实际工具数——未连接的服务为 0）。
-     */
+    /** 当前环境的可用服务摘要；不启动 MCP，工具数来自缓存。 */
     suspend fun enabledServerSummaries(): List<EnabledServerSummary> = withContext(Dispatchers.IO) {
         sweepDisabledServers()
-        repository.servers.first().filter { it.isEnabled }.map { server ->
+        effectiveServers().filter { it.isEnabled }.map { server ->
             EnabledServerSummary(
                 id = server.id,
                 name = server.name,
-                cachedToolCount = cachedToolsOf(server.id).size,
+                cachedToolCount = cache[discoveryKey(server)]?.tools?.size ?: 0,
                 connected = cache[discoveryKey(server)] != null,
             )
         }
@@ -247,21 +242,18 @@ class McpManager(
 
     /** use_capability 的 inspect 数据源：只读缓存，绝不触发发现/连接。 */
     suspend fun cachedToolsOf(serverId: String): List<McpToolInfo> {
-        val server = repository.servers.first().firstOrNull { it.id == serverId && it.isEnabled } ?: return emptyList()
+        val server = effectiveServers().firstOrNull { it.id == serverId && it.isEnabled } ?: return emptyList()
         return cache[discoveryKey(server)]?.takeIf { it.fingerprint == fingerprint(boundConfig(server)) }?.tools.orEmpty()
     }
 
-    /**
-     * use_capability 的 call 执行路径：按 (serverId, 工具名) 解析并执行。
-     * 未连接的服务在此处按需启动并发现（这是唯一会拉起进程的能力入口）。
-     */
+    /** 按 (serverId, 工具名) 执行；就绪服务首次调用时发现。 */
     suspend fun executeCapabilityTool(
         serverId: String,
         toolName: String,
         arguments: JsonObject,
         workspace: String = "",
     ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
-        val server = repository.servers.first().firstOrNull { it.id == serverId && it.isEnabled }
+        val server = effectiveServers().firstOrNull { it.id == serverId && it.isEnabled }
             ?: return@withContext false to "未找到或未启用的 MCP 服务：$serverId"
         val bound = boundConfig(server, workspace)
         val tools = discoverServerIfNeeded(bound)
@@ -285,11 +277,13 @@ class McpManager(
     }
 
     suspend fun discoverTools(server: McpServerConfig): List<McpToolInfo> = withContext(Dispatchers.IO) {
+        check(!server.requiresInstall || catalogAvailability.resolve(listOf(server)).single().installationReady == true) { "MCP 未启用或当前环境未安装：${server.id}" }
         val bound = boundConfig(server)
         transport(bound).discover(bound)
     }
 
     suspend fun testServer(server: McpServerConfig): Result<List<McpToolInfo>> = withContext(Dispatchers.IO) {
+        if (server.requiresInstall && catalogAvailability.resolve(listOf(server)).single().installationReady != true) return@withContext Result.failure(IllegalStateException("MCP 未启用或当前环境未安装：${server.id}"))
         // B1: 测试路径同样按绑定后配置发现并写缓存，保证缓存 fingerprint 与其他路径一致
         val bound = boundConfig(server)
         // 设置页手动测试不受冷却限制，成功时也顺带清掉对话路径的退避。
@@ -312,7 +306,7 @@ class McpManager(
         workspace: String = "",
     ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         if (!fullToolName.startsWith("mcp__")) return@withContext false to "无效的 MCP 工具名称：$fullToolName"
-        val servers = repository.servers.first().filter { it.isEnabled }
+        val servers = effectiveServers().filter { it.isEnabled }
         val parsedServerId = fullToolName.removePrefix("mcp__").substringBefore("__")
         val candidateServers = servers.filter { server ->
             server.id == parsedServerId || McpToolApiName.isServerPrefix(fullToolName, server.id)
@@ -406,6 +400,9 @@ class McpManager(
         McpTransportType.STDIO -> stdio
         McpTransportType.SSE -> http
     }
+
+    private suspend fun effectiveServers(): List<McpServerConfig> =
+        catalogAvailability.resolve(repository.servers.first())
 
     private companion object {
         /** 单服务器工具发现总超时：覆盖沙箱会话拉起 + initialize + tools/list，超时即本轮跳过注入。 */

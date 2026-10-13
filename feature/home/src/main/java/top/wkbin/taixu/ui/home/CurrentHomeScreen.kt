@@ -37,10 +37,9 @@ private fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) -> 
         topBar = { RuntimeTopBar(title = "太墟", statusText = target?.name ?: "当前系统", actions = {
             RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) }
         }) },
-        bottomBar = { if (!isLiquidGlassThemeActive()) RuntimeBottomBar(MainDestination.Home, onNavigate) },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp)
-            .padding(bottom = if (isLiquidGlassThemeActive()) 104.dp else 0.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            .padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("主系统概览", style = MaterialTheme.typography.titleMedium)
             SystemOverviewCard(target?.name ?: "服务器", target?.let { "${it.username}@${it.host}:${it.port}" }.orEmpty(),
                 target?.workspace.orEmpty(), state.loading, state.error, metrics?.let { listOf(

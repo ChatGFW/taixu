@@ -14,6 +14,7 @@ import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.datastore.FirstUseGuidePreferences
 import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.database.InstallLogEntity
+import top.wkbin.taixu.core.database.McpServerRepository
 import top.wkbin.taixu.core.database.ToolEntity
 import top.wkbin.taixu.core.tools.ToolInstallProgress
 import top.wkbin.taixu.core.tools.ToolManager
@@ -32,6 +33,7 @@ class ToolCenterViewModel(
     private val firstUseGuidePreferences: FirstUseGuidePreferences,
     private val logger: AppLogger,
     private val remoteServers: RemoteServerRepository,
+    private val mcpServerRepository: McpServerRepository,
 ) : ViewModel() {
 
     val tools: StateFlow<List<ToolEntity>> = toolManager.observeTools()
@@ -221,6 +223,10 @@ class ToolCenterViewModel(
             try {
                 val installed = toolManager.probeInstalledComponents()
                 _installedComponentIds.value = installed
+                // 安装状态以组件探针为唯一真相：能力组件就绪后把对应 MCP 服务自动开启一次，
+                // 卸载后回到关闭态（用户显式切换过的行不会被覆盖）。
+                runCatching { mcpServerRepository.syncInstalledCapabilities(installed) }
+                    .onFailure { logger.w("同步 MCP 能力安装状态失败: ${it.message}", it) }
             } catch (e: Exception) {
                 logger.w("Failed to probe installed components: ${e.message}", e)
             }

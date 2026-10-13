@@ -49,7 +49,6 @@ import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.template.InstalledProjectTemplate
 import top.wkbin.taixu.ui.components.MainDestination
 import top.wkbin.taixu.ui.components.NoticeBanner
-import top.wkbin.taixu.ui.components.RuntimeBottomBar
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
@@ -63,7 +62,6 @@ import top.wkbin.taixu.ui.components.SpotlightGuideOverlay
 import top.wkbin.taixu.ui.components.liquidGlassContent
 import top.wkbin.taixu.ui.components.rememberSpotlightAnchor
 import top.wkbin.taixu.ui.components.spotlightAnchor
-import top.wkbin.taixu.ui.theme.LocalLiquidGlassBackdrop
 
 /**
  * 太墟 · 工坊空间 (Workspace Space)
@@ -173,7 +171,6 @@ internal fun LocalWorkspaceScreen(
 
     // 首次进入引导：高亮右上角「更多」菜单（内含插件中心与工坊设置入口）
     val moreAnchor = rememberSpotlightAnchor()
-    val glassBackdrop = LocalLiquidGlassBackdrop.current
     // 引导遮罩与 Scaffold 放在同一 Box 下（同层兄弟节点），保证聚光灯坐标与按钮 boundsInRoot 同一参照系
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -203,18 +200,13 @@ internal fun LocalWorkspaceScreen(
                     }
                 }
             },
-            bottomBar = {
-                if (glassBackdrop == null) {
-                    RuntimeBottomBar(MainDestination.Workspace, onNavigate)
-                }
-            },
         ) { padding ->
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .liquidGlassContent()
-                    .padding(top = padding.calculateTopPadding()),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 104.dp),
+                    .padding(padding),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 item {

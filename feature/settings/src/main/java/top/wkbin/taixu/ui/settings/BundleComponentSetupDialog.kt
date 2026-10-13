@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import top.wkbin.taixu.core.model.McpUpdateStatus
 import top.wkbin.taixu.core.model.PluginBundle
 import top.wkbin.taixu.core.model.PluginComponent
 import top.wkbin.taixu.feature.settings.R
@@ -62,6 +63,13 @@ internal fun BundleComponentSetupDialog(
     onUninstall: (PluginComponent) -> Unit,
     uninstallBlockedReason: (PluginComponent) -> String?,
     onDismiss: () -> Unit,
+    /** 版本相关参数：只有 MCP 能力仓库会传；其余套件保持默认值即可，更新相关的行整块不渲染。 */
+    updateStatuses: Map<String, McpUpdateStatus> = emptyMap(),
+    checkingUpdates: Boolean = false,
+    upgradingComponentId: String? = null,
+    updateNotice: String? = null,
+    onCheckUpdates: (() -> Unit)? = null,
+    onUpgradeComponent: ((PluginComponent) -> Unit)? = null,
 ) {
     var pendingUninstallId by rememberSaveable { mutableStateOf<String?>(null) }
     var blockedReason by androidx.compose.runtime.remember { mutableStateOf<String?>(null) }
@@ -114,12 +122,19 @@ internal fun BundleComponentSetupDialog(
                     }
                 }
                 if (installed.isNotEmpty()) {
-                    SectionLabel("已装配就绪 (${installed.size})：", successStatusColor())
+                    BundleSectionHeader(
+                        text = "已装配就绪 (${installed.size})：",
+                        color = successStatusColor(),
+                        checking = checkingUpdates,
+                        enabled = !isInstallingComponents,
+                        onCheck = onCheckUpdates,
+                    )
                     Text(
                         text = stringResource(R.string.settings_component_installed_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    updateNotice?.let { McpUpdateNoticeBanner(it) }
                     installed.forEach { component ->
                         InstalledComponentRow(
                             component = component,
@@ -134,6 +149,9 @@ internal fun BundleComponentSetupDialog(
                                     blockedReason = reason
                                 }
                             },
+                            updateStatus = updateStatuses[component.id],
+                            upgrading = upgradingComponentId == component.id,
+                            onUpgrade = onUpgradeComponent,
                         )
                     }
                 }
@@ -255,6 +273,9 @@ private fun InstalledComponentRow(
     enabled: Boolean,
     onReinstall: () -> Unit,
     onUninstall: () -> Unit,
+    updateStatus: McpUpdateStatus? = null,
+    upgrading: Boolean = false,
+    onUpgrade: ((PluginComponent) -> Unit)? = null,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -275,6 +296,7 @@ private fun InstalledComponentRow(
                     Text(component.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
+            McpComponentUpdateRow(component, updateStatus, upgrading, enabled, onUpgrade)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                 TextButton(onClick = onReinstall, enabled = enabled, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
                     Text(stringResource(R.string.settings_component_reinstall), maxLines = 1, softWrap = false)
@@ -305,10 +327,12 @@ private fun Badge(text: String, contentColor: androidx.compose.ui.graphics.Color
     }
 }
 
-private fun bundleIcon(iconName: String): RuntimeIconName = when (iconName) {
+/** 开发套件 bundle 的图标名 → RuntimeIconName 映射（工具中心与安装弹窗共用）。 */
+internal fun bundleIcon(iconName: String): RuntimeIconName = when (iconName) {
     "Android" -> RuntimeIconName.Android
     "Flutter" -> RuntimeIconName.Flutter
     "Globe" -> RuntimeIconName.Globe
     "Search" -> RuntimeIconName.Search
+    "Extension" -> RuntimeIconName.Extension
     else -> RuntimeIconName.Code
 }

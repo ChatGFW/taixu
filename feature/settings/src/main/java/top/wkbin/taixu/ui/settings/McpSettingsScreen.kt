@@ -45,7 +45,6 @@ import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.SecondaryTabRow
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import androidx.compose.material3.Text as MaterialText
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,8 +59,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -92,12 +89,16 @@ import kotlinx.coroutines.delay
 fun McpSettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel(),
+    catalogViewModel: McpCatalogViewModel = koinViewModel(),
 ) {
     val servers by viewModel.mcpServers.collectAsStateWithLifecycle()
     val toggleOverrides by viewModel.mcpToggleOverrides.collectAsStateWithLifecycle()
     val connectionStates by viewModel.mcpConnectionStates.collectAsStateWithLifecycle()
     val mcpAuthStates by viewModel.mcpAuthStates.collectAsStateWithLifecycle()
     val browserGates by viewModel.browserGates.collectAsStateWithLifecycle()
+    // 未安装的按需能力：id → 待安装组件名。用于禁用开关并给出"先去安装"的直达提示。
+    val mcpInstallBlocked by catalogViewModel.installBlocked.collectAsStateWithLifecycle()
+    val mcpInstallNotice by catalogViewModel.installNotice.collectAsStateWithLifecycle()
     val screenScope = rememberCoroutineScope()
     val screenContext = LocalContext.current
     var showAddDialog by remember { mutableStateOf(false) }
@@ -107,8 +108,19 @@ fun McpSettingsScreen(
     var pendingDeleteServerId by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     val pendingDeleteServer = pendingDeleteServerId?.let { id -> servers.firstOrNull { it.id == id } }
 
-    // 进入设置页时自动探测一次所有已启用 MCP 服务的连通性
-    LaunchedEffect(Unit) { viewModel.refreshMcpConnections() }
+    // 进入设置页时：对齐组件探针（决定哪些能力"还没装"）并探测一次已启用服务的连通性
+    LaunchedEffect(Unit) {
+        catalogViewModel.refresh()
+        viewModel.refreshMcpConnections()
+    }
+
+    // 未安装能力的提示只展示一次，避免每次重组都弹
+    LaunchedEffect(mcpInstallNotice) {
+        mcpInstallNotice?.let { message ->
+            Toast.makeText(screenContext, message, Toast.LENGTH_LONG).show()
+            catalogViewModel.consumeInstallNotice()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -207,7 +219,8 @@ fun McpSettingsScreen(
                 item(key = "mcp_section_builtin") {
                     McpSectionHeader(
                         title = "系统核心 MCP",
-                        subtitle = "太墟内置系统级能力，默认关闭；开启后常驻本会话，harness 随时可调用（不参与 @ 唤醒）",
+                        subtitle = "太墟内置系统级能力，默认关闭；开启后常驻本会话，harness 随时可调用（不参与 @ 唤醒）。" +
+                            "标注「需先安装」的能力来自上游包，请到「工具中心 → MCP 能力仓库」按需安装",
                         count = builtinServers.size,
                     )
                 }
@@ -217,7 +230,12 @@ fun McpSettingsScreen(
                         connectionState = connectionStates[server.id] ?: McpConnectionState.UNKNOWN,
                         error = viewModel.mcpLastError(server.id),
                         togglePending = server.id in toggleOverrides,
-                        onToggle = { enabled -> viewModel.toggleMcpServer(server.id, enabled) },
+                        requiredComponentName = mcpInstallBlocked[server.id],
+                        onToggle = { enabled ->
+                            if (catalogViewModel.onToggleRequested(server.id, enabled)) {
+                                viewModel.toggleMcpServer(server.id, enabled)
+                            }
+                        },
                         onClickDetail = { viewingDetailServer = server },
                     )
                 }
@@ -237,6 +255,7 @@ fun McpSettingsScreen(
                         connectionState = connectionStates[server.id] ?: McpConnectionState.UNKNOWN,
                         error = viewModel.mcpLastError(server.id),
                         togglePending = server.id in toggleOverrides,
+                        requiredComponentName = null,
                         onToggle = { enabled -> viewModel.toggleMcpServer(server.id, enabled) },
                         onClickDetail = { viewingDetailServer = server },
                     )
@@ -780,112 +799,8 @@ private fun McpSectionHeader(title: String, subtitle: String, count: Int) {
 }
 
 /**
- * 紧凑轻量的 MCP 服务卡片（列表展示）
+ * 新增自定义 MCP 服务弹窗
  */
-@Composable
-private fun McpServerItemCard(
-    server: McpServerConfig,
-    connectionState: McpConnectionState,
-    error: String?,
-    togglePending: Boolean,
-    onToggle: (Boolean) -> Unit,
-    onClickDetail: () -> Unit,
-) {
-    RuntimeCard(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-        onClick = onClickDetail,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f).padding(end = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        server.name,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f, fill = false),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    McpConnectionDot(state = connectionState, enabled = server.isEnabled)
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                    ) {
-                        MaterialText(
-                            server.transportType.name,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Visible,
-                            softWrap = false,
-                        )
-                    }
-                }
-                if (server.description.isNotBlank()) {
-                    Text(
-                        server.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                // 离线原因（含远程 MCP 可执行文件缺失等环境相关失败），在线时 error 为空不展示
-                if (connectionState == McpConnectionState.OFFLINE && !error.isNullOrBlank()) {
-                    Text(
-                        error,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                        color = MaterialTheme.colorScheme.error,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-
-            Switch(
-                checked = server.isEnabled,
-                onCheckedChange = onToggle,
-                enabled = !togglePending,
-            )
-        }
-    }
-}
-
-/**
- * MCP 服务连通性状态小圆点：绿=在线 / 红=离线 / 转圈=检测中 / 灰=未知或未启用。
- */
-@Composable
-private fun McpConnectionDot(state: McpConnectionState, enabled: Boolean) {
-    val (color, label) = when {
-        !enabled -> MaterialTheme.colorScheme.outlineVariant to "未启用"
-        state == McpConnectionState.CHECKING -> MaterialTheme.colorScheme.tertiary to "检测中"
-        state == McpConnectionState.ONLINE -> successStatusColor() to "已连通"
-        state == McpConnectionState.OFFLINE -> MaterialTheme.colorScheme.error to "离线"
-        else -> MaterialTheme.colorScheme.outline to "未检测"
-    }
-    Box(
-        modifier = Modifier
-            .size(10.dp)
-            .semantics { contentDescription = label }
-            .clip(CircleShape)
-            .background(color),
-    )
-}
-
 @Composable
 private fun AddMcpServerDialog(
     onDismiss: () -> Unit,

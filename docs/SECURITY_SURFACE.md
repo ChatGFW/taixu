@@ -100,6 +100,8 @@
 - 取消：`PrivilegeManager.cancelShellCommand` 同步终止对应 Shizuku/Root 宿主子进程。
 - MCP：工具 schema 不进 provider 可见面（`use_capability` 统一代理 + 护栏测试 `BuiltinToolContractTest`）；STDIO 服务器进程在 PRoot 沙箱内启动（`McpStdioTransport` → `McpStdioChannelFactory`），其 env 走 2.2 的 provider 通道。
 
+按需 MCP 的安装就绪状态在当前绑定环境中核验，不借用手机其它发行版或远端的结果。`McpCatalogAvailability` 在列表、发现和调用前投影用户偏好与就绪状态；STDIO 通道创建前再次核验。`setup_mcp_catalog.sh probe/run` 只读取本地标记及实际全局包清单，检查包名、实际版本与入口路径，直接执行该包入口，不经 npx、不联网补装。卸载后即使保留用户开启偏好也不允许启动；探针失败不扩散为可用。显式安装与升级仍运行第三方 npm 包及其安装脚本，保留既有 PRoot/App uid 和凭证环境暴露面。
+
 工作流恢复边界（`WorkflowRunManager.resume` / `WorkflowRecovery`）：仅从原运行持久化定义继续，恢复前复核当前发行版与日志版本；STARTED 未结算的外部动作和失败节点需逐个人工确认重试，已成功的动作不重新派发。旧记录、托管进程及虚拟屏资源流程不支持继续。继续确认覆盖原计划剩余步骤及已完成的审批，等待中的审批重新请求；不提升宿主权限、不自动续跑，也不保证外部动作 exactly-once。恢复日志与结果位于既有 Room 运行快照中，保留既有输出/产物的暴露面，参见 `docs/WORKFLOW.md`。
 
 动态扩图（`expansionResultNode`）：只接受直接成功上游的结构化 nodes/edges 提案，限制容量、类型和追加范围，不能修改已有图或新增宿主/托管资源节点。完整配置必须在应用内确认，请求令牌绑定当前提案；通知只跳转查看，不能直接批准。审批结果与图扩展使用同一个持久化屏障，后继执行前等待写入。恢复验证原始图、上游提案、审批日志和最终图一致；已确认图只复用一次，整流程重跑重新规划。提案及命令完整保存到本地历史，请勿在配置中硬编码凭证；规划和新增智能体的工具调用保留既有权限策略，扩图确认不构成任意工具调用的免审批授权。

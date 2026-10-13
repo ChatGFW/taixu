@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import top.wkbin.taixu.ui.theme.semanticColors
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
@@ -42,8 +43,7 @@ fun ContextUsageRing(
 
     val ringColor = when {
         rawRatio >= 0.9f -> MaterialTheme.colorScheme.error
-        rawRatio >= 0.7f -> Color(0xFFE65100)
-        rawRatio >= 0.45f -> Color(0xFFF59E0B)
+        rawRatio >= 0.45f -> semanticColors().warning
         else -> MaterialTheme.colorScheme.primary
     }
 

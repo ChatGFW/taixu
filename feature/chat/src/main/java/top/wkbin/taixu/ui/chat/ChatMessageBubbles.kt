@@ -146,8 +146,8 @@ internal fun UserBubble(
             // 🌟 2. 用户文字气泡
             if (message.text.isNotBlank()) {
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = RoundedCornerShape(24.dp, 8.dp, 24.dp, 24.dp),
                     modifier = Modifier
                         .widthIn(max = 560.dp)
                         .clickable { showMenu = true },
@@ -160,9 +160,9 @@ internal fun UserBubble(
                     SelectionContainer {
                         Text(
                             text = annotatedText,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                     }
                 }
