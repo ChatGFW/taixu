@@ -83,7 +83,7 @@
     {
       "id": "runtime", "path": "runtime", "requires": [
         "core.common", "core.model", "core.database", "core.datastore",
-        "core.network", "project-template", "showerclient"
+        "core.network", "project-template", "showerclient", "termux-terminal-emulator"
       ]
     },
     {
@@ -114,6 +114,10 @@
     {
       "id": "showerclient", "path": "showerclient", "requires": [],
       "_doc": "源自 Operit（LGPL-3.0）的虚拟屏客户端库，保持来源边界：不依赖任何太墟内部模块"
+    },
+    {
+      "id": "termux-terminal-emulator", "path": "termux-terminal-emulator", "requires": [],
+      "_doc": "Termux terminal-emulator v0.118.0 fork（GPL-3.0）：新增 TerminalSessionBackend 缝隙以支持远程 PTY 渲染；保持 com.termux.terminal 公共 API 与 terminal-view AAR 二进制兼容"
     },
     { "id": "feature.theme", "path": "feature/theme", "requires": ["core.common", "core.model"] },
     {

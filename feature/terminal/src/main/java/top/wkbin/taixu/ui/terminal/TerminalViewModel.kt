@@ -25,12 +25,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import top.wkbin.taixu.core.datastore.FirstUseGuidePreferences
+import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.WorkspaceProject
+import top.wkbin.taixu.runtime.SessionWorkspaceCatalog
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TerminalViewModel(
@@ -41,6 +44,8 @@ class TerminalViewModel(
     private val settingsDataStore: TerminalPreferences,
     private val firstUseGuidePreferences: FirstUseGuidePreferences,
     private val linuxRuntime: LinuxRuntime,
+    private val remoteServers: RemoteServerRepository,
+    private val workspaceCatalog: SessionWorkspaceCatalog,
 ) : ViewModel() {
     private var initialized = false
 
@@ -54,15 +59,37 @@ class TerminalViewModel(
     val installedDistros = linuxRuntime.installedDistros
     val activeDistroId = linuxRuntime.activeDistroId
 
+    /** 当前是否选中远程服务器：远程时终端目标由服务器决定，不再暴露本地发行版选择。 */
+    val remoteActive: StateFlow<Boolean> = remoteServers.activeId
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, remoteServers.activeId.value != null)
+
     val handles: StateFlow<List<TerminalSessionHandle>> = terminalManager.handles
     val activeId: StateFlow<String?> = terminalManager.activeId
+    val restoreFailures = terminalManager.restoreFailures
+    fun retryFailedRestorations() {
+        viewModelScope.launch {
+            runCatching { terminalManager.retryFailedRestorations() }
+                .onSuccess { _error.value = null }.onFailure { _error.value = it.message ?: "终端恢复失败" }
+        }
+    }
+    fun removeFailedRestoration(id: String) {
+        viewModelScope.launch {
+            runCatching { terminalManager.removeFailedRestoration(id) }
+                .onSuccess { if (handles.value.isNotEmpty()) _error.value = null }
+                .onFailure { _error.value = it.message ?: "无法移除终端记录" }
+        }
+    }
 
     private val activeHandle: Flow<TerminalSessionHandle?> = terminalManager.activeHandle
 
     val distributionName: StateFlow<String> = activeHandle
         .flatMapLatest { handle ->
-            val distroId = handle?.distributionId ?: linuxRuntime.activeDistroId.value
-            flowOf(DistributionCatalog.require(distroId).displayName)
+            val label = handle?.environmentLabel
+            if (label != null) flowOf(label) else {
+                val distroId = handle?.distributionId ?: linuxRuntime.activeDistroId.value
+                flowOf(DistributionCatalog.require(distroId).displayName)
+            }
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, context.getString(R.string.terminal_loading))
 
@@ -92,9 +119,11 @@ class TerminalViewModel(
         _error.value = null
         viewModelScope.launch {
             if (project.isNotBlank()) {
-                val workingDirectory = runCatching { workspaceManager.linuxWorkingDirectory(project) }.getOrNull() ?: "/root"
+                val workingDirectory = if (remoteServers.activeId.value != null) "/workspace/$project"
+                    else runCatching { workspaceManager.linuxWorkingDirectory(project) }.getOrNull() ?: "/root"
                 runCatching {
-                    terminalManager.openOrSwitchToProject(project, workingDirectory)
+                    terminalManager.openOrSwitchToProject(project, workingDirectory,
+                        remoteServers.activeId.value?.let { "ssh:$it" })
                 }.onFailure { _error.value = it.message ?: context.getString(R.string.terminal_error_workspace_start) }
             } else {
                 runCatching {
@@ -161,20 +190,31 @@ class TerminalViewModel(
 
     private fun seq(value: String): ByteArray = value.toByteArray(Charsets.UTF_8)
 
-    val workspaces: StateFlow<List<WorkspaceProject>> = workspaceManager.observeProjects()
+    val workspaces: StateFlow<List<WorkspaceProject>> = workspaceCatalog.observe().map { it.projects }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun createSession(label: String = "", workingDirectory: String = "/root", distroId: String? = null) {
         viewModelScope.launch {
+            _error.value = null
             runCatching {
-                val targetDistro = distroId?.takeIf { it.isNotBlank() } ?: activeDistroId.value
-                val distroShortName = DistributionCatalog.require(targetDistro).id.replaceFirstChar { it.uppercase() }
-                val finalLabel = label.trim().ifBlank { "$distroShortName ${handles.value.size + 1}" }
-                terminalManager.createSession(
-                    label = finalLabel,
-                    workingDirectory = workingDirectory.trim().ifBlank { "/root" },
-                    distributionId = targetDistro,
-                )
+                if (remoteActive.value) {
+                    // 远程目标由服务器决定：传 null 跟随当前选中环境，禁用本地发行版语义。
+                    val finalLabel = label.trim().ifBlank { "会话 ${handles.value.size + 1}" }
+                    terminalManager.createSession(
+                        label = finalLabel,
+                        workingDirectory = workingDirectory.trim().ifBlank { "/root" },
+                        distributionId = null,
+                    )
+                } else {
+                    val targetDistro = distroId?.takeIf { it.isNotBlank() }
+                    val distroShortName = targetDistro?.let { DistributionCatalog.require(it).id.replaceFirstChar { it.uppercase() } } ?: "会话"
+                    val finalLabel = label.trim().ifBlank { "$distroShortName ${handles.value.size + 1}" }
+                    terminalManager.createSession(
+                        label = finalLabel,
+                        workingDirectory = workingDirectory.trim().ifBlank { "/root" },
+                        distributionId = targetDistro,
+                    )
+                }
             }.onFailure { _error.value = it.message ?: context.getString(R.string.terminal_error_create_session) }
         }
     }

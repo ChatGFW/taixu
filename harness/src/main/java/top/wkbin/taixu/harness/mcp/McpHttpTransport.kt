@@ -97,12 +97,12 @@ class McpHttpTransport(
         try {
             // 设置页手动测试连接不受冷却限制
             ensureSession(server, bypassCooldown = true)
-            true
+            McpCheckResult(true)
         } catch (c: CancellationException) {
             // B4: 结构化取消必须透传，不能被吞成 false
             throw c
-        } catch (_: Throwable) {
-            false
+        } catch (t: Throwable) {
+            McpCheckResult(false, t.message ?: t::class.simpleName)
         }
     }
 

@@ -15,6 +15,8 @@ val featureTerminalModule = module {
             settingsDataStore = get(),
             firstUseGuidePreferences = get(),
             linuxRuntime = get(),
+            remoteServers = get(),
+            workspaceCatalog = get(),
         )
     }
 }

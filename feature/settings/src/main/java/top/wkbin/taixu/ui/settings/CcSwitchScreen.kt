@@ -81,7 +81,7 @@ import top.wkbin.taixu.core.model.CcSwitchDaemonStatus
  * - 原生 PTY 终端拉起与系统外部浏览器 Web 控制台访问
  */
 @Composable
-fun CcSwitchScreen(
+internal fun LocalCcSwitchContent(
     onBack: () -> Unit,
     onLaunchTerminal: (executable: String) -> Unit,
     onOpenBrowser: (url: String) -> Unit,

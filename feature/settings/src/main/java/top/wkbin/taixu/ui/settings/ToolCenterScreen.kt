@@ -90,7 +90,7 @@ import top.wkbin.taixu.feature.settings.R
  * 太墟 · 插件与 AI 工具中心 (Tool & Plugin Center)
  */
 @Composable
-fun ToolCenterScreen(
+internal fun LocalToolCenterContent(
     onBack: () -> Unit,
     onLaunchPty: (toolId: String) -> Unit,
     onOpenToolDetail: (toolId: String) -> Unit = {},

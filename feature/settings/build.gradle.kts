@@ -24,4 +24,5 @@ dependencies {
     implementation(libs.bundles.coil)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

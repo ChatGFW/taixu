@@ -1,6 +1,5 @@
 package top.wkbin.taixu.harness
 
-import kotlinx.coroutines.flow.first
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
@@ -18,9 +17,8 @@ class SubagentSummaryPublisher(
         sessionId: String, workspace: String): String {
         val environment = environments?.environment(sessionId, workspace)
         val files = environment?.files ?: if (workspace.isBlank()) localFiles else localFiles.withBase(workspace)
-        val secretValues = top.wkbin.taixu.harness.environment.executionOutputSecrets(environments, linuxEnvironment, sessionId, workspace)
-        val privacy = preferences?.environmentPrivacyMode?.first() ?: true
-        val sanitized = outcomes.map { it.copy(summary = redactor.redact(it.summary, secretValues, privacyMode = privacy)) }
+        val sanitized = outcomes.map { it.copy(summary = top.wkbin.taixu.harness.environment.redactExecutionOutput(
+            it.summary, redactor, environments, linuxEnvironment, preferences, sessionId, workspace)) }
         return paginateSubagentSummary(sanitized, environment?.id?.workspace ?: workspace, files, environment?.artifacts)
     }
 }

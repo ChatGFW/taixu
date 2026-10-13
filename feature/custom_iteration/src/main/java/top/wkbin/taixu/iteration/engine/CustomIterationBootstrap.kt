@@ -17,6 +17,13 @@ object CustomIterationBootstrap {
     const val WORKSPACE_NAME = "custom_taixu"
     const val OFFICIAL_REPO = "https://github.com/wkbin/taixu"
 
+    /** 自举所需目录（相对 rootfs home）：工作区、Skill 部署点、工作流模板缓存。 */
+    internal val BOOTSTRAP_DIRS = listOf(
+        WORKSPACE_NAME,
+        ".taixu/skills/taixu-custom-iteration",
+        ".taixu/templates/workflows",
+    )
+
     const val BOOTSTRAP_PROMPT = """我准备在太墟（TaiXu）的手机 Linux 虚拟沙盒中进行 TaiXu 自定义迭代。
 
 请按以下步骤引导我：
@@ -50,39 +57,42 @@ object CustomIterationBootstrap {
     /**
      * 初始化自定义迭代环境与工作区。
      */
-    fun bootstrap(context: Context, rootfsHomeDir: File): BootstrapResult {
-        try {
-            // 1. 创建隔离工作区目录
-            val workspaceDir = File(rootfsHomeDir, WORKSPACE_NAME)
-            if (!workspaceDir.exists()) {
-                workspaceDir.mkdirs()
+    fun bootstrap(context: Context, rootfsHomeDir: File): BootstrapResult =
+        prepareDirectories(rootfsHomeDir)
+
+    /**
+     * 确保 [BOOTSTRAP_DIRS] 全部存在。
+     *
+     * 与旧实现的关键差别：目录创建失败不再被静默吞掉。旧实现忽略 `mkdirs()` 的返回值，
+     * 即便路径被同名文件占用、或目录不可写，仍会返回 `success = true`，随后 Agent 会拿着
+     * 一个并不存在的工作区路径去执行 git 操作。现在失败会带上具体路径如实上报，交由 UI 提示。
+     */
+    internal fun prepareDirectories(rootfsHomeDir: File): BootstrapResult {
+        for (relative in BOOTSTRAP_DIRS) {
+            val dir = File(rootfsHomeDir, relative)
+            if (dir.isDirectory) continue
+
+            val created = try {
+                dir.mkdirs()
+            } catch (e: SecurityException) {
+                false
             }
 
-            // 2. 部署 Skill 目录
-            val skillDir = File(rootfsHomeDir, ".taixu/skills/taixu-custom-iteration")
-            if (!skillDir.exists()) {
-                skillDir.mkdirs()
+            if (!created && !dir.isDirectory) {
+                return BootstrapResult(
+                    success = false,
+                    workspacePath = "",
+                    prompt = "",
+                    errorMessage = "无法创建目录：" + dir.absolutePath
+                )
             }
-
-            // 3. 部署工作流模板缓存目录
-            val templatesDir = File(rootfsHomeDir, ".taixu/templates/workflows")
-            if (!templatesDir.exists()) {
-                templatesDir.mkdirs()
-            }
-
-            return BootstrapResult(
-                success = true,
-                workspacePath = workspaceDir.absolutePath,
-                prompt = BOOTSTRAP_PROMPT
-            )
-        } catch (e: Exception) {
-            return BootstrapResult(
-                success = false,
-                workspacePath = "",
-                prompt = "",
-                errorMessage = e.message ?: "Bootstrap failed"
-            )
         }
+
+        return BootstrapResult(
+            success = true,
+            workspacePath = File(rootfsHomeDir, WORKSPACE_NAME).absolutePath,
+            prompt = BOOTSTRAP_PROMPT
+        )
     }
 
     data class BootstrapResult(

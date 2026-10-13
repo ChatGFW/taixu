@@ -69,6 +69,11 @@ fun StorageMountSettingsScreen(
     val sharedStorageEnabled by viewModel.mountSharedStorageEnabled.collectAsStateWithLifecycle()
     val customBindings by viewModel.customMountBindings.collectAsStateWithLifecycle()
 
+    // SSH 远程主系统下 PRoot 挂载不生效：挂载只在本地容器启动时通过 -b 注入，远程执行环境没有对应机制。
+    val remoteViewModel = koinViewModel<RemoteServerViewModel>()
+    val activeServerId by remoteViewModel.activeId.collectAsStateWithLifecycle()
+    val localMountsOnly = activeServerId != null
+
     var showAddDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     // 待确认删除的挂载点 id（破坏性操作二次确认）
     var pendingDeleteBindingId by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
@@ -97,6 +102,15 @@ fun StorageMountSettingsScreen(
                 )
             }
 
+            if (localMountsOnly) {
+                item {
+                    NoticeBanner(
+                        text = "当前主系统为 SSH 远程服务器，挂载仅对本地 PRoot 沙箱生效，不会同步到远程服务器。如需调整挂载，请先在「Linux 系统管理」切回本地系统。",
+                        isError = true,
+                    )
+                }
+            }
+
             // 1. 系统预置快捷挂载
             item {
                 Text(
@@ -119,6 +133,7 @@ fun StorageMountSettingsScreen(
                             guestPath = "/sdcard/Download",
                             checked = downloadEnabled,
                             onCheckedChange = viewModel::setMountDownloadEnabled,
+                            enabled = !localMountsOnly,
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                         MountToggleRow(
@@ -128,6 +143,7 @@ fun StorageMountSettingsScreen(
                             guestPath = "/sdcard/Documents",
                             checked = documentsEnabled,
                             onCheckedChange = viewModel::setMountDocumentsEnabled,
+                            enabled = !localMountsOnly,
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                         MountToggleRow(
@@ -137,6 +153,7 @@ fun StorageMountSettingsScreen(
                             guestPath = "/sdcard",
                             checked = sharedStorageEnabled,
                             onCheckedChange = viewModel::setMountSharedStorageEnabled,
+                            enabled = !localMountsOnly,
                         )
                     }
                 }
@@ -158,6 +175,7 @@ fun StorageMountSettingsScreen(
                     OutlinedButton(
                         onClick = { showAddDialog = true },
                         shape = RoundedCornerShape(8.dp),
+                        enabled = !localMountsOnly,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     ) {
                         RuntimeIcon(RuntimeIconName.Plus, Modifier.size(14.dp))
@@ -240,6 +258,7 @@ fun StorageMountSettingsScreen(
                                 onCheckedChange = { enabled ->
                                     viewModel.toggleCustomMountBinding(binding.id, enabled)
                                 },
+                                enabled = !localMountsOnly,
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                                     checkedTrackColor = MaterialTheme.colorScheme.primary,
@@ -251,6 +270,7 @@ fun StorageMountSettingsScreen(
                                 modifier = Modifier
                                     .minimumInteractiveComponentSize()
                                     .size(32.dp),
+                                enabled = !localMountsOnly,
                                 contentDescription = "删除挂载点 ${binding.name}",
                             ) {
                                 RuntimeIcon(
@@ -312,6 +332,7 @@ private fun MountToggleRow(
     guestPath: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = Modifier
@@ -346,6 +367,7 @@ private fun MountToggleRow(
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
+            enabled = enabled,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                 checkedTrackColor = MaterialTheme.colorScheme.primary,

@@ -125,6 +125,7 @@ val toolsModule = module {
             localPluginPayloadManager = get(),
             serviceController = get(),
             installerAdapters = get(named("toolAdapters")),
+            localAccess = get(),
         )
     }
 

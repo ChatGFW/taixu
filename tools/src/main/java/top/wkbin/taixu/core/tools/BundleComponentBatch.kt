@@ -37,6 +37,7 @@ internal class BundleComponentBatch(
     private val scope: CoroutineScope,
     private val currentDistroId: () -> String,
     private val probeInstalledComponents: suspend () -> Set<String>,
+    private val localAccess: top.wkbin.taixu.runtime.environment.LocalBackendAccess? = null,
 ) {
     fun install(componentIds: Set<String>, reinstall: Boolean): Flow<InstallEvent> = runPipeline(
         componentIds = componentIds,
@@ -108,6 +109,7 @@ internal class BundleComponentBatch(
         successMessage: String,
         failurePrefix: String,
     ): Flow<InstallEvent> = flow {
+        localAccess?.requireLocal()
         if (componentIds.isEmpty()) {
             emit(InstallEvent.Completed("components", "1.0.0"))
             return@flow

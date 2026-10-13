@@ -72,7 +72,7 @@ import top.wkbin.taixu.ui.theme.LocalLiquidGlassBackdrop
  * 本文件仅做装配：Scaffold 骨架 + 各向导/弹窗/卡片组件（见同包 WorkspaceXxx.kt）的编排。
  */
 @Composable
-fun WorkspaceScreen(
+internal fun LocalWorkspaceScreen(
     onNavigate: (MainDestination) -> Unit,
     onOpenExplorer: (String) -> Unit,
     onOpenTerminal: (String) -> Unit,

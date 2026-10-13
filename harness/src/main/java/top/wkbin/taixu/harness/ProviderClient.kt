@@ -134,7 +134,9 @@ internal class ChatApi(
                     throw ProviderClient.contextOverflowException(response.code, rawBody)
                 }
                 val source = response.body.source()
-                val demuxer = ThinkTagStreamDemuxer(onReasoning, onDelta)
+                // 单轮流式输出硬失败预算：正文/思考经 demuxer 计入，工具入参在累积点计入。
+                val budget = StreamBudget()
+                val demuxer = ThinkTagStreamDemuxer(onReasoning, onDelta, budget = budget)
                 val toolCalls = mutableMapOf<Int, ToolCallAccumulator>()
                 // 网关不分发 index 时的流式调用归并状态：id → 槽位、下一个可用的合成槽、
                 // 最近活跃槽（承接无 id 的 arguments 延续分片）
@@ -244,7 +246,7 @@ internal class ChatApi(
                         function?.get("name")?.let { it as? JsonPrimitive }?.contentOrNull
                             ?.takeIf { it.isNotEmpty() }?.let { accum.name = it }
                         function?.get("arguments")?.let { it as? JsonPrimitive }?.contentOrNull
-                            ?.let { accum.arguments.append(it) }
+                            ?.let { budget.add(it); accum.arguments.append(it) }
                         accum.publishProgress(onToolProgress)
                     }
                 }
@@ -738,7 +740,8 @@ class ProviderClient internal constructor(
     suspend fun resolveSavedModelProfile(profileId: String, variant: String?): ModelConfig =
         modelResolver.resolveSavedModelProfile(profileId, variant)
 
-    suspend fun chat(model: ModelConfig, messages: List<ApiMessage>): ChatResult = transport.chat(model, messages)
+    suspend fun chat(model: ModelConfig, messages: List<ApiMessage>, sessionKey: String? = null): ChatResult =
+        transport.chat(model, messages, sessionKey)
 
     suspend fun chatStream(
         model: ModelConfig,
@@ -746,8 +749,9 @@ class ProviderClient internal constructor(
         onReasoning: (String) -> Unit = {},
         onToolProgress: (ToolCallStreamProgress) -> Unit = {},
         onRequest: ((String, String, Long, Collection<String>) -> Unit)? = null,
+        sessionKey: String? = null,
         onDelta: (String) -> Unit,
-    ): ChatResult = transport.chatStream(model, messages, onReasoning, onToolProgress, onRequest, onDelta)
+    ): ChatResult = transport.chatStream(model, messages, onReasoning, onToolProgress, onRequest, sessionKey, onDelta)
 
     companion object {
         const val DEFAULT_BASE_URL = "https://api.openai.com/v1"
@@ -774,6 +778,13 @@ class ProviderClient internal constructor(
          * 超限后停止累积，防止异常模型的无界推理把会话内存与历史存储拖垮。
          */
         const val MAX_STREAM_REASONING_CHARS = 128 * 1024
+
+        /**
+         * 单轮流式响应（正文 + 思考 + 工具入参）的硬失败上限（字符）。远超正常输出体量，
+         * 仅用于拦截网关重复重放 / 提示注入导致的无限输出；超限即中断本轮请求而非截断，
+         * 详见 [StreamBudget]。
+         */
+        const val MAX_STREAM_CHARS = 4 * 1024 * 1024
 
         /** 流式增量上屏的发布间隔：SSE chunk 频率远高于帧率，逐 chunk 全量发布是 O(n²) 分配。 */
         const val STREAM_PUBLISH_INTERVAL_MS = 100L
@@ -1237,6 +1248,8 @@ internal class ThinkTagStreamDemuxer(
     private val onReasoning: (String) -> Unit,
     private val onDelta: (String) -> Unit,
     private val maxReasoningChars: Int = ProviderClient.MAX_STREAM_REASONING_CHARS,
+    /** 跨协议流式输出硬失败预算；非空时正文/思考增量计入，超限抛异常终止本轮请求。 */
+    private val budget: StreamBudget? = null,
 ) {
     val fullText = StringBuilder()
     val fullReasoning = StringBuilder()
@@ -1326,13 +1339,16 @@ internal class ThinkTagStreamDemuxer(
 
     private fun appendText(str: String) {
         if (str.isEmpty()) return
+        budget?.add(str)
         fullText.append(str)
         onDelta(str)
     }
 
     private fun appendReasoning(str: String) {
         if (str.isEmpty()) return
+        // 死循环静默后的重复思考不再计入预算：它已被丢弃、不会继续占用内存。
         if (reasoningMutedDueToLoop) return
+        budget?.add(str)
 
         if (detectRepetitionLoop(fullReasoning, str)) {
             reasoningMutedDueToLoop = true

@@ -156,6 +156,7 @@ class ChatViewModel(
     private val workflowRepository: WorkflowRepository,
     val translationManager: TranslationManager? = null,
     val globalNavigationBus: GlobalNavigationBus? = null,
+    private val workspaceCatalogSource: top.wkbin.taixu.runtime.SessionWorkspaceCatalog,
 ) : ViewModel() {
     private val _workflowLaunchRequests = MutableSharedFlow<WorkflowLaunchRequest>(extraBufferCapacity = 2)
     val workflowLaunchRequests: SharedFlow<WorkflowLaunchRequest> = _workflowLaunchRequests
@@ -506,9 +507,8 @@ class ChatViewModel(
             ?: currentModels.firstOrNull { it.isActive }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val workspaces: StateFlow<List<WorkspaceProject>> = workspaceManager.observeProjects()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
+    val workspaceCatalog = workspaceCatalogSource.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), top.wkbin.taixu.runtime.SessionWorkspaceCatalogState())
+    val workspaces = workspaceCatalog.map { it.projects }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     /** 思考过程块是否默认展开（持久化，重启后保留）。 */
     val thinkingExpanded: StateFlow<Boolean> = settingsDataStore.thinkingExpanded
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -901,7 +901,9 @@ class ChatViewModel(
             if (latest != null) {
                 harnessLoop.loadSession(latest.id)
             } else {
-                harnessLoop.newSession(context.getString(R.string.chat_new_session))
+                try { harnessLoop.newSession(context.getString(R.string.chat_new_session)) }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Exception) { _notice.value = e.message ?: "无法创建会话，请明确选择执行环境" }
             }
             _initializing.value = false
         }
@@ -931,7 +933,6 @@ class ChatViewModel(
         }
     }
 
-    /** /clear 会静默重建会话，用 Toast 明确告知用户上下文已重置 */
     private fun notifyNewSessionCreated() {
         Toast.makeText(context, context.getString(R.string.chat_new_session_created), Toast.LENGTH_SHORT).show()
     }
@@ -1146,10 +1147,11 @@ class ChatViewModel(
 
     fun clearError() { sessionDeletionFeedback.clear(); harnessLoop.clearError() }
 
-    /** 新建会话（支持自定义标题并关联工作区）。 */
     fun createSession(title: String = "", workspace: String = "", projectType: String = "") {
         viewModelScope.launch {
-            harnessLoop.newSession(title.trim().ifBlank { context.getString(R.string.chat_new_session) }, workspace, projectType)
+            try { workspaceCatalogSource.validate(workspaceCatalog.value, workspace); harnessLoop.newSession(title.trim().ifBlank { context.getString(R.string.chat_new_session) }, workspace, projectType) }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { _notice.value = e.message ?: "会话创建失败，请检查执行环境" }
         }
     }
 

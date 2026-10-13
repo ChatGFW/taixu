@@ -41,6 +41,14 @@
 - **局限（务必知道）**：正则启发式，不是密码学保证；无标签的随机串（如 HostBridge key 本身是 UUID hex）不在模式内；Base64 等编码变形与非赋值形态不保证命中。高危场景需叠加人工检查。
 - 请求诊断仅将脱敏后的有界预览和字段指纹交给 `RequestDiagnosticsRepository`，用 `SecretManager` 的 AndroidKeyStore AES/GCM 加密后原子写入 `noBackupFilesDir/request-diagnostics/requests.enc`。不保存请求头、原始请求体或媒体载荷；加密失败不回退明文。普通对话和文件内容仍可能保留，脱敏不等于匿名化。会话删除等待加密存档清理完成；存档排除系统备份，并受大小及格式校验约束。
 
+### 2.4 远程 SSH 凭证与主机身份
+
+- 远程配置由 `RemoteServerRepository` 持有，整个快照经 `SecretManager` 加密后原子写入 `noBackupFilesDir/remote-servers.enc`；不进入备份、模型上下文或进程环境。密码、PEM/OpenSSH 私钥与私钥口令只在认证和内存脱敏列表中使用，私钥文件导入限定为用户选择的 SAF URI，最大 64 KiB，不保留 URI 授权。
+- 会话的执行目标和无凭证的连接身份持久化到 Room；创建时固定，重启、回退分支及子任务复用。重新连接校验仓库中的档案与记录一致，变化时拒绝执行。无法解密的连接存档显式不可用，不默认选择本地；用户明确切回本地后保留原损坏加密文件，再恢复配置写入。
+- 首次连接的 host-key 回调在认证前拒绝连接，UI 显示 SHA-256 主机指纹；用户核对并确认后再次连接。后续严格匹配保存的指纹，变化即拒绝，不自动接受，也不启用旧版 RSA/SHA-1 算法。
+- Harness 会话与子任务分别持有 SSH 连接。文件操作经 SFTP 将逻辑 `/workspace` 路径映射到远程工作区，校验真实路径与新文件父目录，拒绝 `..` 和越界符号链接；命令仍拥有 SSH 用户的真实权限，不受文件工作区限制。远程用户或同机其它进程可并发改动文件，SFTP 真实路径检查不能提供对恶意远端的安全隔离。
+- 远程工具沿用 PLAN/审批/输出脱敏规则；缺失的下载、产物、构建绑定能力明确失败。`host` / Android / 浏览器能力仍作用于手机，远程提示词明确区分。停止发送 TERM，必要时 KILL；服务器未确认退出时保留连接并报告失败，可重试。SSH 不保证回收命令自行脱离会话创建的后代进程。
+
 ## 3. PRoot 挂载清单（沙箱可见的宿主路径）
 
 默认绑定（`ProotCommandBuilder.build/buildInteractive` + `ProotMountLayout.hostSystemPaths`）：

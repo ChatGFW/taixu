@@ -311,23 +311,20 @@ class WorkspaceViewModel(
     val sharedStorageAccessLimited: StateFlow<Boolean> = _sharedStorageAccessLimited.asStateFlow()
 
     // ==================== 代码编辑器状态 ====================
-    private val _openedFilePath = MutableStateFlow<String?>(null)
-    val openedFilePath: StateFlow<String?> = _openedFilePath.asStateFlow()
-
-    private val _fileContent = MutableStateFlow("")
-    val fileContent: StateFlow<String> = _fileContent.asStateFlow()
-
-    private val _contentRevision = MutableStateFlow(0L)
-    /** 文件内容整文加载/重置版本号：仅在 openFile 或 resetContent 时递增，打字过程中不变化 */
-    val contentRevision: StateFlow<Long> = _contentRevision.asStateFlow()
-
-    private val editorDraft = EditorDraft()
-
-    private val _isDirty = MutableStateFlow(false)
-    val isDirty: StateFlow<Boolean> = _isDirty.asStateFlow()
-
-    private val _isSaving = MutableStateFlow(false)
-    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+    private val editor = EditorSessionController(
+        scope = viewModelScope,
+        workspaceManager = workspaceManager,
+        context = context,
+        notify = ::notify,
+        selectedProject = _selectedProject,
+        loadingFiles = _loadingFiles,
+    )
+    val openedFilePath: StateFlow<String?> = editor.openedFilePath
+    val fileContent: StateFlow<String> = editor.fileContent
+    val contentRevision: StateFlow<Long> = editor.contentRevision
+    val isDirty: StateFlow<Boolean> = editor.isDirty
+    val isSaving: StateFlow<Boolean> = editor.isSaving
+    val saveConflict: StateFlow<Boolean> = editor.saveConflict
 
     init {
         refresh()
@@ -629,71 +626,18 @@ class WorkspaceViewModel(
 
     // ==================== 编辑器操作 ====================
 
-    fun editorText(project: String, path: String): String =
-        if (editorDraft.matches(project, path)) editorDraft.text else ""
+    fun editorText(project: String, path: String): String = editor.editorText(project, path)
 
-    fun openFile(projectName: String, relativePath: String) {
-        _selectedProject.value = projectName
-        _openedFilePath.value = relativePath
-        if (editorDraft.matches(projectName, relativePath)) return
-        viewModelScope.launch {
-            _loadingFiles.value = true
-            val result = workspaceManager.readFile(projectName, relativePath)
-            if (_selectedProject.value != projectName || _openedFilePath.value != relativePath) return@launch
-            if (result.isSuccess) {
-                val content = result.getOrNull().orEmpty()
-                editorDraft.load(projectName, relativePath, content)
-                _fileContent.value = content
-                _isDirty.value = false
-                _contentRevision.value++
-            } else {
-                notify(result.errorOrNull()?.message ?: context.getString(R.string.workspace_open_file_failed), isError = true)
-            }
-            _loadingFiles.value = false
-        }
-    }
+    fun openFile(projectName: String, relativePath: String) = editor.openFile(projectName, relativePath)
 
-    fun onContentChanged(newText: String) {
-        if (_loadingFiles.value || !editorDraft.matches(_selectedProject.value, _openedFilePath.value)) return
-        editorDraft.edit(newText)
-        _isDirty.value = editorDraft.isDirty
-    }
+    fun onContentChanged(newText: String) = editor.onContentChanged(newText)
 
-    fun resetContent() {
-        editorDraft.reset()
-        _fileContent.value = editorDraft.text
-        _isDirty.value = false
-        _contentRevision.value++
-    }
+    fun resetContent() = editor.resetContent()
 
-    fun saveFile(content: String? = null, onSuccess: (() -> Unit)? = null) {
-        val proj = _selectedProject.value ?: return
-        val path = _openedFilePath.value ?: return
-        if (_isSaving.value || _loadingFiles.value || !editorDraft.matches(proj, path)) return
-        content?.let(editorDraft::edit)
-        val snapshot = editorDraft.snapshot()
-        _isSaving.value = true
-        viewModelScope.launch {
-            val result = workspaceManager.writeFile(proj, path, snapshot.text)
-            if (result.isSuccess) {
-                val stillOpen = editorDraft.markSaved(snapshot)
-                if (stillOpen) {
-                    _fileContent.value = snapshot.text
-                    _isDirty.value = editorDraft.isDirty
-                }
-                notify(context.getString(R.string.workspace_file_saved))
-                if (stillOpen && !editorDraft.isDirty) onSuccess?.invoke()
-            } else {
-                notify(result.errorOrNull()?.message ?: context.getString(R.string.workspace_save_failed), isError = true)
-            }
-            _isSaving.value = false
-        }
-    }
+    fun saveFile(content: String? = null, onSuccess: (() -> Unit)? = null) = editor.saveFile(content, onSuccess)
 
-    fun closeFile() {
-        _openedFilePath.value = null
-        _fileContent.value = ""
-        editorDraft.clear()
-        _isDirty.value = false
-    }
+    fun overwriteSaveConflict() = editor.overwriteSaveConflict()
+    fun reloadSaveConflict() = editor.reloadSaveConflict()
+    fun dismissSaveConflict() = editor.dismissSaveConflict()
+    fun closeFile() = editor.closeFile()
 }

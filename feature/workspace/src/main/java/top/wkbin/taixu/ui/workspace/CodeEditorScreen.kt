@@ -107,6 +107,7 @@ fun CodeEditorScreen(
     val loading by viewModel.loadingFiles.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val messageIsError by viewModel.messageIsError.collectAsStateWithLifecycle()
+    val saveConflict by viewModel.saveConflict.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var showUnsavedDialog by rememberSaveable(projectName, relativePath) { mutableStateOf(false) }
@@ -415,25 +416,23 @@ fun CodeEditorScreen(
         )
     }
 
-    // 顶栏「放弃修改」二次确认：撤销全部未保存编辑属于破坏性操作
     if (showDiscardDialog) {
-        RuntimeAlertDialog(
-            onDismissRequest = { showDiscardDialog = false },
-            title = { Text(stringResource(R.string.workspace_discard_edits_title)) },
-            text = { Text(stringResource(R.string.workspace_discard_edits_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDiscardDialog = false
-                        viewModel.resetContent()
-                    },
-                ) { Text(stringResource(R.string.workspace_discard_edits_confirm), color = MaterialTheme.colorScheme.error) }
+        DiscardEditsDialog(
+            onConfirm = {
+                showDiscardDialog = false
+                viewModel.resetContent()
             },
-            dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) {
-                    Text(stringResource(R.string.workspace_keep_editing))
-                }
-            },
+            onDismiss = { showDiscardDialog = false },
+        )
+    }
+
+    if (saveConflict) {
+        SaveConflictDialog(
+            isSaving = isSaving,
+            isLoading = loading,
+            onOverwrite = viewModel::overwriteSaveConflict,
+            onReload = viewModel::reloadSaveConflict,
+            onDismiss = viewModel::dismissSaveConflict,
         )
     }
 }

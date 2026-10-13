@@ -83,8 +83,9 @@ internal class AnthropicApi(
         var continuations = 0
         var finalResult = ChatResult(content = null, toolCalls = emptyList())
         var done = false
+        val budget = StreamBudget() // 按整轮 chatStream 计（跨 pause_turn 续跑共用一个预算）
         while (!done) {
-            val round = streamOnce(model, conversation, onReasoning, onToolProgress, onDelta)
+            val round = streamOnce(model, conversation, onReasoning, onToolProgress, onDelta, budget)
             round.content?.takeIf { it.isNotEmpty() }?.let { mergedContent.append(it) }
             round.reasoningContent?.takeIf { it.isNotEmpty() }?.let { mergedReasoning.append(it) }
             mergedToolCalls += round.toolCalls
@@ -142,6 +143,7 @@ internal class AnthropicApi(
         onReasoning: (String) -> Unit,
         onToolProgress: (ToolCallStreamProgress) -> Unit = {},
         onDelta: (String) -> Unit,
+        budget: StreamBudget,
     ): StreamRound = withContext(Dispatchers.IO) {
         val call = okHttpClient.newCall(buildRequest(model, messages, stream = true))
         // 与 ChatApi 一致：取消时立即关闭 socket，保证"停止"秒级生效
@@ -221,23 +223,21 @@ internal class AnthropicApi(
                             val index = event["index"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
                             val delta = event["delta"] as? JsonObject ?: continue
                             when (delta["type"]?.jsonPrimitive?.contentOrNull) {
-                                "text_delta" -> delta["text"]?.jsonPrimitive?.contentOrNull?.let { chunk ->
-                                    if (chunk.isNotEmpty()) {
-                                        text.append(chunk)
-                                        onDelta(chunk)
-                                    }
+                                "text_delta" -> delta["text"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotEmpty() }?.let { chunk ->
+                                    budget.add(chunk)
+                                    text.append(chunk)
+                                    onDelta(chunk)
                                 }
-                                "thinking_delta" -> delta["thinking"]?.jsonPrimitive?.contentOrNull?.let { chunk ->
-                                    if (chunk.isNotEmpty()) {
-                                        if (reasoningText.length < ProviderClient.MAX_STREAM_REASONING_CHARS) {
-                                            reasoningText.append(chunk.take(ProviderClient.MAX_STREAM_REASONING_CHARS - reasoningText.length))
-                                        }
-                                        onReasoning(chunk)
+                                "thinking_delta" -> delta["thinking"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotEmpty() }?.let { chunk ->
+                                    budget.add(chunk)
+                                    if (reasoningText.length < ProviderClient.MAX_STREAM_REASONING_CHARS) {
+                                        reasoningText.append(chunk.take(ProviderClient.MAX_STREAM_REASONING_CHARS - reasoningText.length))
                                     }
+                                    onReasoning(chunk)
                                 }
                                 "input_json_delta" -> delta["partial_json"]?.jsonPrimitive?.contentOrNull?.let { chunk ->
                                     toolCalls.getOrPut(index) { ToolCallAccumulator() }.apply {
-                                        arguments.append(chunk)
+                                        arguments.append(chunk).also { budget.add(chunk) }
                                         publishProgress(onToolProgress)
                                     }
                                 }

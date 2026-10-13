@@ -61,6 +61,9 @@ class PromptAssetLoaderTest {
     fun allKnownAssetVariablesCanBeRendered() {
         val variables = mapOf(
             "CHAR_NAME" to "太墟智枢",
+            "EXECUTION_LOCATION" to "Android 私有 Linux 沙箱",
+            "EXECUTION_ARCH" to "aarch64",
+            "EXECUTION_LAYER" to "PRoot",
             "DISTRO_NAME" to "Debian",
             "PKG_MANAGER" to "apt-get install",
             "ACTIVE_SKILLS" to "",

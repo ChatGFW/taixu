@@ -80,6 +80,8 @@ fun DistroManagementScreen(
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val installedDistros by viewModel.installedDistros.collectAsStateWithLifecycle()
+    val remoteViewModel = koinViewModel<RemoteServerViewModel>()
+    val activeServerId by remoteViewModel.activeId.collectAsStateWithLifecycle()
     val activeDistroId by viewModel.activeDistroId.collectAsStateWithLifecycle()
     val runtimeState by viewModel.runtimeState.collectAsStateWithLifecycle()
     val restoringDistroId by viewModel.restoringDistroId.collectAsStateWithLifecycle()
@@ -108,8 +110,8 @@ fun DistroManagementScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             RuntimeTopBar(
-                title = "Linux 发行版管理",
-                statusText = "多沙箱并存与动态切换",
+                title = "Linux 系统管理",
+                statusText = "多系统并存与动态切换",
                 onBack = onBack,
             )
         },
@@ -122,48 +124,20 @@ fun DistroManagementScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                NoticeBanner(
-                    text = "太墟支持多套 Linux 系统并存。所有系统均自动挂载 /workspace 代码工程，/sdcard 外部存储按「存储挂载与共享」页的开关注入，各发行版软件生态与包管理器完全独立隔离。",
-                )
+                SystemEnvironmentPicker(localCount = installedDistros.size, onInstallLocal = { showInstallDialog = true }, viewModel = remoteViewModel)
             }
 
-            // 1. 已安装系统列表
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "已安装沙箱 (${installedDistros.size})",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-
-                    Button(
-                        onClick = { showInstallDialog = true },
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        shape = RoundedCornerShape(8.dp),
-                    ) {
-                        RuntimeIcon(
-                            name = RuntimeIconName.Plus,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "安装新系统", style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-            }
+            item { Text("本地 (${installedDistros.size})", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) }
 
             items(installedDistros, key = { it.id }) { distro ->
                 DistroItemCard(
                     distro = distro,
-                    isActive = distro.id.equals(activeDistroId, ignoreCase = true),
+                    isActive = activeServerId == null && distro.id.equals(activeDistroId, ignoreCase = true),
                     isRestoring = distro.id.equals(restoringDistroId, ignoreCase = true),
                     isDeleting = distro.id.equals(deletingDistroId, ignoreCase = true),
-                    canOperateMulti = installedDistros.size > 1,
+                    canOperateMulti = installedDistros.size > 1 || activeServerId != null,
                     onSwitchActive = {
+                        remoteViewModel.select(null)
                         viewModel.switchActiveDistro(distro.id)
                     },
                     onReset = {

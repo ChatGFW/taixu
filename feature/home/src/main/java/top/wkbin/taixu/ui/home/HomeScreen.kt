@@ -121,7 +121,7 @@ private fun warningStatusColor(): Color =
  * 集成沙箱引擎状态、运行环境体检自愈中心、实时内存/存储监控与规格信息
  */
 @Composable
-fun HomeScreen(
+internal fun LocalHomeScreen(
     onNavigate: (MainDestination) -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenToolCenter: () -> Unit = {},

@@ -149,7 +149,7 @@ fun ChatScreen(
     val thinkingAutoTranslate by viewModel.thinkingAutoTranslate.collectAsStateWithLifecycle()
     val chatRoundCollapse by viewModel.chatRoundCollapse.collectAsStateWithLifecycle()
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
-    val workspaces by viewModel.workspaces.collectAsStateWithLifecycle()
+    val workspaceCatalog by viewModel.workspaceCatalog.collectAsStateWithLifecycle(); val workspaces = workspaceCatalog.projects
     val models by viewModel.models.collectAsStateWithLifecycle()
     val providerModelIds by viewModel.providerModelIds.collectAsStateWithLifecycle()
     val discoveringProviderModels by viewModel.discoveringProviderModels.collectAsStateWithLifecycle()
@@ -760,7 +760,7 @@ fun ChatScreen(
 
     if (showNewSession) {
         NewSessionDialog(
-            workspaces = workspaces,
+            workspaces = workspaces, catalog = workspaceCatalog,
             onDismiss = { showNewSession = false },
             onCreate = { title, selected, selectedType ->
                 showNewSession = false

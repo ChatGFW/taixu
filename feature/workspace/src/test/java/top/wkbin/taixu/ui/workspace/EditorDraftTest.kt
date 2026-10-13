@@ -47,4 +47,15 @@ class EditorDraftTest {
         assertEquals("unsaved", draft.text)
         assertTrue(draft.isDirty)
     }
+
+    @Test fun `saved content tracks the last known disk version`() {
+        val draft = EditorDraft()
+        draft.load("app", "main.kt", "disk-v1")
+        assertEquals("disk-v1", draft.savedContent)
+        // 编辑不改变磁盘基线：正是保存前版本校验要比较的对象
+        draft.edit("draft")
+        assertEquals("disk-v1", draft.savedContent)
+        draft.markSaved(draft.snapshot())
+        assertEquals("draft", draft.savedContent)
+    }
 }

@@ -4,7 +4,7 @@
 
 `runtime/environment/ExecutionEnvironment` 是文件与进程的统一替换入口。一个环境包含不可变的 backend、distribution、workspace、owner 身份，以及文件读写/编辑、命令、协议子进程、PTY、后台进程和关闭接口。路径使用 guest 路径；远程实现不需要暴露手机的 `java.io.File` 或 Android 启动参数。
 
-生产装配由 `LocalExecutionEnvironmentFactory` 完成。它校验文件工具的工作区根与 `LinuxRuntime.workspacePath()` 相同，拒绝越界工作区映射，并在创建时固定发行版。相对文件路径和未显式指定 cwd 的命令都基于同一个工作区；未关联项目的工具环境使用 `/workspace`。命令仍可显式指定其他 guest cwd，文件工具仍受原有工作区访问边界约束。
+生产装配由 `SelectedExecutionEnvironmentFactory` 选择本地或 SSH 环境。已有会话和子任务的明确 distribution 优先于全局默认选择，已移除的远程配置不会回退到手机执行。本地实现由 `LocalExecutionEnvironmentFactory` 完成。它校验文件工具的工作区根与 `LinuxRuntime.workspacePath()` 相同，拒绝越界工作区映射，并在创建时固定发行版。相对文件路径和未显式指定 cwd 的命令都基于同一个工作区；未关联项目的工具环境使用 `/workspace`。命令仍可显式指定其他 guest cwd，文件工具仍受原有工作区访问边界约束。
 
 `SessionExecutionEnvironments` 按会话缓存环境。切换前台会话不会改变后台会话的环境；同一会话不能静默改绑工作区。子任务拥有独立资源作用域和进程命名空间，继承父环境的 backend、distribution 和 workspace。工具调用仍使用父 sessionId 检查权限、记录消息和捕获文件快照，资源归属不作为权限豁免。
 
@@ -33,7 +33,7 @@ HTTP MCP 是用户配置的外部服务，其 HTTP 连接继续由全局 MCP 管
 
 尚未改用环境接口的本地服务也受 `boundLocalDistribution` 保护：在已绑定的工具调用中，LinuxRuntimeImpl 的命令、子进程和终端启动读取绑定发行版，拒绝显式跨发行版或远程上下文调用本地运行时。这样即使全局发行版在兼容性检查后改变，也不会切换到另一执行世界。
 
-这次提供了统一接口、本地实现和假远程后端的替换验证。下载、完整输出保存、代码恢复、子任务编排和项目脚本挂载的消费者已支持远程接口；本地文件和下载器封装在 `LocalExecutionDownloads` / `LocalExecutionArtifacts` 内。`build_script` 管理模板及挂载，不会启动构建；脚本库为应用共享，绑定由各后端保存，远程后端需要按真实主机/工作区隔离，并在执行时解析有效模板 ID。尚未实现真实 SSH 连接、远程终端页面渲染及远程工程构建管线。后续接入远程 Linux 时应实现整个环境工厂及其能力接口；缺少适配器时继续明确失败。当前没有 LSP 消费者，新增 LSP 时应通过 `openSession` 使用同一个环境。
+这次提供了统一接口、本地实现和假远程后端的替换验证。下载、完整输出保存、代码恢复、子任务编排和项目脚本挂载的消费者已支持远程接口；本地文件和下载器封装在 `LocalExecutionDownloads` / `LocalExecutionArtifacts` 内。`build_script` 管理模板及挂载，不会启动构建；脚本库为应用共享，绑定由各后端保存，远程后端需要按真实主机/工作区隔离，并在执行时解析有效模板 ID。真实 SSH 连接由 `SshConnector` / `SshExecutionEnvironment` 实现，支持密码和私钥认证、指纹确认与固定、命令/后台进程、SFTP 文件和 MCP STDIO。提示词按绑定环境描述发行版、架构和能力，不加载手机项目文件。远程终端页面渲染及远程工程构建管线仍未实现；当前终端页面明确绑定本地发行版。远程下载、产物与构建绑定适配器暂缺，相关调用明确失败。后续接入远程 Linux 时应实现整个环境工厂及其能力接口；缺少适配器时继续明确失败。当前没有 LSP 消费者，新增 LSP 时应通过 `openSession` 使用同一个环境。
 
 `ExecutionArtifacts.storageKey` 必须标识真实存储位置：同一远端/工作区的不同会话共用锁，不同主机必须使用不同 key。列表必须完整，目录不存在返回空列表，连接或读取失败返回失败。保留 7 天、最多 256 个输出和 64 MiB 总量；单个产物最多 16 MiB。枚举失败或删除旧文件失败导致配额不足时拒绝新增。保存通过临时文件替换目标，不使用覆盖拷贝写入半份产物。源代码管理排除由后端处理，失败不影响已有输出读取。
 

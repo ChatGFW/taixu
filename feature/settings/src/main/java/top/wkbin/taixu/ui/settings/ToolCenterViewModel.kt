@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.datastore.FirstUseGuidePreferences
+import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.database.InstallLogEntity
 import top.wkbin.taixu.core.database.ToolEntity
 import top.wkbin.taixu.core.tools.ToolInstallProgress
@@ -30,6 +31,7 @@ class ToolCenterViewModel(
     private val linuxRuntime: LinuxRuntime,
     private val firstUseGuidePreferences: FirstUseGuidePreferences,
     private val logger: AppLogger,
+    private val remoteServers: RemoteServerRepository,
 ) : ViewModel() {
 
     val tools: StateFlow<List<ToolEntity>> = toolManager.observeTools()
@@ -88,6 +90,7 @@ class ToolCenterViewModel(
     }
 
     fun importLocalPlugin(uri: Uri) {
+        if (blockedByRemote()) return
         val fileName = uri.lastPathSegment
             ?.substringAfterLast('/')
             ?.substringAfterLast(':')
@@ -101,6 +104,7 @@ class ToolCenterViewModel(
     }
 
     fun confirmLocalPluginImport() {
+        if (blockedByRemote()) return
         toolManager.confirmLocalPluginImport()
     }
 
@@ -114,15 +118,28 @@ class ToolCenterViewModel(
 
     fun toolSource(toolId: String): String = toolManager.manifest(toolId)?.source ?: "REMOTE"
 
+    /**
+     * 插件与底层工具只安装在本机 PRoot：远程主系统下拦截安装类操作并给出明确原因，
+     * 不静默失败。这些组件依赖 artifacts / downloads / buildBindings 与本地运行时，远程环境没有对应适配。
+     */
+    private fun blockedByRemote(): Boolean {
+        if (remoteServers.activeId.value == null) return false
+        _operationError.value = "当前主系统为 SSH 远程服务器，插件与底层工具仅安装在本机 PRoot，不会同步到服务器；请先在「Linux 系统管理」切回本地系统。"
+        return true
+    }
+
     fun installTool(toolId: String) {
+        if (blockedByRemote()) return
         toolManager.startInstall(toolId)
     }
 
     fun updateTool(toolId: String) {
+        if (blockedByRemote()) return
         toolManager.startUpdate(toolId)
     }
 
     fun uninstallTool(toolId: String) {
+        if (blockedByRemote()) return
         viewModelScope.launch {
             try {
                 toolManager.uninstall(toolId)
@@ -232,6 +249,7 @@ class ToolCenterViewModel(
     }
 
     fun installActiveBundleComponents() {
+        if (blockedByRemote()) return
         val selected = _selectedComponents.value
         if (selected.isEmpty() || toolManager.isBatchInstalling.value) return
 
@@ -245,6 +263,7 @@ class ToolCenterViewModel(
     }
 
     fun reinstallComponent(component: PluginComponent) {
+        if (blockedByRemote()) return
         if (toolManager.isBatchInstalling.value) return
         _operationError.value = null
         _activeBundle.value = null
@@ -266,6 +285,7 @@ class ToolCenterViewModel(
     }
 
     fun uninstallComponent(component: PluginComponent) {
+        if (blockedByRemote()) return
         if (toolManager.isBatchInstalling.value) return
         if (uninstallBlockedReason(component) != null) return
         _activeBundle.value = null

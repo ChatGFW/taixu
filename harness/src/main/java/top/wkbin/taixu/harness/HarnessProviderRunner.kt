@@ -184,6 +184,7 @@ class HarnessProviderRunner(
                             )
                         }
                     },
+                    sessionKey = sessId,
                 ) { chunk ->
                     withinStreamHandling {
                         stateMirrors.setStatus(sessId, "回复中")

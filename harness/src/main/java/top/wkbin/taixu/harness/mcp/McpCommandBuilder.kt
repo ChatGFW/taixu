@@ -8,10 +8,10 @@ import top.wkbin.taixu.core.model.McpServerConfig
  * command-line construction without spinning up a Linux session.
  */
 class McpCommandBuilder() {
-    fun commandLine(server: McpServerConfig): String {
+    fun commandLine(server: McpServerConfig, configureTty: Boolean = true): String {
         require(server.command.isNotBlank()) { "MCP STDIO server requires a non-blank command" }
         val argv = (listOf(server.command) + server.args).joinToString(" ", transform = ShellQuote::of)
-        return "stty raw -echo; exec " + argv
+        return (if (configureTty) "stty raw -echo; " else "") + "exec " + argv
     }
 
     fun fingerprint(server: McpServerConfig) =

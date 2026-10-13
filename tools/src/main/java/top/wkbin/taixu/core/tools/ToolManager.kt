@@ -46,35 +46,6 @@ import kotlinx.coroutines.launch
 import android.net.Uri
 import top.wkbin.taixu.core.common.result.AppResult
 
-data class ToolInstallProgress(
-    val toolId: String,
-    val message: String,
-    val progress: Float? = null,
-    val terminal: Boolean = false,
-)
-
-sealed interface LocalPluginImportState {
-    data object Idle : LocalPluginImportState
-    /** The URI has been selected; only manifest metadata is being read. */
-    data class Reading(val fileName: String) : LocalPluginImportState
-    data class PendingConfirmation(
-        val uri: Uri,
-        val fileName: String,
-        val manifest: ToolManifest,
-        val archiveSizeBytes: Long?,
-    ) : LocalPluginImportState
-    data class Importing(
-        val fileName: String,
-        val progress: Float?,
-        val bytesRead: Long,
-        val totalBytes: Long?,
-        val currentEntry: String?,
-    ) : LocalPluginImportState
-    data class Succeeded(val pluginName: String, val version: String) : LocalPluginImportState
-    data class AlreadyImported(val pluginName: String, val version: String) : LocalPluginImportState
-    data class Failed(val message: String) : LocalPluginImportState
-}
-
 private data class UninstallOutcome(
     val success: Boolean,
     val message: String,
@@ -99,6 +70,7 @@ class ToolManager(
     private val localPluginPayloadManager: LocalPluginPayloadManager,
     private val serviceController: ToolServiceController,
     installerAdapters: Set<@JvmSuppressWildcards ToolRuntimeAdapter>,
+    private val localAccess: top.wkbin.taixu.runtime.environment.LocalBackendAccess? = null,
 ) {
     private val managerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val installMutex = Mutex()
@@ -116,6 +88,7 @@ class ToolManager(
     private val _isBatchInstalling = MutableStateFlow(false)
     val isBatchInstalling: StateFlow<Boolean> = _isBatchInstalling.asStateFlow()
     private val bundleBatch = BundleComponentBatch(
+        localAccess = localAccess,
         linuxRuntime = linuxRuntime,
         backgroundTaskRegistry = backgroundTaskRegistry,
         notificationNotifier = notificationNotifier,
@@ -177,6 +150,7 @@ class ToolManager(
     /** Read and validate package metadata; no extraction or registry mutation occurs yet. */
     @Synchronized
     fun startLocalPluginImport(uri: Uri, fileName: String): Job {
+        localAccess?.requireLocal()
         localPluginImportJob?.takeIf { it.isActive }?.let { return it }
         _localPluginImportState.value = LocalPluginImportState.Reading(fileName)
         return managerScope.launch {
@@ -199,6 +173,7 @@ class ToolManager(
     /** Confirm a previously previewed package and perform extraction/registration. */
     @Synchronized
     fun confirmLocalPluginImport(): Job? {
+        localAccess?.requireLocal()
         val pending = _localPluginImportState.value as? LocalPluginImportState.PendingConfirmation ?: return null
         _localPluginImportState.value = LocalPluginImportState.Importing(
             fileName = pending.fileName,
@@ -289,6 +264,7 @@ class ToolManager(
      * model environment) that are injected via environment variables at process start.
      */
     suspend fun restartGateway(toolId: String): ManagedProcess {
+        localAccess?.requireLocal()
         requireInstalledTool(toolId)
         return serviceController.restart(toolId, requireAdapter(toolId), serviceSpec(toolId))
     }
@@ -309,6 +285,7 @@ class ToolManager(
     fun isToolSupported(toolId: String): Boolean = getAdapter(toolId) != null
 
     fun startInstall(toolId: String): Job {
+        localAccess?.requireLocal()
         val existing = installJobs[toolId]
         if (existing?.isActive == true) return existing
         return managerScope.launch {
@@ -323,6 +300,7 @@ class ToolManager(
     }
 
     fun startUpdate(toolId: String): Job {
+        localAccess?.requireLocal()
         val existing = installJobs[toolId]
         if (existing?.isActive == true) return existing
         return managerScope.launch {
@@ -437,9 +415,7 @@ class ToolManager(
     /** Install and update share the same transactional adapter path. */
     fun install(toolId: String): Flow<InstallEvent> = installInternal(toolId, OPERATION_INSTALL)
 
-    /**
-     * 🔍 实时探针：探测 Linux 沙箱中各个子组件的实际安装就绪状态
-     */
+    /** Probe component installation in the phone's Linux runtime. */
     suspend fun probeInstalledComponents(): Set<String> {
         val distroId = currentDistroId()
         val allComponents = BuiltinPluginBundles.bundles.flatMap { it.components }
@@ -460,12 +436,9 @@ class ToolManager(
         return installed
     }
 
-    /**
-     * 批量装配选中的组件。reinstall 会先清掉该组件自己的程序文件，再跑安装脚本。
-     */
     fun batchInstallComponents(componentIds: Set<String>, reinstall: Boolean = false): Flow<InstallEvent> =
         bundleBatch.install(componentIds, reinstall)
-    suspend fun <T> runExclusive(block: suspend () -> T): T = installMutex.withLock { block() }
+    suspend fun <T> runExclusive(block: suspend () -> T): T = installMutex.withLock { localAccess?.requireLocal(); block() }
     /** 卸载选中组件。仍被其他已装配组件使用的目录和软件包会保留。 */
     fun batchUninstallComponents(componentIds: Set<String>): Flow<InstallEvent> =
         bundleBatch.uninstall(componentIds)
@@ -491,6 +464,7 @@ class ToolManager(
     }
 
     private fun installInternal(toolId: String, operation: String): Flow<InstallEvent> = flow {
+        localAccess?.requireLocal()
         require(isToolSupported(toolId)) { "暂不支持安装工具：$toolId" }
         requireManifestEnabled(toolId)
         val distroId = currentDistroId()
@@ -670,6 +644,7 @@ class ToolManager(
     }
 
     suspend fun uninstall(toolId: String, deleteData: Boolean = false) {
+        localAccess?.requireLocal()
         require(isToolSupported(toolId)) { "暂不支持卸载工具：$toolId" }
         installMutex.withLock {
             check(toolId !in installJobs) { "工具正在安装：$toolId" }
@@ -802,6 +777,7 @@ class ToolManager(
     }
 
     suspend fun startGateway(toolId: String): ManagedProcess {
+        localAccess?.requireLocal()
         requireInstalledTool(toolId)
         return serviceController.start(toolId, requireAdapter(toolId), serviceSpec(toolId))
     }

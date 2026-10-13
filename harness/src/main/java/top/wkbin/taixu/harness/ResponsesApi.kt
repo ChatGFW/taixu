@@ -101,7 +101,9 @@ internal class ResponsesApi(
                     throw httpError(response.code, rawBody)
                 }
                 val source = response.body.source()
-                val demuxer = ThinkTagStreamDemuxer(onReasoning, onDelta)
+                // 单轮流式输出硬失败预算：正文/思考经 demuxer 计入，工具入参在累积点计入。
+                val budget = StreamBudget()
+                val demuxer = ThinkTagStreamDemuxer(onReasoning, onDelta, budget = budget)
                 val receivedText = StringBuilder()
                 // item_id -> 工具调用累积器（Responses 以 item_id 区分同一轮多个 function_call）
                 val toolCalls = mutableMapOf<String, ToolCallAccumulator>()
@@ -154,6 +156,7 @@ internal class ResponsesApi(
                             val chunk = event["delta"]?.jsonPrimitive?.contentOrNull
                             if (!chunk.isNullOrEmpty()) {
                                 val accum = toolCalls.getOrPut(itemId) { ToolCallAccumulator() }
+                                budget.add(chunk)
                                 accum.arguments.append(chunk)
                                 accum.publishProgress(onToolProgress)
                             }
@@ -172,6 +175,7 @@ internal class ResponsesApi(
                                 if (accum.name.isBlank()) accum.name = item["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
                                 val args = item["arguments"]?.jsonPrimitive?.contentOrNull
                                 if (args != null && accum.arguments.isEmpty() && args.isNotBlank()) {
+                                    budget.add(args)
                                     accum.arguments.append(args)
                                 }
                                 accum.publishProgress(onToolProgress)

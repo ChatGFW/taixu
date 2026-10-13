@@ -90,10 +90,8 @@ class ToolExecutor(
     )
 
     private val executionBoundary = ToolExecutionBoundary(toolCheckpoints) { request, output ->
-        val redacted = secretRedactor.redact(
-            output, top.wkbin.taixu.harness.environment.executionOutputSecrets(environments, linuxEnvironmentManager, request.sessionId, request.workspace),
-            privacyMode = settingsDataStore?.environmentPrivacyMode?.first() ?: true,
-        )
+        val redacted = top.wkbin.taixu.harness.environment.redactExecutionOutput(output, secretRedactor,
+            environments, linuxEnvironmentManager, settingsDataStore, request.sessionId, request.workspace)
         truncateOutput(redacted, request.call.rawToolName ?: HarnessApiMapper.apiName(request.call.tool),
             if (environments != null) environments.environment(request.sessionId, request.workspace).artifacts
             else if (request.workspace.isNotBlank()) top.wkbin.taixu.harness.environment.LocalExecutionArtifacts(fileAccess.withBase(request.workspace)) else null)
@@ -248,13 +246,8 @@ class ToolExecutor(
             rawOutput
         }
         // 先对全量输出脱敏，再截断/落盘：落盘引流文件必须与结果正文同一脱敏口径
-        val redactedOutput = secretRedactor.redact(
-            value = finalOutput,
-            secretValues = top.wkbin.taixu.harness.environment.executionOutputSecrets(environments, linuxEnvironmentManager, sessionId, workspace),
-            privacyMode = settingsDataStore?.let { prefs ->
-                runCatching { prefs.environmentPrivacyMode.first() }.getOrDefault(true)
-            } ?: true,
-        )
+        val redactedOutput = top.wkbin.taixu.harness.environment.redactExecutionOutput(finalOutput, secretRedactor,
+            environments, linuxEnvironmentManager, settingsDataStore, sessionId, workspace)
         val imagePayload = toolMetadata.remove("image_payload")
         return ToolResult(
             id = UUID.randomUUID().toString(),

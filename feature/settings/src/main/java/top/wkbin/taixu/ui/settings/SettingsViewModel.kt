@@ -469,6 +469,7 @@ class SettingsViewModel(
 
     /** 各 MCP 服务的实时连通性状态（与 McpManager 共享，设置页与聊天页联动）。 */
     val mcpConnectionStates: StateFlow<Map<String, McpConnectionState>> = mcpManager.connectionStates
+    fun mcpLastError(serverId: String): String? = mcpManager.getLastError(serverId)
 
     private val _mcpAuthOverrides = MutableStateFlow<Map<String, McpAuthState>>(emptyMap())
 

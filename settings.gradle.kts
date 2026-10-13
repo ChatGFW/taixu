@@ -110,3 +110,6 @@ include(":feature:a2uipoc")
 include(":feature:preview")
 // Shower 虚拟屏客户端库（源自 Operit，LGPL-3.0，并入后按 GPL-3.0 分发）；独立成模块以保持来源边界清晰。
 include(":showerclient")
+// Termux terminal-emulator fork（GPL-3.0，源自 termux-app v0.118.0）：为 TerminalSession 引入
+// TerminalSessionBackend 缝隙，使远程 SSH PTY 复用原生渲染层；独立成模块以保持来源边界清晰。
+include(":termux-terminal-emulator")

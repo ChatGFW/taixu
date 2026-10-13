@@ -152,6 +152,10 @@
     <string name="workspace_open_file_failed">打开文件失败</string>
     <string name="workspace_file_saved">已保存文件</string>
     <string name="workspace_save_failed">保存失败</string>
+    <string name="workspace_save_conflict_title">文件已被修改</string>
+    <string name="workspace_save_conflict_message">该文件在编辑期间被其他进程（例如 AI 工具）修改。覆盖会丢弃磁盘上的最新改动，重新加载会放弃你当前的编辑。</string>
+    <string name="workspace_save_conflict_overwrite">覆盖</string>
+    <string name="workspace_save_conflict_reload">重新加载</string>
     <string name="workspace_prepare_build">准备编译环境…</string>
     <string name="workspace_unknown_error">未知错误</string>
     <string name="workspace_build_interrupted">构建异常中断</string>

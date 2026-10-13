@@ -28,7 +28,7 @@ object BackupRecordPolicy {
                     "agent_skills" -> { put("isBuiltin", JsonPrimitive(0)); put("isImmutable", JsonPrimitive(0)); put("isEnabled", JsonPrimitive(0)) }
                     "agent_subagents" -> put("isEnabled", JsonPrimitive(0))
                     "workspaces" -> put("ownsDirectory", JsonPrimitive(0))
-                    "harness_sessions" -> put("approvalMode", JsonPrimitive("assisted"))
+                    "harness_sessions" -> { put("approvalMode", JsonPrimitive("assisted")); put("executionTargetJson", JsonPrimitive("unbound")) }
                     "build_scripts" -> put("isBuiltin", JsonPrimitive(0))
                     "agent_plans" -> if (get("status")?.jsonPrimitive?.content == "active") put("status", JsonPrimitive("cancelled"))
                 }

@@ -50,6 +50,16 @@ class TaiXuModulesTest {
                 definition<SubagentLaneRunner>(Function0::class),
                 definition<BrowserMcpTools>(List::class, Function1::class, BrowserPreferences::class),
                 definition<BrowserMcpResources>(Function0::class),
+                // These callbacks/files are built by explicit provider lambdas or secondary constructors.
+                definition<top.wkbin.taixu.runtime.SessionWorkspaceCatalog>(Function0::class, Function2::class),
+                definition<top.wkbin.taixu.harness.environment.SessionExecutionTargets>(Function1::class),
+                definition<top.wkbin.taixu.runtime.environment.LocalDistributionSelection>(kotlinx.coroutines.flow.Flow::class, kotlinx.coroutines.flow.StateFlow::class, kotlinx.coroutines.CoroutineScope::class),
+                definition<top.wkbin.taixu.harness.mcp.StandaloneMcpScope>(Function0::class, kotlinx.coroutines.flow.Flow::class),
+                definition<top.wkbin.taixu.core.datastore.EncryptedRemoteServerRepository>(android.util.AtomicFile::class, Function1::class),
+                // The build coordinator's adapter and default callbacks are constructed by its lambda.
+                definition<top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator>(
+                    top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator.ShellRunner::class, Function2::class, Function0::class, String::class,
+                ),
             ),
             extraTypes = listOf(Context::class, Application::class, SavedStateHandle::class, WorkerParameters::class),
         )

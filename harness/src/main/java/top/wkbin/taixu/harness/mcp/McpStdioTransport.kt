@@ -40,6 +40,7 @@ class McpStdioTransport(
     private val json: Json,
     private val commandBuilder: McpCommandBuilder,
     private val channelFactory: McpStdioChannelFactory,
+    internal val standaloneScope: StandaloneMcpScope? = null,
 ) : McpTransport {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val connections = ConcurrentHashMap<String, Connection>()
@@ -55,16 +56,16 @@ class McpStdioTransport(
         }
     }
 
-    override suspend fun check(server: McpServerConfig): Boolean {
+    override suspend fun check(server: McpServerConfig): McpCheckResult {
         val conn = try {
             connection(server, bypassCooldown = true)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (t: Throwable) {
-            return false
+            return McpCheckResult(false, t.message ?: t::class.simpleName)
         }
         return try {
-            conn.withInitialized { true }
+            conn.withInitialized { McpCheckResult(true) }
         } catch (cancellation: CancellationException) {
             // B2: 取消（如 checkConnection 8s 超时、等待 initialize 握手锁被取消）不代表进程损坏，
             // 不销毁连接——握手锁只挡毫秒级握手，绝不会误杀在飞的最长 600s 的 tools/call
@@ -72,7 +73,7 @@ class McpStdioTransport(
         } catch (t: Throwable) {
             // B2: 仅传输层故障（进程退出/EOF/IO）才销毁；server 返回错误响应等本次探测失败保留连接
             if (isChannelFailure(t)) discardConnection(conn.serverId, conn)
-            false
+            McpCheckResult(false, t.message ?: t::class.simpleName)
         }
     }
 
@@ -162,12 +163,11 @@ class McpStdioTransport(
     }
 
     private suspend fun connection(server: McpServerConfig, bypassCooldown: Boolean = false): Connection {
-        val scoped = server.forExecutionEnvironment()
+        val scoped = server.copy(id = scopedMcpKey(server, standaloneScope))
         return startupMutexes.getOrPut(server.id) { Mutex() }.withLock {
             connectionLocked(scoped, bypassCooldown)
         }
     }
-
     private suspend fun connectionLocked(server: McpServerConfig, bypassCooldown: Boolean): Connection {
         connections[server.id]?.takeIf { it.dead == null && it.channel.isAlive && it.fingerprint == commandBuilder.fingerprint(server) }?.let {
             it.markActive()

@@ -314,7 +314,7 @@ val harnessModule = module {
             commandBuilder = get(),
             linuxRuntime = get(),
             logger = get(),
-            agentEventLogger = get(),
+            agentEventLogger = get(), remoteServers = get(),
         )
     }
 
@@ -324,12 +324,12 @@ val harnessModule = module {
         McpStdioTransport(
             json = get(),
             commandBuilder = get(),
-            channelFactory = get(),
+            channelFactory = get(), standaloneScope = get(),
         )
     }
 
     single<McpWorkspaceRecommender> { McpWorkspaceRecommender() }
-
+    single { val selection = get<top.wkbin.taixu.runtime.environment.LocalDistributionSelection>(); top.wkbin.taixu.harness.mcp.StandaloneMcpScope(get(), selection::current, selection.changes) }
     single<McpOAuthCoordinator> { McpOAuthCoordinator(credentials = get(), client = get()) }
 
     single<McpOAuthTokenProvider> { McpOAuthTokenProvider(credentials = get(), coordinator = get()) }
@@ -409,8 +409,7 @@ val harnessModule = module {
             mcpServerRepository = get(),
             promptAssets = get(),
             fileAccess = get(),
-            privilegeRenderer = get(),
-            promptRouter = get(),
+            privilegeRenderer = get(), promptRouter = get(), environments = get(),
         )
     }
 

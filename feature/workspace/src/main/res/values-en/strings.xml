@@ -150,6 +150,10 @@
     <string name="workspace_open_file_failed">Failed to open file</string>
     <string name="workspace_file_saved">File saved</string>
     <string name="workspace_save_failed">Save failed</string>
+    <string name="workspace_save_conflict_title">File changed on disk</string>
+    <string name="workspace_save_conflict_message">This file was modified by another process (for example an AI tool) while you were editing. Overwrite discards the disk version; Reload discards your edits.</string>
+    <string name="workspace_save_conflict_overwrite">Overwrite</string>
+    <string name="workspace_save_conflict_reload">Reload</string>
     <string name="workspace_prepare_build">Preparing build environment…</string>
     <string name="workspace_unknown_error">Unknown error</string>
     <string name="workspace_build_interrupted">Build interrupted</string>

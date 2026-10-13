@@ -276,7 +276,7 @@ class RootfsInstaller(
                 stream.use { tarStreamExtractor.extract(it, staging, handleWhiteouts = true) }
             }
         }
-        if (layersMarker.isFile) {
+        if (layersMarker.isFile && "@" !in distribution.imageReference) {
             val lines = layersMarker.readLines().map { it.trim() }.filter { it.isNotEmpty() }
             val cachedLayers = lines.mapNotNull { line ->
                 val parts = line.split(":", limit = 3)
@@ -306,7 +306,6 @@ class RootfsInstaller(
         }
         return pullInto(distribution, route, staging, onProgress)
     }
-
     private suspend fun pullInto(
         distribution: DistributionSpec,
         route: RegistryRoute,
@@ -314,6 +313,7 @@ class RootfsInstaller(
         onProgress: suspend (DownloadProgress) -> Unit,
     ): OciRegistryClient.ImageInfo {
         val distroId = distribution.id.lowercase().trim()
+        OciImageReference.parse(distribution.imageReference)
         val recordedLayers = mutableListOf<String>()
         val applyLayer: suspend (File, String) -> Unit = { layer, mediaType ->
             val type = if (mediaType.contains("lxc")) "lxc" else "oci"
@@ -344,7 +344,7 @@ class RootfsInstaller(
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (ociFailure: Throwable) {
-            if (route == RegistryRoute.OFFICIAL || !lxcImagesClient.supports(distribution.id)) {
+            if (route == RegistryRoute.OFFICIAL || "@" in distribution.imageReference || !lxcImagesClient.supports(distribution.id)) {
                 throw ociFailure
             }
             logger.w(

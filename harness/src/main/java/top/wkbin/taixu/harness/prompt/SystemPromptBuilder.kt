@@ -45,6 +45,7 @@ class SystemPromptBuilder(
     private val fileAccess: WorkspaceFileAccess,
     private val privilegeRenderer: PrivilegeSectionRenderer,
     private val promptRouter: PromptRouter,
+    private val environments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
 ) {
     data class PromptUsageSnapshot(
         val toolCallMode: ToolCallMode,
@@ -87,9 +88,11 @@ class SystemPromptBuilder(
         userMessageTexts: List<String> = emptyList(),
         runMode: RunMode = RunMode.BUILD,
     ): String {
-        val distroId = runCatching { settingsDataStore.selectedDistribution.first() }.getOrDefault("debian")
-        val distroName = DistroCatalog.displayName(distroId)
-        val pkgManager = DistroCatalog.packageManagerCommand(distroId)
+        val world = environments?.environment(sessionId, workspacePath)
+        val remote = world?.id?.backend == "ssh"
+        val distroId = world?.id?.distribution ?: runCatching { settingsDataStore.selectedDistribution.first() }.getOrDefault("debian")
+        val distroName = if (remote) "远程 Linux（需检测发行版）" else DistroCatalog.displayName(distroId)
+        val pkgManager = if (remote) "先检测远程包管理器" else DistroCatalog.packageManagerCommand(distroId)
         val customPromptEnabled = runCatching { settingsDataStore.customSystemPromptEnabled.first() }.getOrDefault(false)
         val customPrompt = runCatching { settingsDataStore.customSystemPrompt.first() }.getOrDefault("")
         val agentCharName = runCatching { settingsDataStore.agentCharName.first() }
@@ -163,7 +166,7 @@ class SystemPromptBuilder(
 
         val installedTools =
             runCatching {
-                toolRepository.getForDistro(distroId).filter { it.state == ToolState.INSTALLED.name }
+                if (remote) emptyList() else toolRepository.getForDistro(distroId).filter { it.state == ToolState.INSTALLED.name }
             }.getOrDefault(emptyList())
         val installedToolsSection = if (installedTools.isNotEmpty()) {
             "\n\n## 当前 Linux 沙箱已就绪的开发套件（已安装，直接调用，切勿重复下载安装）：\n" +
@@ -202,7 +205,7 @@ class SystemPromptBuilder(
         val subagentSection = buildSubagentGuidance(toolCallMode)
 
         val hasWorkspace = workspacePath.isNotBlank()
-        val workspaceParts = if (hasWorkspace) {
+        val workspaceParts = if (hasWorkspace && !remote) {
             workspacePromptParts(workspacePath, projectTypeOverride, distroName)
         } else null
         val projectType = workspaceParts?.projectType ?: when (projectTypeOverride.trim().uppercase()) {
@@ -257,7 +260,7 @@ class SystemPromptBuilder(
                     "DISTRO_NAME" to distroName,
                     "PKG_MANAGER" to pkgManager,
                     "ACTIVE_SKILLS" to skillSection,
-                ),
+                ) + executionLocationVariables(remote),
             )
         }
         // 用户在设置中自定义了「对用户的称呼」时，向默认提示词追加称呼约定；
@@ -280,15 +283,12 @@ class SystemPromptBuilder(
         val toolsSection = if (toolCallMode != ToolCallMode.DISABLED) {
             promptAssets.render("prompts/system/tools.md", mapOf("PKG_MANAGER" to pkgManager))
         } else ""
-        val prootSection = promptAssets.read("prompts/system/environment-proot.md")
+        val prootSection = if (remote) remoteEnvironmentPrompt(checkNotNull(world)) else promptAssets.read("prompts/system/environment-proot.md")
 
-        // L2 任务规则：由 PromptRouter 按任务上下文选择注入；未覆盖时模型可用 load_rule 自取。
-        // 命中按全会话用户消息**累计**（一旦命中，规则常驻本会话）：逐轮按最新消息重算会让
-        // 规则块随措辞进出，击穿 system prompt 前缀缓存。规则块全集有限（枚举上限），
-        // 累计值有界。
+        // 规则按全会话累计注入，远程环境排除手机 PRoot 约束。
         val routedBlocks = userMessageTexts
             .flatMap { text -> promptRouter.route(text, projectType, hasWorkspace, activePlanExists) }
-            .distinct()
+            .distinct().filter { !remote || it != PromptRouter.RuleBlock.ENVIRONMENT_PROOT }
             .joinToString("\n\n") { block -> promptAssets.read(block.assetPath) }
 
         val sections = listOf(

@@ -54,6 +54,12 @@ import top.wkbin.taixu.runtime.webchat.WebChatBridgeServer
 
 /** Dependency registrations owned by the runtime module. */
 val runtimeModule = module {
+    single { top.wkbin.taixu.runtime.environment.LocalDistributionSelection(get<top.wkbin.taixu.core.datastore.RuntimePreferences>(), get<top.wkbin.taixu.runtime.LinuxRuntime>()) }
+    single { top.wkbin.taixu.runtime.environment.LocalBackendAccess(get()) }
+    single { top.wkbin.taixu.runtime.SessionWorkspaceCatalog(servers = get(), remote = get(), local = get()) }
+    single { top.wkbin.taixu.runtime.remote.SshConnector() }
+    single<top.wkbin.taixu.runtime.remote.SshConnectionTester> { get<top.wkbin.taixu.runtime.remote.SshConnector>() }
+    single { top.wkbin.taixu.runtime.remote.RemoteSystemService(get(), get()) }
     single<ProotCommandBuilder> { ProotCommandBuilder(environmentResolver = get(), logger = get()) }
 
     single<BackgroundTaskRegistry> { BackgroundTaskRegistry() }
@@ -301,14 +307,19 @@ val runtimeModule = module {
 
     single<TerminalSessionClientRouter> { TerminalSessionClientRouter() }
     single<top.wkbin.taixu.runtime.terminal.TerminalProcessFactory> { top.wkbin.taixu.runtime.terminal.TermuxTerminalProcessFactory() }
+    single<top.wkbin.taixu.runtime.terminal.RemoteTerminalProcessFactory> {
+        top.wkbin.taixu.runtime.terminal.TermuxRemoteTerminalProcessFactory()
+    }
 
     single<TerminalSessionManager> {
         TerminalSessionManager(
             linuxRuntime = get(),
             terminalSessionDao = get(),
             sessionClientRouter = get(),
+            // 未限定 = 当前选中的执行环境（本地/远程），远程终端据此走 SSH 渲染分支。
             environmentFactory = get(),
             processFactory = get(),
+            remoteProcessFactory = get(),
         )
     }
 

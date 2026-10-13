@@ -1,6 +1,20 @@
 package top.wkbin.taixu.harness.environment
 
 import top.wkbin.taixu.runtime.LinuxEnvironmentManager
+import kotlinx.coroutines.flow.first
+import top.wkbin.taixu.core.datastore.AgentPreferences
+import top.wkbin.taixu.core.security.SecretRedactor
+
+/** SSH authentication material must be masked even when environment privacy is disabled. */
+internal suspend fun redactExecutionOutput(value: String, redactor: SecretRedactor,
+    environments: SessionExecutionEnvironments?, legacyVariables: LinuxEnvironmentManager?, preferences: AgentPreferences?,
+    sessionId: String, workspace: String): String {
+    val secrets = executionOutputSecrets(environments, legacyVariables, sessionId, workspace)
+    val ssh = environments?.environment(sessionId, workspace)?.id?.backend == "ssh"
+    val protected = if (ssh) secrets.filter { it.isNotEmpty() }.distinct().sortedByDescending { it.length }
+        .fold(value) { output, secret -> output.replace(secret, "[REDACTED]") } else value
+    return redactor.redact(protected, secrets, ssh || (preferences?.environmentPrivacyMode?.first() ?: true))
+}
 
 /** Bound worlds never consult the phone's active distribution to sanitize their output. */
 internal suspend fun executionOutputSecrets(environments: SessionExecutionEnvironments?,
