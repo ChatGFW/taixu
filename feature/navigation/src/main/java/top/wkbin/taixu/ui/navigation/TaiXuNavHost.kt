@@ -788,29 +788,22 @@ fun TaiXuNavHost(
     // Explicit <NavKey>: outside NavDisplay's parameter context, listOf cannot infer T.
     val entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator<NavKey>(), rememberViewModelStoreNavEntryDecorator<NavKey>())
     CompositionLocalProvider(LocalAppNavigation provides { showNavigation = true }) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        // App background under NavDisplay so a rare uncovered frame never shows window black.
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background,
+        ChatNavigationDrawer(
+            viewModel = chatViewModel, visible = showNavigation, onDismiss = { showNavigation = false },
+            onOpen = { showNavigation = true }, newSessionVisible = showNewSession, selected = selectedMain,
+            onNewSession = { showNewSession = true }, onDismissNewSession = { showNewSession = false },
+            onNavigate = ::navigateMain, onOpenTerminal = { activeStack.pushRaw(TerminalDestination()) },
+            onOpenTools = { activeStack.pushRaw(ToolCenterDestination) },
         ) {
-            // key(selectedMain): swapping the bottom tab replaces NavDisplay instead of animating
-            // between two unrelated back stacks (which looked like a page transition).
-            key(selectedMain) {
-                NavDisplay(
-                    backStack = activeStack,
-                    modifier = Modifier.fillMaxSize(),
-                    onBack = ::popBack,
-                    entryDecorators = entryDecorators,
-                    entryProvider = appEntryProvider,
-                )
+            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                key(selectedMain) {
+                    NavDisplay(
+                        backStack = activeStack, modifier = Modifier.fillMaxSize(), onBack = ::popBack,
+                        entryDecorators = entryDecorators, entryProvider = appEntryProvider,
+                    )
+                }
             }
         }
-        ChatNavigationDrawer(chatViewModel, showNavigation, showNewSession, selectedMain,
-            onDismiss = { showNavigation = false }, onNewSession = { showNewSession = true },
-            onDismissNewSession = { showNewSession = false }, onNavigate = ::navigateMain, onOpenTerminal = { activeStack.pushRaw(TerminalDestination()) },
-            onOpenTools = { activeStack.pushRaw(ToolCenterDestination) })
-    }
     }
 }
 

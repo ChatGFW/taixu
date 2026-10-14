@@ -182,14 +182,11 @@ fun ChatScreen(
     val subagentResult by viewModel.subagentResult.collectAsStateWithLifecycle()
 
     // 弹窗开关与编辑目标：用 rememberSaveable 保存，旋转 / 进程重建后不丢失
-    var showModels by rememberSaveable { mutableStateOf(false) }
-    var showApprovalModes by rememberSaveable { mutableStateOf(false) }
-    var showRunModes by rememberSaveable { mutableStateOf(false) }
-    var showSkillsMcpSheet by rememberSaveable { mutableStateOf(false) }
-    var showBranches by rememberSaveable { mutableStateOf(false) }
-    var showRuntimeTimeline by rememberSaveable { mutableStateOf(false) }
-    var showMemorySheet by rememberSaveable { mutableStateOf(false) }
-    var showFloatingPermissionDialog by rememberSaveable { mutableStateOf(false) }
+    var showModels by rememberSaveable { mutableStateOf(false) }; var showApprovalModes by rememberSaveable { mutableStateOf(false) }
+    var showRunModes by rememberSaveable { mutableStateOf(false) }; var showSkillsMcpSheet by rememberSaveable { mutableStateOf(false) }
+    var showBranches by rememberSaveable { mutableStateOf(false) }; var showRuntimeTimeline by rememberSaveable { mutableStateOf(false) }
+    var showMemorySheet by rememberSaveable { mutableStateOf(false) }; var showFloatingPermissionDialog by rememberSaveable { mutableStateOf(false) }
+    var showReasoningSlider by rememberSaveable { mutableStateOf(false) }
     var branchFromMessageId by rememberSaveable { mutableStateOf<String?>(null) }
     // 编辑目标消息只保存 id，避免把不可保存的实体放进状态保存器
     var editTargetMessageId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -408,6 +405,7 @@ fun ChatScreen(
                 },
                 repositoryHighlight = repositoryHighlight,
                 toolchainHighlight = toolchainGap, onOpenToolchain = { showToolchainPanel = true },
+                onOpenReasoning = { showReasoningSlider = true },
             )
         }
 
@@ -813,47 +811,36 @@ fun ChatScreen(
     }
 
     if (showApprovalModes) {
-        ApprovalModeSheet(
-            currentApprovalMode = currentApprovalMode,
-            onSelect = { mode ->
-                viewModel.setCurrentSessionApprovalMode(mode)
-                showApprovalModes = false
-            },
-            onDismiss = { showApprovalModes = false },
-        )
+        ApprovalModeSheet(currentApprovalMode = currentApprovalMode,
+            onSelect = { mode -> viewModel.setCurrentSessionApprovalMode(mode); showApprovalModes = false },
+            onDismiss = { showApprovalModes = false })
     }
 
     if (showRunModes) {
-        RunModeSheet(
-            currentRunMode = currentRunMode,
-            onSelect = { mode ->
-                viewModel.setCurrentSessionRunMode(mode)
-                showRunModes = false
-            },
-            onDismiss = { showRunModes = false },
-        )
+        RunModeSheet(currentRunMode = currentRunMode,
+            onSelect = { mode -> viewModel.setCurrentSessionRunMode(mode); showRunModes = false },
+            onDismiss = { showRunModes = false })
+    }
+
+    if (showReasoningSlider) {
+        PlainBackdropModalBottomSheet(onDismissRequest = { showReasoningSlider = false }) {
+            ReasoningEffortSlider(
+                currentMode = activeModel?.reasoningMode, currentEffort = activeModel?.reasoningEffort,
+                onSelect = { mode, effort -> viewModel.updateActiveModelReasoning(mode, effort); showReasoningSlider = false },
+                onClose = { showReasoningSlider = false },
+            )
+        }
     }
 
     if (showMemorySheet) {
-        SessionMemorySheet(
-            memories = memories,
-            scratchpads = scratchpads,
-            onDeleteMemory = viewModel::deleteMemory,
-            onDeleteScratchpad = viewModel::deleteScratchpad,
-            onClearScratchpads = viewModel::clearScratchpads,
-            onDismiss = { showMemorySheet = false },
-        )
+        SessionMemorySheet(memories = memories, scratchpads = scratchpads,
+            onDeleteMemory = viewModel::deleteMemory, onDeleteScratchpad = viewModel::deleteScratchpad,
+            onClearScratchpads = viewModel::clearScratchpads, onDismiss = { showMemorySheet = false })
     }
 
     branchFromMessageId?.let { messageId ->
-        CreateBranchDialog(
-            messageId = messageId,
-            onDismiss = { branchFromMessageId = null },
-            onCreate = { id, name ->
-                viewModel.createBranch(id, name)
-                branchFromMessageId = null
-            },
-        )
+        CreateBranchDialog(messageId = messageId, onDismiss = { branchFromMessageId = null },
+            onCreate = { id, name -> viewModel.createBranch(id, name); branchFromMessageId = null })
     }
     } // CompositionLocalProvider(LocalSandboxHostRoots)
 }
