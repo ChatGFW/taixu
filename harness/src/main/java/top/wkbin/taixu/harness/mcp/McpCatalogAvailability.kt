@@ -53,14 +53,22 @@ class McpCatalogAvailability(
         } catch (_: Exception) {
             return servers.map { it.withInstalledComponents(emptySet()) }
         }
+        var distribution = ""
         val installed = try {
             val world = bound ?: owned
+            distribution = if (world?.id?.backend == "ssh") "" else world?.id?.distribution ?: runtime.activeDistroId.value
             val ids = servers.filter { it.requiresInstall }.map { it.id }.toSet()
             if (world != null) probeMcpCatalog(ids) { world.execute(it) }
             else probeMcpCatalog(ids) { runtime.execute(it) }
         } finally {
             if (owned != null) withContext(NonCancellable) { owned.close() }
         }
-        return servers.map { it.withInstalledComponents(installed) }
+        return servers.map { server ->
+            val resolved = server.withInstalledComponents(installed)
+            if (!server.requiresInstall || distribution.isBlank()) resolved else resolved.copy(
+                catalogDistribution = distribution,
+                catalogRevision = top.wkbin.taixu.core.common.McpCatalogRevisions.current(distribution, server.id),
+            )
+        }
     }
 }

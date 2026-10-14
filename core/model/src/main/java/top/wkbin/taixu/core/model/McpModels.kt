@@ -68,6 +68,8 @@ data class McpServerConfig(
     /** 启停偏好与当前环境就绪状态分别表达；二者均不随配置导出。 */
     @Transient val userToggled: Boolean = false,
     @Transient val installationReady: Boolean? = null,
+    @Transient val catalogDistribution: String = "",
+    @Transient val catalogRevision: Long = 0L,
 
 ) {
     /** 导出为 mcpServers JSON 配置片段（键为服务 id）；配置格式约定归模型层，View 只读展示 */

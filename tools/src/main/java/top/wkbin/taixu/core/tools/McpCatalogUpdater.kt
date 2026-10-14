@@ -20,10 +20,12 @@ import top.wkbin.taixu.runtime.shell.ShellCommand
 class McpCatalogUpdater(private val linuxRuntime: LinuxRuntime) {
 
     /** 查询一条能力：已装版本（落位标记）× 上游最新版本（镜像）。 */
-    suspend fun check(entry: McpCatalogEntry): McpUpdateStatus {
+    suspend fun check(entry: McpCatalogEntry): McpUpdateStatus = check(entry, linuxRuntime.activeDistroId.value)
+
+    private suspend fun check(entry: McpCatalogEntry, distroId: String): McpUpdateStatus {
         if (!entry.installable) return unsupported(entry)
-        val result = runCatching { run(entry.checkUpdateCommand, CHECK_TIMEOUT_MS) }
-            .getOrElse { return McpUpdateStatus(entry.id, error = "无法访问本机 Linux 运行时：${it.message.orEmpty()}") }
+        val result = runCatching { run(entry.checkUpdateCommand, CHECK_TIMEOUT_MS, distroId) }
+            .getOrElse { if (it is kotlinx.coroutines.CancellationException) throw it; return McpUpdateStatus(entry.id, error = "无法访问本机 Linux 运行时：${it.message.orEmpty()}") }
         val fields = parseFields(result.stdout)
         val installed = fields["INSTALLED"].orEmpty()
         val error = fields["ERROR"].orEmpty()
@@ -33,18 +35,24 @@ class McpCatalogUpdater(private val linuxRuntime: LinuxRuntime) {
         return McpUpdateStatus(entry.id, installedVersion = installed, latestVersion = fields["LATEST"].orEmpty())
     }
 
-    /** 升级到镜像上的最新版本；成功后返回升级后的状态（等价于再 check 一次）。 */
+    /** 返回安装脚本已复核的版本；不以额外联网查询决定升级成败。 */
     suspend fun upgrade(entry: McpCatalogEntry): McpUpdateStatus {
         if (!entry.installable) return unsupported(entry)
-        val result = runCatching { run(entry.upgradeCommand, UPGRADE_TIMEOUT_MS) }
-            .getOrElse { return McpUpdateStatus(entry.id, error = "无法访问本机 Linux 运行时：${it.message.orEmpty()}") }
+        val distroId = linuxRuntime.activeDistroId.value
+        val result = runCatching { run(entry.upgradeCommand, UPGRADE_TIMEOUT_MS, distroId) }
+            .getOrElse { if (it is kotlinx.coroutines.CancellationException) throw it; return McpUpdateStatus(entry.id, error = "无法访问本机 Linux 运行时：${it.message.orEmpty()}") }
         if (!result.isSuccess) {
             return McpUpdateStatus(entry.id, error = errorLine(result).ifBlank { "升级失败，请查看安装日志" })
         }
-        return check(entry)
+        val fields = parseFields(result.stdout)
+        val installed = fields["INSTALLED"].orEmpty()
+        if (installed.isBlank() || fields["CHANGED"] !in setOf("0", "1"))
+            return McpUpdateStatus(entry.id, error = "升级结果缺少已验证的版本信息，请检查运行时脚本")
+        if (fields["CHANGED"] == "1") top.wkbin.taixu.core.common.McpCatalogRevisions.upgraded(distroId, entry.id)
+        return McpUpdateStatus(entry.id, installedVersion = installed, latestVersion = fields["LATEST"].orEmpty())
     }
 
-    private suspend fun run(commandLine: String, timeoutMs: Long): CommandResult {
+    private suspend fun run(commandLine: String, timeoutMs: Long, distroId: String): CommandResult {
         // 命令由 catalog 常量拼成；这里再兜一道白名单，防止将来有人把动态输入接进来。
         require(SAFE_COMMAND.matches(commandLine)) { "拒绝执行未登记的 MCP 仓库命令：$commandLine" }
         return linuxRuntime.execute(
@@ -53,7 +61,7 @@ class McpCatalogUpdater(private val linuxRuntime: LinuxRuntime) {
                 workingDirectory = "/root",
                 timeoutMs = timeoutMs,
             ),
-            distroId = linuxRuntime.activeDistroId.value,
+            distroId = distroId,
         )
     }
 

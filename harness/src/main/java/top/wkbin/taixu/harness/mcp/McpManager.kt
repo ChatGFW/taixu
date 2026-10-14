@@ -41,8 +41,7 @@ class McpManager(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val standaloneScope = stdio.standaloneScope ?: remoteServers?.let { StandaloneMcpScope(it) }
-    private data class CachedTools(val fingerprint: String, val tools: List<McpToolInfo>)
-    private val cache = ConcurrentHashMap<String, CachedTools>()
+    private val cache = ConcurrentHashMap<String, CachedMcpTools>()
     private val discoveryMutexes = ConcurrentHashMap<String, Mutex>()
     private val lastErrors = ConcurrentHashMap<String, String>()
     /** 工具发现失败统一指数退避，成功即清零。 */
@@ -54,6 +53,7 @@ class McpManager(
         statuses.forgetKey(key); if (owned) discoveryMutexes.remove(key)
     }
     val connectionStates: StateFlow<Map<String, McpConnectionState>> = statuses.visible
+    init { scope.expireCatalogTools(cache) { key -> lastErrors.remove(key); discoveryCooldownUntil.remove(key); discoveryFailureStreak.remove(key); if (cache[key] == null) statuses.forgetKey(key) } }
 
     /**
      * 最近错误。冷却期内额外带上剩余时间：状态只显示 OFFLINE 时，用户无法区分
@@ -72,10 +72,11 @@ class McpManager(
     }
 
     suspend fun checkConnection(server: McpServerConfig): Boolean = withContext(Dispatchers.IO) {
-        if (server.requiresInstall && catalogAvailability.resolve(listOf(server)).single().installationReady != true) return@withContext false
+        val ready = catalogAvailability.resolve(listOf(server)).single()
+        if (server.requiresInstall && ready.installationReady != true) return@withContext false
         // B1: 与 executeTool 一致先做 workspace 绑定，避免 fingerprint 乒乓导致进程反复重启；
         // 在线清掉旧错误、离线记录原因：状态点在线却仍挂旧故障描述会误导用户反复手动刷新。
-        val bound = boundConfig(server)
+        val bound = boundConfig(ready)
         val key = discoveryKey(bound)
         val result = withContext(McpConnectionScope(key)) { withTimeoutOrNull(DISCOVERY_TIMEOUT_MS.milliseconds) { transport(bound).check(bound) } }
         if (result?.online == true) lastErrors.remove(key) else result?.error?.let { lastErrors[key] = it }
@@ -199,7 +200,7 @@ class McpManager(
                         "McpDiscovery",
                         "MCP[${server.name}] 发现 ${it.size} 个工具，耗时 ${System.currentTimeMillis() - startedAt}ms",
                     )
-                    cache[key] = CachedTools(fingerprint, it)
+                    cache[key] = CachedMcpTools(fingerprint, it, bound.catalogDistribution, bound.catalogRevision)
                     lastErrors.remove(key)
                     clearDiscoveryCooldown(key)
                     state(server.id, McpConnectionState.ONLINE, key)
@@ -231,11 +232,12 @@ class McpManager(
     suspend fun enabledServerSummaries(): List<EnabledServerSummary> = withContext(Dispatchers.IO) {
         sweepDisabledServers()
         effectiveServers().filter { it.isEnabled }.map { server ->
+            val cached = cache[discoveryKey(server)]?.takeIf { it.fingerprint == fingerprint(boundConfig(server)) }
             EnabledServerSummary(
                 id = server.id,
                 name = server.name,
-                cachedToolCount = cache[discoveryKey(server)]?.tools?.size ?: 0,
-                connected = cache[discoveryKey(server)] != null,
+                cachedToolCount = cached?.tools?.size ?: 0,
+                connected = cached != null,
             )
         }
     }
@@ -277,21 +279,23 @@ class McpManager(
     }
 
     suspend fun discoverTools(server: McpServerConfig): List<McpToolInfo> = withContext(Dispatchers.IO) {
-        check(!server.requiresInstall || catalogAvailability.resolve(listOf(server)).single().installationReady == true) { "MCP 未启用或当前环境未安装：${server.id}" }
-        val bound = boundConfig(server)
+        val ready = catalogAvailability.resolve(listOf(server)).single()
+        check(!server.requiresInstall || ready.installationReady == true) { "MCP 未启用或当前环境未安装：${server.id}" }
+        val bound = boundConfig(ready)
         transport(bound).discover(bound)
     }
 
     suspend fun testServer(server: McpServerConfig): Result<List<McpToolInfo>> = withContext(Dispatchers.IO) {
-        if (server.requiresInstall && catalogAvailability.resolve(listOf(server)).single().installationReady != true) return@withContext Result.failure(IllegalStateException("MCP 未启用或当前环境未安装：${server.id}"))
+        val ready = catalogAvailability.resolve(listOf(server)).single()
+        if (server.requiresInstall && ready.installationReady != true) return@withContext Result.failure(IllegalStateException("MCP 未启用或当前环境未安装：${server.id}"))
         // B1: 测试路径同样按绑定后配置发现并写缓存，保证缓存 fingerprint 与其他路径一致
-        val bound = boundConfig(server)
+        val bound = boundConfig(ready)
         // 设置页手动测试不受冷却限制，成功时也顺带清掉对话路径的退避。
         val key = discoveryKey(bound)
         clearDiscoveryCooldown(key)
         cancellableResult { discoverWithTimeout(bound, key) }
         .onSuccess {
-            cache[key] = CachedTools(fingerprint(bound), it)
+            cache[key] = CachedMcpTools(fingerprint(bound), it, bound.catalogDistribution, bound.catalogRevision)
             state(server.id, McpConnectionState.ONLINE, key)
             // 测试成功 = 服务实际可用，旧错误与退避一并清除（getLastError 会持续显示旧故障误导用户）。
             lastErrors.remove(key)
@@ -393,9 +397,8 @@ class McpManager(
             McpTransportType.SSE -> http.closeSession(server.id)
         }
     }
-
     private fun fingerprint(server: McpServerConfig): String =
-        "${server.transportType}|${server.serverUrl.trim()}|${server.command}|${server.args}|${server.env.toSortedMap()}"
+        "${server.transportType}|${server.serverUrl.trim()}|${server.command}|${server.args}|${server.env.toSortedMap()}|${server.catalogRevision}"
     private fun transport(server: McpServerConfig): McpTransport = when (server.transportType) {
         McpTransportType.STDIO -> stdio
         McpTransportType.SSE -> http

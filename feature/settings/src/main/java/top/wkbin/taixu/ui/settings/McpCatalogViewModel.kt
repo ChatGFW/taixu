@@ -133,7 +133,7 @@ class McpCatalogViewModel(
                 val status = updater.upgrade(entry)
                 _updateStatuses.value = _updateStatuses.value + (entryId to status)
                 _updateNotice.value = if (status.error.isBlank()) {
-                    "「${entry.name}」已升级到 v${status.installedVersion}；重新开启该服务或重启会话后生效"
+                    "「${entry.name}」当前版本 v${status.installedVersion}；后续调用自动使用已安装版本，无需手动重启"
                 } else {
                     "「${entry.name}」升级失败：${status.error}"
                 }

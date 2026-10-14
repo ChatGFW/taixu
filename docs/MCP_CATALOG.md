@@ -320,7 +320,7 @@ PyPI 提供 `info.version` + `urls[].digests.sha256`，同样可固定可校验�
 
 ### 10.6 仍未完成（已知缺口）
 
-- **升级后需重启服务才生效**：标记已更新，但已运行的 MCP 子进程仍是上一个版本。当前提示语要求用户「重新开启该服务或重启会话」，尚未做自动重拉。
+- **升级后的连接自动切换已完成**：成功升级发布按本地发行版隔离的进程内代次；旧工具目录失效、旧连接停止接受新请求，已获取连接的调用完成后自动关闭。下一次调用启动已落盘的新版并重新发现工具。失败或取消不发布代次，不触发自动重启；不重放工具调用。
 - **`.txplugin` 离线侧载未做**：§7 要求的离线兜底（把 tarball 打进离线包）尚未实现，首次初始化仍必须有网。
 - **pip 通道未启用**：`mcp_fetch` / `mcp_time` / `mcp_pandoc` 仍不可安装（见 10.2 第 2 条）。
 - **`mcp_apktool` 仍未随 `android-suite` 的「逆向分析与代码审计」子组件下发**：目前仍是 `android-re` 组件随附的自研脚本，`android-re` 组件描述里已写明 python3 是其运行依赖。§8 阶段一第 3 条的措辞是按「改由该子组件下发」写的，实际保持了原有归属——因为 `apktool_mcp_server.py` 本来就由 `assets/scripts/` 随 APK 下发，不需要额外的安装动作。
@@ -340,3 +340,10 @@ PyPI 提供 `info.version` + `urls[].digests.sha256`，同样可固定可校验�
   - 升级：重写标记为新版本、升级后 `run` 立即拉到新版本（版本确实来自标记而非代码）、已最新则跳过、镜像不可达时保留旧标记并以非零码退出
 
 **顺带收敛的存量违规**：工作区里另有 6 个文件此前已超棘轮基线（`harness/mcp/McpStdioTransport.kt` 与 `feature/chat` 的 5 个），它们挂在 `app:preBuild → architectureCheck` 上会让整个构建失败。本轮按「缩减而非放宽」处理，**未修改 `.architecture-baseline.json` 的任何数值**：`ChatToolCards` 632≤633、`ChatDialogs` 882≤887、`ContextUsageDialog` 399≤400、`ChatWorkbenchPanels` 1490≤1494、`ChatComposer` 618≤618、`McpStdioTransport` 419≤420。清理内容是主题重构（硬编码色值 → `semanticColors()`）留下的未使用 import 残渣与游离空行——本就是该做的事。
+
+
+### 升级与在途调用的交接
+
+`McpCatalogUpdater` 在发起升级前固定发行版，升级固定使用该发行版，直接返回脚本已复核的 INSTALLED/LATEST/CHANGED，不额外联网判定升级成败；仅脚本完整成功（含入口复核）后发布 `McpCatalogRevisions`。该记录只表达本进程已完成的升级事件，不落库、不替代文件探针。SSH 与其它本地发行版不受此次通知影响。
+
+STDIO 连接按完整操作获取使用租约，覆盖握手、等待写锁、响应处理及 finally，避免响应已移出 pending 表但调用尚未结束的空档。升级使旧连接进入排空态；新请求在启动锁外等待，允许其它环境继续工作。清理失败保留旧连接供既有生命周期重试，不宣称关闭成功；取消等待不重放请求。旧 schema 按发行版和代次撤销，下一次 inspect/call 使用新版重新发现。测试通过假 JSON-RPC 服务与假运行时验证，无真实模型 API 或 npm 网络调用。

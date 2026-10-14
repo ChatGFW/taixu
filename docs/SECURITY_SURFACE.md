@@ -144,3 +144,5 @@
 
 - 改动 `ProotCommandBuilder` / `ProotMountLayout` / `HostBridge` / `SecretRedactor` / `EnvironmentResolver` / `PrivilegeManager` / `CapabilityScriptRunner` 的 PR，请同步核对本文是否需要更新。
 - 本文只描述事实与登记风险，不替代代码注释；修复某项时请更新第 7 节状态列。
+
+MCP catalog 升级完成事件只携带本地发行版、服务 ID 和进程内代次，无凭证或工具参数。只有装配脚本成功及入口复核完成才发布；升级固定在捕获的发行版执行，结果直接来自脚本复核；切换 UI 选择不改变目标。旧进程按完整操作租约排空后关闭，缓存按发行版失效；SSH 连接不响应本地升级事件，工具调用不重放、不提升审批权限。

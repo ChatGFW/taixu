@@ -179,6 +179,8 @@ case "$CMD" in
     require_pinned "$PKG@$LATEST" >/dev/null
 
     if [ "$LATEST" = "$(installed_version)" ]; then
+      resolve_entry "$PKG" >/dev/null
+      printf 'INSTALLED=%s\nLATEST=%s\nCHANGED=0\n' "$LATEST" "$LATEST"
       log "$ID 已是最新版本（$LATEST），无需升级"
       exit 0
     fi
@@ -197,6 +199,7 @@ case "$CMD" in
     # 升级后同样核对入口：新版若把 bin 移出包目录或改了名字，应当在这里当场失败，
     # 而不是等到会话里 MCP 进程起不来才发现。
     resolve_entry "$PKG" >/dev/null
+    printf 'INSTALLED=%s\nLATEST=%s\nCHANGED=1\n' "$LATEST" "$LATEST"
     log "$ID 已升级到 $LATEST"
     ;;
 
