@@ -234,7 +234,10 @@ fun TaiXuNavHost(
     }
 
     // Tab swaps are instantaneous (key(selectedMain)); do not transition-lock them.
-    fun navigateMain(destination: MainDestination) { selectedMain = destination }
+    fun navigateMain(destination: MainDestination) {
+        if (destination == MainDestination.Agent) while (agentStack.size > 1) agentStack.removeLastOrNull()
+        selectedMain = destination
+    }
 
     fun NavBackStack<NavKey>.push(from: NavKey, destination: NavKey) {
         if (lastOrNull() == from && lastOrNull() != destination) {
@@ -805,10 +808,7 @@ fun TaiXuNavHost(
         }
         ChatNavigationDrawer(chatViewModel, showNavigation, showNewSession, selectedMain,
             onDismiss = { showNavigation = false }, onNewSession = { showNewSession = true },
-            onDismissNewSession = { showNewSession = false }, onNavigate = { destination ->
-                if (destination == MainDestination.Agent) while (agentStack.size > 1) agentStack.removeLastOrNull()
-                navigateMain(destination)
-            }, onOpenTerminal = { activeStack.pushRaw(TerminalDestination()) },
+            onDismissNewSession = { showNewSession = false }, onNavigate = ::navigateMain, onOpenTerminal = { activeStack.pushRaw(TerminalDestination()) },
             onOpenTools = { activeStack.pushRaw(ToolCenterDestination) })
     }
     }

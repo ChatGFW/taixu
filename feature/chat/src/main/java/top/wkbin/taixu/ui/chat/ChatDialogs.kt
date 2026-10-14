@@ -438,6 +438,7 @@ internal fun ModelDialog(
                 showAdd = false
             },
         )
+        return
     }
     val pickingProfile = modelPickerProfileId?.let { id -> models.firstOrNull { it.id == id } }
     if (pickingProfile != null) {
@@ -453,7 +454,7 @@ internal fun ModelDialog(
         )
         return
     }
-    RuntimeAlertDialog(
+    ChatBottomSheet(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.chat_select_model), fontWeight = FontWeight.Bold) },
         text = {
@@ -679,7 +680,7 @@ internal fun ProviderModelPickerDialog(
     var manualId by remember(profile.id, profile.model, selectedModelVariant) {
         mutableStateOf(selectedModelVariant ?: profile.model.substringBefore(',').trim())
     }
-    RuntimeAlertDialog(
+    ChatBottomSheet(
         onDismissRequest = onDismiss,
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -692,7 +693,7 @@ internal fun ProviderModelPickerDialog(
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     stringResource(R.string.chat_switch_model_hint),
                     style = MaterialTheme.typography.labelSmall,
@@ -802,7 +803,7 @@ internal fun AddModelDialog(
     var baseUrl by rememberSaveable { mutableStateOf("") }
     // baseUrl 基础格式校验：必须以 http:// 或 https:// 开头（留空走供应商默认端点）
     val baseUrlInvalid = baseUrl.isNotBlank() && !baseUrl.trim().startsWith("http://") && !baseUrl.trim().startsWith("https://")
-    RuntimeAlertDialog(
+    ChatBottomSheet(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.chat_add_model), fontWeight = FontWeight.Bold) },
         text = {

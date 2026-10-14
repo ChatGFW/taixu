@@ -177,7 +177,7 @@ internal fun LocalWorkspaceScreen(
             containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 RuntimeTopBar(
-                    title = stringResource(R.string.workspace_title),
+                    title = stringResource(R.string.workspace_title), onBack = { onNavigate(MainDestination.Agent) },
                     statusText = stringResource(R.string.workspace_active_projects, projects.size),
                 ) {
                     Box {

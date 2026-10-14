@@ -38,8 +38,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
@@ -59,194 +57,142 @@ fun ContextUsageDialog(
     onDismiss: () -> Unit,
     onInspectRequest: () -> Unit = {},
 ) {
-    // 卡片配色直接取 colorScheme 的表面层级，不再手工分支出深浅两套十六进制值。
-    // Material You 下同一 token 在明暗主题中已各自校准对比度。
-    val cardBg = MaterialTheme.colorScheme.surfaceContainerHigh
-    val cardBorder = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
 
     val limitTokens = usage.limitTokens.coerceAtLeast(1)
     val rawRatio = (usage.usedTokens.toFloat() / limitTokens).coerceIn(0f, 1f)
     val displayPercent = (rawRatio * 100).roundToInt().coerceIn(0, 100)
 
-    Dialog(
+    ChatBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            RuntimeCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 440.dp),
-                containerColor = cardBg,
-                borderColor = cardBorder,
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
-            ) {
+        title = { Text(stringResource(R.string.chat_context_title)) },
+        confirmButton = { RuntimeTextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_close)) } },
+        text = {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // 2. Summary stats row: "73% Full" / "~185.9K / 256K Tokens"
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = stringResource(R.string.chat_context_full, displayPercent),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        ),
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.chat_context_tokens_summary,
+                            formatDialogTokenCount(usage.usedTokens),
+                            formatLimitTokens(usage.limitTokens),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
+                }
+
+                if (usage.declaredTokens != usage.limitTokens) {
+                    Text(
+                        text = stringResource(
+                            R.string.chat_context_declared_limit,
+                            formatLimitTokens(usage.declaredTokens),
+                        ),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
+                }
+                if (usage.compactionThresholdTokens in 1 until usage.limitTokens) {
+                    Text(
+                        text = stringResource(
+                            R.string.chat_context_compaction_threshold,
+                            formatLimitTokens(usage.compactionThresholdTokens),
+                            usage.foldingRatioPercent,
+                        ),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
+                }
+
+
+                // 3. Segmented multi-color progress bar
+                ContextUsageSegmentedBar(
+                    usage = usage,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp),
+                )
+
+                // 4. Breakdown legend rows
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                        .padding(top = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    // 1. Header: Title + Close Button
+                    // 分类色取自主题分类色板，随明暗切换校准；不再在页面里手写十六进制色值。
+                    val palette = semanticColors().categorical
+                    val categories = remember(usage.breakdown, palette) {
+                        listOf(
+                            ContextCategorySpec(palette[0], R.string.chat_context_system_prompt, usage.breakdown.systemPromptTokens),
+                            ContextCategorySpec(palette[1], R.string.chat_context_tool_definitions, usage.breakdown.toolDefinitionTokens),
+                            ContextCategorySpec(palette[2], R.string.chat_context_rules, usage.breakdown.rulesTokens),
+                            ContextCategorySpec(palette[3], R.string.chat_context_skills, usage.breakdown.skillsTokens),
+                            ContextCategorySpec(palette[4], R.string.chat_context_mcp_dynamic, usage.breakdown.mcpTokens),
+                            ContextCategorySpec(palette[5], R.string.chat_context_subagent_definitions, usage.breakdown.subagentTokens),
+                            ContextCategorySpec(palette[6], R.string.chat_context_summarized_conversation, usage.breakdown.summarizedTokens),
+                            ContextCategorySpec(palette[7], R.string.chat_context_conversation, usage.breakdown.conversationTokens),
+                        )
+                    }
+
+                    categories.forEach { spec ->
+                        ContextUsageRow(spec = spec)
+                    }
+                }
+
+                RuntimeTextButton(onClick = onInspectRequest) {
+                    Text(stringResource(R.string.chat_request_context_title))
+                }
+                // 5. Optional TaiXu Enhanced Footer (KV Cache & Compaction)
+                if (usage.cachedTokens > 0L || usage.compacted) {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text(
-                            text = stringResource(R.string.chat_context_title),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 16.sp,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            ),
-                        )
-                        Surface(
-                            onClick = onDismiss,
-                            shape = CircleShape,
-                            color = Color.Transparent,
-                            modifier = Modifier.size(28.dp),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                RuntimeIcon(
-                                    name = RuntimeIconName.Close,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-
-                    // 2. Summary stats row: "73% Full" / "~185.9K / 256K Tokens"
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.chat_context_full, displayPercent),
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            ),
-                        )
-                        Text(
-                            text = stringResource(
-                                R.string.chat_context_tokens_summary,
-                                formatDialogTokenCount(usage.usedTokens),
-                                formatLimitTokens(usage.limitTokens),
-                            ),
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.Normal,
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                        )
-                    }
-
-                    if (usage.declaredTokens != usage.limitTokens) {
-                        Text(
-                            text = stringResource(
-                                R.string.chat_context_declared_limit,
-                                formatLimitTokens(usage.declaredTokens),
-                            ),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                        )
-                    }
-                    if (usage.compactionThresholdTokens in 1 until usage.limitTokens) {
-                        Text(
-                            text = stringResource(
-                                R.string.chat_context_compaction_threshold,
-                                formatLimitTokens(usage.compactionThresholdTokens),
-                                usage.foldingRatioPercent,
-                            ),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                        )
-                    }
-
-
-                    // 3. Segmented multi-color progress bar
-                    ContextUsageSegmentedBar(
-                        usage = usage,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp),
-                    )
-
-                    // 4. Breakdown legend rows
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        // 分类色取自主题分类色板，随明暗切换校准；不再在页面里手写十六进制色值。
-                        val palette = semanticColors().categorical
-                        val categories = remember(usage.breakdown, palette) {
-                            listOf(
-                                ContextCategorySpec(palette[0], R.string.chat_context_system_prompt, usage.breakdown.systemPromptTokens),
-                                ContextCategorySpec(palette[1], R.string.chat_context_tool_definitions, usage.breakdown.toolDefinitionTokens),
-                                ContextCategorySpec(palette[2], R.string.chat_context_rules, usage.breakdown.rulesTokens),
-                                ContextCategorySpec(palette[3], R.string.chat_context_skills, usage.breakdown.skillsTokens),
-                                ContextCategorySpec(palette[4], R.string.chat_context_mcp_dynamic, usage.breakdown.mcpTokens),
-                                ContextCategorySpec(palette[5], R.string.chat_context_subagent_definitions, usage.breakdown.subagentTokens),
-                                ContextCategorySpec(palette[6], R.string.chat_context_summarized_conversation, usage.breakdown.summarizedTokens),
-                                ContextCategorySpec(palette[7], R.string.chat_context_conversation, usage.breakdown.conversationTokens),
+                        if (usage.cachedTokens > 0L) {
+                            Text(
+                                text = stringResource(
+                                    R.string.chat_context_kv_cache,
+                                    formatDialogTokenCount(usage.cachedTokens.toInt()),
+                                    usage.cacheHitRatePercent ?: 0,
+                                ),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 11.sp,
+                                ),
                             )
                         }
-
-                        categories.forEach { spec ->
-                            ContextUsageRow(spec = spec)
-                        }
-                    }
-
-                    RuntimeTextButton(onClick = onInspectRequest) {
-                        Text(stringResource(R.string.chat_request_context_title))
-                    }
-                    // 5. Optional TaiXu Enhanced Footer (KV Cache & Compaction)
-                    if (usage.cachedTokens > 0L || usage.compacted) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            if (usage.cachedTokens > 0L) {
-                                Text(
-                                    text = stringResource(
-                                        R.string.chat_context_kv_cache,
-                                        formatDialogTokenCount(usage.cachedTokens.toInt()),
-                                        usage.cacheHitRatePercent ?: 0,
-                                    ),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 11.sp,
-                                    ),
-                                )
-                            }
-                            if (usage.compacted) {
-                                StatusBadge(
-                                    text = stringResource(R.string.chat_context_compacted_active),
-                                    color = MaterialTheme.colorScheme.secondary,
-                                )
-                            }
+                        if (usage.compacted) {
+                            StatusBadge(
+                                text = stringResource(R.string.chat_context_compacted_active),
+                                color = MaterialTheme.colorScheme.secondary,
+                            )
                         }
                     }
                 }
             }
-        }
-    }
+        },
+    )
 }
 
 @Composable

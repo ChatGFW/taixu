@@ -486,6 +486,7 @@ fun ChatScreen(
                     onResolveQuestion = viewModel::resolveQuestion,
                     contextUsage = contextUsage,
                     activeModel = activeModel,
+                    onOpenModels = { showModels = true },
                     onUpdateReasoning = viewModel::updateActiveModelReasoning,
                     quickPhrases = quickPhrases,
                     onSelectPhrase = viewModel::applyQuickPhrase,
@@ -910,6 +911,7 @@ private fun ChatPaneContent(
     onOpenSkillsMcp: () -> Unit = {},
     onUnpinMention: (String) -> Unit = {},
     activeModel: AiModelEntity? = null,
+    onOpenModels: () -> Unit,
     onUpdateReasoning: (mode: String?, effort: String?) -> Unit = { _, _ -> },
     pendingApprovals: List<AgentApprovalRequestEntity> = emptyList(),
     activePlan: AgentPlanEntity? = null,
@@ -1062,6 +1064,7 @@ private fun ChatPaneContent(
             onUnpinMention = onUnpinMention,
             onOpenSkillsMcp = onOpenSkillsMcp,
             activeModel = activeModel,
+            onOpenModels = onOpenModels,
             onUpdateReasoning = onUpdateReasoning,
             contextUsage = contextUsage,
         )

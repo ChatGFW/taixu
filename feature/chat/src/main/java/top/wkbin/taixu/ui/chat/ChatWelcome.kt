@@ -1,16 +1,22 @@
 package top.wkbin.taixu.ui.chat
 
 import android.content.Context
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.QuickPhrase
@@ -28,6 +34,7 @@ internal fun EmptyChatGuidance(
     onSelectCommand: (SlashCommandItem) -> Unit,
 ) {
     val context = LocalContext.current
+    var expanded by rememberSaveable(workspaceProject?.name) { mutableStateOf(false) }
     val enabledPhrases = remember(quickPhrases, workspaceProject) {
         val active = quickPhrases.filter { it.isEnabled }
         if (active.isEmpty()) emptyList()
@@ -64,30 +71,40 @@ internal fun EmptyChatGuidance(
     }
 
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-        Column(Modifier.widthIn(max = 560.dp).fillMaxWidth().padding(top = 32.dp, bottom = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TaiXuBrandBadge(52.dp)
-            Text(stringResource(if (workspaceProject == null) R.string.chat_welcome_title else R.string.chat_welcome_project),
-                style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-            Text(stringResource(if (workspaceProject == null) R.string.chat_welcome_subtitle else R.string.chat_welcome_project_subtitle),
-                Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(12.dp))
-            Text(stringResource(R.string.chat_welcome_suggestions), Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (enabledPhrases.isNotEmpty()) enabledPhrases.take(3).forEach { phrase ->
-                WelcomeSuggestion(welcomeIcon(phrase.iconName), phrase.title, phrase.description.ifBlank { phrase.content }) { onSelectPhrase(phrase) }
-            } else quickCommands.take(3).forEach { command ->
-                WelcomeSuggestion(command.icon, command.label, command.description) { onSelectCommand(command) }
+        Column(Modifier.widthIn(max = 560.dp).fillMaxWidth().padding(top = 24.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            RuntimeTextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                Text(stringResource(if (workspaceProject == null) R.string.chat_welcome_suggestions else R.string.chat_welcome_project),
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                RuntimeIcon(if (expanded) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown,
+                    Modifier.padding(start = 8.dp).size(16.dp), MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            onboardingPrivilege?.let { privilege ->
-                Text(stringResource(when (privilege) {
-                    OnboardingPrivilege.SANDBOX -> R.string.chat_onboarding_sandbox
-                    OnboardingPrivilege.SANDBOX_UNLOCKABLE -> R.string.chat_onboarding_unlockable
-                    OnboardingPrivilege.SHIZUKU_READY -> R.string.chat_onboarding_shizuku
-                    OnboardingPrivilege.ROOT_READY -> R.string.chat_onboarding_root
-                }), Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            androidx.compose.animation.AnimatedVisibility(expanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(Modifier.padding(horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(if (workspaceProject == null) R.string.chat_welcome_subtitle else R.string.chat_welcome_project_subtitle),
+                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.large) {
+                        if (enabledPhrases.isNotEmpty()) enabledPhrases.take(3).forEachIndexed { index, phrase ->
+                            if (index > 0) WelcomeSuggestionDivider()
+                            WelcomeSuggestion(welcomeIcon(phrase.iconName), phrase.title, phrase.description.ifBlank { phrase.content }) { onSelectPhrase(phrase) }
+                        } else quickCommands.take(3).forEachIndexed { index, command ->
+                            if (index > 0) WelcomeSuggestionDivider()
+                            WelcomeSuggestion(command.icon, command.label, command.description) { onSelectCommand(command) }
+                        }
+                    }
+                    onboardingPrivilege?.let { privilege ->
+                        Text(stringResource(when (privilege) {
+                            OnboardingPrivilege.SANDBOX -> R.string.chat_onboarding_sandbox
+                            OnboardingPrivilege.SANDBOX_UNLOCKABLE -> R.string.chat_onboarding_unlockable
+                            OnboardingPrivilege.SHIZUKU_READY -> R.string.chat_onboarding_shizuku
+                            OnboardingPrivilege.ROOT_READY -> R.string.chat_onboarding_root
+                        }), Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         }
     }
@@ -95,19 +112,22 @@ internal fun EmptyChatGuidance(
 
 @Composable
 private fun WelcomeSuggestion(icon: RuntimeIconName, title: String, detail: String, onClick: () -> Unit) {
-    RuntimeCard(Modifier.fillMaxWidth(), onClick = onClick, contentPadding = PaddingValues(16.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f), shape = MaterialTheme.shapes.large) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            RuntimeIcon(icon, Modifier.size(22.dp), MaterialTheme.colorScheme.primary)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-            RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(16.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+    Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)
+        .heightIn(min = 72.dp).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        RuntimeIcon(icon, Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
+}
+
+@Composable
+private fun WelcomeSuggestionDivider() {
+    HorizontalDivider(Modifier.padding(start = 52.dp, end = 16.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 }
 
 private fun welcomeIcon(name: String) = when (name.lowercase()) {

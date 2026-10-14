@@ -75,7 +75,7 @@ fun SettingsScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             RuntimeTopBar(
-                title = "太墟 · 乾坤",
+                title = "太墟 · 乾坤", onBack = { onNavigate(MainDestination.Agent) },
                 statusText = "系统设置与控制中枢",
             )
         },

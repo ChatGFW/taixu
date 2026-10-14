@@ -1,4 +1,7 @@
 <resources>
+    <string name="components_drawer_tab_chat">Chat</string>
+    <string name="components_drawer_tab_workspace">Files</string>
+    <string name="components_drawer_tab_system">System</string>
     <string name="components_open_navigation">Open navigation and conversations</string>
     <string name="components_local_terminal">Local terminal</string>
     <string name="components_tools">Tool center</string>

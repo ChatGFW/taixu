@@ -34,6 +34,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,10 +55,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
@@ -209,7 +212,7 @@ internal fun SessionsSideDrawer(
     val partition = remember(sessions, workspaces) { partitionSessions(sessions, workspaces) }
     var expandedProjects by rememberSaveable {
         val initialExpanded = partition.projectGroups
-            .filter { group -> group.sessions.any { it.id == currentSessionId } || group.sessions.isNotEmpty() }
+            .filter { group -> group.sessions.any { it.id == currentSessionId } }
             .map { it.workspacePath }
             .toSet()
         mutableStateOf(initialExpanded)
@@ -283,7 +286,7 @@ internal fun SessionsSideDrawer(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                                .padding(horizontal = 20.dp, vertical = 8.dp),
                         ) {
                             RuntimeButton(
                                 onClick = {
@@ -293,7 +296,7 @@ internal fun SessionsSideDrawer(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.large,
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                             ) {
                                 Row(
@@ -307,15 +310,14 @@ internal fun SessionsSideDrawer(
                                     )
                                     Text(
                                         text = stringResource(R.string.chat_drawer_new_task),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
+                                        style = MaterialTheme.typography.labelLarge,
                                     )
                                 }
                             }
                         }
 
                         HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                         )
 
@@ -324,8 +326,8 @@ internal fun SessionsSideDrawer(
                                 .fillMaxWidth()
                                 .weight(1f)
                                 .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 12.dp, vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(24.dp),
                         ) {
                             navigationContent()
                             ProjectSection(
@@ -429,52 +431,23 @@ internal fun SessionsSideDrawer(
 
 /** 抽屉顶部标题行。 */
 @Composable
-private fun DrawerHeader(
-    totalSessionsCount: Int,
-    onClose: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            TaiXuBrandBadge(size = 24.dp)
-            Text(
-                text = stringResource(R.string.chat_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Surface(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(6.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.chat_session_count, totalSessionsCount),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                )
-            }
+private fun DrawerHeader(totalSessionsCount: Int, onClose: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 16.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        TaiXuBrandBadge(size = 28.dp)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(R.string.chat_title), style = MaterialTheme.typography.titleLarge,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.chat_session_count, totalSessionsCount),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-
-        RuntimeIconButton(
-            onClick = onClose,
-            modifier = Modifier.size(48.dp), contentDescription = stringResource(R.string.chat_cancel),
-        ) {
-            RuntimeIcon(
-                name = RuntimeIconName.Close,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        RuntimeIconButton(onClick = onClose, modifier = Modifier.size(48.dp),
+            contentDescription = stringResource(R.string.chat_cancel)) {
+            RuntimeIcon(RuntimeIconName.Close, Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
-
 /** 项目分区。 */
 @Composable
 private fun ProjectSection(
@@ -498,7 +471,7 @@ private fun ProjectSection(
         ) {
             Text(
                 text = stringResource(R.string.chat_drawer_projects),
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
@@ -526,12 +499,7 @@ private fun ProjectSection(
                 val isExpanded = expandedProjects.contains(group.workspacePath)
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(
-                            if (isExpanded) MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.45f)
-                            else Color.Transparent,
-                        ),
+                        .fillMaxWidth(),
                 ) {
                     // 项目文件夹行
                     Row(
@@ -539,7 +507,7 @@ private fun ProjectSection(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { onToggleExpand(group.workspacePath) }
-                            .padding(horizontal = 8.dp, vertical = 7.dp),
+                            .padding(start = 8.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
@@ -567,7 +535,7 @@ private fun ProjectSection(
                         // 单项目快捷新建会话入口
                         RuntimeIconButton(
                             onClick = { onCreateInProject(group) },
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(48.dp), contentDescription = stringResource(R.string.chat_drawer_new_task),
                         ) {
                             RuntimeIcon(
                                 name = RuntimeIconName.Plus,
@@ -639,7 +607,7 @@ private fun RecentSection(
         ) {
             Text(
                 text = stringResource(R.string.chat_drawer_recent),
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
@@ -679,113 +647,48 @@ private fun RecentSection(
     }
 }
 
-/** 单条会话项。 */
+/** 单条会话项：选择会话与管理操作分开，避免重复动作淹没标题。 */
 @Composable
 private fun SessionDrawerItem(
-    session: HarnessSessionEntity,
-    isCurrent: Boolean,
-    runState: SessionRunState,
-    onSwitch: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
+    session: HarnessSessionEntity, isCurrent: Boolean, runState: SessionRunState,
+    onSwitch: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit,
 ) {
+    var showMenu by remember(session.id) { mutableStateOf(false) }
     val dotColor = when (runState) {
         SessionRunState.RUNNING -> top.wkbin.taixu.ui.theme.semanticColors().warning
         SessionRunState.WAITING_APPROVAL -> top.wkbin.taixu.ui.theme.semanticColors().agent
         SessionRunState.FAILED -> MaterialTheme.colorScheme.error
-        SessionRunState.COMPLETED -> top.wkbin.taixu.ui.theme.semanticColors().success
-        SessionRunState.IDLE -> top.wkbin.taixu.ui.theme.semanticColors().success
+        else -> Color.Transparent
     }
-
     val timeLabel = formatSessionTime(session.updatedAt)
-
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = if (isCurrent) MaterialTheme.colorScheme.surfaceContainerHigh
-        else Color.Transparent,
-        border = if (isCurrent) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
-        else null,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onSwitch)
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            // 运行状态小圆点
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(dotColor),
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = session.title,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (isCurrent) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = RoundedCornerShape(4.dp),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.chat_current),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp),
-                            )
-                        }
-                    }
-                }
-                if (timeLabel.isNotBlank()) {
-                    Text(
-                        text = timeLabel,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = MaterialTheme.colorScheme.outline,
-                    )
-                }
+    Surface(shape = MaterialTheme.shapes.medium,
+        color = if (isCurrent) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+        modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().clickable(onClick = onSwitch)
+            .semantics { selected = isCurrent }.padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.size(6.dp).clip(CircleShape).background(dotColor))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(session.title, style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
+                    color = if (isCurrent) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (timeLabel.isNotBlank()) Text(timeLabel, style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-
-            // 快捷重命名按钮
-            RuntimeIconButton(
-                onClick = onRename,
-                modifier = Modifier.size(24.dp),
-            ) {
-                RuntimeIcon(
-                    name = RuntimeIconName.Edit,
-                    modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                )
-            }
-
-            // 快捷删除按钮
-            RuntimeIconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(24.dp),
-            ) {
-                RuntimeIcon(
-                    name = RuntimeIconName.Trash,
-                    modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                )
+            Box {
+                RuntimeIconButton(onClick = { showMenu = true }, modifier = Modifier.size(48.dp),
+                    contentDescription = stringResource(R.string.chat_more_controls)) {
+                    RuntimeIcon(RuntimeIconName.More, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.chat_rename_session)) },
+                        leadingIcon = { RuntimeIcon(RuntimeIconName.Edit, Modifier.size(18.dp)) },
+                        onClick = { showMenu = false; onRename() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.chat_delete_session), color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = { RuntimeIcon(RuntimeIconName.Trash, Modifier.size(18.dp), MaterialTheme.colorScheme.error) },
+                        onClick = { showMenu = false; onDelete() })
+                }
             }
         }
     }
