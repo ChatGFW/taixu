@@ -4,18 +4,40 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.feature.custom_iteration.R
+import top.wkbin.taixu.iteration.engine.AssetReader
+import top.wkbin.taixu.iteration.engine.AndroidAssetReader
 import top.wkbin.taixu.iteration.engine.CustomIterationBootstrap
+import top.wkbin.taixu.iteration.engine.CustomIterationPaths
+import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCli
 import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator
 
 class CustomIterationViewModel(
     application: Application,
     private val buildCoordinator: TaiXuDevBuildCoordinator,
+    /**
+     * 运行时路径解析器，在**点击时刻**求值。
+     *
+     * 迭代工作区宿主路径必须是 PRoot 绑定到 guest `/root` 的 `homeDir`：
+     * 写死 `filesDir/runtime/rootfs/root` 会得到一个从未被挂载的目录，
+     * UI 却报告「工作区就绪」——这是必须杜绝的假象。
+     * RootFS 安装/发行版切换会改变这些路径，故不能在构造期快照。
+     */
+    private val resolvePaths: () -> CustomIterationPaths,
+    /** assets 读取源；默认读 APK assets，测试可注入内存实现。 */
+    private val assets: AssetReader = AndroidAssetReader(application),
+    /**
+     * 点击时刻读取迭代工作区的 `origin` URL。
+     *
+     * 与 [TaiXuDevBuildCoordinator] 相同：在 guest `~/custom_taixu` 执行
+     * `git remote get-url origin`。尚未克隆或命令失败时返回 null，Prompt 改用占位符，
+     * 不回退到官方仓库。
+     */
+    private val readOriginRemoteUrl: suspend () -> String? = { null },
 ) : AndroidViewModel(application) {
 
     data class UiState(
@@ -41,8 +63,15 @@ class CustomIterationViewModel(
         viewModelScope.launch {
             val app = getApplication<Application>()
             try {
-                val rootfsHome = File(app.filesDir, "runtime/rootfs/root")
-                val result = CustomIterationBootstrap.bootstrap(app, rootfsHome)
+                // 宿主 homeDir ←PRoot bind→ guest /root。Skill 只写 attachments/workspace 扫描根。
+                // Fork 与 Coordinator 一样从 origin 解析；解析不到时 Prompt 要求 Agent 先读 git remote。
+                val originUrl = runCatching { readOriginRemoteUrl() }.getOrNull()
+                val forkRepo = originUrl?.let(TaiXuDevBuildCli::parseGitHubSlug)
+                val result = CustomIterationBootstrap.bootstrap(
+                    assets = assets,
+                    paths = resolvePaths(),
+                    forkRepo = forkRepo,
+                )
 
                 if (result.success) {
                     _uiState.value = _uiState.value.copy(
