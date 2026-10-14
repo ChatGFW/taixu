@@ -17,6 +17,9 @@ internal object TaiXuDevBuildCli {
     const val APK_NAME = "TaiXuDev-arm64-debug.apk"
     const val DEFAULT_REPO = "wkbin/taixu"
 
+    /** 唯一可信的代码托管主机；`origin` 指向其他主机时拒绝解析。 */
+    const val GITHUB_HOST = "github.com"
+
     /**
      * PRoot 沙盒内可见的下载目录。
      *
@@ -26,6 +29,8 @@ internal object TaiXuDevBuildCli {
      * 在沙盒里没有对应目录。
      */
     const val DEFAULT_OUTPUT_DIR = "/sdcard/Download"
+    /** 迭代工作区在沙盒内的绝对路径；`origin` remote 从这里读取（单一来源）。 */
+    const val DEFAULT_WORKSPACE_DIR = CustomIterationBootstrap.GUEST_WORKSPACE
     const val RUN_LIST_LIMIT = 30
 
     /**
@@ -121,6 +126,59 @@ internal object TaiXuDevBuildCli {
         val trimmed = stdout.trim()
         if (trimmed.isEmpty()) return null
         return runCatching { json.decodeFromString<GhRunStatus>(trimmed) }.getOrNull()
+    }
+
+    /** 读取工作区 `origin` 的远程 URL；工作区尚未克隆时应失败关闭。 */
+    fun readOriginRemoteUrl(): String = "git remote get-url origin"
+
+    /**
+     * 从 GitHub 远程 URL 解析 `owner/name`。
+     *
+     * 覆盖 HTTPS / `git@host:owner/name`（scp-like）/ `ssh://[user@]host[:port]/owner/name` 三类形态，
+     * 剥离 `.git` 后缀与尾斜杠。主机必须是 `github.com`，结果必须满足 [REPO_PATTERN]，
+     * 否则返回 null —— 调用方据此失败关闭，绝不把不确定的仓库当成目标。
+     */
+    fun parseGitHubSlug(remoteUrl: String): String? {
+        val url = remoteUrl.trim().removeSuffix("/")
+        if (url.isEmpty()) return null
+
+        val isScpLike = url.startsWith("git@")
+        val afterScheme = when {
+            url.startsWith("https://", true) -> url.substringAfter("//")
+            url.startsWith("http://", true) -> url.substringAfter("//")
+            url.startsWith("ssh://", true) -> url.substringAfter("//")
+            isScpLike -> url.substringAfter('@')
+            else -> return null
+        }
+        // 去掉可能存在的 userinfo（ssh://git@github.com/...）
+        val hostAndPath = afterScheme.substringAfterLast('@')
+        if (hostAndPath.isEmpty()) return null
+
+        val path: String
+        val hostPart: String
+        if (isScpLike && ':' in hostAndPath) {
+            // scp-like：git@host:owner/name（无端口概念）
+            hostPart = hostAndPath.substringBefore(':')
+            path = hostAndPath.substringAfter(':')
+        } else {
+            // host[:port]/owner/name —— 端口只出现在第一个 '/' 之前，取 '/' 之后即得路径
+            hostPart = hostAndPath.substringBefore('/').substringBefore(':')
+            path = hostAndPath.substringAfter('/', "")
+        }
+
+        // 只接受 github.com：其他主机的 owner/name 不能用于本应用的 GitHub Actions 构建
+        if (!hostPart.equals(GITHUB_HOST, ignoreCase = true)) return null
+
+        val slug = path.removeSuffix(".git").trim().trim('/')
+        if (slug.isEmpty()) return null
+        if (slug.split('/').size != 2) return null
+        return slug.takeIf { REPO_PATTERN.matches(it) }
+    }
+
+    /** 触发/轮询/下载统一使用的仓库解析优先级：工作区 remote 优先，缺失时退回官方仓库。 */
+    fun effectiveRepo(resolved: String?, fallback: String): String {
+        val candidate = resolved?.trim().orEmpty()
+        return if (candidate.isNotEmpty() && REPO_PATTERN.matches(candidate)) candidate else fallback
     }
 
     private fun q(value: String): String = ShellQuote.of(value)

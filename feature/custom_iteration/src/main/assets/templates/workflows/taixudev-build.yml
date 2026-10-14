@@ -32,6 +32,10 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # 'tools' 包已于 2026-09 被 Google 下线，不能再用默认值（tools platform-tools）
+          # 参考 https://github.com/android-actions/setup-android/issues/537
+          packages: 'platform-tools'
 
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew

@@ -20,7 +20,10 @@ class TaiXuDevBuildCoordinator(
     private val shellRunner: ShellRunner,
     private val sleep: suspend (Long) -> Unit = { delay(it) },
     private val clock: () -> Long = { System.currentTimeMillis() },
-    private val repo: String = TaiXuDevBuildCli.DEFAULT_REPO,
+    /** 无法从工作区 `origin` 解析仓库时的兜底目标（默认官方仓库）。 */
+    private val fallbackRepo: String = TaiXuDevBuildCli.DEFAULT_REPO,
+    /** 迭代工作区在沙盒内的路径，用于读取 `origin` remote。 */
+    private val workspaceDir: String = TaiXuDevBuildCli.DEFAULT_WORKSPACE_DIR,
 ) {
 
     /** 沙盒命令执行器抽象：生产绑定 LinuxRuntime，测试注入 Fake。 */
@@ -59,9 +62,18 @@ class TaiXuDevBuildCoordinator(
     ): BuildStatus {
         TaiXuDevBuildCli.branchRejection(branch)?.let { return BuildStatus.Failed(it) }
         TaiXuDevBuildCli.outputDirRejection(outputDir)?.let { return BuildStatus.Failed(it) }
-        TaiXuDevBuildCli.repoRejection(repo)?.let { return BuildStatus.Failed(it) }
+        TaiXuDevBuildCli.repoRejection(fallbackRepo)?.let { return BuildStatus.Failed(it) }
         val normalizedBranch = branch.trim()
         val normalizedDir = outputDir.trim()
+
+        // 目标仓库来自工作区 origin：Fork 后 origin 指向主人的 Fork，
+        // 写死官方仓库会让 workflow_dispatch 直接 403。解析不出就失败关闭。
+        val repo = resolveRepo()
+            ?: return BuildStatus.Failed(
+                "无法确定构建目标仓库：工作区 $workspaceDir 的 origin 既不是可解析的 GitHub 仓库" +
+                    "（需要 owner/name），也无法退回兜底仓库 $fallbackRepo。请先 Fork 并克隆到 $workspaceDir。",
+            )
+        TaiXuDevBuildCli.repoRejection(repo)?.let { return BuildStatus.Failed(it) }
 
         onStatus(BuildStatus.Dispatching(normalizedBranch))
 
@@ -90,6 +102,7 @@ class TaiXuDevBuildCoordinator(
 
         val run = waitForNewRun(
             branch = normalizedBranch,
+            repo = repo,
             baselineId = baselineId,
             triggerAtMs = triggerAtMs,
             maxAttempts = maxRunWaitCycles,
@@ -98,7 +111,7 @@ class TaiXuDevBuildCoordinator(
             "未能获取构建 run：触发后未发现 id 大于 $baselineId 且事件为 workflow_dispatch 的新构建",
         )
 
-        val outcome = pollUntilCompleted(run.databaseId, pollIntervalMs, maxPollAttempts, onStatus)
+        val outcome = pollUntilCompleted(run.databaseId, repo, pollIntervalMs, maxPollAttempts, onStatus)
         if (outcome.statusText != "completed") {
             return BuildStatus.Failed("构建超时未完成（最后状态：${outcome.statusText}，run #${run.databaseId}）")
         }
@@ -150,11 +163,34 @@ class TaiXuDevBuildCoordinator(
     }
 
     /**
+     * 解析云端构建的目标仓库。
+     *
+     * 优先级：工作区 `origin` 的 URL → [fallbackRepo]。
+     * - `git remote get-url origin` 非零退出（尚未克隆）→ 使用 [fallbackRepo]；
+     * - 读取成功但 URL 无法解析为 `owner/name` → 返回 null，调用方失败关闭，
+     *   避免把不确定的仓库当成目标而触发无关仓库的 workflow。
+     */
+    private suspend fun resolveRepo(): String? {
+        val origin = execute(
+            commandLine = TaiXuDevBuildCli.readOriginRemoteUrl(),
+            workingDirectory = workspaceDir,
+            timeoutMs = 30_000L,
+        )
+        if (!origin.isSuccess) {
+            val candidate = TaiXuDevBuildCli.effectiveRepo(null, fallbackRepo)
+            return candidate.takeIf { TaiXuDevBuildCli.repoRejection(it) == null }
+        }
+        // 读取到 URL 但无法解析成 owner/name 时失败关闭，不回退
+        return TaiXuDevBuildCli.parseGitHubSlug(origin.stdout)
+    }
+
+    /**
      * 在触发之后轮询 run list。两次查询之间休眠，发现合格的新 run 立即返回。
      * 次数与（间隔大于 0 时的）截止时间共同构成上界。
      */
     private suspend fun waitForNewRun(
         branch: String,
+        repo: String,
         baselineId: Long,
         triggerAtMs: Long,
         maxAttempts: Int,
@@ -182,6 +218,7 @@ class TaiXuDevBuildCoordinator(
 
     private suspend fun pollUntilCompleted(
         runId: Long,
+        repo: String,
         pollIntervalMs: Long,
         maxPollAttempts: Int,
         onStatus: (BuildStatus) -> Unit,
