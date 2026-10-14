@@ -32,19 +32,28 @@
     "decisionCodegraphIndex": "装配期与会话期都不建索引；条目带 requiresWorkspaceIndex，索引由 base 显式执行 CLI 初始化",
     "decisionMemoryBoundary": "与 Room agent_memories 职责分离，不做同步（本能力是模型自管知识图谱）",
     "outstanding": [
-      "「检查更新」入口与角标未实现：升级仍需改代码",
-      "运行时 npx 解析依赖全局安装命中，未命中时会退化为联网拉包",
-      "未实现 .txplugin 离线侧载兜底",
-      "工作区另有 6 个其他并行改动的文件超棘轮基线（harness/mcp/McpStdioTransport.kt、feature/chat 5 个），与本轮无关但会挡住 app 构建"
+      "升级后已运行的 MCP 子进程仍是旧版本：需用户重新开启服务或重启会话才生效，未做自动重拉",
+      "未实现 .txplugin 离线侧载兜底：首次初始化必须有网",
+      "pip 通道未启用，mcp_fetch / mcp_time / mcp_pandoc 仍以 available=false 可见但不可安装"
     ],
     "verifiedAt": "2026-10-13",
     "verification": [
-      ":core:model:test 通过（McpCatalogTest 7 条 + PluginBundleScriptsTest 全绿）",
-      ":harness / :tools / :feature:settings / :app compileDebugKotlin 通过",
+      ":core:model:test 通过（McpCatalogTest 10 条 + PluginBundleScriptsTest 全绿）",
+      ":tools / :harness / :feature:settings compileDebugKotlin 通过",
       ":harness:testDebugUnitTest --tests *LocalMcpProtocolTest* 通过",
-      "architectureCheck 对本轮全部文件零违规",
-      "setup_mcp_catalog.sh 通过 sh -n，版本守卫实测挡下裸包名/@latest/@*/@next"
-    ]
+      "architectureCheck 通过：33 个模块 · 依赖白名单/无环/import 黑名单/尺寸棘轮全部通过（含顺带收敛的 6 个存量超基线文件，未放宽任何基线数值）",
+      "setup_mcp_catalog.sh 通过 sh -n；离线 14 场景全绿（校验和一致/不一致、固定版本守卫拒裸包名与 @latest、probe 真校验、check 已装与上游与镜像不可达、upgrade 真实升版并重写标记、run 参数透传与升级后拉新版）"
+    ],
+    "updateMechanism": {
+      "doc": "MCP_CATALOG.md#104-检查更新--一键升级本轮补齐",
+      "rule": "版本从落位标记读，绝不写进启动参数；否则升级只会改全局安装，进程仍按代码里的旧 pin 拉起",
+      "launch": "launchCommand=/bin/sh, launchArgs=[setup_mcp_catalog.sh, run, <id>, <pkgName>] + serverArgs（参数不含版本号）",
+      "check": "checkUpdateCommand → 脚本输出 INSTALLED=<标记版本> 与 LATEST=<镜像 dist-tags.latest>，失败输出 ERROR= 并 exit 1",
+      "upgrade": "upgradeCommand → 取镜像最新版 dist.integrity → 校验 → 全局安装 → 原子重写标记 → 当场再跑 resolve_entry 复核入口",
+      "executor": "tools/src/main/java/top/wkbin/taixu/core/tools/McpCatalogUpdater.kt（只拼命令/解析 KEY=VALUE/翻译错误，不重复 registry 语义）",
+      "uiEntry": "feature/settings/.../BundleUpdateUi.kt 的 BundleSetupDialogWithUpdates：装配弹窗打开即自查，分区标题右侧「检查更新」，逐能力版本行 + 「升级到 vX.Y.Z」",
+      "statePolicy": "updateStatuses 只在 ViewModel 内存活，组件卸载即清理；版本是可外部变化的事实，落库会变成第二真相"
+    }
   },
   "discoverySources": [
     {

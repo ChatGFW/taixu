@@ -288,30 +288,51 @@ PyPI 提供 `info.version` + `urls[].digests.sha256`，同样可固定可校验�
 
 **引导页默认不勾选**：`mcp-catalog` bundle 显式 `defaultSelected = false`——MCP 属于按需能力，新用户第一次进 App 不该被强制走一次 npm 下载，也不该把"镜像可达性"变成引导流程的失败点。
 
-### 10.4 契约测试
+### 10.4 「检查更新 / 一键升级」（本轮补齐）
 
-`core/model/src/test/.../McpCatalogTest.kt` 7 条，每条对应一条硬约束：版本必须钉住、安装步骤必须把 id/包规格/校验和交给脚本、绑定的组件必须真实存在、生成的卸载脚本必须能过白名单校验、内置预设的启动声明必须与 catalog 一致、不可用条目必须给理由、探针结果必须正确映射、被排除的抢注包名不得出现。`LocalMcpProtocolTest` 额外断言"改为上游包的内置能力在安装前必须保持关闭"。
+原先的缺口是「跟上游」的最后一公里：catalog 只声明当前 pin，升级要改代码重新发版——这恰恰违背了「不内置」的初衷。本轮把这条路打通，**关键裁决只有一条**：
 
-### 10.5 仍未完成（已知缺口）
+> **版本必须从落位标记读，绝不能写进启动参数。**
 
-- **「检查更新」入口与角标未做**：catalog 目前只声明当前 pin，升级仍需改代码。这是最初诉求「不再内置以便跟上游」的最后一公里，建议下期补：读 registry 的 `dist-tags.latest` 与 `dist.integrity`，有差异出角标，用户点击后写入新的固定版本号。
-- **运行时不联网补装**：`run <id> <packageName>` 与组件探针复用本地包版本和入口核验，直接 `exec node` 已装包的入口；缺失或不匹配直接拒绝。
+原先是 `runtimeArgs = listOf("-y", "open-websearch@2.2.0")`。这种写法下，升级只改了全局安装，进程仍按代码里的旧 pin 拉起——用户点完「升级」看到的成功是**假动作**。改为：
+
+| 关注点 | 实现 |
+| :--- | :--- |
+| 启动 | `launchCommand = /bin/sh`，`launchArgs = [<script>, run, <id>, <pkgName>] + serverArgs`。脚本按标记解析版本、`exec` 包入口，**参数里没有任何版本号** |
+| 本地真校验 | 脚本用 `node -e` 解析已装包的 `package.json`，逐字比对 `name`/`version` 与标记，并要求 `bin` 唯一且 resolve 后仍在包目录内（挡住 `../../escape.js` 这类越界入口） |
+| 检查更新 | `checkUpdateCommand` → 脚本先输出 `INSTALLED=<标记版本>`，再查镜像 `dist-tags.latest` 输出 `LATEST=<上游版本>`；失败输出 `ERROR=…` 并 `exit 1` |
+| 一键升级 | `upgradeCommand` → 取镜像最新版本的 `dist.integrity` → 校验 → 全局安装 → 原子重写标记（同目录 tmp + `mv -f`）→ **当场再跑一次 `resolve_entry`**：新版若换了 bin 位置，必须在此刻失败，而不是等下次启动 |
+| Kotlin 侧 | `tools/.../McpCatalogUpdater.kt`：只做三件事——拼命令（带白名单正则兜底）、把 `KEY=VALUE` 解析成 `McpUpdateStatus`、把失败翻译成一句人话。**不重复实现一遍 registry 语义** |
+| UI 入口 | `BundleUpdateUi.kt` 的 `BundleSetupDialogWithUpdates` 外壳：弹窗打开即自查一轮（`LaunchedEffect`），分区标题右侧挂「检查更新」，每个已装能力下挂版本行，有差异才出「升级到 vX.Y.Z」 |
+| 非 catalog 套件 | `onCheckUpdates = null` → 更新相关整块不渲染。通用装配弹窗对「版本」一无所知，只多接 6 个带默认值的可选参数 |
+
+**为什么把入口放在装配弹窗里**：这正是不内置的意义所在——不内置才有上游可比；而装配弹窗是用户唯一会来看「我装了什么」的地方，不必再开一个设置页入口。
+
+**升级为什么是安全的**：脚本先取镜像上最新版本对应的 `dist.integrity`，安装成功后把 `SPEC` 与 `INTEGRITY` 一起写进落位标记；运行期的启动命令从标记读版本，因此升级**立即生效**，而任何一次「按标记重装」都会拿落盘校验和比对，上游偷改包会被挡住。
+
+**状态一律不落库**：`updateStatuses` 只在 ViewModel 内存活；组件被卸载时 `refresh()` 会把对应结论清掉，避免显示一个不存在的「可更新」。版本是可外部变化的事实，落库就又会变成第二真相。
+
+### 10.5 契约测试
+
+`core/model/src/test/.../McpCatalogTest.kt` 10 条，每条对应一条硬约束：版本必须钉住、安装步骤必须把 id/包规格/校验和交给脚本、绑定的组件必须真实存在、生成的卸载脚本必须能过白名单校验、内置预设的启动声明必须与 catalog 一致（含风险等级）、不可用条目必须给理由、探针结果必须正确映射、被排除的抢注包名不得出现；本轮新增三条**版本契约**——启动路径必须从落位标记解析版本而非代码里的 pin、检查/升级命令必须经装配脚本且不得出现版本号字面量、只有两侧版本都已知且不等时才允许声称「有更新」。
+
+`LocalMcpProtocolTest` 额外断言：改为上游包的内置能力在安装前必须保持关闭，且**启动参数里不得出现版本号**。
+
+### 10.6 仍未完成（已知缺口）
+
+- **升级后需重启服务才生效**：标记已更新，但已运行的 MCP 子进程仍是上一个版本。当前提示语要求用户「重新开启该服务或重启会话」，尚未做自动重拉。
 - **`.txplugin` 离线侧载未做**：§7 要求的离线兜底（把 tarball 打进离线包）尚未实现，首次初始化仍必须有网。
-- **`mcp_apktool` 仍未随 `android-suite` 的「逆向分析与代码审计」子组件下发**：目前仍是 `android-re` 组件随附的自研脚本，`android-re` 组件描述里已写明 python3 是其运行依赖。§8 阶段一第 3 条的措辞是按"改由该子组件下发"写的，实际保持了原有归属——因为 `apktool_mcp_server.py` 本来就由 `assets/scripts/` 随 APK 下发，不需要额外的安装动作。
-- **已通过编译与单测验证**（2026-10-13，`JAVA_HOME` 指向 Android Studio JBR / Gradle 9.7.0）：
-  - `:core:model:test` ✅（含新增 `McpCatalogTest` 7 条契约 + `PluginBundleScriptsTest` 全绿）
-  - `:harness:compileDebugKotlin` / `:tools:compileDebugKotlin` / `:feature:settings:compileDebugKotlin` ✅
-  - `:harness:testDebugUnitTest --tests "*LocalMcpProtocolTest*"` ✅
-  - `:app:compileDebugKotlin` ✅（需加 `-x architectureCheck`，原因见下）
-  - `architectureCheck` 对本轮全部文件**零违规**（SystemPromptBuilder 617≤617、ToolCenterScreen 1212≤1212、McpSettingsScreen 1176≤1176，新增文件均 ≤400）
-  - `setup_mcp_catalog.sh` 通过 `sh -n`，版本守卫实测：3 条真实规格放行、`裸包名` / `@latest` / `@*` / `@scope/pkg` / `@next` 全部拒绝
-- **注意**：工作区里另有 6 个文件（`harness/mcp/McpStdioTransport.kt`、`feature/chat` 的 5 个文件）已超棘轮基线，属其他并行改动的存量问题。它们挂在 `app:preBuild → architectureCheck` 上，会让整个构建失败，需要单独处理——**与本轮改动无关**。
+- **pip 通道未启用**：`mcp_fetch` / `mcp_time` / `mcp_pandoc` 仍不可安装（见 10.2 第 2 条）。
+- **`mcp_apktool` 仍未随 `android-suite` 的「逆向分析与代码审计」子组件下发**：目前仍是 `android-re` 组件随附的自研脚本，`android-re` 组件描述里已写明 python3 是其运行依赖。§8 阶段一第 3 条的措辞是按「改由该子组件下发」写的，实际保持了原有归属——因为 `apktool_mcp_server.py` 本来就由 `assets/scripts/` 随 APK 下发，不需要额外的安装动作。
 
+### 10.7 验证记录（2026-10-13）
 
+`JAVA_HOME` 指向 Android Studio JBR / Gradle 9.7.0：
 
+- `:core:model:test` ✅（`McpCatalogTest` 10 条 + `PluginBundleScriptsTest` 全绿）
+- `:harness:testDebugUnitTest --tests "*LocalMcpProtocolTest*"` ✅
+- `:tools:compileDebugKotlin` / `:harness:compileDebugKotlin` / `:feature:settings:compileDebugKotlin` ✅
+- `architectureCheck` ✅ — **33 个模块 · 依赖白名单 / 无环 / import 黑名单 / 尺寸棘轮 全部通过**
+- `setup_mcp_catalog.sh` 通过 `sh -n`；脚本**离线验证 14 个场景全绿**（stub npm 拦联网 + 真实 node 跑 `resolve_entry`）：校验和一致 / 不一致、裸包名与 `@latest` 被拒、probe 通过 / 入口被改坏被拒 / 版本错配被拒、run 参数透传、check 已装与上游、check 镜像不可达、upgrade 真实升版并重写标记、upgrade 已最新则跳过、run 升级后拉到新版本、run/probe 未安装、非法 id 拒绝、未知操作拒绝
 
-### 审查修复与回归
-
-五个可安装条目统一生成内置服务预设，避免组件安装成功但没有服务行。`userToggled` 保留用户选择；`withInstalledComponents` 将当前环境观察值投影为实际启用状态，重启后的默认能力无需进入设置页即可恢复，卸载不抹掉用户选择但立即阻止运行。提示词区别已安装但关闭、未安装和状态未确认。聊天推荐的按需能力跳转工具中心，不能直接写开启偏好。
-
-离线回归覆盖服务注册完整性、默认启用、关闭偏好、卸载阻断、环境隔离、取消与探针资源回收、提示词分支以及真实 sh/Node 下的包删除、版本错配、入口缺失和参数透传。脚本测试：`python scripts/tests/test_mcp_catalog_runtime.py`（需 Bash 和 Node，不需要 API Key 或 npm 联网）。
+**顺带收敛的存量违规**：工作区里另有 6 个文件此前已超棘轮基线（`harness/mcp/McpStdioTransport.kt` 与 `feature/chat` 的 5 个），它们挂在 `app:preBuild → architectureCheck` 上会让整个构建失败。本轮按「缩减而非放宽」处理，**未修改 `.architecture-baseline.json` 的任何数值**：`ChatToolCards` 632≤633、`ChatDialogs` 882≤887、`ContextUsageDialog` 399≤400、`ChatWorkbenchPanels` 1490≤1494、`ChatComposer` 618≤618、`McpStdioTransport` 419≤420。清理内容是主题重构（硬编码色值 → `semanticColors()`）留下的未使用 import 残渣与游离空行——本就是该做的事。

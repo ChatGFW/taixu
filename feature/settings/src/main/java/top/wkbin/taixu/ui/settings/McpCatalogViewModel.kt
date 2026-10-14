@@ -165,7 +165,8 @@ class McpCatalogViewModel(
                     installedComponentIds.value = installed
                     // 组件已卸载的能力不该留着旧版本结论，否则界面会显示一个不存在的「可更新」。
                     _updateStatuses.value = _updateStatuses.value.filterKeys { id ->
-                        McpCatalog.find(id)?.installComponentId in installed
+                        val componentId = McpCatalog.find(id)?.installComponentId
+                        componentId != null && componentId in installed
                     }
                     runCatching { mcpServerRepository.syncInstalledCapabilities(installed) }
                         .onFailure { logger.w("同步 MCP 能力安装状态失败: ${it.message}", it) }
