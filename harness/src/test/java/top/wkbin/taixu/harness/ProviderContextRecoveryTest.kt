@@ -57,6 +57,18 @@ class ProviderContextRecoveryTest {
         assertFalse(shouldCompactEmptyResponse(10_000, model(32_000)))
     }
 
+    @Test fun `output recovery grows a temporary budget and reservation with a hard ceiling`() {
+        val original = model().copy(maxTokens = 2_500, compactionReserveTokens = 1_000)
+        val recovered = outputRecoveryModel(original)!!
+        assertEquals(5_000, recovered.maxTokens)
+        assertEquals(5_000, recovered.compactionReserveTokens)
+        assertEquals(2_500, original.maxTokens)
+        assertEquals(16_384, outputRecoveryModel(model())!!.maxTokens)
+        assertEquals(32_768, outputRecoveryModel(model().copy(maxTokens = 20_000))!!.maxTokens)
+        assertNull(outputRecoveryModel(model().copy(maxTokens = Int.MAX_VALUE)))
+        assertNull(outputRecoveryModel(model().copy(maxTokens = 32_768)))
+    }
+
     @Test fun `emergency recovery makes a smaller replay and preserves original history without a provider`() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
@@ -73,7 +85,13 @@ class ProviderContextRecoveryTest {
                 else AssistantText("m$index", index.toLong(), "y".repeat(8_000)))
             }
             val before = compaction.project("s")
-            val recovered = recoverFromContextOverflow("s", model(), compaction, logger)
+            val smallMessages = listOf(ApiMessage("user", "hello"))
+            val enlarged = recoverFromOutputLimit("s", model(), smallMessages, 0, compaction, logger)
+            assertEquals(16_384, enlarged!!.maxTokens)
+            assertEquals("output-only exhaustion must not fold history", before, compaction.project("s"))
+            val pressureModel = model(32_000)
+            val largeMessages = listOf(ApiMessage("user", "x".repeat(55_000)))
+            val recovered = recoverFromOutputLimit("s", pressureModel, largeMessages, 3_600, compaction, logger)
             assertNotNull(recovered)
             val after = compaction.project("s")
             assertTrue(after.messages.size < before.messages.size)

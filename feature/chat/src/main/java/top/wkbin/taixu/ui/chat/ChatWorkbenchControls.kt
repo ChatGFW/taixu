@@ -52,7 +52,8 @@ internal fun ChatWorkspaceBar(workspace: String, environment: String, approvalMo
 @Composable
 internal fun ChatWorkbenchControls(approvalMode: ApprovalMode, runMode: RunMode, branch: ConversationBranch?,
     events: List<HarnessEvent>, running: Boolean, onApproval: () -> Unit, onRunMode: () -> Unit,
-    onBranches: () -> Unit, onRuntime: () -> Unit, onTools: () -> Unit, toolchainHighlight: Boolean) {
+    onBranches: () -> Unit, onRuntime: () -> Unit, onTools: () -> Unit, toolchainHighlight: Boolean,
+    onReasoning: (() -> Unit)? = null) {
     val mode = when (approvalMode) {
         ApprovalMode.FULL_ACCESS -> R.string.chat_approval_full_access
         ApprovalMode.ASSISTED -> R.string.chat_approval_assisted
@@ -67,6 +68,9 @@ internal fun ChatWorkbenchControls(approvalMode: ApprovalMode, runMode: RunMode,
             ControlAction(RuntimeIconName.Hub, branch?.name ?: stringResource(R.string.chat_main_line), onBranches)
             ControlAction(RuntimeIconName.Logs, if (running) stringResource(R.string.chat_round_number, rounds) else stringResource(R.string.chat_runtime_overview), onRuntime)
             ControlAction(RuntimeIconName.Wrench, stringResource(R.string.chat_toolchain_entry) + if (toolchainHighlight) " •" else "", onTools)
+            if (onReasoning != null) {
+                ControlAction(RuntimeIconName.Sparkles, stringResource(R.string.chat_reasoning_effort), onReasoning)
+            }
         }
     }
 }

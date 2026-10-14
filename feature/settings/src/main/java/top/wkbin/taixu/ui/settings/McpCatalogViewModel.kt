@@ -133,7 +133,7 @@ class McpCatalogViewModel(
                 val status = updater.upgrade(entry)
                 _updateStatuses.value = _updateStatuses.value + (entryId to status)
                 _updateNotice.value = if (status.error.isBlank()) {
-                    "「${entry.name}」已升级到 v${status.installedVersion}；重新开启该服务或重启会话后生效"
+                    "「${entry.name}」当前版本 v${status.installedVersion}；后续调用自动使用已安装版本，无需手动重启"
                 } else {
                     "「${entry.name}」升级失败：${status.error}"
                 }
@@ -165,7 +165,8 @@ class McpCatalogViewModel(
                     installedComponentIds.value = installed
                     // 组件已卸载的能力不该留着旧版本结论，否则界面会显示一个不存在的「可更新」。
                     _updateStatuses.value = _updateStatuses.value.filterKeys { id ->
-                        McpCatalog.find(id)?.installComponentId in installed
+                        val componentId = McpCatalog.find(id)?.installComponentId
+                        componentId != null && componentId in installed
                     }
                     runCatching { mcpServerRepository.syncInstalledCapabilities(installed) }
                         .onFailure { logger.w("同步 MCP 能力安装状态失败: ${it.message}", it) }

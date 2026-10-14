@@ -1,15 +1,5 @@
 package top.wkbin.taixu.ui.chat
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -42,12 +32,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import top.wkbin.taixu.ui.theme.LocalLiquidGlassSurfaceBackdrop
-import top.wkbin.taixu.ui.components.RuntimeDialogSystemBars
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -60,10 +47,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.feature.chat.R
@@ -106,7 +89,6 @@ fun partitionSessions(
 ): SessionPartitionResult {
     val (withWs, withoutWs) = sessions.partition { it.workspace.isNotBlank() }
     val recentSessions = withoutWs.sortedByDescending { it.updatedAt }
-
     val sessionsByWs = withWs.groupBy { it.workspace.trimEnd('/') }
     val handledWsPaths = mutableSetOf<String>()
     val projectGroups = mutableListOf<ProjectSessionGroup>()
@@ -115,28 +97,13 @@ fun partitionSessions(
         val normPath = ws.linuxPath.trimEnd('/')
         handledWsPaths.add(normPath)
         val projSessions = sessionsByWs[normPath].orEmpty().sortedByDescending { it.updatedAt }
-        projectGroups.add(
-            ProjectSessionGroup(
-                projectName = ws.name,
-                workspacePath = ws.linuxPath,
-                projectType = ws.projectType,
-                sessions = projSessions,
-            ),
-        )
+        projectGroups.add(ProjectSessionGroup(ws.name, ws.linuxPath, ws.projectType, projSessions))
     }
 
-    // 容错：处理工作区已被删除但仍保留 workspace 路径的历史孤立会话
     for ((wsPath, orphanSessions) in sessionsByWs) {
         if (!handledWsPaths.contains(wsPath)) {
             val extractedName = wsPath.substringAfterLast('/').ifBlank { wsPath }
-            projectGroups.add(
-                ProjectSessionGroup(
-                    projectName = extractedName,
-                    workspacePath = wsPath,
-                    projectType = ProjectType.GENERAL,
-                    sessions = orphanSessions.sortedByDescending { it.updatedAt },
-                ),
-            )
+            projectGroups.add(ProjectSessionGroup(extractedName, wsPath, ProjectType.GENERAL, orphanSessions.sortedByDescending { it.updatedAt }))
         }
     }
 
@@ -144,11 +111,7 @@ fun partitionSessions(
         compareByDescending<ProjectSessionGroup> { it.sessions.firstOrNull()?.updatedAt ?: 0L }
             .thenBy { it.projectName.lowercase() },
     )
-
-    return SessionPartitionResult(
-        projectGroups = sortedProjectGroups,
-        recentSessions = recentSessions,
-    )
+    return SessionPartitionResult(sortedProjectGroups, recentSessions)
 }
 
 @Composable
@@ -187,28 +150,12 @@ internal fun SessionsSideDrawer(
     onDelete: (String) -> Unit,
     onRename: (String, String) -> Unit,
     navigationContent: @Composable () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     if (!visible) return
 
-    val coroutineScope = rememberCoroutineScope()
-    var isVisible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        isVisible = true
-    }
-
-    val handleDismiss: () -> Unit = {
-        coroutineScope.launch {
-            isVisible = false
-            delay(180)
-            onDismiss()
-        }
-    }
-
-    // 重命名与删除二次确认状态
     var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteTargetId by rememberSaveable { mutableStateOf<String?>(null) }
-
     val partition = remember(sessions, workspaces) { partitionSessions(sessions, workspaces) }
     var expandedProjects by rememberSaveable {
         val initialExpanded = partition.projectGroups
@@ -218,166 +165,90 @@ internal fun SessionsSideDrawer(
         mutableStateOf(initialExpanded)
     }
 
-    Dialog(
-        onDismissRequest = handleDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-        ),
-    ) {
-        RuntimeDialogSystemBars()
-        BackHandler { handleDismiss() }
-
-        Box(modifier = Modifier.fillMaxSize()) {
-            AnimatedVisibility(
-                visible = isVisible,
-                enter = fadeIn(tween(180)),
-                exit = fadeOut(tween(160)),
-                modifier = Modifier.fillMaxSize(),
+    CompositionLocalProvider(LocalLiquidGlassSurfaceBackdrop provides null) {
+        Surface(
+            modifier = modifier.fillMaxHeight().fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            tonalElevation = 0.dp,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding(),
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.24f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = handleDismiss,
-                        ),
-                )
-            }
+                DrawerHeader(totalSessionsCount = sessions.size, onClose = onDismiss)
 
-            AnimatedVisibility(
-                visible = isVisible,
-                enter = slideInHorizontally(
-                    initialOffsetX = { -it },
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                ),
-                exit = slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(180),
-                ),
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .align(Alignment.CenterStart),
-            ) {
-                CompositionLocalProvider(LocalLiquidGlassSurfaceBackdrop provides null) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .widthIn(max = 360.dp)
-                        .fillMaxWidth(0.88f),
-                    shape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 1f),
-                    tonalElevation = 0.dp,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .statusBarsPadding()
-                            .navigationBarsPadding(),
+                Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    RuntimeButton(
+                        onClick = onNew,
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        shape = RoundedCornerShape(23.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                     ) {
-                        DrawerHeader(
-                            totalSessionsCount = sessions.size,
-                            onClose = handleDismiss,
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 8.dp),
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            RuntimeButton(
-                                onClick = {
-                                    handleDismiss()
-                                    onNew()
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                shape = MaterialTheme.shapes.large,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    RuntimeIcon(
-                                        name = RuntimeIconName.Edit,
-                                        modifier = Modifier.size(17.dp),
-                                        tint = MaterialTheme.colorScheme.onPrimary,
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.chat_drawer_new_task),
-                                        style = MaterialTheme.typography.labelLarge,
-                                    )
-                                }
-                            }
-                        }
-
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                        )
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(24.dp),
-                        ) {
-                            navigationContent()
-                            ProjectSection(
-                                projectGroups = partition.projectGroups,
-                                currentSessionId = currentSessionId,
-                                sessionRunStates = sessionRunStates,
-                                expandedProjects = expandedProjects,
-                                onToggleExpand = { path ->
-                                    expandedProjects = if (expandedProjects.contains(path)) {
-                                        expandedProjects - path
-                                    } else {
-                                        expandedProjects + path
-                                    }
-                                },
-                                onSwitch = { id ->
-                                    handleDismiss()
-                                    onSwitch(id)
-                                },
-                                onCreateInProject = { group ->
-                                    val matchedWs = workspaces.firstOrNull { it.linuxPath == group.workspacePath }
-                                        ?: WorkspaceProject(
-                                            name = group.projectName,
-                                            path = group.workspacePath,
-                                            linuxPath = group.workspacePath,
-                                            sizeBytes = 0L,
-                                            projectType = group.projectType,
-                                        )
-                                    handleDismiss()
-                                    onCreateInWorkspace(matchedWs)
-                                },
-                                onRename = { id -> renameTargetId = id },
-                                onDelete = { id -> deleteTargetId = id },
+                            RuntimeIcon(RuntimeIconName.Plus, Modifier.size(18.dp), MaterialTheme.colorScheme.onPrimary)
+                            Text(
+                                text = stringResource(R.string.chat_drawer_new_task),
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                             )
-
-                            RecentSection(
-                                recentSessions = partition.recentSessions,
-                                currentSessionId = currentSessionId,
-                                sessionRunStates = sessionRunStates,
-                                onSwitch = { id ->
-                                    handleDismiss()
-                                    onSwitch(id)
-                                },
-                                onRename = { id -> renameTargetId = id },
-                                onDelete = { id -> deleteTargetId = id },
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
                 }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    navigationContent()
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 6.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                    )
+                    ProjectSection(
+                        projectGroups = partition.projectGroups,
+                        currentSessionId = currentSessionId,
+                        sessionRunStates = sessionRunStates,
+                        expandedProjects = expandedProjects,
+                        onToggleExpand = { path ->
+                            expandedProjects = if (expandedProjects.contains(path)) expandedProjects - path else expandedProjects + path
+                        },
+                        onSwitch = onSwitch,
+                        onCreateInProject = { group ->
+                            val matchedWs = workspaces.firstOrNull { it.linuxPath == group.workspacePath }
+                                ?: WorkspaceProject(
+                                    name = group.projectName,
+                                    path = group.workspacePath,
+                                    linuxPath = group.workspacePath,
+                                    sizeBytes = 0L,
+                                    projectType = group.projectType,
+                                )
+                            onCreateInWorkspace(matchedWs)
+                        },
+                        onRename = { id -> renameTargetId = id },
+                        onDelete = { id -> deleteTargetId = id },
+                    )
+
+                    RecentSection(
+                        recentSessions = partition.recentSessions,
+                        currentSessionId = currentSessionId,
+                        sessionRunStates = sessionRunStates,
+                        onSwitch = onSwitch,
+                        onRename = { id -> renameTargetId = id },
+                        onDelete = { id -> deleteTargetId = id },
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -432,18 +303,17 @@ internal fun SessionsSideDrawer(
 /** 抽屉顶部标题行。 */
 @Composable
 private fun DrawerHeader(totalSessionsCount: Int, onClose: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 16.dp, bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        TaiXuBrandBadge(size = 28.dp)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(stringResource(R.string.chat_title), style = MaterialTheme.typography.titleLarge,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(stringResource(R.string.chat_session_count, totalSessionsCount),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 10.dp, top = 16.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        TaiXuBrandBadge(size = 32.dp)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(text = "太墟 · 智枢", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = stringResource(R.string.chat_session_count, totalSessionsCount), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        RuntimeIconButton(onClick = onClose, modifier = Modifier.size(48.dp),
-            contentDescription = stringResource(R.string.chat_cancel)) {
+        RuntimeIconButton(onClick = onClose, modifier = Modifier.size(40.dp), contentDescription = stringResource(R.string.chat_cancel)) {
             RuntimeIcon(RuntimeIconName.Close, Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -654,6 +524,7 @@ private fun SessionDrawerItem(
     onSwitch: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit,
 ) {
     var showMenu by remember(session.id) { mutableStateOf(false) }
+    val isRunningOrWarning = runState == SessionRunState.RUNNING || runState == SessionRunState.WAITING_APPROVAL || runState == SessionRunState.FAILED
     val dotColor = when (runState) {
         SessionRunState.RUNNING -> top.wkbin.taixu.ui.theme.semanticColors().warning
         SessionRunState.WAITING_APPROVAL -> top.wkbin.taixu.ui.theme.semanticColors().agent
@@ -661,33 +532,67 @@ private fun SessionDrawerItem(
         else -> Color.Transparent
     }
     val timeLabel = formatSessionTime(session.updatedAt)
-    Surface(shape = MaterialTheme.shapes.medium,
+    Surface(
+        shape = RoundedCornerShape(12.dp),
         color = if (isCurrent) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
-        modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().clickable(onClick = onSwitch)
-            .semantics { selected = isCurrent }.padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.size(6.dp).clip(CircleShape).background(dotColor))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(session.title, style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onSwitch)
+                .semantics { selected = isCurrent }
+                .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (isRunningOrWarning) {
+                Box(Modifier.size(8.dp).clip(CircleShape).background(dotColor))
+            } else {
+                RuntimeIcon(
+                    name = RuntimeIconName.Chat,
+                    modifier = Modifier.size(16.dp),
+                    tint = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                )
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = session.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (isCurrent) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (timeLabel.isNotBlank()) Text(timeLabel, style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (timeLabel.isNotBlank()) {
+                    Text(
+                        text = timeLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             Box {
-                RuntimeIconButton(onClick = { showMenu = true }, modifier = Modifier.size(48.dp),
-                    contentDescription = stringResource(R.string.chat_more_controls)) {
-                    RuntimeIcon(RuntimeIconName.More, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                RuntimeIconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(36.dp),
+                    contentDescription = stringResource(R.string.chat_more_controls),
+                ) {
+                    RuntimeIcon(RuntimeIconName.More, Modifier.size(16.dp), MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.chat_rename_session)) },
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_rename_session)) },
                         leadingIcon = { RuntimeIcon(RuntimeIconName.Edit, Modifier.size(18.dp)) },
-                        onClick = { showMenu = false; onRename() })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.chat_delete_session), color = MaterialTheme.colorScheme.error) },
+                        onClick = { showMenu = false; onRename() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_delete_session), color = MaterialTheme.colorScheme.error) },
                         leadingIcon = { RuntimeIcon(RuntimeIconName.Trash, Modifier.size(18.dp), MaterialTheme.colorScheme.error) },
-                        onClick = { showMenu = false; onDelete() })
+                        onClick = { showMenu = false; onDelete() },
+                    )
                 }
             }
         }

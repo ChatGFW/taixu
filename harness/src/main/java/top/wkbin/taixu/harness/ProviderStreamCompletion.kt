@@ -23,7 +23,7 @@ internal fun requireOutputCompletion(reason: String?, inputTokens: Int = 0, outp
         if (inputTokens >= 64_000 && outputChars <= 2) {
             throw LlmContextOverflowException("大上下文请求输出仅 $outputChars 个字符即达到 token 上限（$reason）")
         }
-        throw IllegalStateException("模型输出达到 token 上限（$reason），回复尚未完成。请增加输出预算后重试")
+        throw LlmOutputLimitException("模型输出达到 token 上限（$reason），回复尚未完成。请增加输出预算后重试")
     }
 }
 

@@ -15,7 +15,7 @@ class McpCommandBuilder() {
     }
 
     fun fingerprint(server: McpServerConfig) =
-        server.command + "|" + server.args.joinToString(",") + "|" +
+        server.command + "|" + server.args.joinToString(",") + "|${server.catalogRevision}|" +
             // B9: env 按 key 排序后再拼接，消除 map 迭代序不稳定导致的指纹抖动（与 McpManager 的 toSortedMap 对齐）
             server.env.entries.sortedBy { it.key }.joinToString(",") { it.key + "=" + it.value }
 

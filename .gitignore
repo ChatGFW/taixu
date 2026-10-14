@@ -84,3 +84,6 @@ scripts_patch/
 /.opencode/
 
 
+
+# 设计稿截图（本地验证用，不入库）
+shots/

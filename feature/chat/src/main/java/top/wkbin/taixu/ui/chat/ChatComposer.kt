@@ -104,10 +104,9 @@ internal fun ChatComposer(
     onOpenSkillsMcp: () -> Unit,
     onOpenModels: () -> Unit,
     activeModel: AiModelEntity?,
-    onUpdateReasoning: (String?, String?) -> Unit,
+    onUpdateReasoning: (String?, String?) -> Unit = { _, _ -> },
     contextUsage: ContextUsage,
 ) {
-    var showReasoningSlider by rememberSaveable { mutableStateOf(false) }
 
     val focusRequester = remember { FocusRequester() }
     var textFieldValue by remember {
@@ -197,17 +196,6 @@ internal fun ChatComposer(
                 stringResource(R.string.chat_attachment_processing),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-
-    if (showReasoningSlider) {
-        PlainBackdropModalBottomSheet(onDismissRequest = { showReasoningSlider = false }) {
-            ReasoningEffortSlider(
-                currentMode = activeModel?.reasoningMode,
-                currentEffort = activeModel?.reasoningEffort,
-                onSelect = onUpdateReasoning,
-                onClose = { showReasoningSlider = false },
             )
         }
     }
@@ -397,9 +385,8 @@ internal fun ChatComposer(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 ComposerQuickActions(
-                    activeModel = activeModel, compact = running,
-                    onOpenModels = onOpenModels, onOpenSkillsMcp = onOpenSkillsMcp,
-                    onOpenReasoning = { showReasoningSlider = true },
+                    activeModel = activeModel,
+                    onOpenModels = onOpenModels,
                     onPickImage = { imagePickerLauncher.launch("image/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
                 )
