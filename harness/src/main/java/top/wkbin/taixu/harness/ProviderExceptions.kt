@@ -24,5 +24,8 @@ class LlmContextOverflowException(message: String) : IOException(message)
 /** Provider rejected the requested output-token parameter, not the input context. */
 class LlmInvalidOutputTokensException(message: String) : IOException(message)
 
+/** A completed transport with truncated text/tool arguments; never a successful turn. */
+class LlmOutputLimitException(message: String) : IllegalStateException(message)
+
 /** HTTP 200 without useful text, reasoning or tool calls must not complete the turn. */
 class LlmEmptyResponseException(message: String) : IOException(message)

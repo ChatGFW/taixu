@@ -113,6 +113,7 @@ class HarnessProviderRunner(
 
         var requestModel = model
         var outputBudgetReduced = false
+        var outputLimitRecovered = false
         var netRetry = 0
         suspend fun assembleFor(requestModel: ModelConfig) = contextAssembler.assemble(
             sessId = sessId,
@@ -261,13 +262,34 @@ class HarnessProviderRunner(
                     stateMirrors.setStatus(sessId, "请求受限，${remaining} 秒后自动重试（$netRetry/$maxNetworkRetries）")
                     delay(1000L.milliseconds)
                 }
+            } catch (outputLimit: LlmOutputLimitException) {
+                currentCoroutineContext().ensureActive()
+                stateMirrors.setThinkingLive(sessId, false)
+                val recovered = if (!outputLimitRecovered && !outputBudgetReduced) {
+                    outputLimitRecovered = true
+                    stateMirrors.setStatus(sessId, "输出达到上限，正在调整预算后重试")
+                    recoverFromOutputLimit(sessId, requestModel, requestMessages, toolSchemaTokens,
+                        compactionManager, agentEventLogger)
+                } else null
+                if (recovered != null) {
+                    requestModel = recovered
+                    agentEventLogger.log(sessId, "OutputLimitRecovery",
+                        "输出截断，预留 ${recovered.maxTokens} tokens 后重新生成", outputLimit)
+                    metrics.streamRetry()
+                    resetStreamBaseline()
+                    requestMessages = assembleFor(requestModel)
+                        .map { if (imageStripped) it.copy(imageUrls = emptyList()) else it }
+                    continue
+                }
+                settleFailedStream()
+                return TurnProviderOutcome.Failed("模型输出达到 token 上限，自动恢复后仍未完成。请增加输出预算或拆分任务后重试")
             } catch (invalidOutputTokens: LlmInvalidOutputTokensException) {
                 currentCoroutineContext().ensureActive()
                 if (outputBudgetReduced) throw invalidOutputTokens
                 outputBudgetReduced = true
-                val current = ContextWindowPolicy.normalizeOutputTokens(model.maxTokens, 8_192)
+                val current = ContextWindowPolicy.normalizeOutputTokens(requestModel.maxTokens, 8_192)
                 val reduced = (current / 2).coerceAtLeast(1)
-                requestModel = model.copy(maxTokens = reduced)
+                requestModel = requestModel.copy(maxTokens = reduced)
                 agentEventLogger.log(
                     sessId,
                     "OutputBudgetReduction",
@@ -318,20 +340,7 @@ class HarnessProviderRunner(
                     continue
                 }
                 // 与 ModelError 路径一致：已流式产出的半截内容先落库保留，避免静默丢弃
-                if (streamText.length > 0) {
-                    persistAssistant(
-                        sessId,
-                        assistantId,
-                        assistantAt,
-                        streamText.toString(),
-                        streamReasoning.toString().ifBlank { null },
-                        totalMs = now() - startedAt,
-                        operationId = operationId,
-                        round = round,
-                    )
-                } else {
-                    messageProjector.remove(sessId, assistantId)
-                }
+                settleFailedStream()
                 agentEventLogger.log(
                     sessId,
                     "ContextOverflowUnrecoverable",
@@ -438,21 +447,7 @@ class HarnessProviderRunner(
                     continue
                 }
                 agentEventLogger.log(sessId, "ModelError", "LLM 调用失败: ${throwable.message}", throwable)
-                if (streamText.length > 0) {
-                    persistAssistant(
-                        sessId,
-                        assistantId,
-                        assistantAt,
-                        streamText.toString(),
-                        streamReasoning.toString().ifBlank { null },
-                        totalMs = now() - startedAt,
-                        operationId = operationId,
-                        round = round,
-                    )
-                } else {
-                    // 移除空的流式气泡；错误通过 error state 展示，不写入消息历史
-                    messageProjector.remove(sessId, assistantId)
-                }
+                settleFailedStream()
                 return TurnProviderOutcome.Failed(friendly(throwable))
             }
         }

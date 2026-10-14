@@ -62,7 +62,7 @@ class ProviderStreamCompletionTest {
         try {
             runBlocking { ChatApi(OkHttpClient(), json).chatStream(model, emptyList(), onDelta = {}) }
             fail("truncation must be reported")
-        } catch (error: IllegalStateException) { assertTrue(error.message.orEmpty().contains("token")) }
+        } catch (error: LlmOutputLimitException) { assertTrue(error.message.orEmpty().contains("token")) }
     }
 
     @Test fun `responses incomplete and error events cannot complete`() = withServer { server, model ->
@@ -78,7 +78,7 @@ class ProviderStreamCompletionTest {
                 runBlocking { api.chatStream(model, emptyList(), onDelta = {}) }
                 fail("failed Responses event must be reported")
             } catch (error: Exception) {
-                assertTrue(if (index == 0) error is IllegalStateException else error is LlmContextOverflowException)
+                assertTrue(if (index == 0) error is LlmOutputLimitException else error is LlmContextOverflowException)
             }
         }
     }
@@ -112,7 +112,26 @@ class ProviderStreamCompletionTest {
         try {
             runBlocking { ChatApi(OkHttpClient(), json).chatStream(model, emptyList(), onDelta = {}) }
             fail("JSON fallback must not complete truncated output")
-        } catch (error: IllegalStateException) { assertTrue(error.message.orEmpty().contains("token")) }
+        } catch (error: LlmOutputLimitException) { assertTrue(error.message.orEmpty().contains("token")) }
+    }
+
+    @Test fun `length with partial tool arguments reaches output recovery without returning tools`() = withServer { server, model ->
+        enqueue(server, """{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call1","type":"function","function":{"name":"base","arguments":"{\"command\":\"echo"}}]},"finish_reason":"length"}]}""", "[DONE]")
+        val error = runCatching {
+            runBlocking { ChatApi(OkHttpClient(), json).chatStream(model, emptyList(), onDelta = {}) }
+        }.exceptionOrNull()
+        assertTrue(error is LlmOutputLimitException)
+    }
+
+    @Test fun `anthropic max tokens is classified as recoverable output truncation`() = withServer { server, model ->
+        enqueue(server,
+            """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"partial"}}""",
+            """{"type":"message_delta","delta":{"stop_reason":"max_tokens"}}""",
+            """{"type":"message_stop"}""")
+        val error = runCatching {
+            runBlocking { AnthropicApi(OkHttpClient(), json).chatStream(model, emptyList(), onDelta = {}) }
+        }.exceptionOrNull()
+        assertTrue(error is LlmOutputLimitException)
     }
 
     @Test fun `output budget refuses exhausted windows instead of silently requesting one token`() {
