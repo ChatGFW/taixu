@@ -333,6 +333,10 @@ PyPI 提供 `info.version` + `urls[].digests.sha256`，同样可固定可校验�
 - `:harness:testDebugUnitTest --tests "*LocalMcpProtocolTest*"` ✅
 - `:tools:compileDebugKotlin` / `:harness:compileDebugKotlin` / `:feature:settings:compileDebugKotlin` ✅
 - `architectureCheck` ✅ — **33 个模块 · 依赖白名单 / 无环 / import 黑名单 / 尺寸棘轮 全部通过**
-- `setup_mcp_catalog.sh` 通过 `sh -n`；脚本**离线验证 14 个场景全绿**（stub npm 拦联网 + 真实 node 跑 `resolve_entry`）：校验和一致 / 不一致、裸包名与 `@latest` 被拒、probe 通过 / 入口被改坏被拒 / 版本错配被拒、run 参数透传、check 已装与上游、check 镜像不可达、upgrade 真实升版并重写标记、upgrade 已最新则跳过、run 升级后拉到新版本、run/probe 未安装、非法 id 拒绝、未知操作拒绝
+- `setup_mcp_catalog.sh` 通过 `sh -n`；**`scripts/tests/test_mcp_catalog_runtime.py` 12 例全绿**（`python -m unittest discover -s scripts/tests`）——真实 Node + stub npm，全程不触网：
+  - 探针 / 启动：正常安装可 probe 与 run（参数含空格也原样透传）、包被删后陈旧标记不放行、版本错配与入口缺失被拒、包被替换与 `../` 越界入口被拒
+  - 安装：`@latest` / `@*` / 裸包名 / `@next` 全部被固定版本守卫拒绝、校验和不匹配时中止且**不动落位标记**、成功后 `SPEC`/`VERSION`/`INTEGRITY` 三者写入标记
+  - 检查更新：输出 `INSTALLED` × `LATEST`；镜像不可达时仍先输出 `INSTALLED` 再给 `ERROR`（不让整条状态丢失）
+  - 升级：重写标记为新版本、升级后 `run` 立即拉到新版本（版本确实来自标记而非代码）、已最新则跳过、镜像不可达时保留旧标记并以非零码退出
 
 **顺带收敛的存量违规**：工作区里另有 6 个文件此前已超棘轮基线（`harness/mcp/McpStdioTransport.kt` 与 `feature/chat` 的 5 个），它们挂在 `app:preBuild → architectureCheck` 上会让整个构建失败。本轮按「缩减而非放宽」处理，**未修改 `.architecture-baseline.json` 的任何数值**：`ChatToolCards` 632≤633、`ChatDialogs` 882≤887、`ContextUsageDialog` 399≤400、`ChatWorkbenchPanels` 1490≤1494、`ChatComposer` 618≤618、`McpStdioTransport` 419≤420。清理内容是主题重构（硬编码色值 → `semanticColors()`）留下的未使用 import 残渣与游离空行——本就是该做的事。

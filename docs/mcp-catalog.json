@@ -42,7 +42,7 @@
       ":tools / :harness / :feature:settings compileDebugKotlin 通过",
       ":harness:testDebugUnitTest --tests *LocalMcpProtocolTest* 通过",
       "architectureCheck 通过：33 个模块 · 依赖白名单/无环/import 黑名单/尺寸棘轮全部通过（含顺带收敛的 6 个存量超基线文件，未放宽任何基线数值）",
-      "setup_mcp_catalog.sh 通过 sh -n；离线 14 场景全绿（校验和一致/不一致、固定版本守卫拒裸包名与 @latest、probe 真校验、check 已装与上游与镜像不可达、upgrade 真实升版并重写标记、run 参数透传与升级后拉新版）"
+      "setup_mcp_catalog.sh 通过 sh -n；scripts/tests/test_mcp_catalog_runtime.py 12 例全绿（真实 Node + stub npm，全程不触网）：探针/启动 4 例、install 固定版本守卫与校验和门槛与标记写回 3 例、check 已装×上游与镜像不可达 2 例、upgrade 标记重写与升级后 run 拉到新版本与已最新跳过与镜像不可达 4 例"
     ],
     "updateMechanism": {
       "doc": "MCP_CATALOG.md#104-检查更新--一键升级本轮补齐",
