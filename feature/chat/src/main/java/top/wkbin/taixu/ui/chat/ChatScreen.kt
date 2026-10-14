@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
@@ -69,7 +68,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.chat.R
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -83,11 +81,10 @@ import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.MainDestination
-import top.wkbin.taixu.ui.components.RuntimeBottomBar
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.ui.components.liquidGlassContent
-import top.wkbin.taixu.ui.theme.LocalLiquidGlassBackdrop
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.lazy.LazyListState
 import top.wkbin.taixu.core.model.QuickPhrase
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
@@ -105,12 +102,6 @@ import top.wkbin.taixu.harness.checkpoint.RewindScope
 import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.runtime.DistributionCatalog
 
-// 悬浮玻璃底栏实际占高 = 上下 8dp padding + 64dp 条体 = 80dp，留 2dp 微缝防贴死
-private val AgentBottomBarHeight = 82.dp
-
-// 浏览器 URL 栏贴合版：与底栏总占位一致（8 + 64 + 8 = 80dp），零缝隙直接贴在底栏上方
-private val BrowserBottomBarHeight = 80.dp
-
 /** 会改动工作区文件的工具：这些工具执行后「仓库」入口按需高亮提示新改动 */
 private val REPOSITORY_HIGHLIGHT_TOOLS = setOf(
     HarnessTool.WRITE,
@@ -120,16 +111,16 @@ private val REPOSITORY_HIGHLIGHT_TOOLS = setOf(
 )
 
 @Composable
-private fun chatBottomInsets(bottomBarHeight: Dp): WindowInsets {
-    val bottomBarInsets = WindowInsets.navigationBars.add(WindowInsets(bottom = bottomBarHeight))
-    return bottomBarInsets.union(WindowInsets.ime)
-}
+private fun chatBottomInsets(): WindowInsets = WindowInsets.navigationBars.union(WindowInsets.ime)
 
 /** 太墟 · 智枢对话界面 (TaiXu Agent)：智能结对编程、工具自动化调用与代码生成 */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     onNavigate: (MainDestination) -> Unit,
+    onOpenNavigation: () -> Unit,
+    onNewSession: () -> Unit,
+    onInstallMcp: () -> Unit = {},
     onOpenFile: ((projectName: String, relativePath: String) -> Unit)? = null,
     terminalPane: (@Composable (project: String) -> Unit)? = null,
     browserPane: (@Composable (onExit: (() -> Unit)?) -> Unit)? = null,
@@ -149,7 +140,7 @@ fun ChatScreen(
     val thinkingAutoTranslate by viewModel.thinkingAutoTranslate.collectAsStateWithLifecycle()
     val chatRoundCollapse by viewModel.chatRoundCollapse.collectAsStateWithLifecycle()
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
-    val workspaces by viewModel.workspaces.collectAsStateWithLifecycle()
+    val workspaceCatalog by viewModel.workspaceCatalog.collectAsStateWithLifecycle(); val workspaces = workspaceCatalog.projects
     val models by viewModel.models.collectAsStateWithLifecycle()
     val providerModelIds by viewModel.providerModelIds.collectAsStateWithLifecycle()
     val discoveringProviderModels by viewModel.discoveringProviderModels.collectAsStateWithLifecycle()
@@ -191,8 +182,6 @@ fun ChatScreen(
     val subagentResult by viewModel.subagentResult.collectAsStateWithLifecycle()
 
     // 弹窗开关与编辑目标：用 rememberSaveable 保存，旋转 / 进程重建后不丢失
-    var showSessions by rememberSaveable { mutableStateOf(false) }
-    var showNewSession by rememberSaveable { mutableStateOf(false) }
     var showModels by rememberSaveable { mutableStateOf(false) }
     var showApprovalModes by rememberSaveable { mutableStateOf(false) }
     var showRunModes by rememberSaveable { mutableStateOf(false) }
@@ -382,13 +371,13 @@ fun ChatScreen(
     // 模型·权限·主线·轮次 工具条：单栏浏览器分页模式下随对话页一起滑走（浏览器页全屏），
     // 双栏/纯对话模式固定在顶部。提出为局部 lambda 避免三处重复传参。
     // onOpenBrowser 非空时工具条末尾追加"浏览器"入口（agent 有新动态时高亮）。
-    // onOpenRepository 非空即追加"仓库"入口（Git 分支管理）；未绑定项目时点击给提示而非隐藏。
     val noProjectHint = stringResource(R.string.chat_repository_no_project)
     var toolchainGap by remember { mutableStateOf(false) }; var showToolchainPanel by remember { mutableStateOf(false) }
 
     val chatTopBar: @Composable (onOpenBrowser: (() -> Unit)?, browserHighlight: Boolean) -> Unit =
         { onOpenBrowser, browserHighlight ->
             ChatTopBar(
+                title = sessions.firstOrNull { it.id == currentSessionId }?.title.orEmpty(),
                 workspace = workspace,
                 distroDisplayName = distroDisplayName,
                 activeModel = activeModel,
@@ -398,7 +387,7 @@ fun ChatScreen(
                 runtimeEvents = runtimeEvents,
                 running = running,
                 onShowFloatingPermissionDialog = { showFloatingPermissionDialog = true },
-                onOpenSessions = { showSessions = true },
+                onOpenSessions = onOpenNavigation, onNewSession = onNewSession,
                 onOpenModels = { showModels = true },
                 onOpenApprovalModes = { showApprovalModes = true },
                 onOpenRunModes = { showRunModes = true },
@@ -441,7 +430,7 @@ fun ChatScreen(
                     .distinct()
             }
 
-            val bottomInsets = chatBottomInsets(AgentBottomBarHeight)
+            val bottomInsets = chatBottomInsets()
 
             // 对话主内容：双栏左栏与单栏整页共用（仅 modifier 不同）
             val chatContent: @Composable (Modifier) -> Unit = { paneModifier ->
@@ -497,12 +486,14 @@ fun ChatScreen(
                     onResolveQuestion = viewModel::resolveQuestion,
                     contextUsage = contextUsage,
                     activeModel = activeModel,
+                    onOpenModels = { showModels = true },
                     onUpdateReasoning = viewModel::updateActiveModelReasoning,
                     quickPhrases = quickPhrases,
                     onSelectPhrase = viewModel::applyQuickPhrase,
                     activeCompaction = activeCompaction,
                     mcpRecommendations = mcpRecommendations,
                     onEnableMcpRecommendation = viewModel::enableMcpRecommendation,
+                    onInstallMcpRecommendation = onInstallMcp,
                     onDismissMcpRecommendation = viewModel::dismissMcpRecommendation,
                     workflowSuggestions = workflowSuggestions,
                     onLaunchWorkflowSuggestion = viewModel::launchWorkflowSuggestion,
@@ -639,7 +630,7 @@ fun ChatScreen(
                                 Modifier
                                     .fillMaxSize()
                                     .statusBarsPadding()
-                                    .windowInsetsPadding(chatBottomInsets(BrowserBottomBarHeight))
+                                    .windowInsetsPadding(chatBottomInsets())
                             ) {
                                 browserPane(
                                     {
@@ -663,11 +654,6 @@ fun ChatScreen(
                 }
             }
 
-            if (LocalLiquidGlassBackdrop.current == null) {
-                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
-                    RuntimeBottomBar(MainDestination.Agent, onNavigate)
-                }
-            }
         }
     }
 
@@ -719,52 +705,6 @@ fun ChatScreen(
                 ) {
                     Text(stringResource(R.string.chat_floating_permission_cancel))
                 }
-            },
-        )
-    }
-
-    SessionsSideDrawer(
-        visible = showSessions,
-        sessions = sessions,
-        currentSessionId = currentSessionId,
-        workspaces = workspaces,
-        sessionRunStates = sessionRunStates,
-        onDismiss = { showSessions = false },
-        onSwitch = { id ->
-            viewModel.switchSession(id)
-            showSessions = false
-        },
-        onNew = {
-            showSessions = false
-            showNewSession = true
-        },
-        onCreateInWorkspace = { ws ->
-            showSessions = false
-            viewModel.createSession(
-                title = "",
-                workspace = ws.linuxPath,
-                projectType = ws.projectType.name,
-            )
-        },
-        onDelete = viewModel::deleteSession,
-        onRename = viewModel::renameSession,
-        onOpenSkills = {
-            showSessions = false
-            showSkillsMcpSheet = true
-        },
-        onOpenRuntime = {
-            showSessions = false
-            showRuntimeTimeline = true
-        },
-    )
-
-    if (showNewSession) {
-        NewSessionDialog(
-            workspaces = workspaces,
-            onDismiss = { showNewSession = false },
-            onCreate = { title, selected, selectedType ->
-                showNewSession = false
-                viewModel.createSession(title = title, workspace = selected, projectType = selectedType.name)
             },
         )
     }
@@ -971,12 +911,14 @@ private fun ChatPaneContent(
     onOpenSkillsMcp: () -> Unit = {},
     onUnpinMention: (String) -> Unit = {},
     activeModel: AiModelEntity? = null,
+    onOpenModels: () -> Unit,
     onUpdateReasoning: (mode: String?, effort: String?) -> Unit = { _, _ -> },
     pendingApprovals: List<AgentApprovalRequestEntity> = emptyList(),
     activePlan: AgentPlanEntity? = null,
     activeCompaction: CompactionSnapshot? = null,
     mcpRecommendations: List<McpWorkspaceRecommender.Recommendation> = emptyList(),
     onEnableMcpRecommendation: (String) -> Unit = {},
+    onInstallMcpRecommendation: () -> Unit = {},
     onDismissMcpRecommendation: (String) -> Unit = {},
     workflowSuggestions: List<ProactiveWorkflowSuggestion> = emptyList(),
     onLaunchWorkflowSuggestion: (ProactiveWorkflowSuggestion) -> Unit = {},
@@ -993,7 +935,8 @@ private fun ChatPaneContent(
     onApplySkillSuggestion: (SkillSuggestion, Boolean) -> Unit = { _, _ -> },
     onDismissSkillSuggestion: (String) -> Unit = {},
 ) {
-    Column(modifier = modifier) {
+    Box(modifier = modifier, contentAlignment = Alignment.TopCenter) {
+    Column(modifier = Modifier.widthIn(max = 840.dp).fillMaxSize()) {
         ChatMessageList(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             listState = listState,
@@ -1078,6 +1021,7 @@ private fun ChatPaneContent(
         McpRecommendationBanner(
             recommendations = mcpRecommendations,
             onEnable = onEnableMcpRecommendation,
+            onInstall = onInstallMcpRecommendation,
             onDismiss = onDismissMcpRecommendation,
         )
 
@@ -1120,52 +1064,11 @@ private fun ChatPaneContent(
             onUnpinMention = onUnpinMention,
             onOpenSkillsMcp = onOpenSkillsMcp,
             activeModel = activeModel,
+            onOpenModels = onOpenModels,
             onUpdateReasoning = onUpdateReasoning,
             contextUsage = contextUsage,
         )
     }
-}
-
-/** 工作区感知的 MCP 预设推荐横幅：每条推荐展示启用理由，可一键启用或忽略。 */
-@Composable
-private fun McpRecommendationBanner(
-    recommendations: List<McpWorkspaceRecommender.Recommendation>,
-    onEnable: (String) -> Unit,
-    onDismiss: (String) -> Unit,
-) {
-    if (recommendations.isEmpty()) return
-    recommendations.forEach { recommendation ->
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            shape = RoundedCornerShape(10.dp),
-            color = MaterialTheme.colorScheme.secondaryContainer,
-        ) {
-            Row(
-                Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        recommendation.presetName,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                    Text(
-                        recommendation.reason,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                TextButton(onClick = { onEnable(recommendation.presetId) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)) {
-                    Text(stringResource(R.string.chat_enable), color = MaterialTheme.colorScheme.onSecondaryContainer, maxLines = 1)
-                }
-                TextButton(onClick = { onDismiss(recommendation.presetId) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)) {
-                    Text(stringResource(R.string.chat_ignore), color = MaterialTheme.colorScheme.onSecondaryContainer, maxLines = 1)
-                }
-            }
-        }
     }
 }
 

@@ -2,168 +2,104 @@ package top.wkbin.taixu.ui.chat
 
 import android.app.Activity
 import android.provider.Settings
-import top.wkbin.taixu.ui.chat.floating.FloatingChatService
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import top.wkbin.taixu.ui.components.TaiXuBrandBadge
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import top.wkbin.taixu.feature.chat.R
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.RunMode
-import top.wkbin.taixu.harness.session.ConversationBranch
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.events.HarnessEvent
+import top.wkbin.taixu.harness.session.ConversationBranch
+import top.wkbin.taixu.ui.chat.floating.FloatingChatService
+import top.wkbin.taixu.ui.components.*
 
-/**
- * 顶部栏：品牌标题/工作区状态行 + 工作台工具条（模型·审批·分支·运行）。
- */
+/** Conversation and model lead; advanced controls unfold on demand. */
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 internal fun ChatTopBar(
-    workspace: String,
-    distroDisplayName: String,
-    activeModel: AiModelEntity?,
-    approvalMode: ApprovalMode,
-    runMode: RunMode,
-    currentBranch: ConversationBranch?,
-    runtimeEvents: List<HarnessEvent>,
-    running: Boolean,
-    onShowFloatingPermissionDialog: () -> Unit,
-    onOpenSessions: () -> Unit,
-    onOpenModels: () -> Unit,
-    onOpenApprovalModes: () -> Unit,
-    onOpenRunModes: () -> Unit,
-    onOpenBranches: () -> Unit,
-    onOpenRuntime: () -> Unit,
-    onOpenBrowser: (() -> Unit)? = null,
-    browserHighlight: Boolean = false,
-    onOpenRepository: (() -> Unit)? = null,
-    repositoryHighlight: Boolean = false,
-    toolchainHighlight: Boolean = false,
-    onOpenToolchain: () -> Unit,
+    title: String, workspace: String, distroDisplayName: String, activeModel: AiModelEntity?,
+    approvalMode: ApprovalMode, runMode: RunMode, currentBranch: ConversationBranch?,
+    runtimeEvents: List<HarnessEvent>, running: Boolean, onShowFloatingPermissionDialog: () -> Unit,
+    onOpenSessions: () -> Unit, onNewSession: () -> Unit, onOpenModels: () -> Unit,
+    onOpenApprovalModes: () -> Unit, onOpenRunModes: () -> Unit, onOpenBranches: () -> Unit,
+    onOpenRuntime: () -> Unit, onOpenBrowser: (() -> Unit)? = null, browserHighlight: Boolean = false,
+    onOpenRepository: (() -> Unit)? = null, repositoryHighlight: Boolean = false,
+    toolchainHighlight: Boolean = false, onOpenToolchain: () -> Unit,
 ) {
     val context = LocalContext.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding(),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        // 第 1 行：品牌 Badge + 标题/工作区 + 右侧模型胶囊与操作按钮
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 14.dp, end = 12.dp, top = 6.dp, bottom = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            // 左侧：品牌 Badge + 标题/状态（点击可快速唤出左侧会话抽屉）
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(onClick = onOpenSessions)
-                    .padding(vertical = 2.dp, horizontal = 4.dp),
-            ) {
-                TaiXuBrandBadge(28.dp)
-                Column {
-                    Text(
-                        text = stringResource(R.string.chat_title),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp,
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.chat_status,
-                            if (workspace.isNotBlank()) workspace else stringResource(R.string.chat_default_workspace),
-                            distroDisplayName,
-                        ),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val model = activeModel?.let { it.model.substringBefore(',').trim().ifBlank { it.name } }
+        ?: stringResource(R.string.chat_no_model_selected)
+    Column(Modifier.fillMaxWidth().statusBarsPadding()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            RuntimeIconButton(onClick = onOpenSessions, contentDescription = stringResource(R.string.chat_open_session_list)) {
+                RuntimeIcon(RuntimeIconName.List, Modifier.size(22.dp))
+            }
+            Column(Modifier.weight(1f).clickable(onClick = onOpenModels).heightIn(min = 48.dp),
+                verticalArrangement = Arrangement.Center) {
+                Text(title.ifBlank { stringResource(R.string.chat_title) }, style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("$model ▾", Modifier.weight(1f, fill = false),
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (runMode == RunMode.PLAN) Text(stringResource(R.string.chat_run_mode_plan),
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary, maxLines = 1)
                 }
             }
-
-            // 右侧：小窗 + 会话抽屉
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                // 🌟 1. 智枢悬浮小窗收起按钮 (Collapse to Floating Window)
-                IconButton(
-                    onClick = {
-                        if (Settings.canDrawOverlays(context)) {
-                            FloatingChatService.start(context)
-                            (context as? Activity)?.moveTaskToBack(true)
-                        } else {
-                            onShowFloatingPermissionDialog()
-                        }
-                    },
-                    contentDescription = stringResource(R.string.chat_floating_collapse),
-                ) {
-                    RuntimeIcon(RuntimeIconName.OpenInNew, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
+            if (approvalMode == ApprovalMode.FULL_ACCESS) {
+                RuntimeIconButton(onClick = onOpenApprovalModes, contentDescription = stringResource(R.string.chat_approval_full_access)) {
+                    RuntimeIcon(RuntimeIconName.Shield, Modifier.size(20.dp), MaterialTheme.colorScheme.error)
                 }
-
-                // 🌟 2. 会话抽屉/列表（内部包含「新建会话」功能）
-                IconButton(
-                    onClick = onOpenSessions,
-                    contentDescription = stringResource(R.string.chat_open_session_list),
-                ) {
-                    RuntimeIcon(RuntimeIconName.List, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            RuntimeIconButton(onClick = onNewSession, contentDescription = stringResource(R.string.chat_drawer_new_task)) {
+                RuntimeIcon(RuntimeIconName.Edit, Modifier.size(22.dp))
+            }
+            RuntimeIconButton(onClick = { expanded = true }, contentDescription = stringResource(R.string.chat_workbench_controls)) {
+                RuntimeIcon(RuntimeIconName.More, Modifier.size(22.dp),
+                    if (toolchainHighlight || repositoryHighlight || browserHighlight) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+    if (expanded) {
+        val closeThen: (() -> Unit) -> () -> Unit = { action -> { expanded = false; action() } }
+        PlainBackdropModalBottomSheet(onDismissRequest = { expanded = false }) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.chat_workbench_controls), Modifier.padding(horizontal = 24.dp),
+                    style = MaterialTheme.typography.titleMedium)
+                ChatWorkspaceBar(workspace, distroDisplayName, approvalMode, runMode,
+                    onOpenWorkspace = closeThen(onOpenSessions), onOpenApproval = closeThen(onOpenApprovalModes),
+                    onOpenBrowser = onOpenBrowser?.let(closeThen), browserHighlight = browserHighlight,
+                    onOpenRepository = onOpenRepository?.let(closeThen), repositoryHighlight = repositoryHighlight)
+                ChatWorkbenchControls(approvalMode, runMode, currentBranch, runtimeEvents, running,
+                    closeThen(onOpenApprovalModes), closeThen(onOpenRunModes), closeThen(onOpenBranches),
+                    closeThen(onOpenRuntime), closeThen(onOpenToolchain), toolchainHighlight)
+                RuntimeTextButton(modifier = Modifier.padding(horizontal = 16.dp), onClick = {
+                    expanded = false
+                    if (Settings.canDrawOverlays(context)) {
+                        FloatingChatService.start(context); (context as? Activity)?.moveTaskToBack(true)
+                    } else onShowFloatingPermissionDialog()
+                }) {
+                    Text(stringResource(R.string.chat_floating_collapse))
                 }
             }
         }
-
-        // 第 2 行：全屏极薄无边框矩形 Dev Toolbar (模型 · 审批 · 分支 · 运行)
-        CollapsibleChatWorkbenchStrip(
-            activeModel = activeModel,
-            approvalMode = approvalMode,
-            runMode = runMode,
-            currentBranch = currentBranch,
-            runtimeEvents = runtimeEvents,
-            running = running,
-            onOpenModels = onOpenModels,
-            onOpenApprovalModes = onOpenApprovalModes,
-            onOpenRunModes = onOpenRunModes,
-            onOpenBranches = onOpenBranches,
-            onOpenRuntime = onOpenRuntime,
-            onOpenBrowser = onOpenBrowser,
-            browserHighlight = browserHighlight,
-            onOpenRepository = onOpenRepository,
-            repositoryHighlight = repositoryHighlight,
-            toolchainHighlight = toolchainHighlight,
-            onOpenToolchain = onOpenToolchain,
-        )
     }
 }

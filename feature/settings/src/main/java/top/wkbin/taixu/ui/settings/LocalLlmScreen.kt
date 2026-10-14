@@ -52,7 +52,7 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 
 @Composable
-fun LocalLlmScreen(
+internal fun LocalLlmContent(
     onBack: () -> Unit,
     onOpenEngine: () -> Unit,
     viewModel: LocalLlmViewModel = koinViewModel(),

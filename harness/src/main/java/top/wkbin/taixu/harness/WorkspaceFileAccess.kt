@@ -9,6 +9,9 @@ import java.io.File
 import java.nio.file.Files
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
+import top.wkbin.taixu.runtime.environment.*
+import top.wkbin.taixu.harness.environment.fingerprintLocalFile
 
 data class WorkspaceEntry(
     val name: String,
@@ -29,6 +32,29 @@ class WorkspaceFileAccess(
     private val globalRootCanonical: File? = null,
 ) : WorkspaceToolOperations {
     private val rootCanonical: File = root.absoluteFile.canonicalFile
+
+    override suspend fun fingerprint(path: String, maxBytes: Long): AppResult<FileFingerprint> = withContext(Dispatchers.IO) {
+        try { AppResult.Success(fingerprintLocalFile(resolveRequired(path), maxBytes)) }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (throwable: Exception) { failure(path, throwable) }
+    }
+
+    override suspend fun listArtifactEntries(path: String): AppResult<List<ExecutionFileEntry>> = withContext(Dispatchers.IO) {
+        try {
+            val directory = resolve(path) ?: error("目录越界")
+            if (!directory.exists()) return@withContext AppResult.Success(emptyList())
+            check(directory.isDirectory) { "不是目录" }
+            val entries = Files.newDirectoryStream(directory.toPath()).use { stream ->
+                stream.asSequence().map { file ->
+                    check(isInside(rootCanonical, file.toFile().canonicalFile)) { "产物目录存在越界链接" }
+                    ExecutionFileEntry(file.fileName.toString(), Files.isDirectory(file), Files.size(file), Files.getLastModifiedTime(file).toMillis())
+                }.take(MAX_LIST_ENTRIES + 1).toList()
+            }
+            check(entries.size <= MAX_LIST_ENTRIES) { "产物目录枚举不完整" }
+            AppResult.Success(entries.sortedBy { it.name })
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (throwable: Exception) { failure(path, throwable) }
+    }
 
     suspend fun list(path: String): AppResult<List<WorkspaceEntry>> = withContext(Dispatchers.IO) {
         try {

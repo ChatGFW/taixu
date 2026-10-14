@@ -8,7 +8,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -48,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -62,15 +60,13 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.database.AgentMemoryEntity
 import top.wkbin.taixu.core.database.AgentScratchpadEntity
-import top.wkbin.taixu.core.database.AiModelEntity
-import top.wkbin.taixu.core.model.ApprovalMode
-import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.QueuedPrompt
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.CapabilityEvent
 import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.SkillSuggestion
+import top.wkbin.taixu.harness.TaskDelivery
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
@@ -81,6 +77,7 @@ import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.harness.session.ConversationBranchKind
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import android.content.ClipData
@@ -88,133 +85,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import top.wkbin.taixu.ui.components.RuntimeIconButton
-
-@Composable
-internal fun CollapsibleChatWorkbenchStrip(
-    activeModel: AiModelEntity?,
-    approvalMode: ApprovalMode,
-    runMode: RunMode,
-    currentBranch: ConversationBranch?,
-    runtimeEvents: List<HarnessEvent>,
-    running: Boolean,
-    onOpenModels: () -> Unit,
-    onOpenApprovalModes: () -> Unit,
-    onOpenRunModes: () -> Unit,
-    onOpenBranches: () -> Unit,
-    onOpenRuntime: () -> Unit,
-    modifier: Modifier = Modifier,
-    onOpenBrowser: (() -> Unit)? = null,
-    browserHighlight: Boolean = false,
-    onOpenRepository: (() -> Unit)? = null,
-    repositoryHighlight: Boolean = false,
-    toolchainHighlight: Boolean = false, onOpenToolchain: () -> Unit,
-) {
-    val roundCount = runtimeEvents.count { it is HarnessEvent.ProviderRoundStarted }
-    val activeModelName = activeModel?.let { entity ->
-        entity.model.split(",").firstOrNull()?.trim().takeUnless { it.isNullOrBlank() } ?: entity.name
-    } ?: stringResource(R.string.chat_no_model_selected)
-
-    val (modeLabelRes, modeColor) = when (approvalMode) {
-        ApprovalMode.FULL_ACCESS -> R.string.chat_approval_full_access to Color(0xFFE65100)
-        ApprovalMode.ASSISTED -> R.string.chat_approval_assisted to Color(0xFF1976D2)
-        ApprovalMode.REQUEST -> R.string.chat_approval_request to Color(0xFF388E3C)
-    }
-
-    val (runModeLabelRes, runModeColor) = when (runMode) {
-        RunMode.BUILD -> R.string.chat_run_mode_build to Color(0xFF546E7A)
-        // 规划模式用紫色以区别于审批模式的三色，并提示"当前只看不动"
-        RunMode.PLAN -> R.string.chat_run_mode_plan to Color(0xFF7B1FA2)
-    }
-
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.65f),
-        shape = RectangleShape,
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 1.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.Start),
-        ) {
-            // 1. 模型选择项
-            WorkbenchStatusItem(
-                icon = RuntimeIconName.Brain,
-                label = activeModelName,
-                tint = MaterialTheme.colorScheme.primary,
-                onClick = onOpenModels,
-            )
-
-            StatusDivider()
-            // 2. 审批模式/权重项
-            WorkbenchStatusItem(
-                icon = RuntimeIconName.Shield,
-                label = stringResource(modeLabelRes),
-                tint = modeColor,
-                onClick = onOpenApprovalModes,
-            )
-
-            StatusDivider()
-            // 2b. 运行意图项（构建 / 规划），与审批模式正交
-            WorkbenchStatusItem(
-                icon = runModeIcon(runMode),
-                label = stringResource(runModeLabelRes),
-                tint = runModeColor,
-                onClick = onOpenRunModes,
-            )
-
-            StatusDivider()
-            // 3. 分支状态项
-            WorkbenchStatusItem(
-                icon = RuntimeIconName.Hub,
-                label = currentBranch?.name ?: stringResource(R.string.chat_main_line),
-                tint = MaterialTheme.colorScheme.primary,
-                onClick = onOpenBranches,
-            )
-
-            StatusDivider()
-            // 4. 运行时/轮次状态项
-            WorkbenchStatusItem(
-                icon = RuntimeIconName.Logs,
-                label = if (roundCount > 0) {
-                    stringResource(R.string.chat_round_number, roundCount)
-                } else {
-                    stringResource(R.string.chat_event_count, runtimeEvents.size)
-                },
-                tint = if (running) Color(0xFF7C4DFF) else MaterialTheme.colorScheme.tertiary,
-                highlight = running,
-                onClick = onOpenRuntime,
-            )
-
-            // 5. Git 仓库/分支管理入口（参考 MGit）：提交树/分支/推送拉取；agent 写文件后高亮
-            if (onOpenRepository != null) {
-                StatusDivider()
-                WorkbenchStatusItem(
-                    icon = RuntimeIconName.GitBranch,
-                    label = if (repositoryHighlight) "仓库 •" else stringResource(R.string.chat_repository),
-                    tint = if (repositoryHighlight) Color(0xFF2E9E5B) else MaterialTheme.colorScheme.onSurfaceVariant,
-                    highlight = repositoryHighlight,
-                    onClick = onOpenRepository,
-                )
-            }
-
-            // 6. 浏览器入口（轮次之后）：agent 在浏览器产生新动态时高亮提示
-            if (onOpenBrowser != null) {
-                StatusDivider()
-                WorkbenchStatusItem(
-                    icon = RuntimeIconName.Globe,
-                    label = if (browserHighlight) "浏览器 •" else "浏览器",
-                    tint = if (browserHighlight) Color(0xFF3F8FFF) else MaterialTheme.colorScheme.onSurfaceVariant,
-                    highlight = browserHighlight,
-                    onClick = onOpenBrowser,
-                )
-            }
-            ToolchainStripEntry(toolchainHighlight = toolchainHighlight, onOpenToolchain = onOpenToolchain)
-        }
-    }
-}
 
 @Composable
 internal fun StatusDivider() {
@@ -361,7 +231,7 @@ private fun SectionLabel(title: String, count: Int) {
 private fun BranchCard(branch: ConversationBranch, enabled: Boolean, onClick: () -> Unit) {
     val tint = when (branch.kind) {
         ConversationBranchKind.MAIN -> MaterialTheme.colorScheme.primary
-        ConversationBranchKind.BRANCH -> Color(0xFF7C4DFF)
+        ConversationBranchKind.BRANCH -> semanticColors().agent
         ConversationBranchKind.SUBAGENT -> MaterialTheme.colorScheme.tertiary
         ConversationBranchKind.HISTORY -> MaterialTheme.colorScheme.secondary
     }
@@ -386,7 +256,7 @@ private fun BranchCard(branch: ConversationBranch, enabled: Boolean, onClick: ()
                         overflow = TextOverflow.Ellipsis,
                     )
                     if (branch.isCurrent) MiniBadge(stringResource(R.string.chat_badge_current), tint)
-                    if (branch.isBusy) MiniBadge(stringResource(R.string.chat_badge_busy), Color(0xFF7C4DFF))
+                    if (branch.isBusy) MiniBadge(stringResource(R.string.chat_badge_busy), semanticColors().agent)
                     if (branch.faulted) MiniBadge(stringResource(R.string.chat_badge_faulted), MaterialTheme.colorScheme.error)
                 }
                 Text(
@@ -475,7 +345,7 @@ internal fun SubagentResultSheet(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    if (branch.isBusy) MiniBadge(stringResource(R.string.chat_badge_busy), Color(0xFF7C4DFF))
+                    if (branch.isBusy) MiniBadge(stringResource(R.string.chat_badge_busy), semanticColors().agent)
                     if (branch.faulted) MiniBadge(stringResource(R.string.chat_badge_faulted), MaterialTheme.colorScheme.error)
                 }
             }
@@ -605,7 +475,7 @@ internal fun SubagentResultSheet(
                                 liveStatus = null,
                             )
                             is CapabilityEvent -> Unit
-                            is SkillSuggestion -> Unit
+                            is SkillSuggestion, is TaskDelivery -> Unit
                             is ModelSwitchEvent -> Unit
                             is ToolResult -> Unit
                         }
@@ -825,7 +695,7 @@ internal fun RuntimeTimelineSheet(
                     ) {
                         StatPill(RuntimeIconName.Brain, roundCount.toString(), MaterialTheme.colorScheme.primary, Modifier.weight(1f))
                         StatPill(RuntimeIconName.Wrench, toolCount.toString(), MaterialTheme.colorScheme.tertiary, Modifier.weight(1f))
-                        StatPill(RuntimeIconName.Shield, approvalCount.toString(), Color(0xFFB25E00), Modifier.weight(1f))
+                        StatPill(RuntimeIconName.Shield, approvalCount.toString(), semanticColors().warning, Modifier.weight(1f))
                         StatPill(RuntimeIconName.Refresh, recoveryCount.toString(), MaterialTheme.colorScheme.secondary, Modifier.weight(1f))
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
@@ -1141,8 +1011,8 @@ private fun RoundEntryRow(entry: TimelineEntry, isLast: Boolean) {
     var expanded by rememberSaveable { mutableStateOf(false) }
 
     val visual = when (entry) {
-        is TimelineEntry.Assistant -> Triple(RuntimeIconName.Sparkles, Color(0xFF7C4DFF), stringResource(R.string.chat_tl_model_response))
-        is TimelineEntry.Approval -> Triple(RuntimeIconName.Shield, Color(0xFFB25E00), entry.toolName)
+        is TimelineEntry.Assistant -> Triple(RuntimeIconName.Sparkles, semanticColors().agent, stringResource(R.string.chat_tl_model_response))
+        is TimelineEntry.Approval -> Triple(RuntimeIconName.Shield, semanticColors().warning, entry.toolName)
         is TimelineEntry.Tool -> {
             val settled = entry.settled
             val icon = when {
@@ -1152,7 +1022,7 @@ private fun RoundEntryRow(entry: TimelineEntry, isLast: Boolean) {
             }
             val color = when {
                 settled == null -> MaterialTheme.colorScheme.tertiary
-                settled.success -> Color(0xFF2E7D32)
+                settled.success -> semanticColors().success
                 else -> MaterialTheme.colorScheme.error
             }
             Triple(icon, color, entry.name)
@@ -1388,12 +1258,12 @@ private fun eventVisual(event: HarnessEvent): EventVisual = when (event) {
     )
     is HarnessEvent.OperationFinished -> EventVisual(
         if (event.outcome == "completed") RuntimeIconName.Check else RuntimeIconName.Stop,
-        if (event.outcome == "completed") Color(0xFF2E7D32) else MaterialTheme.colorScheme.error,
+        if (event.outcome == "completed") semanticColors().success else MaterialTheme.colorScheme.error,
         if (event.outcome == "completed") stringResource(R.string.chat_event_operation_completed) else stringResource(R.string.chat_event_operation_ended),
         event.detail ?: event.outcome,
     )
     is HarnessEvent.ProviderRoundStarted -> EventVisual(
-        RuntimeIconName.Brain, Color(0xFF7C4DFF),
+        RuntimeIconName.Brain, semanticColors().agent,
         stringResource(R.string.chat_event_provider_round, event.round + 1),
         buildString {
             append(stringResource(R.string.chat_attempt_count, event.attempt + 1))
@@ -1401,7 +1271,7 @@ private fun eventVisual(event: HarnessEvent): EventVisual = when (event) {
         },
     )
     is HarnessEvent.ProviderRoundSettled -> EventVisual(
-        RuntimeIconName.Sparkles, Color(0xFF7C4DFF),
+        RuntimeIconName.Sparkles, semanticColors().agent,
         stringResource(R.string.chat_event_provider_settled),
         stringResource(R.string.chat_token_usage, event.inputTokens, event.outputTokens),
     )
@@ -1412,14 +1282,14 @@ private fun eventVisual(event: HarnessEvent): EventVisual = when (event) {
     )
     is HarnessEvent.ToolCallSettled -> EventVisual(
         if (event.success) RuntimeIconName.Check else RuntimeIconName.Alert,
-        if (event.success) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error,
+        if (event.success) semanticColors().success else MaterialTheme.colorScheme.error,
         if (event.success) stringResource(R.string.chat_event_tool_completed, event.toolName)
         else stringResource(R.string.chat_event_tool_failed, event.toolName),
         event.durationMs?.let { stringResource(R.string.chat_event_duration, formatPanelDuration(it)) }
             ?: stringResource(R.string.chat_event_settled),
     )
     is HarnessEvent.ApprovalRequested -> EventVisual(
-        RuntimeIconName.Shield, Color(0xFFB25E00),
+        RuntimeIconName.Shield, semanticColors().warning,
         stringResource(R.string.chat_event_approval),
         "${event.toolName} · ${event.riskLevel}",
     )
@@ -1429,7 +1299,7 @@ private fun eventVisual(event: HarnessEvent): EventVisual = when (event) {
         event.detail ?: event.outcome,
     )
     is HarnessEvent.PermissionRequired -> EventVisual(
-        RuntimeIconName.Shield, Color(0xFFB25E00),
+        RuntimeIconName.Shield, semanticColors().warning,
         stringResource(R.string.chat_event_permission_required, event.permission),
         event.reason,
     )
@@ -1441,10 +1311,10 @@ private fun eventVisual(event: HarnessEvent): EventVisual = when (event) {
             else -> RuntimeIconName.Sparkles
         },
         when (event.status) {
-            "COMPLETED" -> Color(0xFF2E7D32)
+            "COMPLETED" -> semanticColors().success
             "FAILED" -> MaterialTheme.colorScheme.error
             "RUNNING" -> MaterialTheme.colorScheme.primary
-            else -> Color(0xFF7C4DFF)
+            else -> semanticColors().agent
         },
         "工序 ${event.stepId} · ${event.title}",
         event.resultSummary ?: "状态: ${event.status}",
@@ -1463,7 +1333,7 @@ internal fun QueuedPromptStack(
     Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         prompts.forEach { prompt ->
             val (label, tint) = when (prompt.queue) {
-                PromptQueue.STEER -> stringResource(R.string.chat_label_steer) to Color(0xFF7C4DFF)
+                PromptQueue.STEER -> stringResource(R.string.chat_label_steer) to semanticColors().agent
                 PromptQueue.FOLLOW_UP -> stringResource(R.string.chat_label_follow_up) to MaterialTheme.colorScheme.tertiary
                 PromptQueue.NEXT_RUN -> stringResource(R.string.chat_label_queued) to MaterialTheme.colorScheme.secondary
             }
@@ -1487,20 +1357,20 @@ internal fun QueuedPromptStack(
                     if (prompt.queue == PromptQueue.NEXT_RUN && onConvertToSteer != null) {
                         Surface(
                             onClick = { onConvertToSteer(prompt) },
-                            color = Color(0xFF7C4DFF).copy(alpha = 0.14f),
+                            color = semanticColors().agent.copy(alpha = 0.14f),
                             shape = RoundedCornerShape(6.dp),
-                            border = BorderStroke(0.8.dp, Color(0xFF7C4DFF).copy(alpha = 0.4f)),
+                            border = BorderStroke(0.8.dp, semanticColors().agent.copy(alpha = 0.4f)),
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
-                                RuntimeIcon(RuntimeIconName.Tune, Modifier.size(11.dp), Color(0xFF7C4DFF))
+                                RuntimeIcon(RuntimeIconName.Tune, Modifier.size(11.dp), semanticColors().agent)
                                 Text(
                                     stringResource(R.string.chat_label_steer),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
-                                    color = Color(0xFF7C4DFF),
+                                    color = semanticColors().agent,
                                 )
                             }
                         }

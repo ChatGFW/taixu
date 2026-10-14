@@ -37,6 +37,7 @@ internal class BundleComponentBatch(
     private val scope: CoroutineScope,
     private val currentDistroId: () -> String,
     private val probeInstalledComponents: suspend () -> Set<String>,
+    private val localAccess: top.wkbin.taixu.runtime.environment.LocalBackendAccess? = null,
 ) {
     fun install(componentIds: Set<String>, reinstall: Boolean): Flow<InstallEvent> = runPipeline(
         componentIds = componentIds,
@@ -108,6 +109,7 @@ internal class BundleComponentBatch(
         successMessage: String,
         failurePrefix: String,
     ): Flow<InstallEvent> = flow {
+        localAccess?.requireLocal()
         if (componentIds.isEmpty()) {
             emit(InstallEvent.Completed("components", "1.0.0"))
             return@flow
@@ -220,6 +222,7 @@ internal class BundleComponentBatch(
         "dpkg --remove" in step -> "正在清理无法完成的可选软件包事务..."
         "dpkg --configure" in step -> "正在恢复未完成的 dpkg 事务..."
         "npm uninstall" in step -> "正在移除 [$compNames] 的全局命令..."
+        "setup_mcp_catalog" in step -> "正在从镜像安装 [$compNames] 的 MCP 能力并核对发布摘要..."
         step.startsWith("rm -rf --") || step.startsWith("rm -f --") -> "正在移除 [$compNames] 的程序文件..."
         "apt-get" in step && " update " in step -> "正在同步软件源并聚合下载全部依赖包..."
         "apt-get" in step && " remove " in step -> "正在卸载 [$compNames] 的独占软件包..."

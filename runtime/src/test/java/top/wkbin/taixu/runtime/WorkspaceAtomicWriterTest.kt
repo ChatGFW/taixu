@@ -44,4 +44,36 @@ class WorkspaceAtomicWriterTest {
         assertEquals("updated", target.readText())
         assertEquals("updated", Files.readString(link))
     }
+
+    @Test fun matchingPreconditionReplacesContent() {
+        val file = temporaryFolder.newFile("notes.md").apply { writeText("disk-v1") }
+        WorkspaceAtomicWriter.write(file, expectedContent = "disk-v1") { it.writeText("disk-v2") }
+        assertEquals("disk-v2", file.readText())
+    }
+
+    @Test fun stalePreconditionRetainsOriginalAndRemovesTemporaryFile() {
+        val file = temporaryFolder.newFile("notes.md").apply { writeText("external-edit") }
+        val result = runCatching {
+            WorkspaceAtomicWriter.write(file, expectedContent = "stale-draft") { it.writeText("overwrite") }
+        }
+        assertTrue(result.exceptionOrNull() is FileWriteConflictException)
+        // 冲突时原文件必须保持外部改动，且临时文件不得残留
+        assertEquals("external-edit", file.readText())
+        assertEquals(listOf("notes.md"), temporaryFolder.root.listFiles()!!.map { it.name })
+    }
+
+    @Test fun preconditionOnMissingFileConflicts() {
+        val file = temporaryFolder.root.resolve("gone.md")
+        val result = runCatching {
+            WorkspaceAtomicWriter.write(file, expectedContent = "draft") { it.writeText("overwrite") }
+        }
+        assertTrue(result.exceptionOrNull() is FileWriteConflictException)
+        assertFalse(file.exists())
+    }
+
+    @Test fun nullPreconditionSkipsVersionCheck() {
+        val file = temporaryFolder.newFile("notes.md").apply { writeText("external-edit") }
+        WorkspaceAtomicWriter.write(file, expectedContent = null) { it.writeText("forced") }
+        assertEquals("forced", file.readText())
+    }
 }

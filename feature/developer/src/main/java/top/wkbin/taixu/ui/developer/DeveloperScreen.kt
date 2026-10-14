@@ -63,7 +63,7 @@ import android.widget.Toast
 import top.wkbin.taixu.runtime.RootfsUpdateInfo
 
 @Composable
-fun DeveloperScreen(
+internal fun LocalDeveloperScreen(
     onBack: () -> Unit,
     onOpenCatalog: () -> Unit = {},
     viewModel: DeveloperViewModel = koinViewModel(),

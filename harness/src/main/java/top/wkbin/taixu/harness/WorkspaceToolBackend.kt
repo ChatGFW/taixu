@@ -7,6 +7,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.harness.core.ToolBackend
 import java.util.Base64
+import java.security.MessageDigest
+import top.wkbin.taixu.runtime.environment.FileFingerprint
 
 data class WorkspaceToolRequest(
     val tool: HarnessTool,
@@ -33,7 +35,7 @@ class WorkspaceToolBackend(
         val operations = environments?.environment(request.sessionId, request.workspace)?.files ?: operationsFor(request.workspace)
         val path = JsonArgs.requireString(request.args, "path")
         val outcome = when (request.tool) {
-            HarnessTool.READ -> read(operations, path, request.args)
+            HarnessTool.READ -> read(operations, path, request.args, request.workspace)
             HarnessTool.WRITE -> {
                 val content = JsonArgs.requireString(request.args, "content")
                 snapshots.before(request.sessionId, operations, path)
@@ -65,7 +67,7 @@ class WorkspaceToolBackend(
         return outcome
     }
 
-    private suspend fun read(operations: WorkspaceToolOperations, path: String, args: JsonObject): WorkspaceToolOutcome {
+    private suspend fun read(operations: WorkspaceToolOperations, path: String, args: JsonObject, workspace: String): WorkspaceToolOutcome {
         val mime = imageMime(path)
         if (mime == null) {
             val offset = args["offset"]?.jsonPrimitive?.content?.trim()?.toIntOrNull()
@@ -76,12 +78,17 @@ class WorkspaceToolBackend(
             is AppResult.Success -> {
                 currentCoroutineContext().ensureActive()
                 val base64 = Base64.getEncoder().encodeToString(bytes.data)
+                val relative = ToolFileArtifacts.relativePath(path, workspace)
+                val digest = MessageDigest.getInstance("SHA-256").digest(bytes.data).joinToString("") { "%02x".format(it) }
+                val snapshots = relative?.let { listOf(ToolFileArtifacts.observation(it, FileFingerprint(digest, bytes.data.size.toLong()),
+                    FileArtifactOrigin.IMAGE_READ, System.currentTimeMillis())) }.orEmpty()
                 WorkspaceToolOutcome(
                     true, "已读取图片文件 $path（${bytes.data.size} 字节，$mime）。" +
                         "图像已作为多模态附件随本次工具结果提供。" +
                         "若这是虚拟屏截图，点击坐标用 0–1000 相对位置，不要用图上的像素。" +
                         "若当前模型不支持视觉，请改用文字/脚本方式描述图片内容。",
-                    mapOf("image_payload" to imagePayload("data:$mime;base64,$base64")),
+                    mapOf("image_payload" to imagePayload("data:$mime;base64,$base64"),
+                        ToolFileArtifacts.METADATA_KEY to ToolFileArtifacts.encode(snapshots, snapshots.isNotEmpty() && bytes.data.isNotEmpty())),
                 )
             }
             is AppResult.Failure -> bytes.output(actionName = "read")

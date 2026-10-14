@@ -1,4 +1,5 @@
 package top.wkbin.taixu.harness
+import top.wkbin.taixu.harness.task.TaskDeliveryReport
 
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -119,6 +120,7 @@ class ContextMemoryToolBackend(
     private fun historyLabel(message: HarnessMessage, full: Boolean = false): String = when (message) {
         is CapabilityEvent -> "能力事件 ${message.name}: ${message.details}"
         is SkillSuggestion -> "技能建议 ${message.skillName}: ${message.description}"
+        is TaskDelivery -> "任务交付记录：" + kotlinx.serialization.json.Json.encodeToString(TaskDeliveryReport.serializer(), message.report)
         is ModelSwitchEvent -> "切换模型 ${message.fromLabel} → ${message.toLabel}"
         is UserMessage -> "用户：${message.text.take(if (full) MAX_HISTORY_READ_OUTPUT else 240)}"
         is AssistantText -> "助手：${message.text.take(if (full) MAX_HISTORY_READ_OUTPUT else 240)}" +

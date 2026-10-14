@@ -39,6 +39,13 @@ data class PluginBundle(
     val iconName: String = "Code",
     val category: String = "开发套件",
     val components: List<PluginComponent> = emptyList(),
+    /**
+     * 引导流程是否默认勾选本套件。
+     *
+     * 需要联网下载、且属于"按需能力"而非"开箱可用基座"的套件（如 MCP 能力仓库）设为 false：
+     * 引导期静默安装会在新用户第一次进入 App 时引入 npm 下载与镜像可用性依赖。
+     */
+    val defaultSelected: Boolean = true,
 )
 
 object BuiltinPluginBundles {
@@ -286,6 +293,19 @@ object BuiltinPluginBundles {
                     postUninstallSteps = listOf("npm uninstall -g pnpm yarn >/dev/null 2>&1 || true"),
                 ),
             ),
+        ),
+        PluginBundle(
+            id = McpCatalog.BUNDLE_ID,
+            name = "MCP 能力仓库",
+            summary = "按需安装的上游 MCP 服务（Node 通道，固定版本 + 校验和）",
+            description = "把可外置的 MCP 能力从 APK 里搬出来，改为按需安装：每条能力固定上游版本号，" +
+                "装配期与 npm 镜像比对 sha512 摘要，落位后写标记文件作为唯一状态探针。" +
+                "安装即代表能力就绪；未安装的能力不会进入 Agent 的工具发现，也不会在启动期造成超时等待。",
+            iconName = "Extension",
+            category = "MCP 能力",
+            // 引导流程不默认勾选：MCP 属于按需能力，首次进入 App 不应强制走一次 npm 下载。
+            defaultSelected = false,
+            components = McpCatalog.installable.map { McpCatalog.component(it) },
         ),
     )
 

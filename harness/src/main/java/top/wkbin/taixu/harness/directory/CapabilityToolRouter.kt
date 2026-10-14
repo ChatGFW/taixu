@@ -104,7 +104,7 @@ class CapabilityToolRouter(
             tools = manager.discoverServerTools(serverId)
         }
         if (tools.isEmpty()) {
-            val lastError = manager.getLastError(serverId)
+            val lastError = manager.lastErrorForCall(serverId)
             return false to "MCP[$serverId] 工具发现失败或服务不可用${lastError?.let { "：$it" } ?: "（未启用或不存在）"}。" +
                 "可稍后重试 inspect，或检查该服务的设置与沙箱环境。"
         }
@@ -217,7 +217,7 @@ private const val MAX_INSPECT_CHARS = 16_000
  * legacy mcp__<server>__<tool> 直接名按名段解析。未缓存（服务尚未连接）或解析
  * 失败一律返回 null——保守不升级，绝不臆造注解。
  */
-fun McpManager?.annotationsForCall(args: JsonObject, rawToolName: String?): McpToolAnnotations? {
+suspend fun McpManager?.annotationsForCall(args: JsonObject, rawToolName: String?): McpToolAnnotations? {
     val manager = this ?: return null
     val server: String
     val tool: String

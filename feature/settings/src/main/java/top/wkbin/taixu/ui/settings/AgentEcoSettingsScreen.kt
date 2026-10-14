@@ -42,6 +42,8 @@ fun AgentEcoSettingsScreen(
     val models by viewModel.models.collectAsStateWithLifecycle()
     val skills by viewModel.allSkills.collectAsStateWithLifecycle()
     val phrases by viewModel.quickPhrases.collectAsStateWithLifecycle()
+    // 插件与底层工具只安装在本机 PRoot：远程主系统下停用插件中心入口，避免误以为会装到服务器。
+    val activeServerId by koinViewModel<RemoteServerViewModel>().activeId.collectAsStateWithLifecycle()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -115,8 +117,8 @@ fun AgentEcoSettingsScreen(
                     SettingsRow(
                         icon = RuntimeIconName.Wrench,
                         title = "插件与底层工具中心",
-                        subtitle = "安装 llama.cpp、QEMU 与底层开发环境",
-                        onClick = onOpenToolCenter,
+                        subtitle = if (activeServerId != null) "仅本地 PRoot 生效：当前主系统为 SSH 远程服务器，安装入口已停用" else "安装 llama.cpp、QEMU 与底层开发环境",
+                        onClick = if (activeServerId != null) null else onOpenToolCenter,
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     SettingsRow(

@@ -31,8 +31,11 @@ class LocalExecutionDownloads(
                 DownloadEvent.Verifying -> ExecutionDownloadEvent.Verifying
                 is DownloadEvent.Completed -> {
                     require(event.file.canonicalFile == destination.canonicalFile) { "下载器返回了不同的目标文件" }
-                    ExecutionDownloadEvent.Completed(destination.length(), !request.sha256.isNullOrBlank(),
-                        !hasImageExtension(destination) || isImageMagic(destination), findDuplicateDownload(destination))
+                    val fingerprint = files.fingerprint(request.destination).getOrNull()
+                    val verified = !request.sha256.isNullOrBlank() && (fingerprint == null || fingerprint.sha256.equals(request.sha256, ignoreCase = true))
+                    ExecutionDownloadEvent.Completed(fingerprint?.bytes ?: destination.length(), verified,
+                        !hasImageExtension(destination) || isImageMagic(destination), findDuplicateDownload(destination),
+                        fingerprint?.sha256)
                 }
             })
         }

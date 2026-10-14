@@ -90,7 +90,7 @@ import top.wkbin.taixu.feature.settings.R
  * 太墟 · 插件与 AI 工具中心 (Tool & Plugin Center)
  */
 @Composable
-fun ToolCenterScreen(
+internal fun LocalToolCenterContent(
     onBack: () -> Unit,
     onLaunchPty: (toolId: String) -> Unit,
     onOpenToolDetail: (toolId: String) -> Unit = {},
@@ -423,13 +423,7 @@ fun ToolCenterScreen(
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         RuntimeIcon(
-                                            name = when (bundle.iconName) {
-                                                "Android" -> RuntimeIconName.Android
-                                                "Flutter" -> RuntimeIconName.Flutter
-                                                "Globe" -> RuntimeIconName.Globe
-                                                "Search" -> RuntimeIconName.Search
-                                                else -> RuntimeIconName.Code
-                                            },
+                                            name = bundleIcon(bundle.iconName),
                                             modifier = Modifier.size(22.dp),
                                             tint = if (isCoreReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -814,7 +808,7 @@ fun ToolCenterScreen(
         }
 
         activeBundle?.let { bundle ->
-            BundleComponentSetupDialog(
+            BundleSetupDialogWithUpdates(
                 bundle = bundle,
                 installedComponentIds = installedComponentIds,
                 selectedComponents = selectedComponents,

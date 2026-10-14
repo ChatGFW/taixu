@@ -89,7 +89,6 @@ import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.ui.components.MainDestination
 import top.wkbin.taixu.ui.components.IconTile
 import top.wkbin.taixu.ui.components.NoticeBanner
-import top.wkbin.taixu.ui.components.RuntimeBottomBar
 import top.wkbin.taixu.ui.components.liquidGlassContent
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
@@ -98,7 +97,6 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.distroIconFor
 import top.wkbin.taixu.ui.components.StatusBadge
-import top.wkbin.taixu.ui.components.isLiquidGlassThemeActive
 import android.os.SystemClock
 import top.wkbin.taixu.core.model.InstalledDistro
 
@@ -121,7 +119,7 @@ private fun warningStatusColor(): Color =
  * 集成沙箱引擎状态、运行环境体检自愈中心、实时内存/存储监控与规格信息
  */
 @Composable
-fun HomeScreen(
+internal fun LocalHomeScreen(
     onNavigate: (MainDestination) -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenToolCenter: () -> Unit = {},
@@ -202,12 +200,11 @@ fun HomeScreen(
         }
     }
 
-    val isLiquidGlassTheme = isLiquidGlassThemeActive()
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             RuntimeTopBar(
-                title = stringResource(R.string.home_dashboard_title),
+                title = stringResource(R.string.home_dashboard_title), onBack = { onNavigate(MainDestination.Agent) },
                 statusText = "${metrics.linuxDistro} · ${metrics.cpuArch}",
                 actions = {
                     IconButton(
@@ -237,11 +234,6 @@ fun HomeScreen(
                 },
             )
         },
-        bottomBar = {
-            if (!isLiquidGlassTheme) {
-                RuntimeBottomBar(MainDestination.Home, onNavigate)
-            }
-        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -250,7 +242,7 @@ fun HomeScreen(
                 .padding(top = innerPadding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp)
-                .padding(bottom = if (isLiquidGlassTheme) 104.dp else innerPadding.calculateBottomPadding() + 16.dp),
+                .padding(bottom = innerPadding.calculateBottomPadding() + 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // 1. 运行时引擎主状态卡片 (Status Banner)

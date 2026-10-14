@@ -30,10 +30,21 @@ data class HarnessSessionEntity(
     val approvalMode: String = ApprovalMode.ASSISTED.id,
     /** 运行意图（BUILD/PLAN），与 [approvalMode] 正交；新会话继承全局默认。 */
     @ColumnInfo(defaultValue = "build") val runMode: String = RunMode.BUILD.id,
+    /** Pre-SSH history binds to the local distro on first use; portable imports require a new session. */
+    @ColumnInfo(defaultValue = "'unbound'") val executionTargetJson: String? = null,
 )
 
 @Dao
 interface HarnessSessionDao {
+    @Query("UPDATE harness_sessions SET executionTargetJson = :target WHERE id = :id AND (executionTargetJson IS NULL OR executionTargetJson = 'unbound')")
+    suspend fun bindExecutionTargetIfAbsent(id: String, target: String)
+
+    @androidx.room.Transaction
+    suspend fun bindExecutionTarget(id: String, target: String): String? {
+        bindExecutionTargetIfAbsent(id, target)
+        return findById(id)?.executionTargetJson
+    }
+
     @Query("SELECT * FROM harness_sessions ORDER BY updatedAt DESC")
     fun observeAll(): Flow<List<HarnessSessionEntity>>
 
@@ -41,7 +52,13 @@ interface HarnessSessionDao {
     suspend fun findById(id: String): HarnessSessionEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(session: HarnessSessionEntity)
+    suspend fun insert(session: HarnessSessionEntity)
+
+    @androidx.room.Transaction
+    suspend fun upsert(session: HarnessSessionEntity) {
+        val bound = findById(session.id)?.executionTargetJson
+        insert(if (bound == null) session else session.copy(executionTargetJson = bound))
+    }
 
     @Query("UPDATE harness_sessions SET updatedAt = :updatedAt WHERE id = :id")
     suspend fun touch(id: String, updatedAt: Long)

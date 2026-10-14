@@ -22,9 +22,11 @@ import top.wkbin.taixu.runtime.DownloadProgress
  * lxc-images 的发行版。
  */
 class LxcImagesClient(
-    private val http: OkHttpClient,
+    http: OkHttpClient,
     private val logger: AppLogger,
 ) {
+    private val http = http.forRootfsDownloads()
+
     /** 该发行版是否提供 lxc-images 兜底镜像。 */
     fun supports(distributionId: String): Boolean = lxcPathFor(distributionId) != null
 
@@ -44,7 +46,7 @@ class LxcImagesClient(
                 val expectedSha = fetchExpectedSha256(base, lxcPath, buildDir)
                 val blob = downloadRootfs(base, lxcPath, buildDir, expectedSha, cacheDir, onProgress)
                 applyLayer(blob, MEDIA_TYPE_ROOTFS_TAR_XZ)
-                return@withContext "lxc-5.9.0-${distribution.id}-$buildDir"
+                return@withContext "lxc-5.10.0-${distribution.id}-$buildDir"
             } catch (failure: Throwable) {
                 lastFailure = failure
                 logger.w("lxc-images 镜像源 $base 不可用（${distribution.id}）", failure)
@@ -183,7 +185,7 @@ class LxcImagesClient(
             "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images",
             "https://images.linuxcontainers.org/images",
         )
-        const val USER_AGENT = "TaiXu/proot-distro-5.9.0"
+        const val USER_AGENT = "TaiXu/proot-distro-5.10.0"
         const val MEDIA_TYPE_ROOTFS_TAR_XZ = "application/x-tar.xz"
 
         /**

@@ -22,6 +22,11 @@ class McpWorkspaceRecommender() {
         val presetId: String,
         val presetName: String,
         val reason: String,
+        /**
+         * 该能力不再随 APK 内置，需要先在「设置 → 工具中心 → MCP 能力仓库」安装组件。
+         * UI 据此把"一键启用"换成"先去安装"，避免用户点了开关却发现服务起不来。
+         */
+        val needsInstall: Boolean = false,
     )
 
     suspend fun recommend(workspaceDir: File?): List<Recommendation> = withContext(Dispatchers.IO) {
@@ -58,7 +63,10 @@ class McpWorkspaceRecommender() {
             recommendations += Recommendation(
                 presetId = "mcp_codegraph",
                 presetName = "CodeGraph 代码知识图谱",
-                reason = "检测到 $codeFileCount 个代码文件，启用后可建立符号索引，减少代码探索的调用轮次",
+                reason = "检测到 $codeFileCount 个代码文件。该能力来自上游 npm 包、不再内置，" +
+                    "需先在「设置 → 工具中心 → MCP 能力仓库」安装组件，装好后可建立符号索引，" +
+                    "减少代码探索的调用轮次",
+                needsInstall = true,
             )
         }
         recommendations

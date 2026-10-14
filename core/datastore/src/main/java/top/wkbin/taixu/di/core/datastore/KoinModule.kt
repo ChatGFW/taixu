@@ -22,6 +22,9 @@ import top.wkbin.taixu.core.datastore.WorkshopPreferences
 
 /** Dependency registrations owned by the core:datastore module. */
 val coreDatastoreModule = module {
+    single<top.wkbin.taixu.core.datastore.RemoteServerRepository> {
+        top.wkbin.taixu.core.datastore.EncryptedRemoteServerRepository(get(), get())
+    }
     single<BackupPreferenceStore> { BackupPreferences(context = get()) }
     single<AppearancePreferences> { AppearancePreferences(store = get()) }
 

@@ -1085,13 +1085,13 @@ private fun NodeInspectorCard(
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color(0xFF06B6D4).copy(alpha = 0.4f)),
+                        border = BorderStroke(1.dp, top.wkbin.taixu.ui.theme.semanticColors().info.copy(alpha = 0.4f)),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(16.dp), tint = Color(0xFF06B6D4))
-                                Text("终端 Shell 命令行（在沙箱环境中执行）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color(0xFF06B6D4))
+                                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(16.dp), tint = top.wkbin.taixu.ui.theme.semanticColors().info)
+                                Text("终端 Shell 命令行（在沙箱环境中执行）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = top.wkbin.taixu.ui.theme.semanticColors().info)
                             }
                             OutlinedTextField(
                                 value = configMap["command"].orEmpty(),
@@ -1115,12 +1115,12 @@ private fun NodeInspectorCard(
                                     Surface(
                                         onClick = { configMap["command"] = cmd },
                                         shape = RoundedCornerShape(50),
-                                        color = Color(0xFF06B6D4).copy(alpha = 0.14f),
+                                        color = top.wkbin.taixu.ui.theme.semanticColors().info.copy(alpha = 0.14f),
                                     ) {
                                         Text(
                                             text = "+ $name",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFF06B6D4),
+                                            color = top.wkbin.taixu.ui.theme.semanticColors().info,
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                         )
                                     }
@@ -1468,8 +1468,8 @@ private fun BranchRouterCard(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Surface(shape = RoundedCornerShape(50), color = Color(0xFF10B981).copy(alpha = 0.18f)) {
-                    Text("✔ 成功分支 (exitCode == 0)", style = MaterialTheme.typography.labelSmall, color = Color(0xFF10B981), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                Surface(shape = RoundedCornerShape(50), color = top.wkbin.taixu.ui.theme.semanticColors().success.copy(alpha = 0.18f)) {
+                    Text("✔ 成功分支 (exitCode == 0)", style = MaterialTheme.typography.labelSmall, color = top.wkbin.taixu.ui.theme.semanticColors().success, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                 }
                 if (successEdge != null) {
                     val target = state.definition.nodes.firstOrNull { it.id == successEdge.toNodeId }

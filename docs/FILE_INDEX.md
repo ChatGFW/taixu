@@ -30,6 +30,12 @@
 | `harness/HarnessToolRoundRunner.kt` | 工具参数校验、单轮限额、执行与审批暂停 | 工具回合 |
 | `harness/HarnessWorkspaceRecommendations.kt` | 工作区路径边界、MCP 推荐扫描与前台投影 | MCP 推荐 |
 | `harness/ToolExecutor.kt` | 内置工具策略与分派；文件操作转交后端，保留审批和 PLAN 门控 | 工具执行门面 |
+| `harness/ToolRecoveryAdvice.kt` | 工具失败后的结构化行动建议，持久化后供模型投影使用 | 失败恢复提示 |
+| `harness/operation/FailureMemory.kt` / `FailureMemoryJournal.kt` | 与结果原子保存的运行内失败事实、指纹、TTL 与低权威背景投影 | 失败记忆 |
+| `harness/TaskDelivery.kt` / `harness/task/TaskDeliveryBuilder.kt` / `TaskDeliveryReport.kt` | 本轮工具证据、缺口和文件版本引用；与任务完成一起原子落库 | 任务交付记录 |
+| `harness/ToolOutputArtifact.kt` / `ToolFileArtifacts.kt` / `feature/chat/.../TaskDeliveryCard.kt` | 脱敏日志、实际 APK/图片/下载文件 SHA-256 观察及未验证交付卡片 | 文件版本与展示 |
+| `harness/BuildArtifactObserver.kt` | 标准 APK 目录有界前后扫描；区分新增、变化、已有和不完整观察 | 构建产物观察 |
+| `runtime/environment/FileFingerprint.kt` / `harness/environment/LocalFileFingerprint.kt` / `runtime/remote/SshExecutionFiles.kt` | 当前执行环境的流式二进制指纹、容量与并发变化检查；缺少能力不回退 | 文件指纹 |
 | `harness/ToolExecutionBoundary.kt` / `ToolExecutionRequest.kt` | 检查点观察快照、否决及说明脱敏；保留结果标识与审批状态 | 扩展控制边界 |
 | `harness/WorkspaceToolBackend.kt` / `WorkspaceToolOperations.kt` | read/write/edit 语义与可替换工作区操作接口；本地实现为 `WorkspaceFileAccess` | 文件工具后端 |
 | `harness/WorkspaceMutationSnapshots.kt` | 写入前后快照与大小保护，文件后端和下载工具复用 | 写入恢复证据 |
@@ -41,6 +47,10 @@
 | `harness/browser/BrowserMcpBootstrap.kt` | 内置 Browser MCP Server 启动 + 注册引擎 |
 | `harness/mcp/server/*` | in-process MCP Server：`McpServerRuntime` / Auth / Tool+Resource Dispatcher |
 | `harness/HarnessMessage.kt` | `HarnessTool` 枚举 + `ToolResult` (含 `imageAttachments`) |
+
+## 💬 聊天与主导航
+
+聊天与主导航：`feature/navigation/.../TaiXuNavHost.kt` 默认进入智枢，保留各主页面独立返回栈；`feature/chat/.../ChatNavigationDrawer.kt` 共用 Activity 级会话模型并整合会话与功能入口；`feature/components/.../AppNavigation.kt` 提供导航上下文和主入口列表。`ChatTopBar.kt` / `ChatWorkbenchControls.kt` 实现会话、模型、工作区与按需展开的控制；`ChatWelcome.kt` 提供项目感知的欢迎与预填任务示例。原底部导航组件仅保留组件本身，不在主页面渲染。
 
 ## 🗂️ 模型档案迁移
 
@@ -86,6 +96,8 @@
 | --- | --- | --- |
 | `runtime/.../LinuxRuntime.kt` | PRoot 启动入口 / `base` 命令面板 | 命令执行边界 |
 | `runtime/.../ProcessRegistry.kt` | `process` 命令的 PID / 日志环形缓冲 | 后台进程托管 |
+| `runtime/.../shell/CommandOutputCapture.kt` | 有界前台命令流落盘，容量和不完整输出标记；结束时清理私有缓存 | 长输出保留 |
+| `runtime/.../shell/CommandResourcePolicy.kt` / `ForegroundCommandAdmission.kt` | 已知重型前台命令的独立资源分类、共享 FIFO 名额与取消 | 本地资源调度 |
 | `runtime/.../ProotCommandBuilder.kt` | `-b` 挂载点规范化 + Shell 注入防护 | 安全 |
 | `runtime/.../WorkspaceFileService.kt` | 工作区读/写/搜/hash/zip/share | 与 file.* 工具对齐 |
 | `runtime/.../shell/VT100.kt` | 终端 VT100 状态机 | 终端渲染 |

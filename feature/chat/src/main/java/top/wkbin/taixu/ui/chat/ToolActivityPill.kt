@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.theme.semanticColors
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -86,6 +87,7 @@ fun ToolActivityPill(
     workspace: String,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     var showDetailSheet by remember { mutableStateOf(false) }
 
@@ -151,9 +153,9 @@ fun ToolActivityPill(
         val iconName = toolKind?.let { toolIcon(it) } ?: RuntimeIconName.Speed
 
         val pillAccent = when (toolKind) {
-            HarnessTool.BASE, HarnessTool.PROCESS -> Color(0xFF00E5FF)
-            HarnessTool.WRITE, HarnessTool.EDIT -> Color(0xFF10B981)
-            HarnessTool.SUBAGENT -> Color(0xFF8B5CF6)
+            HarnessTool.BASE, HarnessTool.PROCESS -> semanticColors().info
+            HarnessTool.WRITE, HarnessTool.EDIT -> semanticColors().success
+            HarnessTool.SUBAGENT -> semanticColors().agent
             else -> MaterialTheme.colorScheme.primary
         }
 
@@ -162,14 +164,14 @@ fun ToolActivityPill(
         Surface(
             onClick = { showDetailSheet = true },
             shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
-            border = androidx.compose.foundation.BorderStroke(
+            color = if (compact) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+            border = if (compact) null else androidx.compose.foundation.BorderStroke(
                 0.5.dp,
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
             ),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 1.5.dp),
+                .then(if (compact) Modifier.heightIn(min = 48.dp) else Modifier.padding(horizontal = 4.dp, vertical = 1.5.dp)),
         ) {
             Row(
                 modifier = Modifier
@@ -227,24 +229,26 @@ fun ToolActivityPill(
                     }
                 }
 
-                Spacer(Modifier.width(4.dp))
+                if (!compact) {
+                    Spacer(Modifier.width(4.dp))
 
-                // 一键终止极简微型按钮
-                val stopLabel = stringResource(R.string.chat_stop_generation)
-                Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.75f))
-                        .clickable(onClick = onStop)
-                        .semantics { contentDescription = stopLabel },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    RuntimeIcon(
-                        name = RuntimeIconName.Close,
-                        modifier = Modifier.size(9.dp),
-                        tint = MaterialTheme.colorScheme.onErrorContainer,
-                    )
+                    // 一键终止极简微型按钮
+                    val stopLabel = stringResource(R.string.chat_stop_generation)
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.75f))
+                            .clickable(onClick = onStop)
+                            .semantics { contentDescription = stopLabel },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        RuntimeIcon(
+                            name = RuntimeIconName.Close,
+                            modifier = Modifier.size(9.dp),
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    }
                 }
             }
         }
@@ -257,7 +261,7 @@ fun ToolActivityPill(
         val readyStatusText = stringResource(R.string.chat_tool_detail_ready)
         val typeText = stringResource(R.string.chat_tool_detail_type, activeToolCall.tool.name)
         val argsText = remember(activeToolCall.id) { prettyArgs(activeToolCall.args) }
-        ModalBottomSheet(
+        PlainBackdropModalBottomSheet(
             onDismissRequest = { showDetailSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,

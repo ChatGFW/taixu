@@ -30,6 +30,7 @@ import top.wkbin.taixu.runtime.shell.ProcessRegistry
 import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import top.wkbin.taixu.runtime.shell.ShellExecutor
+import top.wkbin.taixu.runtime.shell.ForegroundCommandAdmission
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,7 +72,7 @@ class LinuxRuntimeImpl(
     private val initializeMutex = Mutex()
     private val storageActivities = StorageActivityGate()
     private val interactiveSessions = InteractiveSessionRegistry()
-
+    private val commandAdmission = ForegroundCommandAdmission()
     override fun refreshInstalledDistros() {
         pathManager.invalidateInstalledDistrosCache()
         val ids = pathManager.listInstalledDistroIds()
@@ -295,7 +296,7 @@ class LinuxRuntimeImpl(
 
                 val distroId = request.distributionId.lowercase().trim()
                 val distribution = DistributionCatalog.require(distroId)
-                updateInitializing("下载 ${distribution.displayName}", 0.2f, "通过 proot-distro 5.9.0 OCI 机制下载 linux/arm64 镜像")
+                updateInitializing("下载 ${distribution.displayName}", 0.2f, "通过 proot-distro 5.10.0 OCI 机制下载 linux/arm64 镜像")
                 val rootfsResult = rootfsInstaller.installOci(
                     distribution,
                     request.registryRoute,
@@ -495,7 +496,7 @@ class LinuxRuntimeImpl(
         val safeDistro = boundLocalDistribution(distroId, _activeDistroId.value)
         val mounts = storageMounts()
         val execution = resolveExecutionLayout(safeDistro, command.useQemuCompatibility)
-        shellExecutor.execute(
+        commandAdmission.execute(command, shellExecutor) { shellExecutor.execute(
             command = prootCommandBuilder.build(
                 prootBinary = pathManager.activeProotFile(),
                 rootfsDir = execution.rootfsDir,
@@ -511,9 +512,8 @@ class LinuxRuntimeImpl(
             environment = pathManager.hostProcessEnvironment(safeDistro, execution.rootfsDir),
             timeoutMs = command.timeoutMs,
             onOutput = command.onOutput,
-        )
+        ) }
     }
-
     private suspend fun resolveExecutionLayout(
         distroId: String,
         useQemuCompatibility: Boolean,
@@ -559,24 +559,11 @@ class LinuxRuntimeImpl(
     override suspend fun startSession(config: SessionConfig, distroId: String?): LinuxSession = storageActivities.activity {
         val prepared = prepareInteractiveSession(config, distroId)
         try {
-            val session = if (ptyManager.nativeAvailable) {
-                ptyManager.openNative(
-                    command = prepared.command,
-                    hostEnvironment = prepared.hostEnvironment,
-                    config = prepared.effectiveConfig,
-                    cleanup = { check(!prepared.markerFile.exists() || prepared.markerFile.delete()) { "PTY marker cleanup failed" } },
-                )
-            } else {
-                ptyManager.open(
-                    command = prepared.fallbackCommand,
-                    hostEnvironment = prepared.hostEnvironment,
-                    config = prepared.effectiveConfig,
-                    resize = { columns, rows ->
-                        resizePty(prepared.markerPath, columns, rows, prepared.distroId)
-                    },
-                    cleanup = { check(!prepared.markerFile.exists() || prepared.markerFile.delete()) { "PTY marker cleanup failed" } },
-                )
-            }
+            val session = top.wkbin.taixu.runtime.shell.launchRuntimeSession(
+                ptyManager, prepared.effectiveConfig, prepared.command, prepared.fallbackCommand, prepared.hostEnvironment,
+                resize = { columns, rows -> resizePty(prepared.markerPath, columns, rows, prepared.distroId) },
+                cleanup = { check(!prepared.markerFile.exists() || prepared.markerFile.delete()) { "Session marker cleanup failed" } },
+            )
             interactiveSessions.track(session, prepared.distroId)
         } catch (throwable: Throwable) {
             prepared.markerFile.delete()

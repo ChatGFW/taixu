@@ -24,6 +24,14 @@ import top.wkbin.taixu.runtime.shell.CommandResult
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class ExecutionOutputSecretsTest {
+    @Test fun `SSH authentication output is fully masked including short credentials`() = runBlocking {
+        val registry = SessionExecutionEnvironments(ExecutionEnvironmentFactory { owner, workspace, _ ->
+            FakeWorld(ExecutionEnvironmentId("ssh", "ssh:server", workspace, owner)).apply { secretValues += "abc" }
+        })
+        val output = redactExecutionOutput("echo abc", top.wkbin.taixu.core.security.SecretRedactor(), registry, null, null, "remote", "")
+        assertEquals("echo [REDACTED]", output)
+        registry.closeSession("remote")
+    }
     @get:Rule val temporary = TemporaryFolder()
     private val active = MutableStateFlow("ubuntu")
     private val targets = mutableListOf<String>()

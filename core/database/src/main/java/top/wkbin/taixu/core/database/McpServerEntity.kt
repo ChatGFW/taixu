@@ -18,6 +18,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.model.BuiltinMcpPresets
 import top.wkbin.taixu.core.model.McpAuthMode
+import top.wkbin.taixu.core.model.McpCatalog
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.core.security.SecretManager
@@ -97,7 +98,7 @@ class McpServerRepository(
     @Volatile private var initialized = false
 
     val servers: Flow<List<McpServerConfig>> = dao.observeAll()
-        .map { rows -> rows.map { it.toModel(json, secretManager) } }
+        .map { rows -> rows.map { it.toModel(json, secretManager).withPresetMetadata() } }
         .flowOn(Dispatchers.Default)
 
     suspend fun ensureInitialized() = withContext(Dispatchers.IO) {
@@ -121,7 +122,7 @@ class McpServerRepository(
                         serverUrl = entity.serverUrl,
                     )
                     // 用户从未手动切换过启停的行跟随当前预设默认值。
-                    dao.syncBuiltinDefault(entity.id, entity.isEnabled)
+                    if (!preset.requiresInstall) dao.syncBuiltinDefault(entity.id, entity.isEnabled)
                 }
             }
             // 清理已被移除的内置预设，避免升级后残留幽灵服务。
@@ -145,7 +146,43 @@ class McpServerRepository(
         ensureInitialized()
         dao.deleteCustom(id)
     }
+
+    /**
+     * 按开发套件组件的探针结果同步「MCP 能力就绪」状态。
+     *
+     * 安装状态**以组件探针为唯一来源**，不额外持久化一个「是否已安装」字段：一旦落库，
+     * 就会出现「数据库说装了、文件其实不在」的第二真相，而那正是 MIGRATION_35_36
+     * 那次 120 秒启动阻塞的成因。这里只把探针结果投影到 `isEnabled`，语义为：
+     * - 组件就绪 → 若用户从未手动切换过启停，则自动开启一次（安装即可用）；
+     * - 组件缺失 → 若用户从未手动切换过，则回到关闭态，避免注册了却连不上。
+     *
+     * 用户显式做过选择的行（`userToggled = 1`）永远不被覆盖。
+     */
+    suspend fun syncInstalledCapabilities(installedComponentIds: Set<String>) = withContext(Dispatchers.IO) {
+        ensureInitialized()
+        val ready = McpCatalog.readyServerIds(installedComponentIds)
+        McpCatalog.entries.forEach { entry ->
+            dao.syncBuiltinDefault(entry.id, entry.id in ready)
+        }
+    }
 }
+
+/**
+ * 叠加代码侧的预设元数据。
+ *
+ * `requiresInstall` 与 `installComponentId` 是「由哪个开发套件组件提供这个能力」的静态声明，
+ * 不落库（落库会与组件探针产生第二真相）；从数据库读回后按 id 与内置预设对齐，
+ * 这样设置页与 Agent 提示词才能区分「未启用」和「还没安装」。
+ */
+private fun McpServerConfig.withPresetMetadata(): McpServerConfig =
+    BuiltinMcpPresets.find(id)?.let { preset ->
+        copy(
+            requiresInstall = preset.requiresInstall,
+            installComponentId = preset.installComponentId,
+            builtinRisk = preset.builtinRisk,
+            bootstrapOrder = preset.bootstrapOrder,
+        )
+    } ?: this
 
 private fun McpServerEntity.toModel(json: Json, secretManager: SecretManager): McpServerConfig = McpServerConfig(
     id = id,
@@ -169,6 +206,7 @@ private fun McpServerEntity.toModel(json: Json, secretManager: SecretManager): M
     oauthResource = oauthResource,
     isEnabled = isEnabled,
     isBuiltin = isBuiltin,
+    userToggled = userToggled,
 )
 
 private fun McpServerConfig.toEntity(json: Json, secretManager: SecretManager): McpServerEntity = McpServerEntity(
@@ -189,4 +227,5 @@ private fun McpServerConfig.toEntity(json: Json, secretManager: SecretManager): 
     oauthResource = oauthResource,
     isEnabled = isEnabled,
     isBuiltin = isBuiltin,
+    userToggled = userToggled,
 )

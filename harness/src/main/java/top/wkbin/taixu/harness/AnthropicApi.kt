@@ -2,7 +2,6 @@ package top.wkbin.taixu.harness
 
 import top.wkbin.taixu.harness.core.LlmApi
 import java.io.IOException
-import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.InternalCoroutinesApi
@@ -68,12 +67,7 @@ internal class AnthropicApi(
             }
         }
 
-    /**
-     * 流式对话入口。在 [streamOnce] 基础上实现 Claude `pause_turn` 续流状态机：
-     * 当服务端因超长思考/服务端工具暂停本轮时，把已生成的 assistant 消息原样回放并
-     * 再次请求（严禁插入人工 "Continue" 用户消息），直到拿到终态；各段增量已在回调
-     * 中顺序上屏，Token 统计与工具调用在续跑间累加、重基。
-     */
+    /** pause_turn 原样回放 assistant 消息续流，各段增量顺序上屏，用量累加。 */
     override suspend fun chatStream(
         model: ModelConfig,
         messages: List<ApiMessage>,
@@ -89,8 +83,9 @@ internal class AnthropicApi(
         var continuations = 0
         var finalResult = ChatResult(content = null, toolCalls = emptyList())
         var done = false
+        val budget = StreamBudget() // 按整轮 chatStream 计（跨 pause_turn 续跑共用一个预算）
         while (!done) {
-            val round = streamOnce(model, conversation, onReasoning, onToolProgress, onDelta)
+            val round = streamOnce(model, conversation, onReasoning, onToolProgress, onDelta, budget)
             round.content?.takeIf { it.isNotEmpty() }?.let { mergedContent.append(it) }
             round.reasoningContent?.takeIf { it.isNotEmpty() }?.let { mergedReasoning.append(it) }
             mergedToolCalls += round.toolCalls
@@ -101,7 +96,10 @@ internal class AnthropicApi(
                 cacheReadTokens = mergedUsage.cacheReadTokens + round.usage.cacheReadTokens,
                 cacheWriteTokens = mergedUsage.cacheWriteTokens + round.usage.cacheWriteTokens,
             )
-            if (round.stopReason != "pause_turn" || continuations >= MAX_PAUSE_TURN_CONTINUATIONS) {
+            if (round.stopReason == "pause_turn" && continuations >= MAX_PAUSE_TURN_CONTINUATIONS) {
+                throw IllegalStateException("模型连续暂停思考，已达到 $MAX_PAUSE_TURN_CONTINUATIONS 次续跑上限，响应尚未完成")
+            }
+            if (round.stopReason != "pause_turn") {
                 finalResult = ChatResult(
                     content = mergedContent.toString().ifEmpty { null },
                     toolCalls = mergedToolCalls,
@@ -145,12 +143,14 @@ internal class AnthropicApi(
         onReasoning: (String) -> Unit,
         onToolProgress: (ToolCallStreamProgress) -> Unit = {},
         onDelta: (String) -> Unit,
+        budget: StreamBudget,
     ): StreamRound = withContext(Dispatchers.IO) {
         val call = okHttpClient.newCall(buildRequest(model, messages, stream = true))
         // 与 ChatApi 一致：取消时立即关闭 socket，保证"停止"秒级生效
         val cancelHandle = coroutineContext[Job]?.invokeOnCompletion(onCancelling = true) { call.cancel() }
         val firstEventTimeoutMs = ProviderClient.resolveFirstEventTimeoutMs(
             ProviderClient.estimateApiMessageTokens(messages),
+            reasoningEnabled = model.reasoningMode != ReasoningMode.DISABLED,
         )
         val firstEventState = AtomicInteger(ProviderClient.FIRST_EVENT_WAITING)
         val firstEventWatchdog = launch {
@@ -178,8 +178,10 @@ internal class AnthropicApi(
                 val toolCalls = mutableMapOf<Int, ToolCallAccumulator>()
                 var usage = ChatUsage()
                 var stopReason: String? = null
+                var completed = false
                 while (true) {
                     val line = source.readUtf8Line() ?: break
+                    observeStreamHeartbeat(line, firstEventState, firstEventWatchdog)
                     if (!line.startsWith("data:")) continue
                     val data = line.removePrefix("data:").trim()
                     if (data.isEmpty()) continue
@@ -195,12 +197,10 @@ internal class AnthropicApi(
                     }
                     when (event["type"]?.jsonPrimitive?.contentOrNull) {
                         "message_start" -> {
-                            // message_start.usage 携带 input/cache 计数（output_tokens 此时尚未确定）
                             val messageUsage = (event["message"] as? JsonObject)?.get("usage") as? JsonObject
                             if (messageUsage != null) usage = parseUsage(messageUsage)
                         }
                         "message_delta" -> {
-                            // message_delta.usage.output_tokens 为最终值，覆盖 message_start 的占位数
                             val messageUsage = event["usage"] as? JsonObject
                             val outputTokens = messageUsage?.get("output_tokens")?.jsonPrimitive?.longOrNull
                             if (outputTokens != null) usage = usage.copy(outputTokens = outputTokens)
@@ -223,32 +223,36 @@ internal class AnthropicApi(
                             val index = event["index"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
                             val delta = event["delta"] as? JsonObject ?: continue
                             when (delta["type"]?.jsonPrimitive?.contentOrNull) {
-                                "text_delta" -> delta["text"]?.jsonPrimitive?.contentOrNull?.let { chunk ->
-                                    if (chunk.isNotEmpty()) {
-                                        text.append(chunk)
-                                        onDelta(chunk)
-                                    }
+                                "text_delta" -> delta["text"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotEmpty() }?.let { chunk ->
+                                    budget.add(chunk)
+                                    text.append(chunk)
+                                    onDelta(chunk)
                                 }
-                                "thinking_delta" -> delta["thinking"]?.jsonPrimitive?.contentOrNull?.let { chunk ->
-                                    if (chunk.isNotEmpty()) {
-                                        if (reasoningText.length < ProviderClient.MAX_STREAM_REASONING_CHARS) {
-                                            reasoningText.append(chunk.take(ProviderClient.MAX_STREAM_REASONING_CHARS - reasoningText.length))
-                                        }
-                                        onReasoning(chunk)
+                                "thinking_delta" -> delta["thinking"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotEmpty() }?.let { chunk ->
+                                    budget.add(chunk)
+                                    if (reasoningText.length < ProviderClient.MAX_STREAM_REASONING_CHARS) {
+                                        reasoningText.append(chunk.take(ProviderClient.MAX_STREAM_REASONING_CHARS - reasoningText.length))
                                     }
+                                    onReasoning(chunk)
                                 }
                                 "input_json_delta" -> delta["partial_json"]?.jsonPrimitive?.contentOrNull?.let { chunk ->
                                     toolCalls.getOrPut(index) { ToolCallAccumulator() }.apply {
-                                        arguments.append(chunk)
+                                        arguments.append(chunk).also { budget.add(chunk) }
                                         publishProgress(onToolProgress)
                                     }
                                 }
                             }
                         }
-                        "message_stop" -> break
-                        else -> Unit // message_start / ping / content_block_stop / message_delta 等无需处理
+                        "message_stop" -> {
+                            completed = true
+                            break
+                        }
+                        "error" -> throw providerStreamError(event.toString())
+                        else -> Unit
                     }
                 }
+                requireStreamCompletion(completed, "Anthropic")
+                requireOutputCompletion(stopReason, ProviderClient.estimateApiMessageTokens(messages), text.length + reasoningText.length)
                 toolCalls.values.forEach { it.publishProgress(onToolProgress, force = true) }
                 StreamRound(
                     content = text.toString().ifEmpty { null },
@@ -262,12 +266,7 @@ internal class AnthropicApi(
                 )
             }
         } catch (io: IOException) {
-            if (firstEventState.get() == ProviderClient.FIRST_EVENT_TIMED_OUT) {
-                throw SocketTimeoutException(
-                    "等待模型首个响应超过 ${firstEventTimeoutMs / 1000}s",
-                ).apply { initCause(io) }
-            }
-            throw io
+            throw streamFailure(io, firstEventState.get(), firstEventTimeoutMs, okHttpClient.readTimeoutMillis.toLong())
         } finally {
             firstEventWatchdog.cancel()
             cancelHandle?.dispose()

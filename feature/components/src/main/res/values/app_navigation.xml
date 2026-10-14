@@ -1,0 +1,12 @@
+<resources>
+    <string name="components_drawer_tab_chat">对话</string>
+    <string name="components_drawer_tab_workspace">项目</string>
+    <string name="components_drawer_tab_system">系统</string>
+    <string name="components_open_navigation">打开导航与会话</string>
+    <string name="components_local_terminal">本地终端</string>
+    <string name="components_tools">工具中心</string>
+    <string name="components_drawer_chat">AI 对话</string>
+    <string name="components_drawer_workspace">项目与文件</string>
+    <string name="components_drawer_system">系统概览</string>
+    <string name="components_drawer_settings">设置</string>
+</resources>

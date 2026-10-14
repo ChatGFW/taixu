@@ -1238,6 +1238,7 @@ button.conversation-section-header:hover {
 .tool-message.status-timeout { --tool-color: var(--tool-timeout); }
 .tool-message.status-interrupted { --tool-color: var(--tool-interrupted); }
 .tool-message.status-running { --tool-color: var(--tool-running); }
+.tool-message.status-unverified { --tool-color: var(--subtle); }
 
 .tool-message summary {
   min-height: 34px;

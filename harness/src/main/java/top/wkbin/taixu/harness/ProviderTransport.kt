@@ -21,14 +21,18 @@ internal class ProviderTransport(
         .build()
     private val streamClient = client.newBuilder()
         .callTimeout(0, TimeUnit.MILLISECONDS)
-        .readTimeout(ProviderClient.READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .readTimeout(REASONING_STREAM_WAIT_MS, TimeUnit.MILLISECONDS)
         .build()
     private val ordinaryApis = adapters(httpClient)
     private val streamApis = adapters(streamClient)
 
-    suspend fun chat(model: ModelConfig, messages: List<ApiMessage>): ChatResult {
+    suspend fun chat(
+        model: ModelConfig,
+        messages: List<ApiMessage>,
+        sessionKey: String? = null,
+    ): ChatResult {
         val transcript = sanitizeApiTranscript(messages)
-        return request(model) { selected ->
+        return request(model, sessionKey) { selected ->
             ordinaryApis.forModel(selected).chat(selected, transcript)
         }.also(::requireContent)
     }
@@ -39,6 +43,7 @@ internal class ProviderTransport(
         onReasoning: (String) -> Unit = {},
         onToolProgress: (ToolCallStreamProgress) -> Unit = {},
         onRequest: ((String, String, Long, Collection<String>) -> Unit)? = null,
+        sessionKey: String? = null,
         onDelta: (String) -> Unit,
     ): ChatResult {
         val timing = ReasoningTimingTracker()
@@ -52,7 +57,7 @@ internal class ProviderTransport(
         }
         val transcript = sanitizeApiTranscript(messages)
         val registry = if (onRequest == null) streamApis else adapters(streamClient.withRequestDiagnostics(onRequest))
-        val result = request(model) { selected ->
+        val result = request(model, sessionKey) { selected ->
             registry.forModel(selected).chatStream(selected, transcript, timedReasoning, onToolProgress, timedDelta)
         }
         requireContent(result)
@@ -64,8 +69,12 @@ internal class ProviderTransport(
         if (result.isBlankResponse) throw LlmEmptyResponseException(ProviderClient.EMPTY_RESPONSE_MESSAGE)
     }
 
-    private suspend fun request(model: ModelConfig, send: suspend (ModelConfig) -> ChatResult): ChatResult = try {
-        executeWithRotatedApiKey(model, keys, send).also { currentCoroutineContext().ensureActive() }
+    private suspend fun request(
+        model: ModelConfig,
+        sessionKey: String?,
+        send: suspend (ModelConfig) -> ChatResult,
+    ): ChatResult = try {
+        executeWithRotatedApiKey(model, keys, sessionKey, send).also { currentCoroutineContext().ensureActive() }
     } catch (failure: Exception) {
         // Closing a cancelled blocking socket can throw IOException before withContext resumes.
         // Preserve cancellation, instead of exposing a socket failure or retrying a stopped turn.

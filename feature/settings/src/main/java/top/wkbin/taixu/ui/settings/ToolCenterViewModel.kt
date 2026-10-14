@@ -12,7 +12,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.datastore.FirstUseGuidePreferences
+import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.database.InstallLogEntity
+import top.wkbin.taixu.core.database.McpServerRepository
 import top.wkbin.taixu.core.database.ToolEntity
 import top.wkbin.taixu.core.tools.ToolInstallProgress
 import top.wkbin.taixu.core.tools.ToolManager
@@ -30,6 +32,8 @@ class ToolCenterViewModel(
     private val linuxRuntime: LinuxRuntime,
     private val firstUseGuidePreferences: FirstUseGuidePreferences,
     private val logger: AppLogger,
+    private val remoteServers: RemoteServerRepository,
+    private val mcpServerRepository: McpServerRepository,
 ) : ViewModel() {
 
     val tools: StateFlow<List<ToolEntity>> = toolManager.observeTools()
@@ -88,6 +92,7 @@ class ToolCenterViewModel(
     }
 
     fun importLocalPlugin(uri: Uri) {
+        if (blockedByRemote()) return
         val fileName = uri.lastPathSegment
             ?.substringAfterLast('/')
             ?.substringAfterLast(':')
@@ -101,6 +106,7 @@ class ToolCenterViewModel(
     }
 
     fun confirmLocalPluginImport() {
+        if (blockedByRemote()) return
         toolManager.confirmLocalPluginImport()
     }
 
@@ -114,15 +120,28 @@ class ToolCenterViewModel(
 
     fun toolSource(toolId: String): String = toolManager.manifest(toolId)?.source ?: "REMOTE"
 
+    /**
+     * 插件与底层工具只安装在本机 PRoot：远程主系统下拦截安装类操作并给出明确原因，
+     * 不静默失败。这些组件依赖 artifacts / downloads / buildBindings 与本地运行时，远程环境没有对应适配。
+     */
+    private fun blockedByRemote(): Boolean {
+        if (remoteServers.activeId.value == null) return false
+        _operationError.value = "当前主系统为 SSH 远程服务器，插件与底层工具仅安装在本机 PRoot，不会同步到服务器；请先在「Linux 系统管理」切回本地系统。"
+        return true
+    }
+
     fun installTool(toolId: String) {
+        if (blockedByRemote()) return
         toolManager.startInstall(toolId)
     }
 
     fun updateTool(toolId: String) {
+        if (blockedByRemote()) return
         toolManager.startUpdate(toolId)
     }
 
     fun uninstallTool(toolId: String) {
+        if (blockedByRemote()) return
         viewModelScope.launch {
             try {
                 toolManager.uninstall(toolId)
@@ -204,6 +223,10 @@ class ToolCenterViewModel(
             try {
                 val installed = toolManager.probeInstalledComponents()
                 _installedComponentIds.value = installed
+                // 安装状态以组件探针为唯一真相：能力组件就绪后把对应 MCP 服务自动开启一次，
+                // 卸载后回到关闭态（用户显式切换过的行不会被覆盖）。
+                runCatching { mcpServerRepository.syncInstalledCapabilities(installed) }
+                    .onFailure { logger.w("同步 MCP 能力安装状态失败: ${it.message}", it) }
             } catch (e: Exception) {
                 logger.w("Failed to probe installed components: ${e.message}", e)
             }
@@ -232,6 +255,7 @@ class ToolCenterViewModel(
     }
 
     fun installActiveBundleComponents() {
+        if (blockedByRemote()) return
         val selected = _selectedComponents.value
         if (selected.isEmpty() || toolManager.isBatchInstalling.value) return
 
@@ -245,6 +269,7 @@ class ToolCenterViewModel(
     }
 
     fun reinstallComponent(component: PluginComponent) {
+        if (blockedByRemote()) return
         if (toolManager.isBatchInstalling.value) return
         _operationError.value = null
         _activeBundle.value = null
@@ -266,6 +291,7 @@ class ToolCenterViewModel(
     }
 
     fun uninstallComponent(component: PluginComponent) {
+        if (blockedByRemote()) return
         if (toolManager.isBatchInstalling.value) return
         if (uninstallBlockedReason(component) != null) return
         _activeBundle.value = null

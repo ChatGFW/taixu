@@ -5,6 +5,7 @@ import top.wkbin.taixu.harness.CapabilityEvent
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.TaskDelivery
 import top.wkbin.taixu.harness.UserMessage
 
 /**
@@ -84,7 +85,7 @@ fun projectChatMessages(
     if (!collapseEnabled) {
         return messages
             .mapIndexedNotNull { index, message ->
-                if (message is ToolResult) null else ChatRenderItem.MessageItem(message, rawIndex = index)
+                if (message is ToolResult || isSilentDelivery(message)) null else ChatRenderItem.MessageItem(message, rawIndex = index)
             }
     }
 
@@ -191,7 +192,7 @@ fun projectChatMessages(
  * 首个用户消息之前的消息（欢迎语、自愈事件等）归入伪轮 `__initial_round__`。
  */
 private fun splitIntoRounds(messages: List<HarnessMessage>): List<ChatRound> {
-    val nonResultMessages = messages.filter { it !is ToolResult }
+    val nonResultMessages = messages.filter { it !is ToolResult && !isSilentDelivery(it) }
     if (nonResultMessages.isEmpty()) return emptyList()
 
     val rounds = mutableListOf<ChatRound>()
@@ -273,6 +274,8 @@ private fun hiddenItemIds(round: ChatRound, hiddenToolCallIds: Set<String>): Set
  * 4. 中间正文片段跟随其前方最近的 ToolCall：该 ToolCall 被隐藏则同藏，可见则可见；
  * 5. CapabilityEvent 等事件消息保持可见。
  */
+private fun isSilentDelivery(message: HarnessMessage): Boolean = message is TaskDelivery && !message.hasExecutionDetails
+
 private fun filterVisibleMessagesByFollowRule(
     messages: List<HarnessMessage>,
     hiddenToolCallIds: Set<String>,

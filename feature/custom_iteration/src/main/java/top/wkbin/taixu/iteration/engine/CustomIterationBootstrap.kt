@@ -6,20 +6,20 @@ import java.io.File
  * CustomIterationBootstrap — 太墟自定义迭代环境自举引擎。
  *
  * 职责：
- * 1. 在 PRoot 沙盒可写区内准备隔离源码工作区 `~/custom_taixu`；
- * 2. 把模块自带的 `taixu-custom-iteration` Skill 落盘到 Agent 的**真实扫描根**，
- *    使 Agent 无需人工复制即可自动发现该规范；
- * 3. 把 GitHub Actions 工作流落到工作区的 `.github/workflows/`，供 Fork 后直接复用；
- * 4. 生成引导 Agent 执行自迭代开发的规范提示词。
+ * 1. 只 `mkdir` 空的隔离工作区 `~/custom_taixu`，供随后 `git clone` 使用；
+ * 2. 把 `taixu-custom-iteration` Skill 落到 Agent 的真实扫描根
+ *    （`<attachmentsDir>/skills` 与 `<workspaceDir>/skills`）；
+ * 3. 把 GitHub Actions 工作流模板写到克隆目标之外的缓存；
+ * 4. 生成引导 Prompt。云端构建目标使用已解析的 Fork，解析不到时要求 Agent 先读 `git remote`。
  *
  * 路径契约（与 [top.wkbin.taixu.runtime.RuntimePathManager] / PRoot 绑定一致）：
- * - 宿主 `pathManager.homeDir(<distro>)` 被 PRoot 绑定到 guest `/root`，
- *   因此工作区宿主路径 = `homeDir/custom_taixu`，guest 视角即 `~/custom_taixu`；
- * - Agent Skill 自动扫描根为 `pathManager.attachmentsDir/skills`（guest `/attachments/skills`）
- *   与工作区内 `.agents/skills/`（`SkillScanRoot.standardScanRoots`）。
+ * - 宿主 `homeDir` 绑定到 guest `/root`，工作区即 `homeDir/custom_taixu` → `~/custom_taixu`；
+ * - `attachmentsDir` 绑定到 `/attachments`，`workspaceDir` 绑定到 `/workspace`。
  *
- * 本类不做任何 `filesDir` 相对路径推断，也直接依赖 assets 内容而非 Context，
- * 全部经 [AssetReader] 与 [CustomIterationPaths] 注入，避免硬编码漂移并保持可测。
+ * `AgentSkillRepository.standardScanRoots` 只扫描上述两个 `skills` 目录，以及
+ * **workspaceDir 树下**的 `.agents/skills`。`~/custom_taixu` 不在这棵树里，
+ * 因此克隆前不会向 `~/custom_taixu/.agents` 或 `~/custom_taixu/.github` 写入任何文件。
+ * 项目级 Skill / 工作流若要进入 Fork，由 Prompt 在克隆完成之后复制。
  */
 object CustomIterationBootstrap {
 
@@ -36,26 +36,34 @@ object CustomIterationBootstrap {
     const val ASSET_SKILL = "skills/$SKILL_NAME/SKILL.md"
     const val ASSET_WORKFLOW = "templates/workflows/$WORKFLOW_FILE"
 
-    /** 工作区内相对路径。 */
-    const val WORKFLOW_RELATIVE = ".github/workflows/$WORKFLOW_FILE"
-    const val AGENT_SKILL_RELATIVE = ".agents/skills/$SKILL_NAME/SKILL.md"
+    /** 挂到 attachments / workspace 两个真实扫描根之下的 Skill 相对路径。 */
+    const val SKILL_RELATIVE_IN_SCAN_ROOT = "skills/$SKILL_NAME/SKILL.md"
 
     /**
-     * Skill 相对路径，用于挂到各扫描根之下。
-     *
-     * 三个落点对应 `SkillScanRoot.standardScanRoots` 里的真实可见位置：
-     * `<attachmentsDir>/skills`（guest `/attachments/skills`）、
-     * `<workspaceDir>/skills`（guest `/workspace/skills`），
-     * 以及迭代工作区内的项目级 `.agents/skills/` 规范。
+     * 工作流模板缓存，相对 [CustomIterationPaths.attachmentsDir]。
+     * guest 视角为 [GUEST_WORKFLOW_CACHE]，不在克隆目标内。
      */
-    const val SKILL_RELATIVE_IN_SCAN_ROOT = "skills/$SKILL_NAME/SKILL.md"
+    const val WORKFLOW_CACHE_RELATIVE = "templates/workflows/$WORKFLOW_FILE"
+
+    /** 克隆完成之后、可选地提交进 Fork 的相对路径。自举阶段不创建它们。 */
+    const val WORKFLOW_RELATIVE = ".github/workflows/$WORKFLOW_FILE"
+    const val AGENT_SKILL_RELATIVE = ".agents/skills/$SKILL_NAME/SKILL.md"
 
     /** guest 视角的绝对路径，用于生成提示词。 */
     const val GUEST_HOME = "/root"
     const val GUEST_ATTACHMENTS_SKILLS = "/attachments/skills"
+    const val GUEST_WORKSPACE_SKILLS = "/workspace/skills"
+    const val GUEST_WORKFLOW_CACHE = "/attachments/$WORKFLOW_CACHE_RELATIVE"
 
     /** 工作区在 guest 视角的绝对路径，即 PRoot 里 `~/$WORKSPACE_NAME`。 */
     const val GUEST_WORKSPACE = "$GUEST_HOME/$WORKSPACE_NAME"
+
+    /**
+     * 工作区尚未克隆、或 origin 无法解析为 `owner/name` 时写入 Prompt 的占位。
+     * 它不是合法仓库标识，Agent 必须先执行 `git remote get-url origin`。
+     */
+    const val FORK_REPO_PLACEHOLDER =
+        "<先执行 git remote get-url origin 解析 owner/name；禁止对 wkbin/taixu 执行 workflow_dispatch>"
 
     /** 工作流模板里的关键锚点，用于校验落盘内容确为可用模板。 */
     private const val WORKFLOW_REQUIRED_MARKER = "TAIXU_DEV_BUILD"
@@ -63,11 +71,12 @@ object CustomIterationBootstrap {
     /**
      * 生成引导 Agent 执行自迭代开发的提示词。
      *
-     * 路径与仓库名全部来自调用方，Fork 后不再写死官方仓库：
-     * 云端构建用 `-R <主人账户>/taixu`，PR 才回官方仓库。
+     * [forkRepo] 为已解析的 `owner/name`。空白或无法通过仓库标识校验时改用
+     * [FORK_REPO_PLACEHOLDER]，避免把 `workflow_dispatch` 指到官方仓库导致 403。
      */
-    fun bootstrapPrompt(guestWorkspace: String, forkRepo: String): String =
-        """我准备在太墟（TaiXu）的手机 Linux 虚拟沙盒中进行 TaiXu 自定义迭代。
+    fun bootstrapPrompt(guestWorkspace: String, forkRepo: String? = null): String {
+        val forkLabel = promptForkLabel(forkRepo)
+        return """我准备在太墟（TaiXu）的手机 Linux 虚拟沙盒中进行 TaiXu 自定义迭代。
 
 请按以下步骤引导我：
 1. 检查本地开发环境：
@@ -82,62 +91,61 @@ object CustomIterationBootstrap {
 
 3. 验证与克隆仓库：
    - 为官方仓库 $OFFICIAL_REPO 点星；
-   - Fork $DEFAULT_BRANCH 分支到我的 GitHub 账户（本机已配置为 $forkRepo）；
-   - 将 Fork 后的仓库克隆到 ~/$WORKSPACE_NAME。
+   - Fork $DEFAULT_BRANCH 分支到我的 GitHub 账户；
+   - 克隆前不要向 $guestWorkspace 写入任何文件（包括 .github 与 .agents）；
+   - 若 $guestWorkspace 为空目录，将 Fork 克隆进去（git clone <fork-url> $guestWorkspace）；
+   - 若该目录已经是 git 仓库，不要再次克隆，直接使用它。
 
 4. 遵循 $SKILL_NAME Skill 开发规范：
-   - 按照太墟的 Jetpack Compose、Koin 和多模块规范进行修改；
+   - Skill 已落在真实扫描根 $GUEST_ATTACHMENTS_SKILLS/$SKILL_NAME 与 $GUEST_WORKSPACE_SKILLS/$SKILL_NAME，按该规范修改；
+   - $guestWorkspace/.agents/skills 不是自动扫描根。只有在希望把项目级 Skill 提交进 Fork 时，才在克隆完成之后复制：
+     mkdir -p $guestWorkspace/.agents/skills && cp -a $GUEST_ATTACHMENTS_SKILLS/$SKILL_NAME $guestWorkspace/.agents/skills/
+   - 工作流模板缓存在 $GUEST_WORKFLOW_CACHE（位于克隆目标之外）。官方 main 已包含 $WORKFLOW_RELATIVE；若 Fork 缺少该文件或内容过旧，克隆完成后再复制并提交：
+     mkdir -p $guestWorkspace/.github/workflows && cp $GUEST_WORKFLOW_CACHE $guestWorkspace/$WORKFLOW_RELATIVE
    - 编写或调整功能后运行单元测试验证（./gradlew testDebugUnitTest）；
    - 提交修改并推送到 Fork 仓库的特性分支。
 
 5. 通过 GitHub Actions 构建独立的 TaiXuDev APK：
-   - 触发 $WORKFLOW_RELATIVE 编译（仓库 = $forkRepo，Fork 仓库才有 workflow_dispatch 权限）；
+   - 构建目标仓库 = $forkLabel；
+   - 若该值不是 owner/name，先在 $guestWorkspace 执行 git remote get-url origin，用解析出的 Fork 触发 $WORKFLOW_RELATIVE；
+   - 禁止对 $OFFICIAL_REPO_SLUG 执行 workflow_dispatch（contributor 没有权限，会返回 403）；
    - 实时监控构建进度并在成功后下载 APK 至手机；
    - 校验包名 top.wkbin.taixu.dev 和应用名 TaiXuDev，与正式版独立共存。
 
 6. 若体验满意，协助我生成标准 PR 提交到 $OFFICIAL_REPO。"""
+    }
+
+    /** 合法 `owner/name` 原样返回；否则返回要求 Agent 读取 `git remote` 的占位符。 */
+    fun promptForkLabel(forkRepo: String?): String {
+        val trimmed = forkRepo?.trim().orEmpty()
+        return if (TaiXuDevBuildCli.repoRejection(trimmed) == null) trimmed else FORK_REPO_PLACEHOLDER
+    }
 
     /**
      * 初始化自定义迭代环境与工作区。
      *
      * @param assets 资产读取源（生产环境为 APK assets）
      * @param paths 运行时路径集合（来自 `RuntimePathManager`）
-     * @param forkRepo 主人的 Fork 仓库（`owner/name`），用于云端构建目标
+     * @param forkRepo 已解析的 Fork（`owner/name`）。为空时 Prompt 使用占位符，不回退官方仓库
      */
     fun bootstrap(
         assets: AssetReader,
         paths: CustomIterationPaths,
-        forkRepo: String = OFFICIAL_REPO_SLUG,
+        forkRepo: String? = null,
     ): BootstrapResult {
+        val workspace = File(paths.hostHomeDir, WORKSPACE_NAME)
+        if (!ensureDirectory(workspace)) {
+            return failure("无法创建迭代工作区：${workspace.absolutePath}")
+        }
+
         val missing = mutableListOf<String>()
         return try {
-            // 1. 隔离工作区：宿主 homeDir/custom_taixu ←PRoot bind→ guest /root/custom_taixu
-            val workspace = File(paths.hostHomeDir, WORKSPACE_NAME)
-            if (!workspace.isDirectory && !workspace.mkdirs()) {
-                return BootstrapResult(
-                    success = false,
-                    workspacePath = "",
-                    prompt = "",
-                    errorMessage = "无法创建迭代工作区：${workspace.absolutePath}",
-                )
-            }
-
-            // 2. Skill 落盘到全部真实扫描根：全局 attachments、Agent 工作区、迭代工作区项目级
             deploy(assets, ASSET_SKILL, File(paths.attachmentsDir, SKILL_RELATIVE_IN_SCAN_ROOT), missing)
             deploy(assets, ASSET_SKILL, File(paths.workspaceDir, SKILL_RELATIVE_IN_SCAN_ROOT), missing)
-            deploy(assets, ASSET_SKILL, File(workspace, AGENT_SKILL_RELATIVE), missing)
-
-            // 3. 工作流落盘：Fork 后直接可被 GitHub Actions 识别
-            deploy(assets, ASSET_WORKFLOW, File(workspace, WORKFLOW_RELATIVE), missing)
+            deploy(assets, ASSET_WORKFLOW, File(paths.attachmentsDir, WORKFLOW_CACHE_RELATIVE), missing)
 
             if (missing.isNotEmpty()) {
-                // 资产缺失属于打包错误，必须显式失败而不是静默给出「就绪」的假象
-                BootstrapResult(
-                    success = false,
-                    workspacePath = workspace.absolutePath,
-                    prompt = "",
-                    errorMessage = "缺少内置资产：${missing.joinToString(", ")}",
-                )
+                failure("缺少内置资产：${missing.joinToString(", ")}")
             } else {
                 BootstrapResult(
                     success = true,
@@ -146,21 +154,15 @@ object CustomIterationBootstrap {
                 )
             }
         } catch (e: Exception) {
-            BootstrapResult(
-                success = false,
-                workspacePath = "",
-                prompt = "",
-                errorMessage = e.message ?: "Bootstrap failed",
-            )
+            failure(e.message ?: "Bootstrap failed")
         }
     }
 
     /**
      * 把 assets 中的 [assetPath] 写为 [target]。
      *
-     * 内容一致时跳过写入（不改 mtime）；内容不同则覆盖，
-     * 保证 Skill / 工作流随应用版本升级同步。模板还会校验关键锚点，
-     * 防止把空壳或错误文件当成可用工作流。
+     * 内容一致时跳过写入（不改 mtime）；内容不同则覆盖，保证 Skill / 工作流随应用版本升级同步。
+     * 模板还会校验关键锚点，防止把空壳或错误文件当成可用工作流。
      */
     private fun deploy(
         assets: AssetReader,
@@ -173,9 +175,7 @@ object CustomIterationBootstrap {
             missing += assetPath
             return
         }
-        if (assetPath == ASSET_WORKFLOW &&
-            !String(bytes).contains(WORKFLOW_REQUIRED_MARKER)
-        ) {
+        if (assetPath == ASSET_WORKFLOW && !String(bytes).contains(WORKFLOW_REQUIRED_MARKER)) {
             missing += "$assetPath（缺少 $WORKFLOW_REQUIRED_MARKER 锚点）"
             return
         }
@@ -184,12 +184,30 @@ object CustomIterationBootstrap {
             if (existing != null && existing.contentEquals(bytes)) return
         }
         val parent = target.parentFile
-        if (parent != null && !parent.isDirectory && !parent.mkdirs()) {
+        if (parent != null && !ensureDirectory(parent)) {
             missing += "$assetPath（无法创建目录 ${parent.absolutePath}）"
             return
         }
         target.writeBytes(bytes)
     }
+
+    /** 目录已存在则成功；被文件占用或不可写时失败，不把 `false` 当成成功。 */
+    private fun ensureDirectory(dir: File): Boolean {
+        if (dir.isDirectory) return true
+        val created = try {
+            dir.mkdirs()
+        } catch (e: SecurityException) {
+            false
+        }
+        return created && dir.isDirectory
+    }
+
+    private fun failure(message: String) = BootstrapResult(
+        success = false,
+        workspacePath = "",
+        prompt = "",
+        errorMessage = message,
+    )
 
     data class BootstrapResult(
         val success: Boolean,

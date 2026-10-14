@@ -20,6 +20,7 @@ import top.wkbin.taixu.harness.CapabilityEvent
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.SkillSuggestion
+import top.wkbin.taixu.harness.TaskDelivery
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
@@ -300,6 +301,7 @@ class SessionMessageProjector(
         is SkillSuggestion ->
             message.description.length + message.systemPrompt.length + message.reason.length
         is ModelSwitchEvent -> message.fromLabel.length + message.toLabel.length
+        is TaskDelivery -> 256 + message.report.observations.size * 256 + message.report.artifacts.sumOf { it.path.length + it.sha256.length + it.resultEntryId.length + 256 }
     }
 
     /** JsonElement 的字符量：JsonPrimitive 直接取 content 长度（O(1)），容器递归求和。 */

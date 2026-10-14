@@ -62,10 +62,11 @@ class OnboardingViewModel(
     }.stateIn(viewModelScope, SharingStarted.Eagerly, OnboardingStatus())
     val runtimeState: StateFlow<RuntimeState> = linuxRuntime.state
 
+    /** 引导页可见的套件。按需能力（如 MCP 能力仓库）不默认勾选，但仍可在这里被用户主动勾上。 */
     val devSuites: List<PluginBundle> = BuiltinPluginBundles.bundles
 
     private val _selectedSuites = MutableStateFlow<Set<String>>(
-        BuiltinPluginBundles.bundles.map { it.id }.toSet(),
+        BuiltinPluginBundles.bundles.filter { it.defaultSelected }.map { it.id }.toSet(),
     )
     val selectedSuites = _selectedSuites.asStateFlow()
 

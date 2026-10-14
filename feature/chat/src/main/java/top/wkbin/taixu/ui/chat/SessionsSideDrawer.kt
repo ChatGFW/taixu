@@ -34,10 +34,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import top.wkbin.taixu.ui.theme.LocalLiquidGlassSurfaceBackdrop
+import top.wkbin.taixu.ui.components.RuntimeDialogSystemBars
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,10 +55,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
@@ -180,8 +186,7 @@ internal fun SessionsSideDrawer(
     onCreateInWorkspace: (WorkspaceProject) -> Unit,
     onDelete: (String) -> Unit,
     onRename: (String, String) -> Unit,
-    onOpenSkills: (() -> Unit)? = null,
-    onOpenRuntime: (() -> Unit)? = null,
+    navigationContent: @Composable () -> Unit = {},
 ) {
     if (!visible) return
 
@@ -204,11 +209,10 @@ internal fun SessionsSideDrawer(
     var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteTargetId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // 默认展开包含当前活跃会话的项目，若无则默认展开有会话的项目
     val partition = remember(sessions, workspaces) { partitionSessions(sessions, workspaces) }
     var expandedProjects by rememberSaveable {
         val initialExpanded = partition.projectGroups
-            .filter { group -> group.sessions.any { it.id == currentSessionId } || group.sessions.isNotEmpty() }
+            .filter { group -> group.sessions.any { it.id == currentSessionId } }
             .map { it.workspacePath }
             .toSet()
         mutableStateOf(initialExpanded)
@@ -221,10 +225,10 @@ internal fun SessionsSideDrawer(
             decorFitsSystemWindows = false,
         ),
     ) {
+        RuntimeDialogSystemBars()
         BackHandler { handleDismiss() }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            // 1. 半透明暗色背景遮罩（点击关闭）
             AnimatedVisibility(
                 visible = isVisible,
                 enter = fadeIn(tween(180)),
@@ -234,7 +238,7 @@ internal fun SessionsSideDrawer(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.45f))
+                        .background(Color.Black.copy(alpha = 0.24f))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -243,29 +247,29 @@ internal fun SessionsSideDrawer(
                 )
             }
 
-            // 2. 右侧侧边抽屉面板（从右往左弹出，靠近屏幕右侧）
             AnimatedVisibility(
                 visible = isVisible,
                 enter = slideInHorizontally(
-                    initialOffsetX = { it },
+                    initialOffsetX = { -it },
                     animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                 ),
                 exit = slideOutHorizontally(
-                    targetOffsetX = { it },
+                    targetOffsetX = { -it },
                     animationSpec = tween(180),
                 ),
                 modifier = Modifier
                     .fillMaxHeight()
-                    .align(Alignment.CenterEnd),
+                    .align(Alignment.CenterStart),
             ) {
+                CompositionLocalProvider(LocalLiquidGlassSurfaceBackdrop provides null) {
                 Surface(
                     modifier = Modifier
                         .fillMaxHeight()
-                        .widthIn(min = 280.dp, max = 340.dp)
-                        .fillMaxWidth(0.85f),
-                    shape = RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    tonalElevation = 6.dp,
+                        .widthIn(max = 360.dp)
+                        .fillMaxWidth(0.88f),
+                    shape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 1f),
+                    tonalElevation = 0.dp,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                 ) {
                     Column(
@@ -274,17 +278,15 @@ internal fun SessionsSideDrawer(
                             .statusBarsPadding()
                             .navigationBarsPadding(),
                     ) {
-                        // 顶部 Header：品牌 Badge + 标题 + 会话统计 + 关闭按钮
                         DrawerHeader(
                             totalSessionsCount = sessions.size,
                             onClose = handleDismiss,
                         )
 
-                        // 顶部醒目的「新任务 / 新建会话」大按钮
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                                .padding(horizontal = 20.dp, vertical = 8.dp),
                         ) {
                             RuntimeButton(
                                 onClick = {
@@ -293,8 +295,8 @@ internal fun SessionsSideDrawer(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(44.dp),
-                                shape = RoundedCornerShape(12.dp),
+                                    .height(48.dp),
+                                shape = MaterialTheme.shapes.large,
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                             ) {
                                 Row(
@@ -308,95 +310,26 @@ internal fun SessionsSideDrawer(
                                     )
                                     Text(
                                         text = stringResource(R.string.chat_drawer_new_task),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
+                                        style = MaterialTheme.typography.labelLarge,
                                     )
                                 }
                             }
                         }
 
-                        // 快捷扩展与监控入口（复刻千问侧栏辅助导航，带防截断内边距）
-                        if (onOpenSkills != null || onOpenRuntime != null) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                if (onOpenSkills != null) {
-                                    RuntimeFilledTonalButton(
-                                        onClick = {
-                                            handleDismiss()
-                                            onOpenSkills()
-                                        },
-                                        modifier = Modifier.weight(1f).height(36.dp),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        ) {
-                                            RuntimeIcon(
-                                                name = RuntimeIconName.Extension,
-                                                modifier = Modifier.size(14.dp),
-                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.chat_drawer_quick_skills),
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
-                                        }
-                                    }
-                                }
-                                if (onOpenRuntime != null) {
-                                    RuntimeFilledTonalButton(
-                                        onClick = {
-                                            handleDismiss()
-                                            onOpenRuntime()
-                                        },
-                                        modifier = Modifier.weight(1f).height(36.dp),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        ) {
-                                            RuntimeIcon(
-                                                name = RuntimeIconName.Logs,
-                                                modifier = Modifier.size(14.dp),
-                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.chat_drawer_quick_runtime),
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
                         HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                         )
 
-                        // 滚动列表内容：项目分组 + 最近分组
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
                                 .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 12.dp, vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(24.dp),
                         ) {
-                            // 分区 1：项目 (Projects)
+                            navigationContent()
                             ProjectSection(
                                 projectGroups = partition.projectGroups,
                                 currentSessionId = currentSessionId,
@@ -429,7 +362,6 @@ internal fun SessionsSideDrawer(
                                 onDelete = { id -> deleteTargetId = id },
                             )
 
-                            // 分区 2：最近 (Recent)
                             RecentSection(
                                 recentSessions = partition.recentSessions,
                                 currentSessionId = currentSessionId,
@@ -445,6 +377,7 @@ internal fun SessionsSideDrawer(
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
+                }
                 }
             }
         }
@@ -498,52 +431,23 @@ internal fun SessionsSideDrawer(
 
 /** 抽屉顶部标题行。 */
 @Composable
-private fun DrawerHeader(
-    totalSessionsCount: Int,
-    onClose: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            TaiXuBrandBadge(size = 24.dp)
-            Text(
-                text = stringResource(R.string.chat_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Surface(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(6.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.chat_session_count, totalSessionsCount),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                )
-            }
+private fun DrawerHeader(totalSessionsCount: Int, onClose: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 16.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        TaiXuBrandBadge(size = 28.dp)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(R.string.chat_title), style = MaterialTheme.typography.titleLarge,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.chat_session_count, totalSessionsCount),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-
-        RuntimeIconButton(
-            onClick = onClose,
-            modifier = Modifier.size(28.dp),
-        ) {
-            RuntimeIcon(
-                name = RuntimeIconName.Close,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        RuntimeIconButton(onClick = onClose, modifier = Modifier.size(48.dp),
+            contentDescription = stringResource(R.string.chat_cancel)) {
+            RuntimeIcon(RuntimeIconName.Close, Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
-
 /** 项目分区。 */
 @Composable
 private fun ProjectSection(
@@ -567,7 +471,7 @@ private fun ProjectSection(
         ) {
             Text(
                 text = stringResource(R.string.chat_drawer_projects),
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
@@ -595,12 +499,7 @@ private fun ProjectSection(
                 val isExpanded = expandedProjects.contains(group.workspacePath)
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(
-                            if (isExpanded) MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.45f)
-                            else Color.Transparent,
-                        ),
+                        .fillMaxWidth(),
                 ) {
                     // 项目文件夹行
                     Row(
@@ -608,7 +507,7 @@ private fun ProjectSection(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { onToggleExpand(group.workspacePath) }
-                            .padding(horizontal = 8.dp, vertical = 7.dp),
+                            .padding(start = 8.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
@@ -636,7 +535,7 @@ private fun ProjectSection(
                         // 单项目快捷新建会话入口
                         RuntimeIconButton(
                             onClick = { onCreateInProject(group) },
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(48.dp), contentDescription = stringResource(R.string.chat_drawer_new_task),
                         ) {
                             RuntimeIcon(
                                 name = RuntimeIconName.Plus,
@@ -708,7 +607,7 @@ private fun RecentSection(
         ) {
             Text(
                 text = stringResource(R.string.chat_drawer_recent),
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
@@ -748,113 +647,48 @@ private fun RecentSection(
     }
 }
 
-/** 单条会话项。 */
+/** 单条会话项：选择会话与管理操作分开，避免重复动作淹没标题。 */
 @Composable
 private fun SessionDrawerItem(
-    session: HarnessSessionEntity,
-    isCurrent: Boolean,
-    runState: SessionRunState,
-    onSwitch: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
+    session: HarnessSessionEntity, isCurrent: Boolean, runState: SessionRunState,
+    onSwitch: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit,
 ) {
+    var showMenu by remember(session.id) { mutableStateOf(false) }
     val dotColor = when (runState) {
-        SessionRunState.RUNNING -> Color(0xFFF59E0B)
-        SessionRunState.WAITING_APPROVAL -> Color(0xFF8B5CF6)
-        SessionRunState.FAILED -> Color(0xFFEF4444)
-        SessionRunState.COMPLETED -> Color(0xFF10B981)
-        SessionRunState.IDLE -> Color(0xFF10B981)
+        SessionRunState.RUNNING -> top.wkbin.taixu.ui.theme.semanticColors().warning
+        SessionRunState.WAITING_APPROVAL -> top.wkbin.taixu.ui.theme.semanticColors().agent
+        SessionRunState.FAILED -> MaterialTheme.colorScheme.error
+        else -> Color.Transparent
     }
-
     val timeLabel = formatSessionTime(session.updatedAt)
-
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = if (isCurrent) MaterialTheme.colorScheme.surfaceContainerHigh
-        else Color.Transparent,
-        border = if (isCurrent) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
-        else null,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onSwitch)
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            // 运行状态小圆点
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(dotColor),
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = session.title,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (isCurrent) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = RoundedCornerShape(4.dp),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.chat_current),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp),
-                            )
-                        }
-                    }
-                }
-                if (timeLabel.isNotBlank()) {
-                    Text(
-                        text = timeLabel,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = MaterialTheme.colorScheme.outline,
-                    )
-                }
+    Surface(shape = MaterialTheme.shapes.medium,
+        color = if (isCurrent) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+        modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().clickable(onClick = onSwitch)
+            .semantics { selected = isCurrent }.padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.size(6.dp).clip(CircleShape).background(dotColor))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(session.title, style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
+                    color = if (isCurrent) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (timeLabel.isNotBlank()) Text(timeLabel, style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-
-            // 快捷重命名按钮
-            RuntimeIconButton(
-                onClick = onRename,
-                modifier = Modifier.size(24.dp),
-            ) {
-                RuntimeIcon(
-                    name = RuntimeIconName.Edit,
-                    modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                )
-            }
-
-            // 快捷删除按钮
-            RuntimeIconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(24.dp),
-            ) {
-                RuntimeIcon(
-                    name = RuntimeIconName.Trash,
-                    modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                )
+            Box {
+                RuntimeIconButton(onClick = { showMenu = true }, modifier = Modifier.size(48.dp),
+                    contentDescription = stringResource(R.string.chat_more_controls)) {
+                    RuntimeIcon(RuntimeIconName.More, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.chat_rename_session)) },
+                        leadingIcon = { RuntimeIcon(RuntimeIconName.Edit, Modifier.size(18.dp)) },
+                        onClick = { showMenu = false; onRename() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.chat_delete_session), color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = { RuntimeIcon(RuntimeIconName.Trash, Modifier.size(18.dp), MaterialTheme.colorScheme.error) },
+                        onClick = { showMenu = false; onDelete() })
+                }
             }
         }
     }

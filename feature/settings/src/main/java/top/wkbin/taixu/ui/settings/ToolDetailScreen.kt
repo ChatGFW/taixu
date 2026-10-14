@@ -87,7 +87,7 @@ import top.wkbin.taixu.feature.components.R
  * - 操作按钮（自检、终端、卸载）
  */
 @Composable
-fun ToolDetailScreen(
+internal fun LocalToolDetailContent(
     toolId: String,
     onBack: () -> Unit,
     onLaunchTerminal: (toolId: String) -> Unit,

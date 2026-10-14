@@ -21,6 +21,7 @@ internal class ToolExecutionBoundary(
                 toolCallId = request.call.id, success = false,
                 output = "工具扩展 ${blocked.checkpointId} 已阻止本次调用：${blocked.reason}",
                 metadata = mapOf("tool_checkpoint" to blocked.checkpointId),
+                errorCode = "TOOL_CHECKPOINT_BLOCKED",
             )
         } else executeWithPolicy()
         // Detach mutable collections. Only the returned notes affect the actual result.

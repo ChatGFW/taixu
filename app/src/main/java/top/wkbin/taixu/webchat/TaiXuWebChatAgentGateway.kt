@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import top.wkbin.taixu.core.database.HarnessSessionEntity
@@ -21,6 +22,8 @@ import top.wkbin.taixu.harness.session.SessionControl
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.SkillSuggestion
+import top.wkbin.taixu.harness.TaskDelivery
+import top.wkbin.taixu.harness.task.TaskDeliveryReport
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
@@ -65,7 +68,7 @@ class TaiXuWebChatAgentGateway(
     override suspend fun deleteSession(sessionId: String) = harnessLoop.deleteSession(sessionId)
 
     override suspend fun messages(sessionId: String): List<WebChatMessage> =
-        harnessLoop.persistedMessages(sessionId).map(::toWebMessage)
+        harnessLoop.persistedMessages(sessionId).filterNot { it is TaskDelivery && !it.hasExecutionDetails }.map(::toWebMessage)
 
     override suspend fun pendingApprovals(sessionId: String): List<WebChatApproval> =
         approvals.pendingNow(sessionId).map(::toWebApproval)
@@ -85,7 +88,7 @@ class TaiXuWebChatAgentGateway(
         ) { messages, states, statuses, pending ->
             val state = states[sessionId]
             WebChatSessionSnapshot(
-                messages = messages.map(::toWebMessage),
+                messages = messages.filterNot { it is TaskDelivery && !it.hasExecutionDetails }.map(::toWebMessage),
                 running = state == SessionRunState.RUNNING,
                 waitingApproval = state == SessionRunState.WAITING_APPROVAL,
                 approvals = pending.map(::toWebApproval),
@@ -213,6 +216,15 @@ class TaiXuWebChatAgentGateway(
                 put("details", message.description)
             },
             createAt = message.createdAt,
+        )
+        is TaskDelivery -> WebChatMessage(
+            id = message.id, user = 0, type = 2,
+            content = buildJsonObject {
+                put("type", "agent_tool_summary"); put("toolTitle", "任务交付记录（行为未验证）")
+                put("toolType", "task_delivery"); put("status", "unverified")
+                put("details", "${message.report.observations.size} 条工具记录 · ${message.report.artifacts.size} 份产物记录")
+                put("report", Json.encodeToJsonElement(TaskDeliveryReport.serializer(), message.report))
+            }, createAt = message.createdAt,
         )
         is ModelSwitchEvent -> WebChatMessage(
             id = message.id,

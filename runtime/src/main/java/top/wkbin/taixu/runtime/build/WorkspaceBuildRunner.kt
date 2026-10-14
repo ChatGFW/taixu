@@ -425,7 +425,7 @@ class WorkspaceBuildRunner(
                 var outcome = linuxRuntime.execute(
                     ShellCommand(
                         commandLine = buildCmd,
-                        forcePty = true,
+                        forcePty = true, memoryHeavy = true,
                         timeoutMs = 1800_000L, // 30 分钟充足超时，适配移动端首次下载海量依赖
                         useQemuCompatibility = useQemuBuild,
                         environment = workshopEnvironment,
@@ -492,7 +492,7 @@ class WorkspaceBuildRunner(
                         linuxRuntime.execute(ShellCommand(
                             commandLine = if (androidScriptPath.endsWith("taixu-build.sh")) "/bin/sh $androidScriptPath android \"${project.linuxPath}\" $androidTask --qemu" else "/bin/sh $androidScriptPath \"${project.linuxPath}\" $androidTask --qemu",
                             environment = workshopEnvironment,
-                            forcePty = true,
+                            forcePty = true, memoryHeavy = true,
                             timeoutMs = 1800_000L,
                             useQemuCompatibility = true,
                             onOutput = { chunk ->
@@ -707,7 +707,7 @@ class WorkspaceBuildRunner(
                 var outcome = linuxRuntime.execute(
                     ShellCommand(
                         commandLine = buildCmd,
-                        forcePty = true,
+                        forcePty = true, memoryHeavy = true,
                         timeoutMs = 1800_000L,
                         useQemuCompatibility = useQemuBuild,
                         environment = workshopEnvironment,
@@ -733,7 +733,7 @@ class WorkspaceBuildRunner(
                         linuxRuntime.execute(ShellCommand(
                             commandLine = if (flutterScriptPath.endsWith("taixu-build.sh")) "/bin/sh $flutterScriptPath flutter \"${project.linuxPath}\" --qemu" else "/bin/sh $flutterScriptPath \"${project.linuxPath}\" --qemu",
                             environment = workshopEnvironment,
-                            forcePty = true,
+                            forcePty = true, memoryHeavy = true,
                             timeoutMs = 1800_000L,
                             useQemuCompatibility = true,
                             onOutput = { chunk ->

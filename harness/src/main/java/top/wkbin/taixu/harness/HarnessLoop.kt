@@ -321,6 +321,7 @@ class HarnessLoop(
     /** 新建会话。workspace 为关联的工作区 Linux 路径（如 /workspace/proj），空串表示不关联。 */
     override suspend fun newSession(title: String, workspace: String, projectType: String): String {
         val id = UUID.randomUUID().toString()
+        val executionTarget = executionEnvironments?.captureTarget(workspace)
         val defaultModel = modelRepository.activeModel()
         foregroundLoadGeneration.incrementAndGet()
         tombstonedSessions.remove(id)
@@ -338,16 +339,16 @@ class HarnessLoop(
                 workspace = workspace,
                 projectType = projectType,
                 approvalMode = approvalRepository.currentMode().id,
-                runMode = approvalRepository.currentRunMode().id,
+                runMode = approvalRepository.currentRunMode().id, executionTargetJson = executionTarget,
             ),
         )
+        executionEnvironments?.bindSession(id, workspace)
         messageProjector.seedEmpty(id)
         messageProjector.resetForegroundProjection(emptyList())
         _sessionPendingMessages[id] = MutableStateFlow(emptyList())
         stateMirrors.ensureFlows(id)
         stateMirrors.setRunState(id, SessionRunState.IDLE)
         stateMirrors.setStatus(id, null)
-
         stateMirrors.resetForeground()
         _pendingMessages.value = emptyList()
         _queuedPrompts.value = emptyList()
@@ -1039,8 +1040,8 @@ class HarnessLoop(
                 stateMirrors.setError(sessId, null)
                 when (val result = block()) {
                     RunResult.Completed -> {
-                        taskId?.let { agentTaskStateMachine.markCompleted(it) }
-                        operationCoordinator.finish(sessId, "completed", messageProjector.messagesFlow(sessId).value.lastOrNull()?.id)
+                        if (taskId != null) messageProjector.publishPersisted(sessId, operationCoordinator.completeTask(sessId, taskId))
+                        else operationCoordinator.finish(sessId, "completed", messageProjector.messagesFlow(sessId).value.lastOrNull()?.id)
                         stateMirrors.setRunState(sessId, SessionRunState.COMPLETED)
                         // 「对话后技能进化」：一轮有效工作结束后异步分析是否值得沉淀新技能 /
                         // 修复既有技能；失败与取消路径不触发，且内部全量容错不影响主对话。

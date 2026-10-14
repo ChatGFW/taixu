@@ -40,6 +40,7 @@ class McpStdioTransport(
     private val json: Json,
     private val commandBuilder: McpCommandBuilder,
     private val channelFactory: McpStdioChannelFactory,
+    internal val standaloneScope: StandaloneMcpScope? = null,
 ) : McpTransport {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val connections = ConcurrentHashMap<String, Connection>()
@@ -55,16 +56,16 @@ class McpStdioTransport(
         }
     }
 
-    override suspend fun check(server: McpServerConfig): Boolean {
+    override suspend fun check(server: McpServerConfig): McpCheckResult {
         val conn = try {
             connection(server, bypassCooldown = true)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (t: Throwable) {
-            return false
+            return McpCheckResult(false, t.message ?: t::class.simpleName)
         }
         return try {
-            conn.withInitialized { true }
+            conn.withInitialized { McpCheckResult(true) }
         } catch (cancellation: CancellationException) {
             // B2: 取消（如 checkConnection 8s 超时、等待 initialize 握手锁被取消）不代表进程损坏，
             // 不销毁连接——握手锁只挡毫秒级握手，绝不会误杀在飞的最长 600s 的 tools/call
@@ -72,7 +73,7 @@ class McpStdioTransport(
         } catch (t: Throwable) {
             // B2: 仅传输层故障（进程退出/EOF/IO）才销毁；server 返回错误响应等本次探测失败保留连接
             if (isChannelFailure(t)) discardConnection(conn.serverId, conn)
-            false
+            McpCheckResult(false, t.message ?: t::class.simpleName)
         }
     }
 
@@ -120,8 +121,7 @@ class McpStdioTransport(
     }
 
     /** 是否为传输层故障（子进程死亡 / EOF / IO 错误），只有此类失败才值得销毁重建连接 */
-    private fun isChannelFailure(t: Throwable): Boolean =
-        t is McpStdioChannelException || t is IOException
+    private fun isChannelFailure(t: Throwable): Boolean = t is McpStdioChannelException || t is IOException
 
     suspend fun closeConnection(serverId: String) = startupMutexes.getOrPut(serverId) { Mutex() }.withLock {
         val ids = (connections.keys + downUntil.keys + serverId).filter { it == serverId || it.startsWith("$serverId@environment:") }
@@ -162,12 +162,11 @@ class McpStdioTransport(
     }
 
     private suspend fun connection(server: McpServerConfig, bypassCooldown: Boolean = false): Connection {
-        val scoped = server.forExecutionEnvironment()
+        val scoped = server.copy(id = scopedMcpKey(server, standaloneScope))
         return startupMutexes.getOrPut(server.id) { Mutex() }.withLock {
             connectionLocked(scoped, bypassCooldown)
         }
     }
-
     private suspend fun connectionLocked(server: McpServerConfig, bypassCooldown: Boolean): Connection {
         connections[server.id]?.takeIf { it.dead == null && it.channel.isAlive && it.fingerprint == commandBuilder.fingerprint(server) }?.let {
             it.markActive()
@@ -384,19 +383,16 @@ class McpStdioTransport(
     private fun startReaderLoop(connection: Connection) {
         connection.readerJob = scope.launch {
             try {
-                while (true) {
-                    connection.route(connection.channel.incoming.receive())
-                }
+                while (true) connection.route(connection.channel.incoming.receive())
             } catch (cancellation: CancellationException) {
                 throw cancellation // close() 主动取消，等待者已由 close 收尾
             } catch (t: Throwable) {
                 // B5/B2: EOF/进程退出/IO 是传输层故障，只有此类失败才值得销毁重建
-                connection.failPending(McpStdioChannelException("MCP 通道读取终止：" + (t.message ?: t::class.simpleName)))
+                connection.failPending(McpStdioChannelException("MCP 通道读取终止：" +
+                    if (t is kotlinx.coroutines.channels.ClosedReceiveChannelException) "子进程输出已结束（无诊断输出）" else (t.message ?: t::class.simpleName)))
             }
         }
     }
-
-
     internal fun injectConnectionForTest(server: McpServerConfig, channel: McpStdioChannel) {
         Connection(server.id, channel, commandBuilder.fingerprint(server)).also { connection ->
             connections[server.id] = connection
@@ -414,6 +410,8 @@ class McpStdioTransport(
         private const val CALL_REQUEST_TIMEOUT_MS = 600_000L
         internal const val MAX_BUFFERED_LINES = 64
         internal const val MAX_FRAME_CHARS = 1 * 1024 * 1024
+        /** STDIO 超长行落盘转存硬顶：8MB（超过则回退熔断跳过），与 McpResponseSizeLimiter 的 SSE 硬顶对齐。 */
+        internal const val MAX_SPILL_FRAME_CHARS = 8L * 1024 * 1024
         internal const val MAX_IGNORED_FRAMES = 256
         internal const val IDLE_TIMEOUT_MS = 10L * 60L * 1000L
         internal const val SWEEP_INTERVAL_MS = 60L * 1000L

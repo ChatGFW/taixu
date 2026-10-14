@@ -86,10 +86,10 @@ class CcSwitchViewModel(
     private val linuxRuntime: LinuxRuntime,
     private val dependencyManager: DependencyManager,
     private val logger: AppLogger,
+    private val localAccess: top.wkbin.taixu.runtime.environment.LocalBackendAccess? = null,
 ) : ViewModel() {
 
     private val toolId = "cc-switch"
-
     private val _isOperating = MutableStateFlow(false)
     private val _isDaemonRunning = MutableStateFlow(false)
     private val _isCheckingEnvironment = MutableStateFlow(false)
@@ -680,6 +680,7 @@ EOF
     }
 
     fun installOrUpgradeAgent(agent: CcAgentState, targetVersion: String? = null) {
+        try { localAccess?.requireLocal() } catch (e: IllegalStateException) { _errorMessage.value = e.message; return }
         _upgradingAgent.value = null
         _isOperating.value = true
         _installingAgentType.value = agent.type
@@ -700,7 +701,6 @@ EOF
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // 1. 确保沙箱运行时依赖 (Node.js / Python)
                 val isNodeTool = agent.type in listOf(
                     CcAgentType.CLAUDE_CODE,
                     CcAgentType.CODEX,
@@ -712,7 +712,7 @@ EOF
                 )
 
                 if (isNodeTool) {
-                    log("[*] [步骤 1/3] 检查沙箱内 Node.js / npm 运行时环境...")
+                    log("[*] 检查沙箱内 Node.js / npm 运行时环境...")
                     val hasNode = linuxRuntime.execute(
                         ShellCommand("command -v npm >/dev/null 2>&1 || [ -x /opt/taixu/bin/npm ] || [ -x /usr/local/bin/npm ]")
                     ).isSuccess

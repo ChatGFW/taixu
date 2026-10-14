@@ -18,16 +18,13 @@ import org.robolectric.annotation.Config
 import top.wkbin.taixu.iteration.engine.CustomIterationBootstrap
 import top.wkbin.taixu.iteration.engine.CustomIterationPaths
 import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator
-import top.wkbin.taixu.runtime.ElfInspector
-import top.wkbin.taixu.runtime.RuntimePathManager
-import top.wkbin.taixu.runtime.rootfs.RootfsValidator
 import top.wkbin.taixu.ui.iteration.CustomIterationViewModel
 
 /**
  * Koin 装配回归闸门。
  *
  * 用真实 [featureCustomIterationModule] 验证图能解析出 [TaiXuDevBuildCoordinator] 与
- * [CustomIterationViewModel]，且路径解析保持惰性（构造 ViewModel 不触碰 RootFS 状态、
+ * [CustomIterationViewModel]，且路径解析保持惰性（构造 ViewModel 不触碰 RuntimePathManager、
  * 不执行任何 gh 命令）。
  */
 @RunWith(RobolectricTestRunner::class)

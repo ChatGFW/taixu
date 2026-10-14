@@ -430,6 +430,7 @@
     <string name="chat_remove_attachment">移除附件</string>
     <string name="chat_attachment_processing">正在处理附件…</string>
     <string name="chat_attachment_process_failed">%1$d 个附件处理失败，请重试</string>
+    <string name="chat_attachment_too_large">%1$d 个文件超过大小上限（最大 %2$s），未添加</string>
     <string name="chat_skill_suggestion_created">已创建技能「%1$s」</string>
     <string name="chat_skill_suggestion_updated">已更新技能「%1$s」</string>
     <string name="chat_skill_suggestion_apply_failed">应用技能建议失败：%1$s</string>

@@ -30,6 +30,7 @@ class LocalExecutionDownloadsTest {
         val adapter = LocalExecutionDownloads(downloader(png), WorkspaceFileAccess(root))
         val result = adapter.download(request("a.png")).last() as ExecutionDownloadEvent.Completed
         assertTrue(result.validImage)
+        assertEquals(WorkspaceFileAccess(root).fingerprint("a.png").getOrNull()!!.sha256, result.sha256)
         assertEquals("existing.png", result.duplicateOf)
         assertEquals(8L, result.sizeBytes)
         assertFalse(result.checksumVerified)

@@ -292,7 +292,7 @@ val harnessModule = module {
     }
 
     single<HarnessEventBus> { HarnessEventBus() }
-    single<LinuxMcpStdioChannelFactory> { LinuxMcpStdioChannelFactory(linuxRuntime = get(), commandBuilder = get(), environments = get()) }
+    single<LinuxMcpStdioChannelFactory> { LinuxMcpStdioChannelFactory(linuxRuntime = get(), commandBuilder = get(), environments = get(), spillDirectory = File(get<Context>().cacheDir, "taixu_mcp_spills")) }
 
     single<McpCommandBuilder> { McpCommandBuilder() }
 
@@ -306,6 +306,7 @@ val harnessModule = module {
         )
     }
 
+    single<top.wkbin.taixu.harness.mcp.McpCatalogAvailability> { top.wkbin.taixu.harness.mcp.McpCatalogAvailability(get(), get(), get()) }
     single<McpManager> {
         McpManager(
             repository = get(),
@@ -314,22 +315,21 @@ val harnessModule = module {
             commandBuilder = get(),
             linuxRuntime = get(),
             logger = get(),
-            agentEventLogger = get(),
+            agentEventLogger = get(), remoteServers = get(), catalogAvailability = get(),
         )
     }
-
     single<McpStdioChannelFactory> { get<LinuxMcpStdioChannelFactory>() }
 
     single<McpStdioTransport> {
         McpStdioTransport(
             json = get(),
             commandBuilder = get(),
-            channelFactory = get(),
+            channelFactory = get(), standaloneScope = get(),
         )
     }
 
     single<McpWorkspaceRecommender> { McpWorkspaceRecommender() }
-
+    single { val selection = get<top.wkbin.taixu.runtime.environment.LocalDistributionSelection>(); top.wkbin.taixu.harness.mcp.StandaloneMcpScope(get(), selection::current, selection.changes) }
     single<McpOAuthCoordinator> { McpOAuthCoordinator(credentials = get(), client = get()) }
 
     single<McpOAuthTokenProvider> { McpOAuthTokenProvider(credentials = get(), coordinator = get()) }
@@ -409,8 +409,7 @@ val harnessModule = module {
             mcpServerRepository = get(),
             promptAssets = get(),
             fileAccess = get(),
-            privilegeRenderer = get(),
-            promptRouter = get(),
+            privilegeRenderer = get(), promptRouter = get(), environments = get(),
         )
     }
 
@@ -440,7 +439,7 @@ val harnessModule = module {
             systemPromptBuilder = get(),
             sessionStore = get(),
             memoryRecallSelector = get(),
-            agentApprovalRepository = get(),
+            agentApprovalRepository = get(), operationCoordinator = get(),
         )
     }
 

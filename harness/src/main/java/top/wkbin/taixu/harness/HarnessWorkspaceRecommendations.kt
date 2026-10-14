@@ -28,6 +28,7 @@ class HarnessWorkspaceRecommendations(
     private var scanJob: Job? = null
 
     suspend fun enable(presetId: String) {
+        if (top.wkbin.taixu.core.model.BuiltinMcpPresets.find(presetId)?.requiresInstall == true) return
         try {
             servers.setEnabled(presetId, true)
             dismiss(presetId)

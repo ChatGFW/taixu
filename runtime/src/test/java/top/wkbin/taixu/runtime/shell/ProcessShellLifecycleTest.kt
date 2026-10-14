@@ -39,13 +39,16 @@ class ProcessShellLifecycleTest {
         val owned = mutableListOf<suspend () -> Unit>()
         val running = launch(binding(owned)) { executor.execute(listOf("fake")) }
         awaitReader(process)
+        assertFalse(executor.hasUnsettled())
         running.cancelAndJoin()
         assertTrue(executor.hasPending())
+        assertTrue(executor.hasUnsettled())
         assertEquals(1, owned.size)
         process.forcedExit = true
         owned.single().invoke()
         assertFalse(executor.hasPending())
         assertTrue(owned.isEmpty())
+        assertFalse(executor.hasUnsettled())
         assertEquals(2, process.forces.get())
     }
     @Test fun closedEnvironmentRejectsCommandBeforeHostAllocation() = runBlocking {

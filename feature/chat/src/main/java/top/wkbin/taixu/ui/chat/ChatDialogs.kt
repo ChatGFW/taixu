@@ -8,7 +8,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
@@ -30,9 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import androidx.compose.material3.ButtonDefaults
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -57,11 +53,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.database.HarnessSessionEntity
-import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.core.model.SessionRunState
-import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.ui.components.ProviderBadge
 
 /** 会话 / 模型 / 新建会话对话框。 */
@@ -184,12 +179,13 @@ internal fun SessionsDialog(
                         val isCurrent = session.id == currentSessionId
                         val runState = sessionRunStates[session.id] ?: SessionRunState.IDLE
 
+                        val semantics = semanticColors()
                         val (dotColor, stateLabel) = when (runState) {
-                            SessionRunState.RUNNING -> Color(0xFFF59E0B) to stringResource(R.string.chat_state_running)
-                            SessionRunState.WAITING_APPROVAL -> Color(0xFF8B5CF6) to stringResource(R.string.chat_state_approval)
-                            SessionRunState.FAILED -> Color(0xFFEF4444) to stringResource(R.string.chat_state_failed)
-                            SessionRunState.COMPLETED -> Color(0xFF10B981) to stringResource(R.string.chat_state_completed)
-                            SessionRunState.IDLE -> Color(0xFF10B981) to stringResource(R.string.chat_state_ready)
+                            SessionRunState.RUNNING -> semantics.warning to stringResource(R.string.chat_state_running)
+                            SessionRunState.WAITING_APPROVAL -> semantics.agent to stringResource(R.string.chat_state_approval)
+                            SessionRunState.FAILED -> MaterialTheme.colorScheme.error to stringResource(R.string.chat_state_failed)
+                            SessionRunState.COMPLETED -> semantics.success to stringResource(R.string.chat_state_completed)
+                            SessionRunState.IDLE -> semantics.success to stringResource(R.string.chat_state_ready)
                         }
 
                         Surface(
@@ -442,6 +438,7 @@ internal fun ModelDialog(
                 showAdd = false
             },
         )
+        return
     }
     val pickingProfile = modelPickerProfileId?.let { id -> models.firstOrNull { it.id == id } }
     if (pickingProfile != null) {
@@ -457,7 +454,7 @@ internal fun ModelDialog(
         )
         return
     }
-    RuntimeAlertDialog(
+    ChatBottomSheet(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.chat_select_model), fontWeight = FontWeight.Bold) },
         text = {
@@ -683,7 +680,7 @@ internal fun ProviderModelPickerDialog(
     var manualId by remember(profile.id, profile.model, selectedModelVariant) {
         mutableStateOf(selectedModelVariant ?: profile.model.substringBefore(',').trim())
     }
-    RuntimeAlertDialog(
+    ChatBottomSheet(
         onDismissRequest = onDismiss,
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -696,7 +693,7 @@ internal fun ProviderModelPickerDialog(
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     stringResource(R.string.chat_switch_model_hint),
                     style = MaterialTheme.typography.labelSmall,
@@ -806,7 +803,7 @@ internal fun AddModelDialog(
     var baseUrl by rememberSaveable { mutableStateOf("") }
     // baseUrl 基础格式校验：必须以 http:// 或 https:// 开头（留空走供应商默认端点）
     val baseUrlInvalid = baseUrl.isNotBlank() && !baseUrl.trim().startsWith("http://") && !baseUrl.trim().startsWith("https://")
-    RuntimeAlertDialog(
+    ChatBottomSheet(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.chat_add_model), fontWeight = FontWeight.Bold) },
         text = {
@@ -853,164 +850,6 @@ internal fun AddModelDialog(
 }
 
 @Composable
-internal fun NewSessionDialog(
-    workspaces: List<WorkspaceProject>,
-    onDismiss: () -> Unit,
-    onCreate: (title: String, workspace: String, projectType: ProjectType) -> Unit,
-) {
-    val defaultTitle = stringResource(R.string.chat_new_session)
-    // 表单状态旋转后保留；枚举以 name 字符串保存
-    var title by rememberSaveable { mutableStateOf(defaultTitle) }
-    var selected by rememberSaveable { mutableStateOf("") }
-    var selectedTypeName by rememberSaveable { mutableStateOf(ProjectType.GENERAL.name) }
-    val selectedType = ProjectType.valueOf(selectedTypeName)
-    var typeMenuExpanded by rememberSaveable { mutableStateOf(false) }
-    val quickTags = listOf(
-        defaultTitle,
-        stringResource(R.string.chat_quick_bug),
-        stringResource(R.string.chat_quick_feature),
-        stringResource(R.string.chat_quick_environment),
-        stringResource(R.string.chat_quick_refactor),
-    )
-
-    RuntimeAlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                Text(stringResource(R.string.chat_new_agent_session), fontWeight = FontWeight.Bold)
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 420.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(stringResource(R.string.chat_session_title), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    placeholder = { Text(stringResource(R.string.chat_session_name_hint)) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                // 快捷预设标题标签
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    quickTags.forEach { tag ->
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (title == tag) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (title == tag) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.Transparent,
-                            ),
-                            modifier = Modifier.clickable { title = tag },
-                        ) {
-                            Text(
-                                tag,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (title == tag) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            )
-                        }
-                    }
-                }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                Text(
-                    stringResource(R.string.chat_link_workspace),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    item {
-                        WorkspaceOption(stringResource(R.string.chat_no_workspace), "/root", selected == "", onSelect = {
-                            selected = ""
-                            selectedTypeName = ProjectType.GENERAL.name
-                        })
-                    }
-                    items(workspaces.size, key = { workspaces[it].linuxPath }) { index ->
-                        val ws = workspaces[index]
-                        WorkspaceOption(ws.name, ws.linuxPath, selected == ws.linuxPath) {
-                            selected = ws.linuxPath
-                            selectedTypeName = ws.projectType.name
-                        }
-                    }
-                }
-
-                val selectedProject = workspaces.firstOrNull { it.linuxPath == selected }
-                // Keep the detected type as the default, but allow an imported
-                // repository to be assigned to a different specialist Agent.
-                Text(
-                    if (selectedProject == null || selectedProject.projectType == ProjectType.GENERAL) {
-                        stringResource(R.string.chat_project_type_manual)
-                    } else {
-                        stringResource(R.string.chat_project_type_detected)
-                    },
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Box {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth().clickable { typeMenuExpanded = true },
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                selectedType.displayName,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(stringResource(R.string.chat_select), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-                    DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
-                        ProjectType.entries.forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text(type.displayName) },
-                                onClick = {
-                                    selectedTypeName = type.name
-                                    typeMenuExpanded = false
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onCreate(title.ifBlank { defaultTitle }, selected, selectedType) },
-                shape = RoundedCornerShape(8.dp),
-            ) {
-                Text(stringResource(R.string.chat_create_session))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_cancel)) }
-        },
-    )
-}
-
-@Composable
 internal fun WorkspaceOption(name: String, path: String, selected: Boolean, onSelect: () -> Unit) {
     Row(
         Modifier
@@ -1042,4 +881,3 @@ internal fun WorkspaceOption(name: String, path: String, selected: Boolean, onSe
         }
     }
 }
-

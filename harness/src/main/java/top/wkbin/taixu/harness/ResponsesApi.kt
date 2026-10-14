@@ -2,7 +2,6 @@ package top.wkbin.taixu.harness
 
 import top.wkbin.taixu.harness.core.LlmApi
 import java.io.IOException
-import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.InternalCoroutinesApi
@@ -80,6 +79,7 @@ internal class ResponsesApi(
         val cancelHandle = coroutineContext[Job]?.invokeOnCompletion(onCancelling = true) { call.cancel() }
         val firstEventTimeoutMs = ProviderClient.resolveFirstEventTimeoutMs(
             ProviderClient.estimateApiMessageTokens(messages),
+            reasoningEnabled = model.reasoningMode != ReasoningMode.DISABLED,
         )
         val firstEventState = AtomicInteger(ProviderClient.FIRST_EVENT_WAITING)
         val firstEventWatchdog = launch {
@@ -101,7 +101,9 @@ internal class ResponsesApi(
                     throw httpError(response.code, rawBody)
                 }
                 val source = response.body.source()
-                val demuxer = ThinkTagStreamDemuxer(onReasoning, onDelta)
+                // 单轮流式输出硬失败预算：正文/思考经 demuxer 计入，工具入参在累积点计入。
+                val budget = StreamBudget()
+                val demuxer = ThinkTagStreamDemuxer(onReasoning, onDelta, budget = budget)
                 val receivedText = StringBuilder()
                 // item_id -> 工具调用累积器（Responses 以 item_id 区分同一轮多个 function_call）
                 val toolCalls = mutableMapOf<String, ToolCallAccumulator>()
@@ -111,6 +113,7 @@ internal class ResponsesApi(
                 var completed = false
                 while (true) {
                     val line = source.readUtf8Line() ?: break
+                    observeStreamHeartbeat(line, firstEventState, firstEventWatchdog)
                     if (!line.startsWith("data:")) continue
                     val data = line.removePrefix("data:").trim()
                     if (data.isEmpty()) continue
@@ -153,6 +156,7 @@ internal class ResponsesApi(
                             val chunk = event["delta"]?.jsonPrimitive?.contentOrNull
                             if (!chunk.isNullOrEmpty()) {
                                 val accum = toolCalls.getOrPut(itemId) { ToolCallAccumulator() }
+                                budget.add(chunk)
                                 accum.arguments.append(chunk)
                                 accum.publishProgress(onToolProgress)
                             }
@@ -171,6 +175,7 @@ internal class ResponsesApi(
                                 if (accum.name.isBlank()) accum.name = item["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
                                 val args = item["arguments"]?.jsonPrimitive?.contentOrNull
                                 if (args != null && accum.arguments.isEmpty() && args.isNotBlank()) {
+                                    budget.add(args)
                                     accum.arguments.append(args)
                                 }
                                 accum.publishProgress(onToolProgress)
@@ -191,18 +196,22 @@ internal class ResponsesApi(
                         "response.failed" -> {
                             val error = (event["response"] as? JsonObject)?.get("error") as? JsonObject
                             val message = error?.get("message")?.jsonPrimitive?.contentOrNull ?: "响应处理失败"
-                            throw IllegalStateException("Responses 请求失败：$message")
+                            throw providerStreamError(error?.toString() ?: message)
+                        }
+                        "response.incomplete" -> {
+                            val incompleteResponse = event["response"] as? JsonObject
+                            val reason = (incompleteResponse?.get("incomplete_details") as? JsonObject)
+                                ?.get("reason")?.jsonPrimitive?.contentOrNull
+                            requireOutputCompletion(reason, ProviderClient.estimateApiMessageTokens(messages), receivedText.length + demuxer.fullReasoning.length)
+                            throw IllegalStateException("Responses 响应未完成：${reason ?: "未知原因"}")
                         }
                         "error" -> {
-                            val message = event["message"]?.jsonPrimitive?.contentOrNull ?: "未知错误"
-                            val code = event["code"]?.jsonPrimitive?.contentOrNull
-                            throw IllegalStateException(
-                                "Responses 请求失败：$message" + (code?.let { " (code=$it)" } ?: ""),
-                            )
+                            throw providerStreamError(event.toString())
                         }
                         else -> Unit // response.created / in_progress / content_part.* 等无需处理
                     }
                 }
+                requireStreamCompletion(completed, "Responses")
                 val finalResult = nativeOutput?.takeIf { completed && it.isNotEmpty() }?.let {
                     parseFinalResponse(buildJsonObject { put("output", it) }.toString(), model)
                 }
@@ -225,12 +234,7 @@ internal class ResponsesApi(
                 )
             }
         } catch (io: IOException) {
-            if (firstEventState.get() == ProviderClient.FIRST_EVENT_TIMED_OUT) {
-                throw SocketTimeoutException(
-                    "等待模型首个响应超过 ${firstEventTimeoutMs / 1000}s",
-                ).apply { initCause(io) }
-            }
-            throw io
+            throw streamFailure(io, firstEventState.get(), firstEventTimeoutMs, okHttpClient.readTimeoutMillis.toLong())
         } finally {
             firstEventWatchdog.cancel()
             cancelHandle?.dispose()

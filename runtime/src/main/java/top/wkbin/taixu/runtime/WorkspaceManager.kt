@@ -466,9 +466,9 @@ class WorkspaceManager(
     suspend fun readFile(projectName: String, relativePath: String): AppResult<String> =
         fileService.readFile(projectName, relativePath)
 
-    /** 写入文件内容（原子临时文件替换）。 */
-    suspend fun writeFile(projectName: String, relativePath: String, content: String): AppResult<Unit> =
-        fileService.writeFile(projectName, relativePath, content)
+    /** 写入文件内容（原子临时文件替换）；传入 [expectedContent] 时先校验磁盘版本，被外部改动则返回 CONFLICT。 */
+    suspend fun writeFile(projectName: String, relativePath: String, content: String, expectedContent: String? = null): AppResult<Unit> =
+        fileService.writeFile(projectName, relativePath, content, expectedContent)
 
     /** 创建新文件（空文件）。 */
     suspend fun createFile(projectName: String, relativePath: String): AppResult<Unit> =

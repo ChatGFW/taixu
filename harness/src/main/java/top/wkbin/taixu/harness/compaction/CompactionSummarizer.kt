@@ -4,6 +4,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.harness.SkillSuggestion
+import top.wkbin.taixu.harness.TaskDelivery
 import top.wkbin.taixu.harness.ApiMessage
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.CapabilityEvent
@@ -22,8 +23,7 @@ import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * 会话文本序列化（对齐 pi 的 serializeConversation）：
- * 把 HarnessMessage 列表压平为 `[User]:` / `[Assistant]:` / `[Assistant tool calls]:` / `[Tool result]:`
- * 的纯文本叙事，供 LLM 摘要请求使用。纯文本形态防止模型把历史当作"要继续的对话"。
+ * 把 HarnessMessage 列表压平为 `[User]:` / `[Assistant]:` / `[Assistant tool calls]:` / `[Tool result]:` 叙事，供 LLM 摘要请求使用；纯文本形态防止模型把历史当作"要继续的对话"。
  *
  * 设计要点（源自 pi compaction/utils.ts）：
  * - 工具结果截断到 [TOOL_RESULT_CHAR_LIMIT]（2000 字符），超出部分标注省略量——
@@ -55,7 +55,7 @@ object ConversationText {
         while (index < messages.size) {
             val message = messages[index]
             when (message) {
-                is CapabilityEvent, is ModelSwitchEvent, is SkillSuggestion -> Unit
+                is CapabilityEvent, is ModelSwitchEvent, is SkillSuggestion, is TaskDelivery -> Unit
                 is UserMessage -> lines += "[User]: ${message.text.trim()}"
                 is AssistantText -> {
                     message.reasoning?.takeIf { it.isNotBlank() }?.let {

@@ -3,11 +3,12 @@ package top.wkbin.taixu.di.feature.custom.iteration
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 import top.wkbin.taixu.iteration.engine.CustomIterationBootstrap
-import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCli
 import top.wkbin.taixu.iteration.engine.CustomIterationPaths
+import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCli
 import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.RuntimePathManager
+import top.wkbin.taixu.runtime.shell.ShellCommand
 import top.wkbin.taixu.ui.iteration.CustomIterationViewModel
 
 /** Dependency registrations owned by the feature:custom_iteration module. */
@@ -34,6 +35,19 @@ val featureCustomIterationModule = module {
                     attachmentsDir = paths.attachmentsDir,
                     workspaceDir = paths.workspaceDir,
                 )
+            },
+            // 与 Coordinator 相同的 origin 探测；构造期不执行，工作区尚未克隆时返回 null
+            readOriginRemoteUrl = {
+                val result = runCatching {
+                    get<LinuxRuntime>().execute(
+                        ShellCommand(
+                            commandLine = TaiXuDevBuildCli.readOriginRemoteUrl(),
+                            workingDirectory = CustomIterationBootstrap.GUEST_WORKSPACE,
+                            timeoutMs = 30_000L,
+                        ),
+                    )
+                }.getOrNull()
+                if (result != null && result.isSuccess) result.stdout else null
             },
         )
     }

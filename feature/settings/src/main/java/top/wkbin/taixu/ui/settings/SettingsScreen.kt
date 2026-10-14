@@ -32,13 +32,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.ui.components.IconTile
 import top.wkbin.taixu.ui.components.MainDestination
-import top.wkbin.taixu.ui.components.RuntimeBottomBar
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.liquidGlassContent
-import top.wkbin.taixu.ui.theme.LocalLiquidGlassBackdrop
 
 /**
  * 太墟 · 乾坤配置 (TaiXu Settings & Models)
@@ -73,27 +71,21 @@ fun SettingsScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val appVersionName = rememberAppVersion()
 
-    val glassBackdrop = LocalLiquidGlassBackdrop.current
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             RuntimeTopBar(
-                title = "太墟 · 乾坤",
+                title = "太墟 · 乾坤", onBack = { onNavigate(MainDestination.Agent) },
                 statusText = "系统设置与控制中枢",
             )
-        },
-        bottomBar = {
-            if (glassBackdrop == null) {
-                RuntimeBottomBar(MainDestination.Settings, onNavigate)
-            }
         },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .liquidGlassContent()
-                .padding(top = padding.calculateTopPadding()),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 104.dp),
+                .padding(padding),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // 全局功能搜索快捷入口卡片

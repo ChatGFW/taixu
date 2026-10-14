@@ -17,11 +17,20 @@ internal object PluginBundleScripts {
     private val safeFile = Regex(
         "^/(opt/taixu/bin|opt/taixu/tools/android-suite-offline/bin|usr/local/bin|usr/bin)/[A-Za-z0-9._+-]+$" +
             "|^/opt/taixu/tools/android-suite-offline/lib/apktool\\.jar$" +
+            // MCP 能力仓库的落位标记：只允许删除 /opt/taixu/mcp/<组件 id>.ok 这种单层文件。
+            "|^/opt/taixu/mcp/[A-Za-z0-9._+-]+\\.ok$" +
             "|^/etc/profile\\.d/taixu-(android|rust)\\.sh$" +
             "|^/root/\\.gradle/init\\.gradle$" +
             "|^/root/\\.gradle/init\\.d/taixu-android-ndk\\.gradle$",
     )
-    private val safePostUninstall = Regex("^npm uninstall -g [a-z0-9 ]+>/dev/null 2>&1 \\|\\| true$")
+    /**
+     * 允许的卸载命令白名单。
+     *
+     * 包名段刻意只放行 npm 合法字符（含 scope 的 `@scope/name`），不放行空格之外的 shell 元字符，
+     * 因此 `npm uninstall -g @colbymchenry/codegraph` 这类带 scope 的全局包可以安全卸载，
+     * 而任何拼接了 `;`、`|`、`$(...)` 的变体都会在校验期被拒绝。
+     */
+    private val safePostUninstall = Regex("^npm uninstall -g [A-Za-z0-9@/._+-]+( [A-Za-z0-9@/._+-]+)* >/dev/null 2>&1 \\|\\| true$")
 
     fun installScript(selectedComponentIds: Set<String>, reinstall: Boolean): List<String> {
         val selected = components(selectedComponentIds)

@@ -13,6 +13,7 @@ import top.wkbin.taixu.iteration.engine.AssetReader
 import top.wkbin.taixu.iteration.engine.AndroidAssetReader
 import top.wkbin.taixu.iteration.engine.CustomIterationBootstrap
 import top.wkbin.taixu.iteration.engine.CustomIterationPaths
+import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCli
 import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator
 
 class CustomIterationViewModel(
@@ -29,6 +30,14 @@ class CustomIterationViewModel(
     private val resolvePaths: () -> CustomIterationPaths,
     /** assets 读取源；默认读 APK assets，测试可注入内存实现。 */
     private val assets: AssetReader = AndroidAssetReader(application),
+    /**
+     * 点击时刻读取迭代工作区的 `origin` URL。
+     *
+     * 与 [TaiXuDevBuildCoordinator] 相同：在 guest `~/custom_taixu` 执行
+     * `git remote get-url origin`。尚未克隆或命令失败时返回 null，Prompt 改用占位符，
+     * 不回退到官方仓库。
+     */
+    private val readOriginRemoteUrl: suspend () -> String? = { null },
 ) : AndroidViewModel(application) {
 
     data class UiState(
@@ -54,10 +63,14 @@ class CustomIterationViewModel(
         viewModelScope.launch {
             val app = getApplication<Application>()
             try {
-                // 宿主 homeDir ←PRoot bind→ guest /root；attachments/workspace 为 Agent 真实扫描根
+                // 宿主 homeDir ←PRoot bind→ guest /root。Skill 只写 attachments/workspace 扫描根。
+                // Fork 与 Coordinator 一样从 origin 解析；解析不到时 Prompt 要求 Agent 先读 git remote。
+                val originUrl = runCatching { readOriginRemoteUrl() }.getOrNull()
+                val forkRepo = originUrl?.let(TaiXuDevBuildCli::parseGitHubSlug)
                 val result = CustomIterationBootstrap.bootstrap(
                     assets = assets,
                     paths = resolvePaths(),
+                    forkRepo = forkRepo,
                 )
 
                 if (result.success) {

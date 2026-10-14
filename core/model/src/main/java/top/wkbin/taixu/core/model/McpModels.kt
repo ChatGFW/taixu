@@ -56,6 +56,18 @@ data class McpServerConfig(
     val builtinRisk: String = "low",
     /** 内置 server bootstrap 优先级。< 0 表示排在所有用户 MCP server 之前；>= 0 表示标准用户配置。 */
     val bootstrapOrder: Int = if (isBuiltin) -1 else 0,
+    /**
+     * 该能力需要先安装开发套件组件才能运行（例如改成上游 npm 包之后的 WebSearch / CodeGraph）。
+     *
+     * 出厂默认 [isEnabled] = false，且设置页禁止在组件就绪前开启；这样「已注册但文件不存在」
+     * 不会再演成 `discoverTools()` 超时阻塞启动（见 MIGRATION_35_36 的事故记录）。
+     */
+    val requiresInstall: Boolean = false,
+    /** 提供该能力的开发套件组件 id（由 [McpCatalog] 绑定）。空串表示随 APK 直接可用。 */
+    val installComponentId: String = "",
+    /** 启停偏好与当前环境就绪状态分别表达；二者均不随配置导出。 */
+    @Transient val userToggled: Boolean = false,
+    @Transient val installationReady: Boolean? = null,
 
 ) {
     /** 导出为 mcpServers JSON 配置片段（键为服务 id）；配置格式约定归模型层，View 只读展示 */
@@ -187,29 +199,6 @@ object BuiltinMcpPresets {
             isBuiltin = true,
         ),
         McpServerConfig(
-            id = "mcp_codegraph",
-            name = "CodeGraph 代码知识图谱",
-            description = "毫秒级索引工作区符号定义、调用链与影响面（支持 Python/Java/Kotlin/C/C++/JS/TS/Smali），大幅减少代码探索的 Token 与工具调用轮次",
-            transportType = McpTransportType.STDIO,
-            command = "python3",
-            args = listOf("-u", "/opt/taixu/scripts/codegraph_mcp_server.py", "--repository", "/workspace"),
-            isEnabled = true,
-            isBuiltin = true,
-        ),
-        McpServerConfig(
-            id = "mcp_websearch",
-            name = "Web 搜索（Open-WebSearch）",
-            description = "免 API Key 的多引擎网络搜索与网页正文抓取（太墟内置零依赖 MCP 服务）：支持 Baidu、Bing、DuckDuckGo 等多引擎直连搜索与正文清洗提取，毫秒级响应，无需 Node.js/npx，开箱即用",
-            transportType = McpTransportType.STDIO,
-            command = "python3",
-            args = listOf("-u", "/opt/taixu/scripts/websearch_mcp_server.py"),
-            env = mapOf(
-                "DEFAULT_SEARCH_ENGINE" to "baidu",
-            ),
-            isEnabled = true,
-            isBuiltin = true,
-        ),
-        McpServerConfig(
             id = BROWSER_BUILTIN_ID,
             name = "TaiXu Browser (Built-in)",
             description = "TaiXu 内置 in-app WebView 的 MCP server（in-process loopback 127.0.0.1:8787，Streamable HTTP POST /mcp 请求-响应，Bearer 认证）；由 harness 层 BrowserMcpBootstrap 启动，暴露 mcp__browser__* 工具给 Agent 与外接 IDE。",
@@ -220,5 +209,15 @@ object BuiltinMcpPresets {
             builtinRisk = "medium",
             bootstrapOrder = -100,
         ),
-    )
+    ) + McpCatalog.installable.map { it.serverPreset() }
+
+    private val byId: Map<String, McpServerConfig> = presets.associateBy { it.id }
+
+    /**
+     * 按 id 取预设定义。
+     *
+     * 预设里的 [McpServerConfig.requiresInstall] / [McpServerConfig.installComponentId] 等
+     * "代码侧元数据"不落数据库，仓库层从数据库读回后用本方法叠加回去。
+     */
+    fun find(id: String): McpServerConfig? = byId[id]
 }

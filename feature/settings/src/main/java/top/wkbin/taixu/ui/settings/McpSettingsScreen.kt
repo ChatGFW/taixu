@@ -32,7 +32,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
@@ -46,7 +45,6 @@ import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.SecondaryTabRow
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import androidx.compose.material3.Text as MaterialText
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,8 +59,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -79,7 +75,6 @@ import top.wkbin.taixu.core.model.McpConnectionState
 import top.wkbin.taixu.core.model.McpAuthMode
 import top.wkbin.taixu.core.model.McpAuthState
 import top.wkbin.taixu.core.model.McpServerConfig
-import top.wkbin.taixu.core.model.McpToolInfo
 import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.harness.mcp.server.AgentMcpAccess
 import top.wkbin.taixu.ui.components.RuntimeCard
@@ -94,12 +89,16 @@ import kotlinx.coroutines.delay
 fun McpSettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel(),
+    catalogViewModel: McpCatalogViewModel = koinViewModel(),
 ) {
     val servers by viewModel.mcpServers.collectAsStateWithLifecycle()
     val toggleOverrides by viewModel.mcpToggleOverrides.collectAsStateWithLifecycle()
     val connectionStates by viewModel.mcpConnectionStates.collectAsStateWithLifecycle()
     val mcpAuthStates by viewModel.mcpAuthStates.collectAsStateWithLifecycle()
     val browserGates by viewModel.browserGates.collectAsStateWithLifecycle()
+    // 未安装的按需能力：id → 待安装组件名。用于禁用开关并给出"先去安装"的直达提示。
+    val mcpInstallBlocked by catalogViewModel.installBlocked.collectAsStateWithLifecycle()
+    val mcpInstallNotice by catalogViewModel.installNotice.collectAsStateWithLifecycle()
     val screenScope = rememberCoroutineScope()
     val screenContext = LocalContext.current
     var showAddDialog by remember { mutableStateOf(false) }
@@ -109,8 +108,19 @@ fun McpSettingsScreen(
     var pendingDeleteServerId by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     val pendingDeleteServer = pendingDeleteServerId?.let { id -> servers.firstOrNull { it.id == id } }
 
-    // 进入设置页时自动探测一次所有已启用 MCP 服务的连通性
-    LaunchedEffect(Unit) { viewModel.refreshMcpConnections() }
+    // 进入设置页时：对齐组件探针（决定哪些能力"还没装"）并探测一次已启用服务的连通性
+    LaunchedEffect(Unit) {
+        catalogViewModel.refresh()
+        viewModel.refreshMcpConnections()
+    }
+
+    // 未安装能力的提示只展示一次，避免每次重组都弹
+    LaunchedEffect(mcpInstallNotice) {
+        mcpInstallNotice?.let { message ->
+            Toast.makeText(screenContext, message, Toast.LENGTH_LONG).show()
+            catalogViewModel.consumeInstallNotice()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -209,7 +219,8 @@ fun McpSettingsScreen(
                 item(key = "mcp_section_builtin") {
                     McpSectionHeader(
                         title = "系统核心 MCP",
-                        subtitle = "太墟内置系统级能力，默认关闭；开启后常驻本会话，harness 随时可调用（不参与 @ 唤醒）",
+                        subtitle = "太墟内置系统级能力，默认关闭；开启后常驻本会话，harness 随时可调用（不参与 @ 唤醒）。" +
+                            "标注「需先安装」的能力来自上游包，请到「工具中心 → MCP 能力仓库」按需安装",
                         count = builtinServers.size,
                     )
                 }
@@ -217,8 +228,14 @@ fun McpSettingsScreen(
                     McpServerItemCard(
                         server = server,
                         connectionState = connectionStates[server.id] ?: McpConnectionState.UNKNOWN,
+                        error = viewModel.mcpLastError(server.id),
                         togglePending = server.id in toggleOverrides,
-                        onToggle = { enabled -> viewModel.toggleMcpServer(server.id, enabled) },
+                        requiredComponentName = mcpInstallBlocked[server.id],
+                        onToggle = { enabled ->
+                            if (catalogViewModel.onToggleRequested(server.id, enabled)) {
+                                viewModel.toggleMcpServer(server.id, enabled)
+                            }
+                        },
                         onClickDetail = { viewingDetailServer = server },
                     )
                 }
@@ -236,7 +253,9 @@ fun McpSettingsScreen(
                     McpServerItemCard(
                         server = server,
                         connectionState = connectionStates[server.id] ?: McpConnectionState.UNKNOWN,
+                        error = viewModel.mcpLastError(server.id),
                         togglePending = server.id in toggleOverrides,
+                        requiredComponentName = null,
                         onToggle = { enabled -> viewModel.toggleMcpServer(server.id, enabled) },
                         onClickDetail = { viewingDetailServer = server },
                     )
@@ -780,385 +799,8 @@ private fun McpSectionHeader(title: String, subtitle: String, count: Int) {
 }
 
 /**
- * 紧凑轻量的 MCP 服务卡片（列表展示）
+ * 新增自定义 MCP 服务弹窗
  */
-@Composable
-private fun McpServerItemCard(
-    server: McpServerConfig,
-    connectionState: McpConnectionState,
-    togglePending: Boolean,
-    onToggle: (Boolean) -> Unit,
-    onClickDetail: () -> Unit,
-) {
-    RuntimeCard(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-        onClick = onClickDetail,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f).padding(end = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        server.name,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f, fill = false),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    McpConnectionDot(state = connectionState, enabled = server.isEnabled)
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                    ) {
-                        MaterialText(
-                            server.transportType.name,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Visible,
-                            softWrap = false,
-                        )
-                    }
-                }
-                if (server.description.isNotBlank()) {
-                    Text(
-                        server.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-
-            Switch(
-                checked = server.isEnabled,
-                onCheckedChange = onToggle,
-                enabled = !togglePending,
-            )
-        }
-    }
-}
-
-/**
- * MCP 服务连通性状态小圆点：绿=在线 / 红=离线 / 转圈=检测中 / 灰=未知或未启用。
- */
-@Composable
-private fun McpConnectionDot(state: McpConnectionState, enabled: Boolean) {
-    val (color, label) = when {
-        !enabled -> MaterialTheme.colorScheme.outlineVariant to "未启用"
-        state == McpConnectionState.CHECKING -> MaterialTheme.colorScheme.tertiary to "检测中"
-        state == McpConnectionState.ONLINE -> successStatusColor() to "已连通"
-        state == McpConnectionState.OFFLINE -> MaterialTheme.colorScheme.error to "离线"
-        else -> MaterialTheme.colorScheme.outline to "未检测"
-    }
-    Box(
-        modifier = Modifier
-            .size(10.dp)
-            .semantics { contentDescription = label }
-            .clip(CircleShape)
-            .background(color),
-    )
-}
-
-/**
- * MCP 服务详情、命令预览、JSON 配置与工具探测弹窗
- */
-@Composable
-private fun McpServerDetailDialog(
-    server: McpServerConfig,
-    onDismiss: () -> Unit,
-    onDelete: () -> Unit,
-    onTest: suspend () -> Result<List<McpToolInfo>>,
-    authState: McpAuthState = McpAuthState.Unsupported,
-    onAuthorize: () -> Unit = {},
-    onLogout: () -> Unit = {},
-) {
-    var testing by remember { mutableStateOf(false) }
-    var discoveredTools by remember { mutableStateOf<List<McpToolInfo>?>(null) }
-    var testError by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-
-    val jsonConfig = remember(server) { server.toExportJsonConfig() }
-
-    RuntimeAlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    server.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f, fill = false),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                ) {
-                    MaterialText(
-                        server.transportType.name,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Visible,
-                    )
-                }
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (server.description.isNotBlank()) {
-                    Text(
-                        server.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                // 启动命令 / URL 预览
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        if (server.transportType == McpTransportType.STDIO) "启动命令" else "服务端点 URL",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            val cmdText = if (server.transportType == McpTransportType.STDIO) {
-                                "${server.command} ${server.args.joinToString(" ")}"
-                            } else {
-                                server.serverUrl
-                            }
-                            Text(
-                                text = cmdText,
-                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.weight(1f),
-                            )
-                            IconButton(
-                                onClick = {
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                                    clipboard?.setPrimaryClip(ClipData.newPlainText("mcp_cmd", cmdText))
-                                    Toast.makeText(context, "命令已复制", Toast.LENGTH_SHORT).show()
-                                },
-                                modifier = Modifier.size(24.dp),
-                            ) {
-                                RuntimeIcon(RuntimeIconName.Copy, Modifier.size(14.dp), MaterialTheme.colorScheme.outline)
-                            }
-                        }
-                    }
-                }
-
-                // JSON 配置代码块
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            "MCP JSON 配置 (Cursor / Claude 格式)",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        TextButton(
-                            onClick = {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                                clipboard?.setPrimaryClip(ClipData.newPlainText("mcp_json", jsonConfig))
-                                Toast.makeText(context, "JSON 配置已复制", Toast.LENGTH_SHORT).show()
-                            },
-                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                        ) {
-                            Text("复制 JSON", style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFF1E1E1E),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            text = jsonConfig,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
-                                lineHeight = 15.sp,
-                            ),
-                            color = Color(0xFFD4D4D4),
-                            modifier = Modifier.padding(10.dp),
-                        )
-                    }
-                }
-
-                // OAuth 身份与授权
-                if (server.authMode == McpAuthMode.OAUTH) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            "身份与授权",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            val label = when (authState) {
-                                McpAuthState.Unauthenticated -> "未授权"
-                                McpAuthState.Authorizing -> "授权中…"
-                                is McpAuthState.Authorized -> "已授权"
-                                is McpAuthState.Error -> "授权失败"
-                                McpAuthState.Unsupported -> "不支持"
-                            }
-                            Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                            when (authState) {
-                                McpAuthState.Unauthenticated, is McpAuthState.Error ->
-                                    Button(onClick = onAuthorize, enabled = server.oauthClientId.isNotBlank()) { Text("授权") }
-                                is McpAuthState.Authorized ->
-                                    OutlinedButton(onClick = onLogout) { Text("退出授权") }
-                                McpAuthState.Authorizing ->
-                                    CircularProgressIndicator(modifier = Modifier.size(18.dp))
-                                McpAuthState.Unsupported -> Unit
-                            }
-                        }
-                    }
-                }
-
-                // 测试与工具探测区域
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            "沙箱连通性与工具探测",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        FilledTonalButton(
-                            onClick = {
-                                if (!testing) {
-                                    testing = true
-                                    testError = null
-                                    scope.launch {
-                                        val res = onTest()
-                                        testing = false
-                                        res.onSuccess { tools ->
-                                            discoveredTools = tools
-                                            Toast.makeText(context, "成功探测到 ${tools.size} 个工具", Toast.LENGTH_SHORT).show()
-                                        }.onFailure { err ->
-                                            testError = err.message ?: "连接失败"
-                                            Toast.makeText(context, "连接失败：${err.message}", Toast.LENGTH_LONG).show()
-                                        }
-                                    }
-                                }
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        ) {
-                            if (testing) {
-                                CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 2.dp)
-                                Spacer(Modifier.width(6.dp))
-                            }
-                            Text("探测工具", style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-
-                    testError?.let {
-                        Text(
-                            "探测失败: $it",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-
-                    discoveredTools?.let { tools ->
-                        if (tools.isEmpty()) {
-                            Text(
-                                "该服务已连通，但未返回任何工具定义",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    "已注册工具 (${tools.size}):",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                                tools.forEach { tool ->
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) {
-                                        Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Text(
-                                                tool.name,
-                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace),
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                            )
-                                            Text(
-                                                tool.description,
-                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!server.isBuiltin) {
-                    TextButton(onClick = onDelete) {
-                        Text("删除服务", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-                Button(onClick = onDismiss) {
-                    Text("完成")
-                }
-            }
-        },
-    )
-}
-
 @Composable
 private fun AddMcpServerDialog(
     onDismiss: () -> Unit,

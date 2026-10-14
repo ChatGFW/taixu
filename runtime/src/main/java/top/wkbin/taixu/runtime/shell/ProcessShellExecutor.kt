@@ -21,9 +21,10 @@ import kotlinx.coroutines.currentCoroutineContext
 
 class ProcessShellExecutor internal constructor(
     private val baseEnvironment: () -> Map<String, String>,
+    private val captureDirectory: () -> File = { File(System.getProperty("java.io.tmpdir"), "taixu-command-output") },
     private val startProcess: (List<String>, File?, Map<String, String>) -> Process,
 ) : ShellExecutor {
-    constructor(pathManager: RuntimePathManager) : this({ pathManager.hostProcessEnvironment() }, { command, cwd, env ->
+    constructor(pathManager: RuntimePathManager) : this({ pathManager.hostProcessEnvironment() }, { pathManager.commandOutputCacheDir }, { command, cwd, env ->
         ProcessBuilder(command).apply {
             cwd?.let { directory(it) }
             environment().clear()
@@ -32,6 +33,7 @@ class ProcessShellExecutor internal constructor(
     })
     private val pending = ConcurrentHashMap<ShellProcessOwner, Boolean>()
     override fun hasPending() = pending.isNotEmpty()
+    override fun hasUnsettled() = pending.values.any { it }
     override suspend fun closePending() = closeRuntimeResources(pending.keys.toList().map { owner -> suspend { owner.close() } })
 
     override suspend fun execute(
@@ -43,22 +45,23 @@ class ProcessShellExecutor internal constructor(
     ): CommandResult = withContext(Dispatchers.IO) {
         val startedAt = System.currentTimeMillis()
         var acquired: ShellProcessOwner? = null
+        val capture = currentCoroutineContext()[CommandOutputCapture]?.start(captureDirectory())
         val registration = currentCoroutineContext()[ExecutionEnvironmentContext]?.own { acquired?.close() }
         val process = try { startProcess(command, workingDirectory, baseEnvironment() + environment) }
         catch (failure: Throwable) { registration?.close(); throw failure }
         val owned = ShellProcessOwner(process) { pending.remove(it) }
         acquired = owned
         owned.ownership = registration
-        pending[owned] = true
+        pending[owned] = false
 
         // 🌟 关键修复：主动关闭子进程的标准输入（stdin），防止任何交互式脚本/命令无限阻塞在等待键盘输入上
         runCatching { process.outputStream.close() }
 
         val stdoutDeferred = async(Dispatchers.IO) {
-            runInterruptible { readFully(process.inputStream, onOutput) }
+            runInterruptible { readFully(process.inputStream, onOutput, capture?.first) }
         }.also { owned.readers += it }
         val stderrDeferred = async(Dispatchers.IO) {
-            runInterruptible { readFully(process.errorStream, onOutput) }
+            runInterruptible { readFully(process.errorStream, onOutput, capture?.second) }
         }.also { owned.readers += it }
 
         var primaryFailure: Throwable? = null
@@ -115,6 +118,7 @@ class ProcessShellExecutor internal constructor(
                         append("Command timed out after ${timeoutMs}ms")
                     },
                     durationMs = System.currentTimeMillis() - startedAt,
+                    outputDiagnostic = "Command timed out after ${timeoutMs}ms",
                 )
             } catch (failure: Throwable) {
                 primaryFailure = failure
@@ -129,6 +133,7 @@ class ProcessShellExecutor internal constructor(
             throw failure
         } finally {
             try { owned.close() } catch (cleanup: Throwable) {
+                pending.computeIfPresent(owned) { _, _ -> true }
                 val primary = primaryFailure
                 if (primary == null) throw cleanup else primary.addSuppressed(cleanup)
             }
@@ -143,6 +148,7 @@ class ProcessShellExecutor internal constructor(
     private fun readFully(
         stream: InputStream,
         onOutput: ((String) -> Unit)? = null,
+        capture: CommandStreamCapture? = null,
     ): String = try {
         stream.use { input ->
             val kept = ByteArrayOutputStream(MAX_CAPTURE_BYTES)
@@ -157,7 +163,8 @@ class ProcessShellExecutor internal constructor(
             var consecutiveCallbackFailures = 0
             while (true) {
                 val read = input.read(buffer)
-                if (read < 0) break
+                if (read < 0) { capture?.finished(); break }
+                capture?.add(buffer, read)
                 totalBytes += read
                 val remaining = MAX_CAPTURE_BYTES - kept.size()
                 if (remaining > 0) kept.write(buffer, 0, minOf(read, remaining))

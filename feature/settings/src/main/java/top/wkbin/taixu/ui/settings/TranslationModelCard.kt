@@ -1,6 +1,7 @@
 package top.wkbin.taixu.ui.settings
 
 import androidx.compose.foundation.background
+import top.wkbin.taixu.ui.theme.semanticColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -82,13 +83,13 @@ fun TranslationModelCard(
                 is TranslationModelStatus.Ready -> {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFF10B981).copy(alpha = 0.15f),
+                        color = semanticColors().success.copy(alpha = 0.15f),
                     ) {
                         Text(
                             text = "已就绪 (离线)",
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                            color = Color(0xFF10B981),
+                            color = semanticColors().success,
                         )
                     }
                 }

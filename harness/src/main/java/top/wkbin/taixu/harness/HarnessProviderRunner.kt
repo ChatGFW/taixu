@@ -122,9 +122,7 @@ class HarnessProviderRunner(
             thinkingMode = stateMirrors.requestThinkingMode(sessId),
             sessionRunMode = sessionEntity?.runMode,
         )
-        // Context and prompt remain immutable during network retries. The configured model
-        // window is authoritative: a transport heuristic must never persistently compact a
-        // valid 128k/200k conversation down to 64k.
+        // Network retries preserve context; only overflow recovery may compact history.
         var requestMessages = assembleFor(model)
         var imageStripped = false
         var overflowRecovered = false
@@ -186,6 +184,7 @@ class HarnessProviderRunner(
                             )
                         }
                     },
+                    sessionKey = sessId,
                 ) { chunk ->
                     withinStreamHandling {
                         stateMirrors.setStatus(sessId, "回复中")
@@ -291,7 +290,7 @@ class HarnessProviderRunner(
                         "识别到上下文超限，执行紧急压缩：${contextOverflow.message}",
                         contextOverflow,
                     )
-                    val recovered = recoverFromContextOverflow(sessId, model)
+                    val recovered = recoverFromContextOverflow(sessId, model, compactionManager, agentEventLogger)
                     if (recovered != null) {
                         agentEventLogger.log(
                             sessId,
@@ -349,6 +348,23 @@ class HarnessProviderRunner(
                 // 超出预算则明确失败并给出原始响应首部——绝不返回"什么都没有"，
                 // 否则上层会走"无工具调用 → 收尾 → Outcome=completed"，前台零提示。
                 currentCoroutineContext().ensureActive()
+                if (!overflowRecovered && shouldCompactEmptyResponse(
+                        estimateRetryRequestTokens(requestMessages) + toolSchemaTokens, requestModel,
+                    )
+                ) {
+                    overflowRecovered = true
+                    stateMirrors.setThinkingLive(sessId, false)
+                    stateMirrors.setStatus(sessId, "长上下文返回空响应，正在压缩历史后重试")
+                    val recovered = recoverFromContextOverflow(sessId, requestModel, compactionManager, agentEventLogger)
+                    agentEventLogger.log(sessId, "EmptyResponseContextRecovery",
+                        "长上下文空响应压缩结果：${recovered ?: "无可折叠历史"}", empty)
+                    if (recovered != null) {
+                        metrics.streamRetry()
+                        resetStreamBaseline()
+                        requestMessages = assembleFor(requestModel)
+                        continue
+                    }
+                }
                 requestMessages = stripEmptyResponseImages(++netRetry, EMPTY_RESPONSE_MAX_RETRIES, requestMessages, sessId, agentEventLogger, empty)
                 if (netRetry > EMPTY_RESPONSE_MAX_RETRIES) {
                     stateMirrors.setThinkingLive(sessId, false)
@@ -356,7 +372,10 @@ class HarnessProviderRunner(
                     agentEventLogger.log(sessId, "EmptyModelResponse", empty.message.orEmpty(), empty)
                     // 文案已按长度受控（正文 + 截断首部），此处不套 friendly() 的 200 字截断，
                     // 否则尾部的原始响应首部会被整段砍掉，等于失去唯一线索。
-                    return TurnProviderOutcome.Failed(empty.message.orEmpty().ifBlank { ProviderClient.EMPTY_RESPONSE_MESSAGE })
+                    return TurnProviderOutcome.Failed(
+                        (if (overflowRecovered) "已尝试自动压缩上下文，但模型仍返回空响应。\n" else "") +
+                            empty.message.orEmpty().ifBlank { ProviderClient.EMPTY_RESPONSE_MESSAGE },
+                    )
                 }
                 metrics.streamRetry()
                 stateMirrors.setThinkingLive(sessId, false)
@@ -438,43 +457,9 @@ class HarnessProviderRunner(
             }
         }
         // 仅在本轮请求真正成功后记录估算值，与 HarnessLoop 里 recordUsage 的计量轮次对齐
-        metrics.recordEstimatedInput(estimatedRequestTokens)
+        metrics.recordEstimatedInput(estimateRetryRequestTokens(requestMessages) + toolSchemaTokens)
         messageProjector.endStreaming(sessId)
         return TurnProviderOutcome.Success(streamed, streamText.toString())
-    }
-
-    /**
-     * 紧急压缩：把历史折到正常预算的一小部分（返回 (折叠条数, 保留条数)）。
-     * 机械摘要（model=null）——摘要请求若 cache-replay 同一前缀，会以同样方式超限，
-     * 恢复路径上绝不能再调 LLM。无可折叠内容（历史已是最小保留态 / 分支漂移放弃折叠）
-     * 返回 null，由调用方走下一个恢复杠杆。
-     */
-    private suspend fun recoverFromContextOverflow(sessId: String, model: ModelConfig): Pair<Int, Int>? {
-        return try {
-            val context = compactionManager.project(sessId)
-            if (context.messages.size <= 1) return null
-            val keepFrom = ContextWindowPolicy.computeKeepFromIndex(
-                context.messages,
-                emergencyFoldBudget(model),
-                systemTokens = 0,
-                reserveTokens = 0,
-                // 紧急折叠仍按真实请求口径预留 schema：不外发 tools 时预留 0，折得更狠
-                toolSchemaReserveTokens = ContextWindowPolicy.toolSchemaReserveTokensFor(
-                    pureChat = model.pureChatMode,
-                    toolDisabled = model.toolCallMode == ToolCallMode.DISABLED,
-                ),
-            )
-            if (keepFrom < 1) return null
-            val compacted = compactionManager.compact(sessId, context, keepFrom, model = null)
-            val folded = context.messages.size - compacted.messages.size
-            if (folded <= 0) return null
-            folded to compacted.messages.size
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (throwable: Throwable) {
-            agentEventLogger.log(sessId, "ContextOverflowRecoveryFailed", "紧急压缩失败：${throwable.message}", throwable)
-            null
-        }
     }
 
     /** 落库助手回复或原生输出锚点；两者都没有时只结算 usage。 */
@@ -609,12 +594,10 @@ class HarnessProviderRunner(
 
         /**
          * 空响应（HTTP 200 但无正文/推理/工具调用）的重发上限。
-         * 单次空响应多数是上游瞬时抖动，重发即可恢复；连续多次仍是空则判定为模型/网关
-         * 侧问题，明确失败并附上原始响应首部，而不是让用户面对"没有任何回复"。
+         * 瞬时空响应重发，连续空响应明确失败并附上响应首部。
          */
         private const val EMPTY_RESPONSE_MAX_RETRIES = 2
 
-        /** 紧急压缩目标：把历史折到正常预算的 25%（computeKeepFromIndex 内部再扣输出/schema 预留）。 */
         private const val EMERGENCY_FOLD_RATIO_PERCENT = 25
         private const val EMERGENCY_FOLD_MIN_BUDGET = 8_000
         private const val DEFAULT_CONTEXT_BUDGET_TOKENS = 128_000

@@ -174,7 +174,7 @@ class McpStdioTransportLifecycleTest {
             runCatching { transport.discover(echoServer) }
             factory.switch()
             // Manual checks intentionally bypass cooldown. A successful startup must clear it.
-            assertTrue(transport.check(echoServer))
+            assertTrue(transport.check(echoServer).online)
         }
         val third = runCatching { transport.discover(echoServer) }
         assertTrue("discover should reuse the successful connection, got: " + third.exceptionOrNull()?.message, third.isSuccess)

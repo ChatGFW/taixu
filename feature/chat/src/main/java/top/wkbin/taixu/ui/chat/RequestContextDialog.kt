@@ -25,7 +25,6 @@ import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.diagnostics.RequestContextSnapshot
 import top.wkbin.taixu.harness.diagnostics.RequestContextDiff
 import top.wkbin.taixu.harness.diagnostics.RequestArchiveStatus
-import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import java.text.DateFormat
 import java.util.Date
@@ -39,7 +38,7 @@ fun RequestContextDialog(requests: List<RequestContextSnapshot>, archiveStatus: 
         if (previous != null && snapshot != null) RequestContextDiff.between(previous, snapshot) else null
     }
     var query by remember { mutableStateOf("") }
-    RuntimeAlertDialog(
+    ChatBottomSheet(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.chat_request_context_title)) },
         confirmButton = {

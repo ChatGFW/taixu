@@ -10,6 +10,9 @@ internal class EditorDraft {
         private set
     val isDirty: Boolean get() = text != savedText
 
+    /** 编辑器最后已知的磁盘内容：载入时或上次成功保存后的基线，供保存前的版本校验使用。 */
+    val savedContent: String get() = savedText
+
     fun matches(project: String?, path: String?): Boolean =
         this.project != null && this.project == project && this.path == path
 

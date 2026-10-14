@@ -98,13 +98,12 @@ fun TerminalScreen(
     val workspaces by viewModel.workspaces.collectAsStateWithLifecycle()
     val distributionName by viewModel.distributionName.collectAsStateWithLifecycle()
     val installedDistros by viewModel.installedDistros.collectAsStateWithLifecycle()
+    val remoteActive by viewModel.remoteActive.collectAsStateWithLifecycle()
     val configuredFontSize by viewModel.terminalFontSize.collectAsStateWithLifecycle()
     val colorScheme by viewModel.terminalColorScheme.collectAsStateWithLifecycle()
     val hapticsEnabled by viewModel.terminalHapticsEnabled.collectAsStateWithLifecycle()
-
     val context = LocalContext.current
     val density = LocalDensity.current
-
     var fontSizeSp by remember { mutableFloatStateOf(configuredFontSize.toFloat()) }
     var sessionToClose by remember { mutableStateOf<String?>(null) }
 
@@ -221,6 +220,7 @@ fun TerminalScreen(
                     .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                TerminalRestoreWarnings(viewModel)
                 Surface(
                     modifier = Modifier
                         .weight(1f)
@@ -474,7 +474,7 @@ fun TerminalScreen(
     if (showCreateSession) {
         CreateTerminalDialog(
             workspaces = workspaces,
-            installedDistros = installedDistros,
+            installedDistros = if (remoteActive) emptyList() else installedDistros,
             nextSessionIndex = handles.size + 1,
             onDismiss = { showCreateSession = false },
             onCreate = { label, workDir, distroId ->
@@ -496,7 +496,7 @@ private fun CreateTerminalDialog(
     val defaultLabel = stringResource(R.string.terminal_default_label, nextSessionIndex)
     var label by remember(nextSessionIndex) { mutableStateOf(defaultLabel) }
     var selectedDir by remember { mutableStateOf("/root") }
-    var selectedDistroId by remember { mutableStateOf(installedDistros.firstOrNull { it.isActive }?.id ?: installedDistros.firstOrNull()?.id ?: "ubuntu") }
+    var selectedDistroId by remember(installedDistros) { mutableStateOf(installedDistros.firstOrNull { it.isActive }?.id ?: installedDistros.firstOrNull()?.id) }
     val quickLabels = listOf(
         stringResource(R.string.terminal_quick_main),
         stringResource(R.string.terminal_quick_build),

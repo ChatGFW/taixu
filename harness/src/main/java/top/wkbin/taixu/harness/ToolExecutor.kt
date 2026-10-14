@@ -21,6 +21,7 @@ import top.wkbin.taixu.runtime.LinuxEnvironmentManager
 import top.wkbin.taixu.harness.effects.OutputRetention
 import top.wkbin.taixu.harness.effects.ToolOutputRetention
 import top.wkbin.taixu.harness.effects.foldOverlongLines
+import top.wkbin.taixu.harness.effects.hasIncompleteCommandOutput
 import top.wkbin.taixu.harness.effects.keepHeadWholeLines
 import top.wkbin.taixu.harness.effects.keepTailWholeLines
 import java.util.UUID
@@ -90,10 +91,8 @@ class ToolExecutor(
     )
 
     private val executionBoundary = ToolExecutionBoundary(toolCheckpoints) { request, output ->
-        val redacted = secretRedactor.redact(
-            output, top.wkbin.taixu.harness.environment.executionOutputSecrets(environments, linuxEnvironmentManager, request.sessionId, request.workspace),
-            privacyMode = settingsDataStore?.environmentPrivacyMode?.first() ?: true,
-        )
+        val redacted = top.wkbin.taixu.harness.environment.redactExecutionOutput(output, secretRedactor,
+            environments, linuxEnvironmentManager, settingsDataStore, request.sessionId, request.workspace)
         truncateOutput(redacted, request.call.rawToolName ?: HarnessApiMapper.apiName(request.call.tool),
             if (environments != null) environments.environment(request.sessionId, request.workspace).artifacts
             else if (request.workspace.isNotBlank()) top.wkbin.taixu.harness.environment.LocalExecutionArtifacts(fileAccess.withBase(request.workspace)) else null)
@@ -117,7 +116,7 @@ class ToolExecutor(
         val result = executionBoundary.execute(ToolExecutionRequest(toolCall, sessionId, workspace, operationId)) {
             executeWithPolicy(toolCall, sessionId, workspace, bypassApproval, allowApprovalRequest, progressReporter, operationId)
         }
-        return if (bypassApproval) ScriptCapabilityDispatcher.replayResult(toolCall, result) else result
+        return (if (bypassApproval) ScriptCapabilityDispatcher.replayResult(toolCall, result) else result).withRecoveryAdvice(toolCall.tool)
     }
 
     private suspend fun executeWithPolicy(
@@ -159,6 +158,7 @@ class ToolExecutor(
                             createdAt = now,
                             toolCallId = toolCall.id,
                             success = false,
+                            errorCode = "PLAN_BLOCKED",
                             output = buildString {
                                 append("⛔ 只读规划模式（PLAN）已拦截本次调用：").append(blockedName).append('\n')
                                 append("原因：").append(blocked).append('\n')
@@ -248,13 +248,12 @@ class ToolExecutor(
             rawOutput
         }
         // 先对全量输出脱敏，再截断/落盘：落盘引流文件必须与结果正文同一脱敏口径
-        val redactedOutput = secretRedactor.redact(
-            value = finalOutput,
-            secretValues = top.wkbin.taixu.harness.environment.executionOutputSecrets(environments, linuxEnvironmentManager, sessionId, workspace),
-            privacyMode = settingsDataStore?.let { prefs ->
-                runCatching { prefs.environmentPrivacyMode.first() }.getOrDefault(true)
-            } ?: true,
-        )
+        val redactedOutput = top.wkbin.taixu.harness.environment.redactExecutionOutput(finalOutput, secretRedactor,
+            environments, linuxEnvironmentManager, settingsDataStore, sessionId, workspace)
+        ToolFileArtifacts.sanitize(toolMetadata, toolCall.tool) { path ->
+            top.wkbin.taixu.harness.environment.redactExecutionOutput(path, secretRedactor,
+                environments, linuxEnvironmentManager, settingsDataStore, sessionId, workspace)
+        }
         val imagePayload = toolMetadata.remove("image_payload")
         return ToolResult(
             id = UUID.randomUUID().toString(),
@@ -266,6 +265,7 @@ class ToolExecutor(
                 toolCall.rawToolName ?: HarnessApiMapper.apiName(toolCall.tool),
                 if (environments != null) environments.environment(sessionId, workspace).artifacts
                 else if (workspace.isNotBlank()) top.wkbin.taixu.harness.environment.LocalExecutionArtifacts(fileAccess.withBase(workspace)) else null,
+                toolMetadata,
             ),
             metadata = toolMetadata.toMap(),
             imageDataUrl = imagePayload,
@@ -282,12 +282,15 @@ class ToolExecutor(
         output: String,
         toolName: String?,
         fileAccess: top.wkbin.taixu.runtime.environment.ExecutionArtifacts?,
+        metadata: MutableMap<String, String>? = null,
     ): String {
         // 超长单行先折叠（混淆/压缩文件）：否则单行预算退化成保留 60k 字符的整行，
         // 一条 tool result 就可能超出单条消息的传输上限导致连接被重置。落盘仍用原始全量。
         val folded = foldOverlongLines(output)
-        if (folded.length <= MAX_OUTPUT_LENGTH) return folded
+        if (output.length <= MAX_OUTPUT_LENGTH) return folded
         val spillPath = fileAccess?.let { ToolOutputSpillStore.spill(it, toolName, output) }
+        if (spillPath != null) metadata?.set(ToolOutputArtifact.METADATA_KEY, kotlinx.serialization.json.Json.encodeToString(
+            ToolOutputArtifact.serializer(), ToolOutputArtifact.capture(spillPath, output)))
         // 差异化截断：命令/构建/日志保留尾部（报错在末尾），读取/搜索保留头部。
         val retention = ToolOutputRetention.forTool(toolName)
         val kept = when (retention) {
@@ -297,7 +300,7 @@ class ToolExecutor(
         val totalLines = output.count { it == '\n' } + 1
         val keptLines = kept.count { it == '\n' } + 1
         val recoverHint = if (spillPath != null) {
-            "完整输出已保存至 $spillPath，可用 read 工具（offset/limit 分页）查看其余部分。"
+            "${if (hasIncompleteCommandOutput(output)) "可用输出" else "完整输出"}已保存至 $spillPath，可用 read 工具（offset/limit 分页）查看其余部分。"
         } else {
             "需要其余部分请用 grep 过滤关键字、head/tail 取首尾、或 sed -n 'N,Mp' 取指定行段，不要原样重复执行同一命令。"
         }

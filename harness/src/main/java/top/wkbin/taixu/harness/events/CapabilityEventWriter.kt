@@ -79,7 +79,7 @@ class CapabilityEventWriter(
             .distinctBy { it.first }
             .filter { (serverId, serverName) -> serverId.lowercase() in mentionedNames || serverName.lowercase() in mentionedNames }
             .forEach { (serverId, serverName) ->
-                val lastError = mcpManager?.getLastError(serverId)
+                val lastError = mcpManager?.lastErrorForCall(serverId)
                 val isMounted = model.dynamicMcpTools.any { it.serverId == serverId }
                 val toolCount = model.dynamicMcpTools.count { it.serverId == serverId }
                 val desc = when {

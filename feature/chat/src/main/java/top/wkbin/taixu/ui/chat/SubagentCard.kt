@@ -51,6 +51,7 @@ import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.harness.session.ConversationBranchKind
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.theme.semanticColors
 
 /**
  * Subagent 子智能体任务派发卡片：
@@ -91,7 +92,7 @@ fun SubagentCard(
         if (isSuccess) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
         else MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
     } else {
-        Color(0xFFF59E0B).copy(alpha = 0.5f)
+        semanticColors().warning.copy(alpha = 0.5f)
     }
 
     Surface(
@@ -145,14 +146,14 @@ fun SubagentCard(
                             )
                             Surface(
                                 color = if (isFinished) {
-                                    if (isSuccess) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f)
-                                } else Color(0xFFF59E0B).copy(alpha = 0.15f),
+                                    if (isSuccess) semanticColors().success.copy(alpha = 0.15f) else MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
+                                } else semanticColors().warning.copy(alpha = 0.15f),
                                 shape = RoundedCornerShape(4.dp),
                             ) {
                                 Text(
                                     text = stringResource(if (isFinished) (if (isSuccess) R.string.chat_completed else R.string.chat_interrupted) else R.string.chat_parallel_running),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
-                                    color = if (isFinished) (if (isSuccess) Color(0xFF10B981) else Color(0xFFEF4444)) else Color(0xFFF59E0B),
+                                    color = if (isFinished) (if (isSuccess) semanticColors().success else MaterialTheme.colorScheme.error) else semanticColors().warning,
                                     modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                                 )
                             }
@@ -196,9 +197,9 @@ fun SubagentCard(
                 tasks.forEachIndexed { index, (taskName, role, _) ->
                     val roleKey = role.lowercase()
                     val (roleColor, roleIcon) = when (roleKey) {
-                        "researcher" -> Color(0xFF3B82F6) to RuntimeIconName.File
-                        "coder" -> Color(0xFF10B981) to RuntimeIconName.Terminal
-                        "tester" -> Color(0xFFF59E0B) to RuntimeIconName.Code
+                        "researcher" -> semanticColors().info to RuntimeIconName.File
+                        "coder" -> semanticColors().success to RuntimeIconName.Terminal
+                        "tester" -> semanticColors().warning to RuntimeIconName.Code
                         else -> MaterialTheme.colorScheme.primary to RuntimeIconName.Logs
                     }
                     // 英文角色标识资源化为本地化标签；未识别角色保留原始值
@@ -215,9 +216,9 @@ fun SubagentCard(
 
                     val statusColor = when {
                         targetBranch == null -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-                        targetBranch.faulted -> Color(0xFFEF4444)
-                        targetBranch.isBusy -> Color(0xFFF59E0B)
-                        else -> Color(0xFF10B981)
+                        targetBranch.faulted -> MaterialTheme.colorScheme.error
+                        targetBranch.isBusy -> semanticColors().warning
+                        else -> semanticColors().success
                     }
                     val pulseAlpha = if (targetBranch?.isBusy == true) {
                         val transition = rememberInfiniteTransition(label = "subagent_task_pulse")

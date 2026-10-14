@@ -58,16 +58,18 @@ import kotlinx.serialization.json.put
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.feature.a2uipoc.A2uiPocSurfaceCard
 import top.wkbin.taixu.harness.AskUserQuestions
+import top.wkbin.taixu.ui.theme.semanticColors
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 
-/** 工具调用卡与审批请求卡。 */
-private val DotRunning = Color(0xFFB25E00)
-private val DotSuccess = Color(0xFF2E7D32)
-private val DotFailed = Color(0xFFBA1A1A)
-private val DiffAddedColor = Color(0xFF2E7D32)
-private val DiffDeletedColor = Color(0xFFC62828)
+/**
+ * 工具调用卡的运行态配色：组合期读取 [semanticColors]，随明暗主题切换。
+ * 原先的文件级十六进制常量在三套主题（标准 M3 / 动态取色 / 液态玻璃）下都固定为深色值，两头都不达标。
+ */
+private val DotRunning: Color @Composable get() = semanticColors().warning
+private val DotSuccess: Color @Composable get() = semanticColors().success
+private val DotFailed: Color @Composable get() = MaterialTheme.colorScheme.error
 
 @Composable
 internal fun ToolCard(
@@ -255,7 +257,7 @@ internal fun ApprovalRequestCard(
 ) {
     val riskColor = when (request.riskLevel) {
         "critical" -> MaterialTheme.colorScheme.error
-        "high" -> Color(0xFFB45309)
+        "high" -> semanticColors().warning
         else -> MaterialTheme.colorScheme.primary
     }
     Surface(
@@ -520,9 +522,8 @@ internal fun toolIcon(tool: HarnessTool): RuntimeIconName = when (tool) {
     HarnessTool.RENDER_SURFACE -> RuntimeIconName.Palette
 }
 
-internal fun toolName(tool: HarnessTool, rawToolName: String? = null): String {
-    if (!rawToolName.isNullOrBlank()) return rawToolName
-    return when (tool) {
+internal fun toolName(tool: HarnessTool, rawToolName: String? = null): String =
+    rawToolName?.takeIf { it.isNotBlank() } ?: when (tool) {
         HarnessTool.READ -> "read"
         HarnessTool.WRITE -> "write"
         HarnessTool.EDIT -> "edit"
@@ -544,7 +545,6 @@ internal fun toolName(tool: HarnessTool, rawToolName: String? = null): String {
         HarnessTool.ASK_USER -> "ask_user"
         HarnessTool.RENDER_SURFACE -> "render_surface"
     }
-}
 
 internal fun toolArgsSummary(call: ToolCall): String {
     val entries = call.args.toMap().entries.take(3)
@@ -576,7 +576,7 @@ internal fun DiffStatBadge(
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.sp,
                 ),
-                color = DiffAddedColor,
+                color = DotSuccess,
             )
         }
         if (deleted > 0) {
@@ -587,7 +587,7 @@ internal fun DiffStatBadge(
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.sp,
                 ),
-                color = DiffDeletedColor,
+                color = DotFailed,
             )
         }
     }
@@ -630,4 +630,3 @@ internal fun parseDiffStat(call: ToolCall, result: ToolResult?): Pair<Int, Int>?
         else -> null
     }
 }
-

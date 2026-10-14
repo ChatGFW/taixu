@@ -26,7 +26,8 @@ description: 太墟（TaiXu）自定义迭代与 TaiXuDev 构建规范，引导 
 
 1. **环境诊断**：
    - 检查 `git` 与 `gh` 安装状态；
-   - 确认当前处于 `~/custom_taixu` 工作区中；
+   - 确认当前处于 `~/custom_taixu` 工作区中。该目录在 `git clone` 之前必须为空；
+   - Skill 自动发现位置是 `/attachments/skills` 与 `/workspace/skills`。`~/custom_taixu/.agents/skills` 不是扫描根；只有准备把项目级 Skill 提交进 Fork 时，才在克隆之后从 `/attachments/skills/taixu-custom-iteration` 复制过去；
    - 检查当前 Git 分支状态与工作区 Clean 状态。
 2. **架构规范约束**：
    - **UI 层**：严格使用 Jetpack Compose + Material3，遵循 `top.wkbin.taixu.ui` 命名规范；
@@ -42,11 +43,11 @@ description: 太墟（TaiXu）自定义迭代与 TaiXuDev 构建规范，引导 
 
 由于手机端架构（ARM64）与标准 Android 编译工具链（x86_64）的差异，优先使用 GitHub Actions 云端 CI 构建：
 
-1. 确保用户的 Fork 仓库已包含 `.github/workflows/taixudev-build.yml`；
-2. 在终端触发工作流并实时监控状态：
+1. 确保用户的 Fork 仓库已包含 `.github/workflows/taixudev-build.yml`。模板缓存在 `/attachments/templates/workflows/taixudev-build.yml`（不在克隆目标内）。官方 main 已包含该文件；若 Fork 缺少，克隆完成后再复制进 `~/custom_taixu/.github/workflows/` 并提交；
+2. 在 Fork 克隆目录内触发工作流并实时监控。不要对 `wkbin/taixu` 执行 `workflow_dispatch`（contributor 会 403）。目标仓库取 `git remote get-url origin` 解析出的 `owner/name`：
    ```bash
-   gh workflow run taixudev-build.yml --ref <feature-branch>
-   gh run watch <run-id> --exit-status
+   gh workflow run taixudev-build.yml --ref <feature-branch> -R <fork-owner/name>
+   gh run watch <run-id> --exit-status -R <fork-owner/name>
    ```
 3. 编译成功后下载生成的 APK 产物：
    ```bash

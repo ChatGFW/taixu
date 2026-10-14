@@ -22,6 +22,8 @@ import top.wkbin.taixu.harness.SkillSuggestion
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
+import top.wkbin.taixu.harness.TaskDelivery
+import top.wkbin.taixu.harness.task.TaskDeliveryBuilder
 
 /** Owns all durable operation transitions and their transaction boundaries. */
 class OperationCoordinator(
@@ -35,6 +37,8 @@ class OperationCoordinator(
      * 用 Mutex 而非 synchronized：临界区内含 suspend 的 repository 调用，不能阻塞线程。
      */
     private val acceptMutex = Mutex()
+    /** Only journal read/commit work is serialized; provider calls and tool execution stay concurrent. */
+    private val settlementMutex = Mutex()
 
     suspend fun acceptRun(sessionId: String, userMessage: HarnessMessage, laneName: String = SessionTreeStore.MAIN_LANE,
         taskId: String? = null): String = acceptMutex.withLock {
@@ -193,7 +197,28 @@ class OperationCoordinator(
         return repository.listActiveOperations(sessionId).firstOrNull { it.laneName == laneName }
     }
 
+    suspend fun completeTask(sessionId: String, taskId: String): TaskDelivery {
+        val lane = repository.findLane(sessionId, SessionTreeStore.MAIN_LANE) ?: error("Delivery lane missing")
+        val operation = requireOperation(lane.currentOperationId ?: error("Delivery operation missing"))
+        val entries = repository.branchTail(sessionId, lane.leafId, TaskDeliveryBuilder.MAX_SOURCE_ENTRIES + 1)
+        val now = System.currentTimeMillis()
+        val delivery = TaskDeliveryBuilder(json).build(taskId, operation, lane, entries, now)
+        val entry = messageEntry(sessionId, lane.leafId, delivery)
+        repository.completeTaskOperation(taskId, HarnessLaneResultEntity(sessionId, lane.name, operation.id,
+            "completed", lane.leafId, null, now), lane, entry)
+        eventBus.emit(HarnessEvent.OperationFinished(sessionId, now, operation.id, lane.name, "completed", null))
+        return delivery
+    }
+
     suspend fun operationExists(operationId: String): Boolean = repository.findOperation(operationId) != null
+
+    suspend fun failureMemoryBlock(sessionId: String, laneName: String = SessionTreeStore.MAIN_LANE): String {
+        val lane = repository.findLane(sessionId, laneName) ?: return ""
+        val operation = lane.currentOperationId?.let { repository.findOperation(it) } ?: return ""
+        check(operation.sessionId == sessionId && operation.laneName == laneName) { "Failure memory operation ownership mismatch" }
+        if (repository.findLane(sessionId, laneName)?.currentOperationId != operation.id) return ""
+        return FailureMemory.prompt(decode(operation).failureMemory, operation.id, System.currentTimeMillis())
+    }
 
     /** Must complete before a takeover/finish can clear the lane's recovery pointer. */
     internal suspend fun settleInterruptedTool(operationId: String): String? {
@@ -231,17 +256,18 @@ class OperationCoordinator(
         usage: HarnessUsageEntity?,
         snapshot: OperationSnapshot,
         replay: ReplayPolicy? = null,
-    ) {
+    ) = settlementMutex.withLock {
         val current = requireOperation(operationId)
         val lane = repository.findLane(current.sessionId, current.laneName) ?: error("Missing lane ${current.laneName}")
         val entry = message?.let { messageEntry(current.sessionId, lane.leafId, it) }
         val now = System.currentTimeMillis()
+        val memory = failureMemoryAfterSettlement(repository, json, current, message, now)
         val next = current.copy(
             status = if (current.status == OperationStatus.SUSPENDED.id && snapshot.phase == OperationPhase.TOOL_SETTLED.id)
                 current.status else OperationStatus.RUNNING.id,
             phase = snapshot.phase,
             updatedAt = now,
-            stateJson = json.encodeToString(OperationSnapshot.serializer(), snapshot),
+            stateJson = json.encodeToString(OperationSnapshot.serializer(), snapshot.copy(failureMemory = memory)),
             pendingEffectKind = snapshot.effectKind,
             pendingEffectId = snapshot.effectId,
             replayPolicy = replay?.id,
@@ -250,14 +276,16 @@ class OperationCoordinator(
         repository.settleEffect(entry, usage, next, lane.copy(leafId = entry?.id ?: lane.leafId, updatedAt = now))
     }
 
-    private suspend fun transition(operationId: String, status: OperationStatus, snapshot: OperationSnapshot, replay: ReplayPolicy?) {
+    private suspend fun transition(operationId: String, status: OperationStatus, snapshot: OperationSnapshot, replay: ReplayPolicy?) = settlementMutex.withLock {
         val current = requireOperation(operationId)
+        val now = System.currentTimeMillis()
+        val memory = failureMemoryAfterSettlement(repository, json, current, null, now)
         repository.saveOperation(
             current.copy(
                 status = status.id,
                 phase = snapshot.phase,
-                updatedAt = System.currentTimeMillis(),
-                stateJson = json.encodeToString(OperationSnapshot.serializer(), snapshot),
+                updatedAt = now,
+                stateJson = json.encodeToString(OperationSnapshot.serializer(), snapshot.copy(failureMemory = memory)),
                 pendingEffectKind = snapshot.effectKind,
                 pendingEffectId = snapshot.effectId,
                 replayPolicy = replay?.id,
@@ -314,5 +342,6 @@ private fun HarnessMessage.serialType(): String = when (this) {
     is ToolResult -> "tool_result"
     is CapabilityEvent -> "capability_event"
     is SkillSuggestion -> "skill_suggestion"
+    is TaskDelivery -> "task_delivery"
     is ModelSwitchEvent -> "model_switch"
 }

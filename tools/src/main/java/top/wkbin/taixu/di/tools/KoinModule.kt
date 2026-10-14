@@ -16,6 +16,7 @@ import top.wkbin.taixu.core.tools.InstallLogRepository
 import top.wkbin.taixu.core.tools.InstallTaskRepository
 import top.wkbin.taixu.core.tools.InstallTransactionManager
 import top.wkbin.taixu.core.tools.LocalPluginPayloadManager
+import top.wkbin.taixu.core.tools.McpCatalogUpdater
 import top.wkbin.taixu.core.tools.ProviderRepository
 import top.wkbin.taixu.core.tools.RuntimeManagerImpl
 import top.wkbin.taixu.core.tools.RuntimeRepository
@@ -125,6 +126,7 @@ val toolsModule = module {
             localPluginPayloadManager = get(),
             serviceController = get(),
             installerAdapters = get(named("toolAdapters")),
+            localAccess = get(),
         )
     }
 
@@ -143,6 +145,9 @@ val toolsModule = module {
     single<ToolRepository> { ToolRepository(toolDao = get(), toolRegistry = get()) }
 
     single<ToolServiceController> { ToolServiceController(linuxRuntime = get()) }
+
+    /** MCP 能力仓库的「检查更新 / 一键升级」执行器：只依赖 Linux 运行时，联网都在装配脚本里。 */
+    single<McpCatalogUpdater> { McpCatalogUpdater(linuxRuntime = get()) }
 
     single<AuthUrlDetector> { AuthUrlDetector() }
 

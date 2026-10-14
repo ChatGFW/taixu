@@ -113,7 +113,47 @@ class CustomIterationViewModelTest {
         // 工作区必须落在 homeDir（PRoot → /root）之下，而不是某个写死的 filesDir 相对路径
         assertEquals(File(root, "home/${CustomIterationBootstrap.WORKSPACE_NAME}").absolutePath, state.workspacePath)
         assertTrue(File(state.workspacePath).isDirectory)
+        assertTrue("clone target must stay empty", File(state.workspacePath).list().isNullOrEmpty())
         assertTrue(prompt!!.contains("/root/custom_taixu"))
+        assertTrue(prompt.contains(CustomIterationBootstrap.FORK_REPO_PLACEHOLDER))
+        assertFalse(prompt.contains("构建目标仓库 = wkbin/taixu"))
+    }
+
+    @Test
+    fun `startCustomIteration interpolates the fork parsed from origin`() = runTest {
+        val root = File(System.getProperty("java.io.tmpdir"), "taixu-vm-fork-${System.nanoTime()}")
+        val vm = viewModel(
+            execute = { CommandResult(0, "", "", 0) },
+            root = root,
+            assets = assetReader(),
+            readOriginRemoteUrl = { "https://github.com/haotaoran520/taixu.git\n" },
+        )
+
+        var prompt: String? = null
+        vm.startCustomIteration { prompt = it }
+
+        assertTrue(vm.uiState.value.workspaceReady)
+        assertTrue(prompt!!.contains("构建目标仓库 = haotaoran520/taixu"))
+        assertFalse(prompt.contains("构建目标仓库 = wkbin/taixu"))
+        assertFalse(File(root, "home/${CustomIterationBootstrap.WORKSPACE_NAME}/.github").exists())
+    }
+
+    @Test
+    fun `unparseable origin keeps the prompt off the official dispatch target`() = runTest {
+        val root = File(System.getProperty("java.io.tmpdir"), "taixu-vm-bad-${System.nanoTime()}")
+        val vm = viewModel(
+            execute = { CommandResult(0, "", "", 0) },
+            root = root,
+            assets = assetReader(),
+            readOriginRemoteUrl = { "https://gitlab.com/someone/taixu.git" },
+        )
+
+        var prompt: String? = null
+        vm.startCustomIteration { prompt = it }
+
+        assertTrue(prompt!!.contains(CustomIterationBootstrap.FORK_REPO_PLACEHOLDER))
+        assertTrue(prompt.contains("git remote get-url origin"))
+        assertFalse(prompt.contains("构建目标仓库 = wkbin/taixu"))
     }
 
     @Test
@@ -146,6 +186,7 @@ class CustomIterationViewModelTest {
     private fun viewModel(
         root: File = File(System.getProperty("java.io.tmpdir"), "taixu-vm-${System.nanoTime()}"),
         assets: AssetReader = AssetReader { null },
+        readOriginRemoteUrl: suspend () -> String? = { null },
         execute: suspend (ShellCommand) -> CommandResult,
     ) = CustomIterationViewModel(
         application = ApplicationProvider.getApplicationContext<Application>(),
@@ -162,5 +203,6 @@ class CustomIterationViewModelTest {
             )
         },
         assets = assets,
+        readOriginRemoteUrl = readOriginRemoteUrl,
     )
 }

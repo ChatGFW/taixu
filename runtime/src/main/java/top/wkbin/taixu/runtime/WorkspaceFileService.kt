@@ -40,13 +40,18 @@ class WorkspaceFileService(
         file.readText(Charsets.UTF_8)
     }
 
-    suspend fun writeFile(projectName: String, relativePath: String, content: String): AppResult<Unit> = ioResult("保存文件失败") {
+    suspend fun writeFile(
+        projectName: String,
+        relativePath: String,
+        content: String,
+        expectedContent: String? = null,
+    ): AppResult<Unit> = ioResult("保存文件失败") {
         require(content.length <= WorkspaceManager.MAX_FILE_WRITE_CHARS) {
             "内容过长（${content.length} 字符，上限 ${WorkspaceManager.MAX_FILE_WRITE_CHARS}）"
         }
         val file = resolve(projectName, relativePath, allowMissing = true)
         require(!file.isDirectory) { "目标是目录：${displayPath(projectName, relativePath)}" }
-        WorkspaceAtomicWriter.write(file) { it.writeText(content, Charsets.UTF_8) }
+        WorkspaceAtomicWriter.write(file, expectedContent) { it.writeText(content, Charsets.UTF_8) }
     }
 
     /** 二进制写入（WebChat 上传等场景）：临时文件 + rename 的原子落盘与 [writeFile] 一致。 */
@@ -137,7 +142,11 @@ class WorkspaceFileService(
             AppResult.Success(block())
         } catch (throwable: Throwable) {
             if (throwable is CancellationException) throw throwable
-            AppResult.Failure(AppError(ErrorCode.IO, throwable.message ?: fallback, throwable))
+            if (throwable is FileWriteConflictException) {
+                AppResult.Failure(AppError(ErrorCode.CONFLICT, throwable.message ?: fallback))
+            } else {
+                AppResult.Failure(AppError(ErrorCode.IO, throwable.message ?: fallback, throwable))
+            }
         }
     }
 

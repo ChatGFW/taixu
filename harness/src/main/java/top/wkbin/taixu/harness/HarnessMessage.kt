@@ -172,4 +172,6 @@ data class ToolResult(
     val imageDataUrl: String? = null,
     /** Stable recovery error code. Old results have no code; success remains false for unknown outcomes. */
     val errorCode: String? = null,
+    /** Machine-readable suggestions; neither grants authority nor triggers replay. Old history defaults to null. */
+    val recovery: ToolRecoveryAdvice? = null,
 ) : HarnessMessage

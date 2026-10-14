@@ -120,7 +120,7 @@ class McpStartupRollbackTest {
         val fixture = McpStartupFixture()
         fixture.beforeSession = { it.closeFailures = 2; error("startup failed") }
         val transport = McpStdioTransport(Json, McpCommandBuilder(), fixture.factory)
-        assertFalse(transport.check(fixture.server))
+        assertFalse(transport.check(fixture.server).online)
         try { transport.closeConnection(fixture.server.id); fail("cleanup failure lost") }
         catch (_: ResourceCleanupException) { }
         transport.closeConnection(fixture.server.id)

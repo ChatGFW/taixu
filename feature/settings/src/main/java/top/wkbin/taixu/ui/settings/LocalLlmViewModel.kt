@@ -181,8 +181,9 @@ class LocalLlmViewModel(
     }
 
     fun installEngine() {
-        toolManager.startInstall(LocalLlmManager.TOOL_ID)
-        showMessage("已提交 llama.cpp 推理引擎安装任务，可在工具中心查看进度", isError = false)
+        runCatching { toolManager.startInstall(LocalLlmManager.TOOL_ID) }
+            .onSuccess { showMessage("已提交 llama.cpp 推理引擎安装任务，可在工具中心查看进度", isError = false) }
+            .onFailure { showMessage(it.message ?: "当前环境不支持安装本机引擎", isError = true) }
     }
 
     fun consumeMessage() {

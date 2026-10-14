@@ -28,8 +28,8 @@ object BoundedStreamCopy {
     /** 默认紧凑流缓冲区大小：16KB，兼顾吞吐量与极低内存占用 */
     const val DEFAULT_BUFFER_SIZE = 16 * 1024
 
-    /** 默认附件最大单文件大小：50MB */
-    const val DEFAULT_MAX_ATTACHMENT_BYTES = 50L * 1024 * 1024
+    /** 默认附件最大单文件大小：200MB（TaiXuDev 迭代：由 50MB 上调，支持大产物附件） */
+    const val DEFAULT_MAX_ATTACHMENT_BYTES = 200L * 1024 * 1024
 
     /** 默认通用拷贝上限：64MB */
     const val DEFAULT_MAX_COPY_BYTES = 64L * 1024 * 1024

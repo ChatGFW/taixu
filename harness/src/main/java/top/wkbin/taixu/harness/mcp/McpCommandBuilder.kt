@@ -4,14 +4,14 @@ import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.model.McpServerConfig
 
 /**
- * Quoting helpers for the MCP STDIO PTY invocation. Kept separate so unit tests can lock down
+ * Quoting helpers for MCP STDIO subprocesses. Kept separate so unit tests can lock down
  * command-line construction without spinning up a Linux session.
  */
 class McpCommandBuilder() {
-    fun commandLine(server: McpServerConfig): String {
+    fun commandLine(server: McpServerConfig, configureTty: Boolean = true): String {
         require(server.command.isNotBlank()) { "MCP STDIO server requires a non-blank command" }
         val argv = (listOf(server.command) + server.args).joinToString(" ", transform = ShellQuote::of)
-        return "stty raw -echo; exec " + argv
+        return (if (configureTty) "stty raw -echo; " else "") + "exec " + argv
     }
 
     fun fingerprint(server: McpServerConfig) =

@@ -1,6 +1,7 @@
 package top.wkbin.taixu.ui.settings.skill
 
 import androidx.compose.foundation.background
+import top.wkbin.taixu.ui.theme.semanticColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,10 +61,10 @@ fun SkillSecurityAuditDialog(
     val isBlocked = inspection.isBlocked
 
     val badgeColor = when (audit.level) {
-        AuditLevel.SAFE -> Color(0xFF10B981) // 翡翠绿
+        AuditLevel.SAFE -> semanticColors().success
         AuditLevel.INFO -> MaterialTheme.colorScheme.primary
-        AuditLevel.WARNING -> Color(0xFFF59E0B) // 琥珀黄
-        AuditLevel.DANGER -> Color(0xFFEA580C) // 警示橙
+        AuditLevel.WARNING -> semanticColors().warning
+        AuditLevel.DANGER -> semanticColors().warning
         AuditLevel.BLOCKED -> MaterialTheme.colorScheme.error
     }
 
@@ -217,8 +218,8 @@ fun SkillSecurityAuditDialog(
                         text = compat.level.label,
                         style = MaterialTheme.typography.bodySmall,
                         color = when (compat.level) {
-                            CompatibilityLevel.COMPATIBLE -> Color(0xFF10B981)
-                            CompatibilityLevel.PARTIALLY_COMPATIBLE -> Color(0xFFF59E0B)
+                            CompatibilityLevel.COMPATIBLE -> semanticColors().success
+                            CompatibilityLevel.PARTIALLY_COMPATIBLE -> semanticColors().warning
                             CompatibilityLevel.INCOMPATIBLE -> MaterialTheme.colorScheme.error
                         },
                         fontWeight = FontWeight.Medium,
@@ -245,7 +246,7 @@ fun SkillSecurityAuditDialog(
                     audit.findings.take(6).forEach { finding ->
                         val itemColor = when (finding.level) {
                             AuditLevel.BLOCKED, AuditLevel.DANGER -> MaterialTheme.colorScheme.error
-                            AuditLevel.WARNING -> Color(0xFFF59E0B)
+                            AuditLevel.WARNING -> semanticColors().warning
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         }
                         Column(
@@ -305,7 +306,7 @@ fun SkillSecurityAuditDialog(
                     onClick = onConfirmInstall,
                     enabled = !isCommitting,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (audit.hasWarnings) Color(0xFFF59E0B) else MaterialTheme.colorScheme.primary,
+                        containerColor = if (audit.hasWarnings) semanticColors().warning else MaterialTheme.colorScheme.primary,
                     ),
                 ) {
                     if (isCommitting) {

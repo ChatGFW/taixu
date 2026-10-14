@@ -26,6 +26,8 @@
 - JNI PTY 主描述符设置 `FD_CLOEXEC`，避免 exec 后继承主端；仅主端使用非阻塞读写，slave 保留普通终端行为（`app/src/main/cpp/pty_native.c`）。信号发送与 `waitpid(WNOHANG)` 回收由 `NativePtyChild` 串行执行，回收后不再对同一 PID 发信号。前台命令和 PTY 的终止失败保留资源，禁止把未确认退出当成可清理存储的完成状态。
 - 已知例外（记录在案，风险低）：`PrivilegeManager` Root 通道 `ProcessBuilder("su", "-c", …)` 与 `ShizukuHostUserService` 的 `ProcessBuilder` 未清空环境，继承 App / Shizuku 服务进程的标准 Android 环境变量。用户密钥不在进程环境里，故不构成密钥泄漏面；**若未来向 App env 注入敏感变量，必须先给这两处补 clear**。
 
+本地重型前台命令的资源名额仅限制已识别工作负载的并发，不改变命令、环境变量、审批或宿主权限。ProcessShellExecutor 对收尾失败的资源保留 `hasUnsettled` 状态；后续重型命令在进程分配前拒绝执行，成功清理后恢复，不把超时或取消本身当作进程已退出的证据。
+
 ### 2.2 进入沙箱的环境变量
 
 - 固定基座（`EnvironmentResolver.baseEnvironment`）：`HOME` / `LANG` / `TMPDIR` / `PATH` / `TAIXU_BRIDGE_URL` / `TAIXU_BRIDGE_PORT` / `ANDROID_BIN_PATH` / `ANDROID_LIB_PATH` / `TERM` 等，无敏感项。
@@ -38,8 +40,20 @@
 - privacyMode 下叠加「已知密钥值遮蔽」：以 `LinuxEnvironmentManager` 中用户配置的环境变量值作为已知 secret 列表（`ToolExecutor.kt:96-104`）。
 - 已绑定的工具调用及子任务报告通过当前环境的 `outputSecrets` 获取已知值；本地后端固定发行版并在读取锁内复制快照，远端不会刷新手机当前发行版。子任务报告在保存到当前环境前完成同样的脱敏；刷新失败不会使用另一发行版的旧缓存。
 - 应用点：ToolExecutor 工具结果后处理（4 处调用）、`RequestDiagnosticsStore` 请求预览、浏览器 `SecretRedactingInterceptor`。
+- 本地 `base` 长输出在排水期间暂存原始字节于 Android 私有 `cacheDir/command-output`，不加入 PRoot 挂载、不进入系统备份；文件按流限制大小并在工具收尾删除，崩溃残留在下一次长输出捕获时回收。只有走完既有输出脱敏后才能进入 `.taixu-outputs`；捕获上限或排水不完整时明确标注，不能把有损捕获宣称为完整输出。此暂存仍属于 App uid 的数据，并不构成对同 uid 恶意代码的隔离边界。
+- 任务交付记录只保留已提交消息的引用和受信任后端生成的文件版本观察，不复制用户目标、工具参数、日志正文或助手结论。模型自述、命令成功和文件指纹均不升级为目标行为验证；记录明确未验证项，不授予审批权限、不触发重放。输出日志指纹按已脱敏的实际保存内容计算；APK/下载文件/图片指纹按实际二进制字节计算，不修改原文件、不复制二进制到历史记录。相对路径沿既有输出脱敏链检查，若会改变则舍弃引用并记录缺口；格式无效的元数据不原样保留。二进制指纹本身不是匿名化保证，已知内容可通过指纹关联。
+- `ToolFileArtifacts` 只接受受信任 `base`、`download`、`read` 生产者；MCP 与其他工具不能直接声明此字段。构建观察有固定目录、条目、字节和时间上限，不依赖 stdout 路径。当前环境缺少文件指纹或严格枚举能力时标记不完整，不读取手机的同名文件作为替代。读取前后属性核验仅检测常见并发修改，不是恶意并发下的原子快照；本地同 uid 和远端实际账号权限不因指纹读取而获得新的隔离边界。版本引用不保证当前文件仍存在或匹配，APK 类型按后缀分类；构建变化信号携带指纹但不会自动绕过安装审批或保证安装内容匹配该版本。
+- 运行内失败记忆只保存当前 operation 的参数指纹、经过清洗的工具名、结果类型和来源 ID，不复制参数、输出或模型编写的经验。动作建议来自固定实现，以低权威合成 user 背景资料投影，明确并非用户消息，不修改 system 权限或触发重放；来源 ID、指纹、容量与失效时间都校验。父子 Lane、新任务和其他会话不共用该记忆；普通同参成功不解除此前未知副作用的核验要求。
 - **局限（务必知道）**：正则启发式，不是密码学保证；无标签的随机串（如 HostBridge key 本身是 UUID hex）不在模式内；Base64 等编码变形与非赋值形态不保证命中。高危场景需叠加人工检查。
 - 请求诊断仅将脱敏后的有界预览和字段指纹交给 `RequestDiagnosticsRepository`，用 `SecretManager` 的 AndroidKeyStore AES/GCM 加密后原子写入 `noBackupFilesDir/request-diagnostics/requests.enc`。不保存请求头、原始请求体或媒体载荷；加密失败不回退明文。普通对话和文件内容仍可能保留，脱敏不等于匿名化。会话删除等待加密存档清理完成；存档排除系统备份，并受大小及格式校验约束。
+
+### 2.4 远程 SSH 凭证与主机身份
+
+- 远程配置由 `RemoteServerRepository` 持有，整个快照经 `SecretManager` 加密后原子写入 `noBackupFilesDir/remote-servers.enc`；不进入备份、模型上下文或进程环境。密码、PEM/OpenSSH 私钥与私钥口令只在认证和内存脱敏列表中使用，私钥文件导入限定为用户选择的 SAF URI，最大 64 KiB，不保留 URI 授权。
+- 会话的执行目标和无凭证的连接身份持久化到 Room；创建时固定，重启、回退分支及子任务复用。新增 SSH 功能前的 `unbound` 历史首次执行时固定本地发行版，不采用远程默认选择；便携导入单独标记 `restore-required`，拒绝推测主机。重新连接校验仓库中的档案与记录一致，变化时拒绝执行。无法解密的连接存档显式不可用，不默认选择本地；用户明确切回本地后保留原损坏加密文件，再恢复配置写入。
+- 首次连接的 host-key 回调在认证前拒绝连接，UI 显示 SHA-256 主机指纹；用户核对并确认后再次连接。后续严格匹配保存的指纹，变化即拒绝，不自动接受，也不启用旧版 RSA/SHA-1 算法。
+- Harness 会话与子任务分别持有 SSH 连接。文件操作经 SFTP 将逻辑 `/workspace` 路径映射到远程工作区，校验真实路径与新文件父目录，拒绝 `..` 和越界符号链接；命令仍拥有 SSH 用户的真实权限，不受文件工作区限制。远程用户或同机其它进程可并发改动文件，SFTP 真实路径检查不能提供对恶意远端的安全隔离。
+- 远程工具沿用 PLAN/审批/输出脱敏规则；缺失的下载、产物、构建绑定能力明确失败。`host` / Android / 浏览器能力仍作用于手机，远程提示词明确区分。停止发送 TERM，必要时 KILL；服务器未确认退出时保留连接并报告失败，可重试。SSH 不保证回收命令自行脱离会话创建的后代进程。
 
 ## 3. PRoot 挂载清单（沙箱可见的宿主路径）
 
@@ -85,6 +99,8 @@
 - 工具入口：主回合与 Lane 先检查工具名称，再解析并校验参数；未知名称不能借映射回退执行命令。Lane 对结构化写工具按执行器的参数视图检查租约，覆盖路径别名与包装参数；`base` 的任意 shell 写入仍不属于结构化路径租约检查范围。
 - 取消：`PrivilegeManager.cancelShellCommand` 同步终止对应 Shizuku/Root 宿主子进程。
 - MCP：工具 schema 不进 provider 可见面（`use_capability` 统一代理 + 护栏测试 `BuiltinToolContractTest`）；STDIO 服务器进程在 PRoot 沙箱内启动（`McpStdioTransport` → `McpStdioChannelFactory`），其 env 走 2.2 的 provider 通道。
+
+按需 MCP 的安装就绪状态在当前绑定环境中核验，不借用手机其它发行版或远端的结果。`McpCatalogAvailability` 在列表、发现和调用前投影用户偏好与就绪状态；STDIO 通道创建前再次核验。`setup_mcp_catalog.sh probe/run` 只读取本地标记及实际全局包清单，检查包名、实际版本与入口路径，直接执行该包入口，不经 npx、不联网补装。卸载后即使保留用户开启偏好也不允许启动；探针失败不扩散为可用。显式安装与升级仍运行第三方 npm 包及其安装脚本，保留既有 PRoot/App uid 和凭证环境暴露面。
 
 工作流恢复边界（`WorkflowRunManager.resume` / `WorkflowRecovery`）：仅从原运行持久化定义继续，恢复前复核当前发行版与日志版本；STARTED 未结算的外部动作和失败节点需逐个人工确认重试，已成功的动作不重新派发。旧记录、托管进程及虚拟屏资源流程不支持继续。继续确认覆盖原计划剩余步骤及已完成的审批，等待中的审批重新请求；不提升宿主权限、不自动续跑，也不保证外部动作 exactly-once。恢复日志与结果位于既有 Room 运行快照中，保留既有输出/产物的暴露面，参见 `docs/WORKFLOW.md`。
 

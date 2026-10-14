@@ -45,8 +45,8 @@ LinuxAIRuntime/
 └── feature/              # Compose UI 业务特性层
     ├── components/      # 太墟 M3 Expressive 设计规范、通用组件 (RuntimeCard, TopBar, Icons)
     ├── theme/           # Material 3 调色板、字体、主题配置
-    ├── home/            # 首页运行仪表盘：Linux 系统状态、内存/磁盘/进程实时监控
-    ├── chat/            # 智枢 Agent 对话界面、TaskPlanCard 任务拆解卡片、宽屏双栏布局
+    ├── home/            # 系统概览：Linux 状态、内存/磁盘/进程实时监控，从侧边导航进入
+    ├── chat/            # 默认入口：智枢对话、共享会话抽屉、任务拆解卡片、宽屏双栏布局
     ├── terminal/        # 终端 Compose UI 与触觉按键条；会话/VT100 状态机位于 runtime
     ├── workspace/       # 工作区管理器：创建/ZIP/GitHub 导入、导出、代码浏览、后台构建
     ├── workflow/        # 工作流目录、DAG 画布、执行时间线与人工审批界面
