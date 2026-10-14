@@ -204,7 +204,7 @@ internal fun LocalHomeScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             RuntimeTopBar(
-                title = stringResource(R.string.home_dashboard_title),
+                title = stringResource(R.string.home_dashboard_title), onBack = { onNavigate(MainDestination.Agent) },
                 statusText = "${metrics.linuxDistro} · ${metrics.cpuArch}",
                 actions = {
                     IconButton(

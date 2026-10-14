@@ -18,12 +18,12 @@ import top.wkbin.taixu.ui.components.*
 
 @Composable
 internal fun ChatWorkspaceBar(workspace: String, environment: String, approvalMode: ApprovalMode,
-    runMode: RunMode, expanded: Boolean, onToggle: () -> Unit, onOpenWorkspace: () -> Unit,
+    runMode: RunMode, onOpenWorkspace: () -> Unit,
     onOpenApproval: () -> Unit, onOpenBrowser: (() -> Unit)?, browserHighlight: Boolean,
-    onOpenRepository: (() -> Unit)?, repositoryHighlight: Boolean, toolchainHighlight: Boolean) {
+    onOpenRepository: (() -> Unit)?, repositoryHighlight: Boolean) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        RuntimeTextButton(onClick = onOpenWorkspace, modifier = Modifier.weight(1f, fill = false),
+        RuntimeTextButton(onClick = onOpenWorkspace, modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)) {
             RuntimeIcon(RuntimeIconName.FolderOpen, Modifier.size(16.dp), MaterialTheme.colorScheme.onSurfaceVariant)
             Text(workspace.trimEnd('/').substringAfterLast('/').takeIf { it.isNotBlank() }?.let { "$it · $environment" } ?: environment, Modifier.padding(start = 6.dp),
@@ -44,10 +44,6 @@ internal fun ChatWorkspaceBar(workspace: String, environment: String, approvalMo
         if (onOpenBrowser != null) RuntimeIconButton(onClick = onOpenBrowser, contentDescription = stringResource(R.string.chat_browser_entry)) {
             RuntimeIcon(RuntimeIconName.Globe, Modifier.size(18.dp), if (browserHighlight)
                 MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        RuntimeIconButton(onClick = onToggle, contentDescription = stringResource(if (expanded) R.string.chat_hide_controls else R.string.chat_workbench_controls)) {
-            RuntimeIcon(if (expanded) RuntimeIconName.Close else RuntimeIconName.Settings, Modifier.size(18.dp),
-                if (expanded || toolchainHighlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

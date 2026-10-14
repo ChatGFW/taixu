@@ -8,7 +8,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,6 +70,7 @@ import top.wkbin.taixu.harness.QueuedPrompt
  * 输入区：斜杠/@ 弹窗、排队指令、附件预览、推理强度滑块、工具状态胶囊与一体化输入胶囊。
  */
 @Composable
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 internal fun ChatComposer(
     listState: LazyListState,
     running: Boolean,
@@ -102,6 +102,7 @@ internal fun ChatComposer(
     pinnedCapabilities: List<MentionItem>,
     onUnpinMention: (String) -> Unit,
     onOpenSkillsMcp: () -> Unit,
+    onOpenModels: () -> Unit,
     activeModel: AiModelEntity?,
     onUpdateReasoning: (String?, String?) -> Unit,
     contextUsage: ContextUsage,
@@ -200,32 +201,16 @@ internal fun ChatComposer(
         }
     }
 
-    // 🌟 思考/推理强度浮动调节胶囊 (ChatGPT 同款滑块面板)
-    androidx.compose.animation.AnimatedVisibility(
-        visible = showReasoningSlider,
-        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
-        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically(),
-    ) {
-        ReasoningEffortSlider(
-            currentMode = activeModel?.reasoningMode,
-            currentEffort = activeModel?.reasoningEffort,
-            onSelect = { mode, effort ->
-                onUpdateReasoning(mode, effort)
-            },
-            onClose = { showReasoningSlider = false },
-        )
+    if (showReasoningSlider) {
+        PlainBackdropModalBottomSheet(onDismissRequest = { showReasoningSlider = false }) {
+            ReasoningEffortSlider(
+                currentMode = activeModel?.reasoningMode,
+                currentEffort = activeModel?.reasoningEffort,
+                onSelect = onUpdateReasoning,
+                onClose = { showReasoningSlider = false },
+            )
+        }
     }
-
-    // 🌟 底部工具执行状态与中止胶囊
-    ToolActivityPill(
-        running = running,
-        status = status,
-        messages = messages,
-        toolResults = toolResults,
-        workspace = workspace,
-        onStop = onStop,
-    )
-
     RuntimeCard(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp),
         shape = RoundedCornerShape(28.dp), contentPadding = PaddingValues(0.dp),
@@ -239,9 +224,9 @@ internal fun ChatComposer(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            // 🌟 常驻/已钉选能力与临时挂载胶囊栏 (Pinned & Attached Capabilities Strip)
+            // 显式挂载的能力才展示标签；常驻能力从 + 菜单管理。
             val allDisplayItems = remember(pinnedCapabilities, attachedMentions) {
-                (pinnedCapabilities + attachedMentions).distinctBy { it.id }
+                attachedMentions.distinctBy { it.id }
             }
             if (allDisplayItems.isNotEmpty()) {
                 LazyRow(
@@ -411,120 +396,15 @@ internal fun ChatComposer(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                // 左侧：+ 号展开选单 + 思考深度胶囊
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier.weight(1f, fill = false),
-                ) {
-                    var showPlusMenu by rememberSaveable { mutableStateOf(false) }
-                    Box {
-                        IconButton(
-                            onClick = { showPlusMenu = true },
-                            modifier = Modifier.minimumInteractiveComponentSize(),
-                            contentDescription = stringResource(R.string.chat_add_attachment),
-                        ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Plus,
-                                modifier = Modifier.size(19.dp),
-                                tint = if (attachments.isNotEmpty() || attachedMentions.isNotEmpty()) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showPlusMenu,
-                            onDismissRequest = { showPlusMenu = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.chat_send_image), fontSize = 13.sp) },
-                                leadingIcon = { RuntimeIcon(RuntimeIconName.Image, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary) },
-                                onClick = {
-                                    showPlusMenu = false
-                                    imagePickerLauncher.launch("image/*")
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.chat_send_file), fontSize = 13.sp) },
-                                leadingIcon = { RuntimeIcon(RuntimeIconName.Document, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.secondary) },
-                                onClick = {
-                                    showPlusMenu = false
-                                    filePickerLauncher.launch("*/*")
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.chat_menu_capabilities_short), fontSize = 13.sp) },
-                                leadingIcon = { RuntimeIcon(RuntimeIconName.Brain, Modifier.size(16.dp), tint = semanticColors().success) },
-                                onClick = {
-                                    showPlusMenu = false
-                                    onOpenSkillsMcp()
-                                },
-                            )
-                        }
-                    }
-
-                    // ⚡ 思考深度独立胶囊（直接显示：轻度 / 中度 / 深度 / 极度 / 关闭 ^）
-                    val effortLabel = when {
-                        activeModel?.reasoningMode == "disabled" -> stringResource(R.string.chat_depth_off)
-                        activeModel?.reasoningEffort == "low" -> stringResource(R.string.chat_depth_light)
-                        activeModel?.reasoningEffort == "extreme" || activeModel?.reasoningEffort == "max" -> stringResource(R.string.chat_depth_extreme)
-                        activeModel?.reasoningEffort == "high" -> stringResource(R.string.chat_depth_deep)
-                        activeModel?.reasoningEffort == "medium" -> stringResource(R.string.chat_depth_medium)
-                        else -> stringResource(R.string.chat_depth_medium)
-                    }
-
-                    // 思考深度色阶：M3 体系内用 primary 的明度梯度表达强度递进，
-                    // 避免彩虹色（绿/蓝/紫/粉）在深浅主题下对比度失控且与 colorScheme 脱钩。
-                    val effortTint = when {
-                        activeModel?.reasoningMode == "disabled" ->
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        activeModel?.reasoningEffort == "low" ->
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.62f)
-                        activeModel?.reasoningEffort == "extreme" || activeModel?.reasoningEffort == "max" ->
-                            MaterialTheme.colorScheme.primary
-                        activeModel?.reasoningEffort == "high" ->
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.86f)
-                        else -> MaterialTheme.colorScheme.primary
-                    }
-
-                    Surface(
-                        onClick = { showReasoningSlider = !showReasoningSlider },
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (showReasoningSlider) effortTint.copy(alpha = 0.15f)
-                        else effortTint.copy(alpha = 0.08f),
-                        border = BorderStroke(
-                            0.7.dp,
-                            if (showReasoningSlider) effortTint.copy(alpha = 0.45f) else effortTint.copy(alpha = 0.2f),
-                        ),
-                        modifier = Modifier.padding(start = 2.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Sparkles,
-                                modifier = Modifier.size(11.dp),
-                                tint = effortTint,
-                            )
-                            Text(
-                                text = effortLabel,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                ),
-                                color = effortTint,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            RuntimeIcon(
-                                name = if (showReasoningSlider) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronUp,
-                                modifier = Modifier.size(10.dp),
-                                tint = effortTint.copy(alpha = 0.75f),
-                            )
-                        }
-                    }
-                }
+                ComposerQuickActions(
+                    activeModel = activeModel, compact = running,
+                    onOpenModels = onOpenModels, onOpenSkillsMcp = onOpenSkillsMcp,
+                    onOpenReasoning = { showReasoningSlider = true },
+                    onPickImage = { imagePickerLauncher.launch("image/*") },
+                    onPickFile = { filePickerLauncher.launch("*/*") },
+                )
+                ToolActivityPill(running, status, messages, toolResults, workspace, onStop,
+                    modifier = Modifier.weight(1f), compact = true)
 
                 // 右侧发送 / 停止控制区（圆形灵动按钮）
                 val canSend = !initializing && (input.isNotBlank() || attachments.isNotEmpty())
@@ -553,7 +433,7 @@ internal fun ChatComposer(
                                 color = sendTint,
                                 modifier = Modifier
                                     .minimumInteractiveComponentSize()
-                        .size(40.dp)
+                                    .size(40.dp)
                                     .semantics { contentDescription = sendDesc },
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -564,7 +444,8 @@ internal fun ChatComposer(
                                     )
                                 }
                             }
-                        } else {
+                        }
+                        run {
                             val stopDesc = stringResource(R.string.chat_stop_generation)
                             Surface(
                                 onClick = onStop,

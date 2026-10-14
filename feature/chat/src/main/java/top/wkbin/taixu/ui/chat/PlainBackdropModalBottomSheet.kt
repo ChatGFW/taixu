@@ -29,6 +29,7 @@ internal fun PlainBackdropModalBottomSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    containerColor: androidx.compose.ui.graphics.Color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     CompositionLocalProvider(LocalLiquidGlassSurfaceBackdrop provides null) {
@@ -36,6 +37,7 @@ internal fun PlainBackdropModalBottomSheet(
             onDismissRequest = onDismissRequest,
             modifier = modifier,
             sheetState = sheetState,
+            containerColor = containerColor,
             content = content,
         )
     }

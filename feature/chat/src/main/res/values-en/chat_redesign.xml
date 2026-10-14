@@ -1,4 +1,5 @@
 <resources>
+    <string name="chat_reasoning_action">Adjust reasoning effort</string>
     <string name="chat_install_mcp">Install</string>
     <string name="chat_message_placeholder">Describe an idea or a problem…</string>
     <string name="chat_more_controls">More conversation actions</string>
@@ -7,11 +8,10 @@
     <string name="chat_browser_entry">Browser</string>
     <string name="chat_runtime_overview">Run history</string>
     <string name="chat_toolchain_entry">Toolchain</string>
-    <string name="chat_welcome_title">Start with an idea</string>
-    <string name="chat_welcome_subtitle">Build with TaiXu. Write code, solve problems, and bring ideas to life.</string>
-    <string name="chat_welcome_project">Continue your project</string>
+    <string name="chat_welcome_subtitle">Choose a starting point, or describe your request below.</string>
+    <string name="chat_welcome_project">Project shortcuts</string>
     <string name="chat_welcome_project_subtitle">Describe your goal or a problem, and TaiXu will help with your current project.</string>
-    <string name="chat_welcome_suggestions">A few places to start</string>
+    <string name="chat_welcome_suggestions">Quick start</string>
     <string name="chat_start_build">Build a small tool</string>
     <string name="chat_start_build_detail">Turn a requirement into a first working version.</string>
     <string name="chat_start_build_prompt">I want to build a small tool. Help me clarify the requirements, then propose an implementation.</string>

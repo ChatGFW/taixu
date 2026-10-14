@@ -4,9 +4,11 @@ import android.app.Activity
 import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -27,6 +29,7 @@ import top.wkbin.taixu.ui.components.*
 
 /** Conversation and model lead; advanced controls unfold on demand. */
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 internal fun ChatTopBar(
     title: String, workspace: String, distroDisplayName: String, activeModel: AiModelEntity?,
     approvalMode: ApprovalMode, runMode: RunMode, currentBranch: ConversationBranch?,
@@ -39,7 +42,6 @@ internal fun ChatTopBar(
 ) {
     val context = LocalContext.current
     var expanded by rememberSaveable { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
     val model = activeModel?.let { it.model.substringBefore(',').trim().ifBlank { it.name } }
         ?: stringResource(R.string.chat_no_model_selected)
     Column(Modifier.fillMaxWidth().statusBarsPadding()) {
@@ -52,36 +54,52 @@ internal fun ChatTopBar(
                 verticalArrangement = Arrangement.Center) {
                 Text(title.ifBlank { stringResource(R.string.chat_title) }, style = MaterialTheme.typography.titleMedium,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("$model ▾", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("$model ▾", Modifier.weight(1f, fill = false),
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (runMode == RunMode.PLAN) Text(stringResource(R.string.chat_run_mode_plan),
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary, maxLines = 1)
+                }
+            }
+            if (approvalMode == ApprovalMode.FULL_ACCESS) {
+                RuntimeIconButton(onClick = onOpenApprovalModes, contentDescription = stringResource(R.string.chat_approval_full_access)) {
+                    RuntimeIcon(RuntimeIconName.Shield, Modifier.size(20.dp), MaterialTheme.colorScheme.error)
+                }
             }
             RuntimeIconButton(onClick = onNewSession, contentDescription = stringResource(R.string.chat_drawer_new_task)) {
                 RuntimeIcon(RuntimeIconName.Edit, Modifier.size(22.dp))
             }
-            Box {
-                RuntimeIconButton(onClick = { showMenu = true }, contentDescription = stringResource(R.string.chat_more_controls)) {
-                    RuntimeIcon(RuntimeIconName.More, Modifier.size(22.dp))
-                }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.chat_workbench_controls)) },
-                        onClick = { expanded = !expanded; showMenu = false })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.chat_floating_collapse)) }, onClick = {
-                        showMenu = false
-                        if (Settings.canDrawOverlays(context)) {
-                            FloatingChatService.start(context); (context as? Activity)?.moveTaskToBack(true)
-                        } else onShowFloatingPermissionDialog()
-                    })
-                }
+            RuntimeIconButton(onClick = { expanded = true }, contentDescription = stringResource(R.string.chat_workbench_controls)) {
+                RuntimeIcon(RuntimeIconName.More, Modifier.size(22.dp),
+                    if (toolchainHighlight || repositoryHighlight || browserHighlight) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        ChatWorkspaceBar(workspace, distroDisplayName, approvalMode, runMode, expanded,
-            onToggle = { expanded = !expanded }, onOpenWorkspace = onOpenSessions,
-            onOpenApproval = onOpenApprovalModes, onOpenBrowser = onOpenBrowser, browserHighlight = browserHighlight,
-            onOpenRepository = onOpenRepository, repositoryHighlight = repositoryHighlight,
-            toolchainHighlight = toolchainHighlight)
-        androidx.compose.animation.AnimatedVisibility(expanded) {
-            ChatWorkbenchControls(approvalMode, runMode, currentBranch, runtimeEvents, running,
-                onOpenApprovalModes, onOpenRunModes, onOpenBranches, onOpenRuntime, onOpenToolchain, toolchainHighlight)
+    }
+    if (expanded) {
+        val closeThen: (() -> Unit) -> () -> Unit = { action -> { expanded = false; action() } }
+        PlainBackdropModalBottomSheet(onDismissRequest = { expanded = false }) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.chat_workbench_controls), Modifier.padding(horizontal = 24.dp),
+                    style = MaterialTheme.typography.titleMedium)
+                ChatWorkspaceBar(workspace, distroDisplayName, approvalMode, runMode,
+                    onOpenWorkspace = closeThen(onOpenSessions), onOpenApproval = closeThen(onOpenApprovalModes),
+                    onOpenBrowser = onOpenBrowser?.let(closeThen), browserHighlight = browserHighlight,
+                    onOpenRepository = onOpenRepository?.let(closeThen), repositoryHighlight = repositoryHighlight)
+                ChatWorkbenchControls(approvalMode, runMode, currentBranch, runtimeEvents, running,
+                    closeThen(onOpenApprovalModes), closeThen(onOpenRunModes), closeThen(onOpenBranches),
+                    closeThen(onOpenRuntime), closeThen(onOpenToolchain), toolchainHighlight)
+                RuntimeTextButton(modifier = Modifier.padding(horizontal = 16.dp), onClick = {
+                    expanded = false
+                    if (Settings.canDrawOverlays(context)) {
+                        FloatingChatService.start(context); (context as? Activity)?.moveTaskToBack(true)
+                    } else onShowFloatingPermissionDialog()
+                }) {
+                    Text(stringResource(R.string.chat_floating_collapse))
+                }
+            }
         }
     }
 }

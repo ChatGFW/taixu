@@ -34,7 +34,7 @@ private fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) -> 
     val state by remember(serverId, refresh) { service.observe(serverId, target) }.collectAsStateWithLifecycle(RemoteSystemInspection())
     val metrics = state.metrics
     Scaffold(containerColor = MaterialTheme.colorScheme.background,
-        topBar = { RuntimeTopBar(title = "太墟", statusText = target?.name ?: "当前系统", actions = {
+        topBar = { RuntimeTopBar(title = "太墟", onBack = { onNavigate(MainDestination.Agent) }, statusText = target?.name ?: "当前系统", actions = {
             RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) }
         }) },
     ) { padding ->

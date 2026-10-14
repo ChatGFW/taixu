@@ -7,6 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.res.stringResource
+import top.wkbin.taixu.feature.chat.R
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,12 +54,13 @@ fun ContextUsageRing(
 
     val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f)
 
+    val description = stringResource(R.string.chat_context_title)
     Box(modifier = modifier) {
         Surface(
             onClick = { showDialog = true },
             shape = CircleShape,
             color = ringColor.copy(alpha = 0.08f),
-            modifier = Modifier.size(30.dp),
+            modifier = Modifier.minimumInteractiveComponentSize().size(30.dp).semantics { contentDescription = description },
         ) {
             Box(contentAlignment = Alignment.Center) {
                 // 环形进度仪表盘
