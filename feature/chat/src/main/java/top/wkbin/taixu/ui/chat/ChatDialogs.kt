@@ -424,22 +424,11 @@ internal fun ModelDialog(
     onCloseModelPicker: () -> Unit,
     onRefreshModels: (String) -> Unit,
     onSwitchModel: (profileId: String, modelId: String) -> Unit,
-    onAdd: (String, String, String, String) -> Unit,
+    onCreate: () -> Unit,
     onDelete: (String) -> Unit,
 ) {
-    var showAdd by rememberSaveable { mutableStateOf(false) }
     // 删除模型档案为破坏性操作，先记录目标 id 并经确认对话框
     var deleteModelTargetId by rememberSaveable { mutableStateOf<String?>(null) }
-    if (showAdd) {
-        AddModelDialog(
-            onDismiss = { showAdd = false },
-            onAdd = { name, provider, model, baseUrl ->
-                onAdd(name, provider, model, baseUrl)
-                showAdd = false
-            },
-        )
-        return
-    }
     val pickingProfile = modelPickerProfileId?.let { id -> models.firstOrNull { it.id == id } }
     if (pickingProfile != null) {
         ProviderModelPickerDialog(
@@ -626,7 +615,10 @@ internal fun ModelDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { showAdd = true }) { Text(stringResource(R.string.chat_add_model), color = MaterialTheme.colorScheme.primary) }
+            TextButton(onClick = {
+                onDismiss()
+                onCreate()
+            }) { Text(stringResource(R.string.chat_add_model), color = MaterialTheme.colorScheme.primary) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_close)) }
@@ -784,64 +776,6 @@ internal fun ProviderModelPickerDialog(
                     Text(stringResource(R.string.chat_apply_model), color = MaterialTheme.colorScheme.primary)
                 }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_cancel)) }
-        },
-    )
-}
-
-@Composable
-internal fun AddModelDialog(
-    onDismiss: () -> Unit,
-    onAdd: (String, String, String, String) -> Unit,
-) {
-    var name by rememberSaveable { mutableStateOf("") }
-    val defaultProvider = stringResource(R.string.chat_custom_provider)
-    var provider by rememberSaveable { mutableStateOf(defaultProvider) }
-    var model by rememberSaveable { mutableStateOf("") }
-    var baseUrl by rememberSaveable { mutableStateOf("") }
-    // baseUrl 基础格式校验：必须以 http:// 或 https:// 开头（留空走供应商默认端点）
-    val baseUrlInvalid = baseUrl.isNotBlank() && !baseUrl.trim().startsWith("http://") && !baseUrl.trim().startsWith("https://")
-    ChatBottomSheet(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.chat_add_model), fontWeight = FontWeight.Bold) },
-        text = {
-            // 玻璃弹窗容器限高 + clip：4 个固定高度输入框在窄屏/大字号下会把第 4 项
-            // （Model ID）裁掉，而确认按钮恰好依赖它——必须允许内容滚动。
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 420.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.chat_optional_name)) }, singleLine = true)
-                OutlinedTextField(value = provider, onValueChange = { provider = it }, label = { Text(stringResource(R.string.chat_provider_label)) }, singleLine = true)
-                OutlinedTextField(
-                    value = baseUrl,
-                    onValueChange = { baseUrl = it },
-                    label = { Text(stringResource(R.string.chat_optional_base_url)) },
-                    placeholder = { Text("https://api.openai.com/v1") },
-                    isError = baseUrlInvalid,
-                    supportingText = {
-                        if (baseUrlInvalid) {
-                            Text(
-                                stringResource(R.string.chat_base_url_invalid),
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                    },
-                    singleLine = true,
-                )
-                OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text(stringResource(R.string.chat_model_id)) }, placeholder = { Text("deepseek-chat / gpt-4o") }, singleLine = true)
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onAdd(name, provider, model, baseUrl) },
-                enabled = model.isNotBlank() && !baseUrlInvalid,
-            ) { Text(stringResource(R.string.chat_confirm_add), color = MaterialTheme.colorScheme.primary) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_cancel)) }

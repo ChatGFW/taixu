@@ -78,7 +78,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.lazy.LazyListState
-import top.wkbin.taixu.core.model.QuickPhrase
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.database.AgentPlanEntity
 import top.wkbin.taixu.harness.QueuedPrompt
@@ -111,6 +110,7 @@ fun ChatScreen(
     onNavigate: (MainDestination) -> Unit,
     onOpenNavigation: () -> Unit,
     onInstallMcp: () -> Unit = {},
+    onCreateModelProfile: () -> Unit = {},
     onOpenFile: ((projectName: String, relativePath: String) -> Unit)? = null,
     terminalPane: (@Composable (project: String) -> Unit)? = null,
     browserPane: (@Composable (onExit: (() -> Unit)?) -> Unit)? = null,
@@ -165,7 +165,6 @@ fun ChatScreen(
     val activePlan by viewModel?.activePlan?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val activeCompaction by viewModel?.activeCompaction?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val contextUsage by viewModel?.contextUsage?.collectAsStateWithLifecycle() ?: previewStateOf(ContextUsage())
-    val quickPhrases by viewModel?.quickPhrases?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val onboardingPrivilege by viewModel?.privilegeOnboarding?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val attachmentsProcessing by viewModel?.attachmentsProcessing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val notice by viewModel?.notice?.collectAsStateWithLifecycle() ?: previewStateOf(null)
@@ -351,6 +350,9 @@ fun ChatScreen(
 
     // 模型·权限·主线·轮次 工具条：紧凑态浏览器整页打开时被覆盖，其余形态固定在顶部。
     // onOpenBrowser 非空时工作台追加"浏览器"入口（agent 有新动态时高亮）；companion 非空时显示伴随面板开关。
+    val openModels = {
+        if (models.isEmpty()) onCreateModelProfile() else showModels = true
+    }
     val noProjectHint = stringResource(R.string.chat_repository_no_project)
     var toolchainGap by remember { mutableStateOf(false) }; var showToolchainPanel by remember { mutableStateOf(false) }
 
@@ -367,7 +369,7 @@ fun ChatScreen(
                 running = running,
                 onShowFloatingPermissionDialog = { showFloatingPermissionDialog = true },
                 onOpenSessions = onOpenNavigation,
-                onOpenModels = { showModels = true },
+                onOpenModels = openModels,
                 onOpenRunModes = { showRunModes = true },
                 onOpenBranches = { showBranches = true },
                 onOpenRuntime = { showRuntimeTimeline = true },
@@ -463,10 +465,8 @@ fun ChatScreen(
                     onResolveQuestion = { arg0, arg1 -> viewModel?.resolveQuestion(arg0, arg1) },
                     contextUsage = contextUsage,
                     activeModel = activeModel,
-                    onOpenModels = { showModels = true }, approvalMode = currentApprovalMode, onOpenApprovalModes = { showApprovalModes = true },
+                    onOpenModels = openModels, approvalMode = currentApprovalMode, onOpenApprovalModes = { showApprovalModes = true },
                     onUpdateReasoning = { arg0, arg1 -> viewModel?.updateActiveModelReasoning(arg0, arg1) },
-                    quickPhrases = quickPhrases,
-                    onSelectPhrase = { arg0 -> viewModel?.applyQuickPhrase(arg0) },
                     activeCompaction = activeCompaction,
                     mcpRecommendations = mcpRecommendations,
                     onEnableMcpRecommendation = { arg0 -> viewModel?.enableMcpRecommendation(arg0) },
@@ -565,7 +565,7 @@ fun ChatScreen(
             onCloseModelPicker = { viewModel?.closeProviderModelPicker() },
             onRefreshModels = { arg0 -> viewModel?.discoverProviderModels(arg0) },
             onSwitchModel = { arg0, arg1 -> viewModel?.switchModelInProfile(arg0, arg1) },
-            onAdd = { name, provider, model, baseUrl -> viewModel?.addModel(name, provider, model, baseUrl) },
+            onCreate = onCreateModelProfile,
             onDelete = { arg0 -> viewModel?.deleteModel(arg0) },
         )
     }
@@ -752,8 +752,6 @@ private fun ChatPaneContent(
     onResolveApproval: (String, Boolean, Boolean) -> Unit = { _, _, _ -> },
     onResolveQuestion: (String, String) -> Unit = { _, _ -> },
     contextUsage: ContextUsage = ContextUsage(),
-    quickPhrases: List<QuickPhrase> = emptyList(),
-    onSelectPhrase: (QuickPhrase) -> Unit = {},
     onViewSubagentLanes: () -> Unit = {},
     subagentBranches: List<ConversationBranch> = emptyList(),
     onOpenSubagentBranch: (ConversationBranch) -> Unit = {},
@@ -783,8 +781,6 @@ private fun ChatPaneContent(
             lastAssistantMessageId = lastAssistantMessageId,
             onNavigateToSettings = onNavigateToSettings,
             knownMentionNames = knownMentionNames,
-            quickPhrases = quickPhrases,
-            onSelectPhrase = onSelectPhrase,
             onSelectCommand = onApplyCommand,
             onEditMessage = onEditMessage,
             onDeleteMessage = onDeleteMessage,
