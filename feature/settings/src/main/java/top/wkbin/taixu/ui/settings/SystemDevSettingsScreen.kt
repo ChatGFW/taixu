@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import android.content.ClipData
@@ -54,7 +55,6 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-
 /**
  * 二级子页 3：系统保活与开发者诊断
  */
@@ -65,15 +65,15 @@ fun SystemDevSettingsScreen(
     onOpenAdbLogcat: () -> Unit = {},
     onOpenCustomIteration: () -> Unit = {},
     onOpenPermissionGuide: () -> Unit = {},
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val developer by viewModel.developerMode.collectAsStateWithLifecycle()
-    val qemuCompatibilityEnabled by viewModel.qemuCompatibilityEnabled.collectAsStateWithLifecycle()
-    val qemuCompatibilityReady by viewModel.qemuCompatibilityReady.collectAsStateWithLifecycle()
-    val qemuCompatibilityMessage by viewModel.qemuCompatibilityMessage.collectAsStateWithLifecycle()
-    val phantomStatus by viewModel.phantomProcessStatus.collectAsStateWithLifecycle()
-    val phantomBusy by viewModel.phantomProcessBusy.collectAsStateWithLifecycle()
-    val phantomMessage by viewModel.phantomProcessMessage.collectAsStateWithLifecycle()
+    val developer by viewModel?.developerMode?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val qemuCompatibilityEnabled by viewModel?.qemuCompatibilityEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val qemuCompatibilityReady by viewModel?.qemuCompatibilityReady?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val qemuCompatibilityMessage by viewModel?.qemuCompatibilityMessage?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val phantomStatus by viewModel?.phantomProcessStatus?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val phantomBusy by viewModel?.phantomProcessBusy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val phantomMessage by viewModel?.phantomProcessMessage?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val context = androidx.compose.ui.platform.LocalContext.current
     var showBatteryDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var showPhantomProcessDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
@@ -81,7 +81,7 @@ fun SystemDevSettingsScreen(
     val isRestrictiveRom = remember { RomAutostartHelper.isKnownRestrictiveRom() }
     val romLabel = remember { RomAutostartHelper.romLabel() }
 
-    LaunchedEffect(Unit) { viewModel.refreshPhantomProcessLimit() }
+    LaunchedEffect(Unit) { viewModel?.refreshPhantomProcessLimit() }
 
     if (showBatteryDialog) {
         BatteryOptimizationDialog(
@@ -95,11 +95,11 @@ fun SystemDevSettingsScreen(
             status = phantomStatus,
             busy = phantomBusy,
             message = phantomMessage,
-            adbCommand = viewModel.phantomProcessAdbCommand,
-            onRefresh = viewModel::refreshPhantomProcessLimit,
-            onRemove = viewModel::removePhantomProcessLimit,
+            adbCommand = viewModel?.phantomProcessAdbCommand.orEmpty(),
+            onRefresh = { viewModel?.refreshPhantomProcessLimit() },
+            onRemove = { viewModel?.removePhantomProcessLimit() },
             onDismiss = {
-                viewModel.clearPhantomProcessMessage()
+                viewModel?.clearPhantomProcessMessage()
                 showPhantomProcessDialog = false
             },
         )
@@ -165,7 +165,7 @@ fun SystemDevSettingsScreen(
                         },
                         onClick = {
                             showPhantomProcessDialog = true
-                            viewModel.refreshPhantomProcessLimit()
+                            viewModel?.refreshPhantomProcessLimit()
                         },
                     )
                 }
@@ -219,7 +219,7 @@ fun SystemDevSettingsScreen(
                         title = "开发者诊断模式",
                         subtitle = "开启底层健康监控与调试控制台",
                         checked = developer,
-                        change = viewModel::setDeveloperMode,
+                        change = { arg0 -> viewModel?.setDeveloperMode(arg0) },
                     )
                     if (developer) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -241,7 +241,7 @@ fun SystemDevSettingsScreen(
                         },
                         checked = qemuCompatibilityEnabled && qemuCompatibilityReady,
                         enabled = qemuCompatibilityReady,
-                        change = viewModel::setQemuCompatibilityEnabled,
+                        change = { arg0 -> viewModel?.setQemuCompatibilityEnabled(arg0) },
                     )
                     Text(
                         text = qemuCompatibilityMessage ?: if (qemuCompatibilityEnabled) {

@@ -7,6 +7,7 @@ android {
 }
 
 dependencies {
+    api(project(":plugin:packages"))
     api(project(":core:common"))
     api(project(":core:model"))
     implementation(project(":core:database"))
@@ -22,4 +23,5 @@ dependencies {
     implementation(libs.xz)
     testImplementation(libs.junit)
     testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.bundles.test.robolectric)
 }

@@ -66,14 +66,14 @@ internal fun ProjectCard(
         ProjectType.ANDROID -> MaterialTheme.colorScheme.primary
         ProjectType.FLUTTER -> MaterialTheme.colorScheme.secondary
         ProjectType.REVERSE -> MaterialTheme.colorScheme.tertiary
-        ProjectType.GENERAL -> MaterialTheme.colorScheme.primary
+        ProjectType.GENERAL, ProjectType.TAIXU_PLUGIN -> MaterialTheme.colorScheme.primary
     }
 
     val typeIcon = when (project.projectType) {
         ProjectType.ANDROID -> RuntimeIconName.Android
         ProjectType.FLUTTER -> RuntimeIconName.Flutter
         ProjectType.REVERSE -> RuntimeIconName.Reverse
-        ProjectType.GENERAL -> RuntimeIconName.Code
+        ProjectType.GENERAL, ProjectType.TAIXU_PLUGIN -> RuntimeIconName.Code
     }
 
     RuntimeCard(
@@ -202,9 +202,9 @@ internal fun ProjectCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End,
             ) {
-                // 只有可编译运行工程（Android / Flutter）显示"运行到手机"按钮；逆向/通用工程走终端
+                // 插件工程直达打包与导入，Android / Flutter 仍进入构建配置。
                 if (project.projectType == ProjectType.ANDROID ||
-                    project.projectType == ProjectType.FLUTTER
+                    project.projectType == ProjectType.FLUTTER || project.projectType == ProjectType.TAIXU_PLUGIN
                 ) {
                     FilledTonalButton(
                         onClick = if (isBuilding) onShowBuildLog else onRunProject,
@@ -233,7 +233,8 @@ internal fun ProjectCard(
                             } else {
                                 RuntimeIcon(RuntimeIconName.Play, Modifier.size(14.dp), tint = typeBadgeColor)
                                 Text(
-                                    stringResource(R.string.workspace_run_on_device),
+                                    stringResource(if (project.projectType == ProjectType.TAIXU_PLUGIN)
+                                        R.string.workspace_plugin_debug_import else R.string.workspace_run_on_device),
                                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                     color = typeBadgeColor,
                                     maxLines = 1,

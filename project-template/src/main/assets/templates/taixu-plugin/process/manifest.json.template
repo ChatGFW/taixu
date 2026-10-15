@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 2,
+  "id": "{{toolId}}",
+  "name": "{{pluginName}}",
+  "description": "太墟本地进程插件示例",
+  "version": "{{pluginVersion}}",
+  "source": "LOCAL",
+  "offlineOnly": true,
+  "installMethod": "LOCAL_PACKAGE",
+  "installSteps": [
+    "cp \"$TAIXU_PLUGIN_PAYLOAD/bin/{{toolId}}\" \"$TAIXU_TOOL_DIR/bin/{{toolId}}\" && chmod 755 \"$TAIXU_TOOL_DIR/bin/{{toolId}}\""
+  ],
+  "launchCommand": "{{toolId}}",
+  "verifyCommand": "{{toolId}} --version",
+  "commandLinks": ["{{toolId}}"],
+  "plugin": {
+    "id": "{{pluginId}}",
+    "api": {"minimum": 1, "maximum": 1},
+    "execution": "PROCESS",
+    "extensions": [{"id": "launch", "point": "PROCESS"}],
+    "dependencies": [],
+    "capabilities": [],
+    "resources": [],
+    "integrity": {}
+  }
+}

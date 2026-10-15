@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.database.AiModelEntity
+import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.*
 
@@ -24,12 +25,34 @@ internal fun ComposerQuickActions(
     onOpenModels: () -> Unit,
     onPickImage: () -> Unit,
     onPickFile: () -> Unit,
+    approvalMode: ApprovalMode,
+    onOpenApprovalModes: () -> Unit,
 ) {
     var showMenu by rememberSaveable { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        RuntimeIconButton(onClick = onOpenModels, modifier = Modifier.size(48.dp),
-            contentDescription = stringResource(R.string.chat_select_model)) {
-            ProviderBadge(activeModel?.provider.orEmpty(), size = 28.dp)
+        RuntimeIconButton(
+            onClick = onOpenModels,
+            modifier = Modifier.size(48.dp),
+            contentDescription = stringResource(R.string.chat_select_model),
+        ) {
+            ProviderBadge(activeModel?.provider.orEmpty(), size = 26.dp)
+        }
+        val modeLabel = stringResource(when (approvalMode) {
+            ApprovalMode.FULL_ACCESS -> R.string.chat_approval_full_access
+            ApprovalMode.ASSISTED -> R.string.chat_approval_assisted
+            ApprovalMode.REQUEST -> R.string.chat_approval_request
+        })
+        val modeColor = when (approvalMode) {
+            ApprovalMode.FULL_ACCESS -> MaterialTheme.colorScheme.error
+            ApprovalMode.ASSISTED -> MaterialTheme.colorScheme.primary
+            ApprovalMode.REQUEST -> MaterialTheme.colorScheme.onSurfaceVariant
+        }
+        RuntimeIconButton(
+            onClick = onOpenApprovalModes,
+            modifier = Modifier.size(48.dp),
+            contentDescription = modeLabel,
+        ) {
+            RuntimeIcon(RuntimeIconName.Shield, Modifier.size(22.dp), modeColor)
         }
         Box {
             RuntimeIconButton(onClick = { showMenu = true }, modifier = Modifier.size(48.dp),

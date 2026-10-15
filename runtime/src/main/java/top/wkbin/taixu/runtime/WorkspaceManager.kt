@@ -34,21 +34,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 
-enum class ProjectType {
-    ANDROID,
-    FLUTTER,
-    REVERSE,
-    GENERAL;
-
-    val displayName: String
-        get() = when (this) {
-            ANDROID -> "Android"
-            FLUTTER -> "Flutter"
-            REVERSE -> "APK 逆向"
-            GENERAL -> "通用"
-        }
-}
-
 enum class ProjectImportSource {
     LOCAL_ARCHIVE,
     GITHUB,
@@ -307,6 +292,7 @@ class WorkspaceManager(
                         TemplateProjectType.ANDROID -> ProjectType.ANDROID
                         TemplateProjectType.FLUTTER -> ProjectType.FLUTTER
                         TemplateProjectType.GENERAL -> ProjectType.GENERAL
+                        TemplateProjectType.TAIXU_PLUGIN -> ProjectType.TAIXU_PLUGIN
                     },
                     source = ProjectImportSource.TEMPLATE,
                 )
@@ -542,7 +528,7 @@ class WorkspaceManager(
                     val info = File(directory, "apk-info.properties").takeIf { it.exists() }?.readText().orEmpty()
                     Regex("""packageName\s*=\s*(.+)""").find(info)?.groupValues?.get(1)?.trim() ?: ""
                 }
-                ProjectType.GENERAL -> ""
+                ProjectType.GENERAL, ProjectType.TAIXU_PLUGIN -> ""
             }
         }.getOrDefault("")
     }

@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.iteration
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -44,15 +45,14 @@ import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeOutlinedTextField
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
-
 @Composable
 fun CustomIterationScreen(
     onBack: () -> Unit,
     onNavigateToChat: (prefillPrompt: String) -> Unit,
-    viewModel: CustomIterationViewModel = koinViewModel()
+    viewModel: CustomIterationViewModel? = previewOrNull { koinViewModel() }
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val buildState by viewModel.buildState.collectAsStateWithLifecycle()
+    val uiState by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(CustomIterationViewModel.UiState())
+    val buildState by viewModel?.buildState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator.BuildStatus.Idle)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -116,7 +116,7 @@ fun CustomIterationScreen(
                 NoticeBanner(
                     text = uiState.errorMessage ?: "",
                     isError = true,
-                    onDismiss = viewModel::dismissError
+                    onDismiss = { viewModel?.dismissError() }
                 )
             }
 
@@ -125,7 +125,7 @@ fun CustomIterationScreen(
             // 启动按钮
             RuntimeButton(
                 onClick = {
-                    viewModel.startCustomIteration { prompt ->
+                    viewModel?.startCustomIteration { prompt ->
                         onNavigateToChat(prompt)
                     }
                 },
@@ -184,12 +184,12 @@ fun CustomIterationScreen(
                         NoticeBanner(
                             text = (buildState as TaiXuDevBuildCoordinator.BuildStatus.Failed).error,
                             isError = true,
-                            onDismiss = viewModel::dismissBuildStatus
+                            onDismiss = { viewModel?.dismissBuildStatus() }
                         )
                     }
 
                     RuntimeButton(
-                        onClick = { viewModel.startCloudBuild(branchText) },
+                        onClick = { viewModel?.startCloudBuild(branchText) },
                         enabled = !isBuildPipelineActive(buildState),
                         modifier = Modifier
                             .fillMaxWidth()

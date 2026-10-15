@@ -246,9 +246,6 @@ class SettingsViewModel(
     val appFontScale: StateFlow<Float> = appearancePreferences.appFontScale
         .stateIn(viewModelScope, SharingStarted.Eagerly, 1.0f)
 
-    val chengmingBackgroundUri: StateFlow<String?> = appearancePreferences.chengmingBackgroundUri
-        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
-
     fun setTerminalFontSize(sizeSp: Int) {
         viewModelScope.launch { terminalPreferences.setTerminalFontSize(sizeSp) }
     }
@@ -263,10 +260,6 @@ class SettingsViewModel(
 
     fun setAppFontScale(scale: Float) {
         viewModelScope.launch { appearancePreferences.setAppFontScale(scale) }
-    }
-
-    fun setChengmingBackgroundUri(uri: String?) {
-        viewModelScope.launch { appearancePreferences.setChengmingBackgroundUri(uri) }
     }
 
     // ---- 应用版本更新机制 ----
@@ -512,8 +505,8 @@ class SettingsViewModel(
     }
 
 
-    fun refreshMcpConnections() {
-        viewModelScope.launch { mcpManager.refreshConnections() }
+    fun refreshMcpConnections(probeSleeping: Boolean = true) {
+        viewModelScope.launch { mcpManager.refreshConnections(probeSleeping) }
     }
 
     fun toggleMcpServer(serverId: String, enabled: Boolean) {
@@ -740,15 +733,6 @@ class SettingsViewModel(
 
     val themeMode: StateFlow<String> = appearancePreferences.themeMode
         .stateIn(viewModelScope, SharingStarted.Eagerly, "system")
-
-    val themeStyle: StateFlow<String> = appearancePreferences.themeStyle
-        .stateIn(viewModelScope, SharingStarted.Eagerly, "material_you")
-
-    fun setThemeStyle(style: String) {
-        viewModelScope.launch {
-            appearancePreferences.setThemeStyle(style)
-        }
-    }
 
     val dynamicColorEnabled: StateFlow<Boolean> = appearancePreferences.dynamicColorEnabled
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)

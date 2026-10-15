@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.settings.R
-
 import org.koin.compose.viewmodel.koinViewModel
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -106,14 +106,14 @@ fun ModelEditorScreen(
     modelId: String?,
     onBack: () -> Unit,
     onSaved: () -> Unit,
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val models by viewModel.models.collectAsStateWithLifecycle()
-    val discovered by viewModel.discoveredModels.collectAsStateWithLifecycle()
-    val discovering by viewModel.discoveringModels.collectAsStateWithLifecycle()
-    val discoveryError by viewModel.modelDiscoveryError.collectAsStateWithLifecycle()
-    val testing by viewModel.testingConnection.collectAsStateWithLifecycle()
-    val testResult by viewModel.connectionResult.collectAsStateWithLifecycle()
+    val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val discovered by viewModel?.discoveredModels?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val discovering by viewModel?.discoveringModels?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val discoveryError by viewModel?.modelDiscoveryError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val testing by viewModel?.testingConnection?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val testResult by viewModel?.connectionResult?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val existing = models.firstOrNull { it.id == modelId }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -122,12 +122,12 @@ fun ModelEditorScreen(
     LaunchedEffect(modelId, existing?.secretRef) {
         val secretRef = existing?.secretRef
         if (!secretRef.isNullOrBlank()) {
-            initialApiKey = viewModel.readModelApiKey(secretRef)
+            initialApiKey = viewModel?.readModelApiKey(secretRef).orEmpty()
         }
     }
     // 保存被端点策略拒绝时留在编辑页并提示，避免静默丢档
     LaunchedEffect(Unit) {
-        viewModel.profileSaveError.collect { error ->
+        viewModel?.profileSaveError?.collect { error ->
             if (!error.isNullOrBlank()) {
                 Toast.makeText(context, error, Toast.LENGTH_LONG).show()
             }
@@ -162,16 +162,16 @@ fun ModelEditorScreen(
             modelId = modelId,
             existing = existing,
             initialApiKey = initialApiKey,
-            providers = viewModel.providerCatalog,
+            providers = viewModel?.providerCatalog.orEmpty(),
             discovered = discovered,
             discovering = discovering,
             discoveryError = discoveryError,
             testing = testing,
             testResult = testResult,
-            discover = { provider, url, key -> viewModel.discoverModels(provider, url, key) },
-            test = { url, model, key, respApi, providerId -> viewModel.testConnection(url, model, key, respApi, providerId) },
+            discover = { provider, url, key -> viewModel?.discoverModels(provider, url, key) },
+            test = { url, model, key, respApi, providerId -> viewModel?.testConnection(url, model, key, respApi, providerId) },
             save = { name, provider, modelsList, url, key, rpmLimit, temperature, maxTokens, topP, reasoningMode, reasoningEffort, toolCallMode, contextTokens, compactionKeepRecent, compactionReserve, customHeaders, pureChatMode, visionEnabled, imageGenerationEnabled, responseApiEnabled, promptCachingEnabled, promptCacheTtl1h ->
-                val saved = viewModel.saveModels(
+                val saved = viewModel?.saveModels(
                     id = modelId,
                     models = modelsList,
                     name = name,
@@ -196,11 +196,11 @@ fun ModelEditorScreen(
                     promptCachingEnabled = promptCachingEnabled,
                     promptCacheTtl1h = promptCacheTtl1h,
                 )
-                if (saved) onSaved()
+                if (saved == true) onSaved()
             },
             onFillFromJson = { jsonStr ->
-                val result = viewModel.parseProfilesFromJson(jsonStr)
-                result.fold(
+                val result = viewModel?.parseProfilesFromJson(jsonStr)
+                result?.fold(
                     onSuccess = { list ->
                         val item = list.firstOrNull()
                         if (item != null) {

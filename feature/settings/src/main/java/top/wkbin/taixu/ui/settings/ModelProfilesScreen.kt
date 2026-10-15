@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -76,7 +77,6 @@ import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import java.util.Locale
-
 /**
  * 模型档案管理全屏独立页面
  */
@@ -85,9 +85,9 @@ fun ModelProfilesScreen(
     onBack: () -> Unit,
     onCreate: () -> Unit,
     onEdit: (String) -> Unit,
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val models by viewModel.models.collectAsStateWithLifecycle()
+    val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -141,7 +141,7 @@ fun ModelProfilesScreen(
             models = models,
             onCreate = onCreate,
             onEdit = { model -> onEdit(model.id) },
-            onActivate = viewModel::setActiveModel,
+            onActivate = { arg0 -> viewModel?.setActiveModel(arg0) },
             onDelete = { model -> modelPendingDelete = model },
             onExportSingle = { model -> singleExportModel = model },
         )
@@ -153,14 +153,14 @@ fun ModelProfilesScreen(
             onDismiss = { showImportDialog = false },
             importing = importing,
             models = models,
-            parseProfiles = viewModel::parseProfilesFromJson,
+            parseProfiles = { raw -> viewModel?.parseProfilesFromJson(raw) ?: Result.failure(IllegalStateException()) },
             onImportJson = { jsonStr, mode ->
                 if (importing) return@ModelImportDialog
                 importing = true
                 coroutineScope.launch {
-                    val result = viewModel.importProfilesFromJson(jsonStr, mode)
+                    val result = viewModel?.importProfilesFromJson(jsonStr, mode)
                     importing = false
-                    result.fold(
+                    result?.fold(
                         onSuccess = { count ->
                             Toast.makeText(context, "成功导入 $count 个模型档案", Toast.LENGTH_SHORT).show()
                             showImportDialog = false
@@ -181,7 +181,7 @@ fun ModelProfilesScreen(
             subtitle = "准备导出 ${models.size} 个模型档案配置",
             onDismiss = { showExportAllDialog = false },
             onGenerateJson = { includeKeys ->
-                viewModel.exportAllProfilesJson(includeKeys)
+                viewModel?.exportAllProfilesJson(includeKeys).orEmpty()
             },
         )
     }
@@ -194,7 +194,7 @@ fun ModelProfilesScreen(
             defaultFileName = "taixu_model_${targetModel.name.replace(" ", "_")}.json",
             onDismiss = { singleExportModel = null },
             onGenerateJson = { includeKeys ->
-                viewModel.exportSingleProfileJson(targetModel.id, includeKeys) ?: ""
+                viewModel?.exportSingleProfileJson(targetModel.id, includeKeys) ?: ""
             },
         )
     }
@@ -213,7 +213,7 @@ fun ModelProfilesScreen(
             confirmButton = {
                 RuntimeButton(
                     onClick = {
-                        viewModel.deleteModel(target.id)
+                        viewModel?.deleteModel(target.id)
                         modelPendingDelete = null
                     },
                 ) {

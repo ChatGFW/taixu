@@ -19,8 +19,6 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation(libs.kotlinx.serialization.json)
-    // LocalLiquidGlassBackdrop 的类型 LayerBackdrop 来自该库，类型推断需要它在 classpath 上
-    implementation(libs.backdrop)
     implementation(libs.bundles.coil)
 
     testImplementation(libs.junit)

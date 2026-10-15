@@ -200,6 +200,8 @@ dependencies {
     implementation(libs.bundles.coroutines)
 
     testImplementation(libs.bundles.test.robolectric)
+    // Graph verification names the DataStore built by McpClientPreferences' Context constructor.
+    testImplementation(libs.androidx.datastore.preferences)
     testImplementation(libs.koin.test)
     testImplementation(libs.androidx.work.testing)
     // Robolectric on Java 25 requires the same ASM override as core:database.

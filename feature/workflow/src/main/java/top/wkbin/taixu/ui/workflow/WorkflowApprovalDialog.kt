@@ -8,6 +8,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import top.wkbin.taixu.feature.workflow.R
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.workflow.WorkflowApprovalRequest
@@ -32,7 +34,7 @@ internal fun ApprovalDialog(request: WorkflowApprovalRequest, onDecision: (Boole
                 if (request.description.isNotBlank()) Text(request.description, style = MaterialTheme.typography.bodyMedium)
                 if (request.reviewToken != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     RuntimeSwitch(checked = reviewed, onCheckedChange = { reviewed = it })
-                    Text("我已核对新增步骤的完整配置")
+                    Text(stringResource(R.string.workflow_review_configuration))
                 }
                 request.requestedVariables.forEach { key ->
                     OutlinedTextField(value = values[key].orEmpty(), onValueChange = { values[key] = it }, label = { Text(key, maxLines = 1, overflow = TextOverflow.Ellipsis) }, modifier = Modifier.fillMaxWidth(), singleLine = true)

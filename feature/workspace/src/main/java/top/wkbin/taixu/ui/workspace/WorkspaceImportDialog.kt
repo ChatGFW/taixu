@@ -312,12 +312,7 @@ internal fun ImportProjectDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    listOf(
-                        ProjectType.ANDROID to ("Android" to RuntimeIconName.Android),
-                        ProjectType.FLUTTER to ("Flutter" to RuntimeIconName.Flutter),
-                        ProjectType.REVERSE to (stringResource(R.string.workspace_template_reverse) to RuntimeIconName.Reverse),
-                        ProjectType.GENERAL to (stringResource(R.string.workspace_template_empty) to RuntimeIconName.Code),
-                    ).forEach { (type, pair) ->
+                    projectImportTypeOptions().forEach { (type, pair) ->
                         FilterChip(
                             selected = state.importProjectType == type,
                             onClick = { state.importProjectType = type },

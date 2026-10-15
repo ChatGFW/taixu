@@ -6,6 +6,7 @@ import top.wkbin.taixu.core.model.BuiltinMcpPresets
 import top.wkbin.taixu.core.model.McpToolAnnotations
 import top.wkbin.taixu.core.model.McpToolInfo
 import top.wkbin.taixu.harness.approval.AnnotationEscalation
+import top.wkbin.taixu.harness.approval.TrustedToolRiskPolicy
 import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 import top.wkbin.taixu.harness.mcp.McpToolApiName
 import java.util.UUID
@@ -25,23 +26,6 @@ data class ApprovalDecision(
 class ApprovalPolicyEngine(
     private val pathResolver: HarnessPathResolver,
 ) {
-    /**
-     * 内置 browser server 在工具 API 名里可能出现的 server 段集合：
-     * 编码名 `mcp__<server 前 16 字符>__<tool>__<hash>` 与 legacy 名 `mcp__<完整 server id>__<tool>`。
-     * 借 [McpToolApiName] 生成，保证与 harness 实际编码规则一致。
-     */
-    private val builtinBrowserServerSegments: Set<String> by lazy {
-        val probe = McpToolInfo(
-            serverId = BuiltinMcpPresets.BROWSER_BUILTIN_ID,
-            serverName = BuiltinMcpPresets.BROWSER_BUILTIN_ID,
-            name = "browser_snapshot",
-            description = "",
-        )
-        setOf(McpToolApiName.encode(probe), McpToolApiName.legacy(probe))
-            .map { it.substringAfter("__").substringBefore("__") }
-            .toSet()
-    }
-
     fun decide(
         mode: ApprovalMode,
         tool: HarnessTool,
@@ -57,29 +41,20 @@ class ApprovalPolicyEngine(
         // REQUEST 模式对所有可变宿主操作仍要求确认。
         if (tool == HarnessTool.HOST) {
             val action = args["action"]?.jsonPrimitive?.content.orEmpty().trim().lowercase()
-            if (action in HostCapabilityDirectory.READ_ONLY_ACTIONS) {
+            val rule = TrustedToolRiskPolicy.host(action)
+            if (rule.readOnly) {
                 return ApprovalDecision(false)
             }
             if (mode == ApprovalMode.FULL_ACCESS) {
                 return ApprovalDecision(false)
             }
-            if (mode == ApprovalMode.ASSISTED && action in HostCapabilityDirectory.GUI_ASSISTED_ACTIONS) {
+            if (mode == ApprovalMode.ASSISTED && rule.assistedAuto) {
                 return ApprovalDecision(false)
             }
-            val critical = action == "exec" || action == "package_uninstall_user"
             return ApprovalDecision(
                 required = true,
-                riskLevel = if (critical) "critical" else "high",
-                reason = when (action) {
-                    "settings_put" -> "操作将修改真实 Android 系统设置。"
-                    "package_disable", "package_enable", "app_freeze", "app_unfreeze" -> "操作将改变真实 Android 应用的启用状态。"
-                    "app_grant_permission" -> "操作将为真实 Android 应用授予权限。"
-                    "package_uninstall_user" -> "操作将为指定 Android 用户卸载应用；系统应用通常可用 install-existing 恢复，但其数据可能丢失。"
-                    "screen_capture" -> "操作会把真实 Android 屏幕内容写入指定文件。"
-                    "screen_click", "screen_swipe", "screen_input_text", "screen_key", "app_launch" ->
-                        "操作将操控真实 Android 屏幕或启动应用。"
-                    else -> "命令将通过 Shizuku 或 Root 修改真实 Android 宿主，可能改变系统设置、停用或卸载应用。"
-                },
+                riskLevel = rule.level,
+                reason = rule.reason,
                 summary = summarize(tool, args),
             )
         }
@@ -147,12 +122,9 @@ class ApprovalPolicyEngine(
             HarnessTool.BUILD_SCRIPT -> ApprovalDecision(true, "normal", "操作将修改构建脚本或项目挂载关系。", summary)
             HarnessTool.HOST -> error("HOST 已在审批策略入口处理")
             HarnessTool.MCP -> AnnotationEscalation.escalate(
-                when (mcpBrowserRisk(effectiveMcpToolName(tool, args, rawToolName))) {
-                    "medium" -> ApprovalDecision(true, "medium", "浏览器操作会改变页面状态或新开会话。", summary)
-                    "high" -> ApprovalDecision(true, "high", "浏览器操作将修改页面内容或写入本地存储。", summary)
-                    "critical" -> ApprovalDecision(true, "critical", "浏览器操作涉及代码执行或读取敏感数据（Cookie/页面源码）。", summary)
-                    else -> ApprovalDecision(true, "high", "MCP 工具可能访问外部服务或产生工作区之外的副作用。", summary)
-                },
+                mcpBrowserRule(effectiveMcpToolName(tool, args, rawToolName))?.let {
+                    ApprovalDecision(true, it.level, it.reason, summary)
+                } ?: ApprovalDecision(true, "high", "MCP 工具可能访问外部服务或产生工作区之外的副作用。", summary),
                 annotations,
             )
             HarnessTool.READ, HarnessTool.MEMORY, HarnessTool.PLAN, HarnessTool.SCRATCHPAD,
@@ -335,23 +307,13 @@ class ApprovalPolicyEngine(
         return rawToolName
     }
 
-    private fun mcpBrowserRisk(rawToolName: String?): String? {
+    private fun mcpBrowserRisk(rawToolName: String?): String? = mcpBrowserRule(rawToolName)?.level
+
+    private fun mcpBrowserRule(rawToolName: String?): TrustedToolRiskPolicy.Rule? {
         if (rawToolName == null) return null
-        val server = rawToolName.substringAfter("__").substringBefore("__")
-        if (server !in builtinBrowserServerSegments) return null
-        val tool = rawToolName.substringAfter("__").substringAfter("__").substringBefore("__")
-        return when (tool) {
-            "browser_back", "browser_forward", "browser_refresh", "browser_list_tabs", "browser_close_tab",
-            "browser_snapshot", "browser_scroll", "browser_screenshot", "browser_current_url", "browser_title",
-            "browser_console_list", "browser_network_list" -> "low"
-            "browser_open", "browser_navigate", "browser_page_source", "browser_console_clear",
-            "browser_local_keys", "browser_session_keys" -> "medium"
-            "browser_click", "browser_type", "browser_press", "browser_cookies_set", "browser_cookies_delete",
-            "browser_local_get", "browser_local_set", "browser_local_delete",
-            "browser_session_get", "browser_session_set", "browser_session_delete" -> "high"
-            "browser_evaluate", "browser_cookies_get" -> "critical"
-            else -> null
-        }
+        val name = rawToolName.substringAfter("__").substringAfter("__").substringBefore("__")
+        val tool = McpToolInfo(BuiltinMcpPresets.BROWSER_BUILTIN_ID, "browser", name, "")
+        return if (McpToolApiName.matches(tool, rawToolName)) TrustedToolRiskPolicy.browserRules[name] else null
     }
 
     private fun processAction(args: JsonObject): String =

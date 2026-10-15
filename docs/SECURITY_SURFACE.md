@@ -41,6 +41,7 @@
 - 已绑定的工具调用及子任务报告通过当前环境的 `outputSecrets` 获取已知值；本地后端固定发行版并在读取锁内复制快照，远端不会刷新手机当前发行版。子任务报告在保存到当前环境前完成同样的脱敏；刷新失败不会使用另一发行版的旧缓存。
 - 应用点：ToolExecutor 工具结果后处理（4 处调用）、`RequestDiagnosticsStore` 请求预览、浏览器 `SecretRedactingInterceptor`。
 - 本地 `base` 长输出在排水期间暂存原始字节于 Android 私有 `cacheDir/command-output`，不加入 PRoot 挂载、不进入系统备份；文件按流限制大小并在工具收尾删除，崩溃残留在下一次长输出捕获时回收。只有走完既有输出脱敏后才能进入 `.taixu-outputs`；捕获上限或排水不完整时明确标注，不能把有损捕获宣称为完整输出。此暂存仍属于 App uid 的数据，并不构成对同 uid 恶意代码的隔离边界。
+- `base` / `process` / `build_script` 的模型侧文本剥离 ANSI 控制并折叠回车刷新；归一化后再次经过当前环境输出脱敏，再做有界首尾采样，避免控制序列移除后重新拼出已知密钥。呈现改变时沿既有 `.taixu-outputs` 保存归一化后二次脱敏的未采样文本，SHA-256 和字节数对应实际归档内容；原捕获若不完整，归档仍保留不完整标志；无产物能力或保存失败明确引导重新检索，不回退手机同名文件。此归一化不是完整终端模拟器，不改变真实 PTY 渲染；原日志脱敏仍有本节列出的启发式局限。
 - 任务交付记录只保留已提交消息的引用和受信任后端生成的文件版本观察，不复制用户目标、工具参数、日志正文或助手结论。模型自述、命令成功和文件指纹均不升级为目标行为验证；记录明确未验证项，不授予审批权限、不触发重放。输出日志指纹按已脱敏的实际保存内容计算；APK/下载文件/图片指纹按实际二进制字节计算，不修改原文件、不复制二进制到历史记录。相对路径沿既有输出脱敏链检查，若会改变则舍弃引用并记录缺口；格式无效的元数据不原样保留。二进制指纹本身不是匿名化保证，已知内容可通过指纹关联。
 - `ToolFileArtifacts` 只接受受信任 `base`、`download`、`read` 生产者；MCP 与其他工具不能直接声明此字段。构建观察有固定目录、条目、字节和时间上限，不依赖 stdout 路径。当前环境缺少文件指纹或严格枚举能力时标记不完整，不读取手机的同名文件作为替代。读取前后属性核验仅检测常见并发修改，不是恶意并发下的原子快照；本地同 uid 和远端实际账号权限不因指纹读取而获得新的隔离边界。版本引用不保证当前文件仍存在或匹配，APK 类型按后缀分类；构建变化信号携带指纹但不会自动绕过安装审批或保证安装内容匹配该版本。
 - 运行内失败记忆只保存当前 operation 的参数指纹、经过清洗的工具名、结果类型和来源 ID，不复制参数、输出或模型编写的经验。动作建议来自固定实现，以低权威合成 user 背景资料投影，明确并非用户消息，不修改 system 权限或触发重放；来源 ID、指纹、容量与失效时间都校验。父子 Lane、新任务和其他会话不共用该记忆；普通同参成功不解除此前未知副作用的核验要求。
@@ -56,6 +57,10 @@
 - 远程工具沿用 PLAN/审批/输出脱敏规则；缺失的下载、产物、构建绑定能力明确失败。`host` / Android / 浏览器能力仍作用于手机，远程提示词明确区分。停止发送 TERM，必要时 KILL；服务器未确认退出时保留连接并报告失败，可重试。SSH 不保证回收命令自行脱离会话创建的后代进程。
 
 ## 3. PRoot 挂载清单（沙箱可见的宿主路径）
+
+`read(path, query, max_results)` 的本地字面检索复用工作区路径解析，不运行 Shell、解释正则或跟随扫描中的符号链接。单文件 1 MiB、总读取 8 MiB、最多 5000 个条目、深度 16、最多 100 个命中与约 5 秒协作式预算；跳过项、达到限额均标注结果不完整。排除 `.git/.gradle/node_modules/build/.taixu-outputs` 子目录，不解析 gitignore。时间预算不能抢占阻塞中的文件系统调用，canonical/NOFOLLOW 检查也不是对同 uid 恶意并发替换的原子安全隔离。扫描开始时由 ToolExecutor 捕获当前环境的脱敏策略，通过受信任回调对完整命中行脱敏后再裁剪片段，最终输出仍沿统一脱敏链；不可读条目标记缺口后继续扫描，只有资源预算耗尽才停止。远程 `ExecutionFiles.search` 默认明确不支持。
+
+设备性能实验见 [RUNTIME_BENCHMARKS.md](RUNTIME_BENCHMARKS.md)：`tools/runtime-benchmark.py` 仅经 debug APK 的 `run-as` 使用 App uid，在独立临时目录比较只读 inventory、临时 I/O 与 tracer 开关。实验不访问用户工作区、不复用 HostBridge 密钥、不改变生产挂载或持久化 seccomp 选择。`cacheDir` 可能被 Android 回收，不能直接承载需要持久化的依赖或凭证。
 
 默认绑定（`ProotCommandBuilder.build/buildInteractive` + `ProotMountLayout.hostSystemPaths`）：
 
@@ -94,11 +99,13 @@
 ## 5. 工具审批与特权执行链
 
 - `ApprovalPolicyEngine`：风险矩阵决定审批；`use_capability` 的 list / inspect / decline 为只读元操作免审；`use_capability(call)` 从 arguments 合成 `(server, tool)` 后套同一矩阵（`ApprovalPolicyEngine.kt:82-89, 305-331`）。
+- 宿主动作与内置浏览器的风险级别、审批原因集中于编译进应用的 `TrustedToolRiskPolicy`，宿主能力目录的只读/ASSISTED 放行集合由它派生；浏览器工具必须匹配完整编码标识（含服务/工具摘要）或内置服务的完整 legacy 名称，不能仅凭截短服务前缀放行。外部同名工具及前缀碰撞服务不能借用规则。此次统一保持 `FULL_ACCESS` 的显式全权授权语义，PLAN 硬门禁继续独立生效；不把工具风险目录扩展为 HostBridge 的直接 HTTP 审批，也不把 Shell 启发式宣称为完整语法树检查。
 - PLAN 模式：宿主侧硬拦截（`ToolExecutor → ApprovalPolicyEngine.planBlock`），提示词约束只是第二层。
 - 路径边界：`HarnessPathResolver` 与 Lane 写租约约束写入范围；`ToolCheckpoint` 只能观察 / 否决 / 追加脱敏说明，不能授予权限或替换结果状态（`docs/ARCHITECTURE.md`）。
 - 工具入口：主回合与 Lane 先检查工具名称，再解析并校验参数；未知名称不能借映射回退执行命令。Lane 对结构化写工具按执行器的参数视图检查租约，覆盖路径别名与包装参数；`base` 的任意 shell 写入仍不属于结构化路径租约检查范围。
 - 取消：`PrivilegeManager.cancelShellCommand` 同步终止对应 Shizuku/Root 宿主子进程。
 - MCP：工具 schema 不进 provider 可见面（`use_capability` 统一代理 + 护栏测试 `BuiltinToolContractTest`）；STDIO 服务器进程在 PRoot 沙箱内启动（`McpStdioTransport` → `McpStdioChannelFactory`），其 env 走 2.2 的 provider 通道。
+- STDIO 空闲 TTL 可在 MCP 设置页配置为 1–60 分钟，缺省维持 10 分钟。单调时钟从请求收尾开始计时，握手/等待写锁/在途请求均受连接使用租约保护；清扫每分钟执行一次。只在进程确认关闭后显示休眠，清理失败保留重试资源并显示离线；休眠保留当前绑定环境的工具目录，下一次真实调用重新连接和握手，不重放旧请求。界面初次进入不主动唤醒有有效工具缓存的休眠服务；显式刷新仍可重新连接。HTTP MCP 不采用该进程休眠策略。
 
 按需 MCP 的安装就绪状态在当前绑定环境中核验，不借用手机其它发行版或远端的结果。`McpCatalogAvailability` 在列表、发现和调用前投影用户偏好与就绪状态；STDIO 通道创建前再次核验。`setup_mcp_catalog.sh probe/run` 只读取本地标记及实际全局包清单，检查包名、实际版本与入口路径，直接执行该包入口，不经 npx、不联网补装。卸载后即使保留用户开启偏好也不允许启动；探针失败不扩散为可用。显式安装与升级仍运行第三方 npm 包及其安装脚本，保留既有 PRoot/App uid 和凭证环境暴露面。
 
@@ -140,7 +147,23 @@
 | 6 | SecretRedactor 启发式局限 | 提示 | 见 2.3；高危场景叠加人工检查 |
 | 7 | 用户配置的 MCP / 环境变量明文进沙箱 | 提示 | 配置页宜加风险提示文案 |
 
+## 8. 原生页面插件（P2）
+
+`plugin:runtime` 管理受信任的编译时页面贡献。代次租约和 `own` 资源账本控制准入与排空，不是同 uid 原生代码的隔离层。
+`PluginPreferences` 仅保存禁用插件 ID，不保存命令、凭证、路由参数或运行结果；读取失败阻止初始化，不默认全启用。
+停止或资源取消未获确认时保留失败状态，禁止创建替代代次；依赖者未释放时保留其依赖。后台异常只投影固定失败类型，不复制异常正文。
+终端/浏览器目前只迁移界面作用域，停用界面不会关闭已有 PTY、共享 WebView 引擎、Agent 浏览器工具或 MCP，也不改变审批与 HostBridge 权限。
+冷启动只恢复界面选择，不重放旧副作用；外部进程恢复仍由实际资源所有者负责。详见 [`PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md) 第 13–14 节。
+
 ## 维护约定
+
+P4 Harness 扩展只接受受信任的编译时 Kotlin 实现。`plugin.<id>` 能力域保留原工具意图/结果屏障、PLAN、审批、后台交接、嵌套留痕与输出脱敏；插件没有声明免审或写入可信产物 metadata 的入口。插件 Schema 使用严格独立子集，不套用历史参数别名/字符串转换。背景资料先经过当前执行环境脱敏，再限额投影为标注来源的合成 user 文本并计入预算，不能修改 system 权限。
+
+Provider 适配器通过协议与 Provider ID 精确选择，接收宿主配置的传输客户端和当前模型配置；后者可能含此 Provider 的 Key，不包含其它凭证仓库。通用 `PLUGIN_ACTION` 节点使用新令牌确认和原工作流日志/恢复审查，回调异常不承诺副作用未发生。以上是同 uid 内的合作契约；P2 页面开关不控制 Harness 扩展，不提供恶意代码隔离或外部原生加载。详见 [P4 契约](PLUGIN_HARNESS_EXTENSIONS.md)。
+
+`.txplugin` P3：v2 导入拒绝不安全 ZIP 路径、重复条目、未知字段与 payload 哈希集合不符；版本目录不可覆盖，选中指针原子写入，复制时再次验证。安装/卸载依赖与资源检查按发行版使用实际安装版本收据；收据位于 `noBackupFilesDir/plugin-receipts`，不含脚本、环境变量或 Provider 凭证。预览确认绑定清单和目标发行版。v2 仅 PROCESS，不加载外部原生代码。
+
+能力与资源声明不是运行时沙箱；安装脚本沿用既有 PRoot 权限及 Provider 环境注入，`offlineOnly` 也不阻断网络。共享指纹仅校验声明相容，不核验脚本实际创建的全局内容。v2 全局声明只接受 RETAIN，不执行任意卸载脚本；程序目录事务不覆盖任意全局副作用。页面启停不会撤销进程插件权限或清退后台进程。详见 [v2 包边界](PLUGIN_PACKAGE_V2.md)。
 
 - 改动 `ProotCommandBuilder` / `ProotMountLayout` / `HostBridge` / `SecretRedactor` / `EnvironmentResolver` / `PrivilegeManager` / `CapabilityScriptRunner` 的 PR，请同步核对本文是否需要更新。
 - 本文只描述事实与登记风险，不替代代码注释；修复某项时请更新第 7 节状态列。

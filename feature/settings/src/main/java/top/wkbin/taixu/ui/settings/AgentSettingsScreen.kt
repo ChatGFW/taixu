@@ -1,9 +1,9 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -87,45 +87,45 @@ enum class AgentSettingsCategory { EXECUTION, SUBAGENTS, SKILLS }
 fun AgentSettingsScreen(
     onBack: () -> Unit,
     category: AgentSettingsCategory = AgentSettingsCategory.EXECUTION,
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val thinkingExpanded by viewModel.thinkingExpanded.collectAsStateWithLifecycle()
-    val translationModelStatus by viewModel.translationModelStatus.collectAsStateWithLifecycle()
-    val thinkingAutoTranslate by viewModel.thinkingAutoTranslate.collectAsStateWithLifecycle()
-    val chatRoundCollapse by viewModel.chatRoundCollapse.collectAsStateWithLifecycle()
-    val customSystemPromptEnabled by viewModel.customSystemPromptEnabled.collectAsStateWithLifecycle()
-    val customSystemPrompt by viewModel.customSystemPrompt.collectAsStateWithLifecycle()
-    val agentCharName by viewModel.agentCharName.collectAsStateWithLifecycle()
-    val agentUserName by viewModel.agentUserName.collectAsStateWithLifecycle()
-    val compactionEnabled by viewModel.contextCompactionEnabled.collectAsStateWithLifecycle()
-    val maxToolRounds by viewModel.maxToolRounds.collectAsStateWithLifecycle()
-    val roundLimitAutoContinuations by viewModel.roundLimitAutoContinuations.collectAsStateWithLifecycle()
-    val autoWorkspaceCwd by viewModel.autoWorkspaceCwd.collectAsStateWithLifecycle()
-    val commandOutputCompressionEnabled by viewModel.commandOutputCompressionEnabled.collectAsStateWithLifecycle()
-    val baseCommandTimeoutSeconds by viewModel.baseCommandTimeoutSeconds.collectAsStateWithLifecycle()
-    val approvalMode by viewModel.approvalMode.collectAsStateWithLifecycle()
-    val runMode by viewModel.runMode.collectAsStateWithLifecycle()
-    val runningSendMode by viewModel.runningSendMode.collectAsStateWithLifecycle()
-    val maxToolsPerRound by viewModel.maxToolsPerRound.collectAsStateWithLifecycle()
-    val maxConsecutiveFailures by viewModel.maxConsecutiveFailures.collectAsStateWithLifecycle()
-    val contextBudgetTokens by viewModel.contextBudgetTokens.collectAsStateWithLifecycle()
-    val effectiveContextBudget by viewModel.effectiveContextBudget.collectAsStateWithLifecycle()
-    val activeModelDeclaredTokens by viewModel.activeModelDeclaredTokens.collectAsStateWithLifecycle()
-    val contextFoldingRatioPercent by viewModel.contextFoldingRatioPercent.collectAsStateWithLifecycle()
-    val skills by viewModel.allSkills.collectAsStateWithLifecycle()
-    val subagents by viewModel.allSubagents.collectAsStateWithLifecycle()
-    val autoSubagentDelegation by viewModel.autoSubagentDelegationEnabled.collectAsStateWithLifecycle()
-    val models by viewModel.models.collectAsStateWithLifecycle()
-    val plugins by viewModel.allPlugins.collectAsStateWithLifecycle()
-    val skillArchiveMessage by viewModel.skillArchiveMessage.collectAsStateWithLifecycle()
-    val skillArchiveMessageIsError by viewModel.skillArchiveMessageIsError.collectAsStateWithLifecycle()
-    val skillEvolutionSuggestions by viewModel.skillEvolutionSuggestions.collectAsStateWithLifecycle()
-    val marketSkills by viewModel.clawHubMarketSkills.collectAsStateWithLifecycle()
-    val isMarketLoading by viewModel.isMarketLoading.collectAsStateWithLifecycle()
-    val isMarketOfflinePreset by viewModel.isMarketOfflinePreset.collectAsStateWithLifecycle()
-    val pendingSkillInspection by viewModel.pendingSkillInspection.collectAsStateWithLifecycle()
-    val preparingSkillId by viewModel.preparingSkillId.collectAsStateWithLifecycle()
-    val isCommittingInstallation by viewModel.isCommittingInstallation.collectAsStateWithLifecycle()
+    val thinkingExpanded by viewModel?.thinkingExpanded?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val translationModelStatus by viewModel?.translationModelStatus?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.common.translation.TranslationModelStatus.NotDownloaded)
+    val thinkingAutoTranslate by viewModel?.thinkingAutoTranslate?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val chatRoundCollapse by viewModel?.chatRoundCollapse?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val customSystemPromptEnabled by viewModel?.customSystemPromptEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val customSystemPrompt by viewModel?.customSystemPrompt?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val agentCharName by viewModel?.agentCharName?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val agentUserName by viewModel?.agentUserName?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val compactionEnabled by viewModel?.contextCompactionEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val maxToolRounds by viewModel?.maxToolRounds?.collectAsStateWithLifecycle() ?: previewStateOf(0)
+    val roundLimitAutoContinuations by viewModel?.roundLimitAutoContinuations?.collectAsStateWithLifecycle() ?: previewStateOf(0)
+    val autoWorkspaceCwd by viewModel?.autoWorkspaceCwd?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val commandOutputCompressionEnabled by viewModel?.commandOutputCompressionEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val baseCommandTimeoutSeconds by viewModel?.baseCommandTimeoutSeconds?.collectAsStateWithLifecycle() ?: previewStateOf(0)
+    val approvalMode by viewModel?.approvalMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.ApprovalMode.ASSISTED)
+    val runMode by viewModel?.runMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RunMode.BUILD)
+    val runningSendMode by viewModel?.runningSendMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RunningSendMode.QUEUE)
+    val maxToolsPerRound by viewModel?.maxToolsPerRound?.collectAsStateWithLifecycle() ?: previewStateOf(0)
+    val maxConsecutiveFailures by viewModel?.maxConsecutiveFailures?.collectAsStateWithLifecycle() ?: previewStateOf(0)
+    val contextBudgetTokens by viewModel?.contextBudgetTokens?.collectAsStateWithLifecycle() ?: previewStateOf(0)
+    val effectiveContextBudget by viewModel?.effectiveContextBudget?.collectAsStateWithLifecycle() ?: previewStateOf(0)
+    val activeModelDeclaredTokens by viewModel?.activeModelDeclaredTokens?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val contextFoldingRatioPercent by viewModel?.contextFoldingRatioPercent?.collectAsStateWithLifecycle() ?: previewStateOf(0)
+    val skills by viewModel?.allSkills?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val subagents by viewModel?.allSubagents?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val autoSubagentDelegation by viewModel?.autoSubagentDelegationEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val plugins by viewModel?.allPlugins?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val skillArchiveMessage by viewModel?.skillArchiveMessage?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val skillArchiveMessageIsError by viewModel?.skillArchiveMessageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val skillEvolutionSuggestions by viewModel?.skillEvolutionSuggestions?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val marketSkills by viewModel?.clawHubMarketSkills?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val isMarketLoading by viewModel?.isMarketLoading?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val isMarketOfflinePreset by viewModel?.isMarketOfflinePreset?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val pendingSkillInspection by viewModel?.pendingSkillInspection?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val preparingSkillId by viewModel?.preparingSkillId?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val isCommittingInstallation by viewModel?.isCommittingInstallation?.collectAsStateWithLifecycle() ?: previewStateOf(false)
 
     var showAddSkillDialog by remember { mutableStateOf(false) }
     var viewingSkillPrompt by remember { mutableStateOf<AgentSkill?>(null) }
@@ -160,12 +160,12 @@ fun AgentSettingsScreen(
     }
     val skillArchivePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.size == 1) {
-            viewModel.inspectLocalSkillZip(uris.first())
+            viewModel?.inspectLocalSkillZip(uris.first())
         } else if (uris.isNotEmpty()) {
-            viewModel.importSkillArchives(uris)
+            viewModel?.importSkillArchives(uris)
         }
     }
-    val skillDirPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> if (uri != null) viewModel.importSkillsFromTree(uri) }
+    val skillDirPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> if (uri != null) viewModel?.importSkillsFromTree(uri) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -206,7 +206,7 @@ fun AgentSettingsScreen(
                         title = "默认展开模型思考过程",
                         subtitle = if (thinkingExpanded) "聊天界面中新生成的思考过程将默认展开呈现" else "思考过程（包括生成中内容）默认折叠，点击可展开查看",
                         checked = thinkingExpanded,
-                        onCheckedChange = viewModel::setThinkingExpanded,
+                        onCheckedChange = { arg0 -> viewModel?.setThinkingExpanded(arg0) },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     AgentToggleRow(
@@ -214,7 +214,7 @@ fun AgentSettingsScreen(
                         title = "展开时自动翻译英文思考为中文",
                         subtitle = if (thinkingAutoTranslate) "展开思考块时若检测为英文将自动调用本地离线模型翻译呈现" else "仅在点击思考块上的翻译按钮时进行翻译",
                         checked = thinkingAutoTranslate,
-                        onCheckedChange = viewModel::setThinkingAutoTranslate,
+                        onCheckedChange = { arg0 -> viewModel?.setThinkingAutoTranslate(arg0) },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     AgentToggleRow(
@@ -222,7 +222,7 @@ fun AgentSettingsScreen(
                         title = "自动收拢历史轮次的思考与工具过程",
                         subtitle = if (chatRoundCollapse) "已结束的历史轮次中，超过 2 步的思考与工具调用将收拢为「展开更多」摘要，点击即可展开；当前进行中的轮次始终完整呈现" else "关闭时保持自然单行流：全部思考过程与工具调用逐条平铺呈现",
                         checked = chatRoundCollapse,
-                        onCheckedChange = viewModel::setChatRoundCollapse,
+                        onCheckedChange = { arg0 -> viewModel?.setChatRoundCollapse(arg0) },
                     )
                 }
             }
@@ -233,9 +233,9 @@ fun AgentSettingsScreen(
                 AgentSettingsGroup {
                     TranslationModelCard(
                         status = translationModelStatus,
-                        onDownload = { viewModel.downloadTranslationModel() },
-                        onDelete = { viewModel.deleteTranslationModel() },
-                        onRetry = { viewModel.downloadTranslationModel() },
+                        onDownload = { viewModel?.downloadTranslationModel() },
+                        onDelete = { viewModel?.deleteTranslationModel() },
+                        onRetry = { viewModel?.downloadTranslationModel() },
                     )
                 }
             }
@@ -249,7 +249,7 @@ fun AgentSettingsScreen(
                         title = "自动注入关联工作区路径",
                         subtitle = "当会话关联了工作区时，执行 base 命令默认以该目录为工作路径 (cwd)",
                         checked = autoWorkspaceCwd,
-                        onCheckedChange = viewModel::setAutoWorkspaceCwd,
+                        onCheckedChange = { arg0 -> viewModel?.setAutoWorkspaceCwd(arg0) },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     AgentToggleRow(
@@ -257,22 +257,22 @@ fun AgentSettingsScreen(
                         title = "智能压缩 Agent 命令输出",
                         subtitle = "减少 Agent 读取 git、搜索、测试与构建日志时的上下文消耗；终端与原始文件不受影响",
                         checked = commandOutputCompressionEnabled,
-                        onCheckedChange = viewModel::setCommandOutputCompressionEnabled,
+                        onCheckedChange = { arg0 -> viewModel?.setCommandOutputCompressionEnabled(arg0) },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     ApprovalModeSelectorRow(
                         mode = approvalMode,
-                        onModeChange = viewModel::setApprovalMode,
+                        onModeChange = { arg0 -> viewModel?.setApprovalMode(arg0) },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     RunModeSelectorRow(
                         mode = runMode,
-                        onModeChange = viewModel::setRunMode,
+                        onModeChange = { arg0 -> viewModel?.setRunMode(arg0) },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     RunningSendModeSelectorRow(
                         mode = runningSendMode,
-                        onModeChange = viewModel::setRunningSendMode,
+                        onModeChange = { arg0 -> viewModel?.setRunningSendMode(arg0) },
                     )
                 }
             }
@@ -283,28 +283,28 @@ fun AgentSettingsScreen(
                 AgentSettingsGroup {
                     BaseCommandTimeoutSliderRow(
                         currentValue = baseCommandTimeoutSeconds,
-                        onValueChange = viewModel::setBaseCommandTimeoutSeconds,
+                        onValueChange = { arg0 -> viewModel?.setBaseCommandTimeoutSeconds(arg0) },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     RoundsSliderRow(
                         currentValue = maxToolRounds,
-                        onValueChange = viewModel::setMaxToolRounds,
+                        onValueChange = { arg0 -> viewModel?.setMaxToolRounds(arg0) },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     AutoContinuationSliderRow(
                         currentValue = roundLimitAutoContinuations,
                         roundsPerSegment = maxToolRounds,
-                        onValueChange = viewModel::setRoundLimitAutoContinuations,
+                        onValueChange = { arg0 -> viewModel?.setRoundLimitAutoContinuations(arg0) },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     ToolsPerRoundSliderRow(
                         currentValue = maxToolsPerRound,
-                        onValueChange = viewModel::setMaxToolsPerRound,
+                        onValueChange = { arg0 -> viewModel?.setMaxToolsPerRound(arg0) },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     ConsecutiveFailuresSliderRow(
                         currentValue = maxConsecutiveFailures,
-                        onValueChange = viewModel::setMaxConsecutiveFailures,
+                        onValueChange = { arg0 -> viewModel?.setMaxConsecutiveFailures(arg0) },
                     )
                 }
             }
@@ -322,13 +322,13 @@ fun AgentSettingsScreen(
             item {
                 SystemPromptCustomCard(
                     enabled = customSystemPromptEnabled,
-                    onEnabledChange = viewModel::setCustomSystemPromptEnabled,
+                    onEnabledChange = { arg0 -> viewModel?.setCustomSystemPromptEnabled(arg0) },
                     prompt = customSystemPrompt,
-                    onPromptChange = viewModel::setCustomSystemPrompt,
+                    onPromptChange = { arg0 -> viewModel?.setCustomSystemPrompt(arg0) },
                     charName = agentCharName,
-                    onCharNameChange = viewModel::setAgentCharName,
+                    onCharNameChange = { arg0 -> viewModel?.setAgentCharName(arg0) },
                     userName = agentUserName,
-                    onUserNameChange = viewModel::setAgentUserName,
+                    onUserNameChange = { arg0 -> viewModel?.setAgentUserName(arg0) },
                 )
             }
 
@@ -349,21 +349,21 @@ fun AgentSettingsScreen(
                         title = "开启上下文智能压缩 (Context Compaction)",
                         subtitle = "历史超过 Token 折叠线时自动生成结构化摘要，保留近期原文、任务状态与关键文件足迹",
                         checked = compactionEnabled,
-                        onCheckedChange = viewModel::setContextCompactionEnabled,
+                        onCheckedChange = { arg0 -> viewModel?.setContextCompactionEnabled(arg0) },
                     )
                     if (compactionEnabled) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         ContextBudgetSliderRow(
                             currentValue = contextBudgetTokens,
                             declaredTokens = activeModelDeclaredTokens,
-                            onValueChange = viewModel::setContextBudgetTokens,
+                            onValueChange = { arg0 -> viewModel?.setContextBudgetTokens(arg0) },
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         ContextFoldingRatioSliderRow(
                             currentValue = contextFoldingRatioPercent,
                             budget = effectiveContextBudget,
                             declaredTokens = activeModelDeclaredTokens,
-                            onValueChange = viewModel::setContextFoldingRatioPercent,
+                            onValueChange = { arg0 -> viewModel?.setContextFoldingRatioPercent(arg0) },
                         )
                     }
                 }
@@ -393,7 +393,7 @@ fun AgentSettingsScreen(
                             "仅在用户明确要求并行或子智能体协同时派发"
                         },
                         checked = autoSubagentDelegation,
-                        onCheckedChange = viewModel::setAutoSubagentDelegationEnabled,
+                        onCheckedChange = { arg0 -> viewModel?.setAutoSubagentDelegationEnabled(arg0) },
                     )
                 }
             }
@@ -455,7 +455,7 @@ fun AgentSettingsScreen(
                                     "${model.name} · ${profile.defaultModelVariant ?: model.model.substringBefore(',').trim()}"
                                 } ?: "模型档案已删除"
                             } ?: "跟随主智能体",
-                            onToggle = { enabled -> viewModel.toggleSubagent(profile.id, enabled) },
+                            onToggle = { enabled -> viewModel?.toggleSubagent(profile.id, enabled) },
                             onEdit = {
                                 editingSubagent = profile
                                 showSubagentDialog = true
@@ -496,7 +496,7 @@ fun AgentSettingsScreen(
                             "已关闭：对话结束后不再弹出技能进化建议卡片"
                         },
                         checked = skillEvolutionSuggestions,
-                        onCheckedChange = viewModel::setSkillEvolutionSuggestions,
+                        onCheckedChange = { arg0 -> viewModel?.setSkillEvolutionSuggestions(arg0) },
                     )
                 }
             }
@@ -512,7 +512,7 @@ fun AgentSettingsScreen(
                 }
             }
             item {
-                OutlinedButton(onClick = viewModel::scanSkillDirectories, modifier = Modifier.fillMaxWidth().height(44.dp)) {
+                OutlinedButton(onClick = { viewModel?.scanSkillDirectories() }, modifier = Modifier.fillMaxWidth().height(44.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         RuntimeIcon(RuntimeIconName.FolderOpen, Modifier.size(16.dp))
                         Text("扫描 Skill 目录批量导入")
@@ -568,7 +568,7 @@ fun AgentSettingsScreen(
             items(visibleSkills, key = { it.id }) { skill ->
                 SkillCard(
                     skill = skill,
-                    onToggle = { enabled -> viewModel.toggleSkill(skill.id, enabled) },
+                    onToggle = { enabled -> viewModel?.toggleSkill(skill.id, enabled) },
                     onViewPrompt = { viewingSkillPrompt = skill },
                     onDelete = if (!skill.isBuiltin) { { deletingSkill = skill } } else null,
                 )
@@ -611,7 +611,7 @@ fun AgentSettingsScreen(
                     ClawHubMarketSkillCard(
                         item = marketItem,
                         isPreparing = preparingSkillId == marketItem.id,
-                        onInstall = { viewModel.prepareInstallMarketSkill(marketItem.id) },
+                        onInstall = { viewModel?.prepareInstallMarketSkill(marketItem.id) },
                     )
                 }
             }
@@ -630,7 +630,7 @@ fun AgentSettingsScreen(
             items(plugins, key = { it.id }) { plugin ->
                 PluginCard(
                     plugin = plugin,
-                    onToggle = { enabled -> viewModel.togglePlugin(plugin.id, enabled) },
+                    onToggle = { enabled -> viewModel?.togglePlugin(plugin.id, enabled) },
                 )
             }
             }
@@ -643,17 +643,17 @@ fun AgentSettingsScreen(
         SkillSecurityAuditDialog(
             inspection = inspection,
             isCommitting = isCommittingInstallation,
-            onConfirmInstall = viewModel::confirmSkillInstallation,
-            onDismiss = viewModel::dismissSkillInspection,
+            onConfirmInstall = { viewModel?.confirmSkillInstallation() },
+            onDismiss = { viewModel?.dismissSkillInspection() },
         )
     }
 
     skillArchiveMessage?.let { message ->
         RuntimeAlertDialog(
-            onDismissRequest = viewModel::clearSkillArchiveMessage,
+            onDismissRequest = { viewModel?.clearSkillArchiveMessage() },
             title = { Text(if (!skillArchiveMessageIsError) "Skill 导入完成" else "Skill 导入失败", fontWeight = FontWeight.Bold) },
             text = { Text(message) },
-            confirmButton = { TextButton(onClick = viewModel::clearSkillArchiveMessage) { Text("知道了") } },
+            confirmButton = { TextButton(onClick = { viewModel?.clearSkillArchiveMessage() }) { Text("知道了") } },
         )
     }
 
@@ -703,7 +703,7 @@ fun AgentSettingsScreen(
         AddSkillDialog(
             onDismiss = { showAddSkillDialog = false },
             onConfirm = { name, desc, prompt, cmd ->
-                viewModel.addCustomSkill(name, desc, prompt, cmd)
+                viewModel?.addCustomSkill(name, desc, prompt, cmd)
                 showAddSkillDialog = false
             },
         )
@@ -719,7 +719,7 @@ fun AgentSettingsScreen(
                 editingSubagent = null
             },
             onConfirm = { roleId, name, description, prompt, defaultModelId, defaultModelVariant ->
-                viewModel.saveSubagent(
+                viewModel?.saveSubagent(
                     editingSubagent,
                     roleId,
                     name,
@@ -742,7 +742,7 @@ fun AgentSettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteCustomSkill(skill.id)
+                        viewModel?.deleteCustomSkill(skill.id)
                         deletingSkill = null
                     },
                 ) {
@@ -763,7 +763,7 @@ fun AgentSettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteSubagent(profile.id)
+                        viewModel?.deleteSubagent(profile.id)
                         deletingSubagent = null
                     },
                 ) {

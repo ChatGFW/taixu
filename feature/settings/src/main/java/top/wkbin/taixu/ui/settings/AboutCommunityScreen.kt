@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import android.content.Context
@@ -50,7 +51,6 @@ import android.content.ClipboardManager
 import android.widget.Toast
 import top.wkbin.taixu.core.model.AppUpdateInfo
 import top.wkbin.taixu.core.model.UpdateCheckState
-
 /**
  * 二级子页 4：关于、版本更新与官方社区
  */
@@ -58,17 +58,17 @@ import top.wkbin.taixu.core.model.UpdateCheckState
 fun AboutCommunityScreen(
     onBack: () -> Unit,
     onOpenSponsor: () -> Unit,
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val autoCheckUpdates by viewModel.autoCheckUpdates.collectAsStateWithLifecycle()
-    val updateCheckState by viewModel.updateCheckState.collectAsStateWithLifecycle()
-    val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
-    val isDownloading by viewModel.isDownloading.collectAsStateWithLifecycle()
+    val autoCheckUpdates by viewModel?.autoCheckUpdates?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val updateCheckState by viewModel?.updateCheckState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.UpdateCheckState.Idle)
+    val downloadProgress by viewModel?.downloadProgress?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val isDownloading by viewModel?.isDownloading?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val context = androidx.compose.ui.platform.LocalContext.current
     var showAboutDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var showReleaseNotesDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
-    val currentReleaseNotes by viewModel.currentReleaseNotes.collectAsStateWithLifecycle()
-    val isLoadingReleaseNotes by viewModel.isLoadingReleaseNotes.collectAsStateWithLifecycle()
+    val currentReleaseNotes by viewModel?.currentReleaseNotes?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val isLoadingReleaseNotes by viewModel?.isLoadingReleaseNotes?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val currentVersion = rememberAppVersion()
 
     // 版本更新弹窗
@@ -79,13 +79,13 @@ fun AboutCommunityScreen(
                     info = state.info,
                     downloadProgress = downloadProgress,
                     isDownloading = isDownloading,
-                    onDownload = { state.info.apkDownloadUrl?.let { viewModel.downloadAndInstall(it) } },
+                    onDownload = { state.info.apkDownloadUrl?.let { viewModel?.downloadAndInstall(it) } },
                     onOpenBrowser = { openBrowser(context, state.info.releaseUrl) },
-                    onDismiss = { viewModel.clearUpdateState() },
+                    onDismiss = { viewModel?.clearUpdateState() },
                 )
             } else {
                 RuntimeAlertDialog(
-                    onDismissRequest = { viewModel.clearUpdateState() },
+                    onDismissRequest = { viewModel?.clearUpdateState() },
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             RuntimeIcon(RuntimeIconName.Check, Modifier.size(22.dp), tint = successStatusColor())
@@ -96,14 +96,14 @@ fun AboutCommunityScreen(
                         Text("当前太墟版本 v${state.info.currentVersion} 已是最新稳定版，无需更新。")
                     },
                     confirmButton = {
-                        TextButton(onClick = { viewModel.clearUpdateState() }) {
+                        TextButton(onClick = { viewModel?.clearUpdateState() }) {
                             Text("确定")
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = {
-                            viewModel.clearUpdateState()
-                            viewModel.loadCurrentReleaseNotes(currentVersion)
+                            viewModel?.clearUpdateState()
+                            viewModel?.loadCurrentReleaseNotes(currentVersion)
                             showReleaseNotesDialog = true
                         }) {
                             Text("本版日志")
@@ -114,7 +114,7 @@ fun AboutCommunityScreen(
         }
         is UpdateCheckState.Error -> {
             RuntimeAlertDialog(
-                onDismissRequest = { viewModel.clearUpdateState() },
+                onDismissRequest = { viewModel?.clearUpdateState() },
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         RuntimeIcon(RuntimeIconName.Alert, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.error)
@@ -123,7 +123,7 @@ fun AboutCommunityScreen(
                 },
                 text = { Text(state.message) },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.clearUpdateState() }) {
+                    TextButton(onClick = { viewModel?.clearUpdateState() }) {
                         Text("知道了")
                     }
                 },
@@ -137,7 +137,7 @@ fun AboutCommunityScreen(
             onDismiss = { showAboutDialog = false },
             onOpenReleaseNotes = {
                 showAboutDialog = false
-                viewModel.loadCurrentReleaseNotes(currentVersion)
+                viewModel?.loadCurrentReleaseNotes(currentVersion)
                 showReleaseNotesDialog = true
             },
         )
@@ -178,7 +178,7 @@ fun AboutCommunityScreen(
                         onClick = {
                             // 检查进行中禁止重复触发
                             if (updateCheckState !is UpdateCheckState.Checking) {
-                                viewModel.checkForUpdates(currentVersion)
+                                viewModel?.checkForUpdates(currentVersion)
                             }
                         },
                     )
@@ -188,7 +188,7 @@ fun AboutCommunityScreen(
                         title = "版本更新日志",
                         subtitle = "查看当前版本 (v$currentVersion) 的更新说明与功能亮点",
                         onClick = {
-                            viewModel.loadCurrentReleaseNotes(currentVersion)
+                            viewModel?.loadCurrentReleaseNotes(currentVersion)
                             showReleaseNotesDialog = true
                         },
                     )
@@ -198,7 +198,7 @@ fun AboutCommunityScreen(
                         title = "启动时自动检查更新",
                         subtitle = "应用启动时在后台静默检测新版本",
                         checked = autoCheckUpdates,
-                        change = viewModel::setAutoCheckUpdates,
+                        change = { arg0 -> viewModel?.setAutoCheckUpdates(arg0) },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     SettingsRow(
@@ -206,7 +206,7 @@ fun AboutCommunityScreen(
                         title = "重看功能引导",
                         subtitle = "重新展示插件中心、工作坊、多会话终端等首次使用引导",
                         onClick = {
-                            viewModel.replayFirstUseGuides()
+                            viewModel?.replayFirstUseGuides()
                             Toast.makeText(
                                 context,
                                 "已重置功能引导，下次进入相应页面会重新展示",

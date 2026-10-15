@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.workspace
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -50,16 +51,15 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
 import androidx.compose.ui.res.stringResource
 import java.util.UUID
-
 /**
  * 工坊签名管理：创建 / 导入 / 删除 Android 签名（keystore）。
  * Release 构建时在构建类型选择弹窗中选用这里登记的签名。
  */
 @Composable
-fun WorkshopSigningScreen(onBack: () -> Unit, viewModel: WorkshopSigningViewModel = koinViewModel()) {
-    val keystores by viewModel.keystores.collectAsStateWithLifecycle()
-    val busy by viewModel.busy.collectAsStateWithLifecycle()
-    val message by viewModel.message.collectAsStateWithLifecycle()
+fun WorkshopSigningScreen(onBack: () -> Unit, viewModel: WorkshopSigningViewModel? = previewOrNull { koinViewModel() }) {
+    val keystores by viewModel?.keystores?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val busy by viewModel?.busy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     var showCreate by rememberSaveable { mutableStateOf(false) }
     var showImport by rememberSaveable { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<WorkshopKeystore?>(null) }
@@ -103,7 +103,7 @@ fun WorkshopSigningScreen(onBack: () -> Unit, viewModel: WorkshopSigningViewMode
             busy = busy,
             onDismiss = { showCreate = false },
             onConfirm = { draft, onError ->
-                viewModel.createKeystore(
+                viewModel?.createKeystore(
                     draft = draft,
                     onError = onError,
                     onSuccess = { showCreate = false },
@@ -116,7 +116,7 @@ fun WorkshopSigningScreen(onBack: () -> Unit, viewModel: WorkshopSigningViewMode
             busy = busy,
             onDismiss = { showImport = false },
             onConfirm = { draft, onError ->
-                viewModel.importKeystore(
+                viewModel?.importKeystore(
                     draft = draft,
                     onError = onError,
                     onSuccess = { showImport = false },
@@ -130,7 +130,7 @@ fun WorkshopSigningScreen(onBack: () -> Unit, viewModel: WorkshopSigningViewMode
             title = { Text(stringResource(R.string.workshop_signing_delete_title, target.name)) },
             text = { Text(stringResource(R.string.workshop_signing_delete_message)) },
             confirmButton = {
-                RuntimeButton(onClick = { viewModel.deleteKeystore(target); deleteTarget = null }) { Text(stringResource(R.string.workspace_confirm_delete)) }
+                RuntimeButton(onClick = { viewModel?.deleteKeystore(target); deleteTarget = null }) { Text(stringResource(R.string.workspace_confirm_delete)) }
             },
             dismissButton = {
                 RuntimeOutlinedButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.workspace_cancel)) }

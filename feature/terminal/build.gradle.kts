@@ -7,6 +7,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":plugin:ui"))
     implementation(project(":core:datastore"))
     implementation(project(":runtime"))
     implementation(libs.androidx.activity.compose)

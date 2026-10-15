@@ -105,6 +105,10 @@ enum class McpConnectionState {
     CHECKING,
     /** 已连通，服务在线可用 */
     ONLINE,
+    /** Tool metadata remains ready; the idle STDIO subprocess has been reclaimed. */
+    SLEEPING,
+    /** Starting or initializing a STDIO subprocess for a real request. */
+    WAKING,
     /** 检测失败 / 服务离线不可达 */
     OFFLINE,
 }

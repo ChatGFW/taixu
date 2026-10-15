@@ -10,6 +10,9 @@ data class WorkspaceEditOutcome(val strategy: String, val replacements: Int, val
 data class ExecutionFileEntry(val name: String, val directory: Boolean, val size: Long, val modifiedAt: Long)
 
 interface ExecutionFiles {
+    /** Bounded literal search. Apply trusted redactLine before clipping; unsupported backends must not fall back. */
+    suspend fun search(path: String, query: String, maxResults: Int = 50, redactLine: (String) -> String = { it }): AppResult<String> = AppResult.Failure(
+        top.wkbin.taixu.core.common.result.AppError(top.wkbin.taixu.core.common.result.ErrorCode.IO, "当前执行环境不支持原生文本检索；请使用当前环境的 base/grep"))
     /** Optional, strict artifact inventory: absent directories are empty; incomplete/failed listing is a failure. */
     suspend fun listArtifactEntries(path: String): AppResult<List<ExecutionFileEntry>> = listEntries(path)
     /** Hash binary data in this world without copying it into chat. Missing capabilities fail, never fall back. */

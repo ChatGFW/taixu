@@ -54,6 +54,7 @@ enum class WorkflowNodeType {
     DELAY,
     SET_VARIABLE,
     TERMINAL_OUTPUT,
+    PLUGIN_ACTION,
 }
 
 @Serializable

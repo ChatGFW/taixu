@@ -42,6 +42,11 @@ LinuxAIRuntime/
 ├── harness/              # Agent 智能体核心：Agent 循环、流式推理、内置工具/审批、MCP
 │   └── core/            # 纯 Kotlin 轮次核心与模型能力契约；不依赖 Android/Room/网络/PRoot
 ├── tools/                # 工具生态中心：Registry、本地插件、安装事务、批量组件安装、Provider 安全
+├── plugin/
+│   ├── packages/        # 纯 Kotlin v1/v2 包协议、SemVer、安装依赖与资源声明检查
+│   ├── api/             # 纯 Kotlin 插件描述、扩展引用与不可变目录校验
+│   ├── runtime/         # 纯 Kotlin 插件状态机、代次、使用租约与资源排空
+│   └── ui/              # 编译时原生页面贡献、注册表与 Compose 页面宿主
 └── feature/              # Compose UI 业务特性层
     ├── components/      # 太墟 M3 Expressive 设计规范、通用组件 (RuntimeCard, TopBar, Icons)
     ├── theme/           # Material 3 调色板、字体、主题配置
@@ -76,14 +81,16 @@ LinuxAIRuntime/
    - 短时、有明确退出状态的前台命令调用 `LinuxRuntime.execute()` / Harness `base`。
    - 跨调用持续运行的服务或长任务调用 `LinuxRuntime.startBackground()` / Harness `process`，统一由 `ProcessRegistry` 托管 PID、生命周期与环形日志缓冲。
 5. **工作区操作边界**：
-   - 项目生命周期与物理目录交互统一通过 `WorkspaceManager` 与 `WorkspaceFileService`。
+   - 项目生命周期与物理目录交互统一通过 `WorkspaceManager` 与 `WorkspaceFileService`；`runtime/ProjectType.kt` 定义项目类型，包括 `TAIXU_PLUGIN` 本地进程插件开发。
    - ZIP 导入必须执行路径穿越防范（Zip Slip Check）、文件大小上限与条目数校验；Git clone 必须在沙箱内隔离执行。
 6. **构建调度与保活边界**：
    - 工作区构建由单例 `WorkspaceBuildTaskCoordinator` 全局持有，UI 页面旋转或重建不中断构建任务；底层构建执行与环境预检由 `WorkspaceBuildRunner` 承载。
 
 ## 4. 依赖装配（Koin）
 
+- 插件平台：`plugin:api` 与 `plugin:runtime` 均保持纯 Kotlin，`plugin:ui` 适配 Compose。`navigationModule` 装配 `NativePluginPlatform`、单例 `PluginPages` 与 `PluginController`；终端/浏览器的独立页与聊天面板共享带代次准入的页面宿主。`PluginPreferences` 只保存启用选择；状态机按依赖启停并保留未确认释放资源。菜单/设置贡献通过共享 slot 注入，管理页由通用宿主装配。页面插件不拥有全部终端/浏览器引擎，也没有外部原生代码加载或授权隔离，详见 [`PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md)。
 - Provider 边界由 `harness/di/harness/ProviderModule.kt` 装配：`ProviderModelResolver` 管理档案、凭证与偏好，`ProviderTransport` 管理请求策略，`LlmApiRegistry` 按模型的 API 选择协议实现。兼容门面 `ProviderClient` 保留已有调用入口；纯 `ModelDescriptor` 不含密钥或端点。
+- P4 的 `HarnessPluginRegistry` 装配受信任的编译时工具、背景资料、检查点、Provider 工厂和工作流节点。工具通过 `use_capability` 的 `plugin.<id>` 域沿用审批/PLAN；背景资料脱敏后以有来源标注的合成 user 消息计入预算。三种协议与等待节点已迁入插件工厂；`PLUGIN_ACTION` 是新节点的通用路由，执行前通过工作流 broker 进行带令牌的确认。详见 [`PLUGIN_HARNESS_EXTENSIONS.md`](PLUGIN_HARNESS_EXTENSIONS.md)。
 - 工具边界由 `harness/di/harness/ToolBackendModule.kt` 装配：纯 JVM `ToolBackend` / `ToolCheckpoints` 定义可等待契约；`WorkspaceToolBackend` 通过 `WorkspaceToolOperations` 使用受限工作区访问与写入快照。`ToolExecutor` 保留审批、PLAN、宿主权限和其他工具分派；检查点只允许否决或追加经脱敏的说明，不能授予权限或替换结果状态。默认检查点为空，应用代码可注入受信任实现。
 - 各模块的 `src/main/java/top/wkbin/taixu/di/**/KoinModule.kt` 声明本模块构造器与接口绑定；`app/di/TaiXuModules.kt` 汇总完整依赖图，Application 启动时注册应用 Context，并禁止定义覆盖。
 - 业务类使用普通构造器；仅 Android 创建的 Application、Activity、Service、Receiver 和 Compose ViewModel 入口访问 Koin。新增构造依赖时同步更新所属模块注册，并运行 `:app:testDebugUnitTest` 的依赖图测试。

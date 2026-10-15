@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.workspace
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
@@ -85,27 +85,27 @@ fun WorkspaceExplorerScreen(
     onBack: () -> Unit,
     onOpenFile: (String) -> Unit,
     onOpenTerminal: (String) -> Unit,
-    viewModel: WorkspaceViewModel = koinViewModel(),
+    viewModel: WorkspaceViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val fileItems by viewModel.fileItems.collectAsStateWithLifecycle()
-    val currentPath by viewModel.currentPath.collectAsStateWithLifecycle()
-    val loading by viewModel.loadingFiles.collectAsStateWithLifecycle()
-    val message by viewModel.message.collectAsStateWithLifecycle()
-    val messageIsError by viewModel.messageIsError.collectAsStateWithLifecycle()
-    val busy by viewModel.busy.collectAsStateWithLifecycle()
-    val sharedStorageAccessLimited by viewModel.sharedStorageAccessLimited.collectAsStateWithLifecycle()
+    val fileItems by viewModel?.fileItems?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val currentPath by viewModel?.currentPath?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val loading by viewModel?.loadingFiles?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val busy by viewModel?.busy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val sharedStorageAccessLimited by viewModel?.sharedStorageAccessLimited?.collectAsStateWithLifecycle() ?: previewStateOf(false)
 
     val context = LocalContext.current
     val allFilesPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) {
         // 从系统"所有文件访问"授权页返回（无论是否授权）都重新评估并刷新
-        viewModel.refreshAfterPermissionReturn()
+        viewModel?.refreshAfterPermissionReturn()
     }
     val legacyStoragePermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
-        viewModel.refreshAfterPermissionReturn()
+        viewModel?.refreshAfterPermissionReturn()
     }
 
     // 对话框开关与输入状态用 rememberSaveable，旋转后不丢失（复杂对象目标仍为 remember）
@@ -131,18 +131,18 @@ fun WorkspaceExplorerScreen(
     var savedCurrentPath by rememberSaveable { mutableStateOf(initialPath) }
 
     LaunchedEffect(currentPath) {
-        if (viewModel.selectedProject.value == projectName) {
+        if (viewModel?.selectedProject?.value == projectName) {
             savedCurrentPath = currentPath
         }
     }
 
     LaunchedEffect(projectName, initialPath) {
         val resumePath = if (savedCurrentPath.isNotBlank()) savedCurrentPath else initialPath
-        viewModel.loadExplorer(projectName, resumePath)
+        viewModel?.loadExplorer(projectName, resumePath)
     }
 
     BackHandler(enabled = currentPath.isNotBlank()) {
-        viewModel.navigateUp()
+        viewModel?.navigateUp()
     }
 
     Scaffold(
@@ -153,7 +153,7 @@ fun WorkspaceExplorerScreen(
                 statusText = if (currentPath.isBlank()) "/workspace/$projectName" else ".../$currentPath",
                 onBack = {
                     if (currentPath.isNotBlank()) {
-                        viewModel.navigateUp()
+                        viewModel?.navigateUp()
                     } else {
                         onBack()
                     }
@@ -177,7 +177,7 @@ fun WorkspaceExplorerScreen(
                                 leadingIcon = { RuntimeIcon(RuntimeIconName.File, Modifier.size(18.dp)) },
                                 onClick = {
                                     showCreateMenu = false
-                                    viewModel.clearMessage()
+                                    viewModel?.clearMessage()
                                     newFileName = ""
                                     showCreateFileDialog = true
                                 },
@@ -187,7 +187,7 @@ fun WorkspaceExplorerScreen(
                                 leadingIcon = { RuntimeIcon(RuntimeIconName.Folder, Modifier.size(18.dp)) },
                                 onClick = {
                                     showCreateMenu = false
-                                    viewModel.clearMessage()
+                                    viewModel?.clearMessage()
                                     newFolderName = ""
                                     showCreateFolderDialog = true
                                 },
@@ -205,7 +205,7 @@ fun WorkspaceExplorerScreen(
 
                     // 刷新
                     IconButton(
-                        onClick = { viewModel.refreshDirectory() },
+                        onClick = { viewModel?.refreshDirectory() },
                         enabled = !loading,
                         contentDescription = stringResource(R.string.workspace_cd_refresh),
                     ) {
@@ -224,7 +224,7 @@ fun WorkspaceExplorerScreen(
             BreadcrumbBar(
                 projectName = projectName,
                 currentPath = currentPath,
-                onNavigate = { targetPath -> viewModel.navigateToDirectory(targetPath) },
+                onNavigate = { targetPath -> viewModel?.navigateToDirectory(targetPath) },
             )
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -273,7 +273,7 @@ fun WorkspaceExplorerScreen(
                         // 如果在子目录，显示返回上一级项
                         if (currentPath.isNotBlank()) {
                             item {
-                                ParentDirectoryRow(onClick = { viewModel.navigateUp() })
+                                ParentDirectoryRow(onClick = { viewModel?.navigateUp() })
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             }
                         }
@@ -283,13 +283,13 @@ fun WorkspaceExplorerScreen(
                                 item = item,
                                 onClick = {
                                     if (item.isDirectory) {
-                                        viewModel.navigateToDirectory(item.relativePath)
+                                        viewModel?.navigateToDirectory(item.relativePath)
                                     } else {
                                         onOpenFile(item.relativePath)
                                     }
                                 },
                                 onRename = {
-                                    viewModel.clearMessage()
+                                    viewModel?.clearMessage()
                                     renameTarget = item
                                     renameInput = item.name
                                 },
@@ -321,13 +321,13 @@ fun WorkspaceExplorerScreen(
             title = stringResource(R.string.workspace_new_file),
             label = stringResource(R.string.workspace_file_name),
             value = newFileName,
-            onValueChange = { newFileName = it; viewModel.clearMessage() },
+            onValueChange = { newFileName = it; viewModel?.clearMessage() },
             validationError = newFileNameError,
             operationError = message.takeIf { messageIsError },
             busy = busy,
             actionLabel = stringResource(R.string.workspace_create),
             enabled = newFileName.isNotBlank() && newFileNameError == null,
-            onSubmit = { viewModel.clearMessage(); viewModel.createFile(newFileName) { showCreateFileDialog = false } },
+            onSubmit = { viewModel?.clearMessage(); viewModel?.createFile(newFileName) { showCreateFileDialog = false } },
             onDismiss = { showCreateFileDialog = false },
         )
     }
@@ -337,13 +337,13 @@ fun WorkspaceExplorerScreen(
             title = stringResource(R.string.workspace_new_folder),
             label = stringResource(R.string.workspace_folder_name),
             value = newFolderName,
-            onValueChange = { newFolderName = it; viewModel.clearMessage() },
+            onValueChange = { newFolderName = it; viewModel?.clearMessage() },
             validationError = newFolderNameError,
             operationError = message.takeIf { messageIsError },
             busy = busy,
             actionLabel = stringResource(R.string.workspace_create),
             enabled = newFolderName.isNotBlank() && newFolderNameError == null,
-            onSubmit = { viewModel.clearMessage(); viewModel.createDirectory(newFolderName) { showCreateFolderDialog = false } },
+            onSubmit = { viewModel?.clearMessage(); viewModel?.createDirectory(newFolderName) { showCreateFolderDialog = false } },
             onDismiss = { showCreateFolderDialog = false },
         )
     }
@@ -353,13 +353,13 @@ fun WorkspaceExplorerScreen(
             title = stringResource(R.string.workspace_rename_title, target.name),
             label = stringResource(R.string.workspace_new_name),
             value = renameInput,
-            onValueChange = { renameInput = it; viewModel.clearMessage() },
+            onValueChange = { renameInput = it; viewModel?.clearMessage() },
             validationError = renameNameError,
             operationError = message.takeIf { messageIsError },
             busy = busy,
             actionLabel = stringResource(R.string.workspace_save),
             enabled = renameInput.isNotBlank() && renameNameError == null && renameInput != target.name,
-            onSubmit = { viewModel.clearMessage(); viewModel.renameItem(target.relativePath, renameInput) { renameTarget = null } },
+            onSubmit = { viewModel?.clearMessage(); viewModel?.renameItem(target.relativePath, renameInput) { renameTarget = null } },
             onDismiss = { renameTarget = null },
         )
     }
@@ -377,7 +377,7 @@ fun WorkspaceExplorerScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteItem(target.relativePath)
+                        viewModel?.deleteItem(target.relativePath)
                         deleteTarget = null
                     },
                     enabled = !busy,

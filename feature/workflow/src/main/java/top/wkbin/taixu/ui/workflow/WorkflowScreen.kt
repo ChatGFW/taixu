@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.workflow
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -61,7 +62,6 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
 @Composable
 fun WorkflowScreen(
     projectName: String = "",
@@ -69,26 +69,26 @@ fun WorkflowScreen(
     initialVariables: Map<String, String> = emptyMap(),
     initialExecutionId: String? = null,
     onBack: () -> Unit,
-    viewModel: WorkflowViewModel = koinViewModel(),
+    viewModel: WorkflowViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val definitions by viewModel.definitions.collectAsStateWithLifecycle()
-    val history by viewModel.history.collectAsStateWithLifecycle()
-    val models by viewModel.models.collectAsStateWithLifecycle()
-    val schedules by viewModel.schedules.collectAsStateWithLifecycle()
-    val backgroundRuns by viewModel.backgroundActiveRuns.collectAsStateWithLifecycle()
-    val error by viewModel.error.collectAsStateWithLifecycle()
+    val definitions by viewModel?.definitions?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val history by viewModel?.history?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val schedules by viewModel?.schedules?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val backgroundRuns by viewModel?.backgroundActiveRuns?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val error by viewModel?.error?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val snackbar = remember { SnackbarHostState() }
-    LaunchedEffect(error) { error?.let { snackbar.showSnackbar(it); viewModel.clearError() } }
+    LaunchedEffect(error) { error?.let { snackbar.showSnackbar(it); viewModel?.clearError() } }
     var pendingRun by remember { mutableStateOf<WorkflowDefinition?>(null) }
     var scheduleEditor by remember { mutableStateOf<WorkflowScheduleEntity?>(null) }
     var scheduleEditorIsNew by remember { mutableStateOf(false) }
-    val activeState by viewModel.activeState.collectAsStateWithLifecycle()
-    val approval by viewModel.approvalRequest.collectAsStateWithLifecycle()
-    val editorState by viewModel.editorState.collectAsStateWithLifecycle()
+    val activeState by viewModel?.activeState?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val approval by viewModel?.approvalRequest?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val editorState by viewModel?.editorState?.collectAsStateWithLifecycle() ?: previewStateOf<WorkflowEditorUiState?>(null)
     var discardRequested by rememberSaveable { mutableStateOf(false) }
     // 通知深链：进入页面即定位到指定执行（活跃运行或历史回看）
     LaunchedEffect(initialExecutionId) {
-        if (initialExecutionId != null) viewModel.viewRun(initialExecutionId)
+        if (initialExecutionId != null) viewModel?.viewRun(initialExecutionId)
     }
     var autoStarted by rememberSaveable(initialWorkflowId) { mutableStateOf(false) }
     LaunchedEffect(initialWorkflowId, definitions, autoStarted) {
@@ -107,9 +107,9 @@ fun WorkflowScreen(
                 statusText = projectName.takeIf(String::isNotBlank)?.let { "工作区 · $it" },
                 onBack = {
                     when {
-                        activeState != null -> viewModel.closeRun()
+                        activeState != null -> viewModel?.closeRun()
                         editorState?.isDirty == true -> discardRequested = true
-                        editorState != null -> viewModel.closeEditor()
+                        editorState != null -> viewModel?.closeEditor()
                         else -> onBack()
                     }
                 },
@@ -122,71 +122,71 @@ fun WorkflowScreen(
                 activeRunState = activeState,
                 onRun = {
                     if (editorState!!.isDirty) {
-                        viewModel.saveEditor()
+                        viewModel?.saveEditor()
                     }
                     pendingRun = editorState!!.definition
                 },
-                onCancelRun = viewModel::cancel,
-                onSelectNode = viewModel::selectNode,
-                onMoveNode = viewModel::moveNode,
-                onBeginConnection = viewModel::beginConnection,
-                onCancelConnection = viewModel::cancelConnection,
-                onConnect = viewModel::connectTo,
-                onAddNode = viewModel::addNode,
-                onUpdateNode = viewModel::updateNode,
-                onUpdateMetadata = viewModel::updateMetadata,
-                onRemoveNode = viewModel::removeSelectedNode,
-                onRemoveNodeById = viewModel::removeNode,
-                onConnectNodes = viewModel::connectNodes,
-                onDisconnectNodes = viewModel::disconnectNodes,
-                onDisconnectAllForNode = viewModel::disconnectAllForNode,
-                onUpdateEdge = viewModel::updateEdge,
-                onRemoveEdge = viewModel::removeEdge,
-                onUndo = viewModel::undoEdit,
-                onRedo = viewModel::redoEdit,
-                onSave = viewModel::saveEditor,
-                onAutoLayout = viewModel::autoLayout,
+                onCancelRun = { viewModel?.cancel() },
+                onSelectNode = { arg0 -> viewModel?.selectNode(arg0) },
+                onMoveNode = { arg0, arg1, arg2 -> viewModel?.moveNode(arg0, arg1, arg2) },
+                onBeginConnection = { arg0 -> viewModel?.beginConnection(arg0) },
+                onCancelConnection = { viewModel?.cancelConnection() },
+                onConnect = { arg0 -> viewModel?.connectTo(arg0) },
+                onAddNode = { arg0 -> viewModel?.addNode(arg0) },
+                onUpdateNode = { arg0 -> viewModel?.updateNode(arg0) },
+                onUpdateMetadata = { arg0, arg1, arg2, arg3 -> viewModel?.updateMetadata(arg0, arg1, arg2, arg3) },
+                onRemoveNode = { viewModel?.removeSelectedNode() },
+                onRemoveNodeById = { arg0 -> viewModel?.removeNode(arg0) },
+                onConnectNodes = { arg0, arg1, arg2, arg3 -> viewModel?.connectNodes(arg0, arg1, arg2, arg3) },
+                onDisconnectNodes = { arg0, arg1 -> viewModel?.disconnectNodes(arg0, arg1) },
+                onDisconnectAllForNode = { arg0 -> viewModel?.disconnectAllForNode(arg0) },
+                onUpdateEdge = { arg0 -> viewModel?.updateEdge(arg0) },
+                onRemoveEdge = { arg0 -> viewModel?.removeEdge(arg0) },
+                onUndo = { viewModel?.undoEdit() },
+                onRedo = { viewModel?.redoEdit() },
+                onSave = { viewModel?.saveEditor() },
+                onAutoLayout = { viewModel?.autoLayout() },
                 modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
             )
             activeState == null -> WorkflowCatalog(
                 definitions = definitions,
                 onRun = { pendingRun = it },
                 history = history,
-                onHistory = viewModel::showHistory,
-                onRerun = viewModel::rerun,
-                onResume = viewModel::resume,
-                onEdit = viewModel::edit,
-                onDelete = viewModel::deleteWorkflow,
-                onCreate = viewModel::createWorkflow,
-                onImport = viewModel::importWorkflow,
+                onHistory = { arg0 -> viewModel?.showHistory(arg0) },
+                onRerun = { arg0 -> viewModel?.rerun(arg0) },
+                onResume = { arg0, arg1 -> viewModel?.resume(arg0, arg1) },
+                onEdit = { arg0 -> viewModel?.edit(arg0) },
+                onDelete = { arg0 -> viewModel?.deleteWorkflow(arg0) },
+                onCreate = { viewModel?.createWorkflow() },
+                onImport = { arg0 -> viewModel?.importWorkflow(arg0) },
                 backgroundRuns = backgroundRuns,
-                onViewBackgroundRun = viewModel::viewRun,
+                onViewBackgroundRun = { arg0 -> viewModel?.viewRun(arg0) },
                 schedules = schedules,
                 onNewSchedule = {
                     scheduleEditor = null
                     scheduleEditorIsNew = true
                 },
                 onEditSchedule = { scheduleEditor = it },
-                onToggleSchedule = viewModel::toggleSchedule,
-                onDeleteSchedule = viewModel::deleteSchedule,
+                onToggleSchedule = { arg0, arg1 -> viewModel?.toggleSchedule(arg0, arg1) },
+                onDeleteSchedule = { arg0 -> viewModel?.deleteSchedule(arg0) },
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
             else -> WorkflowRunView(
                 state = activeState!!,
-                onCancel = viewModel::cancel,
+                onCancel = { viewModel?.cancel() },
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         }
     }
     approval?.let { request ->
-        ApprovalDialog(request, onDecision = { approved, variables -> viewModel.decide(request.nodeId, approved, variables, request.reviewToken) })
+        ApprovalDialog(request, onDecision = { approved, variables -> viewModel?.decide(request.nodeId, approved, variables, request.reviewToken) })
     }
     pendingRun?.let { definition ->
         // APK 扫描是全盘 walkTopDown，必须在协程里异步加载，禁止在组合期间同步执行
         var apks by remember(definition.id, projectName) { mutableStateOf<List<DiscoveredApk>>(emptyList()) }
         val apkScope = rememberCoroutineScope()
         LaunchedEffect(definition.id, projectName) {
-            apks = viewModel.scanWorkspaceApks(projectName)
+            apks = viewModel?.scanWorkspaceApks(projectName).orEmpty()
         }
         WorkflowStartDialog(
             definition = definition,
@@ -194,12 +194,12 @@ fun WorkflowScreen(
             models = models,
             availableApks = apks,
             onRefreshApks = {
-                apkScope.launch { apks = viewModel.scanWorkspaceApks(projectName) }
+                apkScope.launch { apks = viewModel?.scanWorkspaceApks(projectName).orEmpty() }
             },
             onDismiss = { pendingRun = null },
         ) { variables ->
             pendingRun = null
-            viewModel.start(definition, projectName, variables)
+            viewModel?.start(definition, projectName, variables)
         }
     }
     if (discardRequested) {
@@ -209,7 +209,7 @@ fun WorkflowScreen(
             text = { Text("当前工作流还有未保存的编辑。") },
             dismissButton = { RuntimeOutlinedButton(onClick = { discardRequested = false }) { Text("继续编辑") } },
             confirmButton = {
-                RuntimeButton(onClick = { discardRequested = false; viewModel.closeEditor() }) { Text("放弃更改") }
+                RuntimeButton(onClick = { discardRequested = false; viewModel?.closeEditor() }) { Text("放弃更改") }
             },
         )
     }
@@ -223,7 +223,7 @@ fun WorkflowScreen(
                 scheduleEditorIsNew = false
             },
             onSave = { entity ->
-                viewModel.saveSchedule(entity)
+                viewModel?.saveSchedule(entity)
                 scheduleEditor = null
                 scheduleEditorIsNew = false
             },
@@ -411,7 +411,7 @@ private fun WorkflowRunView(
 ) {
     BoxWithConstraints(modifier) {
         var selectedNode by remember(state.executionId) { mutableStateOf<String?>(null) }
-        if (maxWidth >= 760.dp) {
+        if (top.wkbin.taixu.ui.components.widthClassOf(maxWidth.value) == top.wkbin.taixu.ui.components.RuntimeWidthClass.Expanded) {
             Row(Modifier.fillMaxSize()) {
                 WorkflowCanvas2D(state.definition, state, Modifier.weight(1f).fillMaxSize(), selectedNodeId = selectedNode, onNodeSelected = { selectedNode = it })
                 Column(Modifier.width(320.dp).verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

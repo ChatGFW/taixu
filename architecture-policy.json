@@ -27,11 +27,22 @@
       "feature.theme", "feature.components", "feature.home", "feature.chat",
       "feature.terminal", "feature.workspace", "feature.workflow", "feature.settings",
       "feature.developer", "feature.custom_iteration", "feature.onboarding",
-      "feature.navigation", "feature.browser", "feature.git", "feature.preview",
-      "feature.a2uipoc"
+      "feature.navigation", "feature.browser", "feature.git", "feature.a2uipoc"
     ]
   },
   "importBans": [
+    {
+      "id": "plugin-package-purity",
+      "pattern": "^import\\s+(android|androidx|org\\.koin|okhttp3|io\\.ktor|top\\.wkbin\\.taixu\\.(runtime|harness|ui|core\\.(database|datastore|network|security|tools)))\\.",
+      "modules": ["plugin.packages"],
+      "message": "plugin:packages 只依赖纯协议模型，不接入平台、执行器或持久化实现"
+    },
+    {
+      "id": "plugin-api-purity",
+      "pattern": "^import\\s+(android|androidx|org\\.koin|okhttp3|io\\.ktor|top\\.wkbin\\.taixu\\.(core|runtime|harness|ui))\\.",
+      "modules": ["plugin.api", "plugin.runtime"],
+      "message": "plugin:api / plugin:runtime 保持平台无关，不依赖 UI、DI、执行后端或业务实现"
+    },
     {
       "id": "agent-core-purity",
       "pattern": "^import\\s+(android|androidx|okhttp3|io\\.ktor|org\\.koin|top\\.wkbin\\.taixu\\.(core|runtime|ui))\\.",
@@ -67,6 +78,19 @@
     },
     { "id": "baselineprofile", "path": "baselineprofile", "requires": [] },
     {
+      "id": "plugin.api", "path": "plugin/api", "requires": [],
+      "forbidBuildScript": ["android.library", "koin.android", "androidx.core"]
+    },
+    { "id": "plugin.ui", "path": "plugin/ui", "requires": ["plugin.api", "plugin.runtime", "feature.components"] },
+    {
+      "id": "plugin.packages", "path": "plugin/packages", "requires": ["plugin.api", "core.model"],
+      "forbidBuildScript": ["android.library", "koin.android", "androidx.core"]
+    },
+    {
+      "id": "plugin.runtime", "path": "plugin/runtime", "requires": ["plugin.api"],
+      "forbidBuildScript": ["android.library", "koin.android", "androidx.core"]
+    },
+    {
       "id": "core.common", "path": "core/common", "requires": [],
       "_doc": "通用工具层不依赖任何兄弟模块，防止核心层反向耦合"
     },
@@ -94,13 +118,14 @@
     { "id": "project-template", "path": "project-template", "requires": ["core.common"] },
     {
       "id": "tools", "path": "tools", "requires": [
+        "plugin.packages",
         "core.common", "core.model", "core.database", "core.datastore",
         "core.network", "core.security", "runtime"
       ]
     },
     {
       "id": "harness", "path": "harness", "requires": [
-        "harness.core",
+        "harness.core", "plugin.api",
         "core.common", "core.model", "core.browser", "runtime.browser",
         "core.database", "core.datastore", "core.network", "core.security",
         "runtime", "tools"
@@ -130,7 +155,7 @@
       "path": "feature/chat",
       "requires": ["core.common", "core.database", "core.datastore", "runtime", "harness", "tools", "feature.theme", "feature.a2uipoc"]
     },
-    { "id": "feature.terminal", "path": "feature/terminal", "requires": ["core.datastore", "runtime"] },
+    { "id": "feature.terminal", "path": "feature/terminal", "requires": ["core.datastore", "runtime", "plugin.ui"] },
     {
       "id": "feature.workspace",
       "path": "feature/workspace",
@@ -160,19 +185,18 @@
       "requires": [
         "feature.theme", "feature.home", "feature.chat", "feature.terminal",
         "feature.workspace", "feature.workflow", "feature.settings", "feature.developer",
-        "feature.custom_iteration", "feature.browser", "feature.git", "feature.preview",
-        "feature.a2uipoc"
+        "feature.custom_iteration", "feature.browser", "feature.git", "feature.a2uipoc",
+        "plugin.ui", "core.datastore"
       ]
     },
     {
       "id": "feature.browser", "path": "feature/browser",
-      "requires": ["core.browser", "core.datastore", "runtime.browser", "feature.theme"]
+      "requires": ["core.browser", "core.datastore", "runtime.browser", "feature.theme", "plugin.ui"]
     },
     {
       "id": "feature.git", "path": "feature/git",
       "requires": ["core.security", "runtime", "harness", "feature.theme"]
     },
-    { "id": "feature.preview", "path": "feature/preview", "requires": ["feature.theme"] },
     {
       "id": "feature.a2uipoc",
       "path": "feature/a2uipoc",

@@ -8,12 +8,21 @@ import top.wkbin.taixu.core.security.SecretRedactor
 /** SSH authentication material must be masked even when environment privacy is disabled. */
 internal suspend fun redactExecutionOutput(value: String, redactor: SecretRedactor,
     environments: SessionExecutionEnvironments?, legacyVariables: LinuxEnvironmentManager?, preferences: AgentPreferences?,
-    sessionId: String, workspace: String): String {
+    sessionId: String, workspace: String): String =
+    executionOutputRedactor(redactor, environments, legacyVariables, preferences, sessionId, workspace)(value)
+
+/** Capture this world's privacy policy once, before a bounded search starts cropping matching lines. */
+internal suspend fun executionOutputRedactor(redactor: SecretRedactor,
+    environments: SessionExecutionEnvironments?, legacyVariables: LinuxEnvironmentManager?, preferences: AgentPreferences?,
+    sessionId: String, workspace: String): (String) -> String {
     val secrets = executionOutputSecrets(environments, legacyVariables, sessionId, workspace)
     val ssh = environments?.environment(sessionId, workspace)?.id?.backend == "ssh"
-    val protected = if (ssh) secrets.filter { it.isNotEmpty() }.distinct().sortedByDescending { it.length }
-        .fold(value) { output, secret -> output.replace(secret, "[REDACTED]") } else value
-    return redactor.redact(protected, secrets, ssh || (preferences?.environmentPrivacyMode?.first() ?: true))
+    val privacy = ssh || (preferences?.environmentPrivacyMode?.first() ?: true)
+    val protectedSecrets = if (ssh) secrets.filter { it.isNotEmpty() }.distinct().sortedByDescending { it.length } else emptyList()
+    return { value ->
+        val protected = protectedSecrets.fold(value) { output, secret -> output.replace(secret, "[REDACTED]") }
+        redactor.redact(protected, secrets, privacy)
+    }
 }
 
 /** Bound worlds never consult the phone's active distribution to sanitize their output. */

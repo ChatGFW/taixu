@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -88,17 +88,17 @@ import kotlinx.coroutines.delay
 @Composable
 fun McpSettingsScreen(
     onBack: () -> Unit,
-    viewModel: SettingsViewModel = koinViewModel(),
-    catalogViewModel: McpCatalogViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
+    catalogViewModel: McpCatalogViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val servers by viewModel.mcpServers.collectAsStateWithLifecycle()
-    val toggleOverrides by viewModel.mcpToggleOverrides.collectAsStateWithLifecycle()
-    val connectionStates by viewModel.mcpConnectionStates.collectAsStateWithLifecycle()
-    val mcpAuthStates by viewModel.mcpAuthStates.collectAsStateWithLifecycle()
-    val browserGates by viewModel.browserGates.collectAsStateWithLifecycle()
+    val servers by viewModel?.mcpServers?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val toggleOverrides by viewModel?.mcpToggleOverrides?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val connectionStates by viewModel?.mcpConnectionStates?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val mcpAuthStates by viewModel?.mcpAuthStates?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val browserGates by viewModel?.browserGates?.collectAsStateWithLifecycle() ?: previewStateOf(BrowserGateState())
     // 未安装的按需能力：id → 待安装组件名。用于禁用开关并给出"先去安装"的直达提示。
-    val mcpInstallBlocked by catalogViewModel.installBlocked.collectAsStateWithLifecycle()
-    val mcpInstallNotice by catalogViewModel.installNotice.collectAsStateWithLifecycle()
+    val mcpInstallBlocked by catalogViewModel?.installBlocked?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val mcpInstallNotice by catalogViewModel?.installNotice?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val screenScope = rememberCoroutineScope()
     val screenContext = LocalContext.current
     var showAddDialog by remember { mutableStateOf(false) }
@@ -110,15 +110,15 @@ fun McpSettingsScreen(
 
     // 进入设置页时：对齐组件探针（决定哪些能力"还没装"）并探测一次已启用服务的连通性
     LaunchedEffect(Unit) {
-        catalogViewModel.refresh()
-        viewModel.refreshMcpConnections()
+        catalogViewModel?.refresh()
+        viewModel?.refreshMcpConnections(probeSleeping = false)
     }
 
     // 未安装能力的提示只展示一次，避免每次重组都弹
     LaunchedEffect(mcpInstallNotice) {
         mcpInstallNotice?.let { message ->
             Toast.makeText(screenContext, message, Toast.LENGTH_LONG).show()
-            catalogViewModel.consumeInstallNotice()
+            catalogViewModel?.consumeInstallNotice()
         }
     }
 
@@ -141,36 +141,7 @@ fun McpSettingsScreen(
         ) {
             item {
                 Spacer(Modifier.height(4.dp))
-                // Banner Card
-                RuntimeCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                RuntimeIcon(RuntimeIconName.Network, Modifier.size(16.dp), MaterialTheme.colorScheme.primary)
-                            }
-                            Text(
-                                "Model Context Protocol (MCP)",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                        Text(
-                            "MCP 是开放的标准模型上下文协议。开启后，太墟将在 PRoot 沙箱内启动对应的 Stdio 服务或连接本地 SSE 端点，并动态向智枢 Agent 注入专业工具能力。",
-                            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                McpClientSettingsSection()
             }
 
             item {
@@ -186,7 +157,7 @@ fun McpSettingsScreen(
                     )
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         IconButton(
-                            onClick = { viewModel.refreshMcpConnections() },
+                            onClick = { viewModel?.refreshMcpConnections() },
                             modifier = Modifier.size(30.dp),
                         ) {
                             RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(16.dp), MaterialTheme.colorScheme.onSurfaceVariant)
@@ -194,7 +165,7 @@ fun McpSettingsScreen(
                         TextButton(
                             onClick = {
                                 showLocalDiscoveryDialog = true
-                                viewModel.discoverLocalMcpServers()
+                                viewModel?.discoverLocalMcpServers()
                             },
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -228,12 +199,12 @@ fun McpSettingsScreen(
                     McpServerItemCard(
                         server = server,
                         connectionState = connectionStates[server.id] ?: McpConnectionState.UNKNOWN,
-                        error = viewModel.mcpLastError(server.id),
+                        error = viewModel?.mcpLastError(server.id),
                         togglePending = server.id in toggleOverrides,
                         requiredComponentName = mcpInstallBlocked[server.id],
                         onToggle = { enabled ->
-                            if (catalogViewModel.onToggleRequested(server.id, enabled)) {
-                                viewModel.toggleMcpServer(server.id, enabled)
+                            if (catalogViewModel?.onToggleRequested(server.id, enabled) == true) {
+                                viewModel?.toggleMcpServer(server.id, enabled)
                             }
                         },
                         onClickDetail = { viewingDetailServer = server },
@@ -253,10 +224,10 @@ fun McpSettingsScreen(
                     McpServerItemCard(
                         server = server,
                         connectionState = connectionStates[server.id] ?: McpConnectionState.UNKNOWN,
-                        error = viewModel.mcpLastError(server.id),
+                        error = viewModel?.mcpLastError(server.id),
                         togglePending = server.id in toggleOverrides,
                         requiredComponentName = null,
-                        onToggle = { enabled -> viewModel.toggleMcpServer(server.id, enabled) },
+                        onToggle = { enabled -> viewModel?.toggleMcpServer(server.id, enabled) },
                         onClickDetail = { viewingDetailServer = server },
                     )
                 }
@@ -268,7 +239,7 @@ fun McpSettingsScreen(
 
             item(key = "mcp_section_agent_server") {
                 AgentServerCard(
-                    state = viewModel.agentServerState.collectAsStateWithLifecycle().value,
+                    state = (viewModel?.agentServerState?.collectAsStateWithLifecycle() ?: previewStateOf(AgentServerState())).value,
                     viewModel = viewModel,
                 )
             }
@@ -283,11 +254,11 @@ fun McpSettingsScreen(
         AddMcpServerDialog(
             onDismiss = { showAddDialog = false },
             onAdd = { newServer ->
-                viewModel.saveMcpServer(newServer)
+                viewModel?.saveMcpServer(newServer)
                 showAddDialog = false
             },
             onAddBatch = { serversList ->
-                serversList.forEach { viewModel.saveMcpServer(it) }
+                serversList.forEach { viewModel?.saveMcpServer(it) }
                 showAddDialog = false
             },
         )
@@ -295,10 +266,10 @@ fun McpSettingsScreen(
 
     if (showLocalDiscoveryDialog) {
         LocalMcpDiscoveryDialog(
-            state = viewModel.localMcpDiscovery.collectAsStateWithLifecycle().value,
+            state = (viewModel?.localMcpDiscovery?.collectAsStateWithLifecycle() ?: previewStateOf(LocalMcpDiscoveryState.Idle)).value,
             onDismiss = { showLocalDiscoveryDialog = false },
-            onRetry = viewModel::discoverLocalMcpServers,
-            onAdd = viewModel::saveMcpServer,
+            onRetry = { viewModel?.discoverLocalMcpServers() },
+            onAdd = { arg0 -> viewModel?.saveMcpServer(arg0) },
         )
     }
 
@@ -312,7 +283,7 @@ fun McpSettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteMcpServer(server.id)
+                        viewModel?.deleteMcpServer(server.id)
                         pendingDeleteServerId = null
                     },
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(
@@ -337,14 +308,14 @@ fun McpSettingsScreen(
                 viewingDetailServer = null
             },
             onTest = {
-                val res = viewModel.testMcpServer(server)
-                viewModel.refreshMcpConnections()
+                val res = viewModel?.testMcpServer(server) ?: Result.success(emptyList())
+                viewModel?.refreshMcpConnections()
                 res
             },
             authState = mcpAuthStates[server.id] ?: McpAuthState.Unsupported,
             onAuthorize = {
                 screenScope.launch {
-                    runCatching { viewModel.beginMcpAuthorization(server) }
+                    runCatching { viewModel?.beginMcpAuthorization(server) }
                         .onSuccess {
                             runCatching { screenContext.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
                                 .onFailure { error -> Toast.makeText(screenContext, "授权启动失败：${error.message}", Toast.LENGTH_SHORT).show() }
@@ -352,7 +323,7 @@ fun McpSettingsScreen(
                         .onFailure { Toast.makeText(screenContext, "授权启动失败：${it.message}", Toast.LENGTH_SHORT).show() }
                 }
             },
-            onLogout = { viewModel.logoutMcpAuthorization(server.id) },
+            onLogout = { viewModel?.logoutMcpAuthorization(server.id) },
         )
     }
 }
@@ -457,7 +428,7 @@ private fun LocalMcpDiscoveryDialog(
  * 门禁为引擎池级/工具快照级配置，修改后需重启应用生效。
  */
 @Composable
-private fun BrowserGatesCard(gates: BrowserGateState, viewModel: SettingsViewModel) {
+private fun BrowserGatesCard(gates: BrowserGateState, viewModel: SettingsViewModel?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -485,31 +456,31 @@ private fun BrowserGatesCard(gates: BrowserGateState, viewModel: SettingsViewMod
                 title = "远程连接",
                 description = "允许局域网设备连接浏览器 MCP 服务（绑定 0.0.0.0）；关闭时仅限本机回环，仍强制 Bearer 认证",
                 checked = gates.allowRemoteConnect,
-                onCheckedChange = viewModel::setBrowserAllowRemoteConnect,
+                onCheckedChange = { arg0 -> viewModel?.setBrowserAllowRemoteConnect(arg0) },
             )
             BrowserGateRow(
                 title = "页面 JS 执行",
                 description = "允许 Agent 在页面上下文执行任意 JavaScript（browser.evaluate）",
                 checked = gates.allowEvalJs,
-                onCheckedChange = viewModel::setBrowserAllowEvalJs,
+                onCheckedChange = { arg0 -> viewModel?.setBrowserAllowEvalJs(arg0) },
             )
             BrowserGateRow(
                 title = "注入式 Hook",
                 description = "允许注入脚本拦截/改写页面网络请求与 JS 函数（log/block/redirect/mock）",
                 checked = gates.allowHooks,
-                onCheckedChange = viewModel::setBrowserAllowHooks,
+                onCheckedChange = { arg0 -> viewModel?.setBrowserAllowHooks(arg0) },
             )
             BrowserGateRow(
                 title = "CDP 调试（断点）",
                 description = "允许通过 DevTools 协议 attach 页面：真断点、暂停时读写变量、Worker 级请求拦截；开启会暴露本进程 DevTools socket（同设备其他应用理论上可连），仅在受控环境使用",
                 checked = gates.allowCdp,
-                onCheckedChange = viewModel::setBrowserAllowCdp,
+                onCheckedChange = { arg0 -> viewModel?.setBrowserAllowCdp(arg0) },
             )
             BrowserGateRow(
                 title = "页面调试面板（vConsole）",
                 description = "在每个页面注入 vConsole 浮动面板（console / 网络 / 存储），供人工浏览时排查；与 Agent 工具门禁无关，重启后对新开 tab 生效",
                 checked = gates.allowVConsole,
-                onCheckedChange = viewModel::setBrowserAllowVConsole,
+                onCheckedChange = { arg0 -> viewModel?.setBrowserAllowVConsole(arg0) },
             )
         }
     }
@@ -553,7 +524,7 @@ private fun BrowserGateRow(
  * 配置变更由 AgentMcpBootstrap 监听偏好后即时重启，无需重启应用。
  */
 @Composable
-private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewModel) {
+private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewModel?) {
     val context = LocalContext.current
     val lanIp = remember { detectLanIp() }
     // 配置变更后 Bootstrap 异步重启，延迟一拍再读实际监听状态，避免刚切换时显示过期状态
@@ -595,7 +566,7 @@ private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewMode
                 title = "启用被控端",
                 description = "在本机启动独立的 MCP 服务端点；关闭后立即停止监听",
                 checked = state.enabled,
-                onCheckedChange = viewModel::setAgentServerEnabled,
+                onCheckedChange = { arg0 -> viewModel?.setAgentServerEnabled(arg0) },
             )
 
             AnimatedVisibility(visible = state.enabled) {
@@ -604,13 +575,13 @@ private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewMode
                         title = "允许局域网连接",
                         description = "绑定 0.0.0.0，同网段设备可连接；关闭时仅限本机回环，两种模式均强制 Bearer 认证",
                         checked = state.allowRemote,
-                        onCheckedChange = viewModel::setAgentServerAllowRemote,
+                        onCheckedChange = { arg0 -> viewModel?.setAgentServerAllowRemote(arg0) },
                     )
                     BrowserGateRow(
                         title = "允许写入与执行",
                         description = "开放 write/edit/base/process/download 及 host 的写操作；关闭时仅提供 read 与只读 host/memory 动作",
                         checked = state.allowWriteTools,
-                        onCheckedChange = viewModel::setAgentServerAllowWriteTools,
+                        onCheckedChange = { arg0 -> viewModel?.setAgentServerAllowWriteTools(arg0) },
                     )
 
                     // 端口
@@ -618,7 +589,7 @@ private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewMode
                         value = portText,
                         onValueChange = { input ->
                             portText = input.filter { it.isDigit() }.take(5)
-                            portText.toIntOrNull()?.let(viewModel::setAgentServerPort)
+                            portText.toIntOrNull()?.let({ arg0 -> viewModel?.setAgentServerPort(arg0) })
                         },
                         label = { Text("监听端口") },
                         singleLine = true,
@@ -704,7 +675,7 @@ private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewMode
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f),
                             )
-                            TextButton(onClick = viewModel::resetAgentServerToken) {
+                            TextButton(onClick = { viewModel?.resetAgentServerToken() }) {
                                 Text("重置令牌", style = MaterialTheme.typography.labelSmall)
                             }
                         }

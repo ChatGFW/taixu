@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.developer
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -50,7 +51,6 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
 import top.wkbin.taixu.ui.components.StatusBadge
 import top.wkbin.taixu.ui.developer.LocalizedText as Text
-
 /**
  * 独立的无线 ADB 与日志抓取工作台页面。
  *
@@ -63,14 +63,14 @@ import top.wkbin.taixu.ui.developer.LocalizedText as Text
 @Composable
 fun AdbLogcatScreen(
     onBack: () -> Unit,
-    viewModel: DeveloperViewModel = koinViewModel(),
+    viewModel: DeveloperViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val adbState by viewModel.adbState.collectAsStateWithLifecycle()
-    val adbDiscovery by viewModel.adbDiscovery.collectAsStateWithLifecycle()
-    val adbBusy by viewModel.adbBusy.collectAsStateWithLifecycle()
-    val adbMessage by viewModel.adbMessage.collectAsStateWithLifecycle()
-    val logcatOutput by viewModel.logcatOutput.collectAsStateWithLifecycle()
-    val adbNotificationEnabled by viewModel.adbNotificationEnabled.collectAsStateWithLifecycle()
+    val adbState by viewModel?.adbState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager.ConnectionState.Disconnected)
+    val adbDiscovery by viewModel?.adbDiscovery?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager.DiscoveryState())
+    val adbBusy by viewModel?.adbBusy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val adbMessage by viewModel?.adbMessage?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val logcatOutput by viewModel?.logcatOutput?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val adbNotificationEnabled by viewModel?.adbNotificationEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
 
     var pairingCode by rememberSaveable { mutableStateOf("") }
     var explicitPort by rememberSaveable { mutableStateOf("") }
@@ -181,7 +181,7 @@ fun AdbLogcatScreen(
                     }
                     androidx.compose.material3.Switch(
                         checked = adbNotificationEnabled,
-                        onCheckedChange = viewModel::setAdbNotificationEnabled,
+                        onCheckedChange = { arg0 -> viewModel?.setAdbNotificationEnabled(arg0) },
                     )
                 }
             }
@@ -237,14 +237,14 @@ fun AdbLogcatScreen(
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
-                        onClick = { viewModel.pairWirelessAdb(pairingCode, explicitPort.toIntOrNull()) },
+                        onClick = { viewModel?.pairWirelessAdb(pairingCode, explicitPort.toIntOrNull()) },
                         enabled = !adbBusy && pairingCode.length == 6 && (adbDiscovery.pairingEndpoints.isNotEmpty() || explicitPort.isNotBlank()),
                         modifier = Modifier.weight(1f),
                     ) {
                         Text("完成配对并连接")
                     }
                     OutlinedButton(
-                        onClick = { viewModel.connectWirelessAdb(explicitPort.toIntOrNull()) },
+                        onClick = { viewModel?.connectWirelessAdb(explicitPort.toIntOrNull()) },
                         enabled = !adbBusy && (adbDiscovery.connectEndpoints.isNotEmpty() || explicitPort.isNotBlank() || adbState is EmbeddedAdbManager.ConnectionState.Connected),
                         modifier = Modifier.weight(1f),
                     ) {
@@ -255,7 +255,7 @@ fun AdbLogcatScreen(
                 Spacer(Modifier.height(6.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     FilledTonalButton(
-                        onClick = viewModel::restartAdbDiscovery,
+                        onClick = { viewModel?.restartAdbDiscovery() },
                         enabled = !adbBusy,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     ) {
@@ -355,7 +355,7 @@ fun AdbLogcatScreen(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
-                            viewModel.captureLogcat(
+                            viewModel?.captureLogcat(
                                 logcatPackage,
                                 logcatTag,
                                 logcatPriority,
@@ -369,7 +369,7 @@ fun AdbLogcatScreen(
                         Text("抓取日志")
                     }
                     OutlinedButton(
-                        onClick = viewModel::clearDeviceLogcat,
+                        onClick = { viewModel?.clearDeviceLogcat() },
                         enabled = connected != null && !adbBusy,
                     ) {
                         Text("清空缓冲区")

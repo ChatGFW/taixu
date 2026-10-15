@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -67,7 +68,6 @@ import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.StatusBadge
 import top.wkbin.taixu.core.model.CcSwitchDaemonStatus
-
 /**
  * 太墟 · CC-Switch 智能体中枢主界面
  *
@@ -85,10 +85,10 @@ internal fun LocalCcSwitchContent(
     onBack: () -> Unit,
     onLaunchTerminal: (executable: String) -> Unit,
     onOpenBrowser: (url: String) -> Unit,
-    viewModel: CcSwitchViewModel = koinViewModel(),
+    viewModel: CcSwitchViewModel? = previewOrNull { koinViewModel() },
 ) {
     val context = LocalContext.current
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val state by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(CcSwitchUiState())
 
     Scaffold(
         topBar = {
@@ -98,7 +98,7 @@ internal fun LocalCcSwitchContent(
                 onBack = onBack,
                 actions = {
                     RuntimeIconButton(
-                        onClick = { viewModel.refreshStatus() },
+                        onClick = { viewModel?.refreshStatus() },
                         enabled = !state.isOperating,
                     ) {
                         RuntimeIcon(
@@ -124,7 +124,7 @@ internal fun LocalCcSwitchContent(
                     NoticeBanner(
                         text = error,
                         isError = true,
-                        onDismiss = { viewModel.dismissMessage() },
+                        onDismiss = { viewModel?.dismissMessage() },
                     )
                     if (state.installLogs.isNotEmpty()) {
                         Row(
@@ -132,7 +132,7 @@ internal fun LocalCcSwitchContent(
                             horizontalArrangement = Arrangement.End,
                         ) {
                             RuntimeOutlinedButton(
-                                onClick = { viewModel.showInstallLogs() },
+                                onClick = { viewModel?.showInstallLogs() },
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                             ) {
                                 RuntimeIcon(name = RuntimeIconName.Terminal, modifier = Modifier.size(14.dp))
@@ -147,17 +147,17 @@ internal fun LocalCcSwitchContent(
                 NoticeBanner(
                     text = msg,
                     isError = false,
-                    onDismiss = { viewModel.dismissMessage() },
+                    onDismiss = { viewModel?.dismissMessage() },
                 )
             }
 
             // 1. 守护进程卡片
             DaemonServiceCard(
                 state = state,
-                onStart = { viewModel.startDaemon() },
-                onStop = { viewModel.stopDaemon() },
-                onRestart = { viewModel.restartDaemon() },
-                onResetPassword = { viewModel.resetWebPassword(it) },
+                onStart = { viewModel?.startDaemon() },
+                onStop = { viewModel?.stopDaemon() },
+                onRestart = { viewModel?.restartDaemon() },
+                onResetPassword = { viewModel?.resetWebPassword(it) },
                 onOpenWebConsole = {
                     val targetUrl = state.loopbackUrl.ifBlank { state.preferredWebUrl }
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
@@ -201,7 +201,7 @@ internal fun LocalCcSwitchContent(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (state.installLogs.isNotEmpty()) {
                         RuntimeOutlinedButton(
-                            onClick = { viewModel.showInstallLogs() },
+                            onClick = { viewModel?.showInstallLogs() },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
                             RuntimeIcon(name = RuntimeIconName.Terminal, modifier = Modifier.size(14.dp))
@@ -211,7 +211,7 @@ internal fun LocalCcSwitchContent(
                     }
                     if (state.isDaemonRunning) {
                         RuntimeFilledTonalButton(
-                            onClick = { viewModel.refreshEnvironment() },
+                            onClick = { viewModel?.refreshEnvironment() },
                             enabled = !state.isOperating && !state.isCheckingEnvironment,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
@@ -239,10 +239,10 @@ internal fun LocalCcSwitchContent(
                         isDaemonRunning = state.isDaemonRunning,
                         isOperating = state.isOperating,
                         isInstalling = state.installingAgentType == agent.type,
-                        onSwitchProvider = { viewModel.openSwitchProviderDialog(agent) },
-                        onInstall = { viewModel.installOrUpgradeAgent(agent, targetVersion = null) },
-                        onUpgrade = { viewModel.installOrUpgradeAgent(agent, targetVersion = agent.latestVersion) },
-                        onShowLogs = { viewModel.showInstallLogs() },
+                        onSwitchProvider = { viewModel?.openSwitchProviderDialog(agent) },
+                        onInstall = { viewModel?.installOrUpgradeAgent(agent, targetVersion = null) },
+                        onUpgrade = { viewModel?.installOrUpgradeAgent(agent, targetVersion = agent.latestVersion) },
+                        onShowLogs = { viewModel?.showInstallLogs() },
                     )
                 }
             }
@@ -250,7 +250,7 @@ internal fun LocalCcSwitchContent(
             // 底部高级同步区
             AdvancedSyncCard(
                 taiXuModels = state.taiXuModels,
-                onImportModel = { viewModel.importTaiXuModel(it) },
+                onImportModel = { viewModel?.importTaiXuModel(it) },
             )
         }
     }
@@ -261,10 +261,10 @@ internal fun LocalCcSwitchContent(
             agent = agent,
             providers = state.providers,
             taiXuModels = state.taiXuModels,
-            onDismiss = { viewModel.dismissDialogs() },
-            onSelectProvider = { provider -> viewModel.switchAgentProvider(agent, provider) },
+            onDismiss = { viewModel?.dismissDialogs() },
+            onSelectProvider = { provider -> viewModel?.switchAgentProvider(agent, provider) },
             onImportAndSelect = { model ->
-                viewModel.importTaiXuModel(model)
+                viewModel?.importTaiXuModel(model)
             },
         )
     }
@@ -273,8 +273,8 @@ internal fun LocalCcSwitchContent(
     state.upgradingAgent?.let { agent ->
         UpgradeVersionDialog(
             agent = agent,
-            onDismiss = { viewModel.dismissDialogs() },
-            onConfirmUpgrade = { version -> viewModel.installOrUpgradeAgent(agent, version) },
+            onDismiss = { viewModel?.dismissDialogs() },
+            onConfirmUpgrade = { version -> viewModel?.installOrUpgradeAgent(agent, version) },
         )
     }
 
@@ -285,8 +285,8 @@ internal fun LocalCcSwitchContent(
             logs = state.installLogs,
             isOperating = state.isOperating,
             isError = state.errorMessage != null,
-            onDismiss = { viewModel.dismissInstallLogs() },
-            onClear = { viewModel.clearInstallLogs() },
+            onDismiss = { viewModel?.dismissInstallLogs() },
+            onClear = { viewModel?.clearInstallLogs() },
             onCopy = { logsText ->
                 copyText(context, logsText, "已复制完整安装日志 (${state.installLogs.size} 行)")
             },

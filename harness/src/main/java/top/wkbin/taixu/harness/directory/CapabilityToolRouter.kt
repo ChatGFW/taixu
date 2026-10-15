@@ -21,6 +21,7 @@ class CapabilityToolRouter(
     private val mcpManager: McpManager?,
     /** 嵌套记录脱敏（调用方注入 SecretRedactor；目录层保持纯净）。 */
     private val argRedactor: (String) -> String = { it },
+    private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
     /** 宿主执行通道：与直接 host 调用共用同一 executeHost（含输出上限与截图 metadata 附带）。 */
     private val hostExecutor: suspend (JsonObject, String?, String, MutableMap<String, String>) -> Pair<Boolean, String>,
 ) {
@@ -70,20 +71,28 @@ class CapabilityToolRouter(
     private suspend fun listCapabilities(): Pair<Boolean, String> {
         val summaries = mcpManager?.enabledServerSummaries().orEmpty()
         val hostLine = HostCapabilityDirectory.listSummaryLine()
+        val pluginLines = plugins?.summaries().orEmpty()
         if (summaries.isEmpty()) {
             return true to buildString {
                 appendLine("可用的能力域：")
                 appendLine(hostLine)
+                if (pluginLines.isNotEmpty()) appendLine(pluginLines)
                 append("未启用任何 MCP 服务。可在「设置 → MCP 插件与协议生态」启用内置能力或添加自定义服务。")
             }
         }
         return true to buildString {
             appendLine("可用的能力域（MCP 服务未连接的在首次 call 时自动启动并发现工具）：")
             appendLine(hostLine)
+            if (pluginLines.isNotEmpty()) appendLine(pluginLines)
             summaries.forEach { summary ->
                 appendLine(
                     "- ${summary.id} · ${summary.name} · 已缓存 ${summary.cachedToolCount} 个工具 · " +
-                        if (summary.connected) "已连接" else "未连接",
+                        when (summary.processState) {
+                            top.wkbin.taixu.core.model.McpConnectionState.SLEEPING -> "已就绪（休眠）"
+                            top.wkbin.taixu.core.model.McpConnectionState.WAKING -> "正在唤醒"
+                            top.wkbin.taixu.core.model.McpConnectionState.OFFLINE -> "进程离线"
+                            else -> if (summary.connected) "工具目录已就绪" else "未发现工具"
+                        },
                 )
             }
             append("用 inspect 查看某能力域的工具清单与参数，用 call 调用。")
@@ -93,6 +102,7 @@ class CapabilityToolRouter(
     private suspend fun inspect(args: JsonObject): Pair<Boolean, String> {
         val serverId = args.stringArg("server")?.trim().orEmpty()
         if (serverId.isBlank()) return false to "inspect 需要 server 参数（先用 list 查看可用的能力域 id）"
+        if (serverId.startsWith("plugin.")) return plugins?.inspect(serverId) ?: (false to "插件目录未初始化")
         if (serverId.lowercase() == HostCapabilityDirectory.SERVER_ID) {
             return true to HostCapabilityDirectory.inspectListing()
         }
@@ -179,6 +189,9 @@ class CapabilityToolRouter(
                 return false to reason
             }
             hostExecutor(HostCapabilityDirectory.flattenHostArgs(tool, callArgs), operationId, sessionId, metadata)
+        } else if (serverId.startsWith("plugin.")) {
+            plugins?.call(serverId, tool, top.wkbin.taixu.harness.plugins.PluginToolRequest(callArgs, sessionId, workspace, operationId))
+                ?: (false to "插件目录未初始化")
         } else {
             val manager = mcpManager ?: run {
                 val reason = "未初始化 MCP 管理器"

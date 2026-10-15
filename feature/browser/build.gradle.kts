@@ -8,6 +8,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":plugin:ui"))
     implementation(project(":core:browser"))
     implementation(project(":core:datastore"))
     implementation(project(":runtime:browser"))

@@ -68,8 +68,6 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.SyntaxHighlighter
-import top.wkbin.taixu.ui.components.TaiXuGlassPanel
-
 enum class ArtifactViewMode {
     PREVIEW,
     CODE,
@@ -169,9 +167,10 @@ fun ArtifactPreviewSheet(
                 .heightIn(min = 420.dp, max = 680.dp),
         ) {
             // 1. 顶栏标题与模式切换
-            TaiXuGlassPanel(
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
             ) {
                 Row(
                     modifier = Modifier

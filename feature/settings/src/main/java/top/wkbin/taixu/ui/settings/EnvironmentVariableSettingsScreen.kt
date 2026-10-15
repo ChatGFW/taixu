@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import androidx.compose.foundation.layout.Arrangement
@@ -41,20 +42,19 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
 import top.wkbin.taixu.core.model.EnvironmentVariable
 import top.wkbin.taixu.core.model.RuntimeState
-
 @Composable
 fun EnvironmentVariableSettingsScreen(
     onBack: () -> Unit,
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val entries by viewModel.environmentVariables.collectAsStateWithLifecycle()
-    val values by viewModel.environmentValues.collectAsStateWithLifecycle()
-    val effectiveEntries by viewModel.effectiveEnvironment.collectAsStateWithLifecycle()
-    val privacyMode by viewModel.environmentPrivacyMode.collectAsStateWithLifecycle()
-    val loading by viewModel.environmentLoading.collectAsStateWithLifecycle()
-    val error by viewModel.environmentError.collectAsStateWithLifecycle()
-    val activeDistroId by viewModel.activeDistroId.collectAsStateWithLifecycle()
-    val runtimeState by viewModel.runtimeState.collectAsStateWithLifecycle()
+    val entries by viewModel?.environmentVariables?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val values by viewModel?.environmentValues?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val effectiveEntries by viewModel?.effectiveEnvironment?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val privacyMode by viewModel?.environmentPrivacyMode?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val loading by viewModel?.environmentLoading?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val error by viewModel?.environmentError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val activeDistroId by viewModel?.activeDistroId?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
+    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
     // 对象状态仅保存可 Bundle 化的字段，旋转后按 key/entry 恢复
     var showEditor by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var editingKey by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
@@ -69,7 +69,7 @@ fun EnvironmentVariableSettingsScreen(
         key: String,
         value: String,
     ) {
-        viewModel.clearEnvironmentError()
+        viewModel?.clearEnvironmentError()
         editingKey = entry?.id
         editorInitialKey = key
         editorInitialValue = value
@@ -83,13 +83,13 @@ fun EnvironmentVariableSettingsScreen(
             currentValue = editorInitialValue,
             error = error,
             onDismiss = {
-                viewModel.clearEnvironmentError()
+                viewModel?.clearEnvironmentError()
                 showEditor = false
                 editingKey = null
             },
             onSave = { key, value, note ->
-                if (editing == null) viewModel.addEnvironmentVariable(key, value, note) { if (it) { showEditor = false } }
-                else viewModel.updateEnvironmentVariable(editing.id, key, value, note) { if (it) { showEditor = false; editingKey = null } }
+                if (editing == null) viewModel?.addEnvironmentVariable(key, value, note) { if (it) { showEditor = false } }
+                else viewModel?.updateEnvironmentVariable(editing.id, key, value, note) { if (it) { showEditor = false; editingKey = null } }
             },
         )
     }
@@ -98,7 +98,7 @@ fun EnvironmentVariableSettingsScreen(
             onDismissRequest = { deleteKey = null },
             title = { Text("删除环境变量") },
             text = { Text("确定删除 ${entry.key}？") },
-            confirmButton = { TextButton(onClick = { viewModel.deleteEnvironmentVariable(entry.id); deleteKey = null }) { Text("删除") } },
+            confirmButton = { TextButton(onClick = { viewModel?.deleteEnvironmentVariable(entry.id); deleteKey = null }) { Text("删除") } },
             dismissButton = { TextButton(onClick = { deleteKey = null }) { Text("取消") } },
         )
     }
@@ -110,7 +110,7 @@ fun EnvironmentVariableSettingsScreen(
                 "环境变量",
                 onBack,
                 actions = {
-                    IconButton(onClick = { viewModel.refreshEnvironmentVariables() }, contentDescription = "刷新环境变量", enabled = !loading && runtimeState is RuntimeState.Ready) {
+                    IconButton(onClick = { viewModel?.refreshEnvironmentVariables() }, contentDescription = "刷新环境变量", enabled = !loading && runtimeState is RuntimeState.Ready) {
                         RuntimeIcon(RuntimeIconName.Refresh)
                     }
                     IconButton(onClick = { openEnvironmentEditor(null, "", "") }, contentDescription = "添加环境变量", enabled = !loading && runtimeState is RuntimeState.Ready) {
@@ -131,7 +131,7 @@ fun EnvironmentVariableSettingsScreen(
                         icon = RuntimeIconName.Shield,
                         title = "Agent 隐私遮盖",
                         subtitle = "仅遮盖发送给 Agent 和写入对话的变量值；本页仍显示明文",
-                        trailing = { Switch(checked = privacyMode, onCheckedChange = viewModel::setEnvironmentPrivacyMode) },
+                        trailing = { Switch(checked = privacyMode, onCheckedChange = { arg0 -> viewModel?.setEnvironmentPrivacyMode(arg0) }) },
                     )
                 }
             }

@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.git
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -62,7 +63,6 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import android.widget.Toast
-
 /**
  * 分支管理（参考 MGit）：
  * 分支列表/切换/新建/删除 + 多色提交记录树（哈希/作者/时间）+ HTTPS Token 推送拉取。
@@ -72,17 +72,17 @@ import android.widget.Toast
 fun GitScreen(
     projectName: String,
     onBack: () -> Unit,
-    viewModel: GitViewModel = koinViewModel(),
+    viewModel: GitViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val state by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(GitUiState())
     val context = LocalContext.current
 
-    LaunchedEffect(projectName) { viewModel.bind(projectName) }
+    LaunchedEffect(projectName) { viewModel?.bind(projectName) }
 
     LaunchedEffect(state.notice) {
         state.notice?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-            viewModel.clearNotice()
+            viewModel?.clearNotice()
         }
     }
 
@@ -98,7 +98,7 @@ fun GitScreen(
     // 从其他页面/后台返回时自动刷新（agent 可能改了工作区）。
     // 轻量版：跳过提交树 RevWalk 全量遍历，避免返回时 IO/GC 压力拖累转场动画。
     androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
-        viewModel.refreshLight()
+        viewModel?.refreshLight()
         onPauseOrDispose { }
     }
 
@@ -138,7 +138,7 @@ fun GitScreen(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            RuntimeIconButton(onClick = { viewModel.refresh() }) {
+            RuntimeIconButton(onClick = { viewModel?.refresh() }) {
                 RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(19.dp), MaterialTheme.colorScheme.onSurfaceVariant)
             }
             RuntimeIconButton(onClick = { showCredentials = true }) {
@@ -168,8 +168,8 @@ fun GitScreen(
                         busy = state.busy,
                         operation = state.operation,
                         progress = state.progress,
-                        onPull = viewModel::pull,
-                        onPush = { viewModel.loadPushPreview { preview -> pushPreview = preview } },
+                        onPull = { viewModel?.pull() },
+                        onPush = { viewModel?.loadPushPreview { preview -> pushPreview = preview } },
                     )
                 }
 
@@ -179,7 +179,7 @@ fun GitScreen(
                         busy = state.busy,
                         operation = state.operation,
                         progress = state.progress,
-                        onUnshallow = viewModel::unshallow,
+                        onUnshallow = { viewModel?.unshallow() },
                     )
                 }
 
@@ -262,24 +262,24 @@ fun GitScreen(
                 when (selectedTab) {
                     0 -> BranchesTab(
                         state = state,
-                        onCheckout = viewModel::checkout,
+                        onCheckout = { arg0 -> viewModel?.checkout(arg0) },
                         onDelete = { deleteTarget = it },
                         onCreate = { showCreateBranch = true },
                     )
                     1 -> CommitsTab(
                         state = state,
-                        onToggleDetail = viewModel::loadCommitDetail,
+                        onToggleDetail = { arg0 -> viewModel?.loadCommitDetail(arg0) },
                     )
                     2 -> ChangesTab(
                         state = state,
-                        onToggleStage = viewModel::stageFile,
-                        onStageAll = viewModel::stageAll,
-                        onUnstageAll = viewModel::unstageAll,
+                        onToggleStage = { arg0 -> viewModel?.stageFile(arg0) },
+                        onStageAll = { viewModel?.stageAll() },
+                        onUnstageAll = { viewModel?.unstageAll() },
                         onDiscard = { discardTarget = it },
-                        onCommit = viewModel::commit,
-                        onCommitAndPush = viewModel::commitAndPush,
-                        onGenerateMessage = { viewModel.generateCommitMessage() },
-                        onMessageChange = viewModel::updateCommitMessageDraft,
+                        onCommit = { arg0 -> viewModel?.commit(arg0) },
+                        onCommitAndPush = { arg0 -> viewModel?.commitAndPush(arg0) },
+                        onGenerateMessage = { viewModel?.generateCommitMessage() },
+                        onMessageChange = { arg0 -> viewModel?.updateCommitMessageDraft(arg0) },
                     )
                     else -> TagsTab(
                         state = state,
@@ -298,7 +298,7 @@ fun GitScreen(
             onDismiss = { showCreateBranch = false },
             onCreate = { name ->
                 showCreateBranch = false
-                viewModel.createBranch(name)
+                viewModel?.createBranch(name)
             },
         )
     }
@@ -309,7 +309,7 @@ fun GitScreen(
             savedHosts = state.credentialHosts,
             onDismiss = { showCredentials = false },
             onSave = { host, user, token ->
-                viewModel.saveCredentials(host, user, token) { showCredentials = false }
+                viewModel?.saveCredentials(host, user, token) { showCredentials = false }
             },
         )
     }
@@ -321,7 +321,7 @@ fun GitScreen(
             text = { Text(stringResource(R.string.fgit_delete_branch_confirm, branch.shortName)) },
             confirmButton = {
                 RuntimeTextButton(onClick = {
-                    viewModel.deleteBranch(branch)
+                    viewModel?.deleteBranch(branch)
                     deleteTarget = null
                 }) { Text(stringResource(R.string.fgit_delete), color = MaterialTheme.colorScheme.error) }
             },
@@ -338,7 +338,7 @@ fun GitScreen(
             text = { Text(stringResource(R.string.fgit_delete_tag_confirm, tagName)) },
             confirmButton = {
                 RuntimeTextButton(onClick = {
-                    viewModel.deleteTag(tagName)
+                    viewModel?.deleteTag(tagName)
                     deleteTagTarget = null
                 }) { Text(stringResource(R.string.fgit_delete), color = MaterialTheme.colorScheme.error) }
             },
@@ -355,7 +355,7 @@ fun GitScreen(
             text = { Text(stringResource(R.string.fgit_discard_confirm, change.path)) },
             confirmButton = {
                 RuntimeTextButton(onClick = {
-                    viewModel.discardFile(change)
+                    viewModel?.discardFile(change)
                     discardTarget = null
                 }) { Text(stringResource(R.string.fgit_discard), color = MaterialTheme.colorScheme.error) }
             },
@@ -400,7 +400,7 @@ fun GitScreen(
                 RuntimeTextButton(
                     onClick = {
                         pushPreview = null
-                        viewModel.push()
+                        viewModel?.push()
                     },
                     enabled = preview.isNotEmpty(),
                 ) { Text(stringResource(R.string.fgit_push_confirm)) }
@@ -416,7 +416,7 @@ fun GitScreen(
             onDismiss = { showCreateTag = false },
             onCreate = { name, message ->
                 showCreateTag = false
-                viewModel.createTag(name, message)
+                viewModel?.createTag(name, message)
             },
         )
     }

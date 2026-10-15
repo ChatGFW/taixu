@@ -12,7 +12,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.ui.components.*
 
 @Composable
-internal fun TerminalRestoreWarnings(viewModel: TerminalViewModel) {
+internal fun TerminalRestoreWarnings(viewModel: TerminalViewModel?) {
+    if (viewModel == null) return
     val failures by viewModel.restoreFailures.collectAsStateWithLifecycle()
     var expanded by remember { mutableStateOf(false) }
     if (failures.isEmpty()) return

@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +18,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-
 /**
  * 乾坤 · 特色功能二级页面：聚合 5 个特色功能入口（原首页快捷入口统一收纳于此）——
  * 一句话做 App · AI 圆桌会议 · 晨报哨兵 · WebChat 电脑大屏协作 · A2UI 界面。
@@ -29,10 +29,10 @@ fun FeatureHubScreen(
     onOpenCustomIteration: () -> Unit,
     onStartRoundtable: () -> Unit,
     onOpenA2uiPoc: () -> Unit,
-    viewModel: FeatureHubViewModel = koinViewModel(),
+    viewModel: FeatureHubViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val sentinelState by viewModel.sentinelState.collectAsStateWithLifecycle()
-    val webChatStatus by viewModel.webChatStatus.collectAsStateWithLifecycle()
+    val sentinelState by viewModel?.sentinelState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.harness.workflow.SentinelState())
+    val webChatStatus by viewModel?.webChatStatus?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.webchat.WebChatServerStatus())
 
     Scaffold(
         topBar = { RuntimeTopBar(stringResource(R.string.settings_feature_hub_title), onBack) },
@@ -63,14 +63,14 @@ fun FeatureHubScreen(
             item {
                 SentinelControlRow(
                     state = sentinelState,
-                    onEnable = viewModel::enableSentinel,
-                    onDisable = viewModel::disableSentinel,
+                    onEnable = { arg0, arg1 -> viewModel?.enableSentinel(arg0, arg1) },
+                    onDisable = { viewModel?.disableSentinel() },
                 )
             }
             item {
                 WebChatControlRow(
                     status = webChatStatus,
-                    onToggle = viewModel::toggleWebChat,
+                    onToggle = { arg0 -> viewModel?.toggleWebChat(arg0) },
                 )
             }
             item {

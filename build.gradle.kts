@@ -75,6 +75,18 @@ val architectureBaselineFile = rootProject.file(
 val architectureModuleDirs = policyModules(architecturePolicyData)
     .map { rootDir.resolve(it["path"] as String) }
 
+// Separate read-only check: Python is required only when this explicit task is requested.
+tasks.register<Exec>("architectureBaselineCheck") {
+    group = "verification"
+    description = "检查尺寸棘轮收紧提示，并相对可信 Git 基准阻止额度放宽和已偿还技术债回涨。"
+    workingDir(rootDir)
+    val python = providers.gradleProperty("architecturePython").orElse(
+        if (System.getProperty("os.name").startsWith("Windows")) "python" else "python3",
+    )
+    commandLine(python.get(), "tools/check-architecture-baseline.py")
+    providers.gradleProperty("architectureBaselineBaseRef").orNull?.let { args("--base-ref", it) }
+}
+
 tasks.register("architectureCheck") {
     group = "verification"
     description = "Policy-driven checks: dependency whitelist, cycles, import bans, size ratchet."

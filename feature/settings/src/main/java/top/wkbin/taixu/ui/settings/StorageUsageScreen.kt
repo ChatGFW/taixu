@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -67,7 +68,6 @@ import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import java.util.Locale
-
 /** Keep diagnostic paths out of the main storage overview. */
 @Composable
 private fun StorageScanNotice(warnings: List<String>) {
@@ -123,9 +123,9 @@ private fun StorageScanNotice(warnings: List<String>) {
 @Composable
 fun StorageUsageScreen(
     onBack: () -> Unit,
-    viewModel: StorageUsageViewModel = koinViewModel(),
+    viewModel: StorageUsageViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(StorageUsageUiState())
     val usage = uiState.usage
     val refreshing = uiState.refreshing
     val cleaningAction = uiState.cleaningAction
@@ -139,7 +139,7 @@ fun StorageUsageScreen(
         when (target) {
             is CleanupDialogTarget.QuickSafe -> {
                 RuntimeAlertDialog(
-                    onDismissRequest = viewModel::dismissDialog,
+                    onDismissRequest = { viewModel?.dismissDialog() },
                     title = { Text("清理过期归档日志？") },
                     text = {
                         Column(
@@ -155,13 +155,13 @@ fun StorageUsageScreen(
                     },
                     confirmButton = {
                         RuntimeButton(
-                            onClick = viewModel::quickSafeClean,
+                            onClick = { viewModel?.quickSafeClean() },
                         ) {
                             Text("立即清理")
                         }
                     },
                     dismissButton = {
-                        RuntimeTextButton(onClick = viewModel::dismissDialog) {
+                        RuntimeTextButton(onClick = { viewModel?.dismissDialog() }) {
                             Text("取消")
                         }
                     },
@@ -170,7 +170,7 @@ fun StorageUsageScreen(
 
             is CleanupDialogTarget.AllProjectBuilds -> {
                 RuntimeAlertDialog(
-                    onDismissRequest = viewModel::dismissDialog,
+                    onDismissRequest = { viewModel?.dismissDialog() },
                     title = { Text("清理已识别项目缓存？") },
                     text = {
                         Column(
@@ -186,13 +186,13 @@ fun StorageUsageScreen(
                     },
                     confirmButton = {
                         RuntimeButton(
-                            onClick = { viewModel.cleanProjectBuilds() },
+                            onClick = { viewModel?.cleanProjectBuilds() },
                         ) {
                             Text("确认清理")
                         }
                     },
                     dismissButton = {
-                        RuntimeTextButton(onClick = viewModel::dismissDialog) {
+                        RuntimeTextButton(onClick = { viewModel?.dismissDialog() }) {
                             Text("取消")
                         }
                     },
@@ -202,7 +202,7 @@ fun StorageUsageScreen(
             is CleanupDialogTarget.CategoryTarget -> {
                 val category = target.category
                 RuntimeAlertDialog(
-                    onDismissRequest = viewModel::dismissDialog,
+                    onDismissRequest = { viewModel?.dismissDialog() },
                     title = { Text("清理分类【${category.name}】？") },
                     text = {
                         Column(
@@ -223,13 +223,13 @@ fun StorageUsageScreen(
                     },
                     confirmButton = {
                         RuntimeButton(
-                            onClick = { viewModel.clearCategory(category.id) },
+                            onClick = { viewModel?.clearCategory(category.id) },
                         ) {
                             Text("确认清理")
                         }
                     },
                     dismissButton = {
-                        RuntimeTextButton(onClick = viewModel::dismissDialog) {
+                        RuntimeTextButton(onClick = { viewModel?.dismissDialog() }) {
                             Text("取消")
                         }
                     },
@@ -239,7 +239,7 @@ fun StorageUsageScreen(
             is CleanupDialogTarget.EntryTarget -> {
                 val entry = target.entry
                 RuntimeAlertDialog(
-                    onDismissRequest = viewModel::dismissDialog,
+                    onDismissRequest = { viewModel?.dismissDialog() },
                     title = { Text("清理【${entry.name}】？") },
                     text = {
                         Column(
@@ -258,13 +258,13 @@ fun StorageUsageScreen(
                     },
                     confirmButton = {
                         RuntimeButton(
-                            onClick = { viewModel.clearEntry(target.categoryId, entry.id, entry.name) },
+                            onClick = { viewModel?.clearEntry(target.categoryId, entry.id, entry.name) },
                         ) {
                             Text("确认清理")
                         }
                     },
                     dismissButton = {
-                        RuntimeTextButton(onClick = viewModel::dismissDialog) {
+                        RuntimeTextButton(onClick = { viewModel?.dismissDialog() }) {
                             Text("取消")
                         }
                     },
@@ -294,7 +294,7 @@ fun StorageUsageScreen(
                     StorageDashboardCard(
                         usage = it,
                         refreshing = refreshing,
-                        onRefresh = viewModel::refresh,
+                        onRefresh = { viewModel?.refresh() },
                     )
                 } ?: RuntimeCard(Modifier.fillMaxWidth()) {
                     Row(
@@ -335,8 +335,8 @@ fun StorageUsageScreen(
                             safeCleanableBytes = u.safeCleanableBytes,
                             cautionCleanableBytes = u.projectCleanableBytes,
                             cleaningAction = cleaningAction,
-                            onQuickSafeClean = { viewModel.openDialog(CleanupDialogTarget.QuickSafe) },
-                            onCleanProjectBuilds = { viewModel.openDialog(CleanupDialogTarget.AllProjectBuilds) },
+                            onQuickSafeClean = { viewModel?.openDialog(CleanupDialogTarget.QuickSafe) },
+                            onCleanProjectBuilds = { viewModel?.openDialog(CleanupDialogTarget.AllProjectBuilds) },
                         )
                     }
                 }
@@ -345,7 +345,7 @@ fun StorageUsageScreen(
             // 3. 全局反馈提示横幅
             message?.let {
                 item(key = "global_notice_banner") {
-                    NoticeBanner(it, isError = messageIsError, onDismiss = viewModel::dismissMessage)
+                    NoticeBanner(it, isError = messageIsError, onDismiss = { viewModel?.dismissMessage() })
                 }
             }
 
@@ -370,7 +370,7 @@ fun StorageUsageScreen(
                     items(StorageFilter.entries) { filter ->
                         FilterChip(
                             selected = activeFilter == filter,
-                            onClick = { viewModel.setFilter(filter) },
+                            onClick = { viewModel?.setFilter(filter) },
                             label = { Text(filter.label, style = MaterialTheme.typography.labelMedium) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -400,8 +400,8 @@ fun StorageUsageScreen(
                         category = category,
                         color = categoryColor(catIndex),
                         cleaningAction = cleaningAction,
-                        onCleanCategory = { viewModel.openDialog(CleanupDialogTarget.CategoryTarget(category)) },
-                        onCleanEntry = { entry -> viewModel.openDialog(CleanupDialogTarget.EntryTarget(category.id, entry)) },
+                        onCleanCategory = { viewModel?.openDialog(CleanupDialogTarget.CategoryTarget(category)) },
+                        onCleanEntry = { entry -> viewModel?.openDialog(CleanupDialogTarget.EntryTarget(category.id, entry)) },
                     )
                 }
             }

@@ -5,7 +5,7 @@ import okhttp3.OkHttpClient
 import top.wkbin.taixu.harness.core.LlmApi
 
 /** Shared wire contract. Authentication and provider-specific fields stay in each adapter. */
-internal interface LlmApiAdapter {
+interface LlmApiAdapter {
     val api: LlmApi
 
     suspend fun chat(model: ModelConfig, messages: List<ApiMessage>): ChatResult
@@ -20,15 +20,17 @@ internal interface LlmApiAdapter {
 }
 
 /** Immutable registry: no silent fallback and no ambiguous protocol registration. */
-internal class LlmApiRegistry(adapters: List<LlmApiAdapter>) {
+internal class LlmApiRegistry(adapters: List<LlmApiAdapter>, providerOverrides: Map<Pair<LlmApi, String>, LlmApiAdapter> = emptyMap()) {
+    private val providerOverrides = providerOverrides.toMap()
     private val byApi = adapters.associateBy { it.api }
 
     init {
         require(byApi.size == adapters.size) { "Duplicate LLM API adapter" }
         require(byApi.keys == LlmApi.entries.toSet()) { "Missing LLM API adapter" }
+        require(providerOverrides.all { (key, adapter) -> key.first == adapter.api }) { "Provider API mismatch" }
     }
 
-    fun forModel(model: ModelConfig): LlmApiAdapter = byApi.getValue(model.api)
+    fun forModel(model: ModelConfig): LlmApiAdapter = providerOverrides[model.api to model.provider] ?: byApi.getValue(model.api)
 
     companion object {
         fun builtIn(client: OkHttpClient, json: Json): LlmApiRegistry = LlmApiRegistry(

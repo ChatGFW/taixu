@@ -1,0 +1,18 @@
+package top.wkbin.taixu.core.tools
+
+import kotlinx.coroutines.flow.MutableStateFlow
+import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.shell.*
+
+/** Captured install target; selection changes cannot redirect commands, payload copies or links. */
+internal class PinnedToolRuntime(private val delegate: LinuxRuntime, private val distribution: String) : LinuxRuntime by delegate {
+    override val activeDistroId = MutableStateFlow(distribution)
+    private fun target(requested: String?): String {
+        require(requested == null || requested == distribution) { "插件操作不能切换发行版" }
+        return distribution
+    }
+    override suspend fun execute(command: ShellCommand, distroId: String?) = delegate.execute(command, target(distroId))
+    override suspend fun startSession(config: SessionConfig, distroId: String?) = delegate.startSession(config, target(distroId))
+    override suspend fun startBackground(id: String, command: ShellCommand, toolId: String?, type: ProcessType, distroId: String?) =
+        delegate.startBackground(id, command, toolId, type, target(distroId))
+}

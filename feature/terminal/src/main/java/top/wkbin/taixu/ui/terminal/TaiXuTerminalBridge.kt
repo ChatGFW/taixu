@@ -25,7 +25,7 @@ import android.view.View
  */
 class TaiXuTerminalBridge(
     private val context: Context,
-    private val router: TerminalSessionClientRouter,
+    private val router: TerminalSessionClientRouter?,
 ) : TerminalSessionClient, TerminalViewClient {
 
     var terminalView: TerminalView? = null
@@ -41,10 +41,10 @@ class TaiXuTerminalBridge(
     private var virtualControlActive = false
     private var virtualAltActive = false
 
-    fun attachToRouter() = router.attach(this)
+    fun attachToRouter() { router?.attach(this) }
 
     fun detachFromRouter() {
-        router.attach(null)
+        router?.attach(null)
         terminalView = null
     }
 

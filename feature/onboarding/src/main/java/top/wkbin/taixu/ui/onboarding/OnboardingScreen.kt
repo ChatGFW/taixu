@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.onboarding
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import android.content.ClipboardManager
 import android.content.Context
@@ -84,7 +85,6 @@ import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.TaiXuBrandBadge
-
 private data class SetupOption(val id: String, val label: String)
 
 private val distributionOptions = DistributionCatalog.supported.map { SetupOption(it.id, it.displayWithVersion) }
@@ -93,8 +93,8 @@ private val distributionOptions = DistributionCatalog.supported.map { SetupOptio
  * 太墟 · 启程配置向导 (Onboarding Wizard)
  */
 @Composable
-fun OnboardingScreen(viewModel: OnboardingViewModel = koinViewModel()) {
-    val page by viewModel.page.collectAsStateWithLifecycle()
+fun OnboardingScreen(viewModel: OnboardingViewModel? = previewOrNull { koinViewModel() }, previewPage: Int = 0) {
+    val page by viewModel?.page?.collectAsStateWithLifecycle() ?: previewStateOf(previewPage)
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         when (page) {
             0 -> SystemSetupPage(viewModel, Modifier.fillMaxSize().padding(padding))
@@ -104,16 +104,16 @@ fun OnboardingScreen(viewModel: OnboardingViewModel = koinViewModel()) {
 }
 
 @Composable
-private fun SystemSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) {
-    val distribution by viewModel.distribution.collectAsStateWithLifecycle()
-    val mirror by viewModel.mirror.collectAsStateWithLifecycle()
-    val state by viewModel.runtimeState.collectAsStateWithLifecycle()
-    val importing by viewModel.isImporting.collectAsStateWithLifecycle()
-    val importError by viewModel.importError.collectAsStateWithLifecycle()
+private fun SystemSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier) {
+    val distribution by viewModel?.distribution?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
+    val mirror by viewModel?.mirror?.collectAsStateWithLifecycle() ?: previewStateOf("auto")
+    val state by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
+    val importing by viewModel?.isImporting?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val importError by viewModel?.importError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val installing = state is RuntimeState.Initializing || importing
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
-    ) { uri -> uri?.let(viewModel::importArchive) }
+    ) { uri -> uri?.let({ arg0 -> viewModel?.importArchive(arg0) }) }
     val mirrorOptions = listOf(
         SetupOption("auto", stringResource(R.string.onboarding_mirror_auto)),
         SetupOption("official", stringResource(R.string.onboarding_mirror_official)),
@@ -137,7 +137,7 @@ private fun SystemSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) 
                 selectedId = distribution,
                 options = distributionOptions,
                 enabled = !installing,
-                onSelected = viewModel::selectDistribution,
+                onSelected = { arg0 -> viewModel?.selectDistribution(arg0) },
             )
         }
         item {
@@ -146,7 +146,7 @@ private fun SystemSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) 
                 selectedId = mirror,
                 options = mirrorOptions,
                 enabled = !installing,
-                onSelected = viewModel::selectMirror,
+                onSelected = { arg0 -> viewModel?.selectMirror(arg0) },
             )
         }
         if (state is RuntimeState.Initializing) {
@@ -208,7 +208,7 @@ private fun SystemSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) 
         }
         item {
             RuntimeButton(
-                onClick = viewModel::install,
+                onClick = { viewModel?.install() },
                 enabled = !installing,
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(12.dp),
@@ -251,7 +251,7 @@ private fun SystemSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) 
         if (state is RuntimeState.Error) {
             item {
                 RuntimeTextButton(
-                    onClick = viewModel::retryReady,
+                    onClick = { viewModel?.retryReady() },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.onboarding_recheck), color = MaterialTheme.colorScheme.primary)
@@ -263,15 +263,15 @@ private fun SystemSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun ModelSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) {
-    val provider by viewModel.modelProvider.collectAsStateWithLifecycle()
-    val model by viewModel.modelId.collectAsStateWithLifecycle()
-    val baseUrl by viewModel.baseUrl.collectAsStateWithLifecycle()
-    val apiKey by viewModel.apiKey.collectAsStateWithLifecycle()
-    val discovered by viewModel.discoveredModels.collectAsStateWithLifecycle()
-    val discovering by viewModel.discoveringModels.collectAsStateWithLifecycle()
-    val discoveryError by viewModel.modelDiscoveryError.collectAsStateWithLifecycle()
-    val providers = viewModel.providerCatalog
+private fun ModelSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier) {
+    val provider by viewModel?.modelProvider?.collectAsStateWithLifecycle() ?: previewStateOf("自定义 OpenAI 兼容接口")
+    val model by viewModel?.modelId?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val baseUrl by viewModel?.baseUrl?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val apiKey by viewModel?.apiKey?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val discovered by viewModel?.discoveredModels?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val discovering by viewModel?.discoveringModels?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val discoveryError by viewModel?.modelDiscoveryError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val providers = viewModel?.providerCatalog ?: listOf(AgentProviderDefinition("custom", provider, "", group = top.wkbin.taixu.core.tools.ProviderGroup.CUSTOM))
     val selectedProvider = providers.firstOrNull { it.name == provider } ?: providers.first()
 
     val context = LocalContext.current
@@ -389,7 +389,7 @@ private fun ModelSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) {
                                         )
                                     },
                                     onClick = {
-                                        viewModel.selectProvider(option.id)
+                                        viewModel?.selectProvider(option.id)
                                         providerMenuExpanded = false
                                     },
                                 )
@@ -415,7 +415,7 @@ private fun ModelSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) {
                     )
                     OutlinedTextField(
                         value = baseUrl,
-                        onValueChange = viewModel::setBaseUrl,
+                        onValueChange = { arg0 -> viewModel?.setBaseUrl(arg0) },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("https://api.openai.com/v1", style = MaterialTheme.typography.bodySmall) },
                         textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
@@ -424,7 +424,7 @@ private fun ModelSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) {
                         singleLine = true,
                         trailingIcon = {
                             RuntimeIconButton(
-                                onClick = viewModel::discoverModels,
+                                onClick = { viewModel?.discoverModels() },
                                 enabled = !discovering && baseUrl.isNotBlank(),
                                 modifier = Modifier.size(32.dp),
                             ) {
@@ -468,7 +468,7 @@ private fun ModelSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) {
                     }
                     OutlinedTextField(
                         value = apiKey,
-                        onValueChange = viewModel::setApiKey,
+                        onValueChange = { arg0 -> viewModel?.setApiKey(arg0) },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("sk-...", style = MaterialTheme.typography.bodySmall) },
                         textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
@@ -511,7 +511,7 @@ private fun ModelSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) {
 
                     OutlinedTextField(
                         value = model,
-                        onValueChange = viewModel::setModelId,
+                        onValueChange = { arg0 -> viewModel?.setModelId(arg0) },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("例如：gpt-4o / deepseek-chat", style = MaterialTheme.typography.bodySmall) },
                         textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
@@ -539,7 +539,7 @@ private fun ModelSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) {
                                         1.dp,
                                         if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
                                     ),
-                                    modifier = Modifier.clickable { viewModel.setModelId(candidate) },
+                                    modifier = Modifier.clickable { viewModel?.setModelId(candidate) },
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -586,7 +586,7 @@ private fun ModelSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 RuntimeButton(
-                    onClick = viewModel::saveModelAndFinish,
+                    onClick = { viewModel?.saveModelAndFinish() },
                     enabled = model.isNotBlank() && baseUrl.isNotBlank(),
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(12.dp),
@@ -598,7 +598,7 @@ private fun ModelSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) {
                 }
 
                 RuntimeTextButton(
-                    onClick = viewModel::skipModel,
+                    onClick = { viewModel?.skipModel() },
                     modifier = Modifier.fillMaxWidth().height(40.dp),
                 ) {
                     Text(
@@ -615,8 +615,8 @@ private fun ModelSetupPage(viewModel: OnboardingViewModel, modifier: Modifier) {
         OnboardingModelImportDialog(
             onDismiss = { showImportDialog = false },
             onImportJson = { jsonStr ->
-                val result = viewModel.importProfileFromJson(jsonStr)
-                result.fold(
+                val result = viewModel?.importProfileFromJson(jsonStr)
+                result?.fold(
                     onSuccess = { profile ->
                         Toast.makeText(context, "成功载入模型配置「${profile.name.ifBlank { profile.model }}」", Toast.LENGTH_SHORT).show()
                         showImportDialog = false

@@ -67,7 +67,6 @@ import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
 import top.wkbin.taixu.ui.components.ScrollFadeOverlay
 import androidx.compose.foundation.lazy.LazyListState
-import top.wkbin.taixu.core.model.QuickPhrase
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.database.AgentPlanEntity
 import top.wkbin.taixu.harness.compaction.CompactionSnapshot
@@ -106,8 +105,6 @@ internal fun ChatMessageList(
     lastAssistantMessageId: String?,
     onNavigateToSettings: (() -> Unit)? = null,
     knownMentionNames: List<String>,
-    quickPhrases: List<QuickPhrase>,
-    onSelectPhrase: (QuickPhrase) -> Unit,
     onSelectCommand: (SlashCommandItem) -> Unit,
     onEditMessage: (UserMessage) -> Unit,
     onDeleteMessage: (String) -> Unit,
@@ -179,8 +176,6 @@ internal fun ChatMessageList(
                     EmptyChatGuidance(
                         workspaceProject = workspaceProject,
                         onboardingPrivilege = onboardingPrivilege,
-                        quickPhrases = quickPhrases,
-                        onSelectPhrase = onSelectPhrase,
                         onSelectCommand = onSelectCommand,
                     )
                 }

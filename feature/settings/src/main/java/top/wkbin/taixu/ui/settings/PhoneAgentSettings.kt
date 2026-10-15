@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -43,7 +44,6 @@ import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
-
 class PhoneAgentSettingsViewModel(
     private val preferences: AgentPreferences,
     private val connectionTester: AgentModelConnectionTester,
@@ -79,9 +79,9 @@ class PhoneAgentSettingsViewModel(
 @Composable
 internal fun PhoneAgentSettingsEntry(
     onOpen: () -> Unit,
-    viewModel: PhoneAgentSettingsViewModel = koinViewModel(),
+    viewModel: PhoneAgentSettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val config by viewModel.config.collectAsStateWithLifecycle(PhoneAgentEndpoint())
+    val config by viewModel?.config?.collectAsStateWithLifecycle(PhoneAgentEndpoint()) ?: previewStateOf(PhoneAgentEndpoint())
     SettingsRow(
         icon = RuntimeIconName.Android,
         title = "手机操作模型",
@@ -94,14 +94,14 @@ internal fun PhoneAgentSettingsEntry(
 @Composable
 fun PhoneAgentSettingsScreen(
     onBack: () -> Unit,
-    viewModel: PhoneAgentSettingsViewModel = koinViewModel(),
+    viewModel: PhoneAgentSettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val saved by viewModel.config.collectAsStateWithLifecycle(PhoneAgentEndpoint())
+    val saved by viewModel?.config?.collectAsStateWithLifecycle(PhoneAgentEndpoint()) ?: previewStateOf(PhoneAgentEndpoint())
     var baseUrl by remember(saved) { mutableStateOf(saved.baseUrl) }
     var model by remember(saved) { mutableStateOf(saved.model) }
     var apiKey by remember(saved) { mutableStateOf(saved.apiKey) }
     var message by remember { mutableStateOf<String?>(null) }
-    val testing by viewModel.testing.collectAsStateWithLifecycle()
+    val testing by viewModel?.testing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -156,7 +156,7 @@ fun PhoneAgentSettingsScreen(
                 }
             }
             RuntimeOutlinedButton(
-                onClick = { viewModel.test(baseUrl, model, apiKey) { message = it } },
+                onClick = { viewModel?.test(baseUrl, model, apiKey) { message = it } },
                 enabled = !testing,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -175,7 +175,7 @@ fun PhoneAgentSettingsScreen(
                     if (error != null) {
                         message = error
                     } else {
-                        viewModel.save(PhoneAgentEndpoint(baseUrl.trim(), model.trim(), apiKey.trim()))
+                        viewModel?.save(PhoneAgentEndpoint(baseUrl.trim(), model.trim(), apiKey.trim()))
                         message = "已保存。聊天主模型不会用到这里。"
                     }
                 },
@@ -187,7 +187,7 @@ fun PhoneAgentSettingsScreen(
                     baseUrl = ""
                     model = ""
                     apiKey = ""
-                    viewModel.save(PhoneAgentEndpoint())
+                    viewModel?.save(PhoneAgentEndpoint())
                     message = "已清除"
                 },
                 modifier = Modifier.fillMaxWidth(),

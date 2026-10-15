@@ -20,10 +20,10 @@ import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.runtime.LinuxEnvironmentManager
 import top.wkbin.taixu.harness.effects.OutputRetention
 import top.wkbin.taixu.harness.effects.ToolOutputRetention
+import top.wkbin.taixu.harness.effects.TerminalOutputCompressor
 import top.wkbin.taixu.harness.effects.foldOverlongLines
 import top.wkbin.taixu.harness.effects.hasIncompleteCommandOutput
 import top.wkbin.taixu.harness.effects.keepHeadWholeLines
-import top.wkbin.taixu.harness.effects.keepTailWholeLines
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
@@ -76,6 +76,7 @@ class ToolExecutor(
     private val workspaceTools = workspaceToolBackend ?: WorkspaceToolBackend(
         operationsFor = { workspace -> if (workspace.isNotBlank()) fileAccess.withBase(workspace) else fileAccess },
         snapshots = mutationSnapshots,
+        environments = environments,
     )
 
     /** 领域能力插槽路由表：把工具分派从分支逻辑降为一次查表（新增工具零改动管道层）。 */
@@ -88,12 +89,15 @@ class ToolExecutor(
         contextMemoryToolBackend = contextMemoryToolBackend,
         promptAssetToolBackend = promptAssetToolBackend,
         capabilityToolGateway = capabilityToolGateway,
+        searchRedactor = { session, workspace -> top.wkbin.taixu.harness.environment.executionOutputRedactor(
+            secretRedactor, environments, linuxEnvironmentManager, settingsDataStore, session, workspace) },
     )
 
     private val executionBoundary = ToolExecutionBoundary(toolCheckpoints) { request, output ->
         val redacted = top.wkbin.taixu.harness.environment.redactExecutionOutput(output, secretRedactor,
             environments, linuxEnvironmentManager, settingsDataStore, request.sessionId, request.workspace)
         truncateOutput(redacted, request.call.rawToolName ?: HarnessApiMapper.apiName(request.call.tool),
+            request.sessionId, request.workspace,
             if (environments != null) environments.environment(request.sessionId, request.workspace).artifacts
             else if (request.workspace.isNotBlank()) top.wkbin.taixu.harness.environment.LocalExecutionArtifacts(fileAccess.withBase(request.workspace)) else null)
     }
@@ -263,6 +267,7 @@ class ToolExecutor(
             output = truncateOutput(
                 redactedOutput,
                 toolCall.rawToolName ?: HarnessApiMapper.apiName(toolCall.tool),
+                sessionId, workspace,
                 if (environments != null) environments.environment(sessionId, workspace).artifacts
                 else if (workspace.isNotBlank()) top.wkbin.taixu.harness.environment.LocalExecutionArtifacts(fileAccess.withBase(workspace)) else null,
                 toolMetadata,
@@ -273,64 +278,50 @@ class ToolExecutor(
     }
 
     /**
-     * 输出超限时带元数据截断（pi 的 truncate 设计）：保留头部，并明确告知模型
-     * 完整输出的规模与截断事实。截断之上叠加落盘引流（对齐 opencode Truncate）：
-     * 全量输出写入工作区 `.taixu-outputs/` 并在正文附路径，模型可用 read 分页回读，
-     * 从「有损截断 + 引导重新取数」升级为「无损引流」。
+     * 读取类输出保留头部；终端输出归一化后再次脱敏并采样首尾。
+     * 已脱敏输入沿 `.taixu-outputs/` 落盘，标记完整性并可用 read 分页回读。
      */
     private suspend fun truncateOutput(
         output: String,
         toolName: String?,
+        sessionId: String,
+        workspace: String,
         fileAccess: top.wkbin.taixu.runtime.environment.ExecutionArtifacts?,
         metadata: MutableMap<String, String>? = null,
     ): String {
         // 超长单行先折叠（混淆/压缩文件）：否则单行预算退化成保留 60k 字符的整行，
-        // 一条 tool result 就可能超出单条消息的传输上限导致连接被重置。落盘仍用原始全量。
-        val folded = foldOverlongLines(output)
-        if (output.length <= MAX_OUTPUT_LENGTH) return folded
-        val spillPath = fileAccess?.let { ToolOutputSpillStore.spill(it, toolName, output) }
-        if (spillPath != null) metadata?.set(ToolOutputArtifact.METADATA_KEY, kotlinx.serialization.json.Json.encodeToString(
-            ToolOutputArtifact.serializer(), ToolOutputArtifact.capture(spillPath, output)))
-        // 差异化截断：命令/构建/日志保留尾部（报错在末尾），读取/搜索保留头部。
+        // 一条 tool result 就可能超出单条消息的传输上限导致连接被重置。归档保留脱敏后的未采样文本。
         val retention = ToolOutputRetention.forTool(toolName)
-        val kept = when (retention) {
-            OutputRetention.TAIL -> keepTailWholeLines(folded, TRUNCATE_KEEP_LENGTH)
-            OutputRetention.HEAD -> keepHeadWholeLines(folded, TRUNCATE_KEEP_LENGTH)
-        }
-        val totalLines = output.count { it == '\n' } + 1
-        val keptLines = kept.count { it == '\n' } + 1
+        // Removing controls can join fragments into a secret: redact again BEFORE sampling.
+        val archived = if (retention == OutputRetention.TAIL) top.wkbin.taixu.harness.environment.redactExecutionOutput(
+            TerminalOutputCompressor.normalize(output), secretRedactor, environments, linuxEnvironmentManager, settingsDataStore, sessionId, workspace) else output
+        val folded = if (retention == OutputRetention.TAIL) TerminalOutputCompressor.compressNormalized(archived) else foldOverlongLines(archived)
+        if (output.length <= MAX_OUTPUT_LENGTH && folded == output) return folded
+        if (retention == OutputRetention.HEAD && output.length <= MAX_OUTPUT_LENGTH) return folded
+        val spillPath = fileAccess?.let { ToolOutputSpillStore.spill(it, toolName, archived) }
+        if (spillPath != null) metadata?.set(ToolOutputArtifact.METADATA_KEY, kotlinx.serialization.json.Json.encodeToString(
+            ToolOutputArtifact.serializer(), ToolOutputArtifact.capture(spillPath, archived).let {
+                if (hasIncompleteCommandOutput(output)) it.copy(complete = false) else it }))
         val recoverHint = if (spillPath != null) {
             "${if (hasIncompleteCommandOutput(output)) "可用输出" else "完整输出"}已保存至 $spillPath，可用 read 工具（offset/limit 分页）查看其余部分。"
         } else {
             "需要其余部分请用 grep 过滤关键字、head/tail 取首尾、或 sed -n 'N,Mp' 取指定行段，不要原样重复执行同一命令。"
         }
+        if (retention == OutputRetention.TAIL) return "$folded\n\n[$recoverHint]"
+        val kept = keepHeadWholeLines(folded, TRUNCATE_KEEP_LENGTH)
+        val totalLines = output.count { it == '\n' } + 1
+        val keptLines = kept.count { it == '\n' } + 1
         return buildString {
-            when (retention) {
-                OutputRetention.TAIL -> {
-                    append("[输出已截断：完整输出共 ")
-                    append(totalLines)
-                    append(" 行 / ")
-                    append(output.length)
-                    append(" 字符，以下仅显示末尾 ")
-                    append(keptLines)
-                    append(" 行（命令报错/断言通常位于末尾）。")
-                    append(recoverHint)
-                    append("]\n")
-                    append(kept)
-                }
-                OutputRetention.HEAD -> {
-                    append(kept)
-                    append("\n\n[输出已截断：完整输出共 ")
-                    append(totalLines)
-                    append(" 行 / ")
-                    append(output.length)
-                    append(" 字符，以上仅显示前 ")
-                    append(keptLines)
-                    append(" 行。")
-                    append(recoverHint)
-                    append("]")
-                }
-            }
+            append(kept)
+            append("\n\n[输出已截断：完整输出共 ")
+            append(totalLines)
+            append(" 行 / ")
+            append(output.length)
+            append(" 字符，以上仅显示前 ")
+            append(keptLines)
+            append(" 行。")
+            append(recoverHint)
+            append("]")
         }
     }
 

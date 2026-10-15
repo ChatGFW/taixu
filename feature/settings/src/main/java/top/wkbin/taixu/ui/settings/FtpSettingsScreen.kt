@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -52,19 +53,18 @@ import top.wkbin.taixu.ui.components.RuntimeSwitch
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
-
 @Composable
 fun FtpSettingsScreen(
     onBack: () -> Unit,
-    viewModel: FtpSettingsViewModel = koinViewModel(),
+    viewModel: FtpSettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val serviceState by viewModel.serviceState.collectAsStateWithLifecycle()
-    val operating by viewModel.operating.collectAsStateWithLifecycle()
-    val message by viewModel.message.collectAsStateWithLifecycle()
-    val messageIsError by viewModel.messageIsError.collectAsStateWithLifecycle()
-    val logs by viewModel.logs.collectAsStateWithLifecycle()
-    val vpnActive by viewModel.vpnActive.collectAsStateWithLifecycle()
+    val settings by viewModel?.settings?.collectAsStateWithLifecycle() ?: previewStateOf(FtpSettingsUiState())
+    val serviceState by viewModel?.serviceState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.FtpServiceState.Stopped("ubuntu"))
+    val operating by viewModel?.operating?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val logs by viewModel?.logs?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val vpnActive by viewModel?.vpnActive?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val context = LocalContext.current
 
     var portText by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(settings.port.toString()) }
@@ -77,10 +77,10 @@ fun FtpSettingsScreen(
 
     message?.let { current ->
         RuntimeAlertDialog(
-            onDismissRequest = viewModel::consumeMessage,
+            onDismissRequest = { viewModel?.consumeMessage() },
             title = { Text(if (messageIsError) "FTP 操作未完成" else "FTP 远程文件服务") },
             text = { Text(current) },
-            confirmButton = { RuntimeTextButton(onClick = viewModel::consumeMessage) { Text("知道了") } },
+            confirmButton = { RuntimeTextButton(onClick = { viewModel?.consumeMessage() }) { Text("知道了") } },
         )
     }
 
@@ -90,11 +90,11 @@ fun FtpSettingsScreen(
             onDismiss = { showPasswordDialog = false },
             onSave = { password ->
                 showPasswordDialog = false
-                viewModel.savePassword(password)
+                viewModel?.savePassword(password)
             },
             onClear = {
                 showPasswordDialog = false
-                viewModel.clearPassword()
+                viewModel?.clearPassword()
             },
         )
     }
@@ -105,7 +105,7 @@ fun FtpSettingsScreen(
             onDismiss = { showUsernameDialog = false },
             onSave = { user ->
                 showUsernameDialog = false
-                viewModel.saveUsername(user)
+                viewModel?.saveUsername(user)
             },
         )
     }
@@ -159,7 +159,7 @@ fun FtpSettingsScreen(
                             } else {
                                 RuntimeSwitch(
                                     checked = settings.enabled,
-                                    onCheckedChange = viewModel::toggleEnabled,
+                                    onCheckedChange = { arg0 -> viewModel?.toggleEnabled(arg0) },
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                                         checkedTrackColor = MaterialTheme.colorScheme.primary,
@@ -292,7 +292,7 @@ fun FtpSettingsScreen(
                         trailing = {
                             RuntimeSwitch(
                                 checked = settings.anonymousEnabled,
-                                onCheckedChange = viewModel::toggleAnonymous,
+                                onCheckedChange = { arg0 -> viewModel?.toggleAnonymous(arg0) },
                                 enabled = !busy,
                             )
                         },
@@ -305,7 +305,7 @@ fun FtpSettingsScreen(
                         trailing = {
                             RuntimeSwitch(
                                 checked = settings.readOnly,
-                                onCheckedChange = viewModel::toggleReadOnly,
+                                onCheckedChange = { arg0 -> viewModel?.toggleReadOnly(arg0) },
                                 enabled = !busy,
                             )
                         },
@@ -347,7 +347,7 @@ fun FtpSettingsScreen(
                             Text("复制")
                         }
                         RuntimeOutlinedButton(
-                            onClick = { viewModel.savePort(portText) },
+                            onClick = { viewModel?.savePort(portText) },
                             enabled = !busy && portValid && portText != settings.port.toString(),
                         ) {
                             Text("保存")

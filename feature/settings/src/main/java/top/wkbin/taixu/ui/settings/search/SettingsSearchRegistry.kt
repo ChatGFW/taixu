@@ -555,17 +555,6 @@ object SettingsSearchRegistry {
             breadcrumb = "外观、字号与终端 > 主题色彩 > 动态壁纸取色",
         ),
         SettingsSearchItem(
-            id = "appearance_liquid_glass",
-            title = "澄明液态玻璃动效",
-            subtitle = "半透明毛玻璃折射与液态玻璃材质界面微光特效",
-            category = SettingsSearchCategory.APPEARANCE,
-            target = SettingsSearchTarget.LIQUID_GLASS,
-            icon = RuntimeIconName.Sparkles,
-            keywords = listOf("glass", "liquid", "blur", "液态玻璃", "毛玻璃", "磨砂", "透明", "澄明", "yetai"),
-            badge = "特色",
-            breadcrumb = "外观、字号与终端 > 液态玻璃",
-        ),
-        SettingsSearchItem(
             id = "appearance_font_scale",
             title = "应用字号与页面缩放",
             subtitle = "调节太墟全界面文本字号大小与排版比例 (0.8x ~ 1.3x)",

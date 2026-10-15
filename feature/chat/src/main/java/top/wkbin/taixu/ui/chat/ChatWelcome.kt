@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -12,20 +11,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import top.wkbin.taixu.core.model.QuickPhrase
 import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.feature.chat.R
@@ -35,8 +28,6 @@ import top.wkbin.taixu.ui.components.*
 internal fun EmptyChatGuidance(
     workspaceProject: WorkspaceProject? = null,
     onboardingPrivilege: OnboardingPrivilege? = null,
-    quickPhrases: List<QuickPhrase> = emptyList(),
-    onSelectPhrase: (QuickPhrase) -> Unit = {},
     onSelectCommand: (SlashCommandItem) -> Unit,
 ) {
     val context = LocalContext.current
@@ -46,21 +37,6 @@ internal fun EmptyChatGuidance(
             in 5..11 -> "早上好，今天想开辟什么工程？"
             in 12..17 -> "下午好，准备好开始 AI 结对了吗？"
             else -> "晚上好，灵感闪烁时，太墟常伴。"
-        }
-    }
-
-    val enabledPhrases = remember(quickPhrases, workspaceProject) {
-        val active = quickPhrases.filter { it.isEnabled }
-        if (active.isEmpty()) emptyList()
-        else {
-            val projectType = workspaceProject?.projectType
-            val matched = when (projectType) {
-                ProjectType.ANDROID -> active.filter { it.targetProjectType == "ANDROID" || it.targetProjectType == null }
-                ProjectType.FLUTTER -> active.filter { it.targetProjectType == "FLUTTER" || it.targetProjectType == null }
-                ProjectType.REVERSE -> active.filter { it.targetProjectType == "REVERSE" || it.targetProjectType == null }
-                else -> active.filter { it.targetProjectType == null }
-            }
-            if (matched.isNotEmpty()) matched else active.take(6)
         }
     }
 
@@ -106,11 +82,6 @@ internal fun EmptyChatGuidance(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 TaiXuBrandBadge(size = 48.dp)
-                Text(
-                    text = "太墟 · 智枢",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
                 Text(
                     text = greeting,
                     style = MaterialTheme.typography.bodyMedium,
@@ -226,59 +197,7 @@ internal fun EmptyChatGuidance(
                 }
             }
 
-            // 4. 常用提示词推荐横滑条 (Quick Phrases)
-            if (enabledPhrases.isNotEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = "💡 常用建议指令",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                    )
-                    androidx.compose.foundation.lazy.LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(horizontal = 4.dp),
-                    ) {
-                        items(enabledPhrases.size) { index ->
-                            val phrase = enabledPhrases[index]
-                            Surface(
-                                onClick = { onSelectPhrase(phrase) },
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainer,
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                                ),
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    RuntimeIcon(
-                                        name = welcomeIcon(phrase.iconName),
-                                        modifier = Modifier.size(15.dp),
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                    Text(
-                                        text = phrase.title,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 5. 特权模式说明（低调引导）
-            onboardingPrivilege?.let { privilege ->
+            onboardingPrivilege?.takeUnless { it == OnboardingPrivilege.SANDBOX }?.let { privilege ->
                 Text(
                     text = stringResource(
                         when (privilege) {
@@ -300,17 +219,6 @@ internal fun EmptyChatGuidance(
     }
 }
 
-
-private fun welcomeIcon(name: String) = when (name.lowercase()) {
-    "play" -> RuntimeIconName.Play
-    "check" -> RuntimeIconName.Check
-    "alert" -> RuntimeIconName.Alert
-    "code" -> RuntimeIconName.Code
-    "search" -> RuntimeIconName.Search
-    "terminal" -> RuntimeIconName.Terminal
-    "tool", "wrench" -> RuntimeIconName.Wrench
-    else -> RuntimeIconName.Bot
-}
 
 private fun defaultBentoCommands(context: Context): List<SlashCommandItem> = listOf(
     SlashCommandItem("/init", "开辟新工程", "向导化初始化 Android / Flutter / Web 模板", "请列出可初始化的项目模板，协助我创建一个新工程", RuntimeIconName.Code),

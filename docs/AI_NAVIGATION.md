@@ -16,6 +16,9 @@
 | **架构红线、UX/UI 设计系统与避坑铁律** | [`docs/ARCHITECTURE_RULES.md`](ARCHITECTURE_RULES.md) | Pure Kotlin 隔离、`RuntimeCard`/`RuntimeAlertDialog` 规范、IME 防遮挡 |
 | **构建、测试、打包与调试指令** | [`docs/COMMANDS.md`](COMMANDS.md) | Gradle 单元测试、APK 打包、架构合规检查、ADB 部署与日志调试 |
 | **本地工具与生态插件开发** | [`docs/PLUGIN_DEVELOPMENT_GUIDELINES.md`](PLUGIN_DEVELOPMENT_GUIDELINES.md) | 插件 Manifest 结构、Recipe 安装事务与环境变量注入规范 |
+| **一切皆插件：平台方案与迁移** | [`docs/PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md) | 内核边界、插件生命周期、页面/菜单贡献、授权设计与 P1–P6 验收路线 |
+| **v2 进程插件包** | [`docs/PLUGIN_PACKAGE_V2.md`](PLUGIN_PACKAGE_V2.md) | 严格包格式、SemVer、完整性、安装收据与资源声明边界 |
+| **智能体与工作流扩展** | [`docs/PLUGIN_HARNESS_EXTENSIONS.md`](PLUGIN_HARNESS_EXTENSIONS.md) | 编译时工具、背景资料、Provider 与自定义节点，以及审批和恢复边界 |
 | **项目模板制作与变量协议** | [`docs/PROJECT_TEMPLATE_SPEC.md`](PROJECT_TEMPLATE_SPEC.md) | template.json 规范、变量表单、动态模板替换与生命周期 hooks |
 | **ARM64 Android 离线构建套件** | [`docs/ANDROID_OFFLINE_PLUGIN.md`](ANDROID_OFFLINE_PLUGIN.md) | 沙箱内内置 JDK/Android SDK/NDK/Flutter 工具链与移动端 Gradle 策略 |
 | **内置浏览器设计决策（含 Hook/CDP 引擎）** | [`docs/BROWSER_DESIGN.md`](BROWSER_DESIGN.md) | 模块拓扑、工具协议、风险矩阵、Hook 引擎与 CDP 调试 ADR |

@@ -115,18 +115,10 @@ object HostCapabilityDirectory {
     private val HIDDEN_ACTIONS: Set<String> = emptySet()
 
     /** PLAN 只读门禁引用的宿主只读动作（自 ApprovalPolicyEngine 迁入，动作分类统一归目录）。 */
-    val READ_ONLY_ACTIONS: Set<String> = setOf(
-        "status", "settings_get", "package_list", "app_list", "logcat", "device_status", "screen_observe",
-    )
+    val READ_ONLY_ACTIONS: Set<String> = top.wkbin.taixu.harness.approval.TrustedToolRiskPolicy.readOnlyHostActions
 
-    /** ASSISTED 审批模式下自动放行的 GUI 感知/触控动作（含虚拟屏，与直接调用同矩阵）。 */
-    val GUI_ASSISTED_ACTIONS: Set<String> = setOf(
-        "screen_click", "screen_double_click", "screen_long_press", "screen_swipe", "screen_scroll",
-        "screen_input_text", "paste_text", "screen_key", "app_launch",
-        "virtual_screen_task", "virtual_screen_click", "virtual_screen_double_click", "virtual_screen_long_press",
-        "virtual_screen_swipe", "virtual_screen_scroll", "virtual_screen_key", "virtual_screen_input_text",
-        "virtual_screen_screenshot",
-    )
+    /** ASSISTED 自动放行动作与审批引擎使用同一可信策略目录。 */
+    val GUI_ASSISTED_ACTIONS: Set<String> = top.wkbin.taixu.harness.approval.TrustedToolRiskPolicy.assistedHostActions
 
     fun isDeferred(action: String): Boolean = deferredNames.contains(action)
     fun isHidden(action: String): Boolean = action in HIDDEN_ACTIONS

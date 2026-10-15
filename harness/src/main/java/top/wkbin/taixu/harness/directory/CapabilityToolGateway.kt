@@ -18,10 +18,11 @@ class CapabilityToolGateway(
     private val mcpManager: McpManager?,
     /** 嵌套记录脱敏（调用方注入 SecretRedactor；目录层保持纯净）。 */
     private val argRedactor: (String) -> String = { it },
+    private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
     /** 宿主执行通道：与直接 host 调用共用同一 host 后端（含输出上限与截图 metadata 附带）。 */
     hostExecutor: suspend (JsonObject, String?, String, MutableMap<String, String>) -> Pair<Boolean, String>,
 ) {
-    private val router = CapabilityToolRouter(mcpManager, argRedactor, hostExecutor)
+    private val router = CapabilityToolRouter(mcpManager, argRedactor, plugins, hostExecutor)
 
     suspend fun execute(
         args: JsonObject,
@@ -38,7 +39,7 @@ class CapabilityToolGateway(
             // 兼容路径：对话历史/模型习惯中仍可能出现直接 mcp__ 调用（schema 已不再宣告）
             return mcpManager?.executeTool(rawToolName ?: "mcp", args, workspace) ?: (false to "未初始化 MCP 管理器")
         }
-        val dispatch = ScriptCapabilityDispatcher(parentToolCallId, metadata, mcpManager, argRedactor, reenter)
+        val dispatch = ScriptCapabilityDispatcher(parentToolCallId, metadata, mcpManager, argRedactor, plugins, reenter)
         return router.execute(args, workspace, parentToolCallId, operationId, sessionId, metadata, dispatch::call)
     }
 }

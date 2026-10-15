@@ -6,8 +6,8 @@ enum class OutputRetention { HEAD, TAIL }
 /**
  * 差异化截断策略：不同工具的关键信息位置不同，截断方向必须随工具切换。
  *
- * - [OutputRetention.TAIL]：命令执行 / 构建 / 进程日志。panic、断言失败、编译错误
- *   永远出现在末尾，保留尾部才能让模型直击报错核心，而不是被前面的下载进度刷屏。
+ * - [OutputRetention.TAIL]：命令执行 / 构建 / 进程日志，使用终端归一化与首尾采样，
+ *   尾部预算较大以保留 panic、断言失败、编译错误，同时保留头部环境信息。
  * - [OutputRetention.HEAD]：read / search 等，关键信息通常在最前面（文件头、命中项）。
  */
 object ToolOutputRetention {

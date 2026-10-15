@@ -324,7 +324,7 @@ val harnessModule = module {
         McpStdioTransport(
             json = get(),
             commandBuilder = get(),
-            channelFactory = get(), standaloneScope = get(),
+            channelFactory = get(), standaloneScope = get(), idleTimeoutMinutes = get<top.wkbin.taixu.core.datastore.McpClientPreferences>().idleTimeoutMinutes,
         )
     }
 
@@ -439,7 +439,7 @@ val harnessModule = module {
             systemPromptBuilder = get(),
             sessionStore = get(),
             memoryRecallSelector = get(),
-            agentApprovalRepository = get(), operationCoordinator = get(),
+            agentApprovalRepository = get(), operationCoordinator = get(), plugins = get(), secretRedactor = get(), environments = get(),
         )
     }
 
@@ -550,6 +550,6 @@ val harnessModule = module {
     single<WorkflowScheduler> { WorkflowScheduler(executors = get(named("workflowExecutors")), approvalBroker = get(), virtualScreenRuns = get()) }
 
     single<Set<NodeExecutor>>(named("workflowExecutors")) {
-        setOf(get<PassthroughNodeExecutor>(), get<ApprovalNodeExecutor>(), get<LinuxNodeExecutor>(), get<AgentNodeExecutor>(), get<ConditionNodeExecutor>(), get<DelayNodeExecutor>(), get<SetVariableNodeExecutor>(), get<HostActionNodeExecutor>())
+        builtinWorkflowExecutors(this)
     }
 }

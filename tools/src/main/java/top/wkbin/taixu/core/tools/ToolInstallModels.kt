@@ -19,6 +19,8 @@ sealed interface LocalPluginImportState {
         val fileName: String,
         val manifest: ToolManifest,
         val archiveSizeBytes: Long?,
+        val addedCapabilities: List<String> = emptyList(),
+        val distroId: String = "",
     ) : LocalPluginImportState
     data class Importing(
         val fileName: String,

@@ -64,6 +64,7 @@ import top.wkbin.taixu.runtime.service.RuntimeServiceController
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.MarkdownText
+import top.wkbin.taixu.ui.components.ProvideRuntimeWidthClass
 import top.wkbin.taixu.ui.navigation.TaiXuNavHost
 import top.wkbin.taixu.ui.theme.TaiXuTheme
 import androidx.core.net.toUri
@@ -77,8 +78,6 @@ import top.wkbin.taixu.service.adb.AdbNotificationManager
 import top.wkbin.taixu.navigation.ShareIntentExtractor
 import top.wkbin.taixu.service.WorkflowForegroundService
 import top.wkbin.taixu.ui.chat.floating.FloatingChatService
-import top.wkbin.taixu.ui.theme.ThemeStyle
-
 class MainActivity : AppCompatActivity() {
     val settingsDataStore: AppearancePreferences by inject()
 
@@ -117,9 +116,7 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         setContent {
             val themeMode by settingsDataStore.themeMode.collectAsStateWithLifecycle(initialValue = "system")
-            val themeStyle by settingsDataStore.themeStyle.collectAsStateWithLifecycle(initialValue = "material_you")
             val dynamicColorEnabled by settingsDataStore.dynamicColorEnabled.collectAsStateWithLifecycle(initialValue = true)
-            val chengmingBackgroundUri by settingsDataStore.chengmingBackgroundUri.collectAsStateWithLifecycle(initialValue = null)
             val pageScale by settingsDataStore.appFontScale.collectAsStateWithLifecycle(initialValue = 1f)
             val systemDark = isSystemInDarkTheme()
             val systemDensity = LocalDensity.current
@@ -136,10 +133,8 @@ class MainActivity : AppCompatActivity() {
                 ),
             ) {
                 TaiXuTheme(
-                    style = ThemeStyle.fromId(themeStyle),
                     darkTheme = isDark,
                     dynamicColor = dynamicColorEnabled,
-                    backgroundUri = chengmingBackgroundUri,
                 ) {
                 val onboardingViewModel: OnboardingViewModel = koinViewModel()
                 val onboarding by onboardingViewModel.status.collectAsStateWithLifecycle()
@@ -312,12 +307,14 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
 
-                when {
-                    !onboarding.loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                ProvideRuntimeWidthClass {
+                    when {
+                        !onboarding.loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        }
+                        onboarding.completed -> TaiXuNavHost(globalNavigationBus = globalNavigationBus)
+                        else -> OnboardingScreen(onboardingViewModel)
                     }
-                    onboarding.completed -> TaiXuNavHost(globalNavigationBus = globalNavigationBus)
-                    else -> OnboardingScreen(onboardingViewModel)
                 }
                 }
             }

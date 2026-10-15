@@ -9,4 +9,12 @@
     <string name="components_drawer_workspace">Projects and files</string>
     <string name="components_drawer_system">System overview</string>
     <string name="components_drawer_settings">Settings</string>
+    <string name="components_rail_sessions">Chats</string>
+    <string name="components_rail_new_session">New</string>
+    <string name="components_rail_terminal">Terminal</string>
+    <string name="components_rail_tools">Tools</string>
+    <string name="components_collapse_sidebar">Collapse sidebar</string>
+    <string name="components_companion_open">Open terminal and browser pane</string>
+    <string name="components_companion_collapse">Collapse side pane</string>
+    <string name="components_companion_resize">Drag to resize panes</string>
 </resources>

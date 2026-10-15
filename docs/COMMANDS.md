@@ -42,6 +42,16 @@ $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; .\gradlew.bat arch
 $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; .\gradlew.bat architectureBaselineSync --console=plain
 # 注意：新增模块或调整模块依赖时必须同步登记 architecture-policy.json 的 requires，否则门禁失败
 
+# 6.2 只读检查基线收紧与已偿还技术债回涨（需要 Python 3.9+；不改写基线）
+# HEAD 用于比较本地未提交变更；PR 中必须使用可信目标分支的 commit SHA。
+$env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; .\gradlew.bat architectureBaselineCheck -ParchitectureBaselineBaseRef=HEAD --console=plain
+# 可用 -ParchitecturePython=<python路径> 指定解释器。无 base ref 时仅核验当前额度并提示可收紧条目。
+python tools/tests/test_architecture_baseline.py
+python tools/tests/test_runtime_benchmark.py
+
+# 6.3 三协议 SSE 离线 fixture 回放（普通响应及 1/7 字节 HTTP 分片；无需 API Key）
+.\gradlew.bat :harness:testDebugUnitTest --tests "top.wkbin.taixu.harness.SseFixtureReplayTest" --console=plain
+
 # 7. 仅验证 Harness 内置工具契约与执行策略
 $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; .\gradlew.bat :harness:testDebugUnitTest --tests "top.wkbin.taixu.harness.*" --console=plain
 ```

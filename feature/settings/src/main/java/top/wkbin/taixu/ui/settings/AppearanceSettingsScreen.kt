@@ -1,11 +1,8 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
-import android.graphics.BitmapFactory
 import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -40,15 +37,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.appcompat.app.AppCompatDelegate
@@ -64,26 +57,20 @@ import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-import android.content.Intent
-import android.net.Uri
-
 /**
  * 太墟 · 外观、字号与终端深度定制页面 (Appearance & Terminal Settings)
  */
 @Composable
 fun AppearanceSettingsScreen(
     onBack: () -> Unit,
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
-    val themeStyle by viewModel.themeStyle.collectAsStateWithLifecycle()
-    val dynamicColorEnabled by viewModel.dynamicColorEnabled.collectAsStateWithLifecycle()
-    val terminalFontSize by viewModel.terminalFontSize.collectAsStateWithLifecycle()
-    val terminalColorScheme by viewModel.terminalColorScheme.collectAsStateWithLifecycle()
-    val terminalHapticsEnabled by viewModel.terminalHapticsEnabled.collectAsStateWithLifecycle()
-    val appFontScale by viewModel.appFontScale.collectAsStateWithLifecycle()
-    val backgroundUri by viewModel.chengmingBackgroundUri.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    val themeMode by viewModel?.themeMode?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val dynamicColorEnabled by viewModel?.dynamicColorEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val terminalFontSize by viewModel?.terminalFontSize?.collectAsStateWithLifecycle() ?: previewStateOf(0)
+    val terminalColorScheme by viewModel?.terminalColorScheme?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val terminalHapticsEnabled by viewModel?.terminalHapticsEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val appFontScale by viewModel?.appFontScale?.collectAsStateWithLifecycle() ?: previewStateOf(1f)
     LocalConfiguration.current // Recompose after AppCompat applies a locale change.
     val requestedLocales = AppCompatDelegate.getApplicationLocales()
     val appLanguage = if (requestedLocales.isEmpty) "system" else requestedLocales[0]?.language.orEmpty()
@@ -95,17 +82,6 @@ fun AppearanceSettingsScreen(
     LaunchedEffect(appFontScale) {
         pageScaleSlider = appFontScale
     }
-    val backgroundPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri ?: return@rememberLauncherForActivityResult
-        runCatching {
-            context.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION,
-            )
-        }
-        viewModel.setChengmingBackgroundUri(uri.toString())
-    }
-
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = { RuntimeTopBar(stringResource(R.string.settings_appearance_title), onBack) },
@@ -156,7 +132,7 @@ fun AppearanceSettingsScreen(
                                 bg = Color(0xFF0F1117),
                                 text = Color(0xFFE2E2E9),
                                 selected = terminalColorScheme == "obsidian",
-                                onClick = { viewModel.setTerminalColorScheme("obsidian") },
+                                onClick = { viewModel?.setTerminalColorScheme("obsidian") },
                                 modifier = Modifier.weight(1f),
                             )
                             TerminalThemeChip(
@@ -164,7 +140,7 @@ fun AppearanceSettingsScreen(
                                 bg = Color(0xFF0A0F0D),
                                 text = Color(0xFF10B981),
                                 selected = terminalColorScheme == "matrix",
-                                onClick = { viewModel.setTerminalColorScheme("matrix") },
+                                onClick = { viewModel?.setTerminalColorScheme("matrix") },
                                 modifier = Modifier.weight(1f),
                             )
                             TerminalThemeChip(
@@ -172,7 +148,7 @@ fun AppearanceSettingsScreen(
                                 bg = Color(0xFF140F0A),
                                 text = Color(0xFFF59E0B),
                                 selected = terminalColorScheme == "amber",
-                                onClick = { viewModel.setTerminalColorScheme("amber") },
+                                onClick = { viewModel?.setTerminalColorScheme("amber") },
                                 modifier = Modifier.weight(1f),
                             )
                             TerminalThemeChip(
@@ -180,7 +156,7 @@ fun AppearanceSettingsScreen(
                                 bg = Color(0xFF0D1424),
                                 text = Color(0xFF38BDF8),
                                 selected = terminalColorScheme == "aurora",
-                                onClick = { viewModel.setTerminalColorScheme("aurora") },
+                                onClick = { viewModel?.setTerminalColorScheme("aurora") },
                                 modifier = Modifier.weight(1f),
                             )
                         }
@@ -210,7 +186,7 @@ fun AppearanceSettingsScreen(
                             value = terminalFontSizeSlider,
                             onValueChange = { terminalFontSizeSlider = it.roundToInt().toFloat() },
                             onValueChangeFinished = {
-                                viewModel.setTerminalFontSize(terminalFontSizeSlider.roundToInt())
+                                viewModel?.setTerminalFontSize(terminalFontSizeSlider.roundToInt())
                             },
                             valueRange = 10f..24f,
                             steps = 13,
@@ -241,14 +217,12 @@ fun AppearanceSettingsScreen(
                         title = stringResource(R.string.settings_terminal_haptics),
                         subtitle = stringResource(R.string.settings_terminal_haptics_description),
                         checked = terminalHapticsEnabled,
-                        change = viewModel::setTerminalHapticsEnabled,
+                        change = { arg0 -> viewModel?.setTerminalHapticsEnabled(arg0) },
                     )
                 }
             }
 
             // 3. 应用视觉与主题
-            val isMaterialYou = themeStyle == "material_you" || themeStyle == "xuantong"
-            val isLiquidGlass = themeStyle == "liquid_glass" || themeStyle == "chengming"
             val isDynamicColorSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             item {
                 Text(
@@ -258,72 +232,17 @@ fun AppearanceSettingsScreen(
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
                 SettingsGroup {
-                    ThemeOptionRow(
-                        title = stringResource(R.string.settings_theme_material_you),
-                        subtitle = stringResource(R.string.settings_theme_material_you_description),
-                        accentColor = if (isMaterialYou && dynamicColorEnabled && isDynamicColorSupported) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            androidx.compose.ui.graphics.Color(0xFF4259C3)
-                        },
-                        selected = isMaterialYou,
-                        onClick = { viewModel.setThemeStyle("material_you") },
+                    ToggleRow(
+                        icon = RuntimeIconName.Palette,
+                        title = stringResource(R.string.settings_dynamic_color),
+                        subtitle = stringResource(
+                            if (isDynamicColorSupported) R.string.settings_dynamic_color_description
+                            else R.string.settings_dynamic_color_unsupported
+                        ),
+                        checked = dynamicColorEnabled && isDynamicColorSupported,
+                        change = { arg0 -> viewModel?.setDynamicColorEnabled(arg0) },
+                        enabled = isDynamicColorSupported,
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    ThemeOptionRow(
-                        title = stringResource(R.string.settings_theme_liquid_glass),
-                        subtitle = stringResource(R.string.settings_theme_liquid_glass_description),
-                        accentColor = androidx.compose.ui.graphics.Color(0xFF0088FF),
-                        selected = isLiquidGlass,
-                        onClick = { viewModel.setThemeStyle("liquid_glass") },
-                    )
-                    if (isMaterialYou) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                        ToggleRow(
-                            icon = RuntimeIconName.Palette,
-                            title = stringResource(R.string.settings_dynamic_color),
-                            subtitle = stringResource(
-                                if (isDynamicColorSupported) R.string.settings_dynamic_color_description
-                                else R.string.settings_dynamic_color_unsupported
-                            ),
-                            checked = dynamicColorEnabled && isDynamicColorSupported,
-                            change = viewModel::setDynamicColorEnabled,
-                            enabled = isDynamicColorSupported,
-                        )
-                    }
-                }
-            }
-
-            if (isLiquidGlass) {
-                item {
-                    Text(
-                        text = stringResource(R.string.settings_chengming_background),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-                    )
-                    SettingsGroup {
-                        Column(
-                            Modifier.fillMaxWidth().padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Text(
-                                text = stringResource(if (backgroundUri == null) R.string.settings_background_none else R.string.settings_background_custom),
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            backgroundUri?.let { uri -> ChengmingBackgroundPreview(uri) }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(
-                                    onClick = { backgroundPicker.launch(arrayOf("image/*")) },
-                                ) { Text(stringResource(if (backgroundUri == null) R.string.settings_background_upload else R.string.settings_background_change)) }
-                                if (backgroundUri != null) {
-                                    TextButton(
-                                        onClick = { viewModel.setChengmingBackgroundUri(null) },
-                                    ) { Text(stringResource(R.string.settings_background_remove)) }
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
@@ -340,21 +259,21 @@ fun AppearanceSettingsScreen(
                         title = stringResource(R.string.settings_color_system),
                         subtitle = stringResource(R.string.settings_color_system_description),
                         selected = themeMode == "system",
-                        onClick = { viewModel.setThemeMode("system") },
+                        onClick = { viewModel?.setThemeMode("system") },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     ThemeOptionRow(
                         title = stringResource(R.string.settings_color_light),
                         subtitle = stringResource(R.string.settings_color_light_description),
                         selected = themeMode == "light",
-                        onClick = { viewModel.setThemeMode("light") },
+                        onClick = { viewModel?.setThemeMode("light") },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     ThemeOptionRow(
                         title = stringResource(R.string.settings_color_dark),
                         subtitle = stringResource(R.string.settings_color_dark_description),
                         selected = themeMode == "dark",
-                        onClick = { viewModel.setThemeMode("dark") },
+                        onClick = { viewModel?.setThemeMode("dark") },
                     )
                 }
             }
@@ -422,7 +341,7 @@ fun AppearanceSettingsScreen(
                             onValueChange = {
                                 pageScaleSlider = ((it * 20f).roundToInt() / 20f).coerceIn(0.8f, 1.3f)
                             },
-                            onValueChangeFinished = { viewModel.setAppFontScale(pageScaleSlider) },
+                            onValueChangeFinished = { viewModel?.setAppFontScale(pageScaleSlider) },
                             valueRange = 0.8f..1.3f,
                             steps = 9,
                             modifier = Modifier.fillMaxWidth(),
@@ -525,27 +444,6 @@ private fun TerminalPreviewCard(
                 color = textColor,
             )
         }
-    }
-}
-
-@Composable
-private fun ChengmingBackgroundPreview(uri: String) {
-    val context = LocalContext.current
-    val bitmap = remember(uri) {
-        runCatching {
-            context.contentResolver.openInputStream(Uri.parse(uri))?.use(BitmapFactory::decodeStream)
-        }.getOrNull()
-    }
-    if (bitmap != null) {
-        Image(
-            bitmap = bitmap.asImageBitmap(),
-            contentDescription = stringResource(R.string.settings_background_preview),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(124.dp)
-                .clip(RoundedCornerShape(12.dp)),
-            contentScale = ContentScale.Crop,
-        )
     }
 }
 

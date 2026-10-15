@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -62,13 +63,12 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-
 @Composable
 fun QuickPhrasesScreen(
     onBack: () -> Unit,
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val phrases by viewModel.quickPhrases.collectAsStateWithLifecycle()
+    val phrases by viewModel?.quickPhrases?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     // QuickPhrase 非 Parcelable：仅保存 id，旋转后从列表按 id 恢复编辑对象
     var editingPhraseId by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     val editingPhrase = editingPhraseId?.let { id -> phrases.firstOrNull { it.id == id } }
@@ -106,7 +106,7 @@ fun QuickPhrasesScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.resetQuickPhrasesToDefault()
+                        viewModel?.resetQuickPhrasesToDefault()
                         showResetDialog = false
                     },
                 ) {
@@ -129,7 +129,7 @@ fun QuickPhrasesScreen(
                 editingPhraseId = null
             },
             onSave = { id, title, content, description, iconName, targetProjectType, isEnabled ->
-                viewModel.saveQuickPhrase(
+                viewModel?.saveQuickPhrase(
                     id = id,
                     title = title,
                     content = content,
@@ -152,7 +152,7 @@ fun QuickPhrasesScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteQuickPhrase(phrase.id)
+                        viewModel?.deleteQuickPhrase(phrase.id)
                         pendingDeletePhraseId = null
                     },
                 ) {
@@ -271,7 +271,7 @@ fun QuickPhrasesScreen(
                     items(filteredPhrases, key = { it.id }) { phrase ->
                         QuickPhraseCard(
                             phrase = phrase,
-                            onToggle = { enabled -> viewModel.toggleQuickPhrase(phrase.id, enabled) },
+                            onToggle = { enabled -> viewModel?.toggleQuickPhrase(phrase.id, enabled) },
                             onEdit = { editingPhraseId = phrase.id },
                             onDelete = { pendingDeletePhraseId = phrase.id },
                         )
