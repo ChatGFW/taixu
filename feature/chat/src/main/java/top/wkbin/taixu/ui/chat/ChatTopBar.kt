@@ -1,7 +1,5 @@
 package top.wkbin.taixu.ui.chat
 
-import android.app.Activity
-import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,14 +8,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -27,7 +23,6 @@ import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.events.HarnessEvent
 import top.wkbin.taixu.harness.session.ConversationBranch
-import top.wkbin.taixu.ui.chat.floating.FloatingChatService
 import top.wkbin.taixu.ui.components.*
 
 /** Conversation and model lead; advanced controls unfold on demand. */
@@ -36,7 +31,7 @@ import top.wkbin.taixu.ui.components.*
 internal fun ChatTopBar(
     title: String, workspace: String, distroDisplayName: String, activeModel: AiModelEntity?,
     runMode: RunMode, currentBranch: ConversationBranch?,
-    runtimeEvents: List<HarnessEvent>, running: Boolean, onShowFloatingPermissionDialog: () -> Unit,
+    runtimeEvents: List<HarnessEvent>, running: Boolean,
     onOpenSessions: () -> Unit, onOpenModels: () -> Unit,
     onOpenRunModes: () -> Unit, onOpenBranches: () -> Unit,
     onOpenRuntime: () -> Unit, onOpenBrowser: (() -> Unit)? = null, browserHighlight: Boolean = false,
@@ -44,7 +39,6 @@ internal fun ChatTopBar(
     toolchainHighlight: Boolean = false, onOpenToolchain: () -> Unit,
     onOpenReasoning: (() -> Unit)? = null, companion: ChatCompanionToggle? = null,
 ) {
-    val context = LocalContext.current
     var expanded by rememberSaveable { mutableStateOf(false) }
     val model = activeModel?.let { it.model.substringBefore(',').trim().ifBlank { it.name } }
     Column(
@@ -127,26 +121,22 @@ internal fun ChatTopBar(
     if (expanded) {
         val closeThen: (() -> Unit) -> () -> Unit = { action -> { expanded = false; action() } }
         PlainBackdropModalBottomSheet(onDismissRequest = { expanded = false }) {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.chat_workbench_controls), Modifier.padding(horizontal = 24.dp),
-                    style = MaterialTheme.typography.titleMedium)
-                ChatWorkspaceBar(workspace, distroDisplayName, runMode,
+                Text(stringResource(R.string.chat_workbench_controls),
+                    style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.chat_workbench_workspace),
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                ChatWorkspaceBar(workspace, distroDisplayName,
                     onOpenWorkspace = closeThen(onOpenSessions),
                     onOpenBrowser = onOpenBrowser?.let(closeThen), browserHighlight = browserHighlight,
                     onOpenRepository = onOpenRepository?.let(closeThen), repositoryHighlight = repositoryHighlight)
+                Text(stringResource(R.string.chat_workbench_session), Modifier.padding(top = 8.dp),
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 ChatWorkbenchControls(runMode, currentBranch, runtimeEvents, running,
                     closeThen(onOpenRunModes), closeThen(onOpenBranches),
                     closeThen(onOpenRuntime), closeThen(onOpenToolchain), toolchainHighlight,
                     onReasoning = onOpenReasoning?.let(closeThen))
-                RuntimeTextButton(modifier = Modifier.padding(horizontal = 16.dp), onClick = {
-                    expanded = false
-                    if (Settings.canDrawOverlays(context)) {
-                        FloatingChatService.start(context); (context as? Activity)?.moveTaskToBack(true)
-                    } else onShowFloatingPermissionDialog()
-                }) {
-                    Text(stringResource(R.string.chat_floating_collapse))
-                }
             }
         }
     }

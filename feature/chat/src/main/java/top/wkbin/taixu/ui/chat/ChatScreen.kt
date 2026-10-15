@@ -174,7 +174,7 @@ fun ChatScreen(
     var showModels by rememberSaveable { mutableStateOf(false) }; var showApprovalModes by rememberSaveable { mutableStateOf(false) }
     var showRunModes by rememberSaveable { mutableStateOf(false) }; var showSkillsMcpSheet by rememberSaveable { mutableStateOf(false) }
     var showBranches by rememberSaveable { mutableStateOf(false) }; var showRuntimeTimeline by rememberSaveable { mutableStateOf(false) }
-    var showMemorySheet by rememberSaveable { mutableStateOf(false) }; var showFloatingPermissionDialog by rememberSaveable { mutableStateOf(false) }
+    var showMemorySheet by rememberSaveable { mutableStateOf(false) }
     var showReasoningSlider by rememberSaveable { mutableStateOf(false) }
     var branchFromMessageId by rememberSaveable { mutableStateOf<String?>(null) }
     // 编辑目标消息只保存 id，避免把不可保存的实体放进状态保存器
@@ -367,7 +367,6 @@ fun ChatScreen(
                 currentBranch = currentBranch,
                 runtimeEvents = runtimeEvents,
                 running = running,
-                onShowFloatingPermissionDialog = { showFloatingPermissionDialog = true },
                 onOpenSessions = onOpenNavigation,
                 onOpenModels = openModels,
                 onOpenRunModes = { showRunModes = true },
@@ -502,46 +501,6 @@ fun ChatScreen(
             onConfirm = { newText ->
                 viewModel?.editAndResend(target.id, newText)
                 editTargetMessageId = null
-            },
-        )
-    }
-
-    // 智枢悬浮窗权限申请提示弹窗
-    if (showFloatingPermissionDialog) {
-        RuntimeAlertDialog(
-            onDismissRequest = { showFloatingPermissionDialog = false },
-            title = {
-                Text(
-                    stringResource(R.string.chat_floating_permission_title),
-                    fontWeight = FontWeight.Bold,
-                )
-            },
-            text = {
-                Text(
-                    stringResource(R.string.chat_floating_permission_message),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showFloatingPermissionDialog = false
-                        val intent = Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            Uri.parse("package:${context.packageName}"),
-                        )
-                        context.startActivity(intent)
-                    },
-                ) {
-                    Text(stringResource(R.string.chat_floating_permission_grant))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showFloatingPermissionDialog = false },
-                ) {
-                    Text(stringResource(R.string.chat_floating_permission_cancel))
-                }
             },
         )
     }

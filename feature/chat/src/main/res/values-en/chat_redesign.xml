@@ -21,4 +21,7 @@
     <string name="chat_start_explore">Explore this workspace</string>
     <string name="chat_start_explore_detail">Understand the code and decide what to do next.</string>
     <string name="chat_start_explore_prompt">Inspect the current workspace and explain its files and projects. If it is empty, explain how to get started.</string>
+    <string name="chat_workbench_workspace">Workspace</string>
+    <string name="chat_workbench_session">Session controls</string>
+    <string name="chat_workbench_tools_attention">Needs attention</string>
 </resources>
