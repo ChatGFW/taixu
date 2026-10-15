@@ -147,7 +147,23 @@
 | 6 | SecretRedactor 启发式局限 | 提示 | 见 2.3；高危场景叠加人工检查 |
 | 7 | 用户配置的 MCP / 环境变量明文进沙箱 | 提示 | 配置页宜加风险提示文案 |
 
+## 8. 原生页面插件（P2）
+
+`plugin:runtime` 管理受信任的编译时页面贡献。代次租约和 `own` 资源账本控制准入与排空，不是同 uid 原生代码的隔离层。
+`PluginPreferences` 仅保存禁用插件 ID，不保存命令、凭证、路由参数或运行结果；读取失败阻止初始化，不默认全启用。
+停止或资源取消未获确认时保留失败状态，禁止创建替代代次；依赖者未释放时保留其依赖。后台异常只投影固定失败类型，不复制异常正文。
+终端/浏览器目前只迁移界面作用域，停用界面不会关闭已有 PTY、共享 WebView 引擎、Agent 浏览器工具或 MCP，也不改变审批与 HostBridge 权限。
+冷启动只恢复界面选择，不重放旧副作用；外部进程恢复仍由实际资源所有者负责。详见 [`PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md) 第 13–14 节。
+
 ## 维护约定
+
+P4 Harness 扩展只接受受信任的编译时 Kotlin 实现。`plugin.<id>` 能力域保留原工具意图/结果屏障、PLAN、审批、后台交接、嵌套留痕与输出脱敏；插件没有声明免审或写入可信产物 metadata 的入口。插件 Schema 使用严格独立子集，不套用历史参数别名/字符串转换。背景资料先经过当前执行环境脱敏，再限额投影为标注来源的合成 user 文本并计入预算，不能修改 system 权限。
+
+Provider 适配器通过协议与 Provider ID 精确选择，接收宿主配置的传输客户端和当前模型配置；后者可能含此 Provider 的 Key，不包含其它凭证仓库。通用 `PLUGIN_ACTION` 节点使用新令牌确认和原工作流日志/恢复审查，回调异常不承诺副作用未发生。以上是同 uid 内的合作契约；P2 页面开关不控制 Harness 扩展，不提供恶意代码隔离或外部原生加载。详见 [P4 契约](PLUGIN_HARNESS_EXTENSIONS.md)。
+
+`.txplugin` P3：v2 导入拒绝不安全 ZIP 路径、重复条目、未知字段与 payload 哈希集合不符；版本目录不可覆盖，选中指针原子写入，复制时再次验证。安装/卸载依赖与资源检查按发行版使用实际安装版本收据；收据位于 `noBackupFilesDir/plugin-receipts`，不含脚本、环境变量或 Provider 凭证。预览确认绑定清单和目标发行版。v2 仅 PROCESS，不加载外部原生代码。
+
+能力与资源声明不是运行时沙箱；安装脚本沿用既有 PRoot 权限及 Provider 环境注入，`offlineOnly` 也不阻断网络。共享指纹仅校验声明相容，不核验脚本实际创建的全局内容。v2 全局声明只接受 RETAIN，不执行任意卸载脚本；程序目录事务不覆盖任意全局副作用。页面启停不会撤销进程插件权限或清退后台进程。详见 [v2 包边界](PLUGIN_PACKAGE_V2.md)。
 
 - 改动 `ProotCommandBuilder` / `ProotMountLayout` / `HostBridge` / `SecretRedactor` / `EnvironmentResolver` / `PrivilegeManager` / `CapabilityScriptRunner` 的 PR，请同步核对本文是否需要更新。
 - 本文只描述事实与登记风险，不替代代码注释；修复某项时请更新第 7 节状态列。

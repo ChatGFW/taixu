@@ -15,6 +15,11 @@ object WorkflowValidator {
             issues += WorkflowValidationIssue("nodes", "节点 ID 必须唯一")
         }
         definition.nodes.forEach { node ->
+            if (node.type == WorkflowNodeType.PLUGIN_ACTION &&
+                (node.config["plugin"].orEmpty().matches(Regex("[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9-]*)+")) != true ||
+                    !node.config["extension"].orEmpty().matches(Regex("[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*")))) {
+                issues += WorkflowValidationIssue("nodes.${node.id}.config", "插件动作需要有效的 plugin 与 extension 身份")
+            }
             if (node.type == WorkflowNodeType.HUMAN_APPROVAL) {
                 WorkflowApprovalTimeout.validationError(node.config[WorkflowApprovalTimeout.CONFIG_KEY])?.let {
                     issues += WorkflowValidationIssue("nodes.${node.id}.config.timeoutSeconds", it)

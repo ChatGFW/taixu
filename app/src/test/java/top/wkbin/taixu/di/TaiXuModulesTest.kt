@@ -45,6 +45,8 @@ class TaiXuModulesTest {
                 definition<CapabilityToolGateway>(Function5::class),
                 definition<ToolCheckpoints<*, *>>(List::class),
                 definition<BackupLocations>(File::class),
+                definition<top.wkbin.taixu.core.tools.PluginReceiptStore>(File::class),
+                definition<top.wkbin.taixu.harness.plugins.HarnessPluginRegistry>(List::class),
                 definition<HttpClient>(HttpClientEngine::class),
                 definition<OkHttpClient>(OkHttpClient.Builder::class),
                 definition<SubagentLaneRunner>(Function0::class),
@@ -57,6 +59,7 @@ class TaiXuModulesTest {
                 definition<top.wkbin.taixu.harness.mcp.StandaloneMcpScope>(Function0::class, kotlinx.coroutines.flow.Flow::class),
                 definition<top.wkbin.taixu.harness.mcp.McpStdioTransport>(kotlinx.coroutines.flow.Flow::class, Function0::class),
                 definition<top.wkbin.taixu.core.datastore.McpClientPreferences>(androidx.datastore.core.DataStore::class),
+                definition<top.wkbin.taixu.core.datastore.PluginPreferences>(androidx.datastore.core.DataStore::class),
                 definition<top.wkbin.taixu.core.datastore.EncryptedRemoteServerRepository>(android.util.AtomicFile::class, Function1::class),
                 // The build coordinator's adapter and default callbacks are constructed by its lambda.
                 definition<top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator>(

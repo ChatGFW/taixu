@@ -24,9 +24,11 @@ class ToolRepository(
     suspend fun deleteByIds(ids: Collection<String>) = toolDao.deleteByIds(ids)
     fun manifests(): List<ToolManifest> = toolRegistry.load()
     fun manifest(id: String): ToolManifest? = manifests().firstOrNull { it.id == id }
+    fun localManifest(id: String, version: String): ToolManifest? = toolRegistry.localManifest(id, version)
     suspend fun importLocal(
         uri: Uri,
         onProgress: (LocalPluginImportProgress) -> Unit = {},
-    ): AppResult<ToolManifest> = toolRegistry.importLocal(uri, onProgress)
+        expected: ToolManifest? = null,
+    ): AppResult<ToolManifest> = toolRegistry.importLocal(uri, onProgress, expected)
     suspend fun inspectLocal(uri: Uri): AppResult<LocalPluginPreview> = toolRegistry.inspectLocal(uri)
 }

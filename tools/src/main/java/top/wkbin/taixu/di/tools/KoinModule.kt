@@ -90,6 +90,9 @@ val toolsModule = module {
     single<InstallTaskRepository> { InstallTaskRepository(dao = get()) }
 
     single<InstallTransactionManager> { InstallTransactionManager(pathManager = get(), logger = get()) }
+    single { top.wkbin.taixu.core.tools.PluginReceiptStore(context = get()) }
+    single { top.wkbin.taixu.core.tools.PackagePluginInventory(repository = get(), runtime = get()) }
+    single { top.wkbin.taixu.core.tools.ToolPackageOperations(repository = get(), receipts = get()) }
 
     single<LocalPluginPayloadManager> { LocalPluginPayloadManager(registry = get(), pathManager = get()) }
 
@@ -125,6 +128,7 @@ val toolsModule = module {
             flutterSdkDownloader = get(),
             localPluginPayloadManager = get(),
             serviceController = get(),
+            packageOperations = get(),
             installerAdapters = get(named("toolAdapters")),
             localAccess = get(),
         )

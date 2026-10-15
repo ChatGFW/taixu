@@ -36,6 +36,7 @@ import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.LocalPluginSettingsContent
 import top.wkbin.taixu.ui.components.liquidGlassContent
 
 /**
@@ -53,6 +54,7 @@ fun SettingsScreen(
     onOpenFeatureHub: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
+    val pluginSettings = LocalPluginSettingsContent.current
     val models by viewModel.models.collectAsStateWithLifecycle()
     val developer by viewModel.developerMode.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
@@ -88,6 +90,7 @@ fun SettingsScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            item { pluginSettings?.invoke() }
             // 全局功能搜索快捷入口卡片
             item {
                 RuntimeCard(

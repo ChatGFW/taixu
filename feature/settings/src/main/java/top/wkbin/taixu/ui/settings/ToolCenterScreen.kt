@@ -608,37 +608,7 @@ internal fun LocalToolCenterContent(
 
         // A package is only committed/installed after explicit confirmation.
         (localPluginImport as? LocalPluginImportState.PendingConfirmation)?.let { pending ->
-            val manifest = pending.manifest
-            RuntimeAlertDialog(
-                onDismissRequest = viewModel::cancelLocalPluginImport,
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        RuntimeIcon(RuntimeIconName.Extension, Modifier.size(22.dp), MaterialTheme.colorScheme.primary)
-                        Text("确认安装本地插件", fontWeight = FontWeight.Bold)
-                    }
-                },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(manifest.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text(manifest.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        InfoRow("版本", manifest.version, isCode = false)
-                        InfoRow("来源", "本地插件", isCode = false)
-                        InfoRow("架构", manifest.architectures.joinToString(", "), isCode = false)
-                        InfoRow("包大小", pending.archiveSizeBytes?.let { formatBytes(it) } ?: "未知", isCode = false)
-                        InfoRow("离线模式", if (manifest.offlineOnly) "是（不拉取在线依赖）" else "否", isCode = false)
-                        Text("点击安装后才会解压资源并执行安装脚本；取消不会修改插件目录。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = viewModel::cancelLocalPluginImport) { Text("取消") }
-                },
-                confirmButton = {
-                    Button(onClick = viewModel::confirmLocalPluginImport) { Text("安装") }
-                },
-            )
+            LocalPluginImportConfirmation(pending, viewModel::cancelLocalPluginImport, viewModel::confirmLocalPluginImport)
         }
 
         // Install Logs Dialog

@@ -12,19 +12,20 @@ import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.core.model.ToolRegistryDocument
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.BufferedInputStream
-import java.io.FilterInputStream
+
+
 import java.io.InputStream
 import java.io.IOException
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
-import java.util.zip.ZipInputStream
 import java.security.KeyFactory
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
@@ -53,16 +54,6 @@ data class LocalPluginPreview(
     val archiveSizeBytes: Long?,
     val alreadyImported: Boolean,
 )
-
-private class CountingInputStream(input: InputStream) : FilterInputStream(input) {
-    var bytesRead: Long = 0L
-        private set
-
-    override fun read(): Int = super.read().also { if (it >= 0) bytesRead++ }
-
-    override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
-        super.read(buffer, offset, length).also { if (it > 0) bytesRead += it }
-}
 
 class ToolRegistry(
     private val context: Context,
@@ -146,9 +137,10 @@ class ToolRegistry(
             // directory avoids walking through multi-gigabyte payload entries before showing
             // the confirmation dialog. Pipe-backed providers fall back to streaming safely.
             val manifestText = inspectSeekableManifest(uri) ?: inspectStreamingManifest(uri)
-            val parsed = json.decodeFromString<ToolManifest>(manifestText)
+            val parsed = top.wkbin.taixu.plugin.packages.PluginPackageProtocol.decode(manifestText)
             val manifest = parsed.copy(source = "LOCAL", offlineOnly = true, installMethod = "LOCAL_PACKAGE")
             ToolManifestValidator.validateAll(listOf(manifest))
+            validateCandidate(manifest)
             AppResult.Success(
                 LocalPluginPreview(
                     manifest = manifest,
@@ -156,12 +148,13 @@ class ToolRegistry(
                     alreadyImported = isLocalVersionImported(manifest.id, manifest.version),
                 ),
             )
-        } catch (throwable: Throwable) {
+        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (throwable: Throwable) {
             AppResult.Failure(AppError(ErrorCode.SECURITY, "本地插件预览失败：${throwable.message ?: "未知错误"}", throwable))
         }
     }
 
-    private fun inspectSeekableManifest(uri: Uri): String? {
+    private suspend fun inspectSeekableManifest(uri: Uri): String? {
         val descriptor = context.contentResolver.openFileDescriptor(uri, "r") ?: return null
         descriptor.use {
             val archive = try {
@@ -171,9 +164,12 @@ class ToolRegistry(
             }
             archive.use { zip ->
                 var manifestEntry: ZipEntry? = null
+                var entryCount = 0
                 val entries = zip.entries()
                 while (entries.hasMoreElements()) {
+                    currentCoroutineContext().ensureActive()
                     val entry = entries.nextElement()
+                    require(++entryCount <= LocalPluginArchive.MAX_ENTRIES) { "插件包条目过多" }
                     val name = validatePluginEntryName(entry.name)
                     if (name == "manifest.json" && !entry.isDirectory) {
                         require(manifestEntry == null) { "插件包包含重复的 manifest.json" }
@@ -187,132 +183,39 @@ class ToolRegistry(
         }
     }
 
-    private fun inspectStreamingManifest(uri: Uri): String {
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            ZipInputStream(BufferedInputStream(input)).use { zip ->
-                while (true) {
-                    val entry = zip.nextEntry ?: break
-                    val name = validatePluginEntryName(entry.name)
-                    if (name == "manifest.json" && !entry.isDirectory) {
-                        return readManifestText(zip)
-                    }
-                }
-            }
-        } ?: error("无法读取插件包")
-        error("插件包缺少 manifest.json")
+    private suspend fun inspectStreamingManifest(uri: Uri): String {
+        val operation = currentCoroutineContext()
+        return context.contentResolver.openInputStream(uri)?.use { LocalPluginArchive.inspect(it) { operation.ensureActive() } } ?: error("无法读取插件包")
     }
 
-    private fun validatePluginEntryName(rawName: String): String {
-        val name = rawName.replace('\\', '/')
-        require(name.isNotBlank() && !name.startsWith('/') && !name.split('/').contains("..")) {
-            "插件包包含不安全路径：$name"
-        }
-        require(name == "manifest.json" || name.startsWith("payload/")) {
-            "插件包只允许 manifest.json 与 payload/：$name"
-        }
-        return name
-    }
-
-    private fun readManifestText(input: InputStream): String {
-        val output = ByteArrayOutputStream(16 * 1024)
-        val buffer = ByteArray(8 * 1024)
-        var total = 0L
-        while (true) {
-            val read = input.read(buffer)
-            if (read < 0) break
-            total += read
-            require(total <= MAX_MANIFEST_BYTES) { "manifest.json 过大" }
-            output.write(buffer, 0, read)
-        }
-        return output.toByteArray().toString(Charsets.UTF_8)
-    }
+    private fun validatePluginEntryName(rawName: String) = LocalPluginArchive.entryName(rawName)
+    private fun readManifestText(input: InputStream) = LocalPluginArchive.readManifest(input)
 
     suspend fun importLocal(
         uri: Uri,
         onProgress: (LocalPluginImportProgress) -> Unit = {},
+        expected: ToolManifest? = null,
     ): AppResult<ToolManifest> = withContext(Dispatchers.IO) {
-        runCatching {
-            context.cacheDir.listFiles()?.filter { it.name.startsWith("txplugin-") || it.name.startsWith("plugin-import-") }
-                ?.forEach { it.deleteRecursively() }
-        }
-        val staging = File(context.cacheDir, "txplugin-${System.nanoTime()}").apply { mkdirs() }
-        var committed = false
         try {
-            var manifestText: String? = null
-            var bytes = 0L
-            val totalBytes = queryDocumentSize(uri)
-            onProgress(LocalPluginImportProgress(0L, totalBytes, null))
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                val countingInput = CountingInputStream(input)
-                var lastReportedBytes = 0L
-                var currentEntry: String? = null
-                fun reportProgress(force: Boolean = false) {
-                    val read = countingInput.bytesRead
-                    if (force || read - lastReportedBytes >= PROGRESS_REPORT_BYTES) {
-                        lastReportedBytes = read
-                        onProgress(LocalPluginImportProgress(read, totalBytes, currentEntry))
-                    }
-                }
-                ZipInputStream(BufferedInputStream(countingInput)).use { zip ->
-                    while (true) {
-                        val entry = zip.nextEntry ?: break
-                        val name = entry.name.replace('\\', '/')
-                        currentEntry = name
-                        reportProgress(force = true)
-                        require(name.isNotBlank() && !name.startsWith('/') && !name.split('/').contains("..")) {
-                            "插件包包含不安全路径：$name"
-                        }
-                        require(name == "manifest.json" || name.startsWith("payload/")) {
-                            "插件包只允许 manifest.json 与 payload/：$name"
-                        }
-                        if (entry.isDirectory) continue
-                        val target = File(staging, name)
-                        target.parentFile?.mkdirs()
-                        target.outputStream().use { output ->
-                            val buffer = ByteArray(32 * 1024)
-                            while (true) {
-                                val read = zip.read(buffer)
-                                if (read < 0) break
-                                bytes += read
-                                require(bytes <= MAX_PACKAGE_BYTES) { "插件包超过大小限制" }
-                                output.write(buffer, 0, read)
-                                reportProgress()
-                            }
-                        }
-                        if (name == "manifest.json") manifestText = target.readText()
-                    }
-                }
-                reportProgress(force = true)
-            } ?: error("无法读取插件包")
-            onProgress(LocalPluginImportProgress(totalBytes ?: bytes, totalBytes, "正在校验 manifest.json"))
-            val parsed = json.decodeFromString<ToolManifest>(manifestText ?: error("插件包缺少 manifest.json"))
-            val manifest = parsed.copy(source = "LOCAL", offlineOnly = true, installMethod = "LOCAL_PACKAGE")
-            ToolManifestValidator.validateAll(listOf(manifest))
-            onProgress(LocalPluginImportProgress(totalBytes ?: bytes, totalBytes, "正在保存插件"))
-            val versionDir = File(localRoot, "${manifest.id}/${manifest.version}")
-            versionDir.parentFile?.mkdirs()
-            // 同版本覆盖导入：离线包作者经常在不 bump 版本号的情况下重新打包
-            // （修复安装脚本等）。旧逻辑直接拒绝，导致用户被“已导入，无需重复
-            // 导入”挡死、修复后的包永远进不来。payload 在每次安装时才复制进
-            // 沙箱（LocalPluginPayloadManager.prepare），覆盖这里的存储不会
-            // 影响已安装实例；下次安装自动使用新 payload。
-            if (versionDir.exists()) {
-                val legacy = File(versionDir.parentFile, ".legacy-${manifest.version}-${System.nanoTime()}")
-                check(versionDir.renameTo(legacy)) { "无法替换已导入的同版本插件" }
-                if (!staging.renameTo(versionDir)) {
-                    legacy.renameTo(versionDir)
-                    error("无法提交本地插件包")
-                }
-                legacy.deleteRecursively()
-            } else {
-                check(staging.renameTo(versionDir)) { "无法提交本地插件包" }
-            }
-            committed = true
-            AppResult.Success(manifest)
-        } catch (throwable: Throwable) {
-            AppResult.Failure(AppError(ErrorCode.SECURITY, "本地插件导入失败：${throwable.message ?: "未知错误"}", throwable))
-        } finally {
-            if (!committed) staging.deleteRecursively()
+            AppResult.Success(localStore.import(
+                input = { context.contentResolver.openInputStream(uri) ?: error("无法读取插件包") },
+                total = queryDocumentSize(uri), expected = expected, validateCandidate = ::validateCandidate, progress = onProgress,
+            ))
+        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (failure: Exception) {
+            AppResult.Failure(AppError(ErrorCode.SECURITY, "本地插件导入失败：${failure.message.orEmpty()}", failure))
+        }
+    }
+
+    private fun validateCandidate(candidate: ToolManifest) {
+        val previous = load()
+        val sameTool = previous.find { it.id == candidate.id }
+        if (candidate.schemaVersion == 2) {
+            require(sameTool?.source != "REMOTE") { "v2 包不能覆盖内置或在线工具身份" }
+            require(sameTool?.plugin?.id?.let { it == candidate.plugin!!.id } != false) { "更新不能更换插件身份" }
+        } else require(sameTool?.plugin == null) { "不能用 v1 覆盖 v2 插件身份" }
+        require(previous.none { it.id != candidate.id && top.wkbin.taixu.plugin.packages.PluginPackageProtocol.identity(it) == top.wkbin.taixu.plugin.packages.PluginPackageProtocol.identity(candidate) }) {
+            "插件身份已被其他包占用"
         }
     }
 
@@ -323,25 +226,11 @@ class ToolRegistry(
         }
     }.getOrNull()
 
-    fun localPayloadRoot(toolId: String): File? = loadLocalManifests()
-        .firstOrNull { it.id == toolId }
-        ?.let { File(localRoot, "${it.id}/${it.version}/payload") }
-
-    private fun isLocalVersionImported(toolId: String, version: String): Boolean =
-        File(localRoot, "$toolId/$version/manifest.json").isFile
-
-    private fun loadLocalManifests(): List<ToolManifest> {
-        if (!localRoot.isDirectory) return emptyList()
-        return localRoot.listFiles().orEmpty().mapNotNull { idDir ->
-            idDir.listFiles().orEmpty().filter { it.isDirectory }.maxByOrNull { it.name }
-                ?.let { versionDir ->
-                    runCatching {
-                        json.decodeFromString<ToolManifest>(File(versionDir, "manifest.json").readText())
-                            .copy(source = "LOCAL", offlineOnly = true, installMethod = "LOCAL_PACKAGE")
-                    }.getOrNull()
-                }
-        }.let { runCatching { ToolManifestValidator.validateAll(it) }.getOrDefault(emptyList()) }
-    }
+    private val localStore by lazy { LocalPluginStore(localRoot, context.cacheDir) }
+    fun localPayloadRoot(toolId: String, version: String? = null): File? = localStore.payload(toolId, version)
+    fun localManifest(toolId: String, version: String): ToolManifest? = localStore.manifest(toolId, version)
+    private fun isLocalVersionImported(toolId: String, version: String) = localStore.contains(toolId, version)
+    private fun loadLocalManifests(): List<ToolManifest> = localStore.load()
 
     private fun download(url: String): ByteArray {
         val response = httpClient.newCall(Request.Builder().url(url).build()).execute()

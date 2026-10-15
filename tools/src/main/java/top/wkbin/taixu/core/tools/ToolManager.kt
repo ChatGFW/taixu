@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -69,6 +70,7 @@ class ToolManager(
     private val flutterSdkDownloader: FlutterSdkDownloader,
     private val localPluginPayloadManager: LocalPluginPayloadManager,
     private val serviceController: ToolServiceController,
+    private val packageOperations: ToolPackageOperations,
     installerAdapters: Set<@JvmSuppressWildcards ToolRuntimeAdapter>,
     private val localAccess: top.wkbin.taixu.runtime.environment.LocalBackendAccess? = null,
 ) {
@@ -140,9 +142,11 @@ class ToolManager(
 
     suspend fun importLocalPlugin(
         uri: Uri,
+        expected: ToolManifest? = null,
         onProgress: (LocalPluginImportProgress) -> Unit = {},
     ): AppResult<ToolManifest> {
-        val result = toolRepository.importLocal(uri, onProgress)
+        packageOperations.captureLegacy(linuxRuntime.installedDistros.value.map { it.id } + currentDistroId())
+        val result = toolRepository.importLocal(uri, onProgress, expected)
         if (result is AppResult.Success) syncRegistry()
         return result
     }
@@ -154,18 +158,22 @@ class ToolManager(
         localPluginImportJob?.takeIf { it.isActive }?.let { return it }
         _localPluginImportState.value = LocalPluginImportState.Reading(fileName)
         return managerScope.launch {
-            val result = toolRepository.inspectLocal(uri)
-            // 同版本已导入也进入确认流程（覆盖导入）：离线包可能被作者重新
-            // 打包过（如修复安装脚本），importLocal 已支持原子替换同版本。
-            // 死路的 AlreadyImported 提示会把修复后的包永远挡在外面。
-            _localPluginImportState.value = when (result) {
-                is AppResult.Success -> LocalPluginImportState.PendingConfirmation(
-                    uri = uri,
-                    fileName = fileName,
-                    manifest = result.data.manifest,
-                    archiveSizeBytes = result.data.archiveSizeBytes,
-                )
-                is AppResult.Failure -> LocalPluginImportState.Failed(result.error.message)
+            try {
+                val previewDistro = currentDistroId()
+                val result = toolRepository.inspectLocal(uri)
+                _localPluginImportState.value = when (result) {
+                    is AppResult.Success -> if (result.data.alreadyImported) LocalPluginImportState.AlreadyImported(result.data.manifest.name, result.data.manifest.version) else LocalPluginImportState.PendingConfirmation(
+                        uri = uri,
+                        fileName = fileName,
+                        manifest = result.data.manifest,
+                        archiveSizeBytes = result.data.archiveSizeBytes,
+                        addedCapabilities = packageOperations.addedCapabilities(previewDistro, result.data.manifest),
+                        distroId = previewDistro,
+                    )
+                    is AppResult.Failure -> LocalPluginImportState.Failed(result.error.message)
+                }
+            } catch (cancelled: CancellationException) { throw cancelled } catch (failure: Exception) {
+                _localPluginImportState.value = LocalPluginImportState.Failed(failure.message ?: "插件预览失败")
             }
         }.also { localPluginImportJob = it }
     }
@@ -175,6 +183,10 @@ class ToolManager(
     fun confirmLocalPluginImport(): Job? {
         localAccess?.requireLocal()
         val pending = _localPluginImportState.value as? LocalPluginImportState.PendingConfirmation ?: return null
+        if (pending.distroId != currentDistroId()) {
+            _localPluginImportState.value = LocalPluginImportState.Failed("目标系统已变化，请重新导入确认")
+            return null
+        }
         _localPluginImportState.value = LocalPluginImportState.Importing(
             fileName = pending.fileName,
             progress = null,
@@ -184,7 +196,7 @@ class ToolManager(
         )
         return managerScope.launch {
             try {
-                val result = importLocalPlugin(pending.uri) { progress ->
+                val result = importLocalPlugin(pending.uri, expected = pending.manifest) { progress ->
                     _localPluginImportState.value = LocalPluginImportState.Importing(
                         fileName = pending.fileName,
                         progress = progress.fraction,
@@ -199,7 +211,7 @@ class ToolManager(
                     var installCompleted = false
                     var installFailure: String? = null
                     try {
-                        install(manifest.id).collect { event ->
+                        installInternal(manifest.id, OPERATION_INSTALL, pending.distroId, manifest).collect { event ->
                             when (event) {
                                 is InstallEvent.Progress -> _localPluginImportState.value = LocalPluginImportState.Importing(
                                     fileName = pending.fileName,
@@ -214,7 +226,8 @@ class ToolManager(
                                 else -> Unit
                             }
                         }
-                    } catch (throwable: Throwable) {
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (throwable: Throwable) {
                         installFailure = throwable.message ?: "插件安装失败"
                     }
                     if (installCompleted) {
@@ -248,7 +261,7 @@ class ToolManager(
     }
 
     /** Check whether a background gateway process is alive AND its port is listening (web services). */
-    fun isGatewayRunning(toolId: String): Boolean {
+    suspend fun isGatewayRunning(toolId: String): Boolean {
         val spec = serviceSpec(toolId)
         return serviceController.isRunning(toolId, spec)
     }
@@ -314,16 +327,16 @@ class ToolManager(
         }
     }
 
-    private fun getAdapter(toolId: String): ToolRuntimeAdapter? {
-        staticInstallerById[toolId]?.let { return it }
-        val manifest = toolRepository.manifest(toolId) ?: return null
+    private fun getAdapter(toolId: String, fixed: ToolManifest? = null, distroId: String? = null): ToolRuntimeAdapter? {
+        if (fixed?.schemaVersion != 2) staticInstallerById[toolId]?.let { return it }
+        val manifest = fixed ?: toolRepository.manifest(toolId) ?: return null
         if (!manifest.installScript.isNullOrBlank() || manifest.installMethod.isNotBlank()) {
             return GenericRecipeInstaller(
                 manifest = manifest,
-                linuxRuntime = linuxRuntime,
+                linuxRuntime = distroId?.let { PinnedToolRuntime(linuxRuntime, it) } ?: linuxRuntime,
                 dependencyManager = dependencyManager,
                 providerManager = providerManager,
-                toolCommandLinker = toolCommandLinker,
+                toolCommandLinker = distroId?.let { ToolCommandLinker(PinnedToolRuntime(linuxRuntime, it)) } ?: toolCommandLinker,
                 localPluginPayloadManager = localPluginPayloadManager,
             )
         }
@@ -331,8 +344,8 @@ class ToolManager(
     }
 
     /** Service metadata comes from the signed/validated manifest, not the UI. */
-    fun serviceSpec(toolId: String): LocalServiceSpec? {
-        val manifest = toolRepository.manifest(toolId) ?: return null
+    suspend fun serviceSpec(toolId: String): LocalServiceSpec? {
+        val manifest = packageOperations.runtimeManifest(currentDistroId(), toolId) ?: return null
         val port = manifest.servicePort ?: return null
         return LocalServiceSpec(
             serviceId = toolId,
@@ -463,16 +476,29 @@ class ToolManager(
         return batchInstallComponents(if (componentIds.isEmpty()) suiteIds else componentIds)
     }
 
-    private fun installInternal(toolId: String, operation: String): Flow<InstallEvent> = flow {
+    private fun installInternal(toolId: String, operation: String, targetDistro: String? = null, expected: ToolManifest? = null): Flow<InstallEvent> = flow {
+        localAccess?.requireLocal()
+        val distro = targetDistro ?: currentDistroId()
+        try {
+            packageOperations.install(distro, toolId, expected) { fixed ->
+                emitAll(installRecipe(toolId, operation, distro, fixed, checkNotNull(getAdapter(toolId, fixed, distro))))
+            }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (failure: Exception) {
+            val event = InstallEvent.Failed(toolId, secretRedactor.redact(failure.message ?: "插件安装检查失败"))
+            updateFromEvent(event)
+            emit(event)
+        }
+    }
+
+    private fun installRecipe(toolId: String, operation: String, distroId: String, fixed: ToolManifest, adapter: ToolRuntimeAdapter): Flow<InstallEvent> = flow {
         localAccess?.requireLocal()
         require(isToolSupported(toolId)) { "暂不支持安装工具：$toolId" }
         requireManifestEnabled(toolId)
-        val distroId = currentDistroId()
         val currentJob = coroutineContext[Job]
             ?: error("安装任务必须运行在协程中")
         val previousTool = toolRepository.findById(distroId, toolId)
-        val preservePreviousInstall = operation == OPERATION_UPDATE &&
-            previousTool?.installedVersion != null
+        val preservePreviousInstall = previousTool?.installedVersion != null
         installMutex.withLock {
             check(toolId !in installJobs) { "工具正在安装：$toolId" }
             installJobs[toolId] = currentJob
@@ -483,7 +509,7 @@ class ToolManager(
                 InstallTaskEntity(
                     distroId = distroId,
                     toolId = toolId,
-                    operation = operation,
+                    operation = if (preservePreviousInstall) OPERATION_UPDATE else operation,
                     state = TASK_RUNNING,
                     message = "任务开始",
                 ),
@@ -494,19 +520,15 @@ class ToolManager(
         var cancelled = false
         var transaction: InstallTransaction? = null
         try {
-            if (operation == OPERATION_UPDATE) {
+            if (preservePreviousInstall) {
                 linuxRuntime.listBackground()
                     .filter { it.toolId == toolId }
                     .forEach { linuxRuntime.stopBackground(it.id) }
             }
-            if (preservePreviousInstall) {
-                val current = requireAdapter(toolId).verify()
-                check(current.isSuccess) {
-                    "更新前验证失败：${current.stderr.ifBlank { current.stdout }.trim()}"
-                }
-            }
+            // A snapshot does not require a healthy old installation. Repair and upgrades
+            // run the candidate recipe first, then its own post-install verification.
             transaction = installTransactionManager.begin(distroId, toolId, preservePreviousInstall)
-            selectInstaller(toolId).collect { event ->
+            adapter.install().collect { event ->
                 val safeEvent = event.redacted()
                 recordEvent(distroId, safeEvent)
                 updateFromEvent(safeEvent)
@@ -542,10 +564,12 @@ class ToolManager(
                     // 而 DB 已记新版本且状态 INSTALLED——磁盘回旧版却永不提示更新，无法自愈。
                     // commit 后落库则任一时刻被杀都可恢复：快照在 → 按旧快照回滚、DB 版本号仍是
                     // 旧值（一致）；快照已删 → 磁盘即新版，最坏多提示一次更新（无害）。
+                    val receiptVersion = safeEvent.version?.trim()?.takeIf { it.isNotBlank() } ?: fixed.version
+                    packageOperations.record(distroId, fixed, receiptVersion)
                     transaction?.let { installTransactionManager.commit(it) }
                     transaction = null
                     val installedVer = safeEvent.version?.trim()?.takeIf { it.isNotBlank() }
-                        ?: toolRepository.findById(distroId, toolId)?.manifestVersion
+                        ?: fixed.version
                     toolRepository.updateStateAndInstalledVersion(
                         distroId = distroId,
                         id = toolId,
@@ -645,18 +669,20 @@ class ToolManager(
 
     suspend fun uninstall(toolId: String, deleteData: Boolean = false) {
         localAccess?.requireLocal()
-        require(isToolSupported(toolId)) { "暂不支持卸载工具：$toolId" }
-        installMutex.withLock {
-            check(toolId !in installJobs) { "工具正在安装：$toolId" }
+        val distro = currentDistroId()
+        packageOperations.uninstall(distro, toolId) { fixed ->
+            require(isToolSupported(toolId)) { "暂不支持卸载工具：$toolId" }
+            installMutex.withLock {
+                check(toolId !in installJobs) { "工具正在安装：$toolId" }
+            }
+            linuxRuntime.listBackground()
+                .filter { it.toolId == toolId }
+                .forEach { linuxRuntime.stopBackground(it.id) }
+            uninstallLocked(toolId, deleteData, distro, fixed)
         }
-        linuxRuntime.listBackground()
-            .filter { it.toolId == toolId }
-            .forEach { linuxRuntime.stopBackground(it.id) }
-        uninstallLocked(toolId, deleteData)
     }
 
-    private suspend fun uninstallLocked(toolId: String, deleteData: Boolean) {
-        val distroId = currentDistroId()
+    private suspend fun uninstallLocked(toolId: String, deleteData: Boolean, distroId: String, fixed: ToolManifest) {
         installTaskRepository.upsert(
             InstallTaskEntity(
                 distroId = distroId,
@@ -667,7 +693,7 @@ class ToolManager(
             ),
         )
         try {
-            val outcome = requireAdapter(toolId, requireEnabled = false).uninstall(deleteData).toUninstallOutcome()
+            val outcome = checkNotNull(getAdapter(toolId, fixed, distroId)).uninstall(deleteData).toUninstallOutcome()
             val event = if (outcome.success) "UNINSTALLED" else "UNINSTALL_FAILED"
             val safeMessage = secretRedactor.redact(outcome.message.ifBlank { "卸载完成" })
             toolRepository.updateStateAndInstalledVersion(
@@ -791,16 +817,13 @@ class ToolManager(
         return tool
     }
 
-    private fun selectInstaller(toolId: String): Flow<InstallEvent> =
-        requireAdapter(toolId).install()
-
-    private fun requireAdapter(
+    private suspend fun requireAdapter(
         toolId: String,
         requireEnabled: Boolean = true,
-    ): ToolRuntimeAdapter = checkNotNull(getAdapter(toolId)) { "暂不支持工具：$toolId" }.also {
-        if (requireEnabled) {
-            requireManifestEnabled(toolId)
-        }
+    ): ToolRuntimeAdapter {
+        val distro = currentDistroId()
+        if (requireEnabled) requireManifestEnabled(toolId)
+        return checkNotNull(getAdapter(toolId, packageOperations.runtimeManifest(distro, toolId), distro)) { "暂不支持工具：$toolId" }
     }
 
     private fun requireManifestEnabled(toolId: String) {
@@ -890,58 +913,6 @@ class ToolManager(
         is InstallEvent.RolledBack -> InstallLogEntity(distroId = distroId, toolId = toolId, event = "ROLLED_BACK", message = "已回滚安装事务")
         is InstallEvent.Cancelled -> InstallLogEntity(distroId = distroId, toolId = toolId, event = "CANCELLED", message = "用户取消安装")
     }
-
-    private suspend fun ToolManifest.toEntity(distroId: String, existing: ToolEntity?) = ToolEntity(
-        distroId = distroId,
-        id = id,
-        name = name,
-        description = description,
-        dependencies = dependencies.joinToString(","),
-        launchType = launchType,
-        state = when {
-            !enabled -> ToolState.DISABLED.name
-            existing == null -> ToolState.AVAILABLE.name
-            else -> {
-                val installedVersion = existing.installedVersion
-                val manifestLatest = latestVersion ?: version
-                when {
-                    existing.state == ToolState.DISABLED.name ->
-                        if (installedVersion != null) ToolState.INSTALLED.name else ToolState.AVAILABLE.name
-                    installedVersion != null && isUpdateNewer(manifestLatest, installedVersion) ->
-                        ToolState.UPDATE_AVAILABLE.name
-                    existing.state == ToolState.UPDATE_AVAILABLE.name -> ToolState.INSTALLED.name
-                    else -> existing.state
-                }
-            }
-        },
-        manifestVersion = version,
-        installedVersion = existing?.installedVersion,
-        publisher = publisher,
-        category = category,
-        permissions = permissions.joinToString(","),
-        homepage = homepage,
-        updateStrategy = updateStrategy,
-        latestVersion = latestVersion ?: version,
-    )
-
-    private fun isUpdateNewer(manifestLatest: String?, installedVersion: String?): Boolean {
-        if (manifestLatest.isNullOrBlank() || installedVersion.isNullOrBlank()) return false
-        val latestNums = manifestLatest.versionNumbers() ?: return false
-        val currentNums = installedVersion.versionNumbers() ?: return false
-        for (i in 0 until maxOf(latestNums.size, currentNums.size)) {
-            val l = latestNums.getOrElse(i) { 0 }
-            val c = currentNums.getOrElse(i) { 0 }
-            if (l > c) return true
-            if (l < c) return false
-        }
-        return false
-    }
-
-    private fun String.versionNumbers(): List<Int>? = Regex("\\d+(?:\\.\\d+){0,3}")
-        .find(this)
-        ?.value
-        ?.split('.')
-        ?.mapNotNull { it.toIntOrNull() }
 
     private fun ToolActionResult.toUninstallOutcome(): UninstallOutcome =
         UninstallOutcome(success, message)

@@ -7,6 +7,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":plugin:ui"))
+    implementation(project(":core:datastore"))
     implementation(project(":feature:theme"))
     implementation(project(":feature:home"))
     implementation(project(":feature:chat"))
@@ -26,4 +28,5 @@ dependencies {
     // miuix-navigation3-ui 提供 androidx.navigation3.ui.NavDisplay 的 MIUI/HyperOS 风格实现，
     // 默认转场即侧滑动画，直接用默认 transitionSpec，不写自定义转场
     implementation(libs.bundles.navigation3)
+    testImplementation(libs.junit)
 }

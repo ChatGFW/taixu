@@ -43,6 +43,9 @@ class ApiContextAssembler(
     private val memoryRecallSelector: MemoryRecallSelector,
     private val agentApprovalRepository: AgentApprovalRepository,
     private val operationCoordinator: OperationCoordinator,
+    private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
+    private val secretRedactor: top.wkbin.taixu.core.security.SecretRedactor? = null,
+    private val environments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
 ) {
     suspend fun assemble(
         sessId: String,
@@ -127,10 +130,14 @@ class ApiContextAssembler(
         }
         val systemPrompt = ContextWindowPolicy.fitSystemPrompt(rawSystemPrompt, budgetTokens)
         val failureMemory = if (model.pureChatMode || toolCallMode == ToolCallMode.DISABLED) "" else operationCoordinator.failureMemoryBlock(sessId)
+        val pluginContext = if (model.pureChatMode || secretRedactor == null || plugins == null) "" else plugins.context(
+            top.wkbin.taixu.harness.plugins.PluginContextRequest(sessId, workspacePath),
+            top.wkbin.taixu.harness.environment.executionOutputRedactor(secretRedactor, environments, null, settingsDataStore, sessId, workspacePath),
+        )
 
         // 召回后缀的 token 计入预算占用：它们会随 user 消息进入 provider 请求
         val recallTokens = ContextWindowPolicy.estimateTokens(compactedContext.recallBlocks.values.joinToString("\n")) +
-            ContextWindowPolicy.estimateTokens(failureMemory)
+            ContextWindowPolicy.estimateTokens(failureMemory) + ContextWindowPolicy.estimateTokens(pluginContext)
 
         return buildList {
             if (systemPrompt.isNotEmpty()) {
@@ -226,7 +233,7 @@ class ApiContextAssembler(
                 toolCallMode = toolCallMode,
                 visionEnabled = model.capabilities.images,
                 recallSuffixes = compactedContext.recallBlocks,
-            ).let { if (failureMemory.isBlank()) it else it + ApiMessage(role = "user", content = failureMemory) }
+            ).let { it + listOf(failureMemory, pluginContext).filter(String::isNotBlank).map { text -> ApiMessage(role = "user", content = text) } }
             // Split-Turn 压缩后保留段可能从 assistant / tool_call 中途开始。补一条合成 user
             // 消息作为角色桥接，满足 provider 的角色交替与「首条消息必须是 user」约束
             // （Anthropic 尤其严格），并提示模型不要重复已折叠的步骤。

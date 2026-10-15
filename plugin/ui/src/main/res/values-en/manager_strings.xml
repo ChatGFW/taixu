@@ -1,0 +1,13 @@
+<resources>
+    <string name="ui_plugin_manager_title">App feature plugins</string>
+    <string name="ui_plugin_manager_scope">Manage terminal and browser interfaces. Disabling makes their pages unavailable. Existing terminal processes, browser automation and MCP services remain managed by their original features.</string>
+    <string name="ui_plugin_preferences_failed">Could not read or save plugin selection. Please retry.</string>
+    <string name="ui_plugin_retry">Retry</string>
+    <string name="ui_plugin_ready">Waiting for initialization</string>
+    <string name="ui_plugin_starting">Enabling</string>
+    <string name="ui_plugin_running">Enabled</string>
+    <string name="ui_plugin_draining">Waiting for active use to finish</string>
+    <string name="ui_plugin_stopped">Disabled</string>
+    <string name="ui_plugin_blocked">A required plugin is unavailable</string>
+    <string name="ui_plugin_failed">Lifecycle failed; resources may still require release</string>
+</resources>

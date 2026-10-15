@@ -40,6 +40,7 @@ fun AppNavigationSection(
     onOpenTools: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val pluginMenu = LocalPluginMenuContent.current
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -112,7 +113,7 @@ fun AppNavigationSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Surface(
+            if (pluginMenu == null) Surface(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
@@ -172,5 +173,6 @@ fun AppNavigationSection(
                 }
             }
         }
+        pluginMenu?.invoke()
     }
 }

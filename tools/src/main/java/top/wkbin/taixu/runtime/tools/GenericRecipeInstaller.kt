@@ -43,9 +43,10 @@ class GenericRecipeInstaller(
             checkReady()
 
             val localPayload = if (manifest.source == "LOCAL") {
+                check(manifest.schemaVersion != 2 || localPluginPayloadManager != null) { "v2 插件缺少资源装载器" }
                 emit(InstallEvent.Progress(toolId, "正在装载本地插件资源", 0.05f, InstallEvent.Phase.PREPARING))
                 var preparedPath: String? = null
-                localPluginPayloadManager?.prepare(toolId, linuxRuntime.activeDistroId.value)?.collect { event ->
+                localPluginPayloadManager?.prepare(toolId, linuxRuntime.activeDistroId.value, manifest.version, manifest.plugin?.integrity)?.collect { event ->
                     when (event) {
                         is LocalPluginPreparationEvent.Copying -> emit(
                             InstallEvent.Progress(
@@ -163,6 +164,7 @@ class GenericRecipeInstaller(
                 val targetPath = "$toolDir/bin/$linkName"
                 val linkRes = toolCommandLinker.link(linkName, targetPath, baseEnvironment)
                 if (!linkRes.isSuccess) {
+                    check(manifest.schemaVersion != 2) { "v2 命令入口创建失败" }
                     val fallbackTarget = "/usr/bin/$linkName"
                     toolCommandLinker.link(linkName, fallbackTarget, baseEnvironment)
                 }
@@ -175,6 +177,7 @@ class GenericRecipeInstaller(
                 linuxRuntime.execute(ShellCommand(commandLine = verifyCmd, environment = baseEnvironment, timeoutMs = 60_000L)),
             )
             if (!versionResult.isSuccess) {
+                check(manifest.schemaVersion != 2) { "v2 插件验证失败" }
                 // 验证命令超时挂死（退出码 124）意味着工具链本身可能已损坏——
                 // 例如 java 启动器陷入 exec 回环：进程只烧 CPU、零输出，60 秒
                 // 后被超时强杀。此时绝不能拿“文件存在/可执行位”当安装成功，
@@ -203,7 +206,7 @@ class GenericRecipeInstaller(
             }
 
             val versionOutput = versionResult.stdout.trim().lineSequence().firstOrNull()?.takeIf { it.isNotBlank() } ?: manifest.version
-            emit(InstallEvent.Completed(toolId, versionOutput))
+            emit(InstallEvent.Completed(toolId, if (manifest.schemaVersion == 2) manifest.version else versionOutput))
         } catch (cancellation: CancellationException) {
             if (manifest.source == "LOCAL") {
                 runCatching {
@@ -248,7 +251,8 @@ class GenericRecipeInstaller(
         val links = if (manifest.commandLinks.isNotEmpty()) manifest.commandLinks else listOf(manifest.id)
 
         for (link in links) {
-            toolCommandLinker.remove(link, runtimeEnvironment())
+            val removed = toolCommandLinker.remove(link, runtimeEnvironment())
+            if (manifest.schemaVersion == 2 && !removed.isSuccess) return ToolActionResult(false, "命令入口清理失败")
         }
 
         val customUninstall = manifest.uninstallScript

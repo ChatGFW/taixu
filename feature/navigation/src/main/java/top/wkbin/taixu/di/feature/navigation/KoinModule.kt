@@ -1,6 +1,9 @@
 package top.wkbin.taixu.di.feature.navigation
 
 import org.koin.dsl.module
+import top.wkbin.taixu.plugin.ui.PluginPages
+import top.wkbin.taixu.plugin.runtime.PluginController
+import top.wkbin.taixu.ui.navigation.NativePluginPlatform
 import top.wkbin.taixu.di.feature.browser.featureBrowserModule
 import top.wkbin.taixu.di.feature.chat.featureChatModule
 import top.wkbin.taixu.di.feature.custom.iteration.featureCustomIterationModule
@@ -14,6 +17,9 @@ import top.wkbin.taixu.di.feature.workspace.featureWorkspaceModule
 
 /** Feature composition stays at the navigation boundary. */
 val navigationModule = module {
+    single { NativePluginPlatform() }
+    single<PluginPages> { get<NativePluginPlatform>().pages }
+    single<PluginController> { get<NativePluginPlatform>().controller(get()) }
     includes(
         featureBrowserModule,
         featureChatModule,

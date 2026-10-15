@@ -34,7 +34,7 @@ internal val toolBackendModule = module {
         )
     }
     single { top.wkbin.taixu.harness.environment.SessionExecutionEnvironments(get()) }
-    single { ToolCheckpoints<ToolExecutionRequest, ToolResult>() }
+    single { get<top.wkbin.taixu.harness.plugins.HarnessPluginRegistry>().checkpoints() }
     single { WorkspaceMutationSnapshots(store = get(), events = get()) }
     single {
         val files = get<WorkspaceFileAccess>()
@@ -111,6 +111,7 @@ internal val toolBackendModule = module {
     single {
         CapabilityToolGateway(
             mcpManager = get(),
+            plugins = get(),
             argRedactor = { value: String -> get<SecretRedactor>().redact(value) },
             hostExecutor = { args, operationId, sessionId, metadata ->
                 get<HostCapabilityToolBackend>().execute(HostToolRequest(args, operationId, sessionId, metadata))

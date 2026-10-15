@@ -1,0 +1,18 @@
+<resources>
+    <string name="harness_plugins_counts">Tools %1$d · Context %2$d · Providers %3$d · Workflow %4$d</string>
+    <string name="harness_plugins_title">Agent and workflow plugins</string>
+    <string name="harness_plugins_scope">Compiled extensions in this app. Tool calls retain approval controls. Runtime toggles and external code loading are not available yet.</string>
+    <string name="package_confirm_title">Install local plugin</string>
+    <string name="package_dependencies">Plugin dependencies (must be installed)</string>
+    <string name="package_resources">Resource ownership declarations</string>
+    <string name="package_new_capabilities">New capability requests since the installed version</string>
+    <string name="package_none">None</string>
+    <string name="package_install">Install</string>
+    <string name="package_confirm_scope">Confirmation extracts the package and runs its install scripts. Capabilities and resources are declarations, not a process sandbox; scripts retain PRoot permissions. Shared resources are retained on removal.</string>
+    <string name="packaged_plugins_title">Process plugins and compatible tools</string>
+    <string name="packaged_plugins_scope">Installed versions follow the selected distribution. Manage installation, launch and removal in tool details.</string>
+    <string name="packaged_plugins_failed">Unable to read the plugin catalog. Return and try again.</string>
+    <string name="packaged_plugins_version">Catalog %1$s · Installed %2$s</string>
+    <string name="packaged_plugins_uninstalled">Not installed</string>
+    <string name="packaged_plugins_details">Open tool details</string>
+</resources>

@@ -21,6 +21,7 @@ internal class ScriptCapabilityDispatcher(
     private val metadata: MutableMap<String, String>,
     private val mcpManager: McpManager?,
     private val redact: (String) -> String,
+    private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
     private val execute: suspend (ToolCall) -> ToolResult,
 ) {
     suspend fun call(server: String, tool: String, args: JsonObject): Pair<Boolean, String> {
@@ -58,6 +59,7 @@ internal class ScriptCapabilityDispatcher(
 
     private suspend fun validate(server: String, tool: String, args: JsonObject): List<String> {
         if (server.isBlank() || tool.isBlank()) return listOf("server 与 tool 不能为空")
+        if (server.startsWith("plugin.")) return plugins?.problems(server, tool, args) ?: listOf("插件目录未初始化")
         if (server.lowercase() == HostCapabilityDirectory.SERVER_ID) {
             if (HostCapabilityDirectory.deferredAction(tool) == null || HostCapabilityDirectory.isHidden(tool)) {
                 return listOf("宿主能力域没有可调用工具「$tool」，请 inspect 后按目录调用")

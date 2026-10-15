@@ -4,6 +4,28 @@
 
 ---
 
+## 插件平台（P1 页面扩展 / P2 生命周期）
+
+| 关键文件 | 职责 |
+| --- | --- |
+| [`PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md) | 内核与插件边界、三种执行形态、授权设计与 P1–P6 路线 |
+| [`PLUGIN_HARNESS_EXTENSIONS.md`](PLUGIN_HARNESS_EXTENSIONS.md) | 编译时工具/上下文/Provider/工作流契约、审批边界、Schema 子集与示例 |
+| [`HarnessPluginRegistry.kt`](../harness/src/main/java/top/wkbin/taixu/harness/plugins/HarnessPluginRegistry.kt) / [`BuiltinHarnessPlugins.kt`](../harness/src/main/java/top/wkbin/taixu/harness/plugins/BuiltinHarnessPlugins.kt) | 受信任 Harness 扩展装配与内置协议/节点迁移 |
+| [`PluginNodeExecutor.kt`](../harness/src/main/java/top/wkbin/taixu/harness/plugins/PluginNodeExecutor.kt) / [`PluginSchemas.kt`](../harness/src/main/java/top/wkbin/taixu/harness/plugins/PluginSchemas.kt) | 通用插件节点审批与严格参数校验 |
+| [`PLUGIN_PACKAGE_V2.md`](PLUGIN_PACKAGE_V2.md) | v2 PROCESS 包格式、版本依赖、资源声明、事务边界与示例 |
+| [`PluginPackageProtocol.kt`](../plugin/packages/src/main/kotlin/top/wkbin/taixu/plugin/packages/PluginPackageProtocol.kt) / [`PackageInstallPolicy.kt`](../plugin/packages/src/main/kotlin/top/wkbin/taixu/plugin/packages/PackageInstallPolicy.kt) | 严格版本分派、SemVer 依赖与安装收据冲突检查 |
+| [`LocalPluginArchive.kt`](../tools/src/main/java/top/wkbin/taixu/core/tools/LocalPluginArchive.kt) / [`LocalPluginStore.kt`](../tools/src/main/java/top/wkbin/taixu/core/tools/LocalPluginStore.kt) | 有界 ZIP 校验、完整性清单、不可覆盖版本与原子选中指针 |
+| [`ToolPackageOperations.kt`](../tools/src/main/java/top/wkbin/taixu/core/tools/ToolPackageOperations.kt) / [`PluginReceiptStore.kt`](../tools/src/main/java/top/wkbin/taixu/core/tools/PluginReceiptStore.kt) | 串行安装/卸载检查、最小版本收据与旧工具迁移 |
+| [`PackagePluginInventory.kt`](../tools/src/main/java/top/wkbin/taixu/core/tools/PackagePluginInventory.kt) / [`PackagedPluginInventorySection.kt`](../feature/settings/src/main/java/top/wkbin/taixu/ui/settings/PackagedPluginInventorySection.kt) | 当前发行版统一包目录与工具详情入口 |
+| [`PluginDescriptor.kt`](../plugin/api/src/main/kotlin/top/wkbin/taixu/plugin/api/PluginDescriptor.kt) / [`PluginCatalog.kt`](../plugin/api/src/main/kotlin/top/wkbin/taixu/plugin/api/PluginCatalog.kt) | 平台无关身份、API 区间、页面扩展引用与依赖图校验 |
+| [`NativePluginPageRegistry.kt`](../plugin/ui/src/main/java/top/wkbin/taixu/plugin/ui/NativePluginPageRegistry.kt) / [`PluginPageHost.kt`](../plugin/ui/src/main/java/top/wkbin/taixu/plugin/ui/PluginPageHost.kt) | 编译时页面实现一致性校验与 Compose 渲染，不新增导航/VM owner |
+| [`TerminalPlugin.kt`](../feature/terminal/src/main/java/top/wkbin/taixu/ui/terminal/TerminalPlugin.kt) | 首个内置页面插件，适配项目参数与嵌入模式 |
+| [`BrowserPlugin.kt`](../feature/browser/src/main/java/top/wkbin/taixu/ui/browser/BrowserPlugin.kt) | 第二个界面插件，复用共享 ViewModel 与原嵌入退出语义 |
+| [`PluginRuntime.kt`](../plugin/runtime/src/main/kotlin/top/wkbin/taixu/plugin/runtime/PluginRuntime.kt) / [`PluginActivation.kt`](../plugin/runtime/src/main/kotlin/top/wkbin/taixu/plugin/runtime/PluginActivation.kt) | 依赖启停、代次准入、资源与协程排空、失败保留与重试 |
+| [`PluginPreferences.kt`](../core/datastore/src/main/java/top/wkbin/taixu/core/datastore/PluginPreferences.kt) / [`PluginManagerScreen.kt`](../plugin/ui/src/main/java/top/wkbin/taixu/plugin/ui/PluginManagerScreen.kt) | 启用选择持久化、统一管理与失败反馈 |
+| [`NativePluginPlatform.kt`](../feature/navigation/src/main/java/top/wkbin/taixu/ui/navigation/NativePluginPlatform.kt) / [`PluginNavigationShell.kt`](../feature/navigation/src/main/java/top/wkbin/taixu/ui/navigation/PluginNavigationShell.kt) | 宿主插件集合、控制器装配与菜单/设置贡献注入 |
+| [`AppDestinations.kt`](../feature/navigation/src/main/java/top/wkbin/taixu/ui/navigation/AppDestinations.kt) / [`PluginNavigationPages.kt`](../feature/navigation/src/main/java/top/wkbin/taixu/ui/navigation/PluginNavigationPages.kt) | 通用插件路由、旧终端路由和聊天面板适配 |
+
 ## 🤖 Agent Harness（核心调度）
 
 | 模块 | 关键文件 | 职责 |
