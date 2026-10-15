@@ -60,7 +60,7 @@ fun RuntimeRevealNavigationDrawer(
     content: @Composable () -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize().clipToBounds()) {
-        val drawerWidth = maxWidth * 0.75f
+        val drawerWidth = (maxWidth * 0.75f).coerceAtMost(360.dp)
         val widthPx = with(LocalDensity.current) { drawerWidth.toPx() }
         val direction = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1f else 1f
         val state = remember {

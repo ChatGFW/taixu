@@ -123,7 +123,7 @@ fun WorkflowEditorView(
 
     BoxWithConstraints(modifier) {
         val editorHeight = maxHeight
-        val isWideScreen = maxWidth >= 820.dp
+        val isWideScreen = top.wkbin.taixu.ui.components.widthClassOf(maxWidth.value) == top.wkbin.taixu.ui.components.RuntimeWidthClass.Expanded
         val selectedNode = state.definition.nodes.firstOrNull { it.id == state.selectedNodeId }
         val isInspectorOpen = !isWideScreen && sheetExpanded && selectedNode != null
 

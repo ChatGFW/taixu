@@ -239,7 +239,7 @@ internal fun LocalHomeScreen(
                 .fillMaxSize()
                 .padding(top = innerPadding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 12.dp, bottom = 12.dp))
                 .padding(bottom = innerPadding.calculateBottomPadding() + 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

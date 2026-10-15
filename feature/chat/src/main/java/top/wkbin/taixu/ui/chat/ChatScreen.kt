@@ -22,12 +22,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,12 +34,8 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.activity.compose.BackHandler
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -54,7 +47,6 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -357,14 +349,13 @@ fun ChatScreen(
         if (opened != null && opened.sessionId != currentSessionId) viewModel?.closeSubagentResult()
     }
 
-    // 模型·权限·主线·轮次 工具条：单栏浏览器分页模式下随对话页一起滑走（浏览器页全屏），
-    // 双栏/纯对话模式固定在顶部。提出为局部 lambda 避免三处重复传参。
-    // onOpenBrowser 非空时工具条末尾追加"浏览器"入口（agent 有新动态时高亮）。
+    // 模型·权限·主线·轮次 工具条：紧凑态浏览器整页打开时被覆盖，其余形态固定在顶部。
+    // onOpenBrowser 非空时工作台追加"浏览器"入口（agent 有新动态时高亮）；companion 非空时显示伴随面板开关。
     val noProjectHint = stringResource(R.string.chat_repository_no_project)
     var toolchainGap by remember { mutableStateOf(false) }; var showToolchainPanel by remember { mutableStateOf(false) }
 
-    val chatTopBar: @Composable (onOpenBrowser: (() -> Unit)?, browserHighlight: Boolean) -> Unit =
-        { onOpenBrowser, browserHighlight ->
+    val chatTopBar: @Composable (onOpenBrowser: (() -> Unit)?, browserHighlight: Boolean, companion: ChatCompanionToggle?) -> Unit =
+        { onOpenBrowser, browserHighlight, companion ->
             ChatTopBar(
                 title = sessions.firstOrNull { it.id == currentSessionId }?.title.orEmpty(),
                 workspace = workspace,
@@ -395,21 +386,19 @@ fun ChatScreen(
                 },
                 repositoryHighlight = repositoryHighlight,
                 toolchainHighlight = toolchainGap, onOpenToolchain = { showToolchainPanel = true },
-                onOpenReasoning = { showReasoningSlider = true },
+                onOpenReasoning = { showReasoningSlider = true }, companion = companion,
             )
         }
 
     // 模型回复里的 /workspace、/attachments 等沙箱路径在此翻译为宿主真实文件，
     // 否则 Coil 会按 Android 根文件系统路径加载而必然失败。
-    CompositionLocalProvider(LocalSandboxHostRoots provides viewModel?.sandboxHostRoots, LocalA2uiSessionId provides currentSessionId) {
+    CompositionLocalProvider(LocalSandboxHostRoots provides (viewModel?.sandboxHostRoots ?: emptyMap()), LocalA2uiSessionId provides currentSessionId) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
-        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
-            val isDualPane = maxWidth >= 720.dp
-
+        Box(Modifier.fillMaxSize().padding(padding)) {
             val knownMentionNames = remember(allSkills, mcpServers) {
                 (allSkills.filter { it.isEnabled }.flatMap { skill ->
                     listOfNotNull(skill.name, skill.id, skill.triggerCommand?.removePrefix("/"))
@@ -496,99 +485,12 @@ fun ChatScreen(
                 )
             }
 
-            if (isDualPane && terminalPane != null) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    chatTopBar(null, false)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 12.dp)
-                            .windowInsetsPadding(bottomInsets),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                    // 左栏：Agent 对话与指令区
-                    chatContent(
-                        Modifier
-                            .weight(0.48f)
-                            .fillMaxHeight()
-                    )
-
-                    VerticalDivider(
-                        modifier = Modifier.fillMaxHeight().padding(vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                    )
-
-                    // 右栏：实时演武终端 (Terminal) / 浏览器联动视窗（可切换）
-                    var rightPaneBrowser by rememberSaveable { mutableStateOf(false) }
-                    ChatCompanionPane(
-                        browserSelected = rightPaneBrowser,
-                        onSelectBrowser = { rightPaneBrowser = it },
-                        workspace = workspace, terminal = terminalPane, browser = browserPane,
-                        modifier = Modifier.weight(0.52f).fillMaxHeight().padding(vertical = 4.dp),
-                    )
-                    }
-                }
-            } else if (browserPane != null) {
-                // 单栏：通过顶部入口直接切换，禁用横向手势和滑动过渡。
-                val pagerState = rememberPagerState(initialPage = 0) { 2 }
-                var lastSeenBrowserTick by remember { mutableStateOf(0L) }
-                LaunchedEffect(pagerState.currentPage, browserActivityTick) {
-                    if (pagerState.currentPage == 1) lastSeenBrowserTick = browserActivityTick
-                }
-                // 浏览器页系统返回：优先回退 WebView 历史，耗尽后切回对话页
-                BackHandler(enabled = pagerState.currentPage == 1) {
-                    if (browserBackPressed?.invoke() != true) {
-                        coroutineScope.launch { pagerState.scrollToPage(0) }
-                    }
-                }
-                Box(modifier = Modifier.fillMaxSize()) {
-                    HorizontalPager(state = pagerState, userScrollEnabled = false) { page ->
-                        if (page == 0) {
-                            // 对话页：顶部工具条（模型·权限·主线·轮次·浏览器）属于对话的一部分。
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                chatTopBar(
-                                    {
-                                        coroutineScope.launch { pagerState.scrollToPage(1) }
-                                    },
-                                    browserActivityTick > lastSeenBrowserTick,
-                                )
-                                chatContent(
-                                    Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 12.dp)
-                                        .windowInsetsPadding(bottomInsets)
-                                )
-                            }
-                        } else {
-                            // 浏览器页：全屏，仅保留自己的极薄状态栏（末尾带"返回对话"）+ URL 栏；
-                            // 底部用贴合版 insets（无呼吸空间），URL 栏直接贴在底部导航栏上方
-                            Box(
-                                Modifier
-                                    .fillMaxSize()
-                                    .statusBarsPadding()
-                                    .windowInsetsPadding(chatBottomInsets())
-                            ) {
-                                browserPane(
-                                    {
-                                        coroutineScope.launch { pagerState.scrollToPage(0) }
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            } else {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    chatTopBar(null, false)
-                    chatContent(
-                        Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 12.dp)
-                            .windowInsetsPadding(bottomInsets)
-                    )
-                }
-            }
-
+            // 三态布局：紧凑态浏览器整页、中间态右侧滑出、展开态常驻可拖拽双栏
+            ChatAdaptiveLayout(
+                workspace = workspace, terminalPane = terminalPane, browserPane = browserPane,
+                browserActivityTick = browserActivityTick, browserBackPressed = browserBackPressed,
+                bottomInsets = bottomInsets, topBar = chatTopBar, chatContent = chatContent,
+            )
         }
     }
 

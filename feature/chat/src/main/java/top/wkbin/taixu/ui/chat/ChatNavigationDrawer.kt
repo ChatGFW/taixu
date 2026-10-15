@@ -2,10 +2,16 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.ui.components.AppNavigationSection
+import top.wkbin.taixu.ui.components.LocalPluginDestinationActive
 import top.wkbin.taixu.ui.components.MainDestination
-import top.wkbin.taixu.ui.components.RuntimeRevealNavigationDrawer
+import top.wkbin.taixu.ui.components.RuntimeAdaptiveNavigationScaffold
+import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeNavigationRail
+import top.wkbin.taixu.ui.components.RuntimeRailItem
 
 @Composable
 fun ChatNavigationDrawer(
@@ -13,6 +19,8 @@ fun ChatNavigationDrawer(
     visible: Boolean,
     onDismiss: () -> Unit,
     onOpen: (() -> Unit)? = null,
+    docked: Boolean = true,
+    onDockedChange: (Boolean) -> Unit = {},
     newSessionVisible: Boolean,
     selected: MainDestination,
     onNewSession: () -> Unit,
@@ -26,12 +34,33 @@ fun ChatNavigationDrawer(
     val catalog by viewModel.workspaceCatalog.collectAsStateWithLifecycle()
     val currentSessionId by viewModel.currentSessionId.collectAsStateWithLifecycle()
     val runStates by viewModel.sessionRunStates.collectAsStateWithLifecycle()
+    val pluginActive = LocalPluginDestinationActive.current
 
-    RuntimeRevealNavigationDrawer(
+    RuntimeAdaptiveNavigationScaffold(
         visible = visible,
         onDismiss = onDismiss,
         onOpen = onOpen,
-        drawerContent = {
+        docked = docked,
+        onDockedChange = onDockedChange,
+        rail = { onOpenSidebar ->
+            fun destination(target: MainDestination, label: String) = RuntimeRailItem(label, target.icon,
+                selected = selected == target && !pluginActive) { onDismiss(); onNavigate(target) }
+            RuntimeNavigationRail(
+                header = listOf(
+                    RuntimeRailItem(stringResource(ComponentsR.string.components_rail_sessions), RuntimeIconName.List, onClick = onOpenSidebar),
+                    RuntimeRailItem(stringResource(ComponentsR.string.components_rail_new_session), RuntimeIconName.Plus) { onDismiss(); onNewSession() },
+                ),
+                items = listOf(
+                    destination(MainDestination.Agent, stringResource(ComponentsR.string.components_nav_agent)),
+                    destination(MainDestination.Workspace, stringResource(ComponentsR.string.components_drawer_tab_workspace)),
+                    destination(MainDestination.Home, stringResource(ComponentsR.string.components_drawer_tab_system)),
+                    RuntimeRailItem(stringResource(ComponentsR.string.components_rail_terminal), RuntimeIconName.Terminal) { onDismiss(); onOpenTerminal() },
+                    RuntimeRailItem(stringResource(ComponentsR.string.components_rail_tools), RuntimeIconName.Wrench) { onDismiss(); onOpenTools() },
+                ),
+                footer = listOf(destination(MainDestination.Settings, stringResource(ComponentsR.string.components_drawer_settings))),
+            )
+        },
+        drawerContent = { onCollapse ->
             SessionsSideDrawer(
                 visible = true,
                 sessions = sessions,
@@ -48,6 +77,7 @@ fun ChatNavigationDrawer(
                 },
                 onDelete = viewModel::deleteSession,
                 onRename = viewModel::renameSession,
+                onCollapse = onCollapse,
                 navigationContent = {
                     AppNavigationSection(
                         selected = selected,

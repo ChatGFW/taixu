@@ -18,8 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.items
+import top.wkbin.taixu.ui.components.fullWidthItem
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -195,14 +195,14 @@ internal fun LocalWorkspaceScreen(
                 }
             },
         ) { padding ->
-            LazyColumn(
+            androidx.compose.foundation.lazy.grid.LazyVerticalGrid(columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(340.dp),
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 6.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                item {
+                fullWidthItem {
                     message?.let { notice ->
                         NoticeBanner(
                             text = notice,
@@ -221,7 +221,7 @@ internal fun LocalWorkspaceScreen(
                     )
                 }
 
-                item {
+                fullWidthItem {
                     // 宿主外部存储快速访问入口
                     RuntimeCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -273,7 +273,7 @@ internal fun LocalWorkspaceScreen(
                     }
                 }
 
-                item {
+                fullWidthItem {
                     SectionHeader(
                         title = stringResource(R.string.workspace_projects_section),
                         subtitle = stringResource(R.string.workspace_projects_description),
@@ -281,7 +281,7 @@ internal fun LocalWorkspaceScreen(
                 }
 
                 if (loadingProjects) {
-                    item {
+                    fullWidthItem {
                         repeat(3) { index ->
                             ProjectCardSkeleton(
                                 modifier = Modifier.padding(top = if (index == 0) 16.dp else 0.dp),
@@ -289,7 +289,7 @@ internal fun LocalWorkspaceScreen(
                         }
                     }
                 } else if (projects.isEmpty()) {
-                    item {
+                    fullWidthItem {
                         WorkspaceEmptyState(
                             enabled = !busy,
                             onCreate = { showCreate = true },
@@ -320,7 +320,7 @@ internal fun LocalWorkspaceScreen(
                     }
                 }
 
-                item { Spacer(Modifier.height(16.dp)) }
+                fullWidthItem { Spacer(Modifier.height(16.dp)) }
             }
         }
 

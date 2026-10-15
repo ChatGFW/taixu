@@ -113,7 +113,7 @@ fun TaiXuNavHost(
     val settingsStack = rememberNavBackStack(SettingsDestination)
     var pendingHealingTask by remember { mutableStateOf<HealingTask?>(null) }
     var selectedMain by rememberSaveable { mutableStateOf(MainDestination.Agent) }
-    var showNavigation by rememberSaveable { mutableStateOf(false) }
+    var showNavigation by rememberSaveable { mutableStateOf(false) }; var sidebarDocked by rememberSaveable { mutableStateOf(true) }
     var showNewSession by rememberSaveable { mutableStateOf(false) }
     /** Programmatic stack mutation (bus / workflow). */
     fun NavBackStack<NavKey>.pushRaw(destination: NavKey) {
@@ -726,7 +726,7 @@ fun TaiXuNavHost(
     ) {
         ChatNavigationDrawer(
             viewModel = chatViewModel, visible = showNavigation, onDismiss = { showNavigation = false },
-            onOpen = { showNavigation = true }, newSessionVisible = showNewSession, selected = when (activeStack.lastOrNull()) { WorkspaceDestination -> MainDestination.Workspace; HomeDestination -> MainDestination.Home; else -> selectedMain },
+            onOpen = { showNavigation = true }, docked = sidebarDocked, onDockedChange = { sidebarDocked = it }, newSessionVisible = showNewSession, selected = when (activeStack.lastOrNull()) { WorkspaceDestination -> MainDestination.Workspace; HomeDestination -> MainDestination.Home; else -> selectedMain },
             onNewSession = { showNewSession = true }, onDismissNewSession = { showNewSession = false },
             onNavigate = ::navigateMain, onOpenTerminal = { activeStack.pushRaw(TerminalDestination()) },
             onOpenTools = { activeStack.pushRaw(ToolCenterDestination) },

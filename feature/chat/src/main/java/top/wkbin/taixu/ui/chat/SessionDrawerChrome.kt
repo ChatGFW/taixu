@@ -27,12 +27,19 @@ internal fun SessionDrawerSearch(
     query: String,
     onQueryChange: (String) -> Unit,
     onNew: () -> Unit,
+    onCollapse: (() -> Unit)? = null,
 ) {
     val searchLabel = stringResource(R.string.chat_drawer_search)
     Row(
-        Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 8.dp),
+        Modifier.fillMaxWidth().padding(start = if (onCollapse != null) 4.dp else 16.dp, end = 8.dp, top = 4.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (onCollapse != null) {
+            RuntimeIconButton(onClick = onCollapse, modifier = Modifier.size(48.dp),
+                contentDescription = stringResource(top.wkbin.taixu.feature.components.R.string.components_collapse_sidebar)) {
+                RuntimeIcon(RuntimeIconName.List, Modifier.size(20.dp))
+            }
+        }
         RuntimeCard(
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(20.dp),

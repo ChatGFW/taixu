@@ -143,7 +143,7 @@ internal fun SessionsSideDrawer(
     onCreateInWorkspace: (WorkspaceProject) -> Unit,
     onDelete: (String) -> Unit,
     onRename: (String, String) -> Unit,
-    navigationContent: @Composable () -> Unit = {},
+    onCollapse: (() -> Unit)? = null, navigationContent: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (!visible) return
@@ -175,7 +175,7 @@ internal fun SessionsSideDrawer(
         Column(
             modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding(),
         ) {
-            SessionDrawerSearch(query, { query = it }, onNew)
+            SessionDrawerSearch(query, { query = it }, onNew, onCollapse)
 
             Column(
                 modifier = Modifier

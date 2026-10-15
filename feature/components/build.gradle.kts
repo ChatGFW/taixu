@@ -14,4 +14,5 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.bundles.coil)
+    testImplementation(libs.junit)
 }

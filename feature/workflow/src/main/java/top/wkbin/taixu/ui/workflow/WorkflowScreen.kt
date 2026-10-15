@@ -411,7 +411,7 @@ private fun WorkflowRunView(
 ) {
     BoxWithConstraints(modifier) {
         var selectedNode by remember(state.executionId) { mutableStateOf<String?>(null) }
-        if (maxWidth >= 760.dp) {
+        if (top.wkbin.taixu.ui.components.widthClassOf(maxWidth.value) == top.wkbin.taixu.ui.components.RuntimeWidthClass.Expanded) {
             Row(Modifier.fillMaxSize()) {
                 WorkflowCanvas2D(state.definition, state, Modifier.weight(1f).fillMaxSize(), selectedNodeId = selectedNode, onNodeSelected = { selectedNode = it })
                 Column(Modifier.width(320.dp).verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

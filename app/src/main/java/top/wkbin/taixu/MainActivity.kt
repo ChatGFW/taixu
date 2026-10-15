@@ -64,6 +64,7 @@ import top.wkbin.taixu.runtime.service.RuntimeServiceController
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.MarkdownText
+import top.wkbin.taixu.ui.components.ProvideRuntimeWidthClass
 import top.wkbin.taixu.ui.navigation.TaiXuNavHost
 import top.wkbin.taixu.ui.theme.TaiXuTheme
 import androidx.core.net.toUri
@@ -306,12 +307,14 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
 
-                when {
-                    !onboarding.loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                ProvideRuntimeWidthClass {
+                    when {
+                        !onboarding.loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        }
+                        onboarding.completed -> TaiXuNavHost(globalNavigationBus = globalNavigationBus)
+                        else -> OnboardingScreen(onboardingViewModel)
                     }
-                    onboarding.completed -> TaiXuNavHost(globalNavigationBus = globalNavigationBus)
-                    else -> OnboardingScreen(onboardingViewModel)
                 }
                 }
             }

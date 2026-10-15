@@ -42,7 +42,7 @@ internal fun ChatTopBar(
     onOpenRuntime: () -> Unit, onOpenBrowser: (() -> Unit)? = null, browserHighlight: Boolean = false,
     onOpenRepository: (() -> Unit)? = null, repositoryHighlight: Boolean = false,
     toolchainHighlight: Boolean = false, onOpenToolchain: () -> Unit,
-    onOpenReasoning: (() -> Unit)? = null,
+    onOpenReasoning: (() -> Unit)? = null, companion: ChatCompanionToggle? = null,
 ) {
     val context = LocalContext.current
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -59,13 +59,13 @@ internal fun ChatTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            RuntimeIconButton(
+            if (!LocalRuntimeWidthClass.current.hasPersistentNavigation) RuntimeIconButton(
                 onClick = onOpenSessions,
                 modifier = Modifier.size(44.dp),
                 contentDescription = stringResource(R.string.chat_open_session_list),
             ) {
                 RuntimeIcon(RuntimeIconName.List, Modifier.size(22.dp))
-            }
+            } else Spacer(Modifier.width(8.dp))
             Column(
                 Modifier.weight(1f).clickable(onClick = onOpenModels).heightIn(min = 48.dp),
                 verticalArrangement = Arrangement.Center,
@@ -89,6 +89,14 @@ internal fun ChatTopBar(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+            }
+            if (companion != null) RuntimeIconButton(
+                onClick = companion.onToggle, modifier = Modifier.size(44.dp),
+                contentDescription = stringResource(if (companion.open) top.wkbin.taixu.feature.components.R.string.components_companion_collapse
+                    else top.wkbin.taixu.feature.components.R.string.components_companion_open),
+            ) {
+                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(20.dp),
+                    if (companion.open || browserHighlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Box {
                 RuntimeIconButton(

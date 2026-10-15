@@ -38,6 +38,7 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.LocalPluginSettingsContent
+import top.wkbin.taixu.ui.components.runtimeContentPadding
 
 /**
  * 太墟 · 乾坤配置 (TaiXu Settings & Models)
@@ -86,7 +87,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 24.dp),
+            contentPadding = runtimeContentPadding(horizontal = 16.dp, top = 10.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item { pluginSettings?.invoke() }
