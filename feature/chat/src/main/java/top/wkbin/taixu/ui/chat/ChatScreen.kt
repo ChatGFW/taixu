@@ -298,7 +298,7 @@ fun ChatScreen(
     val grantLabel = stringResource(R.string.chat_snackbar_grant)
     val gotItLabel = stringResource(R.string.chat_snackbar_got_it)
     LaunchedEffect(Unit) {
-        viewModel?.permissionRequests.collect { req ->
+        viewModel?.permissionRequests?.collect { req ->
             val actionLabel = when (req.permission) {
                 "WRITE_SETTINGS" -> grantLabel
                 else -> gotItLabel
@@ -331,7 +331,7 @@ fun ChatScreen(
     // rewind 完成：Snackbar 附「撤销回滚」动作（Toast 无法承载动作）
     val rewindUndoLabel = stringResource(R.string.chat_rewind_undo)
     LaunchedEffect(Unit) {
-        viewModel?.rewindCompletedEvents.collect { message ->
+        viewModel?.rewindCompletedEvents?.collect { message ->
             val result = snackbarHostState.showSnackbar(
                 message = message,
                 actionLabel = rewindUndoLabel,

@@ -70,8 +70,7 @@ fun StorageMountSettingsScreen(
     val customBindings by viewModel?.customMountBindings?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
 
     // SSH 远程主系统下 PRoot 挂载不生效：挂载只在本地容器启动时通过 -b 注入，远程执行环境没有对应机制。
-    val remoteViewModel = koinViewModel<RemoteServerViewModel>()
-    val activeServerId by remoteViewModel.activeId.collectAsStateWithLifecycle()
+    val activeServerId by (previewOrNull { koinViewModel<RemoteServerViewModel>() }?.activeId?.collectAsStateWithLifecycle() ?: previewStateOf<String?>(null))
     val localMountsOnly = activeServerId != null
 
     var showAddDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }

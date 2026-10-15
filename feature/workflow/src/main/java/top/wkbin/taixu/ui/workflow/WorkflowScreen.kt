@@ -84,7 +84,7 @@ fun WorkflowScreen(
     var scheduleEditorIsNew by remember { mutableStateOf(false) }
     val activeState by viewModel?.activeState?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val approval by viewModel?.approvalRequest?.collectAsStateWithLifecycle() ?: previewStateOf(null)
-    val editorState by viewModel?.editorState?.collectAsStateWithLifecycle() ?: previewStateOf(WorkflowEditorUiState())
+    val editorState by viewModel?.editorState?.collectAsStateWithLifecycle() ?: previewStateOf<WorkflowEditorUiState?>(null)
     var discardRequested by rememberSaveable { mutableStateOf(false) }
     // 通知深链：进入页面即定位到指定执行（活跃运行或历史回看）
     LaunchedEffect(initialExecutionId) {
@@ -186,7 +186,7 @@ fun WorkflowScreen(
         var apks by remember(definition.id, projectName) { mutableStateOf<List<DiscoveredApk>>(emptyList()) }
         val apkScope = rememberCoroutineScope()
         LaunchedEffect(definition.id, projectName) {
-            apks = viewModel?.scanWorkspaceApks(projectName)
+            apks = viewModel?.scanWorkspaceApks(projectName).orEmpty()
         }
         WorkflowStartDialog(
             definition = definition,
@@ -194,7 +194,7 @@ fun WorkflowScreen(
             models = models,
             availableApks = apks,
             onRefreshApks = {
-                apkScope.launch { apks = viewModel?.scanWorkspaceApks(projectName) }
+                apkScope.launch { apks = viewModel?.scanWorkspaceApks(projectName).orEmpty() }
             },
             onDismiss = { pendingRun = null },
         ) { variables ->

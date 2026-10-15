@@ -403,7 +403,7 @@ internal fun LocalWorkspaceScreen(
         )
     }
 
-    if (showCreate) {
+    if (showCreate && viewModel != null) {
         CreateProjectDialog(
             state = createWizard,
             viewModel = viewModel,
@@ -417,7 +417,7 @@ internal fun LocalWorkspaceScreen(
         )
     }
 
-    if (showImport) {
+    if (showImport && viewModel != null) {
         ImportProjectDialog(
             state = importWizard,
             viewModel = viewModel,

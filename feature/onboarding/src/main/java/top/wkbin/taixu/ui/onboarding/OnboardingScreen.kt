@@ -93,8 +93,8 @@ private val distributionOptions = DistributionCatalog.supported.map { SetupOptio
  * 太墟 · 启程配置向导 (Onboarding Wizard)
  */
 @Composable
-fun OnboardingScreen(viewModel: OnboardingViewModel? = previewOrNull { koinViewModel() }) {
-    val page by viewModel?.page?.collectAsStateWithLifecycle() ?: previewStateOf(0)
+fun OnboardingScreen(viewModel: OnboardingViewModel? = previewOrNull { koinViewModel() }, previewPage: Int = 0) {
+    val page by viewModel?.page?.collectAsStateWithLifecycle() ?: previewStateOf(previewPage)
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         when (page) {
             0 -> SystemSetupPage(viewModel, Modifier.fillMaxSize().padding(padding))
@@ -271,7 +271,7 @@ private fun ModelSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier) 
     val discovered by viewModel?.discoveredModels?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val discovering by viewModel?.discoveringModels?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val discoveryError by viewModel?.modelDiscoveryError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
-    val providers = viewModel?.providerCatalog
+    val providers = viewModel?.providerCatalog ?: listOf(AgentProviderDefinition("custom", provider, "", group = top.wkbin.taixu.core.tools.ProviderGroup.CUSTOM))
     val selectedProvider = providers.firstOrNull { it.name == provider } ?: providers.first()
 
     val context = LocalContext.current
@@ -616,7 +616,7 @@ private fun ModelSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier) 
             onDismiss = { showImportDialog = false },
             onImportJson = { jsonStr ->
                 val result = viewModel?.importProfileFromJson(jsonStr)
-                result.fold(
+                result?.fold(
                     onSuccess = { profile ->
                         Toast.makeText(context, "成功载入模型配置「${profile.name.ifBlank { profile.model }}」", Toast.LENGTH_SHORT).show()
                         showImportDialog = false

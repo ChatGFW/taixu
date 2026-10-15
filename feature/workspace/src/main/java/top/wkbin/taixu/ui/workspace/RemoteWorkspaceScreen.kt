@@ -24,7 +24,7 @@ import top.wkbin.taixu.runtime.remote.RemoteSystemService
 import top.wkbin.taixu.ui.components.*
 
 @Composable
-internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService = koinInject(), onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
+internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService? = previewOrNull { koinInject() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
     var path by remember { mutableStateOf("") }
     var refresh by remember { mutableIntStateOf(0) }
     var entries by remember(path) { mutableStateOf(emptyList<ExecutionFileEntry>()) }
@@ -35,10 +35,12 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
     var creating by remember { mutableStateOf(false) }
     var editor by remember { mutableStateOf<Pair<String, String>?>(null) }
     val scope = rememberCoroutineScope()
-    val target = runCatching { service.server(serverId) }.getOrNull()
-    LaunchedEffect(path, refresh) {
+    val target = service?.let { runCatching { it.server(serverId) }.getOrNull() }
+    LaunchedEffect(path, refresh, service) {
+        val current = service
+        if (current == null) { loading = false; entries = emptyList(); message = null; return@LaunchedEffect }
         loading = true; entries = emptyList(); message = null
-        try { entries = if (path.isEmpty()) service.projects(serverId, target) else service.list(serverId, path, target) }
+        try { entries = if (path.isEmpty()) current.projects(serverId, target) else current.list(serverId, path, target) }
         catch (e: CancellationException) { throw e }
         catch (e: Exception) { message = "无法读取服务器目录，请检查连接、工作目录和权限" }
         finally { loading = false }
@@ -79,8 +81,9 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
                     val parent = path
                     if (item.directory) path = relative
                     else scope.launch {
+                        val current = service ?: return@launch
                         loading = true
-                        try { val content = service.read(serverId, relative, target); if (path == parent) editor = relative to content }
+                        try { val content = current.read(serverId, relative, target); if (path == parent) editor = relative to content }
                         catch (e: CancellationException) { throw e }
                         catch (e: Exception) { message = "无法打开文件，仅支持 1 MiB 内的 UTF-8 文本文件" }
                         finally { loading = false }
@@ -107,15 +110,16 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
         } }, confirmButton = { RuntimeTextButton(enabled = !creating && projectName.isNotBlank(), onClick = {
             val snapshot = projectName.trim()
             scope.launch {
+                val current = service ?: return@launch
                 creating = true
-                try { service.createProject(serverId, snapshot, target); createProject = false; refresh++ }
+                try { current.createProject(serverId, snapshot, target); createProject = false; refresh++ }
                 catch (e: CancellationException) { throw e }
                 catch (e: Exception) { message = "创建失败，请检查名称是否有效、是否重复及目录权限" }
                 finally { creating = false }
             }
         }) { Text(if (creating) "创建中…" else "创建") } },
         dismissButton = { RuntimeTextButton(enabled = !creating, onClick = { createProject = false }) { Text("取消") } })
-    editor?.let { (file, original) -> RemoteFileEditor(serverId, file, original, service, target) { editor = null; refresh++ } }
+    service?.let { current -> editor?.let { (file, original) -> RemoteFileEditor(serverId, file, original, current, target) { editor = null; refresh++ } } }
 }
 
 @Composable

@@ -110,7 +110,7 @@ internal fun LocalToolCenterContent(
     val isInstallingComponents by viewModel?.isInstallingComponents?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val componentInstallProgress by viewModel?.componentInstallProgress?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val componentInstallLog by viewModel?.componentInstallLog?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val localPluginImport by viewModel?.localPluginImport?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.tools.LocalPluginImportState())
+    val localPluginImport by viewModel?.localPluginImport?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.tools.LocalPluginImportState.Idle)
     val isSyncing by viewModel?.isSyncing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val operationError by viewModel?.operationError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     var showBundleInstallLog by remember { mutableStateOf(false) }
@@ -392,7 +392,7 @@ internal fun LocalToolCenterContent(
                         )
                     }
 
-                    items(viewModel?.pluginBundles, key = { it.id }) { bundle ->
+                    items(viewModel?.pluginBundles.orEmpty(), key = { it.id }) { bundle ->
                         val installedCount = bundle.components.count { it.id in installedComponentIds }
                         val isCoreReady = bundle.components.filter { it.isRequired }.all { it.id in installedComponentIds }
 
@@ -545,7 +545,7 @@ internal fun LocalToolCenterContent(
                     items(filteredTools, key = { it.id }) { tool ->
                         ToolCard(
                             tool = tool,
-                            source = viewModel?.toolSource(tool.id),
+                            source = viewModel?.toolSource(tool.id).orEmpty(),
                             progress = installProgress[tool.id],
                             verification = verifications[tool.id],
                             onInstall = { viewModel?.installTool(tool.id) },

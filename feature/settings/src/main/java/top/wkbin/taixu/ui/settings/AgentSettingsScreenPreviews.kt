@@ -11,3 +11,19 @@ private fun AgentSettingsScreenPreview() {
         AgentSettingsScreen(onBack = { })
     }
 }
+
+@FoldablePreviews
+@Composable
+private fun AgentSubagentSettingsPreview() {
+    RuntimePreview {
+        AgentSettingsScreen(onBack = { }, category = AgentSettingsCategory.SUBAGENTS)
+    }
+}
+
+@FoldablePreviews
+@Composable
+private fun AgentSkillSettingsPreview() {
+    RuntimePreview {
+        AgentSettingsScreen(onBack = { }, category = AgentSettingsCategory.SKILLS)
+    }
+}

@@ -214,7 +214,7 @@ internal fun LocalDeveloperScreen(
                         modifier = Modifier.weight(1f),
                     ) { Text("配对并连接") }
                     OutlinedButton(
-                        onClick = { arg0 -> viewModel?.connectWirelessAdb(arg0) },
+                        onClick = { viewModel?.connectWirelessAdb() },
                         enabled = !adbBusy && adbDiscovery.connectEndpoints.isNotEmpty(),
                         modifier = Modifier.weight(1f),
                     ) { Text("重新连接") }
@@ -432,7 +432,7 @@ internal fun LocalDeveloperScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedButton(
                             onClick = {
-                                agentLogText = viewModel?.readAgentLogs()
+                                agentLogText = viewModel?.readAgentLogs().orEmpty()
                                 showAgentLogDialog = true
                             },
                             modifier = Modifier.weight(1f),
@@ -441,7 +441,7 @@ internal fun LocalDeveloperScreen(
                         }
                         OutlinedButton(
                             onClick = {
-                                val logs = viewModel?.readAgentLogs()
+                                val logs = viewModel?.readAgentLogs().orEmpty()
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 clipboard.setPrimaryClip(ClipData.newPlainText("TaiXu Agent Logs", logs))
                                 Toast.makeText(context, "日志已复制到剪贴板", Toast.LENGTH_SHORT).show()

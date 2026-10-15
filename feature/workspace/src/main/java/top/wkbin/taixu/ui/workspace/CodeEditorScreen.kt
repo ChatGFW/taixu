@@ -114,7 +114,7 @@ fun CodeEditorScreen(
     var showDiscardDialog by rememberSaveable(projectName, relativePath) { mutableStateOf(false) }
     var wordWrap by rememberSaveable { mutableStateOf(false) }
     var editorFontSizeSp by rememberSaveable { mutableStateOf(13f) }
-    val editorState = remember(projectName, relativePath) { TextFieldState(viewModel?.editorText(projectName, relativePath)) }
+    val editorState = remember(projectName, relativePath) { TextFieldState(viewModel?.editorText(projectName, relativePath).orEmpty()) }
     val lineCount by remember(editorState) {
         derivedStateOf {
             val text = editorState.text
@@ -142,7 +142,7 @@ fun CodeEditorScreen(
     // 仅在整文加载或重置时同步文本，避免打字期间因异步流转导致光标重置和软键盘闪烁
     LaunchedEffect(contentRevision) {
         if (contentRevision > 0L) {
-            val target = viewModel?.editorText(projectName, relativePath)
+            val target = viewModel?.editorText(projectName, relativePath).orEmpty()
             if (editorState.text.toString() != target) {
                 editorState.setTextAndPlaceCursorAtEnd(target)
             }

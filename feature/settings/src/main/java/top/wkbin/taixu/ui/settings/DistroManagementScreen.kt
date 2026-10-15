@@ -80,15 +80,15 @@ fun DistroManagementScreen(
     viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
     val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val remoteViewModel = koinViewModel<RemoteServerViewModel>()
-    val activeServerId by remoteViewModel.activeId.collectAsStateWithLifecycle()
+    val remoteViewModel = previewOrNull { koinViewModel<RemoteServerViewModel>() }
+    val activeServerId by (remoteViewModel?.activeId?.collectAsStateWithLifecycle() ?: previewStateOf<String?>(null))
     val activeDistroId by viewModel?.activeDistroId?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
     val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
     val restoringDistroId by viewModel?.restoringDistroId?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val deletingDistroId by viewModel?.deletingDistroId?.collectAsStateWithLifecycle() ?: previewStateOf(null)
 
     // 安装进度保存在 VM（StateFlow），旋转后进度界面可恢复，安装在后台继续进行
-    val installState by viewModel?.distroInstallState?.collectAsStateWithLifecycle() ?: previewStateOf(DistroInstallUiState())
+    val installState by viewModel?.distroInstallState?.collectAsStateWithLifecycle() ?: previewStateOf(SettingsViewModel.DistroInstallUiState())
     var showInstallDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var distroToReset by remember { mutableStateOf<InstalledDistro?>(null) }
     var distroToUninstall by remember { mutableStateOf<InstalledDistro?>(null) }
@@ -137,7 +137,7 @@ fun DistroManagementScreen(
                     isDeleting = distro.id.equals(deletingDistroId, ignoreCase = true),
                     canOperateMulti = installedDistros.size > 1 || activeServerId != null,
                     onSwitchActive = {
-                        remoteViewModel.select(null)
+                        remoteViewModel?.select(null)
                         viewModel?.switchActiveDistro(distro.id)
                     },
                     onReset = {

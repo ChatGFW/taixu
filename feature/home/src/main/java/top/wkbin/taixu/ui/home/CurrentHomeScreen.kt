@@ -28,10 +28,12 @@ fun HomeScreen(onNavigate: (MainDestination) -> Unit, onOpenTerminal: () -> Unit
 }
 
 @Composable
-private fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService = koinInject(), onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
+internal fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService? = previewOrNull { koinInject() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
     var refresh by remember { mutableIntStateOf(0) }
-    val target = runCatching { service.server(serverId) }.getOrNull()
-    val state by remember(serverId, refresh) { service.observe(serverId, target) }.collectAsStateWithLifecycle(RemoteSystemInspection())
+    val target = service?.let { runCatching { it.server(serverId) }.getOrNull() }
+    val state by remember(serverId, refresh, service) {
+        service?.observe(serverId, target) ?: kotlinx.coroutines.flow.flowOf(RemoteSystemInspection(loading = false))
+    }.collectAsStateWithLifecycle(RemoteSystemInspection(loading = service != null))
     val metrics = state.metrics
     Scaffold(containerColor = MaterialTheme.colorScheme.background,
         topBar = { RuntimeTopBar(title = "太墟", onBack = onBack, statusText = target?.name ?: "当前系统", actions = {

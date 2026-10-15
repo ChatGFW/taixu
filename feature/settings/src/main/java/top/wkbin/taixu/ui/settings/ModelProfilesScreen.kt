@@ -153,14 +153,14 @@ fun ModelProfilesScreen(
             onDismiss = { showImportDialog = false },
             importing = importing,
             models = models,
-            parseProfiles = viewModel::parseProfilesFromJson,
+            parseProfiles = { raw -> viewModel?.parseProfilesFromJson(raw) ?: Result.failure(IllegalStateException()) },
             onImportJson = { jsonStr, mode ->
                 if (importing) return@ModelImportDialog
                 importing = true
                 coroutineScope.launch {
                     val result = viewModel?.importProfilesFromJson(jsonStr, mode)
                     importing = false
-                    result.fold(
+                    result?.fold(
                         onSuccess = { count ->
                             Toast.makeText(context, "成功导入 $count 个模型档案", Toast.LENGTH_SHORT).show()
                             showImportDialog = false
@@ -181,7 +181,7 @@ fun ModelProfilesScreen(
             subtitle = "准备导出 ${models.size} 个模型档案配置",
             onDismiss = { showExportAllDialog = false },
             onGenerateJson = { includeKeys ->
-                viewModel?.exportAllProfilesJson(includeKeys)
+                viewModel?.exportAllProfilesJson(includeKeys).orEmpty()
             },
         )
     }

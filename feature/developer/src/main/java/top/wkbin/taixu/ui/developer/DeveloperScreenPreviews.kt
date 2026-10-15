@@ -11,3 +11,11 @@ private fun DeveloperScreenPreview() {
         LocalDeveloperScreen(onBack = { })
     }
 }
+
+@FoldablePreviews
+@Composable
+private fun RemoteDeveloperScreenPreview() {
+    RuntimePreview {
+        RemoteDeveloperScreen(serverId = "preview", onBack = { })
+    }
+}

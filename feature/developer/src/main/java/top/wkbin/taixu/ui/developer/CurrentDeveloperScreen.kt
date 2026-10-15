@@ -26,10 +26,12 @@ fun DeveloperScreen(onBack: () -> Unit, viewModel: DeveloperViewModel? = null) {
 }
 
 @Composable
-private fun RemoteDeveloperScreen(serverId: String, onBack: () -> Unit, service: RemoteSystemService = koinInject()) {
+internal fun RemoteDeveloperScreen(serverId: String, onBack: () -> Unit, service: RemoteSystemService? = previewOrNull { koinInject() }) {
     var refresh by remember { mutableIntStateOf(0) }
-    val target = runCatching { service.server(serverId) }.getOrNull()
-    val state by remember(serverId, refresh) { service.observe(serverId, target) }.collectAsStateWithLifecycle(RemoteSystemInspection())
+    val target = service?.let { runCatching { it.server(serverId) }.getOrNull() }
+    val state by remember(serverId, refresh, service) {
+        service?.observe(serverId, target) ?: kotlinx.coroutines.flow.flowOf(RemoteSystemInspection(loading = false))
+    }.collectAsStateWithLifecycle(RemoteSystemInspection(loading = service != null))
     Scaffold(containerColor = MaterialTheme.colorScheme.background,
         topBar = { RuntimeTopBar(title = "系统运行状态", statusText = target?.name ?: "服务器", onBack = onBack,
             actions = { RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) } }) },
@@ -40,7 +42,7 @@ private fun RemoteDeveloperScreen(serverId: String, onBack: () -> Unit, service:
                     "发行版" to it.distribution, "架构" to it.architecture, "内核" to it.kernel,
                     "进程" to it.processCount.toString(), "内存" to "${it.memoryUsedMb} / ${it.memoryTotalMb} MB", "负载" to it.load,
                 ) }.orEmpty())
-            RemoteCommandPanel(serverId, service)
+            service?.let { RemoteCommandPanel(serverId, it) }
         }
     }
 }

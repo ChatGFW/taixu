@@ -432,7 +432,7 @@ private fun ToolchainPathDropdownField(
 fun WorkshopScriptEditorScreen(type: WorkshopScriptType, onBack: () -> Unit, viewModel: WorkshopSettingsViewModel? = previewOrNull { koinViewModel() }) {
     val draft by viewModel?.draft?.collectAsStateWithLifecycle() ?: previewStateOf(WorkshopEnvironmentDraft())
     val customScripts by viewModel?.customScripts?.collectAsStateWithLifecycle() ?: previewStateOf(emptySet())
-    val initialContent = remember(type, draft) { viewModel?.scriptContent(type) }
+    val initialContent = remember(type, draft) { viewModel?.scriptContent(type).orEmpty() }
     var content by remember(type, draft) { mutableStateOf(initialContent) }
     val isDirty = content != initialContent
     var showUnsavedDialog by remember { mutableStateOf(false) }

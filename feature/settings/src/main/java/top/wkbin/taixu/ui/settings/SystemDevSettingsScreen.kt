@@ -95,7 +95,7 @@ fun SystemDevSettingsScreen(
             status = phantomStatus,
             busy = phantomBusy,
             message = phantomMessage,
-            adbCommand = viewModel?.phantomProcessAdbCommand,
+            adbCommand = viewModel?.phantomProcessAdbCommand.orEmpty(),
             onRefresh = { viewModel?.refreshPhantomProcessLimit() },
             onRemove = { viewModel?.removePhantomProcessLimit() },
             onDismiss = {

@@ -61,7 +61,7 @@ fun BrowserScreen(
     onBack: () -> Unit,
     viewModel: BrowserViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val state by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(BrowserUiState())
+    val state by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(BrowserUiState.Empty)
     // 系统返回优先走 WebView 历史栈；无法后退时才退出浏览器页
     BackHandler(enabled = state.canGoBack) { viewModel?.onBack(onExhausted = onBack) }
     Column(modifier = Modifier.fillMaxSize()) {
@@ -90,7 +90,7 @@ fun BrowserPane(
     modifier: Modifier = Modifier,
     onExit: (() -> Unit)? = null,
 ) {
-    val state by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(BrowserUiState())
+    val state by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(BrowserUiState.Empty)
     val networkRequests by viewModel?.network?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val networkSheetVisible by viewModel?.networkSheetVisible?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val networkDetail by viewModel?.networkDetail?.collectAsStateWithLifecycle() ?: previewStateOf(null)
@@ -156,7 +156,7 @@ fun BrowserPane(
             if (networkSheetVisible) {
                 NetworkTimelineSheet(
                     requests = networkRequests,
-                    hookHits = viewModel?.hookHits.collectAsState().value,
+                    hookHits = viewModel?.hookHits?.collectAsState()?.value.orEmpty(),
                     detail = networkDetail,
                     onLoadDetail = { arg0 -> viewModel?.loadNetworkDetail(arg0) },
                     onDismiss = { viewModel?.dismissNetworkSheet() },

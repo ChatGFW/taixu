@@ -11,3 +11,11 @@ private fun HomeScreenPreview() {
         LocalHomeScreen(onNavigate = { _ -> }, onOpenTerminal = { })
     }
 }
+
+@FoldablePreviews
+@Composable
+private fun RemoteHomeScreenPreview() {
+    RuntimePreview {
+        RemoteHomeScreen(serverId = "preview", onNavigate = { _ -> })
+    }
+}

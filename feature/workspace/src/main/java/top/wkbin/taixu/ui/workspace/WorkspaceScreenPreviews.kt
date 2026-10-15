@@ -11,3 +11,11 @@ private fun WorkspaceScreenPreview() {
         LocalWorkspaceScreen(onNavigate = { _ -> }, onOpenExplorer = { _ -> }, onOpenTerminal = { _ -> })
     }
 }
+
+@FoldablePreviews
+@Composable
+private fun RemoteWorkspaceScreenPreview() {
+    RuntimePreview {
+        RemoteWorkspaceScreen(serverId = "preview", onNavigate = { _ -> })
+    }
+}

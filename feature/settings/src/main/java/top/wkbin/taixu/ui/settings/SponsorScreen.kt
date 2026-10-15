@@ -78,7 +78,7 @@ fun SponsorScreen(
     viewModel: SponsorListViewModel? = previewOrNull { koinViewModel() },
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val sponsorState by viewModel?.state?.collectAsStateWithLifecycle() ?: previewStateOf(SponsorListUiState())
+    val sponsorState by viewModel?.state?.collectAsStateWithLifecycle() ?: previewStateOf(SponsorListUiState.Loading)
     var showAlipayQrDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var showWeChatQrDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
 

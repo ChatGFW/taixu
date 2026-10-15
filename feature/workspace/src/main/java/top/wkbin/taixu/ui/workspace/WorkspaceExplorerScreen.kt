@@ -131,7 +131,7 @@ fun WorkspaceExplorerScreen(
     var savedCurrentPath by rememberSaveable { mutableStateOf(initialPath) }
 
     LaunchedEffect(currentPath) {
-        if (viewModel?.selectedProject.value == projectName) {
+        if (viewModel?.selectedProject?.value == projectName) {
             savedCurrentPath = currentPath
         }
     }

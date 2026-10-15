@@ -14,14 +14,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
+import top.wkbin.taixu.core.model.McpIdlePolicy
 import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 
 @Composable
-internal fun McpClientSettingsSection(viewModel: McpClientSettingsViewModel = koinViewModel()) {
-    val minutes by viewModel.idleMinutes.collectAsStateWithLifecycle()
-    val failed by viewModel.saveFailed.collectAsStateWithLifecycle()
+internal fun McpClientSettingsSection(viewModel: McpClientSettingsViewModel? = previewOrNull { koinViewModel() }) {
+    val minutes by viewModel?.idleMinutes?.collectAsStateWithLifecycle() ?: previewStateOf(McpIdlePolicy.DEFAULT_MINUTES)
+    val failed by viewModel?.saveFailed?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     RuntimeCard(modifier = Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         contentPadding = PaddingValues(16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -31,7 +34,7 @@ internal fun McpClientSettingsSection(viewModel: McpClientSettingsViewModel = ko
             LocalizedText(stringResource(R.string.mcp_client_idle_title), style = MaterialTheme.typography.titleSmall)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 (listOf(1, 3, 5, 10, 30, 60) + minutes).distinct().sorted().forEach { value ->
-                    RuntimeFilterChip(selected = minutes == value, onClick = { viewModel.setIdleMinutes(value) },
+                    RuntimeFilterChip(selected = minutes == value, onClick = { viewModel?.setIdleMinutes(value) },
                         label = { LocalizedText(stringResource(R.string.mcp_client_minutes, value), maxLines = 1,
                             overflow = TextOverflow.Ellipsis) })
                 }

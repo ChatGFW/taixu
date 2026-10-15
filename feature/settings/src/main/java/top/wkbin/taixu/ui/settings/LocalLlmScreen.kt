@@ -63,8 +63,8 @@ internal fun LocalLlmContent(
     val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val engineInstalled by viewModel?.engineInstalled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    val deviceRamBytes = viewModel?.deviceRamBytes
-    val mobileModelPresets = viewModel?.mobileModelPresets
+    val deviceRamBytes = viewModel?.deviceRamBytes ?: 0L
+    val mobileModelPresets = viewModel?.mobileModelPresets.orEmpty()
     val topBarStatus = when (val state = serviceState) {
         LocalLlmServiceState.Stopped -> "服务未启动"
         is LocalLlmServiceState.Starting -> "正在启动 · ${state.fileName}"
@@ -270,7 +270,7 @@ internal fun LocalLlmContent(
             }
 
             items(mobileModelPresets, key = MobileModelPreset::id) { preset ->
-                val suitable = viewModel?.isDeviceSuitable(preset)
+                val suitable = viewModel?.isDeviceSuitable(preset) == true
                 val alreadyDownloaded = models.any { model ->
                     preset.url.substringBefore('?').substringAfterLast('/').equals(model.fileName, ignoreCase = true)
                 }

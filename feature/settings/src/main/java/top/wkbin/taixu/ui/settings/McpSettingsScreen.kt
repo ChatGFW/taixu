@@ -203,7 +203,7 @@ fun McpSettingsScreen(
                         togglePending = server.id in toggleOverrides,
                         requiredComponentName = mcpInstallBlocked[server.id],
                         onToggle = { enabled ->
-                            if (catalogViewModel?.onToggleRequested(server.id, enabled)) {
+                            if (catalogViewModel?.onToggleRequested(server.id, enabled) == true) {
                                 viewModel?.toggleMcpServer(server.id, enabled)
                             }
                         },
@@ -239,7 +239,7 @@ fun McpSettingsScreen(
 
             item(key = "mcp_section_agent_server") {
                 AgentServerCard(
-                    state = viewModel?.agentServerState?.collectAsStateWithLifecycle() ?: previewStateOf(AgentServerState()).value,
+                    state = (viewModel?.agentServerState?.collectAsStateWithLifecycle() ?: previewStateOf(AgentServerState())).value,
                     viewModel = viewModel,
                 )
             }
@@ -266,7 +266,7 @@ fun McpSettingsScreen(
 
     if (showLocalDiscoveryDialog) {
         LocalMcpDiscoveryDialog(
-            state = viewModel?.localMcpDiscovery?.collectAsStateWithLifecycle() ?: previewStateOf(LocalMcpDiscoveryState.Idle).value,
+            state = (viewModel?.localMcpDiscovery?.collectAsStateWithLifecycle() ?: previewStateOf(LocalMcpDiscoveryState.Idle)).value,
             onDismiss = { showLocalDiscoveryDialog = false },
             onRetry = { viewModel?.discoverLocalMcpServers() },
             onAdd = { arg0 -> viewModel?.saveMcpServer(arg0) },
@@ -308,7 +308,7 @@ fun McpSettingsScreen(
                 viewingDetailServer = null
             },
             onTest = {
-                val res = viewModel?.testMcpServer(server)
+                val res = viewModel?.testMcpServer(server) ?: Result.success(emptyList())
                 viewModel?.refreshMcpConnections()
                 res
             },

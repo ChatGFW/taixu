@@ -15,7 +15,11 @@ import top.wkbin.taixu.core.model.RemoteServer
 import top.wkbin.taixu.ui.components.*
 
 @Composable
-internal fun SystemEnvironmentPicker(localCount: Int, onInstallLocal: () -> Unit, viewModel: RemoteServerViewModel = koinViewModel()) {
+internal fun SystemEnvironmentPicker(localCount: Int, onInstallLocal: () -> Unit, viewModel: RemoteServerViewModel? = previewOrNull { koinViewModel() }) {
+    if (viewModel == null) {
+        Text("运行后端", style = MaterialTheme.typography.titleMedium)
+        return
+    }
     val servers by viewModel.servers.collectAsStateWithLifecycle()
     val active by viewModel.activeId.collectAsStateWithLifecycle()
     val configurationError by viewModel.configurationError.collectAsStateWithLifecycle()

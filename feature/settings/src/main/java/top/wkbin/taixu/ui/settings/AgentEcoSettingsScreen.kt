@@ -43,7 +43,7 @@ fun AgentEcoSettingsScreen(
     val skills by viewModel?.allSkills?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val phrases by viewModel?.quickPhrases?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     // 插件与底层工具只安装在本机 PRoot：远程主系统下停用插件中心入口，避免误以为会装到服务器。
-    val activeServerId by koinViewModel<RemoteServerViewModel>().activeId.collectAsStateWithLifecycle()
+    val activeServerId by (previewOrNull { koinViewModel<RemoteServerViewModel>() }?.activeId?.collectAsStateWithLifecycle() ?: previewStateOf<String?>(null))
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

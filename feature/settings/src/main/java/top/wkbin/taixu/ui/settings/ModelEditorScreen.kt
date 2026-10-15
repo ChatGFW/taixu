@@ -122,12 +122,12 @@ fun ModelEditorScreen(
     LaunchedEffect(modelId, existing?.secretRef) {
         val secretRef = existing?.secretRef
         if (!secretRef.isNullOrBlank()) {
-            initialApiKey = viewModel?.readModelApiKey(secretRef)
+            initialApiKey = viewModel?.readModelApiKey(secretRef).orEmpty()
         }
     }
     // 保存被端点策略拒绝时留在编辑页并提示，避免静默丢档
     LaunchedEffect(Unit) {
-        viewModel?.profileSaveError.collect { error ->
+        viewModel?.profileSaveError?.collect { error ->
             if (!error.isNullOrBlank()) {
                 Toast.makeText(context, error, Toast.LENGTH_LONG).show()
             }
@@ -162,7 +162,7 @@ fun ModelEditorScreen(
             modelId = modelId,
             existing = existing,
             initialApiKey = initialApiKey,
-            providers = viewModel?.providerCatalog,
+            providers = viewModel?.providerCatalog.orEmpty(),
             discovered = discovered,
             discovering = discovering,
             discoveryError = discoveryError,
@@ -196,11 +196,11 @@ fun ModelEditorScreen(
                     promptCachingEnabled = promptCachingEnabled,
                     promptCacheTtl1h = promptCacheTtl1h,
                 )
-                if (saved) onSaved()
+                if (saved == true) onSaved()
             },
             onFillFromJson = { jsonStr ->
                 val result = viewModel?.parseProfilesFromJson(jsonStr)
-                result.fold(
+                result?.fold(
                     onSuccess = { list ->
                         val item = list.firstOrNull()
                         if (item != null) {

@@ -11,3 +11,11 @@ private fun OnboardingScreenPreview() {
         OnboardingScreen()
     }
 }
+
+@FoldablePreviews
+@Composable
+private fun OnboardingModelPagePreview() {
+    RuntimePreview {
+        OnboardingScreen(previewPage = 1)
+    }
+}
