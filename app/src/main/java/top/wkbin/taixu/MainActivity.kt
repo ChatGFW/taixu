@@ -77,8 +77,6 @@ import top.wkbin.taixu.service.adb.AdbNotificationManager
 import top.wkbin.taixu.navigation.ShareIntentExtractor
 import top.wkbin.taixu.service.WorkflowForegroundService
 import top.wkbin.taixu.ui.chat.floating.FloatingChatService
-import top.wkbin.taixu.ui.theme.ThemeStyle
-
 class MainActivity : AppCompatActivity() {
     val settingsDataStore: AppearancePreferences by inject()
 
@@ -117,9 +115,7 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         setContent {
             val themeMode by settingsDataStore.themeMode.collectAsStateWithLifecycle(initialValue = "system")
-            val themeStyle by settingsDataStore.themeStyle.collectAsStateWithLifecycle(initialValue = "material_you")
             val dynamicColorEnabled by settingsDataStore.dynamicColorEnabled.collectAsStateWithLifecycle(initialValue = true)
-            val chengmingBackgroundUri by settingsDataStore.chengmingBackgroundUri.collectAsStateWithLifecycle(initialValue = null)
             val pageScale by settingsDataStore.appFontScale.collectAsStateWithLifecycle(initialValue = 1f)
             val systemDark = isSystemInDarkTheme()
             val systemDensity = LocalDensity.current
@@ -136,10 +132,8 @@ class MainActivity : AppCompatActivity() {
                 ),
             ) {
                 TaiXuTheme(
-                    style = ThemeStyle.fromId(themeStyle),
                     darkTheme = isDark,
                     dynamicColor = dynamicColorEnabled,
-                    backgroundUri = chengmingBackgroundUri,
                 ) {
                 val onboardingViewModel: OnboardingViewModel = koinViewModel()
                 val onboarding by onboardingViewModel.status.collectAsStateWithLifecycle()

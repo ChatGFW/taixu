@@ -9,7 +9,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.events.HarnessEvent
@@ -17,9 +16,9 @@ import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.ui.components.*
 
 @Composable
-internal fun ChatWorkspaceBar(workspace: String, environment: String, approvalMode: ApprovalMode,
+internal fun ChatWorkspaceBar(workspace: String, environment: String,
     runMode: RunMode, onOpenWorkspace: () -> Unit,
-    onOpenApproval: () -> Unit, onOpenBrowser: (() -> Unit)?, browserHighlight: Boolean,
+    onOpenBrowser: (() -> Unit)?, browserHighlight: Boolean,
     onOpenRepository: (() -> Unit)?, repositoryHighlight: Boolean) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -29,11 +28,6 @@ internal fun ChatWorkspaceBar(workspace: String, environment: String, approvalMo
             Text(workspace.trimEnd('/').substringAfterLast('/').takeIf { it.isNotBlank() }?.let { "$it · $environment" } ?: environment, Modifier.padding(start = 6.dp),
                 style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (approvalMode == ApprovalMode.FULL_ACCESS) RuntimeTextButton(onClick = onOpenApproval,
-            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)) {
-            Text(stringResource(R.string.chat_approval_full_access), color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
         if (runMode == RunMode.PLAN) Text(stringResource(R.string.chat_run_mode_plan),
             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
@@ -50,20 +44,14 @@ internal fun ChatWorkspaceBar(workspace: String, environment: String, approvalMo
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun ChatWorkbenchControls(approvalMode: ApprovalMode, runMode: RunMode, branch: ConversationBranch?,
-    events: List<HarnessEvent>, running: Boolean, onApproval: () -> Unit, onRunMode: () -> Unit,
+internal fun ChatWorkbenchControls(runMode: RunMode, branch: ConversationBranch?,
+    events: List<HarnessEvent>, running: Boolean, onRunMode: () -> Unit,
     onBranches: () -> Unit, onRuntime: () -> Unit, onTools: () -> Unit, toolchainHighlight: Boolean,
     onReasoning: (() -> Unit)? = null) {
-    val mode = when (approvalMode) {
-        ApprovalMode.FULL_ACCESS -> R.string.chat_approval_full_access
-        ApprovalMode.ASSISTED -> R.string.chat_approval_assisted
-        ApprovalMode.REQUEST -> R.string.chat_approval_request
-    }
     val rounds = events.count { it is HarnessEvent.ProviderRoundStarted }
     RuntimeCard(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            ControlAction(RuntimeIconName.Shield, stringResource(mode), onApproval)
             ControlAction(runModeIcon(runMode), stringResource(if (runMode == RunMode.PLAN) R.string.chat_run_mode_plan else R.string.chat_run_mode_build), onRunMode)
             ControlAction(RuntimeIconName.Hub, branch?.name ?: stringResource(R.string.chat_main_line), onBranches)
             ControlAction(RuntimeIconName.Logs, if (running) stringResource(R.string.chat_round_number, rounds) else stringResource(R.string.chat_runtime_overview), onRuntime)

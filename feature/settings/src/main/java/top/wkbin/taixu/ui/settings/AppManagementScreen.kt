@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import android.widget.ImageView
 import androidx.compose.foundation.background
@@ -41,21 +42,20 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
-
 @Composable
 fun AppManagementScreen(
     onBack: () -> Unit,
-    viewModel: AppManagementViewModel = koinViewModel(),
+    viewModel: AppManagementViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val apps by viewModel.apps.collectAsStateWithLifecycle()
-    val syncing by viewModel.syncing.collectAsStateWithLifecycle()
-    val message by viewModel.message.collectAsStateWithLifecycle()
-    val messageIsError by viewModel.messageIsError.collectAsStateWithLifecycle()
+    val apps by viewModel?.apps?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val syncing by viewModel?.syncing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     var showSystemApps by remember { mutableStateOf(false) }
 
     // Every entry reconciles the live PackageManager inventory with Room: missing packages are
     // removed and newly installed ones are inserted, without rebuilding the UI's data source.
-    LaunchedEffect(Unit) { viewModel.synchronize() }
+    LaunchedEffect(Unit) { viewModel?.synchronize() }
     val userApps = apps.filterNot { it.isSystemApp }
     val systemApps = apps.filter { it.isSystemApp }
 
@@ -78,7 +78,7 @@ fun AppManagementScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            RuntimeButton(onClick = viewModel::synchronize, enabled = !syncing) {
+                            RuntimeButton(onClick = { viewModel?.synchronize() }, enabled = !syncing) {
                                 if (syncing) RuntimeCircularProgressIndicator(Modifier.size(18.dp)) else RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(18.dp))
                                 Text(if (syncing) "同步中" else "立即同步", modifier = Modifier.padding(start = 8.dp))
                             }

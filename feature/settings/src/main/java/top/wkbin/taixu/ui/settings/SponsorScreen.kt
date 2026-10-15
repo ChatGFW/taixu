@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import android.content.ClipData
@@ -61,7 +62,6 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.feature.settings.R
-
 // 赞赏码与赞助邮箱
 private const val SPONSOR_EMAIL = "wangkebin1997@gmail.com"
 // 收款码已打包进 settings 模块 mipmap 资源（settings_qr_*），离线可用、不依赖外网
@@ -75,10 +75,10 @@ private val SponsorAccent: Color = Color(0xFFFF4D6D)
 @Composable
 fun SponsorScreen(
     onBack: () -> Unit,
-    viewModel: SponsorListViewModel = koinViewModel(),
+    viewModel: SponsorListViewModel? = previewOrNull { koinViewModel() },
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val sponsorState by viewModel.state.collectAsStateWithLifecycle()
+    val sponsorState by viewModel?.state?.collectAsStateWithLifecycle() ?: previewStateOf(SponsorListUiState())
     var showAlipayQrDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var showWeChatQrDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
 
@@ -106,7 +106,7 @@ fun SponsorScreen(
                 title = "赞助支持",
                 onBack = onBack,
                 actions = {
-                    IconButton(onClick = viewModel::refresh, contentDescription = "刷新名单") {
+                    IconButton(onClick = { viewModel?.refresh() }, contentDescription = "刷新名单") {
                         RuntimeIcon(
                             RuntimeIconName.Refresh,
                             Modifier.size(20.dp),
@@ -222,7 +222,7 @@ fun SponsorScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                TextButton(onClick = viewModel::refresh) {
+                                TextButton(onClick = { viewModel?.refresh() }) {
                                     Text("重试")
                                 }
                             }

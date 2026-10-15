@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -50,21 +51,20 @@ import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import java.util.Locale
 import kotlinx.coroutines.delay
-
 @Composable
 internal fun LocalLlmContent(
     onBack: () -> Unit,
     onOpenEngine: () -> Unit,
-    viewModel: LocalLlmViewModel = koinViewModel(),
+    viewModel: LocalLlmViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val models by viewModel.models.collectAsStateWithLifecycle()
-    val serviceState by viewModel.serviceState.collectAsStateWithLifecycle()
-    val transfer by viewModel.transfer.collectAsStateWithLifecycle()
-    val message by viewModel.message.collectAsStateWithLifecycle()
-    val messageIsError by viewModel.messageIsError.collectAsStateWithLifecycle()
-    val engineInstalled by viewModel.engineInstalled.collectAsStateWithLifecycle()
-    val deviceRamBytes = viewModel.deviceRamBytes
-    val mobileModelPresets = viewModel.mobileModelPresets
+    val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val serviceState by viewModel?.serviceState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.LocalLlmServiceState.Stopped)
+    val transfer by viewModel?.transfer?.collectAsStateWithLifecycle() ?: previewStateOf(LocalModelTransferUiState())
+    val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val engineInstalled by viewModel?.engineInstalled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val deviceRamBytes = viewModel?.deviceRamBytes
+    val mobileModelPresets = viewModel?.mobileModelPresets
     val topBarStatus = when (val state = serviceState) {
         LocalLlmServiceState.Stopped -> "服务未启动"
         is LocalLlmServiceState.Starting -> "正在启动 · ${state.fileName}"
@@ -78,16 +78,16 @@ internal fun LocalLlmContent(
     var pendingDeleteModel by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
 
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let(viewModel::importUri)
+        uri?.let({ arg0 -> viewModel?.importUri(arg0) })
     }
 
     message?.let { currentMessage ->
         RuntimeAlertDialog(
-            onDismissRequest = viewModel::consumeMessage,
+            onDismissRequest = { viewModel?.consumeMessage() },
             title = { Text(if (messageIsError) "操作未完成" else "本地 LLM") },
             text = { Text(currentMessage) },
             confirmButton = {
-                RuntimeTextButton(onClick = viewModel::consumeMessage) { Text("知道了") }
+                RuntimeTextButton(onClick = { viewModel?.consumeMessage() }) { Text("知道了") }
             },
         )
     }
@@ -97,7 +97,7 @@ internal fun LocalLlmContent(
             onDismiss = { showDownloadDialog = false },
             onDownload = { url, checksum ->
                 showDownloadDialog = false
-                viewModel.download(url, checksum)
+                viewModel?.download(url, checksum)
             },
         )
     }
@@ -107,7 +107,7 @@ internal fun LocalLlmContent(
             onDismiss = { showPathDialog = false },
             onImport = { path ->
                 showPathDialog = false
-                viewModel.importPath(path)
+                viewModel?.importPath(path)
             },
         )
     }
@@ -117,7 +117,7 @@ internal fun LocalLlmContent(
             fileName = fileName,
             onConfirm = {
                 pendingDeleteModel = null
-                viewModel.delete(fileName)
+                viewModel?.delete(fileName)
             },
             onDismiss = { pendingDeleteModel = null },
         )
@@ -133,7 +133,7 @@ internal fun LocalLlmContent(
                 actions = {
                     if (serviceState is LocalLlmServiceState.Running) {
                         RuntimeOutlinedButton(
-                            onClick = viewModel::stop,
+                            onClick = { viewModel?.stop() },
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp),
                         ) {
                             RuntimeIcon(RuntimeIconName.Stop, Modifier.size(16.dp))
@@ -213,7 +213,7 @@ internal fun LocalLlmContent(
                                 progress = transfer.fraction?.let { fraction -> { fraction } },
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            RuntimeTextButton(onClick = viewModel::cancelTransfer, modifier = Modifier.align(Alignment.End)) {
+                            RuntimeTextButton(onClick = { viewModel?.cancelTransfer() }, modifier = Modifier.align(Alignment.End)) {
                                 Text("取消")
                             }
                         }
@@ -248,7 +248,7 @@ internal fun LocalLlmContent(
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text("需要先安装 llama.cpp 推理引擎", fontWeight = FontWeight.SemiBold)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        RuntimeButton(onClick = viewModel::installEngine) { Text("一键安装") }
+                                        RuntimeButton(onClick = { viewModel?.installEngine() }) { Text("一键安装") }
                                         RuntimeOutlinedButton(onClick = onOpenEngine) { Text("查看详情") }
                                     }
                                 }
@@ -270,7 +270,7 @@ internal fun LocalLlmContent(
             }
 
             items(mobileModelPresets, key = MobileModelPreset::id) { preset ->
-                val suitable = viewModel.isDeviceSuitable(preset)
+                val suitable = viewModel?.isDeviceSuitable(preset)
                 val alreadyDownloaded = models.any { model ->
                     preset.url.substringBefore('?').substringAfterLast('/').equals(model.fileName, ignoreCase = true)
                 }
@@ -279,12 +279,12 @@ internal fun LocalLlmContent(
                     suitable = suitable,
                     alreadyDownloaded = alreadyDownloaded,
                     transferRunning = transfer.running,
-                    download = { viewModel.downloadPreset(preset) },
+                    download = { viewModel?.downloadPreset(preset) },
                 )
             }
 
             item {
-                ServiceStatusCard(serviceState = serviceState, stop = viewModel::stop)
+                ServiceStatusCard(serviceState = serviceState, stop = { viewModel?.stop() })
             }
 
             item {
@@ -315,8 +315,8 @@ internal fun LocalLlmContent(
                         model = model,
                         serviceState = serviceState,
                         engineInstalled = engineInstalled,
-                        start = { viewModel.start(model.fileName) },
-                        stop = viewModel::stop,
+                        start = { viewModel?.start(model.fileName) },
+                        stop = { viewModel?.stop() },
                         delete = { pendingDeleteModel = model.fileName },
                     )
                 }

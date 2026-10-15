@@ -181,6 +181,32 @@ class WorkspaceManagerTest {
     }
 
     @Test
+    fun pluginTemplateCreatesEditablePackageAndPersistsProjectType() = runTest {
+        val result = manager.createProject("plugin-demo", templateId = "builtin.taixu-local-plugin",
+            templateVariables = mapOf("toolId" to "demo-tool", "pluginId" to "example.demo", "pluginName" to "演示插件"))
+        assertTrue(result.toString(), result.isSuccess)
+        assertEquals(ProjectType.TAIXU_PLUGIN, result.getOrNull()?.projectType)
+        assertEquals(ProjectType.TAIXU_PLUGIN, manager.listProjects().single().projectType)
+        val root = File(workspaceDir, "plugin-demo")
+        assertTrue(root.resolve("payload/bin/demo-tool").readText().contains("example.demo"))
+        assertTrue(root.resolve("manifest.json").readText().contains("演示插件"))
+        assertTrue(root.resolve("tools/package_plugin.py").isFile)
+        assertTrue(root.resolve("AGENTS.md").isFile)
+        assertFalse(root.walkTopDown().filter { it.isFile }.any { it.name.endsWith(".template") || it.readText().contains("{{pluginId}}") })
+        assertEquals("", result.getOrNull()?.packageName)
+    }
+
+    @Test
+    fun pluginTemplateRejectsReservedIdentityAndUnsafeCommandName() = runTest {
+        listOf(mapOf("pluginId" to "taixu.reserved"), mapOf("toolId" to "../escape"),
+            mapOf("pluginName" to "name\"; unsafe")).forEachIndexed { index, variables ->
+            val result = manager.createProject("invalid-plugin-$index", templateId = "builtin.taixu-local-plugin", templateVariables = variables)
+            assertTrue(result.isFailure)
+            assertFalse(File(workspaceDir, "invalid-plugin-$index/manifest.json").exists())
+        }
+    }
+
+    @Test
     fun flutterTemplateGeneratesAndroidHostInPackageDirectory() = runTest {
         val result = manager.createProject(
             name = "flutter_template",

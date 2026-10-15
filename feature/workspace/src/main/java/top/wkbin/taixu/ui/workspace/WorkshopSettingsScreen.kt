@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.workspace
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -55,13 +56,12 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
 import top.wkbin.taixu.core.database.BuildScriptEntity
 import top.wkbin.taixu.runtime.ProjectType
-
 @Composable
-fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, onOpenSigning: () -> Unit = {}, onEditScript: (WorkshopScriptType) -> Unit = {}, viewModel: WorkshopSettingsViewModel = koinViewModel()) {
-    val draft by viewModel.draft.collectAsStateWithLifecycle()
-    val scripts by viewModel.managedScripts.collectAsStateWithLifecycle()
-    val projects by viewModel.projects.collectAsStateWithLifecycle()
-    val bindings by viewModel.projectBindings.collectAsStateWithLifecycle()
+fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, onOpenSigning: () -> Unit = {}, onEditScript: (WorkshopScriptType) -> Unit = {}, viewModel: WorkshopSettingsViewModel? = previewOrNull { koinViewModel() }) {
+    val draft by viewModel?.draft?.collectAsStateWithLifecycle() ?: previewStateOf(WorkshopEnvironmentDraft())
+    val scripts by viewModel?.managedScripts?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val projects by viewModel?.projects?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val bindings by viewModel?.projectBindings?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     val editing = scripts.firstOrNull { it.id == editingId }
     var creating by rememberSaveable { mutableStateOf(false) }
@@ -90,7 +90,7 @@ fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, on
                 ManagedScriptCard(
                     script = script,
                     onEdit = { editingId = script.id },
-                    onClone = { viewModel.cloneScript(script) },
+                    onClone = { viewModel?.cloneScript(script) },
                     onDelete = { deleteScriptTarget = script },
                 )
             } }
@@ -104,19 +104,19 @@ fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, on
                         selectedId = bindings.firstOrNull { it.projectName == project.name }?.scriptId?.takeIf { id ->
                             scripts.any { it.id == id && !it.isBuiltin }
                         },
-                        onSelect = { viewModel.bindProject(project.name, it) },
+                        onSelect = { viewModel?.bindProject(project.name, it) },
                     )
                 }
             }
         }
     }
     if (creating) ManagedScriptEditorDialog(null, onDismiss = { creating = false }) { name, description, type, content ->
-        val error = viewModel.saveManagedScript(null, name, description, type, content)
+        val error = viewModel?.saveManagedScript(null, name, description, type, content)
         if (error == null) creating = false
         error
     }
     editing?.let { script -> ManagedScriptEditorDialog(script, onDismiss = { editingId = null }) { name, description, type, content ->
-        val error = viewModel.saveManagedScript(script.id, name, description, type, content)
+        val error = viewModel?.saveManagedScript(script.id, name, description, type, content)
         if (error == null) editingId = null
         error
     } }
@@ -127,7 +127,7 @@ fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, on
             text = { Text(stringResource(R.string.workshop_script_delete_message)) },
             confirmButton = {
                 RuntimeButton(onClick = {
-                    viewModel.deleteManagedScript(script.id)
+                    viewModel?.deleteManagedScript(script.id)
                     deleteScriptTarget = null
                 }) { Text(stringResource(R.string.workspace_confirm_delete), color = MaterialTheme.colorScheme.error) }
             },
@@ -251,9 +251,9 @@ private fun ManagedScriptEditorDialog(script: BuildScriptEntity?, onDismiss: () 
 }
 
 @Composable
-fun WorkshopEnvironmentSettingsScreen(onBack: () -> Unit, viewModel: WorkshopSettingsViewModel = koinViewModel()) {
-    val draft by viewModel.draft.collectAsStateWithLifecycle()
-    val detected by viewModel.detectedToolchains.collectAsStateWithLifecycle()
+fun WorkshopEnvironmentSettingsScreen(onBack: () -> Unit, viewModel: WorkshopSettingsViewModel? = previewOrNull { koinViewModel() }) {
+    val draft by viewModel?.draft?.collectAsStateWithLifecycle() ?: previewStateOf(WorkshopEnvironmentDraft())
+    val detected by viewModel?.detectedToolchains?.collectAsStateWithLifecycle() ?: previewStateOf(DetectedToolchains())
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -280,7 +280,7 @@ fun WorkshopEnvironmentSettingsScreen(onBack: () -> Unit, viewModel: WorkshopSet
                         SectionHeader(stringResource(R.string.workshop_env_paths_title), stringResource(R.string.workshop_env_paths_desc))
                     }
                     RuntimeOutlinedButton(
-                        onClick = viewModel::rescanToolchains,
+                        onClick = { viewModel?.rescanToolchains() },
                         enabled = !detected.isScanning,
                     ) {
                         Text(if (detected.isScanning) stringResource(R.string.workshop_env_rescanning) else stringResource(R.string.workshop_env_rescan))
@@ -290,24 +290,24 @@ fun WorkshopEnvironmentSettingsScreen(onBack: () -> Unit, viewModel: WorkshopSet
             item {
                 RuntimeCard {
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        ToolchainPathDropdownField("Gradle", draft.gradlePath, detected.gradleOptions) { viewModel.update(draft.copy(gradlePath = it)) }
-                        ToolchainPathDropdownField("Java / JDK", draft.javaPath, detected.javaOptions) { viewModel.update(draft.copy(javaPath = it)) }
-                        ToolchainPathDropdownField("Android NDK", draft.ndkPath, detected.ndkOptions) { viewModel.update(draft.copy(ndkPath = it)) }
-                        ToolchainPathDropdownField("AAPT2", draft.aapt2Path, detected.aapt2Options) { viewModel.update(draft.copy(aapt2Path = it)) }
-                        PathField("Android SDK", draft.androidSdkPath) { viewModel.update(draft.copy(androidSdkPath = it)) }
-                        PathField("Flutter SDK", draft.flutterSdkPath) { viewModel.update(draft.copy(flutterSdkPath = it)) }
-                        PathField("CMake", draft.cmakePath) { viewModel.update(draft.copy(cmakePath = it)) }
-                        PathField("Ninja", draft.ninjaPath) { viewModel.update(draft.copy(ninjaPath = it)) }
-                        PathField("Gradle 缓存", draft.gradleUserHome) { viewModel.update(draft.copy(gradleUserHome = it)) }
-                        PathField("Flutter Pub 缓存", draft.pubCache) { viewModel.update(draft.copy(pubCache = it)) }
-                        PathField("Android 工具目录 / ADB", draft.toolDir) { viewModel.update(draft.copy(toolDir = it)) }
+                        ToolchainPathDropdownField("Gradle", draft.gradlePath, detected.gradleOptions) { viewModel?.update(draft.copy(gradlePath = it)) }
+                        ToolchainPathDropdownField("Java / JDK", draft.javaPath, detected.javaOptions) { viewModel?.update(draft.copy(javaPath = it)) }
+                        ToolchainPathDropdownField("Android NDK", draft.ndkPath, detected.ndkOptions) { viewModel?.update(draft.copy(ndkPath = it)) }
+                        ToolchainPathDropdownField("AAPT2", draft.aapt2Path, detected.aapt2Options) { viewModel?.update(draft.copy(aapt2Path = it)) }
+                        PathField("Android SDK", draft.androidSdkPath) { viewModel?.update(draft.copy(androidSdkPath = it)) }
+                        PathField("Flutter SDK", draft.flutterSdkPath) { viewModel?.update(draft.copy(flutterSdkPath = it)) }
+                        PathField("CMake", draft.cmakePath) { viewModel?.update(draft.copy(cmakePath = it)) }
+                        PathField("Ninja", draft.ninjaPath) { viewModel?.update(draft.copy(ninjaPath = it)) }
+                        PathField("Gradle 缓存", draft.gradleUserHome) { viewModel?.update(draft.copy(gradleUserHome = it)) }
+                        PathField("Flutter Pub 缓存", draft.pubCache) { viewModel?.update(draft.copy(pubCache = it)) }
+                        PathField("Android 工具目录 / ADB", draft.toolDir) { viewModel?.update(draft.copy(toolDir = it)) }
                     }
                 }
             }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    RuntimeOutlinedButton(onClick = viewModel::resetEnvironment, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_action_reset)) }
-                    RuntimeButton(onClick = viewModel::saveEnvironment, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_action_save)) }
+                    RuntimeOutlinedButton(onClick = { viewModel?.resetEnvironment() }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_action_reset)) }
+                    RuntimeButton(onClick = { viewModel?.saveEnvironment() }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_action_save)) }
                 }
             }
         }
@@ -429,10 +429,10 @@ private fun ToolchainPathDropdownField(
 }
 
 @Composable
-fun WorkshopScriptEditorScreen(type: WorkshopScriptType, onBack: () -> Unit, viewModel: WorkshopSettingsViewModel = koinViewModel()) {
-    val draft by viewModel.draft.collectAsStateWithLifecycle()
-    val customScripts by viewModel.customScripts.collectAsStateWithLifecycle()
-    val initialContent = remember(type, draft) { viewModel.scriptContent(type) }
+fun WorkshopScriptEditorScreen(type: WorkshopScriptType, onBack: () -> Unit, viewModel: WorkshopSettingsViewModel? = previewOrNull { koinViewModel() }) {
+    val draft by viewModel?.draft?.collectAsStateWithLifecycle() ?: previewStateOf(WorkshopEnvironmentDraft())
+    val customScripts by viewModel?.customScripts?.collectAsStateWithLifecycle() ?: previewStateOf(emptySet())
+    val initialContent = remember(type, draft) { viewModel?.scriptContent(type) }
     var content by remember(type, draft) { mutableStateOf(initialContent) }
     val isDirty = content != initialContent
     var showUnsavedDialog by remember { mutableStateOf(false) }
@@ -444,8 +444,8 @@ fun WorkshopScriptEditorScreen(type: WorkshopScriptType, onBack: () -> Unit, vie
             ScriptPathPanel(if (isCustom) type.customPath else type.defaultPath)
             CodeEditorPanel(value = content, onValueChange = { content = it }, fileName = type.defaultPath.substringAfterLast('/'), modifier = Modifier.fillMaxWidth().weight(1f))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeOutlinedButton(onClick = { viewModel.resetScript(type, onBack) }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_script_reset_default)) }
-                RuntimeButton(onClick = { viewModel.saveScript(type, content, onBack) }, enabled = isDirty, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_script_save)) }
+                RuntimeOutlinedButton(onClick = { viewModel?.resetScript(type, onBack) }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_script_reset_default)) }
+                RuntimeButton(onClick = { viewModel?.saveScript(type, content, onBack) }, enabled = isDirty, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_script_save)) }
             }
         }
     }
@@ -457,7 +457,7 @@ fun WorkshopScriptEditorScreen(type: WorkshopScriptType, onBack: () -> Unit, vie
             confirmButton = {
                 RuntimeButton(onClick = {
                     showUnsavedDialog = false
-                    viewModel.saveScript(type, content, onBack)
+                    viewModel?.saveScript(type, content, onBack)
                 }) { Text(stringResource(R.string.workshop_script_save_and_exit)) }
             },
             dismissButton = {

@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.browser
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
@@ -55,15 +56,14 @@ import top.wkbin.taixu.ui.browser.network.NetworkTimelineSheet
 import top.wkbin.taixu.ui.browser.snapshot.SnapshotSheet
 import androidx.compose.runtime.collectAsState
 import top.wkbin.taixu.runtime.browser.cdp.DebugPausedState
-
 @Composable
 fun BrowserScreen(
     onBack: () -> Unit,
-    viewModel: BrowserViewModel = koinViewModel(),
+    viewModel: BrowserViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val state by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(BrowserUiState())
     // 系统返回优先走 WebView 历史栈；无法后退时才退出浏览器页
-    BackHandler(enabled = state.canGoBack) { viewModel.onBack(onExhausted = onBack) }
+    BackHandler(enabled = state.canGoBack) { viewModel?.onBack(onExhausted = onBack) }
     Column(modifier = Modifier.fillMaxSize()) {
         RuntimeTopBar(
             title = "内置浏览器",
@@ -86,45 +86,45 @@ fun BrowserScreen(
  */
 @Composable
 fun BrowserPane(
-    viewModel: BrowserViewModel,
+    viewModel: BrowserViewModel?,
     modifier: Modifier = Modifier,
     onExit: (() -> Unit)? = null,
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val networkRequests by viewModel.network.collectAsStateWithLifecycle()
-    val networkSheetVisible by viewModel.networkSheetVisible.collectAsStateWithLifecycle()
-    val networkDetail by viewModel.networkDetail.collectAsStateWithLifecycle()
-    val debugPaused by viewModel.debugPaused.collectAsStateWithLifecycle()
+    val state by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(BrowserUiState())
+    val networkRequests by viewModel?.network?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val networkSheetVisible by viewModel?.networkSheetVisible?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val networkDetail by viewModel?.networkDetail?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val debugPaused by viewModel?.debugPaused?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val snackbarHostState = remember { SnackbarHostState() }
     // 面板可见性上报：可见时才补建活跃 tab / 轮询状态，避免 app 启动即常驻 WebView
     DisposableEffect(Unit) {
-        viewModel.onPaneVisible(true)
-        onDispose { viewModel.onPaneVisible(false) }
+        viewModel?.onPaneVisible(true)
+        onDispose { viewModel?.onPaneVisible(false) }
     }
     val toolMessage = state.toolMessage
     if (toolMessage != null) {
         LaunchedEffect(toolMessage) {
             // Short ≈ 4s 自动消失，随后清理消息源，避免重复弹出
             snackbarHostState.showSnackbar(toolMessage, duration = SnackbarDuration.Short)
-            viewModel.dismissToolMessage()
+            viewModel?.dismissToolMessage()
         }
     }
     Column(modifier = modifier) {
         BrowserStatusBar(
             coBrowsingEnabled = state.coBrowsingEnabled,
-            onCoBrowsingToggle = { viewModel.onCoBrowsingToggle(!state.coBrowsingEnabled) },
+            onCoBrowsingToggle = { viewModel?.onCoBrowsingToggle(!state.coBrowsingEnabled) },
             tabs = state.tabs,
-            onSelect = viewModel::selectTab,
-            onClose = viewModel::closeTab,
-            onShowSnapshot = viewModel::onOpenSnapshot,
-            onShowNetwork = viewModel::showNetworkSheet,
+            onSelect = { arg0 -> viewModel?.selectTab(arg0) },
+            onClose = { arg0 -> viewModel?.closeTab(arg0) },
+            onShowSnapshot = { viewModel?.onOpenSnapshot() },
+            onShowNetwork = { viewModel?.showNetworkSheet() },
             networkCount = networkRequests.size,
             onExit = onExit,
         )
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             state.activeTab?.let { tab ->
                 key(tab.tabId) {
-                    viewModel.activeWebView()?.let { webView ->
+                    viewModel?.activeWebView()?.let { webView ->
                         AndroidView(
                             factory = {
                                 (webView.parent as? ViewGroup)?.removeView(webView)
@@ -139,7 +139,7 @@ fun BrowserPane(
             debugPaused?.let { paused ->
                 DebugPausedBanner(
                     paused = paused,
-                    onResume = viewModel::resumeDebugger,
+                    onResume = { viewModel?.resumeDebugger() },
                     modifier = Modifier.align(Alignment.TopCenter),
                 )
             }
@@ -150,26 +150,26 @@ fun BrowserPane(
             state.snapshotSheet?.let { sheet ->
                 SnapshotSheet(
                     state = sheet,
-                    onDismiss = viewModel::dismissSnapshot,
+                    onDismiss = { viewModel?.dismissSnapshot() },
                 )
             }
             if (networkSheetVisible) {
                 NetworkTimelineSheet(
                     requests = networkRequests,
-                    hookHits = viewModel.hookHits.collectAsState().value,
+                    hookHits = viewModel?.hookHits.collectAsState().value,
                     detail = networkDetail,
-                    onLoadDetail = viewModel::loadNetworkDetail,
-                    onDismiss = viewModel::dismissNetworkSheet,
+                    onLoadDetail = { arg0 -> viewModel?.loadNetworkDetail(arg0) },
+                    onDismiss = { viewModel?.dismissNetworkSheet() },
                 )
             }
         }
         BrowserUrlBar(
             urlInput = state.urlInput,
-            onUrlChange = viewModel::onUrlInputChanged,
-            onNavigate = viewModel::onNavigate,
-            onBack = { viewModel.onBack() },
-            onForward = viewModel::onForward,
-            onRefresh = viewModel::onRefresh,
+            onUrlChange = { arg0 -> viewModel?.onUrlInputChanged(arg0) },
+            onNavigate = { viewModel?.onNavigate() },
+            onBack = { viewModel?.onBack() },
+            onForward = { viewModel?.onForward() },
+            onRefresh = { viewModel?.onRefresh() },
             canGoBack = state.canGoBack,
             canGoForward = state.canGoForward,
         )

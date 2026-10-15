@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.workspace
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -83,7 +84,6 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-
 private val EditorBackground = Color(0xFF0F1117)
 private val EditorGutterBackground = Color(0xFF181A22)
 private val EditorText = Color(0xFFE2E2E9)
@@ -99,22 +99,22 @@ fun CodeEditorScreen(
     projectName: String,
     relativePath: String,
     onBack: () -> Unit,
-    viewModel: WorkspaceViewModel = koinViewModel(),
+    viewModel: WorkspaceViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val contentRevision by viewModel.contentRevision.collectAsStateWithLifecycle()
-    val isDirty by viewModel.isDirty.collectAsStateWithLifecycle()
-    val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
-    val loading by viewModel.loadingFiles.collectAsStateWithLifecycle()
-    val message by viewModel.message.collectAsStateWithLifecycle()
-    val messageIsError by viewModel.messageIsError.collectAsStateWithLifecycle()
-    val saveConflict by viewModel.saveConflict.collectAsStateWithLifecycle()
+    val contentRevision by viewModel?.contentRevision?.collectAsStateWithLifecycle() ?: previewStateOf(0L)
+    val isDirty by viewModel?.isDirty?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val isSaving by viewModel?.isSaving?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val loading by viewModel?.loadingFiles?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val saveConflict by viewModel?.saveConflict?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val context = LocalContext.current
 
     var showUnsavedDialog by rememberSaveable(projectName, relativePath) { mutableStateOf(false) }
     var showDiscardDialog by rememberSaveable(projectName, relativePath) { mutableStateOf(false) }
     var wordWrap by rememberSaveable { mutableStateOf(false) }
     var editorFontSizeSp by rememberSaveable { mutableStateOf(13f) }
-    val editorState = remember(projectName, relativePath) { TextFieldState(viewModel.editorText(projectName, relativePath)) }
+    val editorState = remember(projectName, relativePath) { TextFieldState(viewModel?.editorText(projectName, relativePath)) }
     val lineCount by remember(editorState) {
         derivedStateOf {
             val text = editorState.text
@@ -136,13 +136,13 @@ fun CodeEditorScreen(
     }
 
     LaunchedEffect(projectName, relativePath) {
-        viewModel.openFile(projectName, relativePath)
+        viewModel?.openFile(projectName, relativePath)
     }
 
     // 仅在整文加载或重置时同步文本，避免打字期间因异步流转导致光标重置和软键盘闪烁
     LaunchedEffect(contentRevision) {
         if (contentRevision > 0L) {
-            val target = viewModel.editorText(projectName, relativePath)
+            val target = viewModel?.editorText(projectName, relativePath)
             if (editorState.text.toString() != target) {
                 editorState.setTextAndPlaceCursorAtEnd(target)
             }
@@ -151,7 +151,7 @@ fun CodeEditorScreen(
 
     LaunchedEffect(editorState) {
         snapshotFlow { editorState.text.toString() }.collect { editedText ->
-            viewModel.onContentChanged(editedText)
+            viewModel?.onContentChanged(editedText)
         }
     }
 
@@ -176,7 +176,7 @@ fun CodeEditorScreen(
         if (isDirty) {
             showUnsavedDialog = true
         } else {
-            viewModel.closeFile()
+            viewModel?.closeFile()
             onBack()
         }
     }
@@ -209,7 +209,7 @@ fun CodeEditorScreen(
                         }
                     }
                     IconButton(
-                        onClick = { viewModel.saveFile(content = editorState.text.toString()) },
+                        onClick = { viewModel?.saveFile(content = editorState.text.toString()) },
                         enabled = isDirty && !isSaving,
                         contentDescription = stringResource(R.string.workspace_cd_save),
                     ) {
@@ -391,11 +391,11 @@ fun CodeEditorScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.saveFile(
+                        viewModel?.saveFile(
                             content = editorState.text.toString(),
                             onSuccess = {
                                 showUnsavedDialog = false
-                                viewModel.closeFile()
+                                viewModel?.closeFile()
                                 onBack()
                             },
                         )
@@ -407,7 +407,7 @@ fun CodeEditorScreen(
                 TextButton(
                     onClick = {
                         showUnsavedDialog = false
-                        viewModel.closeFile()
+                        viewModel?.closeFile()
                         onBack()
                     },
                     enabled = !isSaving,
@@ -420,7 +420,7 @@ fun CodeEditorScreen(
         DiscardEditsDialog(
             onConfirm = {
                 showDiscardDialog = false
-                viewModel.resetContent()
+                viewModel?.resetContent()
             },
             onDismiss = { showDiscardDialog = false },
         )
@@ -430,9 +430,9 @@ fun CodeEditorScreen(
         SaveConflictDialog(
             isSaving = isSaving,
             isLoading = loading,
-            onOverwrite = viewModel::overwriteSaveConflict,
-            onReload = viewModel::reloadSaveConflict,
-            onDismiss = viewModel::dismissSaveConflict,
+            onOverwrite = { viewModel?.overwriteSaveConflict() },
+            onReload = { viewModel?.reloadSaveConflict() },
+            onDismiss = { viewModel?.dismissSaveConflict() },
         )
     }
 }

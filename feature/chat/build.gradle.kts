@@ -18,8 +18,6 @@ dependencies {
     implementation(project(":feature:a2uipoc"))
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.serialization.json)
-    // LocalLiquidGlassBackdrop 的类型 LayerBackdrop 来自该库，类型推断需要它在 classpath 上
-    implementation(libs.backdrop)
     implementation(libs.bundles.coil)
 
     testImplementation(libs.bundles.test.robolectric)

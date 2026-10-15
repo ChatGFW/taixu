@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import androidx.compose.foundation.background
@@ -37,7 +38,6 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.LocalPluginSettingsContent
-import top.wkbin.taixu.ui.components.liquidGlassContent
 
 /**
  * 太墟 · 乾坤配置 (TaiXu Settings & Models)
@@ -52,17 +52,17 @@ fun SettingsScreen(
     onOpenAboutCommunity: () -> Unit,
     onOpenSearch: () -> Unit = {},
     onOpenFeatureHub: () -> Unit = {},
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
     val pluginSettings = LocalPluginSettingsContent.current
-    val models by viewModel.models.collectAsStateWithLifecycle()
-    val developer by viewModel.developerMode.collectAsStateWithLifecycle()
-    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
-    val skills by viewModel.allSkills.collectAsStateWithLifecycle()
-    val effectiveExecutionMode by viewModel.effectiveExecutionMode.collectAsStateWithLifecycle()
-    val installedDistros by viewModel.installedDistros.collectAsStateWithLifecycle()
-    val activeDistroId by viewModel.activeDistroId.collectAsStateWithLifecycle()
-    val terminalFontSize by viewModel.terminalFontSize.collectAsStateWithLifecycle()
+    val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val developer by viewModel?.developerMode?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val themeMode by viewModel?.themeMode?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val skills by viewModel?.allSkills?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val effectiveExecutionMode by viewModel?.effectiveExecutionMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.ExecutionMode.PROOT)
+    val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val activeDistroId by viewModel?.activeDistroId?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
+    val terminalFontSize by viewModel?.terminalFontSize?.collectAsStateWithLifecycle() ?: previewStateOf(0)
 
     val themeLabel = when (themeMode) {
         "light" -> "浅色"
@@ -85,7 +85,6 @@ fun SettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .liquidGlassContent()
                 .padding(padding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),

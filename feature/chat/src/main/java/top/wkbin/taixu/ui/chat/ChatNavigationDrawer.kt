@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.ui.components.AppNavigationSection
 import top.wkbin.taixu.ui.components.MainDestination
-import top.wkbin.taixu.ui.components.RuntimePushNavigationDrawer
+import top.wkbin.taixu.ui.components.RuntimeRevealNavigationDrawer
 
 @Composable
 fun ChatNavigationDrawer(
@@ -27,7 +27,7 @@ fun ChatNavigationDrawer(
     val currentSessionId by viewModel.currentSessionId.collectAsStateWithLifecycle()
     val runStates by viewModel.sessionRunStates.collectAsStateWithLifecycle()
 
-    RuntimePushNavigationDrawer(
+    RuntimeRevealNavigationDrawer(
         visible = visible,
         onDismiss = onDismiss,
         onOpen = onOpen,
@@ -39,6 +39,7 @@ fun ChatNavigationDrawer(
                 workspaces = catalog.projects,
                 sessionRunStates = runStates,
                 onDismiss = onDismiss,
+                onSettings = { onDismiss(); onNavigate(MainDestination.Settings) },
                 onSwitch = { id -> viewModel.switchSession(id); onNavigate(MainDestination.Agent); onDismiss() },
                 onNew = { onDismiss(); onNewSession() },
                 onCreateInWorkspace = { project ->

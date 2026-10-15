@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import java.util.Collections
 import top.wkbin.taixu.plugin.api.PluginDescriptor
 import top.wkbin.taixu.plugin.runtime.PluginActivation
+import top.wkbin.taixu.ui.components.RuntimeIconName
 
 /** Host navigation and ViewModel owners stay in the enclosing composition. */
 class PluginPageRequest(
@@ -27,6 +28,8 @@ class NativePagePlugin(
     val title: @Composable () -> String = { descriptor.id },
     val entries: List<NativePluginEntry> = emptyList(),
     val activate: suspend (PluginActivation) -> Unit = {},
+    val icon: RuntimeIconName = RuntimeIconName.Extension,
+    val description: @Composable () -> String = { "" },
 )
 
 enum class PluginEntryLocation { MENU, SETTINGS }

@@ -260,7 +260,6 @@ TaiXu/
     ├── workflow/         # DAG 编辑器、运行、审批与计划
     ├── git/              # JGit 工作台
     ├── a2uipoc/          # A2UI 原生界面渲染与交互
-    ├── preview/          # 澄明组件目录与效果预览
     ├── settings/         # 模型、MCP、ADB、插件与系统设置
     ├── developer/        # 开发者沙箱与底层诊断
     ├── custom_iteration/ # 自定义迭代能力

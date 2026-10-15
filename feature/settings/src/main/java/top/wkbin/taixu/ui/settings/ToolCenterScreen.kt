@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -95,33 +95,33 @@ internal fun LocalToolCenterContent(
     onLaunchPty: (toolId: String) -> Unit,
     onOpenToolDetail: (toolId: String) -> Unit = {},
     onStartAiHealing: (toolId: String, toolName: String, errorLogs: List<String>) -> Unit = { _, _, _ -> },
-    viewModel: ToolCenterViewModel = koinViewModel(),
+    viewModel: ToolCenterViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val tools by viewModel.tools.collectAsStateWithLifecycle()
-    val installProgress by viewModel.installProgress.collectAsStateWithLifecycle()
-    val verifications by viewModel.verifications.collectAsStateWithLifecycle()
-    val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
-    val viewingLogsToolId by viewModel.viewingLogsToolId.collectAsStateWithLifecycle()
-    val toolLogs by viewModel.toolLogs.collectAsStateWithLifecycle()
+    val tools by viewModel?.tools?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val installProgress by viewModel?.installProgress?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val verifications by viewModel?.verifications?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val selectedCategory by viewModel?.selectedCategory?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val viewingLogsToolId by viewModel?.viewingLogsToolId?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val toolLogs by viewModel?.toolLogs?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
 
-    val installedComponentIds by viewModel.installedComponentIds.collectAsStateWithLifecycle()
-    val activeBundle by viewModel.activeBundle.collectAsStateWithLifecycle()
-    val selectedComponents by viewModel.selectedComponents.collectAsStateWithLifecycle()
-    val isInstallingComponents by viewModel.isInstallingComponents.collectAsStateWithLifecycle()
-    val componentInstallProgress by viewModel.componentInstallProgress.collectAsStateWithLifecycle()
-    val componentInstallLog by viewModel.componentInstallLog.collectAsStateWithLifecycle()
-    val localPluginImport by viewModel.localPluginImport.collectAsStateWithLifecycle()
-    val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
-    val operationError by viewModel.operationError.collectAsStateWithLifecycle()
+    val installedComponentIds by viewModel?.installedComponentIds?.collectAsStateWithLifecycle() ?: previewStateOf(emptySet())
+    val activeBundle by viewModel?.activeBundle?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val selectedComponents by viewModel?.selectedComponents?.collectAsStateWithLifecycle() ?: previewStateOf(emptySet())
+    val isInstallingComponents by viewModel?.isInstallingComponents?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val componentInstallProgress by viewModel?.componentInstallProgress?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val componentInstallLog by viewModel?.componentInstallLog?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val localPluginImport by viewModel?.localPluginImport?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.tools.LocalPluginImportState())
+    val isSyncing by viewModel?.isSyncing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val operationError by viewModel?.operationError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     var showBundleInstallLog by remember { mutableStateOf(false) }
     var pendingUninstallId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingUninstallName by rememberSaveable { mutableStateOf<String?>(null) }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let(viewModel::importLocalPlugin)
+        uri?.let({ arg0 -> viewModel?.importLocalPlugin(arg0) })
     }
 
     // 首次进入引导：高亮顶栏「导入离线插件包」文件夹按钮
-    val importGuideShown by viewModel.importGuideShown.collectAsStateWithLifecycle()
+    val importGuideShown by viewModel?.importGuideShown?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val importAnchor = rememberSpotlightAnchor()
 
     val categories = listOf(
@@ -139,8 +139,8 @@ internal fun LocalToolCenterContent(
     val filteredTools = tools.filter { tool ->
         when (selectedCategory) {
             "ALL" -> true
-            "SOURCE_LOCAL" -> viewModel.toolSource(tool.id) == "LOCAL"
-            "SOURCE_REMOTE" -> viewModel.toolSource(tool.id) != "LOCAL"
+            "SOURCE_LOCAL" -> viewModel?.toolSource(tool.id) == "LOCAL"
+            "SOURCE_REMOTE" -> viewModel?.toolSource(tool.id) != "LOCAL"
             else -> tool.category.equals(selectedCategory, ignoreCase = true)
         }
     }
@@ -168,8 +168,8 @@ internal fun LocalToolCenterContent(
                     }
                     IconButton(
                         onClick = {
-                            viewModel.syncRegistry()
-                            viewModel.refreshInstalledStatus()
+                            viewModel?.syncRegistry()
+                            viewModel?.refreshInstalledStatus()
                         },
                         enabled = !isSyncing,
                         contentDescription = if (isSyncing) "正在刷新插件目录" else "刷新插件目录",
@@ -207,7 +207,7 @@ internal fun LocalToolCenterContent(
                     val isSelected = selectedCategory == catId
                     FilterChip(
                         selected = isSelected,
-                        onClick = { viewModel.setCategory(catId) },
+                        onClick = { viewModel?.setCategory(catId) },
                         label = { Text(label, style = MaterialTheme.typography.labelMedium) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -227,7 +227,7 @@ internal fun LocalToolCenterContent(
                         NoticeBanner(
                             text = operationError.orEmpty(),
                             isError = true,
-                            onDismiss = viewModel::consumeOperationError,
+                            onDismiss = { viewModel?.consumeOperationError() },
                         )
                     }
                 }
@@ -308,7 +308,7 @@ internal fun LocalToolCenterContent(
                                         )
                                     }
                                     if (!isImporting && !isPending) {
-                                        TextButton(onClick = viewModel::clearLocalPluginImportState) {
+                                        TextButton(onClick = { viewModel?.clearLocalPluginImportState() }) {
                                             Text("关闭", color = contentColor)
                                         }
                                     }
@@ -392,13 +392,13 @@ internal fun LocalToolCenterContent(
                         )
                     }
 
-                    items(viewModel.pluginBundles, key = { it.id }) { bundle ->
+                    items(viewModel?.pluginBundles, key = { it.id }) { bundle ->
                         val installedCount = bundle.components.count { it.id in installedComponentIds }
                         val isCoreReady = bundle.components.filter { it.isRequired }.all { it.id in installedComponentIds }
 
                         RuntimeCard(
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = { viewModel.openBundleSetup(bundle) },
+                            onClick = { viewModel?.openBundleSetup(bundle) },
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                             borderColor = if (isCoreReady) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
                             else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
@@ -510,7 +510,7 @@ internal fun LocalToolCenterContent(
                                     horizontalArrangement = Arrangement.End,
                                 ) {
                                     FilledTonalButton(
-                                        onClick = { viewModel.openBundleSetup(bundle) },
+                                        onClick = { viewModel?.openBundleSetup(bundle) },
                                         shape = RoundedCornerShape(8.dp),
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                                     ) {
@@ -545,22 +545,22 @@ internal fun LocalToolCenterContent(
                     items(filteredTools, key = { it.id }) { tool ->
                         ToolCard(
                             tool = tool,
-                            source = viewModel.toolSource(tool.id),
+                            source = viewModel?.toolSource(tool.id),
                             progress = installProgress[tool.id],
                             verification = verifications[tool.id],
-                            onInstall = { viewModel.installTool(tool.id) },
-                            onUpdate = { viewModel.updateTool(tool.id) },
+                            onInstall = { viewModel?.installTool(tool.id) },
+                            onUpdate = { viewModel?.updateTool(tool.id) },
                             onUninstall = {
                                 pendingUninstallId = tool.id
                                 pendingUninstallName = tool.name
                             },
-                            onVerify = { viewModel.verifyTool(tool.id) },
+                            onVerify = { viewModel?.verifyTool(tool.id) },
                             onLaunch = { onLaunchPty(tool.id) },
-                            onViewLogs = { viewModel.viewLogs(tool.id) },
+                            onViewLogs = { viewModel?.viewLogs(tool.id) },
                             onOpenDetail = { onOpenToolDetail(tool.id) },
                             onStartAiHealing = {
                                 // 与日志弹窗「AI 自愈」入口一致：始终传入该工具的全量日志
-                                viewModel.fullToolLogs(tool.id) { logs ->
+                                viewModel?.fullToolLogs(tool.id) { logs ->
                                     onStartAiHealing(tool.id, tool.name, logs)
                                 }
                             },
@@ -608,7 +608,7 @@ internal fun LocalToolCenterContent(
 
         // A package is only committed/installed after explicit confirmation.
         (localPluginImport as? LocalPluginImportState.PendingConfirmation)?.let { pending ->
-            LocalPluginImportConfirmation(pending, viewModel::cancelLocalPluginImport, viewModel::confirmLocalPluginImport)
+            LocalPluginImportConfirmation(pending, { viewModel?.cancelLocalPluginImport() }, { viewModel?.confirmLocalPluginImport() })
         }
 
         // Install Logs Dialog
@@ -619,7 +619,7 @@ internal fun LocalToolCenterContent(
             val hasErrors = toolLogs.any { it.event.contains("FAIL", ignoreCase = true) || it.message.startsWith("ERR") }
 
             RuntimeAlertDialog(
-                onDismissRequest = { viewModel.viewLogs(null) },
+                onDismissRequest = { viewModel?.viewLogs(null) },
                 title = { Text("工具执行日志 ($toolName)") },
                 text = {
                     Surface(
@@ -670,7 +670,7 @@ internal fun LocalToolCenterContent(
                             Button(
                                 onClick = {
                                     val fullLogs = toolLogs.map { "[${it.event}] ${it.message}" }
-                                    viewModel.viewLogs(null)
+                                    viewModel?.viewLogs(null)
                                     onStartAiHealing(toolId, toolName, fullLogs)
                                 },
                                 shape = RoundedCornerShape(8.dp),
@@ -697,12 +697,12 @@ internal fun LocalToolCenterContent(
                             Text("复制")
                         }
                         TextButton(
-                            onClick = { viewModel.clearLogs(toolId) },
+                            onClick = { viewModel?.clearLogs(toolId) },
                             enabled = toolLogs.isNotEmpty(),
                         ) {
                             Text("清空", color = MaterialTheme.colorScheme.error)
                         }
-                        TextButton(onClick = { viewModel.viewLogs(null) }) {
+                        TextButton(onClick = { viewModel?.viewLogs(null) }) {
                             Text("关闭")
                         }
                     }
@@ -766,7 +766,7 @@ internal fun LocalToolCenterContent(
             UninstallToolConfirmDialog(
                 toolName = pendingUninstallName.orEmpty(),
                 onConfirm = {
-                    viewModel.uninstallTool(uninstallId)
+                    viewModel?.uninstallTool(uninstallId)
                     pendingUninstallId = null
                     pendingUninstallName = null
                 },
@@ -784,12 +784,12 @@ internal fun LocalToolCenterContent(
                 selectedComponents = selectedComponents,
                 isInstallingComponents = isInstallingComponents,
                 componentInstallProgress = componentInstallProgress,
-                onToggle = viewModel::toggleComponent,
-                onInstall = viewModel::installActiveBundleComponents,
-                onReinstall = viewModel::reinstallComponent,
-                onUninstall = viewModel::uninstallComponent,
-                uninstallBlockedReason = viewModel::uninstallBlockedReason,
-                onDismiss = viewModel::closeBundleSetup,
+                onToggle = { arg0 -> viewModel?.toggleComponent(arg0) },
+                onInstall = { viewModel?.installActiveBundleComponents() },
+                onReinstall = { arg0 -> viewModel?.reinstallComponent(arg0) },
+                onUninstall = { arg0 -> viewModel?.uninstallComponent(arg0) },
+                uninstallBlockedReason = { arg0 -> viewModel?.uninstallBlockedReason(arg0) },
+                onDismiss = { viewModel?.closeBundleSetup() },
             )
         }
     }
@@ -802,7 +802,7 @@ internal fun LocalToolCenterContent(
             message = "已从 QQ 群下载好全量离线插件包？点击右上角的文件夹图标，选择 zip 文件即可导入，" +
                 "一次装齐 Android、Flutter、反编译环境，全程无需联网。",
             icon = RuntimeIconName.FolderOpen,
-            onDismiss = viewModel::markImportGuideShown,
+            onDismiss = { viewModel?.markImportGuideShown() },
         )
     }
     } // Box

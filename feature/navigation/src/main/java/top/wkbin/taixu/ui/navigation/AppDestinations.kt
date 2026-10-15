@@ -45,7 +45,6 @@ sealed interface AppDestination : NavKey
 @Serializable data object StatsDestination : AppDestination
 @Serializable data object PermissionGuideDestination : AppDestination
 @Serializable data object DeveloperDestination : AppDestination
-@Serializable data object LiquidGlassCatalogDestination : AppDestination
 @Serializable data object AdbLogcatDestination : AppDestination
 @Serializable data object A2uiPocDestination : AppDestination
 @Serializable data object FeatureHubDestination : AppDestination

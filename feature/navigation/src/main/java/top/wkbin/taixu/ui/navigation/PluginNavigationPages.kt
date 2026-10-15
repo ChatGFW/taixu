@@ -43,6 +43,13 @@ internal fun BrowserPluginPage(pages: PluginPages, embedded: Boolean = false, on
 internal fun browserPluginBack(controller: PluginController, model: BrowserViewModel): Boolean =
     controller.acquire(BrowserPlugin.page.pluginId)?.use { model.handleBackImmediate() } ?: false
 
+internal fun selectedPluginPage(destination: androidx.navigation3.runtime.NavKey?): PluginExtensionRef? = when (destination) {
+    is PluginPageDestination -> PluginExtensionRef(destination.pluginId, destination.pageId)
+    is TerminalDestination -> TerminalPlugin.page
+    is BrowserDestination -> BrowserPlugin.page
+    else -> null
+}
+
 @Composable
 internal fun ManagedPluginsScreen(platform: NativePluginPlatform, controller: PluginController, onOpen: (PluginExtensionRef) -> Unit, onOpenTool: (String) -> Unit, onBack: () -> Unit) {
     top.wkbin.taixu.plugin.ui.PluginManagerScreen(platform.plugins, controller, onOpen, onBack) {

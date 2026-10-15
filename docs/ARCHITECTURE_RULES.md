@@ -23,7 +23,7 @@
 ## 3. 🎨 M3 Expressive 与 UX/UI 设计系统与前端架构铁律
 
 1. **统一设计系统组件（严禁 raw Material 组件散落）**：
-   - 容器必须使用 `top.wkbin.taixu.ui.components.RuntimeCard`（支持 `containerColor`, `borderColor`, `contentPadding`, `onClick`），**严禁**使用原生 `androidx.compose.material3.Card` 或自定义 `Modifier.border/background` 拼接容器，确保在**Material You（标准 M3）**与**液态玻璃**双主题下毛玻璃、折射与微边框自适应生效。
+   - 容器必须使用 `top.wkbin.taixu.ui.components.RuntimeCard`（支持 `containerColor`, `borderColor`, `contentPadding`, `onClick`），**严禁**使用原生 `androidx.compose.material3.Card` 或自定义 `Modifier.border/background` 拼接容器，确保 Material You（标准 M3）主题下表面色与微边框统一生效。
    - 按钮统一使用 `RuntimeButton`, `RuntimeFilledTonalButton`, `RuntimeOutlinedButton`, `RuntimeTextButton`, `RuntimeIconButton`。
    - 弹窗统一使用 `top.wkbin.taixu.ui.components.RuntimeAlertDialog`。
    - 开关与进度指示使用 `RuntimeSwitch`, `RuntimeLinearProgressIndicator`, `RuntimeCircularProgressIndicator`。
@@ -31,14 +31,14 @@
    - 所有包含 `OutlinedTextField` 或列表的 Dialog `text` 内容区域，**严禁**设置死锁的固定高宽或外层硬编码 `offset`，**必须**包裹 `modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())`，确保在移动端软键盘弹起时表单可顺畅滑动，操作按钮始终可见可达。
 3. **顶部与主导航规范**：
    - 顶部导航统一使用 `RuntimeTopBar`（支持 `title`, `statusText`, `onBack`）。
-   - 首次引导完成后默认进入智枢聊天；主页面不显示底部导航栏。会话与主功能统一通过对话页的菜单键打开左侧抽屉；项目、系统概览与设置根页面使用返回键直接回到对话页，清理对话导航栈上的子页面；子页面保留返回上一级的按钮。
-   - 聊天顶栏突出会话与模型，工作台控制按需展开；全部放行状态始终可见。抽屉、键盘和系统导航栏均使用实际窗口 Insets，不保留旧底部栏占位。
+   - 首次引导完成后默认进入智枢聊天；主页面不显示底部导航栏。会话与主功能统一通过对话页的菜单键打开左侧抽屉；项目、系统概览进入当前导航栈，使用与其他子页面一致的覆盖转场及返回行为；设置根页面返回对话页。侧栏底部提供设置入口，功能列表不重复显示对话与设置。
+   - 聊天顶栏突出会话与模型，不放新建会话按钮；新建入口位于侧栏搜索栏旁。审批模式在会话输入框工具栏展示与切换，全部放行状态始终可见；工作台控制按需展开。抽屉通过滑动或点击主页面遮罩关闭，不放关闭按钮；抽屉、键盘和系统导航栏均使用实际窗口 Insets，不保留旧底部栏占位。
 4. **响应式与小屏防截断/防折行**：
    - 消息气泡（如 `UserBubble`）必须采用响应式宽度（`Modifier.widthIn(max = 560.dp)`），避免在平板/折叠屏/大屏上被限制过窄。
    - 单行文本、路径或标签（如文件路径、短语标题、状态标签）必须显式声明 `maxLines = 1, overflow = TextOverflow.Ellipsis`，严禁长字符串将同行的操作按钮挤出屏幕。
    - 横向多按钮行（如操作栏、卡片底部动作）必须配置适当紧凑的 `contentPadding` 与 `labelSmall` 单行字号，杜绝 360dp 窄屏宽度下文字断行造成按钮高度参差不齐。
 5. **层级与多层材质防冲突**：
-   - 在 `RuntimeCard` 内嵌的日志区、终端代码块或次级子项中，应使用 `Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest/Highest)`，避免多层嵌套 Card 导致液态玻璃与阴影层级计算异常。
+   - 在 `RuntimeCard` 内嵌的日志区、终端代码块或次级子项中，应使用 `Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest/Highest)`，避免多层嵌套 Card 导致色调与阴影层级混乱。
 
 ---
 

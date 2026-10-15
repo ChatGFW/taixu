@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import androidx.compose.foundation.clickable
@@ -41,7 +42,6 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-
 /**
  * 二级子页 2：Linux 容器沙箱与存储
  */
@@ -55,14 +55,14 @@ fun LinuxEnvironmentSettingsScreen(
     onOpenEnvironmentVariables: () -> Unit,
     onOpenSshSettings: () -> Unit,
     onOpenFtpSettings: () -> Unit,
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val executionMode by viewModel.executionMode.collectAsStateWithLifecycle()
-    val effectiveExecutionMode by viewModel.effectiveExecutionMode.collectAsStateWithLifecycle()
-    val privilegeState by viewModel.privilegeState.collectAsStateWithLifecycle()
-    val switchingMode by viewModel.switchingMode.collectAsStateWithLifecycle()
-    val installedDistros by viewModel.installedDistros.collectAsStateWithLifecycle()
-    val webChatStatus by viewModel.webChatStatus.collectAsStateWithLifecycle()
+    val executionMode by viewModel?.executionMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.ExecutionMode.PROOT)
+    val effectiveExecutionMode by viewModel?.effectiveExecutionMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.ExecutionMode.PROOT)
+    val privilegeState by viewModel?.privilegeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.privilege.PrivilegeState())
+    val switchingMode by viewModel?.switchingMode?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val webChatStatus by viewModel?.webChatStatus?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.webchat.WebChatServerStatus())
 
     var showExecutionModeDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var showWebChatDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
@@ -77,7 +77,7 @@ fun LinuxEnvironmentSettingsScreen(
             switching = switchingMode,
             onSelectMode = { mode ->
                 showExecutionModeDialog = false
-                viewModel.switchExecutionMode(mode) { success, msg ->
+                viewModel?.switchExecutionMode(mode) { success, msg ->
                     privilegeResultMessage = if (success) null else msg
                 }
             },
@@ -109,7 +109,7 @@ fun LinuxEnvironmentSettingsScreen(
             toggling = webChatToggling,
             onToggle = { enabled ->
                 webChatToggling = true
-                viewModel.toggleWebChatServer(enabled)
+                viewModel?.toggleWebChatServer(enabled)
             },
             onDismiss = { showWebChatDialog = false },
         )

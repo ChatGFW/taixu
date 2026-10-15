@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings.stats
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -36,13 +37,12 @@ import top.wkbin.taixu.ui.settings.stats.widgets.StatsMetricGrid
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsRankSection
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsSectionCard
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsUsageChart
-
 @Composable
 fun StatsScreen(
     onBack: () -> Unit,
-    viewModel: StatsViewModel = koinViewModel(),
+    viewModel: StatsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(StatsUiState())
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -77,7 +77,7 @@ fun StatsScreen(
                     val selected = uiState.range.preset == preset
                     RuntimeFilterChip(
                         selected = selected,
-                        onClick = { viewModel.setDateRangePreset(preset) },
+                        onClick = { viewModel?.setDateRangePreset(preset) },
                         label = {
                             Text(
                                 text = label,
@@ -115,7 +115,7 @@ fun StatsScreen(
                                 color = MaterialTheme.colorScheme.error,
                             )
                             RuntimeButton(
-                                onClick = { viewModel.refresh() },
+                                onClick = { viewModel?.refresh() },
                             ) {
                                 Text("重试")
                             }

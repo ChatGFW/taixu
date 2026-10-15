@@ -2,35 +2,35 @@ package top.wkbin.taixu.plugin.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.plugin.api.PluginExtensionRef
 import top.wkbin.taixu.plugin.runtime.PluginController
 import top.wkbin.taixu.plugin.runtime.PluginPhase
-import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.components.RuntimeNavigationTile
 
-/** Entries reference validated pages and disappear when their owner cannot admit work. */
+/** Entries share the drawer's destination grid and disappear when admission closes. */
 @Composable
-fun PluginEntryLinks(
-    plugins: List<NativePagePlugin>,
-    controller: PluginController,
-    location: PluginEntryLocation,
-    onOpen: (PluginExtensionRef) -> Unit,
-) {
+fun PluginEntryLinks(plugins: List<NativePagePlugin>, controller: PluginController,
+    location: PluginEntryLocation, onOpen: (PluginExtensionRef) -> Unit, selectedPage: PluginExtensionRef? = null) {
     val states by controller.states.collectAsState()
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        plugins.filter { states[it.descriptor.id]?.phase == PluginPhase.RUNNING }.forEach { plugin ->
-            plugin.entries.filter { it.location == location }.forEach { entry ->
-                RuntimeTextButton(
-                    onClick = { onOpen(PluginExtensionRef(plugin.descriptor.id, entry.pageId)) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(entry.title(), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+    val entries = plugins.filter { states[it.descriptor.id]?.phase == PluginPhase.RUNNING }
+        .flatMap { plugin -> plugin.entries.filter { it.location == location }.map { plugin to it } }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        entries.chunked(2).forEach { pair ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                pair.forEach { (plugin, entry) ->
+                    RuntimeNavigationTile(entry.title(), plugin.icon,
+                        { onOpen(PluginExtensionRef(plugin.descriptor.id, entry.pageId)) }, Modifier.weight(1f),
+                        active = selectedPage == PluginExtensionRef(plugin.descriptor.id, entry.pageId))
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }

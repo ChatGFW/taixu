@@ -5,6 +5,7 @@ assets/plugins/**/payload/**/*.gradle text eol=lf
 app/src/main/assets/bin/* text eol=lf
 app/src/main/assets/bin/rtk binary
 app/src/main/assets/templates/** text eol=lf
+project-template/src/main/assets/templates/taixu-plugin/**/*.template text eol=lf
 app/src/main/assets/scripts/*.sh text eol=lf
 *.txplugin binary
 assets/plugins/**/payload/bin/* binary

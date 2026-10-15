@@ -2,46 +2,71 @@ package top.wkbin.taixu.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.feature.settings.R
-import top.wkbin.taixu.ui.components.RuntimeCard
-import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.plugin.api.PluginExtensionPoint
+import top.wkbin.taixu.ui.components.*
 
 @Composable
 fun PackagedPluginInventorySection(onOpenTool: (String) -> Unit, viewModel: PackagedPluginsViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var installedOnly by rememberSaveable { mutableStateOf(false) }
+    val entries = if (installedOnly) state.entries.filter { it.installedVersion != null } else state.entries
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.harness_plugins_title), style = MaterialTheme.typography.titleLarge)
-        Text(stringResource(R.string.harness_plugins_scope), style = MaterialTheme.typography.bodyMedium)
-        viewModel.harnessPlugins.forEach { plugin ->
-            RuntimeCard(modifier = Modifier.fillMaxWidth()) {
-                Text(plugin.id, style = MaterialTheme.typography.titleMedium)
-                Text(plugin.version, style = MaterialTheme.typography.bodySmall)
+        SectionHeader(stringResource(R.string.harness_plugins_title), stringResource(R.string.harness_plugins_scope),
+            modifier = Modifier.padding(top = 12.dp))
+        RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+            viewModel.harnessPlugins.forEachIndexed { index, plugin ->
+                if (index > 0) InventoryDivider()
                 val points = plugin.extensions.groupingBy { it.point }.eachCount()
-                Text(stringResource(R.string.harness_plugins_counts, points[top.wkbin.taixu.plugin.api.PluginExtensionPoint.TOOL] ?: 0,
-                    points[top.wkbin.taixu.plugin.api.PluginExtensionPoint.CONTEXT] ?: 0, points[top.wkbin.taixu.plugin.api.PluginExtensionPoint.PROVIDER] ?: 0,
-                    points[top.wkbin.taixu.plugin.api.PluginExtensionPoint.WORKFLOW] ?: 0))
+                RuntimePluginListRow(
+                    title = if (plugin.id == "taixu.harness") stringResource(R.string.harness_plugins_core_title) else plugin.id,
+                    subtitle = plugin.id,
+                    icon = RuntimeIconName.Brain,
+                    detail = stringResource(R.string.harness_plugins_counts, points[PluginExtensionPoint.TOOL] ?: 0,
+                        points[PluginExtensionPoint.CONTEXT] ?: 0, points[PluginExtensionPoint.PROVIDER] ?: 0, points[PluginExtensionPoint.WORKFLOW] ?: 0),
+                    status = plugin.version,
+                )
             }
         }
-        Text(stringResource(R.string.packaged_plugins_title), style = MaterialTheme.typography.titleLarge)
-        Text(stringResource(R.string.packaged_plugins_scope), style = MaterialTheme.typography.bodyMedium)
+        SectionHeader(stringResource(R.string.packaged_plugins_title), stringResource(R.string.packaged_plugins_scope),
+            modifier = Modifier.padding(top = 12.dp))
+        RuntimeSegmentedControl(
+            options = listOf(stringResource(R.string.packaged_plugins_filter_installed), stringResource(R.string.packaged_plugins_filter_all)),
+            selectedIndex = if (installedOnly) 0 else 1, onSelect = { installedOnly = it == 0 }, modifier = Modifier.fillMaxWidth())
         if (state.failed) Text(stringResource(R.string.packaged_plugins_failed), color = MaterialTheme.colorScheme.error)
-        state.entries.forEach { entry ->
-            RuntimeCard(modifier = Modifier.fillMaxWidth()) {
-                Text(entry.name, style = MaterialTheme.typography.titleMedium)
-                Text(entry.descriptor.id, style = MaterialTheme.typography.bodySmall)
-                Text(stringResource(R.string.packaged_plugins_version, entry.descriptor.version, entry.installedVersion ?: stringResource(R.string.packaged_plugins_uninstalled)))
-                RuntimeTextButton(onClick = { onOpenTool(entry.toolId) }) { Text(stringResource(R.string.packaged_plugins_details)) }
+        if (entries.isEmpty() && !state.failed) Text(stringResource(R.string.packaged_plugins_empty),
+            Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (entries.isNotEmpty()) RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+            entries.forEachIndexed { index, entry ->
+                if (index > 0) InventoryDivider()
+                val status = when (entry.state) {
+                    "UPDATE_AVAILABLE" -> R.string.packaged_plugins_update
+                    "INSTALLING" -> R.string.packaged_plugins_installing
+                    "FAILED" -> R.string.packaged_plugins_check
+                    "DISABLED" -> R.string.packaged_plugins_disabled
+                    else -> if (entry.installedVersion != null) R.string.packaged_plugins_installed else R.string.packaged_plugins_uninstalled
+                }
+                RuntimePluginListRow(title = entry.name, icon = RuntimeIconName.Package,
+                    subtitle = stringResource(R.string.packaged_plugins_display_version, entry.installedVersion ?: entry.descriptor.version),
+                    status = stringResource(status), onClick = { onOpenTool(entry.toolId) })
             }
         }
     }
 }
+
+@Composable
+private fun InventoryDivider() = HorizontalDivider(Modifier.padding(start = 68.dp),
+    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))

@@ -2,11 +2,10 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -18,20 +17,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import top.wkbin.taixu.ui.theme.LocalLiquidGlassSurfaceBackdrop
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,10 +49,8 @@ import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
-import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
-import top.wkbin.taixu.ui.components.TaiXuBrandBadge
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -130,9 +123,9 @@ private fun formatSessionTime(timestamp: Long): String {
 }
 
 /**
- * 侧边弹窗形式的会话管理与新建抽屉（参考千问办公侧边栏风格）：
+ * Solab 风格的会话侧栏：固定搜索与底部功能入口，会话列表独立滚动。
  * - 屏幕左侧展开，含背景遮罩与进退场滑动动画。
- * - 顶部置顶醒目「新任务 / 新建会话」大按钮与快捷扩展入口。
+ * - 搜索会话标题/工作区，顶部 + 创建新会话，底部展开主功能与插件。
  * - 「项目」分组展示关联工作区工程，支持展开/折叠与单项目一键「+」新建会话。
  * - 「最近」分组展示未关联工作区的会话，按最近修改时间倒序排列。
  */
@@ -144,6 +137,7 @@ internal fun SessionsSideDrawer(
     workspaces: List<WorkspaceProject>,
     sessionRunStates: Map<String, SessionRunState>,
     onDismiss: () -> Unit,
+    onSettings: () -> Unit,
     onSwitch: (String) -> Unit,
     onNew: () -> Unit,
     onCreateInWorkspace: (WorkspaceProject) -> Unit,
@@ -156,7 +150,15 @@ internal fun SessionsSideDrawer(
 
     var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteTargetId by rememberSaveable { mutableStateOf<String?>(null) }
-    val partition = remember(sessions, workspaces) { partitionSessions(sessions, workspaces) }
+    var query by rememberSaveable { mutableStateOf("") }
+    val partition = remember(sessions, workspaces, query) {
+        val term = query.trim()
+        val filtered = if (term.isEmpty()) sessions else sessions.filter {
+            it.title.contains(term, ignoreCase = true) || it.workspace.contains(term, ignoreCase = true)
+        }
+        val result = partitionSessions(filtered, workspaces)
+        if (term.isEmpty()) result else result.copy(projectGroups = result.projectGroups.filter { it.sessions.isNotEmpty() })
+    }
     var expandedProjects by rememberSaveable {
         val initialExpanded = partition.projectGroups
             .filter { group -> group.sessions.any { it.id == currentSessionId } }
@@ -165,61 +167,37 @@ internal fun SessionsSideDrawer(
         mutableStateOf(initialExpanded)
     }
 
-    CompositionLocalProvider(LocalLiquidGlassSurfaceBackdrop provides null) {
-        Surface(
-            modifier = modifier.fillMaxHeight().fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            tonalElevation = 0.dp,
+    Surface(
+        modifier = modifier.fillMaxHeight().fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding(),
         ) {
+            SessionDrawerSearch(query, { query = it }, onNew)
+
             Column(
-                modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                DrawerHeader(totalSessionsCount = sessions.size, onClose = onDismiss)
-
-                Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
-                    RuntimeButton(
-                        onClick = onNew,
-                        modifier = Modifier.fillMaxWidth().height(46.dp),
-                        shape = RoundedCornerShape(23.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            RuntimeIcon(RuntimeIconName.Plus, Modifier.size(18.dp), MaterialTheme.colorScheme.onPrimary)
-                            Text(
-                                text = stringResource(R.string.chat_drawer_new_task),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                            )
-                        }
-                    }
+                if (query.isNotBlank() && partition.projectGroups.isEmpty() && partition.recentSessions.isEmpty()) {
+                    Text(stringResource(R.string.chat_drawer_no_matches),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                )
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 2.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    navigationContent()
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 6.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                    )
+                if (query.isBlank() || partition.projectGroups.isNotEmpty()) {
                     ProjectSection(
                         projectGroups = partition.projectGroups,
                         currentSessionId = currentSessionId,
                         sessionRunStates = sessionRunStates,
-                        expandedProjects = expandedProjects,
+                        expandedProjects = if (query.isBlank()) expandedProjects
+                            else partition.projectGroups.map { it.workspacePath }.toSet(),
                         onToggleExpand = { path ->
                             expandedProjects = if (expandedProjects.contains(path)) expandedProjects - path else expandedProjects + path
                         },
@@ -238,7 +216,9 @@ internal fun SessionsSideDrawer(
                         onRename = { id -> renameTargetId = id },
                         onDelete = { id -> deleteTargetId = id },
                     )
+                }
 
+                if (query.isBlank() || partition.recentSessions.isNotEmpty()) {
                     RecentSection(
                         recentSessions = partition.recentSessions,
                         currentSessionId = currentSessionId,
@@ -247,10 +227,11 @@ internal fun SessionsSideDrawer(
                         onRename = { id -> renameTargetId = id },
                         onDelete = { id -> deleteTargetId = id },
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
+            SessionDrawerFooter(sessions.size, onSettings, navigationContent)
         }
     }
 
@@ -300,24 +281,6 @@ internal fun SessionsSideDrawer(
     }
 }
 
-/** 抽屉顶部标题行。 */
-@Composable
-private fun DrawerHeader(totalSessionsCount: Int, onClose: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 10.dp, top = 16.dp, bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        TaiXuBrandBadge(size = 32.dp)
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(text = "太墟 · 智枢", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(text = stringResource(R.string.chat_session_count, totalSessionsCount), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        RuntimeIconButton(onClick = onClose, modifier = Modifier.size(40.dp), contentDescription = stringResource(R.string.chat_cancel)) {
-            RuntimeIcon(RuntimeIconName.Close, Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
 /** 项目分区。 */
 @Composable
 private fun ProjectSection(

@@ -185,9 +185,7 @@ class SettingsDataStore(
     private val developerModeKey = booleanPreferencesKey("developer_mode")
     private val qemuCompatibilityEnabledKey = booleanPreferencesKey("qemu_compatibility_enabled")
     private val themeModeKey = stringPreferencesKey("theme_mode")
-    private val themeStyleKey = stringPreferencesKey("theme_style")
     private val dynamicColorEnabledKey = booleanPreferencesKey("dynamic_color_enabled")
-    private val chengmingBackgroundUriKey = stringPreferencesKey("chengming_background_uri")
     private val onboardingCompletedKey = booleanPreferencesKey("onboarding_completed")
     private val selectedDistributionKey = stringPreferencesKey("selected_distribution")
     private val mirrorPolicyKey = stringPreferencesKey("mirror_policy")
@@ -381,21 +379,6 @@ class SettingsDataStore(
         }
     }
 
-    /** 主题风格（material_you / liquid_glass），默认 material_you（兼容旧值 xuantong / chengming）。 */
-    val themeStyle: Flow<String> = context.settingsDataStore.data.map { preferences ->
-        when (preferences[themeStyleKey]) {
-            "liquid_glass", "chengming" -> "liquid_glass"
-            "material_you", "xuantong" -> "material_you"
-            else -> "material_you"
-        }
-    }
-
-    suspend fun setThemeStyle(style: String) {
-        context.settingsDataStore.edit { preferences ->
-            preferences[themeStyleKey] = style
-        }
-    }
-
     /** 动态取色（Monet 引擎，跟随系统壁纸色调），默认开启（在 Android 12+ 下生效）。 */
     val dynamicColorEnabled: Flow<Boolean> = context.settingsDataStore.data.map { preferences ->
         preferences[dynamicColorEnabledKey] ?: true
@@ -404,17 +387,6 @@ class SettingsDataStore(
     suspend fun setDynamicColorEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[dynamicColorEnabledKey] = enabled
-        }
-    }
-
-    val chengmingBackgroundUri: Flow<String?> = context.settingsDataStore.data.map { preferences ->
-        preferences[chengmingBackgroundUriKey]
-    }
-
-    suspend fun setChengmingBackgroundUri(uri: String?) {
-        context.settingsDataStore.edit { preferences ->
-            if (uri.isNullOrBlank()) preferences.remove(chengmingBackgroundUriKey)
-            else preferences[chengmingBackgroundUriKey] = uri
         }
     }
 

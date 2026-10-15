@@ -24,7 +24,7 @@ import top.wkbin.taixu.runtime.remote.RemoteSystemService
 import top.wkbin.taixu.ui.components.*
 
 @Composable
-internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService = koinInject()) {
+internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService = koinInject(), onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
     var path by remember { mutableStateOf("") }
     var refresh by remember { mutableIntStateOf(0) }
     var entries by remember(path) { mutableStateOf(emptyList<ExecutionFileEntry>()) }
@@ -46,7 +46,7 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
     BackHandler(path.isNotBlank()) { path = path.substringBeforeLast('/', "") }
     Scaffold(containerColor = MaterialTheme.colorScheme.background,
         topBar = { RuntimeTopBar(title = if (path.isBlank()) "工坊" else path.substringAfterLast('/'),
-            statusText = target?.name ?: "当前服务器", onBack = { onNavigate(MainDestination.Agent) },
+            statusText = target?.name ?: "当前服务器", onBack = { if (path.isNotBlank()) path = path.substringBeforeLast('/', "") else onBack() },
             actions = { RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) } }) },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp, 16.dp, 16.dp,

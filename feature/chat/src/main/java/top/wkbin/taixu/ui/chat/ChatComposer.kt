@@ -3,11 +3,6 @@ package top.wkbin.taixu.ui.chat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,8 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -54,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ToolResult
@@ -104,6 +97,7 @@ internal fun ChatComposer(
     onOpenSkillsMcp: () -> Unit,
     onOpenModels: () -> Unit,
     activeModel: AiModelEntity?,
+    approvalMode: ApprovalMode, onOpenApprovalModes: () -> Unit,
     onUpdateReasoning: (String?, String?) -> Unit = { _, _ -> },
     contextUsage: ContextUsage,
 ) {
@@ -201,7 +195,7 @@ internal fun ChatComposer(
     }
     RuntimeCard(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp),
-        shape = RoundedCornerShape(28.dp), contentPadding = PaddingValues(0.dp),
+        shape = RoundedCornerShape(20.dp), contentPadding = PaddingValues(0.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         borderColor = if (running) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
             else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
@@ -385,6 +379,7 @@ internal fun ChatComposer(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 ComposerQuickActions(
+                    approvalMode = approvalMode, onOpenApprovalModes = onOpenApprovalModes,
                     activeModel = activeModel,
                     onOpenModels = onOpenModels,
                     onPickImage = { imagePickerLauncher.launch("image/*") },

@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.terminal
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -90,18 +90,18 @@ fun TerminalScreen(
     onBack: () -> Unit,
     project: String = "",
     showBackButton: Boolean = true,
-    viewModel: TerminalViewModel = koinViewModel(),
+    viewModel: TerminalViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val error by viewModel.error.collectAsStateWithLifecycle()
-    val handles by viewModel.handles.collectAsStateWithLifecycle()
-    val activeId by viewModel.activeId.collectAsStateWithLifecycle()
-    val workspaces by viewModel.workspaces.collectAsStateWithLifecycle()
-    val distributionName by viewModel.distributionName.collectAsStateWithLifecycle()
-    val installedDistros by viewModel.installedDistros.collectAsStateWithLifecycle()
-    val remoteActive by viewModel.remoteActive.collectAsStateWithLifecycle()
-    val configuredFontSize by viewModel.terminalFontSize.collectAsStateWithLifecycle()
-    val colorScheme by viewModel.terminalColorScheme.collectAsStateWithLifecycle()
-    val hapticsEnabled by viewModel.terminalHapticsEnabled.collectAsStateWithLifecycle()
+    val error by viewModel?.error?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val handles by viewModel?.handles?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val activeId by viewModel?.activeId?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val workspaces by viewModel?.workspaces?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val distributionName by viewModel?.distributionName?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val remoteActive by viewModel?.remoteActive?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val configuredFontSize by viewModel?.terminalFontSize?.collectAsStateWithLifecycle() ?: previewStateOf(0)
+    val colorScheme by viewModel?.terminalColorScheme?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val hapticsEnabled by viewModel?.terminalHapticsEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val context = LocalContext.current
     val density = LocalDensity.current
     var fontSizeSp by remember { mutableFloatStateOf(configuredFontSize.toFloat()) }
@@ -124,7 +124,7 @@ fun TerminalScreen(
     }
 
     val bridge = remember(context) {
-        TaiXuTerminalBridge(context, viewModel.sessionClientRouter)
+        TaiXuTerminalBridge(context, viewModel?.sessionClientRouter)
     }
     // Attach before AndroidView layout so the first PTY callbacks aren't dropped.
     bridge.attachToRouter()
@@ -133,7 +133,7 @@ fun TerminalScreen(
         bridge.onFontScale = { increase ->
             fontSizeSp = (fontSizeSp + if (increase) 1f else -1f)
                 .coerceIn(MIN_TERMINAL_FONT_SIZE_SP, MAX_TERMINAL_FONT_SIZE_SP)
-            viewModel.setTerminalFontSize(fontSizeSp.roundToInt())
+            viewModel?.setTerminalFontSize(fontSizeSp.roundToInt())
         }
         onDispose {
             bridge.onFontScale = null
@@ -174,12 +174,12 @@ fun TerminalScreen(
 
     var isLeaving by remember { mutableStateOf(false) }
     var showSessions by remember { mutableStateOf(false) }
-    val firstUseGuidesShown by viewModel.firstUseGuidesShown.collectAsStateWithLifecycle()
+    val firstUseGuidesShown by viewModel?.firstUseGuidesShown?.collectAsStateWithLifecycle() ?: previewStateOf(emptySet())
     val sessionsAnchor = rememberSpotlightAnchor()
     var showCreateSession by remember { mutableStateOf(false) }
 
     LaunchedEffect(project) {
-        viewModel.initialize(project)
+        viewModel?.initialize(project)
     }
 
     LaunchedEffect(configuredFontSize) {
@@ -298,7 +298,7 @@ fun TerminalScreen(
                                         fontFamily = FontFamily.Monospace,
                                     )
                                     Button(
-                                        onClick = { viewModel.retryInitialize(project) },
+                                        onClick = { viewModel?.retryInitialize(project) },
                                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                                     ) {
                                         RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(14.dp))
@@ -437,7 +437,7 @@ fun TerminalScreen(
                 anchor = sessionsAnchor,
                 title = stringResource(R.string.terminal_guide_title),
                 message = stringResource(R.string.terminal_guide_message),
-                onDismiss = { viewModel.markFirstUseGuideShown("terminal_sessions") },
+                onDismiss = { viewModel?.markFirstUseGuideShown("terminal_sessions") },
             )
         }
     }
@@ -447,7 +447,7 @@ fun TerminalScreen(
             handles = handles,
             activeId = activeId,
             onDismiss = { showSessions = false },
-            onSwitch = { id -> viewModel.switchSession(id); showSessions = false },
+            onSwitch = { id -> viewModel?.switchSession(id); showSessions = false },
             onCreate = {
                 showSessions = false
                 showCreateSession = true
@@ -461,7 +461,7 @@ fun TerminalScreen(
             onConfirm = {
                 sessionToClose = null
                 val wasOnlySession = handles.size == 1
-                viewModel.closeSession(closingId) { success ->
+                viewModel?.closeSession(closingId) { success ->
                     if (success && wasOnlySession) {
                         Toast.makeText(context, context.getString(R.string.terminal_reset_complete), Toast.LENGTH_SHORT).show()
                     }
@@ -479,7 +479,7 @@ fun TerminalScreen(
             onDismiss = { showCreateSession = false },
             onCreate = { label, workDir, distroId ->
                 showCreateSession = false
-                viewModel.createSession(label, workDir, distroId)
+                viewModel?.createSession(label, workDir, distroId)
             },
         )
     }

@@ -1,6 +1,9 @@
 <resources>
-    <string name="ui_plugin_manager_title">应用功能插件</string>
-    <string name="ui_plugin_manager_scope">管理终端和浏览器界面。停用后相关页面将不可用；已有终端进程、浏览器自动化与 MCP 服务仍由原功能管理。</string>
+    <string name="ui_plugin_manager_title">插件管理</string>
+    <string name="ui_plugin_pages_title">页面功能</string>
+    <string name="ui_plugin_pages_description">选择侧边栏与工作台中的常用功能</string>
+    <string name="ui_plugin_open">打开</string>
+    <string name="ui_plugin_manager_scope">开关仅控制页面入口，已有终端任务和浏览器后台活动不会随开关停止。</string>
     <string name="ui_plugin_preferences_failed">插件选择无法读取或保存，请重试。</string>
     <string name="ui_plugin_retry">重试</string>
     <string name="ui_plugin_ready">等待初始化</string>

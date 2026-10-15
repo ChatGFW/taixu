@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.home
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -89,7 +90,6 @@ import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.ui.components.MainDestination
 import top.wkbin.taixu.ui.components.IconTile
 import top.wkbin.taixu.ui.components.NoticeBanner
-import top.wkbin.taixu.ui.components.liquidGlassContent
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -99,7 +99,6 @@ import top.wkbin.taixu.ui.components.distroIconFor
 import top.wkbin.taixu.ui.components.StatusBadge
 import android.os.SystemClock
 import top.wkbin.taixu.core.model.InstalledDistro
-
 /** 自动体检防抖间隔：ON_RESUME 触发时距上次不足该间隔则跳过。 */
 private const val DOCTOR_CHECK_MIN_INTERVAL_MS = 30_000L
 
@@ -123,33 +122,33 @@ internal fun LocalHomeScreen(
     onNavigate: (MainDestination) -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenToolCenter: () -> Unit = {},
-    viewModel: HomeViewModel = koinViewModel(),
+    viewModel: HomeViewModel? = previewOrNull { koinViewModel() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) },
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var lastAutoDoctorCheckAt by remember { mutableLongStateOf(0L) }
 
-    val state by viewModel.runtimeState.collectAsStateWithLifecycle()
-    val metrics by viewModel.metrics.collectAsStateWithLifecycle()
-    val doctorReport by viewModel.doctorReport.collectAsStateWithLifecycle()
-    val isCheckingDoctor by viewModel.isCheckingDoctor.collectAsStateWithLifecycle()
-    val repairProgress by viewModel.repairProgress.collectAsStateWithLifecycle()
-    val isRepairing by viewModel.isRepairing.collectAsStateWithLifecycle()
-    val installedDistros by viewModel.installedDistros.collectAsStateWithLifecycle()
-    val activeDistroId by viewModel.activeDistroId.collectAsStateWithLifecycle()
-    val switchingDistro by viewModel.switchingDistro.collectAsStateWithLifecycle()
-    val modeStatus by viewModel.executionModeStatus.collectAsStateWithLifecycle()
-    val webChatStatus by viewModel.webChatStatus.collectAsStateWithLifecycle()
+    val state by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
+    val metrics by viewModel?.metrics?.collectAsStateWithLifecycle() ?: previewStateOf(SystemResourceMetrics())
+    val doctorReport by viewModel?.doctorReport?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val isCheckingDoctor by viewModel?.isCheckingDoctor?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val repairProgress by viewModel?.repairProgress?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val isRepairing by viewModel?.isRepairing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val activeDistroId by viewModel?.activeDistroId?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
+    val switchingDistro by viewModel?.switchingDistro?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val modeStatus by viewModel?.executionModeStatus?.collectAsStateWithLifecycle() ?: previewStateOf(ExecutionModeStatus())
+    val webChatStatus by viewModel?.webChatStatus?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.webchat.WebChatServerStatus())
 
     val allFilesPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
-        viewModel.runDoctorCheck()
+        viewModel?.runDoctorCheck()
     }
     val legacyStoragePermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
-        viewModel.runDoctorCheck()
+        viewModel?.runDoctorCheck()
     }
 
     val requestAllFilesAccess: () -> Unit = remember(context) {
@@ -190,7 +189,7 @@ internal fun LocalHomeScreen(
                 val now = SystemClock.elapsedRealtime()
                 if (now - lastAutoDoctorCheckAt > DOCTOR_CHECK_MIN_INTERVAL_MS) {
                     lastAutoDoctorCheckAt = now
-                    viewModel.runDoctorCheck()
+                    viewModel?.runDoctorCheck()
                 }
             }
         }
@@ -204,14 +203,14 @@ internal fun LocalHomeScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             RuntimeTopBar(
-                title = stringResource(R.string.home_dashboard_title), onBack = { onNavigate(MainDestination.Agent) },
+                title = stringResource(R.string.home_dashboard_title), onBack = onBack,
                 statusText = "${metrics.linuxDistro} · ${metrics.cpuArch}",
                 actions = {
                     IconButton(
                         onClick = {
-                            viewModel.refreshMetrics()
-                            viewModel.runDoctorCheck()
-                            viewModel.refreshExecutionModeStatus()
+                            viewModel?.refreshMetrics()
+                            viewModel?.runDoctorCheck()
+                            viewModel?.refreshExecutionModeStatus()
                         },
                         enabled = !isCheckingDoctor,
                         contentDescription = stringResource(R.string.home_refresh),
@@ -238,7 +237,6 @@ internal fun LocalHomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .liquidGlassContent()
                 .padding(top = innerPadding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -253,9 +251,9 @@ internal fun LocalHomeScreen(
                 activeDistroId = activeDistroId,
                 switchingDistro = switchingDistro,
                 modeStatus = modeStatus,
-                onSwitchDistro = viewModel::switchDistro,
-                onInitialize = viewModel::initializeRuntime,
-                onCancel = viewModel::cancelInitialization,
+                onSwitchDistro = { arg0 -> viewModel?.switchDistro(arg0) },
+                onInitialize = { viewModel?.initializeRuntime() },
+                onCancel = { viewModel?.cancelInitialization() },
                 onOpenTerminal = onOpenTerminal,
                 onOpenModeSettings = { onNavigate(MainDestination.Settings) },
             )
@@ -271,9 +269,9 @@ internal fun LocalHomeScreen(
                     if (doctorReport?.items?.any { it.id == "host_all_files_access" && it.status != DoctorStatus.HEALTHY } == true) {
                         requestAllFilesAccess()
                     }
-                    viewModel.startAutoRepair()
+                    viewModel?.startAutoRepair()
                 },
-                onCancelRepair = viewModel::cancelAutoRepair,
+                onCancelRepair = { viewModel?.cancelAutoRepair() },
                 onRequestAllFilesAccess = requestAllFilesAccess,
                 onOpenToolCenter = onOpenToolCenter,
             )
@@ -318,7 +316,7 @@ internal fun LocalHomeScreen(
             // 3. WebChat 电脑大屏协作卡片 (Dashboard Bridge Card)
             WebChatDashboardCard(
                 status = webChatStatus,
-                onToggle = viewModel::toggleWebChat,
+                onToggle = { arg0 -> viewModel?.toggleWebChat(arg0) },
             )
 
             // 4. 运行环境与规格详情（低频信息，默认折叠）

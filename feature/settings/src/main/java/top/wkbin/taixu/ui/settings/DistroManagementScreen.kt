@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -77,18 +77,18 @@ import top.wkbin.taixu.ui.components.distroIconFor
 @Composable
 fun DistroManagementScreen(
     onBack: () -> Unit,
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val installedDistros by viewModel.installedDistros.collectAsStateWithLifecycle()
+    val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val remoteViewModel = koinViewModel<RemoteServerViewModel>()
     val activeServerId by remoteViewModel.activeId.collectAsStateWithLifecycle()
-    val activeDistroId by viewModel.activeDistroId.collectAsStateWithLifecycle()
-    val runtimeState by viewModel.runtimeState.collectAsStateWithLifecycle()
-    val restoringDistroId by viewModel.restoringDistroId.collectAsStateWithLifecycle()
-    val deletingDistroId by viewModel.deletingDistroId.collectAsStateWithLifecycle()
+    val activeDistroId by viewModel?.activeDistroId?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
+    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
+    val restoringDistroId by viewModel?.restoringDistroId?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val deletingDistroId by viewModel?.deletingDistroId?.collectAsStateWithLifecycle() ?: previewStateOf(null)
 
     // 安装进度保存在 VM（StateFlow），旋转后进度界面可恢复，安装在后台继续进行
-    val installState by viewModel.distroInstallState.collectAsStateWithLifecycle()
+    val installState by viewModel?.distroInstallState?.collectAsStateWithLifecycle() ?: previewStateOf(DistroInstallUiState())
     var showInstallDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var distroToReset by remember { mutableStateOf<InstalledDistro?>(null) }
     var distroToUninstall by remember { mutableStateOf<InstalledDistro?>(null) }
@@ -138,7 +138,7 @@ fun DistroManagementScreen(
                     canOperateMulti = installedDistros.size > 1 || activeServerId != null,
                     onSwitchActive = {
                         remoteViewModel.select(null)
-                        viewModel.switchActiveDistro(distro.id)
+                        viewModel?.switchActiveDistro(distro.id)
                     },
                     onReset = {
                         distroToReset = distro
@@ -166,11 +166,11 @@ fun DistroManagementScreen(
             onDismiss = {
                 if (!installState.isInstalling) {
                     showInstallDialog = false
-                    viewModel.clearDistroInstallError()
+                    viewModel?.clearDistroInstallError()
                 }
             },
             onConfirmInstall = { spec, route ->
-                viewModel.installDistro(
+                viewModel?.installDistro(
                     request = RuntimeInstallRequest(
                         distributionId = spec.id,
                         registryRoute = route,
@@ -187,7 +187,7 @@ fun DistroManagementScreen(
             onConfirm = {
                 val toReset = target.id
                 distroToReset = null
-                viewModel.resetDistro(toReset) { success, msg ->
+                viewModel?.resetDistro(toReset) { success, msg ->
                     scope.launch {
                         snackbarHostState.showSnackbar(msg)
                     }
@@ -204,7 +204,7 @@ fun DistroManagementScreen(
             onConfirm = {
                 val toDelete = target.id
                 distroToUninstall = null
-                viewModel.uninstallDistro(toDelete) { success, msg ->
+                viewModel?.uninstallDistro(toDelete) { success, msg ->
                     scope.launch {
                         snackbarHostState.showSnackbar(msg)
                     }

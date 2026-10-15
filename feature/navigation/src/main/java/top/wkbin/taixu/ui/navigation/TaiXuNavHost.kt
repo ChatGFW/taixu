@@ -32,7 +32,6 @@ import top.wkbin.taixu.ui.components.MainDestination
 import top.wkbin.taixu.ui.chat.ChatNavigationDrawer
 import top.wkbin.taixu.ui.developer.DeveloperScreen
 import top.wkbin.taixu.ui.developer.AdbLogcatScreen
-import top.wkbin.taixu.ui.preview.LiquidGlassCatalogScreen
 import top.wkbin.taixu.ui.home.HomeScreen
 import top.wkbin.taixu.ui.settings.AgentSettingsScreen
 import top.wkbin.taixu.ui.settings.ModelEditorScreen
@@ -121,9 +120,22 @@ fun TaiXuNavHost(
         if (lastOrNull() != destination) add(destination)
     }
 
+    val activeStack = when (selectedMain) {
+        MainDestination.Home -> homeStack
+        MainDestination.Agent -> agentStack
+        MainDestination.Workspace -> workspaceStack
+        MainDestination.Settings -> settingsStack
+    }
+    fun navigateMain(destination: MainDestination) {
+        if (activeStack.openMainOverlay(destination)) return
+        if (destination == MainDestination.Agent) while (agentStack.size > 1) agentStack.removeLastOrNull()
+        if (destination == MainDestination.Settings) while (settingsStack.size > 1) settingsStack.removeLastOrNull()
+        selectedMain = destination
+    }
+
     LaunchedEffect(chatViewModel) {
         chatViewModel.workflowLaunchRequests.collect { request ->
-            selectedMain = MainDestination.Agent
+            navigateMain(MainDestination.Agent)
             agentStack.pushRaw(WorkflowDestination(request.projectName, request.workflowId, request.initialVariables))
         }
     }
@@ -147,7 +159,7 @@ fun TaiXuNavHost(
                 }
                 is AppNavigationTarget.WorkflowRun -> {
                     // 工作流通知点入：切到智枢栈并打开运行页
-                    selectedMain = MainDestination.Agent
+                    navigateMain(MainDestination.Agent)
                     agentStack.pushRaw(WorkflowDestination(executionId = target.executionId))
                     globalNavigationBus.clearLatest(target)
                 }
@@ -160,25 +172,12 @@ fun TaiXuNavHost(
                 }
                 is AppNavigationTarget.SharedText -> {
                     // 系统分享入口：切到智枢并预填输入框（不自动发送，由用户选择快捷指令或直接发送）
-                    selectedMain = MainDestination.Agent
+                    navigateMain(MainDestination.Agent)
                     chatViewModel.onSharedTextReceived(target.text)
                     globalNavigationBus.clearLatest(target)
                 }
             }
         }
-    }
-
-    val activeStack = when (selectedMain) {
-        MainDestination.Home -> homeStack
-        MainDestination.Agent -> agentStack
-        MainDestination.Workspace -> workspaceStack
-        MainDestination.Settings -> settingsStack
-    }
-
-    // Tab swaps are instantaneous (key(selectedMain)); do not transition-lock them.
-    fun navigateMain(destination: MainDestination) {
-        if (destination == MainDestination.Agent) while (agentStack.size > 1) agentStack.removeLastOrNull()
-        selectedMain = destination
     }
 
     fun NavBackStack<NavKey>.push(from: NavKey, destination: NavKey) {
@@ -223,9 +222,9 @@ fun TaiXuNavHost(
             entry<HomeDestination> {
                 GuardedEntry(HomeDestination) {
                     HomeScreen(
-                        onNavigate = ::navigateMain,
-                        onOpenTerminal = { homeStack.push(HomeDestination, TerminalDestination()) },
-                        onOpenToolCenter = { homeStack.push(HomeDestination, ToolCenterDestination) },
+                        onNavigate = ::navigateMain, onBack = { if (activeStack.size > 1) popBack() else navigateMain(MainDestination.Agent) },
+                        onOpenTerminal = { activeStack.push(HomeDestination, TerminalDestination()) },
+                        onOpenToolCenter = { activeStack.push(HomeDestination, ToolCenterDestination) },
                     )
                 }
             }
@@ -240,7 +239,7 @@ fun TaiXuNavHost(
                     ChatScreen(
                         viewModel = chatViewModel,
                         onNavigate = ::navigateMain,
-                        onOpenNavigation = { showNavigation = true }, onNewSession = { showNewSession = true }, onInstallMcp = { activeStack.pushRaw(ToolCenterDestination) },
+                        onOpenNavigation = { showNavigation = true }, onInstallMcp = { activeStack.pushRaw(ToolCenterDestination) },
                         // 内嵌终端面板非独立导航节点，无返回目标：隐藏顶栏返回箭头，避免点击无反馈
                         terminalPane = { project -> TerminalPluginPage(pluginPages, project = project, embedded = true, onBack = {}) },
                         // 内嵌浏览器面板：与独立浏览器页共享 Activity 级 BrowserViewModel，
@@ -260,12 +259,12 @@ fun TaiXuNavHost(
             entry<WorkspaceDestination> {
                 GuardedEntry(WorkspaceDestination) {
                     WorkspaceScreen(
-                        onNavigate = ::navigateMain,
-                        onOpenExplorer = { projectName -> workspaceStack.push(WorkspaceDestination, WorkspaceExplorerDestination(projectName)) },
-                        onOpenTerminal = { project -> workspaceStack.push(WorkspaceDestination, TerminalDestination(project = project)) },
-                        onOpenToolCenter = { workspaceStack.push(WorkspaceDestination, ToolCenterDestination) },
-                        onOpenWorkshopSettings = { workspaceStack.push(WorkspaceDestination, WorkshopSettingsDestination) },
-                        onOpenWorkflows = { projectName -> workspaceStack.push(WorkspaceDestination, WorkflowDestination(projectName)) },
+                        onNavigate = ::navigateMain, onBack = { if (activeStack.size > 1) popBack() else navigateMain(MainDestination.Agent) },
+                        onOpenExplorer = { projectName -> activeStack.push(WorkspaceDestination, WorkspaceExplorerDestination(projectName)) },
+                        onOpenTerminal = { project -> activeStack.push(WorkspaceDestination, TerminalDestination(project = project)) },
+                        onOpenToolCenter = { activeStack.push(WorkspaceDestination, ToolCenterDestination) },
+                        onOpenWorkshopSettings = { activeStack.push(WorkspaceDestination, WorkshopSettingsDestination) },
+                        onOpenWorkflows = { projectName -> activeStack.push(WorkspaceDestination, WorkflowDestination(projectName)) },
                     )
                 }
             }
@@ -284,9 +283,9 @@ fun TaiXuNavHost(
                 GuardedEntry(WorkshopSettingsDestination) {
                     WorkshopSettingsScreen(
                         onBack = ::popBack,
-                        onOpenEnvironment = { workspaceStack.push(WorkshopSettingsDestination, WorkshopEnvironmentSettingsDestination) },
-                        onOpenSigning = { workspaceStack.push(WorkshopSettingsDestination, WorkshopSigningSettingsDestination) },
-                        onEditScript = { type -> workspaceStack.push(WorkshopSettingsDestination, WorkshopScriptEditorDestination(type.name)) },
+                        onOpenEnvironment = { activeStack.push(WorkshopSettingsDestination, WorkshopEnvironmentSettingsDestination) },
+                        onOpenSigning = { activeStack.push(WorkshopSettingsDestination, WorkshopSigningSettingsDestination) },
+                        onEditScript = { type -> activeStack.push(WorkshopSettingsDestination, WorkshopScriptEditorDestination(type.name)) },
                     )
                 }
             }
@@ -315,10 +314,10 @@ fun TaiXuNavHost(
                         initialPath = destination.initialPath,
                         onBack = ::popBack,
                         onOpenFile = { relativePath ->
-                            workspaceStack.push(destination, CodeEditorDestination(destination.projectName, relativePath))
+                            activeStack.push(destination, CodeEditorDestination(destination.projectName, relativePath))
                         },
                         onOpenTerminal = { project ->
-                            workspaceStack.push(destination, TerminalDestination(project = project))
+                            activeStack.push(destination, TerminalDestination(project = project))
                         },
                     )
                 }
@@ -376,7 +375,6 @@ fun TaiXuNavHost(
                                 SettingsSearchTarget.APPEARANCE_SETTINGS,
                                 SettingsSearchTarget.THEME_MODE,
                                 SettingsSearchTarget.DYNAMIC_COLOR,
-                                SettingsSearchTarget.LIQUID_GLASS,
                                 SettingsSearchTarget.FONT_SCALE,
                                 SettingsSearchTarget.TERMINAL_SETTINGS,
                                 SettingsSearchTarget.LANGUAGE_SETTINGS -> settingsStack.push(SettingsSearchDestination, AppearanceSettingsDestination)
@@ -387,29 +385,29 @@ fun TaiXuNavHost(
                                 SettingsSearchTarget.CUSTOM_ITERATION -> settingsStack.push(SettingsSearchDestination, CustomIterationDestination)
                                 SettingsSearchTarget.PERMISSION_GUIDE -> settingsStack.push(SettingsSearchDestination, PermissionGuideDestination)
                                 SettingsSearchTarget.WORKSHOP_SETTINGS -> {
-                                    selectedMain = MainDestination.Workspace
-                                    workspaceStack.pushRaw(WorkshopSettingsDestination)
+                                    navigateMain(MainDestination.Workspace)
+                                    activeStack.pushRaw(WorkshopSettingsDestination)
                                 }
                                 SettingsSearchTarget.WORKSHOP_ENVIRONMENT -> {
-                                    selectedMain = MainDestination.Workspace
-                                    workspaceStack.pushRaw(WorkshopSettingsDestination)
-                                    workspaceStack.pushRaw(WorkshopEnvironmentSettingsDestination)
+                                    navigateMain(MainDestination.Workspace)
+                                    activeStack.pushRaw(WorkshopSettingsDestination)
+                                    activeStack.pushRaw(WorkshopEnvironmentSettingsDestination)
                                 }
                                 SettingsSearchTarget.WORKSHOP_SIGNING -> {
-                                    selectedMain = MainDestination.Workspace
-                                    workspaceStack.pushRaw(WorkshopSettingsDestination)
-                                    workspaceStack.pushRaw(WorkshopSigningSettingsDestination)
+                                    navigateMain(MainDestination.Workspace)
+                                    activeStack.pushRaw(WorkshopSettingsDestination)
+                                    activeStack.pushRaw(WorkshopSigningSettingsDestination)
                                 }
                                 SettingsSearchTarget.WORKFLOWS -> {
-                                    selectedMain = MainDestination.Workspace
-                                    workspaceStack.pushRaw(WorkflowDestination())
+                                    navigateMain(MainDestination.Workspace)
+                                    activeStack.pushRaw(WorkflowDestination())
                                 }
                                 SettingsSearchTarget.NAV_HOME ->
-                                    selectedMain = MainDestination.Home
+                                    navigateMain(MainDestination.Home)
                                 SettingsSearchTarget.NAV_AGENT_CHAT ->
-                                    selectedMain = MainDestination.Agent
+                                    navigateMain(MainDestination.Agent)
                                 SettingsSearchTarget.NAV_WORKSPACE ->
-                                    selectedMain = MainDestination.Workspace
+                                    navigateMain(MainDestination.Workspace)
                                 SettingsSearchTarget.NAV_TERMINAL -> {
                                     activeStack.pushRaw(TerminalDestination())
                                 }
@@ -543,7 +541,7 @@ fun TaiXuNavHost(
                         onStartAiHealing = { toolId, toolName, logs ->
                             val prompt = ToolSelfHealingHelper.buildHealingPrompt(toolId, toolName, logs)
                             pendingHealingTask = HealingTask("🔧 自愈: $toolName", prompt)
-                            selectedMain = MainDestination.Agent
+                            navigateMain(MainDestination.Agent)
                         },
                     )
                 }
@@ -577,7 +575,7 @@ fun TaiXuNavHost(
                         onStartAiHealing = { toolId, toolName, logs ->
                             val prompt = ToolSelfHealingHelper.buildHealingPrompt(toolId, toolName, logs)
                             pendingHealingTask = HealingTask("🔧 自愈: $toolName", prompt)
-                            selectedMain = MainDestination.Agent
+                            navigateMain(MainDestination.Agent)
                         },
                     )
                 }
@@ -666,15 +664,7 @@ fun TaiXuNavHost(
             }
             entry<DeveloperDestination> {
                 GuardedEntry(DeveloperDestination) {
-                    DeveloperScreen(
-                        onBack = ::popBack,
-                        onOpenCatalog = { settingsStack.push(DeveloperDestination, LiquidGlassCatalogDestination) },
-                    )
-                }
-            }
-            entry<LiquidGlassCatalogDestination> {
-                GuardedEntry(LiquidGlassCatalogDestination) {
-                    LiquidGlassCatalogScreen(onBack = ::popBack)
+                    DeveloperScreen(onBack = ::popBack)
                 }
             }
             entry<AdbLogcatDestination> {
@@ -692,7 +682,7 @@ fun TaiXuNavHost(
                     FeatureHubScreen(
                         onBack = ::popBack,
                         onOpenCustomIteration = { settingsStack.push(FeatureHubDestination, CustomIterationDestination) },
-                        onStartRoundtable = { pendingHealingTask = HealingTask(AgentPresets.ROUNDTABLE_TITLE, AgentPresets.ROUNDTABLE_PROMPT); selectedMain = MainDestination.Agent },
+                        onStartRoundtable = { pendingHealingTask = HealingTask(AgentPresets.ROUNDTABLE_TITLE, AgentPresets.ROUNDTABLE_PROMPT); navigateMain(MainDestination.Agent) },
                         onOpenA2uiPoc = { settingsStack.push(FeatureHubDestination, A2uiPocDestination) },
                     )
                 }
@@ -703,7 +693,7 @@ fun TaiXuNavHost(
                         onBack = ::popBack,
                         onNavigateToChat = { prompt ->
                             pendingHealingTask = HealingTask("🚀 自定义迭代", prompt)
-                            selectedMain = MainDestination.Agent
+                            navigateMain(MainDestination.Agent)
                         },
                     )
                 }
@@ -730,13 +720,13 @@ fun TaiXuNavHost(
     // Hoist decorators so tab switches (key below) do not drop entry Saveable/ViewModel state.
     // Explicit <NavKey>: outside NavDisplay's parameter context, listOf cannot infer T.
     val entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator<NavKey>(), rememberViewModelStoreNavEntryDecorator<NavKey>())
-    PluginNavigationShell(pluginPlatform, pluginController, browserViewModel,
+    PluginNavigationShell(pluginPlatform, pluginController, browserViewModel, selectedPage = selectedPluginPage(activeStack.lastOrNull()),
         onOpen = { showNavigation = false; activeStack.pushRaw(PluginPageDestination(it.pluginId, it.extensionId)) },
         onOpenManager = { showNavigation = false; activeStack.pushRaw(PluginManagerDestination) }, onOpenNavigation = { showNavigation = true },
     ) {
         ChatNavigationDrawer(
             viewModel = chatViewModel, visible = showNavigation, onDismiss = { showNavigation = false },
-            onOpen = { showNavigation = true }, newSessionVisible = showNewSession, selected = selectedMain,
+            onOpen = { showNavigation = true }, newSessionVisible = showNewSession, selected = when (activeStack.lastOrNull()) { WorkspaceDestination -> MainDestination.Workspace; HomeDestination -> MainDestination.Home; else -> selectedMain },
             onNewSession = { showNewSession = true }, onDismissNewSession = { showNewSession = false },
             onNavigate = ::navigateMain, onOpenTerminal = { activeStack.pushRaw(TerminalDestination()) },
             onOpenTools = { activeStack.pushRaw(ToolCenterDestination) },

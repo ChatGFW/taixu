@@ -226,7 +226,6 @@ TaiXu/
     ├── workflow/         # DAG editor, runs, approvals, schedules
     ├── git/              # JGit workbench
     ├── a2uipoc/          # Native A2UI rendering and interaction
-    ├── preview/          # Liquid Glass component catalog and previews
     ├── settings/         # Models, MCP, ADB, plugins, settings
     ├── developer/        # Developer sandbox and diagnostics
     ├── custom_iteration/ # Custom iteration capabilities

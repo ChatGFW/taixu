@@ -81,7 +81,7 @@ LinuxAIRuntime/
    - 短时、有明确退出状态的前台命令调用 `LinuxRuntime.execute()` / Harness `base`。
    - 跨调用持续运行的服务或长任务调用 `LinuxRuntime.startBackground()` / Harness `process`，统一由 `ProcessRegistry` 托管 PID、生命周期与环形日志缓冲。
 5. **工作区操作边界**：
-   - 项目生命周期与物理目录交互统一通过 `WorkspaceManager` 与 `WorkspaceFileService`。
+   - 项目生命周期与物理目录交互统一通过 `WorkspaceManager` 与 `WorkspaceFileService`；`runtime/ProjectType.kt` 定义项目类型，包括 `TAIXU_PLUGIN` 本地进程插件开发。
    - ZIP 导入必须执行路径穿越防范（Zip Slip Check）、文件大小上限与条目数校验；Git clone 必须在沙箱内隔离执行。
 6. **构建调度与保活边界**：
    - 工作区构建由单例 `WorkspaceBuildTaskCoordinator` 全局持有，UI 页面旋转或重建不中断构建任务；底层构建执行与环境预检由 `WorkspaceBuildRunner` 承载。

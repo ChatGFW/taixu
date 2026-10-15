@@ -17,11 +17,11 @@ import top.wkbin.taixu.runtime.remote.RemoteSystemInspection
 import top.wkbin.taixu.ui.components.*
 
 @Composable
-fun DeveloperScreen(onBack: () -> Unit, onOpenCatalog: () -> Unit = {}, viewModel: DeveloperViewModel? = null) {
+fun DeveloperScreen(onBack: () -> Unit, viewModel: DeveloperViewModel? = null) {
     val repository = koinInject<RemoteServerRepository>()
     val active by repository.activeId.collectAsStateWithLifecycle()
     val servers by repository.servers.collectAsStateWithLifecycle()
-    if (active == null) LocalDeveloperScreen(onBack, onOpenCatalog, viewModel ?: org.koin.compose.viewmodel.koinViewModel())
+    if (active == null) LocalDeveloperScreen(onBack, viewModel ?: org.koin.compose.viewmodel.koinViewModel())
     else key(active, servers.firstOrNull { it.id == active }) { RemoteDeveloperScreen(checkNotNull(active), onBack) }
 }
 

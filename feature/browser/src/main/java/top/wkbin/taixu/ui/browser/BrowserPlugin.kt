@@ -33,6 +33,8 @@ object BrowserPlugin {
             extensions = listOf(PluginExtension(page.extensionId, PluginExtensionPoint.PAGE)),
         ),
         title = { stringResource(R.string.fbrowser_plugin_title) },
+        icon = top.wkbin.taixu.ui.components.RuntimeIconName.Globe,
+        description = { stringResource(R.string.fbrowser_plugin_description) },
         entries = listOf(
             NativePluginEntry("open", "main", PluginEntryLocation.MENU) { stringResource(R.string.fbrowser_plugin_title) },
         ),

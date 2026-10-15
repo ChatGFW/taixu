@@ -19,22 +19,22 @@ import java.util.Locale
 
 @Composable
 fun HomeScreen(onNavigate: (MainDestination) -> Unit, onOpenTerminal: () -> Unit,
-    onOpenToolCenter: () -> Unit = {}, viewModel: HomeViewModel? = null) {
+    onOpenToolCenter: () -> Unit = {}, viewModel: HomeViewModel? = null, onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
     val repository = koinInject<RemoteServerRepository>()
     val active by repository.activeId.collectAsStateWithLifecycle()
     val servers by repository.servers.collectAsStateWithLifecycle()
-    if (active == null) LocalHomeScreen(onNavigate, onOpenTerminal, onOpenToolCenter, viewModel ?: org.koin.compose.viewmodel.koinViewModel())
-    else key(active, servers.firstOrNull { it.id == active }) { RemoteHomeScreen(checkNotNull(active), onNavigate) }
+    if (active == null) LocalHomeScreen(onNavigate, onOpenTerminal, onOpenToolCenter, viewModel ?: org.koin.compose.viewmodel.koinViewModel(), onBack)
+    else key(active, servers.firstOrNull { it.id == active }) { RemoteHomeScreen(checkNotNull(active), onNavigate, onBack = onBack) }
 }
 
 @Composable
-private fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService = koinInject()) {
+private fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService = koinInject(), onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
     var refresh by remember { mutableIntStateOf(0) }
     val target = runCatching { service.server(serverId) }.getOrNull()
     val state by remember(serverId, refresh) { service.observe(serverId, target) }.collectAsStateWithLifecycle(RemoteSystemInspection())
     val metrics = state.metrics
     Scaffold(containerColor = MaterialTheme.colorScheme.background,
-        topBar = { RuntimeTopBar(title = "太墟", onBack = { onNavigate(MainDestination.Agent) }, statusText = target?.name ?: "当前系统", actions = {
+        topBar = { RuntimeTopBar(title = "太墟", onBack = onBack, statusText = target?.name ?: "当前系统", actions = {
             RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) }
         }) },
     ) { padding ->

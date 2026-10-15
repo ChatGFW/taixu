@@ -884,17 +884,11 @@ class WorkspaceBuildRunner(
                     )
                 )
             }
-            ProjectType.GENERAL -> {
-                log("[TaiXu Build] 通用工程，无默认 APK 打包流程")
-                send(
-                    BuildRunProgress(
-                        step = "通用工程",
-                        isRunning = false,
-                        isSuccess = true,
-                        message = "通用工程请在太墟终端中执行自定义命令或自定义构建脚本",
-                        logOutput = snapshotLogs(),
-                    )
-                )
+            ProjectType.GENERAL, ProjectType.TAIXU_PLUGIN -> {
+                val guidance = nonApkBuildGuidance(project.projectType)
+                log("[TaiXu Build] $guidance")
+                send(BuildRunProgress(step = project.projectType.displayName, isRunning = false,
+                    isSuccess = true, message = guidance, logOutput = snapshotLogs()))
             }
         }
         } finally {

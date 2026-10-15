@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.developer
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -65,33 +65,32 @@ import top.wkbin.taixu.runtime.RootfsUpdateInfo
 @Composable
 internal fun LocalDeveloperScreen(
     onBack: () -> Unit,
-    onOpenCatalog: () -> Unit = {},
-    viewModel: DeveloperViewModel = koinViewModel(),
+    viewModel: DeveloperViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val runtimeState by viewModel.runtimeState.collectAsStateWithLifecycle()
-    val busy by viewModel.busy.collectAsStateWithLifecycle()
-    val commandInput by viewModel.commandInput.collectAsStateWithLifecycle()
-    val health by viewModel.health.collectAsStateWithLifecycle()
-    val commandResult by viewModel.commandResult.collectAsStateWithLifecycle()
-    val message by viewModel.message.collectAsStateWithLifecycle()
-    val messageIsError by viewModel.messageIsError.collectAsStateWithLifecycle()
-    val registryStatusIsError by viewModel.registryStatusIsError.collectAsStateWithLifecycle()
-    val unusedRuntimes by viewModel.unusedRuntimes.collectAsStateWithLifecycle()
-    val processes by viewModel.processes.collectAsStateWithLifecycle()
-    val rootfsVersion by viewModel.rootfsVersion.collectAsStateWithLifecycle()
-    val rootfsUpdate by viewModel.rootfsUpdate.collectAsStateWithLifecycle()
-    val savedManifestUrl by viewModel.registryManifestUrl.collectAsStateWithLifecycle()
-    val savedSignatureUrl by viewModel.registrySignatureUrl.collectAsStateWithLifecycle()
-    val savedPublicKey by viewModel.registryPublicKey.collectAsStateWithLifecycle()
-    val registryStatus by viewModel.registryStatus.collectAsStateWithLifecycle()
-    val agentLoggingEnabled by viewModel.agentLoggingEnabled.collectAsStateWithLifecycle()
-    val agentLogSize by viewModel.agentLogSize.collectAsStateWithLifecycle()
-    val agentLogLocation by viewModel.agentLogLocation.collectAsStateWithLifecycle()
-    val adbState by viewModel.adbState.collectAsStateWithLifecycle()
-    val adbDiscovery by viewModel.adbDiscovery.collectAsStateWithLifecycle()
-    val adbBusy by viewModel.adbBusy.collectAsStateWithLifecycle()
-    val adbMessage by viewModel.adbMessage.collectAsStateWithLifecycle()
-    val logcatOutput by viewModel.logcatOutput.collectAsStateWithLifecycle()
+    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
+    val busy by viewModel?.busy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val commandInput by viewModel?.commandInput?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val health by viewModel?.health?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val commandResult by viewModel?.commandResult?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val registryStatusIsError by viewModel?.registryStatusIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val unusedRuntimes by viewModel?.unusedRuntimes?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val processes by viewModel?.processes?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val rootfsVersion by viewModel?.rootfsVersion?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val rootfsUpdate by viewModel?.rootfsUpdate?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val savedManifestUrl by viewModel?.registryManifestUrl?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val savedSignatureUrl by viewModel?.registrySignatureUrl?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val savedPublicKey by viewModel?.registryPublicKey?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val registryStatus by viewModel?.registryStatus?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val agentLoggingEnabled by viewModel?.agentLoggingEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val agentLogSize by viewModel?.agentLogSize?.collectAsStateWithLifecycle() ?: previewStateOf(0L)
+    val agentLogLocation by viewModel?.agentLogLocation?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val adbState by viewModel?.adbState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager.ConnectionState.Disconnected)
+    val adbDiscovery by viewModel?.adbDiscovery?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager.DiscoveryState())
+    val adbBusy by viewModel?.adbBusy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val adbMessage by viewModel?.adbMessage?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val logcatOutput by viewModel?.logcatOutput?.collectAsStateWithLifecycle() ?: previewStateOf("")
     var manifestUrl by remember(savedManifestUrl) { mutableStateOf(savedManifestUrl) }
     var signatureUrl by remember(savedSignatureUrl) { mutableStateOf(savedSignatureUrl) }
     var publicKey by remember(savedPublicKey) { mutableStateOf(savedPublicKey) }
@@ -126,47 +125,16 @@ internal fun LocalDeveloperScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
-            RuntimeCard(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        IconTile(RuntimeIconName.Sparkles)
-                        Column {
-                            Text("液态玻璃全景组件图鉴", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "Apple HIG / Kyant Backdrop 规范对比与全套控件展厅",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    Button(onClick = onOpenCatalog) {
-                        Text("进入展厅")
-                    }
-                }
-            }
-
             RuntimeControlCard(
                 state = runtimeState,
                 rootfsVersion = rootfsVersion,
                 rootfsUpdate = rootfsUpdate,
                 busy = busy,
-                onInitialize = viewModel::initialize,
-                onCancel = viewModel::cancelInitialization,
+                onInitialize = { viewModel?.initialize() },
+                onCancel = { viewModel?.cancelInitialization() },
                 onUpdate = { showRootfsUpdateConfirmation = true },
-                onCheckUpdate = viewModel::checkRootfsUpdate,
-                onHealthCheck = viewModel::runHealthCheck,
+                onCheckUpdate = { viewModel?.checkRootfsUpdate() },
+                onHealthCheck = { viewModel?.runHealthCheck() },
                 onReset = { showResetConfirmation = true },
             )
 
@@ -241,12 +209,12 @@ internal fun LocalDeveloperScreen(
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
-                        onClick = { viewModel.pairWirelessAdb(pairingCode) },
+                        onClick = { viewModel?.pairWirelessAdb(pairingCode) },
                         enabled = !adbBusy && pairingCode.length == 6 && adbDiscovery.pairingEndpoints.isNotEmpty(),
                         modifier = Modifier.weight(1f),
                     ) { Text("配对并连接") }
                     OutlinedButton(
-                        onClick = viewModel::connectWirelessAdb,
+                        onClick = { arg0 -> viewModel?.connectWirelessAdb(arg0) },
                         enabled = !adbBusy && adbDiscovery.connectEndpoints.isNotEmpty(),
                         modifier = Modifier.weight(1f),
                     ) { Text("重新连接") }
@@ -302,11 +270,11 @@ internal fun LocalDeveloperScreen(
                 Spacer(Modifier.height(10.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
-                        onClick = { viewModel.captureLogcat(logcatPackage, logcatTag, logcatPriority, logcatKeyword, logcatLines.toIntOrNull() ?: 200) },
+                        onClick = { viewModel?.captureLogcat(logcatPackage, logcatTag, logcatPriority, logcatKeyword, logcatLines.toIntOrNull() ?: 200) },
                         enabled = connected != null && !adbBusy,
                         modifier = Modifier.weight(1f),
                     ) { Text("抓取日志") }
-                    OutlinedButton(onClick = viewModel::clearDeviceLogcat, enabled = connected != null && !adbBusy) { Text("清空") }
+                    OutlinedButton(onClick = { viewModel?.clearDeviceLogcat() }, enabled = connected != null && !adbBusy) { Text("清空") }
                 }
                 if (logcatOutput.isNotBlank()) {
                     Spacer(Modifier.height(12.dp))
@@ -381,11 +349,11 @@ internal fun LocalDeveloperScreen(
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
-                            onClick = { viewModel.saveRegistryConfig(manifestUrl.trim(), signatureUrl.trim(), publicKey.trim()) },
+                            onClick = { viewModel?.saveRegistryConfig(manifestUrl.trim(), signatureUrl.trim(), publicKey.trim()) },
                             enabled = manifestUrlValid && signatureUrlValid && publicKeyValid,
                         ) { Text("保存配置") }
                         OutlinedButton(
-                            onClick = viewModel::updateRegistry,
+                            onClick = { viewModel?.updateRegistry() },
                             enabled = manifestUrlValid && signatureUrlValid && publicKeyValid,
                         ) { Text("检查更新") }
                     }
@@ -396,7 +364,7 @@ internal fun LocalDeveloperScreen(
             SectionHeader("资源管理", "后台 Linux 进程与共享依赖")
 
             RuntimeCard(Modifier.fillMaxWidth()) {
-                ResourceHeader(RuntimeIconName.Cpu, "后台进程", "${processes.size} 个活动进程", viewModel::refreshProcesses)
+                ResourceHeader(RuntimeIconName.Cpu, "后台进程", "${processes.size} 个活动进程", { viewModel?.refreshProcesses() })
                 Spacer(Modifier.height(14.dp))
                 if (processes.isEmpty()) {
                     Text("当前没有登记中的后台进程。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -408,14 +376,14 @@ internal fun LocalDeveloperScreen(
                                 Text(process.toolId ?: process.id, style = MaterialTheme.typography.titleMedium)
                                 Text("${process.type} · PID ${process.pid ?: "未知"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            TextButton(onClick = { viewModel.stopProcess(process.id) }, enabled = !busy) { Text("停止") }
+                            TextButton(onClick = { viewModel?.stopProcess(process.id) }, enabled = !busy) { Text("停止") }
                         }
                     }
                 }
             }
 
             RuntimeCard(Modifier.fillMaxWidth()) {
-                ResourceHeader(RuntimeIconName.Package, "可清理 Runtime", "引用计数为 0", viewModel::refreshUnusedRuntimes)
+                ResourceHeader(RuntimeIconName.Package, "可清理 Runtime", "引用计数为 0", { viewModel?.refreshUnusedRuntimes() })
                 Spacer(Modifier.height(8.dp))
                 Text("这里只列出未被任何工具引用的共享依赖，清理会在 Linux 沙箱内执行包管理清理。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
@@ -456,7 +424,7 @@ internal fun LocalDeveloperScreen(
                     }
                     Switch(
                         checked = agentLoggingEnabled,
-                        onCheckedChange = viewModel::setAgentLoggingEnabled,
+                        onCheckedChange = { arg0 -> viewModel?.setAgentLoggingEnabled(arg0) },
                     )
                 }
                 if (agentLoggingEnabled || agentLogSize > 0L) {
@@ -464,7 +432,7 @@ internal fun LocalDeveloperScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedButton(
                             onClick = {
-                                agentLogText = viewModel.readAgentLogs()
+                                agentLogText = viewModel?.readAgentLogs()
                                 showAgentLogDialog = true
                             },
                             modifier = Modifier.weight(1f),
@@ -473,7 +441,7 @@ internal fun LocalDeveloperScreen(
                         }
                         OutlinedButton(
                             onClick = {
-                                val logs = viewModel.readAgentLogs()
+                                val logs = viewModel?.readAgentLogs()
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 clipboard.setPrimaryClip(ClipData.newPlainText("TaiXu Agent Logs", logs))
                                 Toast.makeText(context, "日志已复制到剪贴板", Toast.LENGTH_SHORT).show()
@@ -483,7 +451,7 @@ internal fun LocalDeveloperScreen(
                             Text("复制全部")
                         }
                         TextButton(
-                            onClick = viewModel::clearAgentLogs,
+                            onClick = { viewModel?.clearAgentLogs() },
                         ) {
                             Text("清空", color = MaterialTheme.colorScheme.error)
                         }
@@ -503,14 +471,14 @@ internal fun LocalDeveloperScreen(
                 Spacer(Modifier.height(14.dp))
                 OutlinedTextField(
                     value = commandInput,
-                    onValueChange = viewModel::onCommandInputChanged,
+                    onValueChange = { arg0 -> viewModel?.onCommandInputChanged(arg0) },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Shell 命令") },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                 )
                 Spacer(Modifier.height(10.dp))
-                Button(onClick = viewModel::runCommand, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = { viewModel?.runCommand() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                     RuntimeIcon(RuntimeIconName.Play, Modifier.size(18.dp)); Spacer(Modifier.size(7.dp)); Text("执行命令")
                 }
                 commandResult?.let { result ->
@@ -537,7 +505,7 @@ internal fun LocalDeveloperScreen(
             onDismissRequest = { cleanupTarget = null },
             title = { Text("清理 ${runtime.name.name}？") },
             text = { Text("将移除未被工具引用的共享 Runtime，此操作无法自动恢复。") },
-            confirmButton = { TextButton(onClick = { cleanupTarget = null; viewModel.cleanupRuntime(runtime.id) }) { Text("确认清理", color = MaterialTheme.colorScheme.error) } },
+            confirmButton = { TextButton(onClick = { cleanupTarget = null; viewModel?.cleanupRuntime(runtime.id) }) { Text("确认清理", color = MaterialTheme.colorScheme.error) } },
             dismissButton = { TextButton(onClick = { cleanupTarget = null }) { Text("取消") } },
         )
     }
@@ -560,7 +528,7 @@ internal fun LocalDeveloperScreen(
             },
             confirmButton = {
                 TextButton(
-                    onClick = { showResetConfirmation = false; viewModel.resetLinuxEnvironment() },
+                    onClick = { showResetConfirmation = false; viewModel?.resetLinuxEnvironment() },
                     enabled = countdown == 0,
                 ) {
                     Text(
@@ -577,7 +545,7 @@ internal fun LocalDeveloperScreen(
             onDismissRequest = { showRootfsUpdateConfirmation = false },
             title = { Text("更新 Linux RootFS？") },
             text = { Text("将在线下载并校验新版本，保留 /root 与 /opt/taixu。更新期间后台 Linux 进程会停止，失败时自动恢复旧版本。") },
-            confirmButton = { TextButton(onClick = { showRootfsUpdateConfirmation = false; viewModel.updateRootfs() }) { Text("确认更新") } },
+            confirmButton = { TextButton(onClick = { showRootfsUpdateConfirmation = false; viewModel?.updateRootfs() }) { Text("确认更新") } },
             dismissButton = { TextButton(onClick = { showRootfsUpdateConfirmation = false }) { Text("取消") } },
         )
     }

@@ -11,16 +11,12 @@ import top.wkbin.taixu.core.model.RunningSendMode
 /** Narrow preference views keep consumers from depending on the complete settings schema. */
 class AppearancePreferences(private val store: SettingsDataStore) {
     val themeMode get() = store.themeMode
-    val themeStyle get() = store.themeStyle
     val dynamicColorEnabled get() = store.dynamicColorEnabled
-    val chengmingBackgroundUri get() = store.chengmingBackgroundUri
     val appFontScale get() = store.appFontScale
     val autoCheckUpdates get() = store.autoCheckUpdates
     val developerMode get() = store.developerMode
     suspend fun setThemeMode(value: String) = store.setThemeMode(value)
-    suspend fun setThemeStyle(value: String) = store.setThemeStyle(value)
     suspend fun setDynamicColorEnabled(value: Boolean) = store.setDynamicColorEnabled(value)
-    suspend fun setChengmingBackgroundUri(value: String?) = store.setChengmingBackgroundUri(value)
     suspend fun setAppFontScale(value: Float) = store.setAppFontScale(value)
     suspend fun setAutoCheckUpdates(value: Boolean) = store.setAutoCheckUpdates(value)
     suspend fun setDeveloperMode(value: Boolean) = store.setDeveloperMode(value)

@@ -23,6 +23,8 @@ object TerminalPlugin {
             extensions = listOf(PluginExtension(page.extensionId, PluginExtensionPoint.PAGE)),
         ),
         title = { stringResource(R.string.terminal_plugin_title) },
+        icon = top.wkbin.taixu.ui.components.RuntimeIconName.Terminal,
+        description = { stringResource(R.string.terminal_plugin_description) },
         entries = listOf(
             NativePluginEntry("open", "main", PluginEntryLocation.MENU) { stringResource(R.string.terminal_plugin_title) },
             NativePluginEntry("settings", "main", PluginEntryLocation.SETTINGS) { stringResource(R.string.terminal_plugin_title) },

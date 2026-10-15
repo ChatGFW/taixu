@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.chat
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -83,7 +84,6 @@ import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.MainDestination
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.unit.dp
-import top.wkbin.taixu.ui.components.liquidGlassContent
 import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.lazy.LazyListState
 import top.wkbin.taixu.core.model.QuickPhrase
@@ -101,7 +101,6 @@ import top.wkbin.taixu.harness.SkillSuggestion
 import top.wkbin.taixu.harness.checkpoint.RewindScope
 import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.runtime.DistributionCatalog
-
 /** 会改动工作区文件的工具：这些工具执行后「仓库」入口按需高亮提示新改动 */
 private val REPOSITORY_HIGHLIGHT_TOOLS = setOf(
     HarnessTool.WRITE,
@@ -119,7 +118,6 @@ private fun chatBottomInsets(): WindowInsets = WindowInsets.navigationBars.union
 fun ChatScreen(
     onNavigate: (MainDestination) -> Unit,
     onOpenNavigation: () -> Unit,
-    onNewSession: () -> Unit,
     onInstallMcp: () -> Unit = {},
     onOpenFile: ((projectName: String, relativePath: String) -> Unit)? = null,
     terminalPane: (@Composable (project: String) -> Unit)? = null,
@@ -127,59 +125,59 @@ fun ChatScreen(
     browserActivityTick: Long = 0L,
     browserBackPressed: (() -> Boolean)? = null,
     onOpenRepository: ((projectName: String) -> Unit)? = null,
-    viewModel: ChatViewModel = koinViewModel(),
+    viewModel: ChatViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val messages by viewModel.messages.collectAsStateWithLifecycle()
-    val running by viewModel.running.collectAsStateWithLifecycle()
-    val error by viewModel.error.collectAsStateWithLifecycle()
-    val input by viewModel.input.collectAsStateWithLifecycle()
-    val pendingAttachments by viewModel.pendingAttachments.collectAsStateWithLifecycle()
-    val status by viewModel.status.collectAsStateWithLifecycle()
-    val thinkingLive by viewModel.thinkingLive.collectAsStateWithLifecycle()
-    val thinkingExpanded by viewModel.thinkingExpanded.collectAsStateWithLifecycle()
-    val thinkingAutoTranslate by viewModel.thinkingAutoTranslate.collectAsStateWithLifecycle()
-    val chatRoundCollapse by viewModel.chatRoundCollapse.collectAsStateWithLifecycle()
-    val sessions by viewModel.sessions.collectAsStateWithLifecycle()
-    val workspaceCatalog by viewModel.workspaceCatalog.collectAsStateWithLifecycle(); val workspaces = workspaceCatalog.projects
-    val models by viewModel.models.collectAsStateWithLifecycle()
-    val providerModelIds by viewModel.providerModelIds.collectAsStateWithLifecycle()
-    val discoveringProviderModels by viewModel.discoveringProviderModels.collectAsStateWithLifecycle()
-    val providerModelDiscoveryError by viewModel.providerModelDiscoveryError.collectAsStateWithLifecycle()
-    val modelPickerProfileId by viewModel.modelPickerProfileId.collectAsStateWithLifecycle()
-    val workspace by viewModel.workspace.collectAsStateWithLifecycle()
-    val mcpRecommendations by viewModel.mcpRecommendations.collectAsStateWithLifecycle()
-    val workflowSuggestions by viewModel.workflowSuggestions.collectAsStateWithLifecycle()
-    val shareActions by viewModel.shareActions.collectAsStateWithLifecycle()
-    val hiddenSkillSuggestions by viewModel.hiddenSkillSuggestions.collectAsStateWithLifecycle()
-    val sessionProjectType by viewModel.projectType.collectAsStateWithLifecycle()
-    val matchingCommands by viewModel.matchingCommands.collectAsStateWithLifecycle()
-    val matchingMentions by viewModel.matchingMentions.collectAsStateWithLifecycle()
-    val attachedMentions by viewModel.attachedMentions.collectAsStateWithLifecycle()
-    val queuedPrompts by viewModel.queuedPrompts.collectAsStateWithLifecycle()
-    val sendMode by viewModel.sendMode.collectAsStateWithLifecycle()
-    val branches by viewModel.branches.collectAsStateWithLifecycle()
-    val runtimeEvents by viewModel.runtimeEvents.collectAsStateWithLifecycle()
-    val currentSessionId by viewModel.currentSessionId.collectAsStateWithLifecycle()
-    val sessionRunStates by viewModel.sessionRunStates.collectAsStateWithLifecycle()
-    val activeDistroId by viewModel.activeDistroId.collectAsStateWithLifecycle()
-    val installedDistros by viewModel.installedDistros.collectAsStateWithLifecycle()
-    val allSkills by viewModel.allSkills.collectAsStateWithLifecycle()
-    val pinnedCapabilities by viewModel.pinnedCapabilities.collectAsStateWithLifecycle()
-    val pinnedMentionIds by viewModel.pinnedMentionIds.collectAsStateWithLifecycle()
-    val memories by viewModel.memories.collectAsStateWithLifecycle()
-    val scratchpads by viewModel.scratchpads.collectAsStateWithLifecycle()
-    val mcpServers by viewModel.mcpServers.collectAsStateWithLifecycle()
-    val mcpConnectionStates by viewModel.mcpConnectionStates.collectAsStateWithLifecycle()
-    val initializing by viewModel.initializing.collectAsStateWithLifecycle()
-    val pendingApprovals by viewModel.pendingApprovals.collectAsStateWithLifecycle()
-    val activePlan by viewModel.activePlan.collectAsStateWithLifecycle()
-    val activeCompaction by viewModel.activeCompaction.collectAsStateWithLifecycle()
-    val contextUsage by viewModel.contextUsage.collectAsStateWithLifecycle()
-    val quickPhrases by viewModel.quickPhrases.collectAsStateWithLifecycle()
-    val onboardingPrivilege by viewModel.privilegeOnboarding.collectAsStateWithLifecycle()
-    val attachmentsProcessing by viewModel.attachmentsProcessing.collectAsStateWithLifecycle()
-    val notice by viewModel.notice.collectAsStateWithLifecycle()
-    val subagentResult by viewModel.subagentResult.collectAsStateWithLifecycle()
+    val messages by viewModel?.messages?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val running by viewModel?.running?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val error by viewModel?.error?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val input by viewModel?.input?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val pendingAttachments by viewModel?.pendingAttachments?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val status by viewModel?.status?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val thinkingLive by viewModel?.thinkingLive?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val thinkingExpanded by viewModel?.thinkingExpanded?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val thinkingAutoTranslate by viewModel?.thinkingAutoTranslate?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val chatRoundCollapse by viewModel?.chatRoundCollapse?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val sessions by viewModel?.sessions?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val workspaceCatalog by viewModel?.workspaceCatalog?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.SessionWorkspaceCatalogState()); val workspaces = workspaceCatalog.projects
+    val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val providerModelIds by viewModel?.providerModelIds?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val discoveringProviderModels by viewModel?.discoveringProviderModels?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val providerModelDiscoveryError by viewModel?.providerModelDiscoveryError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val modelPickerProfileId by viewModel?.modelPickerProfileId?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val workspace by viewModel?.workspace?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val mcpRecommendations by viewModel?.mcpRecommendations?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val workflowSuggestions by viewModel?.workflowSuggestions?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val shareActions by viewModel?.shareActions?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val hiddenSkillSuggestions by viewModel?.hiddenSkillSuggestions?.collectAsStateWithLifecycle() ?: previewStateOf(emptySet())
+    val sessionProjectType by viewModel?.projectType?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val matchingCommands by viewModel?.matchingCommands?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val matchingMentions by viewModel?.matchingMentions?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val attachedMentions by viewModel?.attachedMentions?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val queuedPrompts by viewModel?.queuedPrompts?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val sendMode by viewModel?.sendMode?.collectAsStateWithLifecycle() ?: previewStateOf(ComposerSendMode.NEXT_RUN)
+    val branches by viewModel?.branches?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val runtimeEvents by viewModel?.runtimeEvents?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val currentSessionId by viewModel?.currentSessionId?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val sessionRunStates by viewModel?.sessionRunStates?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val activeDistroId by viewModel?.activeDistroId?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val allSkills by viewModel?.allSkills?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val pinnedCapabilities by viewModel?.pinnedCapabilities?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val pinnedMentionIds by viewModel?.pinnedMentionIds?.collectAsStateWithLifecycle() ?: previewStateOf(emptySet())
+    val memories by viewModel?.memories?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val scratchpads by viewModel?.scratchpads?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val mcpServers by viewModel?.mcpServers?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val mcpConnectionStates by viewModel?.mcpConnectionStates?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val initializing by viewModel?.initializing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val pendingApprovals by viewModel?.pendingApprovals?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val activePlan by viewModel?.activePlan?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val activeCompaction by viewModel?.activeCompaction?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val contextUsage by viewModel?.contextUsage?.collectAsStateWithLifecycle() ?: previewStateOf(ContextUsage())
+    val quickPhrases by viewModel?.quickPhrases?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val onboardingPrivilege by viewModel?.privilegeOnboarding?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val attachmentsProcessing by viewModel?.attachmentsProcessing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val notice by viewModel?.notice?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val subagentResult by viewModel?.subagentResult?.collectAsStateWithLifecycle() ?: previewStateOf(null)
 
     // 弹窗开关与编辑目标：用 rememberSaveable 保存，旋转 / 进程重建后不丢失
     var showModels by rememberSaveable { mutableStateOf(false) }; var showApprovalModes by rememberSaveable { mutableStateOf(false) }
@@ -215,13 +213,7 @@ fun ChatScreen(
         workspaces.firstOrNull { it.linuxPath == workspace }
     }
     val effectiveWorkspaceProject = remember(activeWorkspaceProject, sessionProjectType) {
-        val override = when (sessionProjectType.uppercase()) {
-            "ANDROID" -> ProjectType.ANDROID
-            "FLUTTER" -> ProjectType.FLUTTER
-            "REVERSE" -> ProjectType.REVERSE
-            "GENERAL" -> ProjectType.GENERAL
-            else -> null
-        }
+        val override = ProjectType.entries.firstOrNull { it.name == sessionProjectType.uppercase() }
         activeWorkspaceProject?.let { project -> override?.let { project.copy(projectType = it) } ?: project }
     }
     val distroDisplayName = remember(activeDistroId) {
@@ -314,7 +306,7 @@ fun ChatScreen(
     val grantLabel = stringResource(R.string.chat_snackbar_grant)
     val gotItLabel = stringResource(R.string.chat_snackbar_got_it)
     LaunchedEffect(Unit) {
-        viewModel.permissionRequests.collect { req ->
+        viewModel?.permissionRequests.collect { req ->
             val actionLabel = when (req.permission) {
                 "WRITE_SETTINGS" -> grantLabel
                 else -> gotItLabel
@@ -340,21 +332,21 @@ fun ChatScreen(
     LaunchedEffect(notice) {
         notice?.let {
             Toast.makeText(appContext, it, Toast.LENGTH_SHORT).show()
-            viewModel.clearNotice()
+            viewModel?.clearNotice()
         }
     }
 
     // rewind 完成：Snackbar 附「撤销回滚」动作（Toast 无法承载动作）
     val rewindUndoLabel = stringResource(R.string.chat_rewind_undo)
     LaunchedEffect(Unit) {
-        viewModel.rewindCompletedEvents.collect { message ->
+        viewModel?.rewindCompletedEvents.collect { message ->
             val result = snackbarHostState.showSnackbar(
                 message = message,
                 actionLabel = rewindUndoLabel,
                 duration = SnackbarDuration.Long,
             )
             if (result == SnackbarResult.ActionPerformed) {
-                viewModel.undoLastRewind()
+                viewModel?.undoLastRewind()
             }
         }
     }
@@ -362,7 +354,7 @@ fun ChatScreen(
     // 切换会话后自动关闭遗留的子智能体成果抽屉，避免跨会话展示旧 lane
     LaunchedEffect(currentSessionId) {
         val opened = subagentResult
-        if (opened != null && opened.sessionId != currentSessionId) viewModel.closeSubagentResult()
+        if (opened != null && opened.sessionId != currentSessionId) viewModel?.closeSubagentResult()
     }
 
     // 模型·权限·主线·轮次 工具条：单栏浏览器分页模式下随对话页一起滑走（浏览器页全屏），
@@ -378,15 +370,13 @@ fun ChatScreen(
                 workspace = workspace,
                 distroDisplayName = distroDisplayName,
                 activeModel = activeModel,
-                approvalMode = currentApprovalMode,
                 runMode = currentRunMode,
                 currentBranch = currentBranch,
                 runtimeEvents = runtimeEvents,
                 running = running,
                 onShowFloatingPermissionDialog = { showFloatingPermissionDialog = true },
-                onOpenSessions = onOpenNavigation, onNewSession = onNewSession,
+                onOpenSessions = onOpenNavigation,
                 onOpenModels = { showModels = true },
-                onOpenApprovalModes = { showApprovalModes = true },
                 onOpenRunModes = { showRunModes = true },
                 onOpenBranches = { showBranches = true },
                 onOpenRuntime = { showRuntimeTimeline = true },
@@ -411,7 +401,7 @@ fun ChatScreen(
 
     // 模型回复里的 /workspace、/attachments 等沙箱路径在此翻译为宿主真实文件，
     // 否则 Coil 会按 Android 根文件系统路径加载而必然失败。
-    CompositionLocalProvider(LocalSandboxHostRoots provides viewModel.sandboxHostRoots, LocalA2uiSessionId provides currentSessionId) {
+    CompositionLocalProvider(LocalSandboxHostRoots provides viewModel?.sandboxHostRoots, LocalA2uiSessionId provides currentSessionId) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -444,65 +434,65 @@ fun ChatScreen(
                     chatRoundCollapse = chatRoundCollapse,
                     thinkingLive = thinkingLive,
                     liveThinkingMessageId = liveThinkingMessageId,
-                    onNavigateToSettings = viewModel::navigateToAgentSettings,
+                    onNavigateToSettings = { viewModel?.navigateToAgentSettings() },
                     toolResults = toolResults,
                     workspace = workspace,
                     workspaceProject = effectiveWorkspaceProject,
                     onOpenFile = onOpenFile,
                     onEditMessage = { editTargetMessageId = it.id },
-                    onDeleteMessage = viewModel::deleteMessage,
-                    onRewindMessage = viewModel::rewindToMessage, error = error,
-                    onClearError = viewModel::clearError,
+                    onDeleteMessage = { arg0 -> viewModel?.deleteMessage(arg0) },
+                    onRewindMessage = { arg0, arg1 -> viewModel?.rewindToMessage(arg0, arg1) }, error = error,
+                    onClearError = { viewModel?.clearError() },
                     matchingCommands = matchingCommands, matchingMentions = matchingMentions,
                     attachedMentions = attachedMentions, knownMentionNames = knownMentionNames,
                     queuedPrompts = queuedPrompts,
-                    onEditQueuedPrompt = viewModel::editQueuedPrompt,
-                    onRemoveQueuedPrompt = viewModel::removeQueuedPrompt, onConvertToSteer = viewModel::convertQueuedPromptToSteer,
+                    onEditQueuedPrompt = { arg0 -> viewModel?.editQueuedPrompt(arg0) },
+                    onRemoveQueuedPrompt = { arg0 -> viewModel?.removeQueuedPrompt(arg0) }, onConvertToSteer = { arg0 -> viewModel?.convertQueuedPromptToSteer(arg0) },
                     sendMode = sendMode,
                     input = input,
-                    onInputChanged = viewModel::onInputChanged,
-                    onApplyCommand = viewModel::applySlashCommand,
-                    onApplyMention = viewModel::applyMention,
-                    onRemoveMention = viewModel::removeMention,
+                    onInputChanged = { arg0 -> viewModel?.onInputChanged(arg0) },
+                    onApplyCommand = { arg0 -> viewModel?.applySlashCommand(arg0) },
+                    onApplyMention = { arg0 -> viewModel?.applyMention(arg0) },
+                    onRemoveMention = { arg0 -> viewModel?.removeMention(arg0) },
                     attachments = pendingAttachments,
                     attachmentsProcessing = attachmentsProcessing,
-                    onAttachmentsPicked = viewModel::onAttachmentsPicked,
-                    onRemoveAttachment = viewModel::removeAttachment,
-                    onSend = viewModel::sendFromComposer,
-                    onStop = viewModel::stop,
+                    onAttachmentsPicked = { arg0, arg1 -> viewModel?.onAttachmentsPicked(arg0, arg1) },
+                    onRemoveAttachment = { arg0 -> viewModel?.removeAttachment(arg0) },
+                    onSend = { viewModel?.sendFromComposer() },
+                    onStop = { viewModel?.stop() },
                     lastAssistantMessageId = lastAssistantMessageId,
-                    onRegenerate = viewModel::regenerateLast,
+                    onRegenerate = { viewModel?.regenerateLast() },
                     onCreateBranch = { branchFromMessageId = it },
-                    onRetryTool = viewModel::retryToolCall,
+                    onRetryTool = { arg0 -> viewModel?.retryToolCall(arg0) },
                     initializing = initializing,
                     pinnedCapabilities = pinnedCapabilities,
                     onOpenSkillsMcp = { showSkillsMcpSheet = true },
-                    onUnpinMention = viewModel::unpinMention,
+                    onUnpinMention = { arg0 -> viewModel?.unpinMention(arg0) },
                     activePlan = activePlan,
                     pendingApprovals = pendingApprovals,
-                    onResolveApproval = viewModel::resolveApproval,
-                    onResolveQuestion = viewModel::resolveQuestion,
+                    onResolveApproval = { arg0, arg1, arg2 -> viewModel?.resolveApproval(arg0, arg1, arg2) },
+                    onResolveQuestion = { arg0, arg1 -> viewModel?.resolveQuestion(arg0, arg1) },
                     contextUsage = contextUsage,
                     activeModel = activeModel,
-                    onOpenModels = { showModels = true },
-                    onUpdateReasoning = viewModel::updateActiveModelReasoning,
+                    onOpenModels = { showModels = true }, approvalMode = currentApprovalMode, onOpenApprovalModes = { showApprovalModes = true },
+                    onUpdateReasoning = { arg0, arg1 -> viewModel?.updateActiveModelReasoning(arg0, arg1) },
                     quickPhrases = quickPhrases,
-                    onSelectPhrase = viewModel::applyQuickPhrase,
+                    onSelectPhrase = { arg0 -> viewModel?.applyQuickPhrase(arg0) },
                     activeCompaction = activeCompaction,
                     mcpRecommendations = mcpRecommendations,
-                    onEnableMcpRecommendation = viewModel::enableMcpRecommendation,
+                    onEnableMcpRecommendation = { arg0 -> viewModel?.enableMcpRecommendation(arg0) },
                     onInstallMcpRecommendation = onInstallMcp,
-                    onDismissMcpRecommendation = viewModel::dismissMcpRecommendation,
+                    onDismissMcpRecommendation = { arg0 -> viewModel?.dismissMcpRecommendation(arg0) },
                     workflowSuggestions = workflowSuggestions,
-                    onLaunchWorkflowSuggestion = viewModel::launchWorkflowSuggestion,
-                    onDismissWorkflowSuggestion = viewModel::dismissWorkflowSuggestion,
+                    onLaunchWorkflowSuggestion = { arg0 -> viewModel?.launchWorkflowSuggestion(arg0) },
+                    onDismissWorkflowSuggestion = { arg0 -> viewModel?.dismissWorkflowSuggestion(arg0) },
                     shareActions = shareActions,
                     hiddenSkillSuggestions = hiddenSkillSuggestions,
-                    onApplySkillSuggestion = viewModel::applySkillSuggestion,
-                    onDismissSkillSuggestion = viewModel::dismissSkillSuggestion,
+                    onApplySkillSuggestion = { arg0, arg1 -> viewModel?.applySkillSuggestion(arg0, arg1) },
+                    onDismissSkillSuggestion = { arg0 -> viewModel?.dismissSkillSuggestion(arg0) },
                     onViewSubagentLanes = { showBranches = true },
                     subagentBranches = branches,
-                    onOpenSubagentBranch = viewModel::openSubagentResult,
+                    onOpenSubagentBranch = { arg0 -> viewModel?.openSubagentResult(arg0) },
                 )
             }
 
@@ -512,7 +502,6 @@ fun ChatScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .liquidGlassContent()
                             .padding(horizontal = 12.dp)
                             .windowInsetsPadding(bottomInsets),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -531,62 +520,12 @@ fun ChatScreen(
 
                     // 右栏：实时演武终端 (Terminal) / 浏览器联动视窗（可切换）
                     var rightPaneBrowser by rememberSaveable { mutableStateOf(false) }
-                    Box(
-                        modifier = Modifier
-                            .weight(0.52f)
-                            .fillMaxHeight()
-                            .padding(top = 4.dp, bottom = 4.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .border(
-                                1.dp,
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                                RoundedCornerShape(14.dp),
-                            ),
-                    ) {
-                        if (browserPane != null) {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    TextButton(onClick = { rightPaneBrowser = false }) {
-                                        Text(
-                                            "终端",
-                                            fontWeight = if (rightPaneBrowser) FontWeight.Normal else FontWeight.Bold,
-                                            color = if (rightPaneBrowser) {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            } else {
-                                                MaterialTheme.colorScheme.primary
-                                            },
-                                        )
-                                    }
-                                    TextButton(onClick = { rightPaneBrowser = true }) {
-                                        Text(
-                                            "浏览器",
-                                            fontWeight = if (rightPaneBrowser) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (rightPaneBrowser) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
-                                        )
-                                    }
-                                }
-                                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                                    if (rightPaneBrowser) {
-                                        browserPane(null)
-                                    } else {
-                                        terminalPane(workspace)
-                                    }
-                                }
-                            }
-                        } else {
-                            terminalPane(workspace)
-                        }
-                    }
+                    ChatCompanionPane(
+                        browserSelected = rightPaneBrowser,
+                        onSelectBrowser = { rightPaneBrowser = it },
+                        workspace = workspace, terminal = terminalPane, browser = browserPane,
+                        modifier = Modifier.weight(0.52f).fillMaxHeight().padding(vertical = 4.dp),
+                    )
                     }
                 }
             } else if (browserPane != null) {
@@ -616,7 +555,6 @@ fun ChatScreen(
                                 chatContent(
                                     Modifier
                                         .fillMaxSize()
-                                        .liquidGlassContent()
                                         .padding(horizontal = 12.dp)
                                         .windowInsetsPadding(bottomInsets)
                                 )
@@ -645,7 +583,6 @@ fun ChatScreen(
                     chatContent(
                         Modifier
                             .fillMaxSize()
-                            .liquidGlassContent()
                             .padding(horizontal = 12.dp)
                             .windowInsetsPadding(bottomInsets)
                     )
@@ -661,7 +598,7 @@ fun ChatScreen(
             originalText = target.text,
             onDismiss = { editTargetMessageId = null },
             onConfirm = { newText ->
-                viewModel.editAndResend(target.id, newText)
+                viewModel?.editAndResend(target.id, newText)
                 editTargetMessageId = null
             },
         )
@@ -717,23 +654,23 @@ fun ChatScreen(
             providerModelDiscoveryError = providerModelDiscoveryError,
             modelPickerProfileId = modelPickerProfileId,
             onDismiss = {
-                viewModel.closeProviderModelPicker()
+                viewModel?.closeProviderModelPicker()
                 showModels = false
             },
-            onSelectProfile = { id -> viewModel.setActiveModel(id) },
-            onSelectSubModel = { id, subModel -> viewModel.selectModel(id, subModel) },
-            onOpenModelPicker = viewModel::openProviderModelPicker,
-            onCloseModelPicker = viewModel::closeProviderModelPicker,
-            onRefreshModels = viewModel::discoverProviderModels,
-            onSwitchModel = viewModel::switchModelInProfile,
-            onAdd = { name, provider, model, baseUrl -> viewModel.addModel(name, provider, model, baseUrl) },
-            onDelete = viewModel::deleteModel,
+            onSelectProfile = { id -> viewModel?.setActiveModel(id) },
+            onSelectSubModel = { id, subModel -> viewModel?.selectModel(id, subModel) },
+            onOpenModelPicker = { arg0 -> viewModel?.openProviderModelPicker(arg0) },
+            onCloseModelPicker = { viewModel?.closeProviderModelPicker() },
+            onRefreshModels = { arg0 -> viewModel?.discoverProviderModels(arg0) },
+            onSwitchModel = { arg0, arg1 -> viewModel?.switchModelInProfile(arg0, arg1) },
+            onAdd = { name, provider, model, baseUrl -> viewModel?.addModel(name, provider, model, baseUrl) },
+            onDelete = { arg0 -> viewModel?.deleteModel(arg0) },
         )
     }
 
     if (showSkillsMcpSheet) {
         // 打开挂载面板时自动探测一次 MCP 连通性
-        LaunchedEffect(Unit) { viewModel.refreshMcpConnections() }
+        LaunchedEffect(Unit) { viewModel?.refreshMcpConnections() }
         SkillsAndMcpSheet(
             allSkills = allSkills,
             mcpServers = mcpServers,
@@ -741,12 +678,12 @@ fun ChatScreen(
             pinnedMentionIds = pinnedMentionIds,
             onDismiss = { showSkillsMcpSheet = false },
             onToggleSkill = { id, enabled ->
-                viewModel.setSkillEnabled(id, enabled)
+                viewModel?.setSkillEnabled(id, enabled)
             },
             onToggleMcpServer = { id, enabled ->
-                viewModel.setMcpServerEnabled(id, enabled)
+                viewModel?.setMcpServerEnabled(id, enabled)
             },
-            onTogglePin = viewModel::togglePinMention,
+            onTogglePin = { arg0 -> viewModel?.togglePinMention(arg0) },
             onNavigateToSettings = {
                 showSkillsMcpSheet = false
                 onNavigate(MainDestination.Settings)
@@ -760,11 +697,11 @@ fun ChatScreen(
             running = running,
             onDismiss = { showBranches = false },
             onSwitch = { branch ->
-                viewModel.switchBranch(branch)
+                viewModel?.switchBranch(branch)
                 showBranches = false
             },
             // 成果抽屉叠在分支列表之上，关闭后自然回到列表，再关闭即回主会话
-            onOpenSubagent = viewModel::openSubagentResult,
+            onOpenSubagent = { arg0 -> viewModel?.openSubagentResult(arg0) },
         )
     }
 
@@ -772,8 +709,8 @@ fun ChatScreen(
     subagentResult?.let { state ->
         SubagentResultSheet(
             state = state,
-            onRefresh = viewModel::refreshSubagentResult,
-            onDismiss = viewModel::closeSubagentResult,
+            onRefresh = { viewModel?.refreshSubagentResult() },
+            onDismiss = { viewModel?.closeSubagentResult() },
         )
     }
 
@@ -784,9 +721,9 @@ fun ChatScreen(
             messages = messages,
             memories = memories,
             scratchpads = scratchpads,
-            onDeleteMemory = viewModel::deleteMemory,
-            onDeleteScratchpad = viewModel::deleteScratchpad,
-            onClearScratchpads = viewModel::clearScratchpads,
+            onDeleteMemory = { arg0 -> viewModel?.deleteMemory(arg0) },
+            onDeleteScratchpad = { arg0 -> viewModel?.deleteScratchpad(arg0) },
+            onClearScratchpads = { viewModel?.clearScratchpads() },
             onNavigateToMessage = { messageId ->
                 showRuntimeTimeline = false
                 coroutineScope.launch {
@@ -812,13 +749,13 @@ fun ChatScreen(
 
     if (showApprovalModes) {
         ApprovalModeSheet(currentApprovalMode = currentApprovalMode,
-            onSelect = { mode -> viewModel.setCurrentSessionApprovalMode(mode); showApprovalModes = false },
+            onSelect = { mode -> viewModel?.setCurrentSessionApprovalMode(mode); showApprovalModes = false },
             onDismiss = { showApprovalModes = false })
     }
 
     if (showRunModes) {
         RunModeSheet(currentRunMode = currentRunMode,
-            onSelect = { mode -> viewModel.setCurrentSessionRunMode(mode); showRunModes = false },
+            onSelect = { mode -> viewModel?.setCurrentSessionRunMode(mode); showRunModes = false },
             onDismiss = { showRunModes = false })
     }
 
@@ -826,7 +763,7 @@ fun ChatScreen(
         PlainBackdropModalBottomSheet(onDismissRequest = { showReasoningSlider = false }) {
             ReasoningEffortSlider(
                 currentMode = activeModel?.reasoningMode, currentEffort = activeModel?.reasoningEffort,
-                onSelect = { mode, effort -> viewModel.updateActiveModelReasoning(mode, effort); showReasoningSlider = false },
+                onSelect = { mode, effort -> viewModel?.updateActiveModelReasoning(mode, effort); showReasoningSlider = false },
                 onClose = { showReasoningSlider = false },
             )
         }
@@ -834,13 +771,13 @@ fun ChatScreen(
 
     if (showMemorySheet) {
         SessionMemorySheet(memories = memories, scratchpads = scratchpads,
-            onDeleteMemory = viewModel::deleteMemory, onDeleteScratchpad = viewModel::deleteScratchpad,
-            onClearScratchpads = viewModel::clearScratchpads, onDismiss = { showMemorySheet = false })
+            onDeleteMemory = { arg0 -> viewModel?.deleteMemory(arg0) }, onDeleteScratchpad = { arg0 -> viewModel?.deleteScratchpad(arg0) },
+            onClearScratchpads = { viewModel?.clearScratchpads() }, onDismiss = { showMemorySheet = false })
     }
 
     branchFromMessageId?.let { messageId ->
         CreateBranchDialog(messageId = messageId, onDismiss = { branchFromMessageId = null },
-            onCreate = { id, name -> viewModel.createBranch(id, name); branchFromMessageId = null })
+            onCreate = { id, name -> viewModel?.createBranch(id, name); branchFromMessageId = null })
     }
     } // CompositionLocalProvider(LocalSandboxHostRoots)
 }
@@ -898,7 +835,7 @@ private fun ChatPaneContent(
     onOpenSkillsMcp: () -> Unit = {},
     onUnpinMention: (String) -> Unit = {},
     activeModel: AiModelEntity? = null,
-    onOpenModels: () -> Unit,
+    onOpenModels: () -> Unit, approvalMode: ApprovalMode, onOpenApprovalModes: () -> Unit,
     onUpdateReasoning: (mode: String?, effort: String?) -> Unit = { _, _ -> },
     pendingApprovals: List<AgentApprovalRequestEntity> = emptyList(),
     activePlan: AgentPlanEntity? = null,
@@ -1051,7 +988,7 @@ private fun ChatPaneContent(
             onUnpinMention = onUnpinMention,
             onOpenSkillsMcp = onOpenSkillsMcp,
             activeModel = activeModel,
-            onOpenModels = onOpenModels,
+            onOpenModels = onOpenModels, approvalMode = approvalMode, onOpenApprovalModes = onOpenApprovalModes,
             onUpdateReasoning = onUpdateReasoning,
             contextUsage = contextUsage,
         )

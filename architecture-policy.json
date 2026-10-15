@@ -27,8 +27,7 @@
       "feature.theme", "feature.components", "feature.home", "feature.chat",
       "feature.terminal", "feature.workspace", "feature.workflow", "feature.settings",
       "feature.developer", "feature.custom_iteration", "feature.onboarding",
-      "feature.navigation", "feature.browser", "feature.git", "feature.preview",
-      "feature.a2uipoc"
+      "feature.navigation", "feature.browser", "feature.git", "feature.a2uipoc"
     ]
   },
   "importBans": [
@@ -186,8 +185,8 @@
       "requires": [
         "feature.theme", "feature.home", "feature.chat", "feature.terminal",
         "feature.workspace", "feature.workflow", "feature.settings", "feature.developer",
-        "feature.custom_iteration", "feature.browser", "feature.git", "feature.preview",
-        "feature.a2uipoc", "plugin.ui", "core.datastore"
+        "feature.custom_iteration", "feature.browser", "feature.git", "feature.a2uipoc",
+        "plugin.ui", "core.datastore"
       ]
     },
     {
@@ -198,7 +197,6 @@
       "id": "feature.git", "path": "feature/git",
       "requires": ["core.security", "runtime", "harness", "feature.theme"]
     },
-    { "id": "feature.preview", "path": "feature/preview", "requires": ["feature.theme"] },
     {
       "id": "feature.a2uipoc",
       "path": "feature/a2uipoc",

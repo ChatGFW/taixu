@@ -53,7 +53,6 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-import top.wkbin.taixu.ui.components.liquidGlassContent
 
 /**
  * 太墟 · 全局功能与设置选项搜索页面
@@ -150,8 +149,7 @@ fun SettingsSearchScreen(
             // 内容展示列表
             LazyColumn(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .liquidGlassContent(),
+                    .fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {

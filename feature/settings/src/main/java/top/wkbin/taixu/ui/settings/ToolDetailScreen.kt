@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -73,7 +74,6 @@ import kotlinx.coroutines.delay
 import top.wkbin.taixu.core.database.ToolEntity
 import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.feature.components.R
-
 /**
  * 太墟 · 插件配置详情页 (Tool Detail & Configuration Screen)
  *
@@ -92,13 +92,13 @@ internal fun LocalToolDetailContent(
     onBack: () -> Unit,
     onLaunchTerminal: (toolId: String) -> Unit,
     onStartAiHealing: (toolId: String, toolName: String, errorLogs: List<String>) -> Unit = { _, _, _ -> },
-    viewModel: ToolDetailViewModel = koinViewModel(),
+    viewModel: ToolDetailViewModel? = previewOrNull { koinViewModel() },
 ) {
     androidx.compose.runtime.LaunchedEffect(toolId) {
-        viewModel.setToolId(toolId)
+        viewModel?.setToolId(toolId)
     }
 
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val state by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(ToolDetailUiState())
     val context = LocalContext.current
     val tool = state.tool
     val manifest = state.manifest
@@ -116,7 +116,7 @@ internal fun LocalToolDetailContent(
             toolName = tool.name,
             onConfirm = {
                 showUninstallConfirm = false
-                viewModel.uninstallTool()
+                viewModel?.uninstallTool()
             },
             onDismiss = { showUninstallConfirm = false },
         )
@@ -228,15 +228,15 @@ internal fun LocalToolDetailContent(
                     running = state.gatewayRunning,
                     operating = state.gatewayOperating,
                     port = state.servicePort,
-                    onStart = viewModel::startGateway,
-                    onStop = viewModel::stopGateway,
+                    onStart = { viewModel?.startGateway() },
+                    onStop = { viewModel?.stopGateway() },
                 )
 
                 // ── 2.5 服务实时控制台日志 ──
                 ServiceLogsCard(
                     logs = state.serviceLogs,
                     running = state.gatewayRunning,
-                    onClear = viewModel::clearServiceLogs,
+                    onClear = { viewModel?.clearServiceLogs() },
                     onCopy = { text ->
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                         clipboard?.setPrimaryClip(ClipData.newPlainText("service_logs", text))
@@ -252,7 +252,7 @@ internal fun LocalToolDetailContent(
                     models = state.models,
                     appliedModelId = state.appliedModelId,
                     applying = state.applyingModel,
-                    onApply = viewModel::applyModel,
+                    onApply = { arg0 -> viewModel?.applyModel(arg0) },
                 )
             }
 
@@ -261,7 +261,7 @@ internal fun LocalToolDetailContent(
                 AutoStartCard(
                     enabled = state.autoStartEnabled,
                     toolName = tool.name,
-                    onToggle = viewModel::toggleAutoStart,
+                    onToggle = { arg0 -> viewModel?.toggleAutoStart(arg0) },
                 )
             }
 
@@ -270,8 +270,8 @@ internal fun LocalToolDetailContent(
                 AccessLinkCard(
                     state = state,
                     running = state.gatewayRunning,
-                    onGenerate = viewModel::generateToken,
-                    onClear = viewModel::clearToken,
+                    onGenerate = { viewModel?.generateToken() },
+                    onClear = { viewModel?.clearToken() },
                     onCopy = { url ->
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                         clipboard?.setPrimaryClip(ClipData.newPlainText("tool_url", url))

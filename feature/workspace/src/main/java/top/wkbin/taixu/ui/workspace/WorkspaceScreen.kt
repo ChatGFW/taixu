@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.workspace
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -44,7 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.feature.workspace.R
 import top.wkbin.taixu.runtime.ApkImportSource
-import top.wkbin.taixu.runtime.ProjectArchiveSource
+import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.template.InstalledProjectTemplate
 import top.wkbin.taixu.ui.components.MainDestination
@@ -59,10 +60,8 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.SectionHeader
 import top.wkbin.taixu.ui.components.SpotlightGuideOverlay
-import top.wkbin.taixu.ui.components.liquidGlassContent
 import top.wkbin.taixu.ui.components.rememberSpotlightAnchor
 import top.wkbin.taixu.ui.components.spotlightAnchor
-
 /**
  * 太墟 · 工坊空间 (Workspace Space)
  * 管理 Linux 隔离工作区、代码工程与文件项目。
@@ -77,24 +76,25 @@ internal fun LocalWorkspaceScreen(
     onOpenToolCenter: () -> Unit = {},
     onOpenWorkshopSettings: () -> Unit = {},
     onOpenWorkflows: (String) -> Unit = {},
-    viewModel: WorkspaceViewModel = koinViewModel(),
+    viewModel: WorkspaceViewModel? = previewOrNull { koinViewModel() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) },
 ) {
-    val projects by viewModel.projects.collectAsStateWithLifecycle()
-    val busy by viewModel.busy.collectAsStateWithLifecycle()
-    val runtimeReady by viewModel.runtimeReady.collectAsStateWithLifecycle()
-    val message by viewModel.message.collectAsStateWithLifecycle()
-    val messageIsError by viewModel.messageIsError.collectAsStateWithLifecycle()
-    val buildProgress by viewModel.buildProgress.collectAsStateWithLifecycle()
-    val activeBuildingProjectName by viewModel.activeBuildingProjectName.collectAsStateWithLifecycle()
-    val isBuildDialogVisible by viewModel.isBuildDialogVisible.collectAsStateWithLifecycle()
-    val installedComponentIds by viewModel.installedComponentIds.collectAsStateWithLifecycle()
-    val keystores by viewModel.keystores.collectAsStateWithLifecycle()
-    val loadingProjects by viewModel.loadingProjects.collectAsStateWithLifecycle()
-    val githubImportProgress by viewModel.githubImportProgress.collectAsStateWithLifecycle()
-    val projectTemplates by viewModel.projectTemplates.collectAsStateWithLifecycle()
-    val templateScriptPreview by viewModel.templateScriptPreview.collectAsStateWithLifecycle()
-    val firstUseGuidesShown by viewModel.firstUseGuidesShown.collectAsStateWithLifecycle()
+    val projects by viewModel?.projects?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val busy by viewModel?.busy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val runtimeReady by viewModel?.runtimeReady?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val buildProgress by viewModel?.buildProgress?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val activeBuildingProjectName by viewModel?.activeBuildingProjectName?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val isBuildDialogVisible by viewModel?.isBuildDialogVisible?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val installedComponentIds by viewModel?.installedComponentIds?.collectAsStateWithLifecycle() ?: previewStateOf(emptySet())
+    val keystores by viewModel?.keystores?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val loadingProjects by viewModel?.loadingProjects?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val githubImportProgress by viewModel?.githubImportProgress?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val projectTemplates by viewModel?.projectTemplates?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val templateScriptPreview by viewModel?.templateScriptPreview?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val firstUseGuidesShown by viewModel?.firstUseGuidesShown?.collectAsStateWithLifecycle() ?: previewStateOf(emptySet())
     val context = LocalContext.current
+    val pluginDebug = rememberWorkspacePluginDebugAction(onOpenToolCenter)
 
     // 弹窗开关用 rememberSaveable，旋转后不丢失向导进度（S3）
     var showCreate by rememberSaveable { mutableStateOf(false) }
@@ -126,17 +126,11 @@ internal fun LocalWorkspaceScreen(
             createWizard.apkSource = ApkImportSource.FromFileUri(uri.toString(), displayName)
         }
     }
-    val archivePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            val displayName = queryDisplayName(context, uri) ?: "project.zip"
-            importWizard.archiveSource = ProjectArchiveSource(uri.toString(), displayName)
-            if (importWizard.importProjectName.isBlank()) {
-                importWizard.importProjectName = displayName.substringBeforeLast('.').filter {
-                    it.isLetterOrDigit() || it == '.' || it == '_' || it == '-'
-                }
+    val archivePicker = rememberWorkspaceArchivePicker { source ->
+        importWizard.archiveSource = source
+        if (importWizard.importProjectName.isBlank()) {
+            importWizard.importProjectName = source.fileName.substringBeforeLast('.').filter {
+                it.isLetterOrDigit() || it == '.' || it == '_' || it == '-'
             }
         }
     }
@@ -145,7 +139,7 @@ internal fun LocalWorkspaceScreen(
             runCatching {
                 context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            viewModel.importProjectTemplate(uri.toString())
+            viewModel?.importProjectTemplate(uri.toString())
         }
     }
     val templateExportPicker = rememberLauncherForActivityResult(
@@ -153,7 +147,7 @@ internal fun LocalWorkspaceScreen(
     ) { uri ->
         val templateId = pendingExportTemplateId
         pendingExportTemplateId = null
-        if (uri != null && templateId != null) viewModel.exportProjectTemplate(templateId, uri.toString())
+        if (uri != null && templateId != null) viewModel?.exportProjectTemplate(templateId, uri.toString())
     }
     val exportDirectoryPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         val project = pendingExportProject
@@ -165,7 +159,7 @@ internal fun LocalWorkspaceScreen(
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
                 )
             }
-            viewModel.exportProject(project, uri.toString())
+            viewModel?.exportProject(project, uri.toString())
         }
     }
 
@@ -177,7 +171,7 @@ internal fun LocalWorkspaceScreen(
             containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 RuntimeTopBar(
-                    title = stringResource(R.string.workspace_title), onBack = { onNavigate(MainDestination.Agent) },
+                    title = stringResource(R.string.workspace_title), onBack = onBack,
                     statusText = stringResource(R.string.workspace_active_projects, projects.size),
                 ) {
                     Box {
@@ -204,7 +198,6 @@ internal fun LocalWorkspaceScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .liquidGlassContent()
                     .padding(padding),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -222,9 +215,9 @@ internal fun LocalWorkspaceScreen(
                         buildProgress = buildProgress,
                         activeBuildingProjectName = activeBuildingProjectName,
                         isBuildDialogVisible = isBuildDialogVisible,
-                        onShowDialog = viewModel::showBuildDialog,
-                        onLaunchInstaller = viewModel::launchInstaller,
-                        onDismiss = viewModel::dismissBuildProgress,
+                        onShowDialog = { viewModel?.showBuildDialog() },
+                        onLaunchInstaller = { arg0 -> viewModel?.launchInstaller(arg0) },
+                        onDismiss = { viewModel?.dismissBuildProgress() },
                     )
                 }
 
@@ -307,14 +300,17 @@ internal fun LocalWorkspaceScreen(
                     items(projects, key = { it.name }) { project ->
                         ProjectCard(
                             project = project,
-                            busy = busy,
+                            busy = busy || pluginDebug.busy,
                             isBuilding = (activeBuildingProjectName == project.name),
                             onOpenExplorer = { onOpenExplorer(project.name) },
                             onOpenTerminal = { onOpenTerminal(project.name) },
                             onOpenAgent = { onNavigate(MainDestination.Agent) },
                             onOpenWorkflows = { onOpenWorkflows(project.name) },
-                            onRunProject = { buildConfigTarget = project },
-                            onShowBuildLog = { viewModel.showBuildDialog() },
+                            onRunProject = {
+                                if (project.projectType == ProjectType.TAIXU_PLUGIN) pluginDebug.start(project)
+                                else buildConfigTarget = project
+                            },
+                            onShowBuildLog = { viewModel?.showBuildDialog() },
                             onExport = {
                                 pendingExportProject = project
                                 exportDirectoryPicker.launch(null)
@@ -334,7 +330,7 @@ internal fun LocalWorkspaceScreen(
                 anchor = moreAnchor,
                 title = stringResource(R.string.workspace_guide_more_title),
                 message = stringResource(R.string.workspace_guide_more_message),
-                onDismiss = { viewModel.markFirstUseGuideShown("workspace_more_menu") },
+                onDismiss = { viewModel?.markFirstUseGuideShown("workspace_more_menu") },
             )
         }
     } // Box
@@ -344,10 +340,10 @@ internal fun LocalWorkspaceScreen(
         BuildProgressDialog(
             progress = buildProgress!!,
             onOpenToolCenter = onOpenToolCenter,
-            onHideDialog = viewModel::hideBuildDialog,
-            onDismissProgress = viewModel::dismissBuildProgress,
-            onCancelBuild = viewModel::cancelBuild,
-            onLaunchInstaller = viewModel::launchInstaller,
+            onHideDialog = { viewModel?.hideBuildDialog() },
+            onDismissProgress = { viewModel?.dismissBuildProgress() },
+            onCancelBuild = { viewModel?.cancelBuild() },
+            onLaunchInstaller = { arg0 -> viewModel?.launchInstaller(arg0) },
         )
     }
 
@@ -378,7 +374,7 @@ internal fun LocalWorkspaceScreen(
 
     templateScriptPreview?.let { preview ->
         RuntimeAlertDialog(
-            onDismissRequest = viewModel::dismissTemplateScripts,
+            onDismissRequest = { viewModel?.dismissTemplateScripts() },
             title = { Text(stringResource(R.string.workspace_template_scripts_title), fontWeight = FontWeight.Bold) },
             text = {
                 Text(
@@ -388,7 +384,7 @@ internal fun LocalWorkspaceScreen(
                     style = MaterialTheme.typography.bodySmall,
                 )
             },
-            confirmButton = { TextButton(onClick = viewModel::dismissTemplateScripts) { Text(stringResource(R.string.workspace_action_close)) } },
+            confirmButton = { TextButton(onClick = { viewModel?.dismissTemplateScripts() }) { Text(stringResource(R.string.workspace_action_close)) } },
         )
     }
 
@@ -399,7 +395,7 @@ internal fun LocalWorkspaceScreen(
             text = { Text(stringResource(R.string.workspace_delete_template_message, template.manifest.name)) },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.deleteProjectTemplate(template.manifest.id)
+                    viewModel?.deleteProjectTemplate(template.manifest.id)
                     deleteTemplateTarget = null
                 }) { Text(stringResource(R.string.workspace_confirm_delete), color = MaterialTheme.colorScheme.error) }
             },
@@ -444,7 +440,7 @@ internal fun LocalWorkspaceScreen(
             },
             confirmButton = {
                 TextButton(
-                    onClick = { deleteTarget = null; viewModel.delete(project.name) },
+                    onClick = { deleteTarget = null; viewModel?.delete(project.name) },
                     enabled = !busy,
                 ) {
                     if (busy) {
@@ -466,7 +462,7 @@ internal fun LocalWorkspaceScreen(
             onDismiss = { buildConfigTarget = null },
             onConfirm = { type, keystore ->
                 buildConfigTarget = null
-                viewModel.runProject(target, type, keystore)
+                viewModel?.runProject(target, type, keystore)
             },
             onManageSigning = {
                 buildConfigTarget = null

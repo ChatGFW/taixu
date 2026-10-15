@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +20,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-
 /**
  * 二级子页 1：智能体与 AI 模型生态
  */
@@ -37,11 +37,11 @@ fun AgentEcoSettingsScreen(
     onOpenStats: () -> Unit,
     onOpenPhoneAgent: () -> Unit,
     onOpenCcSwitch: () -> Unit = {},
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val models by viewModel.models.collectAsStateWithLifecycle()
-    val skills by viewModel.allSkills.collectAsStateWithLifecycle()
-    val phrases by viewModel.quickPhrases.collectAsStateWithLifecycle()
+    val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val skills by viewModel?.allSkills?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val phrases by viewModel?.quickPhrases?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     // 插件与底层工具只安装在本机 PRoot：远程主系统下停用插件中心入口，避免误以为会装到服务器。
     val activeServerId by koinViewModel<RemoteServerViewModel>().activeId.collectAsStateWithLifecycle()
 

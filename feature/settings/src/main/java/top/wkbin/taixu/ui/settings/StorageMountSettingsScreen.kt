@@ -1,9 +1,9 @@
 package top.wkbin.taixu.ui.settings
-
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import androidx.compose.material3.minimumInteractiveComponentSize
-
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -62,12 +62,12 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 @Composable
 fun StorageMountSettingsScreen(
     onBack: () -> Unit,
-    viewModel: SettingsViewModel = koinViewModel(),
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val downloadEnabled by viewModel.mountDownloadEnabled.collectAsStateWithLifecycle()
-    val documentsEnabled by viewModel.mountDocumentsEnabled.collectAsStateWithLifecycle()
-    val sharedStorageEnabled by viewModel.mountSharedStorageEnabled.collectAsStateWithLifecycle()
-    val customBindings by viewModel.customMountBindings.collectAsStateWithLifecycle()
+    val downloadEnabled by viewModel?.mountDownloadEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val documentsEnabled by viewModel?.mountDocumentsEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val sharedStorageEnabled by viewModel?.mountSharedStorageEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val customBindings by viewModel?.customMountBindings?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
 
     // SSH 远程主系统下 PRoot 挂载不生效：挂载只在本地容器启动时通过 -b 注入，远程执行环境没有对应机制。
     val remoteViewModel = koinViewModel<RemoteServerViewModel>()
@@ -132,7 +132,7 @@ fun StorageMountSettingsScreen(
                             hostPath = "/storage/emulated/0/Download",
                             guestPath = "/sdcard/Download",
                             checked = downloadEnabled,
-                            onCheckedChange = viewModel::setMountDownloadEnabled,
+                            onCheckedChange = { arg0 -> viewModel?.setMountDownloadEnabled(arg0) },
                             enabled = !localMountsOnly,
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
@@ -142,7 +142,7 @@ fun StorageMountSettingsScreen(
                             hostPath = "/storage/emulated/0/Documents",
                             guestPath = "/sdcard/Documents",
                             checked = documentsEnabled,
-                            onCheckedChange = viewModel::setMountDocumentsEnabled,
+                            onCheckedChange = { arg0 -> viewModel?.setMountDocumentsEnabled(arg0) },
                             enabled = !localMountsOnly,
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
@@ -152,7 +152,7 @@ fun StorageMountSettingsScreen(
                             hostPath = "/storage/emulated/0",
                             guestPath = "/sdcard",
                             checked = sharedStorageEnabled,
-                            onCheckedChange = viewModel::setMountSharedStorageEnabled,
+                            onCheckedChange = { arg0 -> viewModel?.setMountSharedStorageEnabled(arg0) },
                             enabled = !localMountsOnly,
                         )
                     }
@@ -256,7 +256,7 @@ fun StorageMountSettingsScreen(
                             Switch(
                                 checked = binding.enabled,
                                 onCheckedChange = { enabled ->
-                                    viewModel.toggleCustomMountBinding(binding.id, enabled)
+                                    viewModel?.toggleCustomMountBinding(binding.id, enabled)
                                 },
                                 enabled = !localMountsOnly,
                                 colors = SwitchDefaults.colors(
@@ -296,7 +296,7 @@ fun StorageMountSettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.removeCustomMountBinding(binding.id)
+                        viewModel?.removeCustomMountBinding(binding.id)
                         pendingDeleteBindingId = null
                     },
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(
@@ -317,7 +317,7 @@ fun StorageMountSettingsScreen(
             existingGuestPaths = customBindings.map { it.guestPath }.toSet(),
             onDismiss = { showAddDialog = false },
             onConfirm = { name, host, guest ->
-                viewModel.addCustomMountBinding(name, host, guest)
+                viewModel?.addCustomMountBinding(name, host, guest)
                 showAddDialog = false
             },
         )
