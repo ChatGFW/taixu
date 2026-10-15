@@ -55,6 +55,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.datastore.AppearancePreferences
@@ -80,17 +81,11 @@ import top.wkbin.taixu.service.WorkflowForegroundService
 import top.wkbin.taixu.ui.chat.floating.FloatingChatService
 class MainActivity : AppCompatActivity() {
     val settingsDataStore: AppearancePreferences by inject()
-
     val appUpdateManager: AppUpdateManager by inject()
-
     val runtimeServiceController: RuntimeServiceController by inject()
-
     val globalNavigationBus: GlobalNavigationBus by inject()
-
     val adbNotificationManager: AdbNotificationManager by inject()
-
     val mcpOAuthCoordinator: McpOAuthCoordinator by inject()
-
     val mcpManager: McpManager by inject()
 
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -110,7 +105,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         createdUptimeMs = SystemClock.uptimeMillis()
         val splashScreen = installSplashScreen()
-        splashScreen.setKeepOnScreenCondition { keepSplashOnScreen.value }
+        splashScreen.setupTaiXuSplashAnimation { keepSplashOnScreen.value }
         super.onCreate(savedInstanceState)
         handleNavigationIntent(intent)
         enableEdgeToEdge()
@@ -139,10 +134,15 @@ class MainActivity : AppCompatActivity() {
                 val onboardingViewModel: OnboardingViewModel = koinViewModel()
                 val onboarding by onboardingViewModel.status.collectAsStateWithLifecycle()
 
-                // onboarding 偏好读盘完成后让 SplashScreen 退场；Runtime 恢复已在后台继续，不阻塞首帧。
-                // Linux 环境恢复（restoreInstalledState）由 OnboardingViewModel.init 自行发起，不再在此重复触发。
+                // onboarding 偏好读盘完成后让 SplashScreen 退场；只要 420ms 动画合并完成且数据就绪即刻退出，绝不多等。
                 LaunchedEffect(onboarding.loaded) {
                     if (onboarding.loaded && keepSplashOnScreen.value) {
+                        val elapsed = SystemClock.uptimeMillis() - createdUptimeMs
+                        val minSplashDurationMs = 420L
+                        val remaining = (minSplashDurationMs - elapsed).coerceAtLeast(0L)
+                        if (remaining > 0L) {
+                            delay(remaining)
+                        }
                         keepSplashOnScreen.value = false
                         Log.i(
                             "TaiXuStartup",

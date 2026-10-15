@@ -21,4 +21,7 @@
     <string name="chat_start_explore">了解当前项目</string>
     <string name="chat_start_explore_detail">梳理代码结构，找出下一步的方向。</string>
     <string name="chat_start_explore_prompt">请先查看当前工作区，说明有哪些文件和项目；如果还没有项目，请告诉我如何开始。</string>
+    <string name="chat_workbench_workspace">工作空间</string>
+    <string name="chat_workbench_session">会话控制</string>
+    <string name="chat_workbench_tools_attention">有待处理项</string>
 </resources>
