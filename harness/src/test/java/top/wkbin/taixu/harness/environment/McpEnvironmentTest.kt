@@ -207,10 +207,10 @@ class McpEnvironmentTest {
         transport.injectConnectionForTest(server, channel)
         transport.rewindIdleForTest(McpStdioTransport.IDLE_TIMEOUT_MS + 60_000)
         channel.failCloseOnce = true
-        try { transport.sweepIdleOnce(System.currentTimeMillis()); fail("failure swallowed") }
+        try { transport.sweepIdleOnce(transport.clock()); fail("failure swallowed") }
         catch (_: IllegalStateException) { }
         assertTrue(channel.isAlive)
-        assertEquals(1, transport.sweepIdleOnce(System.currentTimeMillis()))
+        assertEquals(1, transport.sweepIdleOnce(transport.clock()))
         assertFalse(channel.isAlive)
         assertEquals(2, channel.closeAttempts)
     }

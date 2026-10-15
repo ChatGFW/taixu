@@ -47,18 +47,15 @@ class McpManager(
     /** 工具发现失败统一指数退避，成功即清零。 */
     private val discoveryCooldownUntil = ConcurrentHashMap<String, Long>()
     private val discoveryFailureStreak = ConcurrentHashMap<String, Int>()
-    private val statuses = McpScopedConnectionStates(standaloneScope, scope)
+    private val statuses = McpScopedConnectionStates(standaloneScope, scope, stdio.processStates)
     private val metadata = McpMetadataScopes { key, owned ->
         cache.remove(key); lastErrors.remove(key); discoveryCooldownUntil.remove(key); discoveryFailureStreak.remove(key)
-        statuses.forgetKey(key); if (owned) discoveryMutexes.remove(key)
+        statuses.forgetKey(key); stdio.forgetProcessState(key); if (owned) discoveryMutexes.remove(key)
     }
     val connectionStates: StateFlow<Map<String, McpConnectionState>> = statuses.visible
     init { scope.expireCatalogTools(cache) { key -> lastErrors.remove(key); discoveryCooldownUntil.remove(key); discoveryFailureStreak.remove(key); if (cache[key] == null) statuses.forgetKey(key) } }
 
-    /**
-     * 最近错误。冷却期内额外带上剩余时间：状态只显示 OFFLINE 时，用户无法区分
-     * "退避中、稍后自动重试"与"真的连不上"，只会反复手动刷新。
-     */
+    /** 最近发现错误附退避剩余时间，避免把冷却误判为永久离线。 */
     fun getLastError(serverId: String): String? {
         val key = runCatching { standaloneScope?.key()?.let { "$serverId@environment:$it" } ?: serverId }
             .getOrElse { return it.message }
@@ -92,7 +89,7 @@ class McpManager(
         statuses.forget(serverId)
     }
 
-    suspend fun refreshConnections() = withContext(Dispatchers.IO) {
+    suspend fun refreshConnections(probeSleeping: Boolean = true) = withContext(Dispatchers.IO) {
         val servers = effectiveServers()
         servers.filterNot { it.isEnabled }.forEach { server ->
             removeScoped(cache, server.id)
@@ -101,10 +98,15 @@ class McpManager(
             closeTransportConnection(server)
         }
         // 用户手动刷新是明确的重试意图：清掉退避，不让冷却把这次刷新变成空操作。
-        servers.filter { it.isEnabled }.forEach { clearDiscoveryCooldown(it.id) }
-        servers.forEach { state(it.id, if (it.isEnabled) McpConnectionState.CHECKING else McpConnectionState.UNKNOWN) }
+        val targets = servers.filter { it.isEnabled }.filter { server ->
+            val key = discoveryKey(server)
+            probeSleeping || stdio.processStates.value[key] != McpConnectionState.SLEEPING ||
+                cache[key]?.fingerprint != fingerprint(boundConfig(server))
+        }
+        targets.forEach { clearDiscoveryCooldown(it.id); state(it.id, McpConnectionState.CHECKING) }
+        servers.filterNot { it.isEnabled }.forEach { state(it.id, McpConnectionState.UNKNOWN) }
         coroutineScope {
-            servers.filter { it.isEnabled }.map { server ->
+            targets.map { server ->
                 launch {
                     checkConnection(server)
                 }
@@ -237,7 +239,7 @@ class McpManager(
                 id = server.id,
                 name = server.name,
                 cachedToolCount = cached?.tools?.size ?: 0,
-                connected = cached != null,
+                connected = cached != null, processState = if (server.transportType == McpTransportType.STDIO) stdio.processStates.value[discoveryKey(server)] else null,
             )
         }
     }
@@ -273,6 +275,7 @@ class McpManager(
         cancellableResult { transport(bound).execute(bound, tool.name, arguments) }
             .onFailure { logger.e("MCP[${server.name}] 工具 ${tool.name} 执行异常: ${it.message}", it) }
             .onSuccess { (ok, output) ->
+                state(server.id, McpConnectionState.ONLINE, discoveryKey(bound))
                 if (!ok) logger.w("MCP[${server.name}] 工具 ${tool.name} 返回错误: $output".take(500))
             }
             .getOrElse { false to "MCP 工具执行异常：${it.message ?: it::class.simpleName}" }
@@ -328,6 +331,7 @@ class McpManager(
         return@withContext cancellableResult { transport(bound).execute(bound, tool.name, arguments) }
             .onFailure { logger.e("MCP[${server.name}] 工具 ${tool.name} 执行异常: ${it.message}", it) }
             .onSuccess { (ok, output) ->
+                state(server.id, McpConnectionState.ONLINE, discoveryKey(bound))
                 if (!ok) logger.w("MCP[${server.name}] 工具 ${tool.name} 返回错误: $output".take(500))
             }
             .getOrElse { false to "MCP 工具执行异常：${it.message ?: it::class.simpleName}" }
@@ -356,14 +360,10 @@ class McpManager(
         val name: String,
         val cachedToolCount: Int,
         val connected: Boolean,
+        val processState: McpConnectionState? = null,
     )
 
-    /**
-     * 仍在冷却期时返回剩余毫秒；否则返回 null 表示可以尝试发现。
-     *
-     * 纯读：过期项不在这里清理（读路径带副作用会让并发下的判定依赖调用顺序），
-     * 到期后自然不再命中，下次失败或成功时会被覆盖/清除。
-     */
+    /** 纯读退避剩余时间；过期自然失效，由下一次成功/失败更新。 */
     private fun remainingDiscoveryCooldownMs(serverId: String): Long? =
         discoveryCooldownUntil[serverId]?.minus(System.currentTimeMillis())?.takeIf { it > 0L }
 

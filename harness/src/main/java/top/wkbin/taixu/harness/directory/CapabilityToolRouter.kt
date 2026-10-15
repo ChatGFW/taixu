@@ -83,7 +83,12 @@ class CapabilityToolRouter(
             summaries.forEach { summary ->
                 appendLine(
                     "- ${summary.id} · ${summary.name} · 已缓存 ${summary.cachedToolCount} 个工具 · " +
-                        if (summary.connected) "已连接" else "未连接",
+                        when (summary.processState) {
+                            top.wkbin.taixu.core.model.McpConnectionState.SLEEPING -> "已就绪（休眠）"
+                            top.wkbin.taixu.core.model.McpConnectionState.WAKING -> "正在唤醒"
+                            top.wkbin.taixu.core.model.McpConnectionState.OFFLINE -> "进程离线"
+                            else -> if (summary.connected) "工具目录已就绪" else "未发现工具"
+                        },
                 )
             }
             append("用 inspect 查看某能力域的工具清单与参数，用 call 调用。")

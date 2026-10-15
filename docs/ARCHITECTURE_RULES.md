@@ -9,6 +9,7 @@
 - `architectureCheck` 已接入 `app:preBuild` 验证阶段，会主动阻止模型层平台化、非法 feature 横向依赖和业务层直连 DAO。
 - **治理策略即代码**：上述门禁的全部规则登记在根目录 [`architecture-policy.json`](../architecture-policy.json)（模块依赖白名单 `requires`、依赖环检查、`importBans` import 黑名单、`maxFileLines` 文件尺寸棘轮）。该文件是唯一事实源——**新增模块或调整模块依赖时必须同步登记**，否则门禁失败。
 - 存量超限文件（>400 行）登记在 `.architecture-baseline.json` 棘轮基线：行数**只许缩减不许上涨**；新文件必须合规。缩减代码后运行 `architectureBaselineSync` 下调基线。
+- PR 的 `architecture-baseline.yml` 使用可信目标 commit 检查基线新增/上涨、全局上限放宽及已缩减源码回涨；旧基线尚未同步也不能恢复已偿还技术债。只读任务 `architectureBaselineCheck` 提示可收紧条目，不自动写入基线；普通 Android 构建不新增 Python 依赖。
 
 ---
 

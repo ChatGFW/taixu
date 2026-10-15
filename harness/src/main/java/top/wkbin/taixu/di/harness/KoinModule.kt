@@ -324,7 +324,7 @@ val harnessModule = module {
         McpStdioTransport(
             json = get(),
             commandBuilder = get(),
-            channelFactory = get(), standaloneScope = get(),
+            channelFactory = get(), standaloneScope = get(), idleTimeoutMinutes = get<top.wkbin.taixu.core.datastore.McpClientPreferences>().idleTimeoutMinutes,
         )
     }
 

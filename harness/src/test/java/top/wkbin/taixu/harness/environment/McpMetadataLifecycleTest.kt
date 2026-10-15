@@ -46,6 +46,7 @@ class McpMetadataLifecycleTest {
         val openedScopes = mutableListOf<String>()
         var toolName = "remote_tool"
         var failDiscovery = false
+        var toolCalls = 0
         val factory = object : McpStdioChannelFactory {
             override suspend fun open(server: McpServerConfig): McpStdioChannel {
                 openedScopes += server.id
@@ -64,9 +65,11 @@ class McpMetadataLifecycleTest {
                         incoming.send("""{"jsonrpc":"2.0","id":$id,"error":{"code":-32000,"message":"host unavailable"}}""")
                         return
                     }
-                    val result = if (request["method"]?.jsonPrimitive?.content == "tools/list")
-                        """{"tools":[{"name":"$scopedTool","inputSchema":{"type":"object"}}]}"""
-                    else """{"protocolVersion":"2025-03-26","capabilities":{}}"""
+                    val result = when (request["method"]?.jsonPrimitive?.content) {
+                        "tools/list" -> """{"tools":[{"name":"$scopedTool","inputSchema":{"type":"object"}}]}"""
+                        "tools/call" -> { toolCalls++; """{"content":[{"type":"text","text":"executed"}]}""" }
+                        else -> """{"protocolVersion":"2025-03-26","capabilities":{}}"""
+                    }
                     incoming.send("""{"jsonrpc":"2.0","id":$id,"result":$result}""")
                 }
             }
@@ -86,6 +89,18 @@ class McpMetadataLifecycleTest {
             FakeWorld(ExecutionEnvironmentId("ssh", "ssh:host", workspace, owner))
         })
         registry.activity("live", "/srv/demo") { assertTrue(manager.getActiveMcpTools().isNotEmpty()) }
+        registry.activity("live", "/srv/demo") {
+            stdio.rewindIdleForTest(McpStdioTransport.IDLE_TIMEOUT_MS + 60_000)
+            assertEquals(1, stdio.sweepIdleOnce(stdio.clock()))
+            val opened = openedScopes.size
+            val cached = manager.getActiveMcpTools().single()
+            assertEquals(toolName, cached.name)
+            manager.refreshConnections(probeSleeping = false)
+            assertEquals("Discovery and opening settings must not wake cached sleeping MCP", opened, openedScopes.size)
+            assertEquals(true to "executed", manager.executeTool(McpToolApiName.encode(cached), JsonObject(emptyMap()), "/srv/demo"))
+            assertEquals(opened + 1, openedScopes.size)
+            assertEquals(1, toolCalls)
+        }
         repeat(12) { index ->
             val owner = "closed-$index"
             failDiscovery = index % 2 == 0
@@ -104,5 +119,6 @@ class McpMetadataLifecycleTest {
         val statuses = McpManager::class.java.getDeclaredField("statuses").apply { isAccessible = true }.get(manager)
         val all = statuses.javaClass.getDeclaredField("all").apply { isAccessible = true }.get(statuses) as kotlinx.coroutines.flow.StateFlow<*>
         assertTrue((all.value as Map<*, *>).isEmpty())
+        assertTrue(stdio.processStates.value.isEmpty())
     }
 }

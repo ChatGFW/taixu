@@ -33,6 +33,12 @@ class WorkspaceFileAccess(
 ) : WorkspaceToolOperations {
     private val rootCanonical: File = root.absoluteFile.canonicalFile
 
+    override suspend fun search(path: String, query: String, maxResults: Int, redactLine: (String) -> String): AppResult<String> = withContext(Dispatchers.IO) {
+        try { AppResult.Success(WorkspaceTextSearch().search(resolveRequired(path), query, maxResults, redactLine)) }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (throwable: Exception) { failure(path, throwable) }
+    }
+
     override suspend fun fingerprint(path: String, maxBytes: Long): AppResult<FileFingerprint> = withContext(Dispatchers.IO) {
         try { AppResult.Success(fingerprintLocalFile(resolveRequired(path), maxBytes)) }
         catch (cancelled: CancellationException) { throw cancelled }

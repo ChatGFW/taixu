@@ -40,6 +40,7 @@ internal class ToolRouting(
     private val contextMemoryToolBackend: ContextMemoryToolBackend,
     private val promptAssetToolBackend: PromptAssetToolBackend,
     private val capabilityToolGateway: CapabilityToolGateway,
+    private val searchRedactor: suspend (String, String) -> (String) -> String = { _, _ -> { it } },
 ) {
     private val routes: Map<HarnessTool, ToolRouteFn> = buildRoutes()
 
@@ -55,7 +56,8 @@ internal class ToolRouting(
 
     private fun buildRoutes(): Map<HarnessTool, ToolRouteFn> {
         val workspace: ToolRouteFn = { ctx ->
-            val outcome = workspaceTools.execute(WorkspaceToolRequest(ctx.tool, ctx.args, ctx.sessionId, ctx.workspace))
+            val redact = if (ctx.tool == HarnessTool.READ && "query" in ctx.args) searchRedactor(ctx.sessionId, ctx.workspace) else { text: String -> text }
+            val outcome = workspaceTools.execute(WorkspaceToolRequest(ctx.tool, ctx.args, ctx.sessionId, ctx.workspace, redact))
             ctx.metadata.putAll(outcome.metadata)
             outcome.success to outcome.output
         }

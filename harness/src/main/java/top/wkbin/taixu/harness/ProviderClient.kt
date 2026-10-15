@@ -1030,9 +1030,9 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "read",
-                    description = "读取文件内容（UTF-8，单文件上限 1MB）。路径可用相对路径或以 /workspace/ 开头。优先用它检查文件内容，而不是用 cat/sed。大文件用 offset（1 起始行号）和 limit（行数）分页读取，返回头部会标注总行数与当前窗口。若文件不存在或读取失败，用 base 的 ls/find 定位。",
+                    description = "读取 UTF-8 文件（上限 1MB），路径为相对路径或 /workspace/ 路径；offset（1 起始）和 limit 用于分页。可选 query 对文件或目录进行区分大小写的字面文本检索，本地无需启动 Shell，返回相对路径和行号；max_results 默认 50、上限 100。检索有深度/文件/字节/时间限制，跳过符号链接、二进制及常见构建/依赖目录，不遵循 gitignore；不能与 offset/limit 混用。远程未支持时改用当前环境 base/grep。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"path":{"type":"string","description":"文件路径"},"offset":{"type":"integer","description":"起始行号（1 起始），可选"},"limit":{"type":"integer","description":"读取的最大行数，可选"}},"required":["path"]}""",
+                        """{"type":"object","properties":{"path":{"type":"string","description":"文件路径；检索时也可为目录"},"offset":{"type":"integer","description":"起始行号（1 起始），可选"},"limit":{"type":"integer","description":"读取的最大行数，可选"},"query":{"type":"string","description":"可选，1–256 字符单行字面文本；不解释正则或 Shell"},"max_results":{"type":"integer","minimum":1,"maximum":100,"description":"仅检索使用，默认 50"}},"required":["path"]}""",
                     ).jsonObject,
                 ),
             ),

@@ -512,8 +512,8 @@ class SettingsViewModel(
     }
 
 
-    fun refreshMcpConnections() {
-        viewModelScope.launch { mcpManager.refreshConnections() }
+    fun refreshMcpConnections(probeSleeping: Boolean = true) {
+        viewModelScope.launch { mcpManager.refreshConnections(probeSleeping) }
     }
 
     fun toggleMcpServer(serverId: String, enabled: Boolean) {

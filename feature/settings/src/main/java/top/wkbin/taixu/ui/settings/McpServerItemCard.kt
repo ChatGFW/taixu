@@ -100,6 +100,12 @@ internal fun McpServerItemCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                if (server.isEnabled && connectionState in setOf(McpConnectionState.SLEEPING, McpConnectionState.WAKING)) {
+                    Text(androidx.compose.ui.res.stringResource(if (connectionState == McpConnectionState.SLEEPING)
+                        top.wkbin.taixu.feature.settings.R.string.mcp_client_sleeping else top.wkbin.taixu.feature.settings.R.string.mcp_client_waking),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
                 // 离线原因（含远程 MCP 可执行文件缺失等环境相关失败），在线时 error 为空不展示
                 if (connectionState == McpConnectionState.OFFLINE && !error.isNullOrBlank()) {
                     Text(
@@ -141,6 +147,8 @@ internal fun McpConnectionDot(state: McpConnectionState, enabled: Boolean) {
         !enabled -> MaterialTheme.colorScheme.outlineVariant to "未启用"
         state == McpConnectionState.CHECKING -> MaterialTheme.colorScheme.tertiary to "检测中"
         state == McpConnectionState.ONLINE -> successStatusColor() to "已连通"
+        state == McpConnectionState.SLEEPING -> MaterialTheme.colorScheme.secondary to "已就绪（休眠）"
+        state == McpConnectionState.WAKING -> MaterialTheme.colorScheme.tertiary to "正在唤醒"
         state == McpConnectionState.OFFLINE -> MaterialTheme.colorScheme.error to "离线"
         else -> MaterialTheme.colorScheme.outline to "未检测"
     }

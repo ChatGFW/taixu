@@ -15,6 +15,8 @@ data class WorkspaceToolRequest(
     val args: JsonObject,
     val sessionId: String,
     val workspace: String,
+    /** Trusted pipeline callback, applied to whole matching lines before excerpts are cut. */
+    val redactSearchLine: (String) -> String = { it },
 )
 
 data class WorkspaceToolOutcome(
@@ -35,7 +37,7 @@ class WorkspaceToolBackend(
         val operations = environments?.environment(request.sessionId, request.workspace)?.files ?: operationsFor(request.workspace)
         val path = JsonArgs.requireString(request.args, "path")
         val outcome = when (request.tool) {
-            HarnessTool.READ -> read(operations, path, request.args, request.workspace)
+            HarnessTool.READ -> read(operations, path, request.args, request.workspace, request.redactSearchLine)
             HarnessTool.WRITE -> {
                 val content = JsonArgs.requireString(request.args, "content")
                 snapshots.before(request.sessionId, operations, path)
@@ -67,7 +69,14 @@ class WorkspaceToolBackend(
         return outcome
     }
 
-    private suspend fun read(operations: WorkspaceToolOperations, path: String, args: JsonObject, workspace: String): WorkspaceToolOutcome {
+    private suspend fun read(operations: WorkspaceToolOperations, path: String, args: JsonObject, workspace: String, redactSearchLine: (String) -> String): WorkspaceToolOutcome {
+        if ("query" in args) {
+            val query = JsonArgs.requireString(args, "query")
+            require("offset" !in args && "limit" !in args) { "检索 query 不能与读取分页 offset/limit 混用" }
+            val maxResults = JsonArgs.optionalLong(args, "max_results", 50, 1, 100).toInt()
+            return operations.search(path, query, maxResults, redactSearchLine).output(actionName = "search")
+        }
+        require("max_results" !in args) { "max_results 仅适用于 query 检索" }
         val mime = imageMime(path)
         if (mime == null) {
             val offset = args["offset"]?.jsonPrimitive?.content?.trim()?.toIntOrNull()

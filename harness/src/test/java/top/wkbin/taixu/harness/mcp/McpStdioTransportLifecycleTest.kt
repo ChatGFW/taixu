@@ -53,7 +53,7 @@ class McpStdioTransportLifecycleTest {
         val busyId = transport.test_connectionKeys().first()
         transport.test_markConnectionInFlight(busyId, true)
         transport.rewindIdleForTest(McpStdioTransport.IDLE_TIMEOUT_MS + 60_000L)
-        val reaped = transport.sweepIdleOnce(System.currentTimeMillis())
+        val reaped = transport.sweepIdleOnce(transport.clock())
         assertEquals("only the two idle ones should be reaped", 2, reaped)
         assertTrue(transport.test_connectionKeys().contains(busyId))
         transport.test_connectionKeys().forEach { id ->
@@ -69,7 +69,7 @@ class McpStdioTransportLifecycleTest {
         transport.injectConnection(echoServer.copy(id = id), FakeMcpChannel(aliveAfterOpen = true))
         transport.rewindIdleForTest(McpStdioTransport.IDLE_TIMEOUT_MS + 60_000L)
         transport.test_markConnectionActive(id)
-        assertEquals(0, transport.sweepIdleOnce(System.currentTimeMillis()))
+        assertEquals(0, transport.sweepIdleOnce(transport.clock()))
         assertTrue(transport.test_connectionKeys().contains(id))
     }
 
@@ -438,7 +438,7 @@ internal fun McpStdioTransport.injectConnection(server: McpServerConfig, channel
 
 /** Test-only lifecycle probes. Reflection stays out of the production artifact. */
 internal fun McpStdioTransport.rewindIdleForTest(ageMs: Long) {
-    val target = System.currentTimeMillis() - ageMs
+    val target = clock() - ageMs
     reflectedConnections().values.forEach { connection ->
         val field = connection.javaClass.getDeclaredField("lastActivityMs").apply { isAccessible = true }
         field.setLong(connection, target)

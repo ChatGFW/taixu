@@ -111,7 +111,7 @@ fun McpSettingsScreen(
     // 进入设置页时：对齐组件探针（决定哪些能力"还没装"）并探测一次已启用服务的连通性
     LaunchedEffect(Unit) {
         catalogViewModel.refresh()
-        viewModel.refreshMcpConnections()
+        viewModel.refreshMcpConnections(probeSleeping = false)
     }
 
     // 未安装能力的提示只展示一次，避免每次重组都弹
@@ -141,36 +141,7 @@ fun McpSettingsScreen(
         ) {
             item {
                 Spacer(Modifier.height(4.dp))
-                // Banner Card
-                RuntimeCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                RuntimeIcon(RuntimeIconName.Network, Modifier.size(16.dp), MaterialTheme.colorScheme.primary)
-                            }
-                            Text(
-                                "Model Context Protocol (MCP)",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                        Text(
-                            "MCP 是开放的标准模型上下文协议。开启后，太墟将在 PRoot 沙箱内启动对应的 Stdio 服务或连接本地 SSE 端点，并动态向智枢 Agent 注入专业工具能力。",
-                            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                McpClientSettingsSection()
             }
 
             item {

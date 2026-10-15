@@ -1,0 +1,61 @@
+name: Architecture baseline ratchet
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test ratchet rules
+        run: python tools/tests/test_architecture_baseline.py
+      - name: Test device benchmark report contracts
+        run: |
+          python tools/tests/test_runtime_benchmark.py
+          bash -n tools/runtime-benchmark-device.sh
+      - name: Check against trusted target commit
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: python tools/check-architecture-baseline.py --base-ref "$BASE_SHA"
+
+  harness-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - name: Offline protocol and output contracts
+        run: |
+          chmod +x gradlew
+          ./gradlew architectureCheck :harness:testDebugUnitTest --no-daemon --console=plain \
+            --tests 'top.wkbin.taixu.harness.SseFixtureReplayTest' \
+            --tests 'top.wkbin.taixu.harness.ProviderStreamCompletionTest' \
+            --tests 'top.wkbin.taixu.harness.effects.*' \
+            --tests 'top.wkbin.taixu.harness.environment.HarnessCommandOutputTest' \
+            --tests 'top.wkbin.taixu.harness.WorkspaceTextSearchTest' \
+            --tests 'top.wkbin.taixu.harness.WorkspaceToolBackendTest' \
+            --tests 'top.wkbin.taixu.harness.mcp.*' \
+            --tests 'top.wkbin.taixu.harness.approval.TrustedToolRiskPolicyTest' \
+            --tests 'top.wkbin.taixu.harness.environment.McpMetadataLifecycleTest'
+          ./gradlew :core:datastore:testDebugUnitTest --no-daemon --console=plain \
+            --tests 'top.wkbin.taixu.core.datastore.McpClientPreferencesTest'
+          ./gradlew :app:testDebugUnitTest --no-daemon --console=plain \
+            --tests 'top.wkbin.taixu.di.*'
