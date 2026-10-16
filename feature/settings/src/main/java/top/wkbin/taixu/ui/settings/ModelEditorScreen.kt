@@ -164,7 +164,7 @@ fun ModelEditorScreen(
         },
     ) { padding ->
         ModelEditorContent(
-            modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+            modifier = top.wkbin.taixu.ui.components.runtimeScrollViewport(padding), bottomPadding = padding.calculateBottomPadding(),
             modelId = modelId,
             existing = existing,
             initialApiKey = initialApiKey,
@@ -232,7 +232,7 @@ fun ModelEditorScreen(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ModelEditorContent(
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier, bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     modelId: String?,
     existing: AiModelEntity?,
     initialApiKey: String = "",
@@ -482,7 +482,7 @@ private fun ModelEditorContent(
 
     LazyColumn(
         modifier = modifier.fillMaxSize().imePadding(),
-        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp),
+        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp + bottomPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // The preset card is one selection target, leaving the full name room to wrap.

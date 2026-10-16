@@ -782,7 +782,7 @@ class ChatViewModel(
         description = skill.description,
         category = context.getString(R.string.chat_skill_category),
         type = MentionType.SKILL,
-        icon = RuntimeIconName.Brain,
+        icon = RuntimeIconName.BookOpen,
     )
 
     private fun mcpToMentionItem(
@@ -794,7 +794,7 @@ class ChatViewModel(
         description = description,
         category = context.getString(R.string.chat_mcp_category),
         type = MentionType.MCP_SERVER,
-        icon = RuntimeIconName.Cpu,
+        icon = RuntimeIconName.Extension,
     )
 
     /** @ 艾特唤醒建议列表（当输入包含 @ 时实时过滤技能与 MCP 插件）。 */

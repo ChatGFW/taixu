@@ -22,10 +22,10 @@ internal fun PersonalizationScaffold(title: String, onBack: () -> Unit, content:
 
 @Composable
 internal fun PersonalizationSection(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             title,
-            modifier = Modifier.padding(start = 16.dp, bottom = 9.dp),
+            modifier = Modifier.padding(start = 20.dp, bottom = 12.dp),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -42,13 +42,15 @@ internal fun PreferenceSurface(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val outer = MaterialTheme.shapes.extraLarge
+    val inner = MaterialTheme.shapes.extraSmall
     RuntimeCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(
-            topStart = if (first) 28.dp else 4.dp,
-            topEnd = if (first) 28.dp else 4.dp,
-            bottomStart = if (last) 28.dp else 4.dp,
-            bottomEnd = if (last) 28.dp else 4.dp,
+            topStart = if (first) outer.topStart else inner.topStart,
+            topEnd = if (first) outer.topEnd else inner.topEnd,
+            bottomStart = if (last) outer.bottomStart else inner.bottomStart,
+            bottomEnd = if (last) outer.bottomEnd else inner.bottomEnd,
         ),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentPadding = PaddingValues(0.dp),

@@ -34,8 +34,9 @@ fun RuntimeSettingsScaffold(
         snackbarHost = snackbarHost,
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(),
-            contentPadding = runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp),
+            modifier = Modifier.fillMaxSize().then(runtimeScrollViewport(padding)).imePadding(),
+            contentPadding = runtimeScrollContentPadding(padding,
+                runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp)),
             verticalArrangement = Arrangement.spacedBy(itemSpacing),
             content = {
                 if (!statusText.isNullOrBlank()) item("runtime-settings-status") {

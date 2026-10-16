@@ -24,10 +24,11 @@ enum class RuntimeIconName {
     Reverse, PowerSettingsNew, Visibility, VisibilityOff, Sponsor, Mail,
     GitBranch, GitCommit, Alarm,
     Phone, Bookmark, Checklist, StickyNote, History, Hammer, BookOpen,
+    Menu, Sessions, PanelLeftClose, PanelRightOpen, WriteDocument,
 }
 
 /**
- * 统一图标入口：全部走 res/drawable 单轨渲染（Material Symbols Outlined + Lucide + 品牌 Logo），
+ * 统一图标入口：全部走 res/drawable 单轨渲染（Material Symbols Rounded + 品牌 Logo），
  * 单色图标默认跟随内容色 tint，彩色品牌 Logo 保持原色。
  */
 @Composable
@@ -138,6 +139,11 @@ fun RuntimeIcon(
         RuntimeIconName.History -> R.drawable.components_ic_history
         RuntimeIconName.Hammer -> R.drawable.components_ic_hammer
         RuntimeIconName.BookOpen -> R.drawable.components_ic_bookopen
+        RuntimeIconName.Menu -> R.drawable.components_ic_menu
+        RuntimeIconName.Sessions -> R.drawable.components_ic_sessions
+        RuntimeIconName.PanelLeftClose -> R.drawable.components_ic_panel_left_close
+        RuntimeIconName.PanelRightOpen -> R.drawable.components_ic_panel_right_open
+        RuntimeIconName.WriteDocument -> R.drawable.components_ic_write_document
     }
 
     // 彩色品牌 Logo 保持原色；单色图标跟随内容色，可被显式 tint 覆盖

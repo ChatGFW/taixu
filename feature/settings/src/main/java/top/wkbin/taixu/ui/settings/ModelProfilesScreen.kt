@@ -143,7 +143,7 @@ fun ModelProfilesScreen(
         },
     ) { padding ->
         ModelProfilesContent(
-            modifier = Modifier.padding(padding),
+            modifier = top.wkbin.taixu.ui.components.runtimeScrollViewport(padding), bottomPadding = padding.calculateBottomPadding(),
             models = models,
             onCreate = onCreate,
             onEdit = { model -> onEdit(model.id) },
@@ -238,7 +238,7 @@ fun ModelProfilesScreen(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ModelProfilesContent(
-    modifier: Modifier,
+    modifier: Modifier, bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     models: List<AiModelEntity>,
     onCreate: () -> Unit,
     onEdit: (AiModelEntity) -> Unit,
@@ -248,7 +248,7 @@ private fun ModelProfilesContent(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp),
+        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp + bottomPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {

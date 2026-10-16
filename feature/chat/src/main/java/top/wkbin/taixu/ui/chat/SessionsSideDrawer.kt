@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -169,7 +168,7 @@ internal fun SessionsSideDrawer(
 
     Surface(
         modifier = modifier.fillMaxHeight().fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 0.dp,
     ) {
         Column(
@@ -182,8 +181,8 @@ internal fun SessionsSideDrawer(
                     .fillMaxWidth()
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 2.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 if (query.isNotBlank() && partition.projectGroups.isEmpty() && partition.recentSessions.isEmpty()) {
                     Text(stringResource(R.string.chat_drawer_no_matches),
@@ -304,7 +303,7 @@ private fun ProjectSection(
         ) {
             Text(
                 text = stringResource(R.string.chat_drawer_projects),
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
@@ -317,7 +316,7 @@ private fun ProjectSection(
         if (projectGroups.isEmpty()) {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = RoundedCornerShape(8.dp),
+                shape = MaterialTheme.shapes.large,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
@@ -338,7 +337,7 @@ private fun ProjectSection(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(MaterialTheme.shapes.large)
                             .clickable { onToggleExpand(group.workspacePath) }
                             .padding(start = 8.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -347,12 +346,12 @@ private fun ProjectSection(
                         RuntimeIcon(
                             name = if (isExpanded) RuntimeIconName.FolderOpen
                             else RuntimeIconName.Folder,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(24.dp),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                         Text(
                             text = group.projectName,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                            style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
@@ -372,7 +371,7 @@ private fun ProjectSection(
                         ) {
                             RuntimeIcon(
                                 name = RuntimeIconName.Plus,
-                                modifier = Modifier.size(13.dp),
+                                modifier = Modifier.size(24.dp),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                         }
@@ -380,7 +379,7 @@ private fun ProjectSection(
                         RuntimeIcon(
                             name = if (isExpanded) RuntimeIconName.ChevronDown
                             else RuntimeIconName.ChevronRight,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(20.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -391,7 +390,7 @@ private fun ProjectSection(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(start = 12.dp, end = 4.dp, bottom = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             if (group.sessions.isEmpty()) {
                                 Text(
@@ -440,7 +439,7 @@ private fun RecentSection(
         ) {
             Text(
                 text = stringResource(R.string.chat_drawer_recent),
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
@@ -453,7 +452,7 @@ private fun RecentSection(
         if (recentSessions.isEmpty()) {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = RoundedCornerShape(8.dp),
+                shape = MaterialTheme.shapes.large,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
@@ -464,7 +463,7 @@ private fun RecentSection(
                 )
             }
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 recentSessions.forEach { session ->
                     SessionDrawerItem(
                         session = session,
@@ -496,7 +495,7 @@ private fun SessionDrawerItem(
     }
     val timeLabel = formatSessionTime(session.updatedAt)
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = CircleShape,
         color = if (isCurrent) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -505,23 +504,23 @@ private fun SessionDrawerItem(
                 .fillMaxWidth()
                 .clickable(onClick = onSwitch)
                 .semantics { selected = isCurrent }
-                .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (isRunningOrWarning) {
                 Box(Modifier.size(8.dp).clip(CircleShape).background(dotColor))
             } else {
                 RuntimeIcon(
                     name = RuntimeIconName.Chat,
-                    modifier = Modifier.size(16.dp),
-                    tint = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(24.dp),
+                    tint = if (isCurrent) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = session.title,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (isCurrent) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -531,7 +530,7 @@ private fun SessionDrawerItem(
                     Text(
                         text = timeLabel,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -540,10 +539,10 @@ private fun SessionDrawerItem(
             Box {
                 RuntimeIconButton(
                     onClick = { showMenu = true },
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(48.dp),
                     contentDescription = stringResource(R.string.chat_more_controls),
                 ) {
-                    RuntimeIcon(RuntimeIconName.More, Modifier.size(16.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                    RuntimeIcon(RuntimeIconName.More, Modifier.size(24.dp), MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                     DropdownMenuItem(

@@ -64,8 +64,8 @@ fun AppManagementScreen(
         topBar = { RuntimeTopBar("应用管理", onBack, statusText = if (syncing) "正在同步" else "普通读取 · 特权增强") },
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
+            modifier = Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
+            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, PaddingValues(16.dp)),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {

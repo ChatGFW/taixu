@@ -35,6 +35,7 @@ object TerminalPlugin {
                     onBack = request.onBack,
                     project = request.arguments[PROJECT_ARGUMENT].orEmpty(),
                     showBackButton = !request.embedded,
+                    embedded = request.embedded,
                 )
             },
         ),

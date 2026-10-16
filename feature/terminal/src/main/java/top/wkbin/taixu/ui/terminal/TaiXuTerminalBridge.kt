@@ -208,10 +208,16 @@ class TaiXuTerminalBridge(
 
     override fun shouldUseCtrlSpaceWorkaround(): Boolean = false
     override fun isTerminalViewSelected(): Boolean = true
-    override fun copyModeChanged(copyMode: Boolean) = Unit
+    override fun copyModeChanged(copyMode: Boolean) {
+        if (!copyMode) (terminalView?.parent as? TaiXuTerminalHost)?.restoreInputFocus()
+    }
     override fun onKeyDown(keyCode: Int, e: KeyEvent, session: TerminalSession): Boolean = false
     override fun onKeyUp(keyCode: Int, e: KeyEvent): Boolean = false
-    override fun onLongPress(event: MotionEvent): Boolean = false
+    override fun onLongPress(event: MotionEvent): Boolean {
+        val host = terminalView?.parent as? TaiXuTerminalHost ?: return false
+        host.startTextSelection(event)
+        return true
+    }
 
     override fun readControlKey(): Boolean {
         val active = virtualControlActive

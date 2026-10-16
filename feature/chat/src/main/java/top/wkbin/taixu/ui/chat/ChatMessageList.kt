@@ -191,12 +191,12 @@ internal fun ChatMessageList(
             }
             itemsIndexed(renderItems, key = { _, item -> item.stableKey }) { index, item ->
                 val top = when {
-                    item is ChatRenderItem.MessageItem && item.message is UserMessage -> 12.dp
-                    // 思考过程、工具调用卡片、能力事件之间的垂直外边距压至紧凑的 2.5dp
-                    isThinkingOrActionItem(item) && isThinkingOrActionItem(renderItems.getOrNull(index - 1)) -> 2.5.dp
-                    // 思考/工具刚结束紧接的最终回复气泡间距压缩为 4dp
-                    item is ChatRenderItem.MessageItem && item.message is AssistantText && isThinkingOrActionItem(renderItems.getOrNull(index - 1)) -> 4.dp
-                    else -> 8.dp
+                    item is ChatRenderItem.MessageItem && item.message is UserMessage -> 32.dp
+                    // 连续过程项保持分组感，同时为标题与摘要留出呼吸空间。
+                    isThinkingOrActionItem(item) && isThinkingOrActionItem(renderItems.getOrNull(index - 1)) -> 8.dp
+                    // 最终回答与执行过程拉开距离，形成清晰的阅读停顿。
+                    item is ChatRenderItem.MessageItem && item.message is AssistantText && isThinkingOrActionItem(renderItems.getOrNull(index - 1)) -> 24.dp
+                    else -> 16.dp
                 }
                 if (index > 0) Spacer(Modifier.height(top))
                 when (item) {

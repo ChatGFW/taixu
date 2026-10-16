@@ -83,12 +83,12 @@ internal fun WorkflowCatalog(
     onEditSchedule: (WorkflowScheduleEntity) -> Unit = {},
     onToggleSchedule: (String, Boolean) -> Unit = { _, _ -> },
     onDeleteSchedule: (String) -> Unit = {},
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier, bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     var deleteRequested by remember { mutableStateOf<WorkflowDefinition?>(null) }
     LazyColumn(
         modifier = modifier,
-        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp),
+        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp + bottomPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { WorkflowCatalogEntry(onCreate, onImport) }

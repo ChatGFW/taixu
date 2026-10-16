@@ -47,13 +47,13 @@ internal fun ChatWorkspaceBar(
 internal fun ChatWorkbenchControls(
     runMode: RunMode, branch: ConversationBranch?, events: List<HarnessEvent>, running: Boolean,
     onRunMode: () -> Unit, onBranches: () -> Unit, onRuntime: () -> Unit, onTools: () -> Unit,
-    toolchainHighlight: Boolean, onReasoning: (() -> Unit)? = null,
+    toolchainHighlight: Boolean, onReasoning: (() -> Unit)? = null, onFloatingChat: (() -> Unit)? = null,
 ) {
     val rounds = events.count { it is HarnessEvent.ProviderRoundStarted }
     val actions = buildList {
         add(WorkbenchAction(runModeIcon(runMode), stringResource(R.string.chat_menu_run_mode),
             stringResource(if (runMode == RunMode.PLAN) R.string.chat_run_mode_plan else R.string.chat_run_mode_build), onRunMode))
-        add(WorkbenchAction(RuntimeIconName.Hub, stringResource(R.string.chat_branches_title),
+        add(WorkbenchAction(RuntimeIconName.GitBranch, stringResource(R.string.chat_branches_title),
             branch?.name ?: stringResource(R.string.chat_main_line), onBranches))
         add(WorkbenchAction(RuntimeIconName.Logs, stringResource(R.string.chat_runtime_overview),
             if (running) stringResource(R.string.chat_round_number, rounds)
@@ -63,6 +63,8 @@ internal fun ChatWorkbenchControls(
             onTools, highlighted = toolchainHighlight))
         if (onReasoning != null) add(WorkbenchAction(RuntimeIconName.Sparkles,
             stringResource(R.string.chat_reasoning_effort), onClick = onReasoning))
+        if (onFloatingChat != null) add(WorkbenchAction(RuntimeIconName.OpenInNew,
+            stringResource(R.string.chat_workbench_floating_window), onClick = onFloatingChat))
     }
     WorkbenchActionGrid(actions)
 }

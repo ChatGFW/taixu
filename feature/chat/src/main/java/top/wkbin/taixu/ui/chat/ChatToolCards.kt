@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,6 +51,7 @@ import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -100,7 +102,7 @@ internal fun ToolCard(
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
         Column(
             Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (showReasoning) {
                 call.reasoning?.takeIf { it.isNotBlank() }
@@ -112,84 +114,76 @@ internal fun ToolCard(
                         )
                     }
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(6.dp))
-                    .clickable { expanded = !expanded }
-                    .padding(vertical = 1.dp),
+            RuntimeCard(
+                modifier = Modifier.fillMaxWidth(), onClick = { expanded = !expanded },
+                shape = MaterialTheme.shapes.large, contentPadding = PaddingValues(16.dp),
+                containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(),
             ) {
-                Box(
-                    modifier = Modifier.size(16.dp),
-                    contentAlignment = Alignment.Center,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    // 工具语义图标：形状标识工具类别，tint 沿用状态色（运行中/成功/失败/待定）
-                    val iconModifier = if (dotDesc != null) Modifier.semantics { contentDescription = dotDesc } else Modifier
-                    RuntimeIcon(
-                        toolIcon(call.tool),
-                        Modifier.size(13.dp).then(iconModifier),
-                        dotColor,
-                    )
-                }
-                Text(
-                    if (call.tool == HarnessTool.MCP) stringResource(R.string.chat_call_tool) else toolName(call.tool, call.rawToolName),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.5.sp,
-                    ),
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    if (call.tool == HarnessTool.MCP) {
-                        "${toolName(call.tool, call.rawToolName)} · ${toolArgsSummary(call)}"
-                    } else {
-                        toolArgsSummary(call)
-                    },
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                // 代码改动统计徽章 (+N -M)
-                val diffStat = remember(call, result) {
-                    if (call.tool == HarnessTool.WRITE || call.tool == HarnessTool.EDIT) parseDiffStat(call, result) else null
-                }
-                diffStat?.let { (added, deleted) ->
-                    DiffStatBadge(added = added, deleted = deleted)
-                }
-                val durationText = if (result != null) {
-                    formatChatDuration(result.durationMs ?: (result.createdAt - call.createdAt).coerceAtLeast(0L))
-                } else if (running) {
-                    var elapsed by remember(call.id) { mutableStateOf(0L) }
-                    LaunchedEffect(call.id) {
-                        while (true) {
-                            elapsed = (System.currentTimeMillis() - call.createdAt).coerceAtLeast(0L)
-                            // 500ms 刷新足够展示秒级耗时；过密轮询会让长会话持续重组抖动
-                            delay(500)
-                        }
+                    Box(
+                        modifier = Modifier.size(24.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        // 工具语义图标：形状标识工具类别，tint 沿用状态色（运行中/成功/失败/待定）
+                        val iconModifier = if (dotDesc != null) Modifier.semantics { contentDescription = dotDesc } else Modifier
+                        RuntimeIcon(
+                            toolIcon(call.tool),
+                            Modifier.size(24.dp).then(iconModifier),
+                            dotColor,
+                        )
                     }
-                    formatChatDuration(elapsed)
-                } else {
-                    null
-                }
-                durationText?.let {
                     Text(
-                        it,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        fontFamily = FontFamily.Monospace,
+                        if (call.tool == HarnessTool.MCP) stringResource(R.string.chat_call_tool) else toolName(call.tool, call.rawToolName),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    // 代码改动统计徽章 (+N -M)
+                    val diffStat = remember(call, result) {
+                        if (call.tool == HarnessTool.WRITE || call.tool == HarnessTool.EDIT) parseDiffStat(call, result) else null
+                    }
+                    diffStat?.let { (added, deleted) ->
+                        DiffStatBadge(added = added, deleted = deleted)
+                    }
+                    val durationText = if (result != null) {
+                        formatChatDuration(result.durationMs ?: (result.createdAt - call.createdAt).coerceAtLeast(0L))
+                    } else if (running) {
+                        var elapsed by remember(call.id) { mutableStateOf(0L) }
+                        LaunchedEffect(call.id) {
+                            while (true) {
+                                elapsed = (System.currentTimeMillis() - call.createdAt).coerceAtLeast(0L)
+                                // 500ms 刷新足够展示秒级耗时；过密轮询会让长会话持续重组抖动
+                                delay(500)
+                            }
+                        }
+                        formatChatDuration(elapsed)
+                    } else {
+                        null
+                    }
+                    durationText?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontFamily = FontFamily.Monospace,
+                        )
+                    }
+                    RuntimeIcon(
+                        if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
+                        Modifier.size(24.dp),
+                        MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                RuntimeIcon(
-                    if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                    Modifier.size(11.dp),
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                Text(
+                    if (call.tool == HarnessTool.MCP) "${toolName(call.tool, call.rawToolName)} · ${toolArgsSummary(call)}" else toolArgsSummary(call),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp), maxLines = 2, overflow = TextOverflow.Ellipsis,
                 )
             }
 
@@ -202,7 +196,7 @@ internal fun ToolCard(
             if (downloadStatus != null) {
                 Text(
                     downloadStatus,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontFamily = FontFamily.Monospace,
                 )
@@ -238,9 +232,9 @@ internal fun ToolCard(
                 if (result != null && !running) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = onRetry) {
-                            RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(13.dp), MaterialTheme.colorScheme.primary)
+                            RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(24.dp), MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(4.dp))
-                            Text(stringResource(R.string.chat_retry_from_tool), fontSize = 11.5.sp)
+                            Text(stringResource(R.string.chat_retry_from_tool), style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -501,7 +495,7 @@ private fun AskUserOptionChip(
 /** 工具类型 → 语义前缀图标（与思考块的 Brain 图标同一视觉语言）。形状标识工具类别；颜色由调用处以状态色着色。穷尽 HarnessTool，新增工具有编译器兜底。 */
 internal fun toolIcon(tool: HarnessTool): RuntimeIconName = when (tool) {
     HarnessTool.READ -> RuntimeIconName.Document
-    HarnessTool.WRITE -> RuntimeIconName.Save
+    HarnessTool.WRITE -> RuntimeIconName.WriteDocument
     HarnessTool.EDIT -> RuntimeIconName.Edit
     HarnessTool.BASE -> RuntimeIconName.Terminal
     HarnessTool.PROCESS -> RuntimeIconName.Play

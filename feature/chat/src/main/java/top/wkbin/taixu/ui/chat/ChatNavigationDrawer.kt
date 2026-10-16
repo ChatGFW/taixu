@@ -49,7 +49,7 @@ fun ChatNavigationDrawer(
                 selected = selected == target && !pluginActive) { onDismiss(); onNavigate(target) }
             RuntimeNavigationRail(
                 header = listOf(
-                    RuntimeRailItem(stringResource(ComponentsR.string.components_rail_sessions), RuntimeIconName.List, onClick = onOpenSidebar),
+                    RuntimeRailItem(stringResource(ComponentsR.string.components_rail_sessions), RuntimeIconName.Sessions, onClick = onOpenSidebar),
                     RuntimeRailItem(stringResource(ComponentsR.string.components_rail_new_session), RuntimeIconName.Plus) { onDismiss(); onNewSession() },
                 ),
                 items = listOf(

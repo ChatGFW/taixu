@@ -176,12 +176,12 @@ fun WorkflowScreen(
                 onEditSchedule = { scheduleEditor = it },
                 onToggleSchedule = { arg0, arg1 -> viewModel?.toggleSchedule(arg0, arg1) },
                 onDeleteSchedule = { arg0 -> viewModel?.deleteSchedule(arg0) },
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)), bottomPadding = padding.calculateBottomPadding(),
             )
             else -> WorkflowRunView(
                 state = activeState!!,
                 onCancel = { viewModel?.cancel() },
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)), bottomPadding = padding.calculateBottomPadding(),
             )
         }
     }
@@ -242,14 +242,14 @@ fun WorkflowScreen(
 private fun WorkflowRunView(
     state: WorkflowRuntimeState,
     onCancel: () -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier, bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     BoxWithConstraints(modifier) {
         var selectedNode by remember(state.executionId) { mutableStateOf<String?>(null) }
         if (top.wkbin.taixu.ui.components.widthClassOf(maxWidth.value) == top.wkbin.taixu.ui.components.RuntimeWidthClass.Expanded) {
             Row(Modifier.fillMaxSize()) {
                 WorkflowCanvas2D(state.definition, state, Modifier.weight(1f).fillMaxSize(), selectedNodeId = selectedNode, onNodeSelected = { selectedNode = it })
-                Column(Modifier.width(320.dp).verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.width(320.dp).verticalScroll(rememberScrollState()).padding(12.dp).padding(bottom = bottomPadding), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     RunSummary(state)
                     val node = state.definition.nodes.firstOrNull { it.id == selectedNode }
                     if (node == null) Text("点选节点查看日志、错误与产物")
@@ -260,12 +260,12 @@ private fun WorkflowRunView(
                 }
             }
         } else {
-            WorkflowTimelineView(state, Modifier.fillMaxSize())
+            WorkflowTimelineView(state, Modifier.fillMaxSize(), bottomPadding)
         }
         if (state.status in setOf(WorkflowRunStatus.RUNNING, WorkflowRunStatus.WAITING_APPROVAL)) {
             RuntimeOutlinedButton(
                 onClick = onCancel,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = bottomPadding),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
             ) { Text("取消", maxLines = 1) }
         }
@@ -273,8 +273,8 @@ private fun WorkflowRunView(
 }
 
 @Composable
-fun WorkflowTimelineView(state: WorkflowRuntimeState, modifier: Modifier = Modifier) {
-    LazyColumn(modifier, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+fun WorkflowTimelineView(state: WorkflowRuntimeState, modifier: Modifier = Modifier, bottomPadding: androidx.compose.ui.unit.Dp = 0.dp) {
+    LazyColumn(modifier, contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + bottomPadding), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             RunSummary(state)
         }

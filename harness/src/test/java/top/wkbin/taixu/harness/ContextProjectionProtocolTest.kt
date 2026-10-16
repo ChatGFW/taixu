@@ -47,6 +47,25 @@ class ContextProjectionProtocolTest(private val protocol: LlmApi, private val mo
         }
     }
 
+    @Test fun `serialized protocol limit blocks escaped payload before any HTTP request`() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            val model = ModelConfig("test", "custom", "test", server.url("/v1").toString(), null,
+                protocol = if (protocol == LlmApi.ANTHROPIC_MESSAGES) ApiProtocol.ANTHROPIC else ApiProtocol.OPENAI,
+                responseApiEnabled = protocol == LlmApi.OPENAI_RESPONSES, toolCallMode = mode)
+            // JSON control escaping expands one character into six wire bytes.
+            val messages = listOf(ApiMessage("user", "payload:" + "\u0001".repeat(750_000)))
+            assertTrue(ContextWindowPolicy.estimateApiPayloadBytes(messages) < ContextWindowPolicy.REQUEST_BODY_HARD_LIMIT_BYTES)
+            val transport = ProviderTransport(OkHttpClient(), Json { ignoreUnknownKeys = true })
+            repeat(2) { server.enqueue(MockResponse().setResponseCode(400).setBody("unexpected network request")) }
+            val ordinary = runCatching { transport.chat(model, messages) }.exceptionOrNull()
+            val stream = runCatching { transport.chatStream(model, messages, onDelta = {}) }.exceptionOrNull()
+            assertTrue("$ordinary", ordinary is LlmContextOverflowException)
+            assertTrue("$stream", stream is LlmContextOverflowException)
+            assertEquals(0, server.requestCount)
+        }
+    }
+
     private fun reply() = when (protocol) {
         LlmApi.OPENAI_COMPLETIONS -> "data: {\"choices\":[{\"delta\":{\"content\":\"done\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
         LlmApi.OPENAI_RESPONSES -> "data: {\"type\":\"response.output_text.delta\",\"delta\":\"done\"}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n\n"

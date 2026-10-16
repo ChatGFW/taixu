@@ -2,6 +2,17 @@
 
 核验日期：2026-10-16。初始评审基线：工作区源码，HEAD `156942f06d53f29563c4701a019bc113f4c85d4a`；上游引用为核验时的 `main`，不是固定发布版本。下面的差距分析记录实施前的状态；后续落实情况见本节。不调用真实付费模型。
 
+## 当前清单状态（2026-10-17）
+
+| 清单项 | 当前状态与验收边界 |
+| --- | --- |
+| P1 历史分页回读 | 已完成：脱敏后分页，支持读取 48K 后事实，稳定消息 ID 与关联组续读 |
+| P1 搜索 index 契约 | 已完成：活动分支原始消息索引，优先使用 message_id |
+| P1 历史 write/edit 大参数缩减 | 已完成：保留保护窗口与原始历史，三种协议 × 两种工具模式验证最终请求 |
+| P1 压缩后继续任务 | 已完成链路验收：历史分页、有效产物分页、审批批准/拒绝、产物过期/变更/写入失败及 Web 完成事件 |
+| P2 预算与诊断 | 已分阶段落地：背景预算分配、来源/动作/保护原因、序列化体积与发送门禁；历史折叠等仍使用既有分阶段策略，未扩展为全部来源的统一价值排序 |
+| P2 引用与媒体边界 | 已明确并实现核验/失效反馈；继续有界清理，不固定保留活跃会话产物，history_read 不恢复图片载荷 |
+
 ## 首批实施状态
 
 - 已补历史分页：默认 8,000、最大 16,000 UTF-16 字符，offset 从 0 开始；返回稳定消息 ID、total_chars、truncated、next_offset。关联调用与结果按同一文本顺序分页，原文先脱敏再切片。工具管道不再二次折叠有界历史页的长单行。分页针对脱敏后的文本，切换分支或脱敏配置后应重新定位并从头读取。
@@ -34,9 +45,26 @@
 
 验证：harness 全模块 1553 项通过（0 失败/0 错误）；App 端到端 [ContextRecoveryWebEndToEndTest](../app/src/test/java/top/wkbin/taixu/webchat/ContextRecoveryWebEndToEndTest.kt) 2 项通过；`architectureCheck` 本次唯一违规为他方并行改动 [GitScreen.kt](../feature/git/src/main/java/top/wkbin/taixu/ui/git/GitScreen.kt) 超出该文件行数棘轮基线，与本次修复文件无关。修复后"首批实施状态"中"原文先脱敏再切片""关联调用与结果按同一文本顺序分页""返回稳定消息 ID"的承诺成立；未运行全仓库或真机回归。
 
+## 中断恢复后的补齐（2026-10-17）
+
+- **预算决策**：新增纯函数 [ContextBudgetPlanner.kt](../harness/src/main/java/top/wkbin/taixu/harness/ContextBudgetPlanner.kt)，扣除 system、滚动摘要、输出和工具预留后，为当前任务保留空间；失败记忆、从新到旧的召回、插件背景依次分配，背景总额最多占剩余消息预算的四分之一。超额背景整块省略，避免切断来源和低权威包装；不改持久化召回或原始历史。压缩关闭时不启用此背景裁减；压缩后重新分配。历史折叠、媒体和字节兜底继续由既有策略执行，这不是全来源的最优排序器。
+- **保护与体积诊断**：历史参数投影与诊断共用 `HistoryProtectionPolicy`，记录当前轮、最近结果、未应答、待审批、延后审批和失败的保护原因；保护明细最多 32 条，超额计数。报告新增按来源汇总的预算分配、最终序列化字节数及其与消息层估算的差值。差值包含工具定义和协议包装等影响，不是 token 估算误差。
+- **最终请求门禁**：[ProviderRequestBudget.kt](../harness/src/main/java/top/wkbin/taixu/harness/ProviderRequestBudget.kt) 在普通和流式 HTTP 客户端检查序列化请求体，超过 4 MiB 抛出上下文溢出异常，沿已有有界恢复路径处理；无法确定体积时拒绝发送。三种协议 × 两种工具模式验证 JSON 转义膨胀请求在网络发送前被拒绝。此上限不代表服务端 token 窗口或所有网关都会接受请求。
+- **引用生命周期**：继续采用既有 7 天、64 MiB、256 文件清理策略，不为活跃会话无限保留。`history_read` 从既有产物元数据返回路径、SHA-256、字节数和完整性，并标为 UNVERIFIED。`read(expected_sha256=...)` 在当前执行环境读取前后核验指纹，分别返回 VERIFIED / CHANGED / UNAVAILABLE；变更或无法核验时不交付读取正文，不回退宿主同名文件，也不自动重放旧操作。前后核验不是文件锁或原子快照，VERIFIED 也不表示原始命令输出完整。
+- **媒体边界**：历史用户图片和工具图片明确标为 NOT_RESTORED，不返回内联图片或私有 URI；文本回读不恢复视觉证据。需要原图时须重新提供，或在原文件仍可访问时由当前环境重新读取。
+- **异常链路**：Web 端到端用例增加真实产物过期清理与真实目录写入失败，均经过压缩、历史检索回读和 SSE completed；断言报告证据缺失、不编造尾部事实、不重放历史读取、不执行后续副作用。
+- **恢复时修复**：端到端测试使用 `/workspace/<测试目录名>` 绑定会话，物理目录只用于准备产物，避免把 Windows 盘符路径当成沙箱路径；失败断言附带 Harness 的会话错误。补充组装器集成测试，验证超额召回只在请求投影中省略、持久化文本与召回不变；补充不支持指纹的后端不执行未核验读取的测试。
+- **继续复查补验**：新增有效产物与版本变更两条 Web 端到端用例。有效产物的事实位于 48K 后，模型从历史引用取得路径/哈希，以 offset=1/201/401/601/801 连续核验读取 5 页后找回事实，再经审批完成且动作只执行一次。版本变更返回 CHANGED，替换正文不进入历史工具结果，最终报告证据缺失且无后续副作用；两者均不重放原始 `read(report.log)`。
+
+验证（2026-10-17）：`architectureCheck` 36 个模块通过；Harness 全模块共 1568 项，1567 通过、1 跳过、0 失败/错误（Windows 缺少创建符号链接权限，跳过既有链接越界用例）；App Web 端到端 4 项与 DI 6 项全部通过；`git diff --check` 通过。最终命令为 `architectureCheck :harness:testDebugUnitTest :app:testDebugUnitTest --tests '*ContextRecoveryWebEndToEndTest' --tests 'top.wkbin.taixu.di.*' --offline --console=plain`，结果 `BUILD SUCCESSFUL`。补充的组装器/产物核验定向 30 项也通过。测试仅用假 Provider、本地服务及离线依赖，无真实付费模型调用；未运行全仓库或真机回归，未打包 APK。
+
+本节为当前实现状态；前面的首批/后续实施与下面的“确认缺口”保留为实施前评审记录。
+
+继续复查验证（2026-10-17）：`architectureCheck`、Harness 组装器/产物核验定向 30 项与扩展后的 Web 端到端 6 项全部通过（0 失败/错误），`BUILD SUCCESSFUL`；本轮仅新增链路测试与清单状态说明，未重复 Harness 全模块或真机回归。
+
 ## 结论
 
-太墟已经具备“输出外置 → 老结果缩减 → 历史摘要 → 溢出恢复”的分层链路，以及技能按需加载、独立子任务与原文检索。应优先修补回读闭环和历史大参数治理，再逐步统一预算决策与诊断；无需为借鉴 deepagents 引入 Python/LangGraph 依赖或重写 Agent 循环。
+太墟已经具备“输出外置 → 老结果缩减 → 历史摘要 → 溢出恢复”的分层链路，以及技能按需加载、独立子任务与原文检索。历史分页与大参数治理已落地，本轮补充背景预算分配、保护原因诊断、最终请求体积门禁与引用失效反馈。媒体恢复目前明确限定为文本回读，产物保留仍受既有清理上限约束；无需为借鉴 deepagents 引入 Python/LangGraph 依赖或重写 Agent 循环。
 
 ## 上游依据
 
@@ -56,8 +84,8 @@
 | 原文保留与并发保护 | [CompactionManager.kt](../harness/src/main/java/top/wkbin/taixu/harness/compaction/CompactionManager.kt)、[SessionProjection.kt](../harness/core/src/main/java/top/wkbin/taixu/harness/core/SessionProjection.kt) | 已有；不可变压缩条目、锁内前缀对账和水位线恢复 |
 | 结构化滚动摘要 | [CompactionSummarizer.kt](../harness/src/main/java/top/wkbin/taixu/harness/compaction/CompactionSummarizer.kt) | 已有；目标、约束、进度、决策、下一步及文件足迹；LLM 失败可机械回退 |
 | 技能渐进加载与稳定前缀 | [SystemPromptBuilder.kt](../harness/src/main/java/top/wkbin/taixu/harness/prompt/SystemPromptBuilder.kt)、ApiContextAssembler | 已有；技能目录与 `load_skill` 分离，动态召回按用户轮持久化 |
-| Token 与字节预算、溢出恢复 | ContextWindowPolicy、[ProviderContextRecovery.kt](../harness/src/main/java/top/wkbin/taixu/harness/ProviderContextRecovery.kt) | 已有；多阶段兜底不等于对最终协议请求体大小作严格保证 |
-| 请求诊断 | [CONTEXT_DIAGNOSTICS.md](CONTEXT_DIAGNOSTICS.md) | 已有最终请求预览与字段差异；注入来源、缩减原因尚无独立追踪 |
+| Token 与字节预算、溢出恢复 | ContextWindowPolicy、[ProviderContextRecovery.kt](../harness/src/main/java/top/wkbin/taixu/harness/ProviderContextRecovery.kt)、ProviderRequestBudget | 已有多阶段估算与恢复；本轮增加内置协议序列化体积的发送前 4 MiB 门禁 |
+| 请求诊断 | [CONTEXT_DIAGNOSTICS.md](CONTEXT_DIAGNOSTICS.md) | 已有最终请求预览、字段差异及有界来源/治理动作/保护原因/预算分配追踪；详见后续实施与中断恢复后的补齐 |
 
 ## 优先改进项
 

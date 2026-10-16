@@ -3,6 +3,7 @@ package top.wkbin.taixu.ui.chat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeCard
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -57,9 +59,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -207,7 +207,7 @@ internal fun UserBubble(
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.chat_create_branch)) },
-                leadingIcon = { RuntimeIcon(RuntimeIconName.Hub, Modifier.size(16.dp)) },
+                leadingIcon = { RuntimeIcon(RuntimeIconName.GitBranch, Modifier.size(16.dp)) },
                 onClick = {
                     showMenu = false
                     onCreateBranch()
@@ -502,7 +502,7 @@ internal fun AssistantBubble(
         // Spacer 压成 0 宽并把「重新生成/分支/复制」挤出气泡右缘，功能点不到。
         if (!live && message.text.isNotBlank()) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -548,20 +548,20 @@ internal fun AssistantBubble(
                 Spacer(Modifier.weight(1f))
 
                 if (showRegenerate) {
-                    IconButton(onClick = onRegenerate, modifier = Modifier.size(26.dp), contentDescription = stringResource(R.string.chat_regenerate)) {
-                        RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                    IconButton(onClick = onRegenerate, modifier = Modifier.size(48.dp), contentDescription = stringResource(R.string.chat_regenerate)) {
+                        RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
 
-                IconButton(onClick = onCreateBranch, modifier = Modifier.size(26.dp), contentDescription = stringResource(R.string.chat_branch_from_here)) {
-                    RuntimeIcon(RuntimeIconName.Hub, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                IconButton(onClick = onCreateBranch, modifier = Modifier.size(48.dp), contentDescription = stringResource(R.string.chat_branch_from_here)) {
+                    RuntimeIcon(RuntimeIconName.GitBranch, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 // 复制按钮
-                IconButton(onClick = copyAll, modifier = Modifier.size(24.dp), contentDescription = stringResource(R.string.chat_copy)) {
+                IconButton(onClick = copyAll, modifier = Modifier.size(48.dp), contentDescription = stringResource(R.string.chat_copy)) {
                     RuntimeIcon(
                         RuntimeIconName.Copy,
-                        Modifier.size(13.dp),
+                        Modifier.size(24.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -802,37 +802,34 @@ internal fun ThinkingBlock(
         Toast.makeText(context, context.getString(R.string.chat_reasoning_copied), Toast.LENGTH_SHORT).show()
     }
 
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                expanded = !expanded
-            },
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+    RuntimeCard(
+        modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large,
+        containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(
+            if (live) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+        ), contentPadding = PaddingValues(16.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 1.dp),
+                .fillMaxWidth().heightIn(min = 48.dp).clip(MaterialTheme.shapes.medium)
+                .clickable { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); expanded = !expanded },
         ) {
             Box(
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(24.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 if (live) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(12.dp),
+                        modifier = Modifier.size(24.dp),
                         strokeWidth = 1.5.dp,
                         color = MaterialTheme.colorScheme.primary,
                     )
                 } else {
                     RuntimeIcon(
                         RuntimeIconName.Brain,
-                        modifier = Modifier.size(13.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -844,14 +841,10 @@ internal fun ThinkingBlock(
                         stringResource(R.string.chat_reasoning_duration, "%.1f".format(durationMs / 1000.0))
                     else -> stringResource(R.string.chat_reasoning_process)
                 },
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Medium,
-                ),
-                color = if (live) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                color = if (live) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
             )
-
-            Spacer(Modifier.weight(1f))
 
             if (expanded) {
                 if (!live) {
@@ -884,21 +877,21 @@ internal fun ThinkingBlock(
                                 }
                             }
                         },
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(48.dp),
                         contentDescription = if (showTranslation) "查看英文原文" else "离线翻译思考",
                     ) {
                         if (isTranslating) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(11.dp),
+                                modifier = Modifier.size(24.dp),
                                 strokeWidth = 1.5.dp,
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         } else {
                             RuntimeIcon(
                                 RuntimeIconName.Globe,
-                                Modifier.size(11.dp),
+                                Modifier.size(24.dp),
                                 tint = if (showTranslation) MaterialTheme.colorScheme.primary
-                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                       else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -906,21 +899,21 @@ internal fun ThinkingBlock(
 
                 IconButton(
                     onClick = copyToClipboard,
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(48.dp),
                     contentDescription = stringResource(R.string.chat_copy_reasoning),
                 ) {
                     RuntimeIcon(
                         RuntimeIconName.Copy,
-                        Modifier.size(11.dp),
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        Modifier.size(24.dp),
+                        MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
             RuntimeIcon(
                 if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                Modifier.size(11.dp),
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                Modifier.size(24.dp),
+                MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -932,17 +925,7 @@ internal fun ThinkingBlock(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .drawBehind {
-                        // 左侧极简灰色强调线，对齐上方 16dp 容器的水平中轴 (x = 8dp)
-                        val lineX = 8.dp.toPx()
-                        drawLine(
-                            color = Color(0xFF6B7280).copy(alpha = 0.35f),
-                            start = Offset(lineX, 0f),
-                            end = Offset(lineX, size.height),
-                            strokeWidth = 1.5.dp.toPx(),
-                        )
-                    }
-                    .padding(start = 22.dp, top = 1.dp, bottom = 2.dp),
+                    .padding(top = 12.dp, bottom = 4.dp),
             ) {
                 if (showTranslation && translatedText != null) {
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -953,15 +936,12 @@ internal fun ThinkingBlock(
                         ) {
                             RuntimeIcon(
                                 RuntimeIconName.Globe,
-                                Modifier.size(11.dp),
+                                Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                             Text(
                                 text = "中文译文 (ML Kit 离线生成)",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Medium,
-                                ),
+                                style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         }
@@ -977,14 +957,13 @@ internal fun ThinkingBlock(
                         modifier = Modifier.padding(vertical = 4.dp),
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(24.dp),
                             strokeWidth = 1.5.dp,
                             color = MaterialTheme.colorScheme.primary,
                         )
                         Text(
                             text = "正在离线翻译思考内容...",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 11.5.sp,
+                            style = MaterialTheme.typography.bodyMedium.copy(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             ),
                         )
@@ -995,10 +974,8 @@ internal fun ThinkingBlock(
                             Text(
                                 text = reasoning,
                                 modifier = Modifier.fillMaxWidth(),
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontSize = 12.sp,
-                                    lineHeight = 17.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 ),
                             )
                         }
@@ -1167,7 +1144,7 @@ internal fun CapabilityEventCard(event: CapabilityEvent) {
             contentAlignment = Alignment.Center,
         ) {
             RuntimeIcon(
-                if (isSkill) RuntimeIconName.Brain else RuntimeIconName.Cpu,
+                if (isSkill) RuntimeIconName.BookOpen else RuntimeIconName.Extension,
                 Modifier.size(13.dp),
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
             )

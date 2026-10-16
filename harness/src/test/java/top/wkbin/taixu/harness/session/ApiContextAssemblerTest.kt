@@ -374,6 +374,26 @@ class ApiContextAssemblerTest {
 
     // ---------- 用户轮记忆召回后缀（prefix cache 稳定性） ----------
 
+    @Test fun `background allocation omits oversized recall without changing durable history`() = runBlocking {
+        val session = "budget-recall"
+        val text = "current task"
+        val recall = "<recalled_memory>" + "background evidence ".repeat(20_000) + "</recalled_memory>"
+        push(session, UserMessage("budget-user", 1, text))
+        assertTrue(store.appendRecallBlock(session, "budget-user", recall))
+        for (mode in listOf(ToolCallMode.NATIVE, ToolCallMode.JSON_TEXT)) {
+            val trace = top.wkbin.taixu.harness.diagnostics.ContextGovernanceTrace()
+            val messages = assembler.assemble(session, nativeModel(tokens = 32_000).copy(toolCallMode = mode),
+                "/ws", trace = trace)
+            assertEquals(text, messages.last { it.role == "user" }.content)
+            val allocation = trace.report().allocations.single { it.kind == "recall" }
+            assertTrue(allocation.beforeTokens > 0)
+            assertEquals(0, allocation.allocatedTokens)
+            assertEquals("BACKGROUND_BUDGET", allocation.reason)
+            assertEquals(recall, compactionManager.project(session).recallBlocks["budget-user"])
+            assertEquals(text, compactionManager.project(session).messages.filterIsInstance<UserMessage>().single().text)
+        }
+    }
+
     private suspend fun saveProjectMemory(sessionId: String, keyword: String) {
         agentContextRepository.saveMemory(
             AgentMemoryEntity(

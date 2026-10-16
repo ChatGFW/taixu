@@ -113,8 +113,8 @@ internal fun LocalCcSwitchContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
+                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding))
+                .verticalScroll(rememberScrollState()).padding(bottom = innerPadding.calculateBottomPadding())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -264,7 +264,7 @@ internal fun LocalCcSwitchContent(
             onDismiss = { viewModel?.dismissDialogs() },
             onSelectProvider = { provider -> viewModel?.switchAgentProvider(agent, provider) },
             onImportAndSelect = { model ->
-                viewModel?.importTaiXuModel(model)
+                viewModel?.importTaiXuModel(model, agent.type)
             },
         )
     }
@@ -677,22 +677,16 @@ private fun AgentCard(
                             Text("安装", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
                         }
                     }
-                    agent.hasUpdate -> {
-                        RuntimeButton(
+                    else -> {
+                        RuntimeOutlinedButton(
                             onClick = onUpgrade,
                             enabled = !isOperating,
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         ) {
                             RuntimeIcon(name = RuntimeIconName.ArrowUp, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("升级", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
+                            Text("版本", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
                         }
-                    }
-                    else -> {
-                        StatusBadge(
-                            text = "已就绪",
-                            color = Color(0xFF4CAF50),
-                        )
                     }
                 }
             }
@@ -738,20 +732,10 @@ private fun AgentCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-
-                if (agent.installed && agent.hasUpdate) {
-                    Text(
-                        text = "(最新: ${agent.latestVersion ?: agent.type.defaultLatestVersion})",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                        color = Color(0xFFFF9800),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
             }
 
             // 绑定模型源（轻量点击项，可直接点击切换，取代突兀的一键切源按钮）
-            if (isDaemonRunning) {
+            if (isDaemonRunning && agent.type.serverAppId != null) {
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
@@ -976,7 +960,7 @@ private fun UpgradeVersionDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 InfoRow(label = "当前版本", value = agent.currentVersion ?: "未安装")
-                InfoRow(label = "推荐版本", value = agent.latestVersion ?: agent.type.defaultLatestVersion.ifBlank { "latest" })
+                InfoRow(label = "推荐版本", value = agent.latestVersion ?: "latest")
 
                 OutlinedTextField(
                     value = versionInput,

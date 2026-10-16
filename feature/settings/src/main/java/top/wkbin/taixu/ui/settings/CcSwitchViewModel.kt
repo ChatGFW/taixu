@@ -234,38 +234,37 @@ class CcSwitchViewModel(
         }
         try {
             val isRunning = toolManager.isGatewayRunning(toolId)
-            val statusRes = if (isRunning) ccSwitchClient.getStatus() else Result.failure(IllegalStateException("Daemon not running"))
-            val agentsRes = if (isRunning) ccSwitchClient.getAgents() else Result.failure(IllegalStateException("Daemon not running"))
-            val providersRes = if (isRunning) ccSwitchClient.getProviders() else Result.failure(IllegalStateException("Daemon not running"))
+            val creds = readCcSwitchWebCredentials(linuxRuntime)
+            val statusRes = if (isRunning) ccSwitchClient.getDaemonStatus(creds.first, creds.second) else Result.failure(IllegalStateException("中枢未运行"))
+            val snapshotRes = if (isRunning) ccSwitchClient.getProviderSnapshot(creds.first, creds.second) else Result.failure(IllegalStateException("中枢未运行"))
+            val snapshot = snapshotRes.getOrNull()
             val sandboxMap = inspectSandboxAgents()
 
             val mergedAgents = CcAgentType.entries.map { type ->
-                val fromApi = agentsRes.getOrNull()?.firstOrNull { it.type == type || it.type.id.equals(type.id, ignoreCase = true) }
                 val sandboxVer = sandboxMap[type.defaultExecutable.lowercase()]
-                val isInstalled = sandboxVer != null || (fromApi?.installed == true)
-                val currentVer = sandboxVer ?: fromApi?.currentVersion
-                val latestVer = fromApi?.latestVersion?.takeIf { it.isNotBlank() } ?: type.defaultLatestVersion
-                val providerName = fromApi?.activeProviderName
-                val providerId = fromApi?.activeProviderId
+                val currentProviderId = type.serverAppId?.let { snapshot?.currentProviderByApp?.get(it) }
+                val currentProviderName = currentProviderId?.let { pid ->
+                    snapshot?.providers?.firstOrNull { it.id == pid }?.name
+                }
 
                 CcAgentState(
                     type = type,
-                    installed = isInstalled,
-                    currentVersion = currentVer,
-                    latestVersion = latestVer,
-                    activeProviderId = providerId,
-                    activeProviderName = providerName,
+                    installed = sandboxVer != null,
+                    currentVersion = sandboxVer,
+                    activeProviderId = currentProviderId,
+                    activeProviderName = currentProviderName,
                     isChecking = false,
-                    errorNotice = if (!isInstalled) "not installed or not executable" else null,
-                    description = fromApi?.description ?: type.displayName,
+                    errorNotice = if (sandboxVer == null) "not installed or not executable" else null,
+                    description = type.displayName,
                 )
             }
 
-            val creds = readWebCredentials()
             withContext(Dispatchers.Main.immediate) {
                 if (isRunning) {
+                    val failure = statusRes.exceptionOrNull() ?: snapshotRes.exceptionOrNull()
                     statusRes.onSuccess { _daemonStatus.value = it }
-                    providersRes.onSuccess { _providers.value = it }
+                    snapshotRes.onSuccess { _providers.value = it.providers }
+                    _errorMessage.value = failure?.let { "读取中枢数据失败：${it.message}" }
                 } else {
                     _daemonStatus.value = null
                 }
@@ -277,40 +276,6 @@ class CcSwitchViewModel(
             withContext(Dispatchers.Main.immediate) {
                 _isCheckingEnvironment.value = false
                 _agents.value = _agents.value.map { it.copy(isChecking = false) }
-            }
-        }
-    }
-
-    suspend fun readWebCredentials(): Pair<String, String> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val cmd = """
-                    USER_FILE="${'$'}{HOME:-/root}/.cc-switch/web_username"
-                    PASS_FILE="${'$'}{HOME:-/root}/.cc-switch/web_password"
-                    if [ ! -s "${'$'}USER_FILE" ]; then
-                        mkdir -p "${'$'}{HOME:-/root}/.cc-switch" 2>/dev/null || true
-                        printf 'admin' > "${'$'}USER_FILE" 2>/dev/null || true
-                    fi
-                    if [ ! -s "${'$'}PASS_FILE" ]; then
-                        mkdir -p "${'$'}{HOME:-/root}/.cc-switch" 2>/dev/null || true
-                        printf 'admin123' > "${'$'}PASS_FILE" 2>/dev/null || true
-                    fi
-                    chmod 600 "${'$'}USER_FILE" "${'$'}PASS_FILE" 2>/dev/null || true
-                    cat "${'$'}USER_FILE" 2>/dev/null || echo "admin"
-                    echo "---TAIXU_SPLIT---"
-                    cat "${'$'}PASS_FILE" 2>/dev/null || echo "admin123"
-                """.trimIndent()
-                val res = linuxRuntime.execute(ShellCommand(commandLine = cmd, timeoutMs = 5000L))
-                if (res.isSuccess) {
-                    val parts = res.stdout.split("---TAIXU_SPLIT---")
-                    val username = parts.getOrNull(0)?.trim().orEmpty().ifBlank { "admin" }
-                    val password = parts.getOrNull(1)?.trim().orEmpty().ifBlank { "admin123" }
-                    Pair(username, password)
-                } else {
-                    Pair("admin", "admin123")
-                }
-            } catch (_: Exception) {
-                Pair("admin", "admin123")
             }
         }
     }
@@ -610,11 +575,18 @@ EOF
     }
 
     fun switchAgentProvider(agent: CcAgentState, provider: CcProviderProfile) {
+        val appId = agent.type.serverAppId
+        if (appId == null) {
+            _switchingAgent.value = null
+            _errorMessage.value = "${agent.type.displayName} 当前服务端版本不支持模型源切换"
+            return
+        }
         viewModelScope.launch {
             _switchingAgent.value = null
             _isOperating.value = true
             try {
-                val res = ccSwitchClient.switchAgentProvider(agent.type.id, provider.id)
+                val creds = readCcSwitchWebCredentials(linuxRuntime)
+                val res = ccSwitchClient.switchProvider(appId, provider.id, creds.first, creds.second, creds.third)
                 if (res.isSuccess) {
                     // Update local state optimistic
                     _agents.value = _agents.value.map {
@@ -636,7 +608,12 @@ EOF
         }
     }
 
-    fun importTaiXuModel(model: AiModelEntity) {
+    fun importTaiXuModel(model: AiModelEntity, target: CcAgentType? = null) {
+        val appId = (target ?: CcAgentType.CLAUDE_CODE).serverAppId
+        if (appId == null) {
+            _errorMessage.value = "所选 Agent 当前服务端版本不支持导入模型源"
+            return
+        }
         viewModelScope.launch {
             _isOperating.value = true
             try {
@@ -654,7 +631,8 @@ EOF
                     availableModels = listOf(model.model),
                     isCustom = true,
                 )
-                val saveRes = ccSwitchClient.saveProvider(profile)
+                val creds = readCcSwitchWebCredentials(linuxRuntime)
+                val saveRes = ccSwitchClient.saveProvider(appId, profile, creds.first, creds.second, creds.third)
                 if (saveRes.isSuccess) {
                     _providers.value = _providers.value.filterNot { it.id == profile.id } + profile
                     _successMessage.value = "已从太墟模型库同步：${model.name}"

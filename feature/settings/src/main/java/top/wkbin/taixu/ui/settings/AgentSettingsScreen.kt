@@ -188,8 +188,8 @@ fun AgentSettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp),
+                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
+            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (category == AgentSettingsCategory.EXECUTION) {

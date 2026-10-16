@@ -15,6 +15,7 @@ fun RuntimeDialogSystemBars() {
     val window = (view.parent as? DialogWindowProvider)?.window ?: return
     val light = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 1f).luminance() > 0.5f
     SideEffect {
+        window.isNavigationBarContrastEnforced = false
         WindowCompat.getInsetsController(window, view).apply {
             isAppearanceLightStatusBars = light
             isAppearanceLightNavigationBars = light

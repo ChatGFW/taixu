@@ -218,7 +218,7 @@ fun WorkspaceExplorerScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
         ) {
             // 面包屑导航栏
             BreadcrumbBar(
@@ -268,7 +268,7 @@ fun WorkspaceExplorerScreen(
             } else {
                 Box(Modifier.fillMaxSize()) {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = padding.calculateBottomPadding()),
                     ) {
                         // 如果在子目录，显示返回上一级项
                         if (currentPath.isNotBlank()) {

@@ -24,5 +24,5 @@ if [ -x "/opt/taixu/bin/cc-switch-daemon" ]; then
 elif [ -f "$TOOL_DIR/bin/cc-switch-daemon" ]; then
     /bin/sh "$TOOL_DIR/bin/cc-switch-daemon" --version
 else
-    echo "cc-switch 1.0.0 (ARM64)"
+    echo "cc-switch 1.0.1 (ARM64)"
 fi

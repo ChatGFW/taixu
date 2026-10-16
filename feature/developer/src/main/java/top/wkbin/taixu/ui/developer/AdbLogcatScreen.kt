@@ -97,8 +97,8 @@ fun AdbLogcatScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
+                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding))
+                .verticalScroll(rememberScrollState()).padding(bottom = innerPadding.calculateBottomPadding())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {

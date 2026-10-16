@@ -6,7 +6,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -22,7 +21,6 @@ import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.theme.LocalChatBackgroundActive
-import top.wkbin.taixu.ui.theme.chatBackdropChrome
 import top.wkbin.taixu.ui.theme.chatBackdropSurface
 
 class ChatBackgroundViewModel(preferences: ChatBackgroundPreferences) : ViewModel() {
@@ -43,10 +41,6 @@ internal fun ChatPageSurface(
         Box(modifier) {
             RuntimeChatBackground(normalized, Modifier.matchParentSize())
             content()
-            if (LocalChatBackgroundActive.current) {
-                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                    .windowInsetsBottomHeight(WindowInsets.navigationBars).background(chatBackdropChrome()))
-            }
         }
     }
 }

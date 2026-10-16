@@ -25,6 +25,9 @@ data class ContextStageUsage(val stage: ContextStage, val beforeMessages: Int, v
 @Serializable
 data class ContextContribution(val kind: String, val count: Int, val estimatedTextTokens: Int)
 
+@Serializable
+data class ContextProtection(val source: ContextSource?, val reason: String)
+
 /** Metadata only: never stores message text, parameters, paths, tool outputs or content fingerprints. */
 @Serializable
 data class ContextGovernanceReport(
@@ -36,6 +39,11 @@ data class ContextGovernanceReport(
     val omittedDecisionCount: Int,
     val estimatedFinalMessageTokens: Int,
     val estimatedFinalMessageBytes: Int,
+    val allocations: List<ContextAllocation> = emptyList(),
+    val protections: List<ContextProtection> = emptyList(),
+    val omittedProtectionCount: Int = 0,
+    val serializedBodyBytes: Long? = null,
+    val bodyEstimateDifference: Long? = null,
 )
 
 /** One assembly owns one trace. Reset on reassembly; retries reuse an immutable report for that view. */
@@ -49,6 +57,9 @@ class ContextGovernanceTrace {
     private var omitted = 0
     private var finalTokens = 0
     private var finalBytes = 0
+    private var allocations = emptyList<ContextAllocation>()
+    private val protections = mutableListOf<ContextProtection>()
+    private var omittedProtections = 0
 
     fun begin(projection: SessionContextProjection, budgetTokens: Int, compactionEnabled: Boolean) {
         budget = budgetTokens
@@ -57,11 +68,19 @@ class ContextGovernanceTrace {
             safeId(entry.message.id), safeId(entry.sourceEntryId), entry.sourceSequence, entry.origin.name) }
         stages.clear(); decisions.clear(); contributions.clear()
         omitted = 0; finalTokens = 0; finalBytes = 0
+        allocations = emptyList(); protections.clear(); omittedProtections = 0
+    }
+
+    fun allocations(values: List<ContextAllocation>) {
+        allocations = values.groupBy { it.kind }.map { (kind, group) -> ContextAllocation(kind,
+            group.sumOf { it.beforeTokens }, group.sumOf { it.allocatedTokens },
+            if (group.any { it.reason == "BACKGROUND_BUDGET" }) "BACKGROUND_BUDGET" else group.first().reason) }
     }
 
     fun contribution(kind: String, texts: Collection<String>) {
         // Call sites use fixed source categories; user/plugin labels never become diagnostic metadata.
         require(kind in setOf("system", "summary", "recall", "failure_memory", "plugin_context"))
+        contributions.removeAll { it.kind == kind }
         contributions += ContextContribution(kind, texts.count { it.isNotBlank() }, texts.sumOf(ContextWindowPolicy::estimateTokens))
     }
 
@@ -89,6 +108,15 @@ class ContextGovernanceTrace {
             decision(ContextDecision(stage, ContextAction.MESSAGE_ADDED, ContextSource(safeId(it.id), null, null, null), 0, textTokens(it)))
         }
         stages += ContextStageUsage(stage, before.size, after.size, before.sumOf(::textTokens), after.sumOf(::textTokens), changed)
+        if (stage == ContextStage.HISTORY) {
+            val reasons = HistoryProtectionPolicy.reasons(before)
+            before.filter { it == remaining[it.id] }.forEach { message ->
+                reasons[message.id]?.let { reason ->
+                    if (protections.size < MAX_DECISIONS) protections += ContextProtection(sources[message.id], reason.name)
+                    else omittedProtections++
+                }
+            }
+        }
     }
 
     fun api(before: List<ApiMessage>, after: List<ApiMessage>) {
@@ -104,8 +132,9 @@ class ContextGovernanceTrace {
         finalBytes = ContextWindowPolicy.estimateApiPayloadBytes(messages)
     }
 
-    fun report() = ContextGovernanceReport(budget, enabled, contributions.toList(), stages.toList(),
-        decisions.toList(), omitted, finalTokens, finalBytes)
+    fun report(bodyBytes: Long? = null) = ContextGovernanceReport(budget, enabled, contributions.toList(), stages.toList(),
+        decisions.toList(), omitted, finalTokens, finalBytes, allocations.toList(), protections.toList(), omittedProtections,
+        bodyBytes, bodyBytes?.minus(finalBytes.toLong()))
 
     private fun decision(value: ContextDecision) {
         if (decisions.size < MAX_DECISIONS) decisions += value else omitted++

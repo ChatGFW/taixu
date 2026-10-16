@@ -17,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.database.AiModelEntity
@@ -26,6 +25,7 @@ import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.events.HarnessEvent
 import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.chat.floating.rememberFloatingChatLauncher
 
 /** Conversation and model lead; advanced controls unfold on demand. */
 @Composable
@@ -43,6 +43,7 @@ internal fun ChatTopBar(
     speech: ChatSpeechToggle? = null,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
+    val openFloatingChat = rememberFloatingChatLauncher()
     val model = activeModel?.let { it.model.substringBefore(',').trim().ifBlank { it.name } }
     Column(
         Modifier
@@ -53,25 +54,25 @@ internal fun ChatTopBar(
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             if (!LocalRuntimeWidthClass.current.hasPersistentNavigation) RuntimeIconButton(
                 onClick = onOpenSessions,
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier.size(48.dp),
                 contentDescription = stringResource(R.string.chat_open_session_list),
             ) {
-                RuntimeIcon(RuntimeIconName.List, Modifier.size(22.dp))
+                RuntimeIcon(RuntimeIconName.Menu, Modifier.size(24.dp))
             } else Spacer(Modifier.width(8.dp))
             Column(
-                Modifier.weight(1f).clickable(onClick = onOpenModels).heightIn(min = 48.dp),
+                Modifier.weight(1f).clickable(onClick = onOpenModels).heightIn(min = 56.dp),
                 verticalArrangement = Arrangement.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         text = title.ifBlank { stringResource(R.string.chat_title) },
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                        style = MaterialTheme.typography.titleLarge,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
@@ -83,17 +84,17 @@ internal fun ChatTopBar(
                 }
                 if (model != null) {
                     Text(model,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (companion != null) RuntimeIconButton(
-                onClick = companion.onToggle, modifier = Modifier.size(44.dp),
+                onClick = companion.onToggle, modifier = Modifier.size(48.dp),
                 contentDescription = stringResource(if (companion.open) top.wkbin.taixu.feature.components.R.string.components_companion_collapse
                     else top.wkbin.taixu.feature.components.R.string.components_companion_open),
             ) {
-                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(20.dp),
+                RuntimeIcon(RuntimeIconName.PanelRightOpen, Modifier.size(24.dp),
                     if (companion.open || browserHighlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (speech != null) RuntimeIconButton(
@@ -101,17 +102,17 @@ internal fun ChatTopBar(
                 contentDescription = stringResource(if (speech.enabled) R.string.chat_speech_disable else R.string.chat_speech_enable),
             ) {
                 RuntimeIcon(if (speech.enabled) RuntimeIconName.VolumeOn else RuntimeIconName.VolumeOff,
-                    Modifier.size(22.dp), if (speech.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Modifier.size(24.dp), if (speech.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Box {
                 RuntimeIconButton(
                     onClick = { expanded = true },
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(48.dp),
                     contentDescription = stringResource(R.string.chat_workbench_controls),
                 ) {
                     RuntimeIcon(
-                        RuntimeIconName.Wrench,
-                        Modifier.size(20.dp),
+                        RuntimeIconName.Tune,
+                        Modifier.size(24.dp),
                         if (toolchainHighlight || repositoryHighlight || browserHighlight) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -147,7 +148,7 @@ internal fun ChatTopBar(
                 ChatWorkbenchControls(runMode, currentBranch, runtimeEvents, running,
                     closeThen(onOpenRunModes), closeThen(onOpenBranches),
                     closeThen(onOpenRuntime), closeThen(onOpenToolchain), toolchainHighlight,
-                    onReasoning = onOpenReasoning?.let(closeThen))
+                    onReasoning = onOpenReasoning?.let(closeThen), onFloatingChat = openFloatingChat?.let(closeThen))
             }
         }
     }

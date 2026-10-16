@@ -198,7 +198,7 @@ internal fun LocalToolCenterContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding)),
         ) {
             // Category Filter Bar
             LazyRow(
@@ -224,7 +224,7 @@ internal fun LocalToolCenterContent(
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp),
+                contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(innerPadding, top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp)),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item(key = "tool_catalog_summary") {

@@ -46,6 +46,9 @@ class LlmApiRegistryTest {
         assertEquals(0, clients[1].callTimeoutMillis)
         assertEquals(600_000, clients[1].readTimeoutMillis)
         assertSame(clients[0].connectionPool, clients[1].connectionPool)
-        assertSame(interceptor, clients[1].interceptors.single())
+        clients.forEach { client ->
+            assertSame(interceptor, client.interceptors.first())
+            assertEquals(1, client.interceptors.filterIsInstance<ProviderRequestBudget>().size)
+        }
     }
 }

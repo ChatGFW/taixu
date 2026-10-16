@@ -10,8 +10,8 @@ import urllib.request
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 PLUGIN_DIR = os.path.join(ROOT_DIR, "assets", "plugins", "cc-switch")
 DIST_DIR = os.path.join(ROOT_DIR, "dist", "plugins")
-OUTPUT_PACKAGE = os.path.join(DIST_DIR, "taixu-plugin-cc-switch-v1.0.0-arm64.txplugin")
-EXPECTED_SHA256 = "36fb9d71a370032d1545566364e775c72d984dc7c559402a55d9f77a09448450"
+OUTPUT_PACKAGE = os.path.join(DIST_DIR, "taixu-plugin-cc-switch-v1.0.1-arm64.txplugin")
+EXPECTED_SHA256 = "0e16293cdab1f6a8416a06242deeda41ddd970cbf36e753f05de8ad89d6cd010"
 DOWNLOAD_URL = "https://github.com/Laliet/cc-switch-web/releases/download/v0.21.0/cc-switch-server-linux-aarch64"
 
 def sha256_file(filepath):
@@ -74,7 +74,7 @@ SERVER_BIN="$TOOL_DIR/lib/cc-switch-server"
 for arg in "$@"; do
     case "$arg" in
         --version|-v|-V)
-            echo "cc-switch 1.0.0 (ARM64)"
+            echo "cc-switch 1.0.1 (ARM64)"
             exit 0
             ;;
         --help|-h)
@@ -142,6 +142,19 @@ if [ ! -f "$HOME/.cc-switch/web_password" ]; then
     printf 'admin123' > "$HOME/.cc-switch/web_password" 2>/dev/null || true
 fi
 chmod 600 "$HOME/.cc-switch/web_username" "$HOME/.cc-switch/web_password" 2>/dev/null || true
+
+# Seed a stable CSRF token: the server requires header x-csrf-token on every
+# non-GET request. The token is read from env WEB_CSRF_TOKEN, else from
+# ~/.cc-switch/web_env. Writing it once keeps the token stable across restarts.
+CSRF_FILE="$HOME/.cc-switch/web_env"
+if [ -s "$CSRF_FILE" ] && grep -q '^WEB_CSRF_TOKEN=' "$CSRF_FILE" 2>/dev/null; then
+    WEB_CSRF_TOKEN="$(grep -m1 '^WEB_CSRF_TOKEN=' "$CSRF_FILE" | cut -d= -f2-)"
+else
+    WEB_CSRF_TOKEN="taixu-cc-switch-csrf"
+    mkdir -p "$HOME/.cc-switch" 2>/dev/null || true
+    printf 'WEB_CSRF_TOKEN=%s\\n' "$WEB_CSRF_TOKEN" >> "$CSRF_FILE" 2>/dev/null || true
+fi
+export WEB_CSRF_TOKEN
 
 # Binary fallback resolution
 if [ ! -f "$SERVER_BIN" ]; then
@@ -246,7 +259,7 @@ if [ -x "/opt/taixu/bin/cc-switch-daemon" ]; then
 elif [ -f "$TOOL_DIR/bin/cc-switch-daemon" ]; then
     /bin/sh "$TOOL_DIR/bin/cc-switch-daemon" --version
 else
-    echo "cc-switch 1.0.0 (ARM64)"
+    echo "cc-switch 1.0.1 (ARM64)"
 fi
 """
     with open(os.path.join(scripts_dir, "verify.sh"), "wb") as f:

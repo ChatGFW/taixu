@@ -5,9 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,15 +13,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -39,6 +34,7 @@ import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.runtime.webchat.WebChatServerStatus
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeSwitch
 
@@ -50,53 +46,17 @@ internal fun WebChatControlRow(
 ) {
     val context = LocalContext.current
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    RuntimeCard(
+        modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer, contentPadding = PaddingValues(0.dp),
     ) {
         Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            SettingsRow(RuntimeIconName.Globe,
+                stringResource(R.string.settings_feature_webchat_title),
+                stringResource(if (status.isRunning) R.string.settings_feature_webchat_running else R.string.settings_feature_webchat_idle),
+                tonalIcon = true,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    RuntimeIcon(name = RuntimeIconName.Globe, modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.secondary)
-                }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(1.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_feature_webchat_title),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = stringResource(
-                            if (status.isRunning) R.string.settings_feature_webchat_running else R.string.settings_feature_webchat_idle,
-                        ),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (status.isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                RuntimeSwitch(
-                    checked = status.isRunning,
-                    onCheckedChange = onToggle,
-                )
+                RuntimeSwitch(checked = status.isRunning, onCheckedChange = onToggle)
             }
 
             AnimatedVisibility(
@@ -107,15 +67,15 @@ internal fun WebChatControlRow(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 50.dp, end = 12.dp, bottom = 12.dp),
+                        .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(
                             text = stringResource(R.string.settings_feature_webchat_url_label),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
@@ -133,7 +93,7 @@ internal fun WebChatControlRow(
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(
                             text = stringResource(R.string.settings_feature_webchat_pin_label),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
@@ -156,16 +116,16 @@ internal fun WebChatControlRow(
                             Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(vertical = 8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                     ) {
-                        RuntimeIcon(RuntimeIconName.Copy, Modifier.size(16.dp))
+                        RuntimeIcon(RuntimeIconName.Copy, Modifier.size(20.dp))
                         Spacer(Modifier.size(6.dp))
                         Text(stringResource(R.string.settings_feature_webchat_copy))
                     }
 
                     Text(
                         text = stringResource(R.string.settings_feature_webchat_hint, status.activeConnections),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

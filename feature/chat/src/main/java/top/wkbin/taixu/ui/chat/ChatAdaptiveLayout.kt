@@ -137,7 +137,7 @@ internal fun ChatAdaptiveLayout(
             topBar(openBrowser, browserActivityTick > lastSeenBrowserTick, toggle)
             val innerWidth = screenWidth - 24.dp - ResizeHandleWidth
             Row(
-                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp).windowInsetsPadding(bottomInsets),
+                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
             ) {
                 chatContent(Modifier.weight(1f).fillMaxHeight())
                 if (mode == CompanionMode.Docked && dockedFraction > 0f) {
@@ -146,7 +146,7 @@ internal fun ChatAdaptiveLayout(
                     }
                     companion(
                         Modifier.width(innerWidth * companionRatio * dockedFraction)
-                            .fillMaxHeight().padding(vertical = 4.dp),
+                            .fillMaxHeight().windowInsetsPadding(bottomInsets).padding(vertical = 4.dp),
                     )
                 }
             }

@@ -27,7 +27,7 @@ payload/
 ## 来源 URL 与哈希
 
 - 服务端二进制：`https://github.com/Laliet/cc-switch-web/releases/download/v0.21.0/cc-switch-server-linux-aarch64`
-- 二进制 SHA256：`36fb9d71a370032d1545566364e775c72d984dc7c559402a55d9f77a09448450`
+- 二进制 SHA256：`0e16293cdab1f6a8416a06242deeda41ddd970cbf36e753f05de8ad89d6cd010`
 
 ## 打包成 `.txplugin`
 
@@ -37,5 +37,5 @@ payload/
 python tools/package-cc-switch-plugin.py
 ```
 
-产物将输出至：`dist/plugins/taixu-plugin-cc-switch-v1.0.0-arm64.txplugin`。
+产物将输出至：`dist/plugins/taixu-plugin-cc-switch-v1.0.1-arm64.txplugin`。
 在太墟内通过“插件中心 - 导入本地插件包”选择此文件即可一键导入安装。

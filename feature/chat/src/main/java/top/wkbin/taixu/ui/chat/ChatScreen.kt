@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -813,7 +814,7 @@ private fun ChatPaneContent(
         )
         shareActions?.let { share -> ShareQuickActionsRow(state = share, modifier = Modifier.padding(vertical = 4.dp)) }
 
-        ChatComposer(
+        Column(Modifier.windowInsetsPadding(chatBottomInsets())) { ChatComposer(
             listState = listState,
             running = running,
             initializing = initializing,
@@ -848,11 +849,10 @@ private fun ChatPaneContent(
             onOpenModels = onOpenModels, approvalMode = approvalMode, onOpenApprovalModes = onOpenApprovalModes,
             onUpdateReasoning = onUpdateReasoning,
             contextUsage = contextUsage,
-        )
+        ) }
     }
     }
 }
-
 /** Event-driven workflow actions shown directly above the composer as interactive pills. */
 @Composable
 private fun ProactiveWorkflowBanner(
