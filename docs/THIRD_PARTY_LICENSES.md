@@ -4,6 +4,7 @@
 
 | 组件 | 用途 | 来源/版本 | 许可证与分发备注 |
 |---|---|---|---|
+| Material Symbols Rounded | 全局单色功能图标，300 字重 / 24px 光学尺寸，SVG 转 Android VectorDrawable | [Google 官方仓库](https://github.com/google/material-design-icons)，固定修订 `49d4db35df873165d6bd6ba09b063c7dafbac2f4`；映射与转换见 `tools/sync-material-symbols.py` | Apache-2.0；许可证随 APK 置于 `feature/components/src/main/assets/licenses/material-symbols-LICENSE`，每个矢量资源保留来源与转换说明 |
 | Debian / Ubuntu ARM64 rootfs | Android Linux 用户态系统 | Kotlin 安装流程对齐 `proot-distro 5.10.0` OCI 机制从 Docker/OCI Registry 拉取 | 各发行版及其中的软件包分别遵循各自许可证；不内置 APK，发布前需要提供对应版权与许可证获取地址 |
 | Termux PRoot | Android ARM64 PRoot 启动器 | Termux 主仓库二进制包，版本和 SHA-256 见 `ProotInstaller` | 必须随对应二进制包核对许可证、NOTICE 和源码获取地址；APK 仅携带当前 ARM64 构建 |
 | `libandroid-shmem.so` / `libtalloc.so` | PRoot 动态库依赖 | 与 PRoot 构建匹配的 Termux 包 | 不能只因为文件是 `.so` 就假定可自由再分发；发布前核对上游包的许可证文本 |

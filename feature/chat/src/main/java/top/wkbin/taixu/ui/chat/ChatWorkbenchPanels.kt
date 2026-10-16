@@ -243,7 +243,7 @@ private fun BranchCard(branch: ConversationBranch, enabled: Boolean, onClick: ()
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(34.dp).background(tint.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
-                RuntimeIcon(if (branch.kind == ConversationBranchKind.SUBAGENT) RuntimeIconName.Bot else RuntimeIconName.Hub, Modifier.size(18.dp), tint)
+                RuntimeIcon(if (branch.kind == ConversationBranchKind.SUBAGENT) RuntimeIconName.Bot else RuntimeIconName.GitBranch, Modifier.size(18.dp), tint)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {

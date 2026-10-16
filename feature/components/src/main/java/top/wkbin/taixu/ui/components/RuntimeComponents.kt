@@ -189,7 +189,7 @@ fun RuntimeTopBar(
                         RuntimeIcon(RuntimeIconName.Back, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
                     }
                 } else if (openNavigation != null) RuntimeIconButton(onClick = openNavigation, contentDescription = stringResource(R.string.components_open_navigation)) {
-                    RuntimeIcon(RuntimeIconName.List, Modifier.size(20.dp))
+                    RuntimeIcon(RuntimeIconName.Menu, Modifier.size(24.dp))
                 }
             },
             actions = actions,

@@ -213,7 +213,7 @@ fun QuickPhrasesScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
         ) {
             // 分类筛选胶囊
             Row(
@@ -270,7 +270,7 @@ fun QuickPhrasesScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 96.dp),
+                    contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 96.dp)),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     items(filteredPhrases, key = { it.id }) { phrase ->

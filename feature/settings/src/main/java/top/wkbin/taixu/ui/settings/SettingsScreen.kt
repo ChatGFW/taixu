@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,7 +27,7 @@ import top.wkbin.taixu.ui.components.MainDestination
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.LocalPluginSettingsContent
+import top.wkbin.taixu.ui.components.LocalOpenPluginManager
 
 /**
  * 太墟 · 乾坤配置 (TaiXu Settings & Models)
@@ -44,7 +44,7 @@ fun SettingsScreen(
     onOpenFeatureHub: () -> Unit = {},
     viewModel: SettingsViewModel? = previewOrNull { koinViewModel() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) },
 ) {
-    val pluginSettings = LocalPluginSettingsContent.current
+    val openPluginManager = LocalOpenPluginManager.current
     val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val developer by viewModel?.developerMode?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val themeMode by viewModel?.themeMode?.collectAsStateWithLifecycle() ?: previewStateOf("")
@@ -67,7 +67,7 @@ fun SettingsScreen(
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onOpenSearch,
-                shape = RoundedCornerShape(50),
+                shape = CircleShape,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 contentPadding = PaddingValues(20.dp),
             ) {
@@ -96,13 +96,20 @@ fun SettingsScreen(
                 SettingsCategoryCard(RuntimeIconName.Server, stringResource(R.string.personal_linux_title),
                     stringResource(R.string.settings_nav_linux_summary),
                     "${installedDistros.size} 套系统 · ${effectiveExecutionMode.shortLabel}",
-                    first = false, last = false, onClick = onOpenLinuxEnv)
-                SettingsCategoryCard(RuntimeIconName.Sparkles, "特色功能",
-                    stringResource(R.string.settings_nav_features_summary),
-                    "5 项功能", first = false, last = true, onClick = onOpenFeatureHub)
+                    first = false, last = true, onClick = onOpenLinuxEnv)
             }
         }
-        if (pluginSettings != null) item("plugins") { pluginSettings() }
+        item("features-and-data") {
+            PersonalizationSection(stringResource(R.string.settings_material_features_data)) {
+                SettingsCategoryCard(RuntimeIconName.Sparkles, stringResource(R.string.settings_feature_hub_title),
+                    stringResource(R.string.settings_nav_features_summary),
+                    "5 项功能", first = true, last = false, onClick = onOpenFeatureHub)
+                if (openPluginManager != null) SettingsCategoryCard(RuntimeIconName.Extension,
+                    stringResource(R.string.settings_material_plugins_title), stringResource(R.string.settings_material_plugins_summary),
+                    value = null, first = false, last = false, onClick = openPluginManager)
+                LocalBackupSettingsCard(first = false, last = true)
+            }
+        }
         item("application") {
             PersonalizationSection(stringResource(R.string.personal_application)) {
                 SettingsCategoryCard(RuntimeIconName.Admin, stringResource(R.string.personal_diagnostics_title),
@@ -115,7 +122,6 @@ fun SettingsScreen(
                     first = false, last = true, onClick = onOpenAboutCommunity)
             }
         }
-        item("backup") { LocalBackupSettingsCard() }
     }
 }
 
@@ -124,12 +130,12 @@ private fun SettingsCategoryCard(
     icon: RuntimeIconName,
     title: String,
     subtitle: String,
-    value: String,
+    value: String?,
     first: Boolean = true,
     last: Boolean = true,
     onClick: () -> Unit,
 ) {
     PreferenceSurface(first = first, last = last) {
-        SettingsRow(icon = icon, title = title, subtitle = subtitle, value = value, onClick = onClick)
+        SettingsRow(icon = icon, title = title, subtitle = subtitle, value = value, onClick = onClick, tonalIcon = true)
     }
 }

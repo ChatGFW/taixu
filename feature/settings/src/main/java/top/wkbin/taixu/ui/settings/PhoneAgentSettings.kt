@@ -110,8 +110,8 @@ fun PhoneAgentSettingsScreen(
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding))
+                .verticalScroll(rememberScrollState()).padding(bottom = padding.calculateBottomPadding())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

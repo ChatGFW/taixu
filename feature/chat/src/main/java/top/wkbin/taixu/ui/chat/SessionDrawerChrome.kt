@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.*
 
-/** Compact search and compose actions, with the conversation list as the main surface. */
+/** Roomy search and compose actions above the conversation list. */
 @Composable
 internal fun SessionDrawerSearch(
     query: String,
@@ -31,34 +30,34 @@ internal fun SessionDrawerSearch(
 ) {
     val searchLabel = stringResource(R.string.chat_drawer_search)
     Row(
-        Modifier.fillMaxWidth().padding(start = if (onCollapse != null) 4.dp else 16.dp, end = 8.dp, top = 4.dp, bottom = 8.dp),
+        Modifier.fillMaxWidth().padding(start = if (onCollapse != null) 4.dp else 16.dp, end = 12.dp, top = 16.dp, bottom = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onCollapse != null) {
             RuntimeIconButton(onClick = onCollapse, modifier = Modifier.size(48.dp),
                 contentDescription = stringResource(top.wkbin.taixu.feature.components.R.string.components_collapse_sidebar)) {
-                RuntimeIcon(RuntimeIconName.List, Modifier.size(20.dp))
+                RuntimeIcon(RuntimeIconName.PanelLeftClose, Modifier.size(24.dp))
             }
         }
         RuntimeCard(
             modifier = Modifier.weight(1f),
-            shape = RoundedCornerShape(20.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Search, Modifier.size(16.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                RuntimeIcon(RuntimeIconName.Search, Modifier.size(24.dp), MaterialTheme.colorScheme.onSurfaceVariant)
                 BasicTextField(
                     value = query,
                     onValueChange = onQueryChange,
                     singleLine = true,
                     modifier = Modifier.weight(1f).semantics { contentDescription = searchLabel },
-                    textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     decorationBox = { field ->
                         Box {
                             if (query.isEmpty()) Text(searchLabel,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
                             field()
@@ -69,7 +68,7 @@ internal fun SessionDrawerSearch(
         }
         RuntimeIconButton(onClick = onNew, modifier = Modifier.size(48.dp),
             contentDescription = stringResource(R.string.chat_drawer_new_task)) {
-            RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp))
+            RuntimeIcon(RuntimeIconName.Plus, Modifier.size(24.dp), MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -90,25 +89,25 @@ internal fun SessionDrawerFooter(
             }
         }
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            TaiXuBrandBadge(size = 32.dp)
+            TaiXuBrandBadge(size = 40.dp)
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.chat_title), style = MaterialTheme.typography.titleSmall,
+                Text(stringResource(R.string.chat_title), style = MaterialTheme.typography.titleMedium,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(stringResource(R.string.chat_session_count, totalSessions),
-                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             RuntimeIconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(48.dp),
                 contentDescription = stringResource(R.string.chat_drawer_destinations)) {
-                RuntimeIcon(if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.List, Modifier.size(20.dp))
+                RuntimeIcon(if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.Menu, Modifier.size(24.dp))
             }
             RuntimeIconButton(onClick = onSettings, modifier = Modifier.size(48.dp),
                 contentDescription = stringResource(top.wkbin.taixu.feature.components.R.string.components_drawer_settings)) {
-                RuntimeIcon(RuntimeIconName.Settings, Modifier.size(20.dp))
+                RuntimeIcon(RuntimeIconName.Settings, Modifier.size(24.dp))
             }
         }
     }

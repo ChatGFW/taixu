@@ -1,10 +1,12 @@
 package top.wkbin.taixu.ui.settings
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import android.content.res.Configuration
 import androidx.compose.ui.tooling.preview.Preview
 import top.wkbin.taixu.ui.components.FoldablePreviews
 import top.wkbin.taixu.ui.components.RuntimePreview
+import top.wkbin.taixu.ui.components.LocalOpenPluginManager
 
 @FoldablePreviews
 @Preview(name = "窄屏 · 大字体", widthDp = 360, heightDp = 800, fontScale = 1.3f, locale = "zh")
@@ -12,6 +14,8 @@ import top.wkbin.taixu.ui.components.RuntimePreview
 @Composable
 private fun SettingsScreenPreview() {
     RuntimePreview {
+        CompositionLocalProvider(LocalOpenPluginManager provides {}) {
         SettingsScreen(onNavigate = { _ -> }, onOpenAgentEco = { }, onOpenLinuxEnv = { }, onOpenAppearance = { }, onOpenSystemDev = { }, onOpenAboutCommunity = { })
+        }
     }
 }

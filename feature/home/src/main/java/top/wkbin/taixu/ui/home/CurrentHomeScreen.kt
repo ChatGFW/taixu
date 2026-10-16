@@ -43,7 +43,7 @@ internal fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) ->
             RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) }
         }) },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 16.dp))
+        Column(Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)).verticalScroll(rememberScrollState()).padding(bottom = padding.calculateBottomPadding()).padding(runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 16.dp))
             .padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
             Text("主系统概览", style = MaterialTheme.typography.titleMedium)
             SystemOverviewCard(target?.name ?: "服务器", target?.let { "${it.username}@${it.host}:${it.port}" }.orEmpty(),

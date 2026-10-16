@@ -51,8 +51,8 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
             statusText = target?.name ?: "当前服务器", onBack = { if (path.isNotBlank()) path = path.substringBeforeLast('/', "") else onBack() },
             actions = { RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) } }) },
     ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp, 16.dp, 16.dp,
-            24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)), contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, PaddingValues(16.dp, 16.dp, 16.dp,
+            24.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(20.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -8,21 +8,28 @@ enum class CcAgentType(
     val displayName: String,
     val defaultExecutable: String,
     val category: String = "CLI",
-    val defaultLatestVersion: String = "",
+    /**
+     * cc-switch-web 服务端纳管该 Agent 时使用的 AppType 标识（即 `/api/providers/{app}` 的 `{app}`）。
+     * 为 null 表示当前服务端版本不为该 Agent 暴露模型源纳管接口，界面不再提供切源入口。
+     */
+    val serverAppId: String? = null,
 ) {
-    CLAUDE_CODE("claude-code", "Claude Code", "claude", "CLI", "2.1.267"),
-    CODEX("codex", "Codex", "codex", "CLI", "0.154.0"),
-    GEMINI_CLI("gemini-cli", "Gemini CLI", "gemini", "CLI", "0.59.0"),
-    GROK_BUILD("grok-build", "Grok Build", "grok", "CLI", "1.0.25"),
-    OPENCODE("opencode", "OpenCode", "opencode", "CLI", "1.18.30"),
-    OPENCLAW("openclaw", "OpenClaw", "openclaw", "Agent", "2026.9.3"),
-    HERMES("hermes-agent", "Hermes Agent", "hermes", "Agent", "0.4.0"),
-    PI("pi", "Pi", "pi", "Agent", "0.85.1");
+    CLAUDE_CODE("claude-code", "Claude Code", "claude", "CLI", "claude"),
+    CODEX("codex", "Codex", "codex", "CLI", "codex"),
+    GEMINI_CLI("gemini-cli", "Gemini CLI", "gemini", "CLI", "gemini"),
+    OPENCODE("opencode", "OpenCode", "opencode", "CLI", "opencode"),
+    OPENCLAW("openclaw", "OpenClaw", "openclaw", "Agent", "openclaw"),
+    GROK_BUILD("grok-build", "Grok Build", "grok", "CLI", null),
+    HERMES("hermes-agent", "Hermes Agent", "hermes", "Agent", null),
+    PI("pi", "Pi", "pi", "Agent", null);
 
     companion object {
-        fun fromId(id: String): CcAgentType? = entries.firstOrNull { 
-            it.id.equals(id, ignoreCase = true) || it.name.equals(id, ignoreCase = true) 
+        fun fromId(id: String): CcAgentType? = entries.firstOrNull {
+            it.id.equals(id, ignoreCase = true) || it.name.equals(id, ignoreCase = true)
         }
+
+        /** 服务端支持模型源纳管的 Agent 子集。 */
+        val serverManaged: List<CcAgentType> get() = entries.filter { it.serverAppId != null }
     }
 }
 
@@ -42,10 +49,7 @@ data class CcAgentState(
     val running: Boolean = false,
     val servicePort: Int? = null,
     val webPath: String? = null,
-) {
-    val hasUpdate: Boolean
-        get() = installed && !currentVersion.isNullOrBlank() && !latestVersion.isNullOrBlank() && currentVersion != latestVersion
-}
+)
 
 @Serializable
 data class CcProviderProfile(
@@ -74,7 +78,7 @@ data class CcTokenUsage(
 data class CcSwitchDaemonStatus(
     val running: Boolean = false,
     val port: Int = 19870,
-    val version: String = "1.0.0",
+    val version: String = "",
     val proxyEnabled: Boolean = true,
     val uptimeSeconds: Long = 0,
     val totalTokens: CcTokenUsage = CcTokenUsage(),

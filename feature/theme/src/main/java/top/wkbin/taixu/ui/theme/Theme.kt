@@ -3,6 +3,7 @@ package top.wkbin.taixu.ui.theme
 import top.wkbin.taixu.core.model.ThemePalette
 
 import android.app.Activity
+import android.content.ContextWrapper
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -160,7 +161,9 @@ fun TaiXuTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as? Activity)?.window
+            val window = generateSequence(view.context) { context ->
+                (context as? ContextWrapper)?.baseContext?.takeIf { it !== context }
+            }.filterIsInstance<Activity>().firstOrNull()?.window
             if (window != null) {
                 window.isNavigationBarContrastEnforced = false
                 val insetsController = WindowCompat.getInsetsController(window, view)

@@ -104,8 +104,8 @@ fun PermissionGuideScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding)),
+            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(innerPadding, PaddingValues(horizontal = 16.dp, vertical = 12.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // 1. 顶部当前品牌选择与提示卡片

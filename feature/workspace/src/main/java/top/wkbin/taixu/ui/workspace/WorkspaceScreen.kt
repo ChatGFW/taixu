@@ -198,8 +198,8 @@ internal fun LocalWorkspaceScreen(
             androidx.compose.foundation.lazy.grid.LazyVerticalGrid(columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(340.dp),
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
-                contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 6.dp, bottom = 24.dp),
+                    .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
+                contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 6.dp, bottom = 24.dp)),
                 verticalArrangement = Arrangement.spacedBy(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 fullWidthItem {

@@ -2,6 +2,7 @@ package top.wkbin.taixu.ui.terminal
 
 import android.content.Context
 import android.text.InputType
+import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ViewGroup
@@ -23,7 +24,7 @@ class TaiXuTerminalHost(context: Context) : FrameLayout(context) {
     val terminalView: TerminalView = TerminalView(context, null).apply {
         isFocusable = false
         isFocusableInTouchMode = false
-        // Keep IME on the host; TerminalView only renders / scrolls.
+        // Keep IME on the host except while native text selection needs focus.
         isClickable = true
         overScrollMode = OVER_SCROLL_NEVER
     }
@@ -41,6 +42,24 @@ class TaiXuTerminalHost(context: Context) : FrameLayout(context) {
     }
 
     override fun onCheckIsTextEditor(): Boolean = true
+
+    fun startTextSelection(event: MotionEvent) {
+        if (terminalView.mEmulator == null || terminalView.isSelectingText) return
+        // Termux refuses to show selection handles unless requestFocus() succeeds.
+        descendantFocusability = FOCUS_AFTER_DESCENDANTS
+        terminalView.isFocusable = true
+        terminalView.isFocusableInTouchMode = true
+        terminalView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        terminalView.startTextSelectionMode(event)
+        if (!terminalView.isSelectingText) restoreInputFocus()
+    }
+
+    fun restoreInputFocus() {
+        descendantFocusability = FOCUS_BLOCK_DESCENDANTS
+        terminalView.isFocusableInTouchMode = false
+        terminalView.isFocusable = false
+        requestFocus()
+    }
 
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
         // Char-based type so OEM IMEs keep sending repeated deleteSurroundingText.
@@ -127,7 +146,7 @@ class TaiXuTerminalHost(context: Context) : FrameLayout(context) {
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         // Keep pan/fling/selection on TerminalView; take focus here for IME.
-        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN && !terminalView.isSelectingText) {
             requestFocus()
         }
         return terminalView.dispatchTouchEvent(ev)

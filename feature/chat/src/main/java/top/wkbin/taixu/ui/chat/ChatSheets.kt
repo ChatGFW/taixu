@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -53,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.core.model.McpConnectionState
@@ -99,22 +102,22 @@ internal fun SkillsAndMcpSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.chat_capabilities),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = stringResource(R.string.chat_capabilities_description),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.large,
                 ) {
                     Text(
                         text = stringResource(R.string.chat_capabilities_enabled, activeSkillsCount + activeMcpCount),
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                     )
@@ -126,7 +129,7 @@ internal fun SkillsAndMcpSheet(
                 selectedTabIndex = selectedTab,
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 contentColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clip(RoundedCornerShape(12.dp)),
+                modifier = Modifier.clip(MaterialTheme.shapes.large),
             ) {
                 RuntimeTab(
                     selected = selectedTab == 0,
@@ -134,7 +137,7 @@ internal fun SkillsAndMcpSheet(
                     text = {
                         Text(
                             stringResource(R.string.chat_skills_count, activeSkillsCount, allSkills.size),
-                            style = MaterialTheme.typography.labelMedium.copy(
+                            style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
                             ),
                         )
@@ -146,7 +149,7 @@ internal fun SkillsAndMcpSheet(
                     text = {
                         Text(
                             stringResource(R.string.chat_mcp_count, activeMcpCount, mcpServers.size),
-                            style = MaterialTheme.typography.labelMedium.copy(
+                            style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
                             ),
                         )
@@ -183,53 +186,47 @@ internal fun SkillsAndMcpSheet(
                             items(allSkills.size, key = { allSkills[it].id }) { index ->
                                 val skill = allSkills[index]
                                 val isPinned = skill.id in pinnedMentionIds || skill.name.lowercase() in pinnedMentionIds
-                                Surface(
-                                    color = if (skill.isEnabled) MaterialTheme.colorScheme.surfaceContainerHigh
+                                RuntimeCard(
+                                    containerColor = if (skill.isEnabled) MaterialTheme.colorScheme.surfaceContainerHigh
                                     else MaterialTheme.colorScheme.surfaceContainer,
-                                    shape = RoundedCornerShape(12.dp),
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        1.dp,
-                                        if (skill.isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                                        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                    ),
+                                    shape = MaterialTheme.shapes.large, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
+                                    FlowRow(
+                                        modifier = Modifier.padding(16.dp),
+                                        itemVerticalAlignment = Alignment.CenterVertically, verticalArrangement = Arrangement.spacedBy(12.dp),
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        Column(modifier = Modifier.widthIn(min = 160.dp).weight(1f)) {
+                                            FlowRow(
+                                                itemVerticalAlignment = Alignment.CenterVertically, verticalArrangement = Arrangement.spacedBy(8.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             ) {
                                                 Text(
-                                                    text = skill.name,
-                                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                                    text = skill.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                                    style = MaterialTheme.typography.titleMedium.copy(
                                                         fontWeight = FontWeight.SemiBold,
                                                     ),
                                                     color = MaterialTheme.colorScheme.onSurface,
                                                 )
                                                 Surface(
                                                     color = MaterialTheme.colorScheme.secondaryContainer,
-                                                    shape = RoundedCornerShape(6.dp),
+                                                    shape = MaterialTheme.shapes.small,
                                                 ) {
                                                     Text(
                                                         text = skill.category,
-                                                        style = MaterialTheme.typography.labelSmall.copy(
-                                                            fontSize = 10.sp,
+                                                        style = MaterialTheme.typography.labelMedium.copy(
                                                             fontWeight = FontWeight.Bold,
                                                         ),
                                                         color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                                     )
                                                 }
                                             }
                                             if (skill.description.isNotBlank()) {
                                                 Text(
                                                     text = skill.description,
-                                                    style = MaterialTheme.typography.bodySmall,
+                                                    style = MaterialTheme.typography.bodyMedium,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                     maxLines = 2,
                                                     overflow = TextOverflow.Ellipsis,
@@ -243,24 +240,19 @@ internal fun SkillsAndMcpSheet(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
                                             Surface(
-                                                shape = RoundedCornerShape(8.dp),
+                                                shape = MaterialTheme.shapes.medium,
                                                 color = if (isPinned) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                                border = androidx.compose.foundation.BorderStroke(
-                                                    0.8.dp,
-                                                    if (isPinned) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                                                ),
                                                 modifier = Modifier
                                                     .minimumInteractiveComponentSize()
                                                     .clickable { onTogglePin(skill.id) },
                                             ) {
                                                 Text(
                                                     if (isPinned) stringResource(R.string.chat_pinned_on) else stringResource(R.string.chat_pinned_off),
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontSize = 10.sp,
+                                                    style = MaterialTheme.typography.labelMedium.copy(
                                                         fontWeight = if (isPinned) FontWeight.Bold else FontWeight.Normal,
                                                     ),
-                                                    color = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                    color = if (isPinned) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                                 )
                                             }
 
@@ -303,30 +295,25 @@ internal fun SkillsAndMcpSheet(
                                 val server = mcpServers[index]
                                 val isPinned = server.id in pinnedMentionIds || server.name.lowercase() in pinnedMentionIds
                                 val connState = mcpConnectionStates[server.id] ?: McpConnectionState.UNKNOWN
-                                Surface(
-                                    color = if (server.isEnabled) MaterialTheme.colorScheme.surfaceContainerHigh
+                                RuntimeCard(
+                                    containerColor = if (server.isEnabled) MaterialTheme.colorScheme.surfaceContainerHigh
                                     else MaterialTheme.colorScheme.surfaceContainer,
-                                    shape = RoundedCornerShape(12.dp),
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        1.dp,
-                                        if (server.isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                                        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                    ),
+                                    shape = MaterialTheme.shapes.large, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
+                                    FlowRow(
+                                        modifier = Modifier.padding(16.dp),
+                                        itemVerticalAlignment = Alignment.CenterVertically, verticalArrangement = Arrangement.spacedBy(12.dp),
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        Column(modifier = Modifier.widthIn(min = 160.dp).weight(1f)) {
+                                            FlowRow(
+                                                itemVerticalAlignment = Alignment.CenterVertically, verticalArrangement = Arrangement.spacedBy(8.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             ) {
                                                 Text(
-                                                    text = server.name,
-                                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                                    text = server.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                                    style = MaterialTheme.typography.titleMedium.copy(
                                                         fontWeight = FontWeight.SemiBold,
                                                     ),
                                                     color = MaterialTheme.colorScheme.onSurface,
@@ -356,16 +343,15 @@ internal fun SkillsAndMcpSheet(
                                                 )
                                                 Surface(
                                                     color = MaterialTheme.colorScheme.tertiaryContainer,
-                                                    shape = RoundedCornerShape(6.dp),
+                                                    shape = MaterialTheme.shapes.small,
                                                 ) {
                                                     Text(
                                                         text = server.transportType.name,
-                                                        style = MaterialTheme.typography.labelSmall.copy(
-                                                            fontSize = 10.sp,
+                                                        style = MaterialTheme.typography.labelMedium.copy(
                                                             fontWeight = FontWeight.Bold,
                                                         ),
                                                         color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                                     )
                                                 }
                                             }
@@ -390,24 +376,19 @@ internal fun SkillsAndMcpSheet(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
                                             Surface(
-                                                shape = RoundedCornerShape(8.dp),
+                                                shape = MaterialTheme.shapes.medium,
                                                 color = if (isPinned) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                                border = androidx.compose.foundation.BorderStroke(
-                                                    0.8.dp,
-                                                    if (isPinned) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                                                ),
                                                 modifier = Modifier
                                                     .minimumInteractiveComponentSize()
                                                     .clickable { onTogglePin(server.id) },
                                             ) {
                                                 Text(
                                                     if (isPinned) stringResource(R.string.chat_pinned_on) else stringResource(R.string.chat_pinned_off),
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontSize = 10.sp,
+                                                    style = MaterialTheme.typography.labelMedium.copy(
                                                         fontWeight = if (isPinned) FontWeight.Bold else FontWeight.Normal,
                                                     ),
-                                                    color = if (isPinned) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                    color = if (isPinned) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                                 )
                                             }
 
@@ -431,7 +412,7 @@ internal fun SkillsAndMcpSheet(
             // 底部操作区：直达管理
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.large,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onNavigateToSettings),

@@ -56,7 +56,7 @@ fun StatsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
         ) {
             // 顶部时间范围筛选胶囊
             Row(
@@ -142,7 +142,7 @@ fun StatsScreen(
             if (snapshot != null) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, PaddingValues(horizontal = 16.dp, vertical = 8.dp)),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     // 1. 活跃度打卡热力图

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
@@ -39,12 +39,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import top.wkbin.taixu.feature.chat.R
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.database.AiModelEntity
@@ -194,17 +192,17 @@ internal fun ChatComposer(
         }
     }
     RuntimeCard(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp),
-        shape = RoundedCornerShape(20.dp), contentPadding = PaddingValues(0.dp),
-        containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(),
-        borderColor = if (running) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp),
+        shape = MaterialTheme.shapes.extraLarge, contentPadding = PaddingValues(0.dp),
+        containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(MaterialTheme.colorScheme.surfaceContainer),
+        borderColor = if (running) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+            else Color.Transparent,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // 显式挂载的能力才展示标签；常驻能力从 + 菜单管理。
             val allDisplayItems = remember(pinnedCapabilities, attachedMentions) {
@@ -215,7 +213,7 @@ internal fun ChatComposer(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 2.dp, vertical = 1.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     items(allDisplayItems.size, key = { allDisplayItems[it].id }) { index ->
@@ -223,13 +221,13 @@ internal fun ChatComposer(
                         val isSkill = item.type == MentionType.SKILL
                         val isAttached = attachedMentions.any { it.id == item.id }
                         val isPinned = pinnedCapabilities.any { it.id == item.id }
-                        val tagBg = if (isSkill) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-                                    else MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
-                        val tagColor = if (isSkill) MaterialTheme.colorScheme.primary
-                                       else MaterialTheme.colorScheme.tertiary
+                        val tagBg = if (isSkill) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.tertiaryContainer
+                        val tagColor = if (isSkill) MaterialTheme.colorScheme.onPrimaryContainer
+                                       else MaterialTheme.colorScheme.onTertiaryContainer
 
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = MaterialTheme.shapes.medium,
                             color = tagBg,
                             modifier = Modifier.clickable {
                                 if (isAttached) {
@@ -240,37 +238,37 @@ internal fun ChatComposer(
                             },
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp),
+                                modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 RuntimeIcon(
                                     item.icon,
-                                    Modifier.size(12.dp),
+                                    Modifier.size(18.dp),
                                     tint = tagColor,
                                 )
                                 Text(
                                     item.name,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold),
+                                    style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     color = tagColor,
                                 )
                                 if (isPinned) {
                                     Surface(
                                         color = tagColor.copy(alpha = 0.18f),
-                                        shape = RoundedCornerShape(4.dp),
+                                        shape = MaterialTheme.shapes.extraSmall,
                                     ) {
                                         Text(
                                             stringResource(R.string.chat_pinned_badge),
-                                            modifier = Modifier.padding(horizontal = 3.5.dp, vertical = 0.5.dp),
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.5.sp, fontWeight = FontWeight.Bold),
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall,
                                             color = tagColor,
                                         )
                                     }
                                 }
                                 RuntimeIcon(
                                     RuntimeIconName.Close,
-                                    Modifier.size(10.dp),
-                                    tint = tagColor.copy(alpha = 0.7f),
+                                    Modifier.size(18.dp),
+                                    tint = tagColor,
                                 )
                             }
                         }
@@ -278,24 +276,23 @@ internal fun ChatComposer(
 
                     item {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = MaterialTheme.shapes.medium,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            border = androidx.compose.foundation.BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
                             modifier = Modifier.clickable { onOpenSkillsMcp() },
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp),
+                                modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 RuntimeIcon(
                                     RuntimeIconName.Plus,
-                                    Modifier.size(11.dp),
+                                    Modifier.size(18.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
                                     stringResource(R.string.chat_attach_button),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -308,15 +305,15 @@ internal fun ChatComposer(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 40.dp)
-                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                    .heightIn(min = 56.dp)
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 if (input.isEmpty()) {
                     Text(
                         text = stringResource(if (running) R.string.chat_input_running else R.string.chat_message_placeholder),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
@@ -360,7 +357,7 @@ internal fun ChatComposer(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
                         color = MaterialTheme.colorScheme.onSurface,
                     ),
                     cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
@@ -370,12 +367,12 @@ internal fun ChatComposer(
                 )
             }
 
-            // 🌟 下排操作栏：精简工具集 + 状态与发送控制
-            Row(
+            ToolActivityPill(running, status, messages, toolResults, workspace, onStop, compact = true)
+            FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 1.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                itemVerticalAlignment = Alignment.CenterVertically, verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 ComposerQuickActions(
@@ -385,9 +382,6 @@ internal fun ChatComposer(
                     onPickImage = { imagePickerLauncher.launch("image/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
                 )
-                ToolActivityPill(running, status, messages, toolResults, workspace, onStop,
-                    modifier = Modifier.weight(1f), compact = true)
-
                 // 右侧发送 / 停止控制区（圆形灵动按钮）
                 val canSend = !initializing && (input.isNotBlank() || attachments.isNotEmpty())
                 if (running) {
@@ -415,13 +409,13 @@ internal fun ChatComposer(
                                 color = sendTint,
                                 modifier = Modifier
                                     .minimumInteractiveComponentSize()
-                                    .size(40.dp)
+                                    .size(48.dp)
                                     .semantics { contentDescription = sendDesc },
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     RuntimeIcon(
                                         name = RuntimeIconName.ArrowUp,
-                                        modifier = Modifier.size(16.dp),
+                                        modifier = Modifier.size(24.dp),
                                         tint = sendIconTint,
                                     )
                                 }
@@ -435,13 +429,13 @@ internal fun ChatComposer(
                                 color = MaterialTheme.colorScheme.error,
                                 modifier = Modifier
                                     .minimumInteractiveComponentSize()
-                                    .size(32.dp)
+                                    .size(48.dp)
                                     .semantics { contentDescription = stopDesc },
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     RuntimeIcon(
                                         name = RuntimeIconName.Stop,
-                                        modifier = Modifier.size(14.dp),
+                                        modifier = Modifier.size(24.dp),
                                         tint = MaterialTheme.colorScheme.onError,
                                     )
                                 }
@@ -461,13 +455,13 @@ internal fun ChatComposer(
                             shape = CircleShape,
                             color = if (canSend) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier.minimumInteractiveComponentSize().size(40.dp)
+                            modifier = Modifier.minimumInteractiveComponentSize().size(48.dp)
                                 .semantics { contentDescription = sendDesc },
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 RuntimeIcon(
                                     name = RuntimeIconName.ArrowUp,
-                                    modifier = Modifier.size(16.dp),
+                                    modifier = Modifier.size(24.dp),
                                     tint = if (canSend) MaterialTheme.colorScheme.onPrimary
                                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
                                 )

@@ -3,7 +3,6 @@ package top.wkbin.taixu.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.plugin.api.PluginExtensionRef
 import top.wkbin.taixu.plugin.runtime.PluginController
 import top.wkbin.taixu.plugin.ui.LocalPluginController
@@ -13,9 +12,8 @@ import top.wkbin.taixu.ui.browser.BrowserPluginOwner
 import top.wkbin.taixu.ui.browser.BrowserViewModel
 import top.wkbin.taixu.ui.components.LocalAppNavigation
 import top.wkbin.taixu.ui.components.LocalPluginMenuContent
-import top.wkbin.taixu.ui.components.LocalPluginSettingsContent
+import top.wkbin.taixu.ui.components.LocalOpenPluginManager
 import top.wkbin.taixu.ui.components.LocalRuntimeWidthClass
-import top.wkbin.taixu.feature.navigation.R
 
 @Composable
 internal fun PluginNavigationShell(
@@ -32,9 +30,6 @@ internal fun PluginNavigationShell(
         LocalPluginMenuContent provides {
             PluginEntryLinks(platform.plugins, controller, PluginEntryLocation.MENU, onOpen, selectedPage)
         },
-        LocalPluginSettingsContent provides {
-            top.wkbin.taixu.ui.components.RuntimeNavigationTile(stringResource(R.string.navigation_plugin_manager_title),
-                top.wkbin.taixu.ui.components.RuntimeIconName.Extension, onOpenManager, showChevron = true)
-        },
+        LocalOpenPluginManager provides onOpenManager,
     ) { BrowserPluginOwner(browserViewModel, content) }
 }

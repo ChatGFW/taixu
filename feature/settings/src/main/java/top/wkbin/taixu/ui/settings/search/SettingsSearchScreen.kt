@@ -90,7 +90,7 @@ fun SettingsSearchScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = padding.calculateTopPadding())
+                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding))
                 .imePadding(),
         ) {
             // 搜索输入框
@@ -150,7 +150,7 @@ fun SettingsSearchScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, PaddingValues(horizontal = 16.dp, vertical = 8.dp)),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (searchQuery.isBlank()) {

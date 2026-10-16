@@ -17,12 +17,11 @@ import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.*
 
 @Composable
-internal fun LocalBackupSettingsCard() {
+internal fun LocalBackupSettingsCard(first: Boolean = true, last: Boolean = true) {
     var open by remember { mutableStateOf(false) }
-    RuntimeCard(onClick = { open = true }, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
-        Text(stringResource(R.string.local_backup_title), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.local_backup_subtitle), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+    PreferenceSurface(first = first, last = last) {
+        SettingsRow(RuntimeIconName.Save, stringResource(R.string.local_backup_title),
+            stringResource(R.string.settings_material_backup_summary), onClick = { open = true }, tonalIcon = true)
     }
     if (open) LocalBackupDialog(onDismiss = { open = false })
 }
