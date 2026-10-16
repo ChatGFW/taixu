@@ -67,7 +67,8 @@ internal class ToolRouting(
             )
         }
         val contextMemory: ToolRouteFn = { ctx ->
-            contextMemoryToolBackend.execute(ContextMemoryRequest(ctx.tool, ctx.args, ctx.sessionId))
+            contextMemoryToolBackend.execute(ContextMemoryRequest(ctx.tool, ctx.args, ctx.sessionId,
+                if (ctx.tool == HarnessTool.COMPRESS) { text -> text } else searchRedactor(ctx.sessionId, ctx.workspace)))
         }
         return mapOf(
             HarnessTool.READ to workspace,

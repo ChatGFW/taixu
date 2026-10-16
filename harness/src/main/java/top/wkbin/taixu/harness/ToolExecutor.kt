@@ -96,7 +96,7 @@ class ToolExecutor(
     private val executionBoundary = ToolExecutionBoundary(toolCheckpoints) { request, output ->
         val redacted = top.wkbin.taixu.harness.environment.redactExecutionOutput(output, secretRedactor,
             environments, linuxEnvironmentManager, settingsDataStore, request.sessionId, request.workspace)
-        truncateOutput(redacted, request.call.rawToolName ?: HarnessApiMapper.apiName(request.call.tool),
+        truncateOutput(redacted, if (request.call.tool == HarnessTool.HISTORY_READ) "history_read" else request.call.rawToolName ?: HarnessApiMapper.apiName(request.call.tool),
             request.sessionId, request.workspace,
             if (environments != null) environments.environment(request.sessionId, request.workspace).artifacts
             else if (request.workspace.isNotBlank()) top.wkbin.taixu.harness.environment.LocalExecutionArtifacts(fileAccess.withBase(request.workspace)) else null)
@@ -266,7 +266,7 @@ class ToolExecutor(
             success = success,
             output = truncateOutput(
                 redactedOutput,
-                toolCall.rawToolName ?: HarnessApiMapper.apiName(toolCall.tool),
+                if (toolCall.tool == HarnessTool.HISTORY_READ) "history_read" else toolCall.rawToolName ?: HarnessApiMapper.apiName(toolCall.tool),
                 sessionId, workspace,
                 if (environments != null) environments.environment(sessionId, workspace).artifacts
                 else if (workspace.isNotBlank()) top.wkbin.taixu.harness.environment.LocalExecutionArtifacts(fileAccess.withBase(workspace)) else null,
@@ -295,7 +295,7 @@ class ToolExecutor(
         // Removing controls can join fragments into a secret: redact again BEFORE sampling.
         val archived = if (retention == OutputRetention.TAIL) top.wkbin.taixu.harness.environment.redactExecutionOutput(
             TerminalOutputCompressor.normalize(output), secretRedactor, environments, linuxEnvironmentManager, settingsDataStore, sessionId, workspace) else output
-        val folded = if (retention == OutputRetention.TAIL) TerminalOutputCompressor.compressNormalized(archived) else foldOverlongLines(archived)
+        val folded = if (retention == OutputRetention.TAIL) TerminalOutputCompressor.compressNormalized(archived) else if (toolName == "history_read") archived else foldOverlongLines(archived)
         if (output.length <= MAX_OUTPUT_LENGTH && folded == output) return folded
         if (retention == OutputRetention.HEAD && output.length <= MAX_OUTPUT_LENGTH) return folded
         val spillPath = fileAccess?.let { ToolOutputSpillStore.spill(it, toolName, archived) }

@@ -240,6 +240,36 @@ class SessionMessageProjectorTest {
     }
 
     @Test
+    fun `history read returns the same call-rooted group for call and result anchors`() = runBlocking {
+        store.append("read-related-groups", ToolCall(
+            id = "call",
+            createdAt = 1L,
+            tool = HarnessTool.WRITE,
+            args = buildJsonObject { put("path", "a.txt") },
+        ))
+        store.append("read-related-groups", ToolResult(
+            id = "pending",
+            createdAt = 2L,
+            toolCallId = "call",
+            success = false,
+            output = "等待用户批准",
+            awaitingApproval = true,
+        ))
+        store.append("read-related-groups", ToolResult(
+            id = "result",
+            createdAt = 3L,
+            toolCallId = "call",
+            success = true,
+            output = "ok",
+        ))
+
+        val expected = listOf("call", "pending", "result")
+        assertEquals(expected, store.readWithRelated("read-related-groups", messageId = "call").map { it.id })
+        assertEquals(expected, store.readWithRelated("read-related-groups", messageId = "pending").map { it.id })
+        assertEquals(expected, store.readWithRelated("read-related-groups", messageId = "result").map { it.id })
+    }
+
+    @Test
     fun `invalid queued prompt is removed when listed or consumed`() = runBlocking {
         val repository = RoomHarnessRuntimeRepository(database.harnessRuntimeDao())
         val queue = PromptQueueManager(repository, Json, store)

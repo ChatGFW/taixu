@@ -20,6 +20,8 @@ import top.wkbin.taixu.harness.compaction.SummaryRequestContext
 import top.wkbin.taixu.harness.prompt.MemoryRecallSelector
 import top.wkbin.taixu.harness.prompt.SystemPromptBuilder
 import top.wkbin.taixu.harness.operation.OperationCoordinator
+import top.wkbin.taixu.harness.diagnostics.ContextGovernanceTrace
+import top.wkbin.taixu.harness.diagnostics.ContextStage
 
 /**
  * API 请求上下文组装器：把会话实时消息投影成提供商协议消息列表。
@@ -54,6 +56,7 @@ class ApiContextAssembler(
         projectTypeOverride: String = "",
         thinkingMode: Boolean = false,
         sessionRunMode: String? = null,
+        trace: ContextGovernanceTrace? = null,
     ): List<ApiMessage> {
         val compactionEnabled = runCatching { settingsDataStore.contextCompactionEnabled.first() }.getOrDefault(true)
         // 「历史折叠线比例」：让历史在预算的一部分处就开始折叠。
@@ -74,7 +77,9 @@ class ApiContextAssembler(
             toolDisabled = toolCallMode == ToolCallMode.DISABLED,
         )
 
-        var compactedContext = compactionManager.project(sessId)
+        val inspected = compactionManager.inspect(sessId)
+        trace?.begin(inspected, budgetTokens, compactionEnabled)
+        var compactedContext = inspected.context()
         var msgs = compactedContext.messages
 
         // 用户轮前缀块（低权威背景资料：记忆召回 + 任务计划看板）：只对最新用户轮计算一次并
@@ -138,20 +143,24 @@ class ApiContextAssembler(
         // 召回后缀的 token 计入预算占用：它们会随 user 消息进入 provider 请求
         val recallTokens = ContextWindowPolicy.estimateTokens(compactedContext.recallBlocks.values.joinToString("\n")) +
             ContextWindowPolicy.estimateTokens(failureMemory) + ContextWindowPolicy.estimateTokens(pluginContext)
+        trace?.contribution("system", listOf(systemPrompt))
+        trace?.contribution("recall", compactedContext.recallBlocks.values)
+        trace?.contribution("failure_memory", listOf(failureMemory))
+        trace?.contribution("plugin_context", listOf(pluginContext))
 
         return buildList {
             if (systemPrompt.isNotEmpty()) {
                 add(ApiMessage(role = "system", content = systemPrompt))
             }
 
-            // 老轮次工具结果截断（先于压缩判定）：预算线未越过时，历史轮的大输出（浏览器快照、
+            // 老轮次工具结果与写入参数缩减（先于压缩判定）：预算线未越过时，大输出（浏览器快照、
             // 长 read）仍会原样重复发送。最近若干条原样保留，更老的超过按工具阈值即压缩并附
             // history_read 指针——只影响发给 Provider 的正文，落库 transcript 与 UI 不变。
             // 关闭上下文压缩 = 用户要原始历史，此时同样不截断。
             // 顺序必须在压缩判定之前：只需截断即可回到预算线内的会话，不应再触发整段压缩
             // （一次额外 LLM 调用 + 历史永久降级为摘要）。
             if (compactionEnabled) {
-                msgs = ContextWindowPolicy.truncateStaleToolResults(msgs, toolCallDetailsOf(msgs))
+                msgs = ContextWindowPolicy.projectForUsage(msgs, compactionEnabled = true).also { trace?.messages(ContextStage.HISTORY, msgs, it) }
             }
 
             // 预算驱动的滑动窗口：从最近一轮往回累加 token，超出预算则更早的历史进入压缩态。
@@ -190,12 +199,12 @@ class ApiContextAssembler(
                         // 被折叠区域的 provider 可见形态：截断已发生过，与主对话实际发送的字节一致
                         replayPrefix = msgs.take(computedKeepFromIndex),
                     ),
-                )
+                ).also { trace?.messages(ContextStage.COMPACTION, msgs, it.messages) }
                 msgs = compactedContext.messages
                 // compact 返回的保留窗口来自原始 transcript（未截断），重放一次截断，
                 // 保证与压缩判定时同一口径。
                 if (compactionEnabled) {
-                    msgs = ContextWindowPolicy.truncateStaleToolResults(msgs, toolCallDetailsOf(msgs))
+                    msgs = ContextWindowPolicy.projectForUsage(msgs, compactionEnabled = true).also { trace?.messages(ContextStage.RETAINED_HISTORY, msgs, it) }
                 }
             }
             if (compactionEnabled) {
@@ -214,12 +223,13 @@ class ApiContextAssembler(
                         reserveTokens = model.compactionReserveTokens,
                         toolSchemaReserveTokens = toolSchemaReserveTokens,
                     ),
-                )
+                ).also { trace?.messages(ContextStage.USER_LIMIT, msgs, it) }
             }
             // 物理字节预检独立于 token 折叠：关闭压缩时历史仍可能把 Nginx/中转撑到 HTTP 413。
-            msgs = ImagePayloadCompressor.downscaleHarness(msgs)
-            msgs = ContextWindowPolicy.enforceRequestByteBudget(msgs, toolCallDetailsOf(msgs))
+            msgs = ImagePayloadCompressor.downscaleHarness(msgs).also { trace?.messages(ContextStage.IMAGE_DOWNSCALE, msgs, it) }
+            msgs = ContextWindowPolicy.enforceRequestByteBudget(msgs, toolCallDetailsOf(msgs)).also { trace?.messages(ContextStage.BYTE_LIMIT, msgs, it) }
             val summaryLayer = compactedContext.summaryLayer
+            trace?.contribution("summary", listOf(summaryLayer))
             if (summaryLayer.isNotBlank()) {
                 add(
                     ApiMessage(
@@ -243,9 +253,9 @@ class ApiContextAssembler(
             addAll(
                 ContextWindowPolicy.shrinkApiMessagesToByteBudget(
                     ImagePayloadCompressor.downscale(projectedMessages),
-                ),
+                ).also { trace?.api(projectedMessages, it) },
             )
-        }
+        }.also { trace?.finish(it) }
     }
 
     private fun toolCallDetailsOf(msgs: List<HarnessMessage>) =
