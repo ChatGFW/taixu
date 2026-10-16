@@ -23,6 +23,16 @@ interface HarnessRuntimeRepository {
      * [tzOffsetMs] 与 StatsRepository 使用的 [java.time.ZoneId] 偏移一致。
      */
     suspend fun aggregateDailyCounts(start: Long?, end: Long?, tzOffsetMs: Long): List<DailyCountRow>
+
+    /**
+     * 用量统计用：`harness_usage` 账本按 (本地日, provider, model) 聚合。
+     * 与 [aggregateUsageInRange] 不同，这里读的是真实计量值，无需再从字符数估算，
+     * 且能给出推理 token 与缓存读写分列。
+     */
+    suspend fun aggregateUsageLedger(start: Long?, end: Long?, tzOffsetMs: Long): List<UsageLedgerRow>
+
+    /** 用量统计用：账本最近若干次调用明细（倒序），供界面下钻。 */
+    suspend fun listRecentUsage(start: Long?, end: Long?, limit: Int): List<HarnessUsageEntity>
     suspend fun branch(sessionId: String, leafId: String?): List<HarnessEntryEntity>
     suspend fun branchTail(sessionId: String, leafId: String?, limit: Int): List<HarnessEntryEntity> {
         require(limit > 0) { "Branch tail limit must be positive" }
@@ -127,6 +137,13 @@ class RoomHarnessRuntimeRepository(
 
     override suspend fun aggregateDailyCounts(start: Long?, end: Long?, tzOffsetMs: Long): List<DailyCountRow> =
         dao.aggregateDailyCounts(start, end, tzOffsetMs)
+
+    override suspend fun aggregateUsageLedger(start: Long?, end: Long?, tzOffsetMs: Long): List<UsageLedgerRow> =
+        // 同样是纯标量聚合，不涉及 payloadJson 实体，因此不做 restoreFromStorage。
+        dao.aggregateLedgerByDay(start, end, tzOffsetMs)
+
+    override suspend fun listRecentUsage(start: Long?, end: Long?, limit: Int): List<HarnessUsageEntity> =
+        dao.listRecentUsage(start, end, limit)
 
     override suspend fun branch(sessionId: String, leafId: String?): List<HarnessEntryEntity> {
         return leafId?.let { dao.branch(sessionId, it).map(::restoreFromStorage) }.orEmpty()

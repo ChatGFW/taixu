@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.core.model.StatsDateRangePreset
+import top.wkbin.taixu.core.model.StatsRankItem
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
@@ -33,6 +34,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsHeatmap
+import top.wkbin.taixu.ui.settings.stats.widgets.StatsLedgerSection
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsMetricGrid
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsRankSection
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsSectionCard
@@ -163,6 +165,38 @@ fun StatsScreen(
                     item {
                         StatsSectionCard(title = "Token 用量与消耗趋势") {
                             StatsUsageChart(days = snapshot.trend)
+                        }
+                    }
+
+                    // 3.5 用量账本（权威口径）—— 与上面 1~3 的估算口径并行展示。
+                    // 推理 token、缓存读写分列、模型归因此前在界面上完全不存在，
+                    // 这里是账本落库的真实计量值，作为对照而非替换（替换会让老会话用量归零）。
+                    if (snapshot.ledger.calls > 0) {
+                        item {
+                            StatsLedgerSection(ledger = snapshot.ledger)
+                        }
+
+                        // 复用既有趋势图承接账本数据：点立柱看当日各模型、左右滑动看趋势两个手感随之继承。
+                        item {
+                            StatsSectionCard(title = "账本日趋势 · 点柱看当日各模型") {
+                                StatsUsageChart(days = snapshot.ledger.trend)
+                            }
+                        }
+
+                        item {
+                            StatsRankSection(
+                                title = "账本口径 · 模型调用排行",
+                                leftHeader = "模型 / 供应商",
+                                rightHeader = "调用次数",
+                                items = snapshot.ledger.models.map {
+                                    StatsRankItem(
+                                        id = it.id,
+                                        label = "${it.label} · ${it.provider}",
+                                        value = it.calls,
+                                    )
+                                },
+                                icon = RuntimeIconName.Brain,
+                            )
                         }
                     }
 

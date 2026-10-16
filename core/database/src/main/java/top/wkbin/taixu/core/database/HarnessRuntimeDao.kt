@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 /** Atomic storage primitives for the durable harness interpreter. */
 @Dao
-interface HarnessRuntimeDao : HarnessBranchQueries, HarnessTaskCompletionQueries {
+interface HarnessRuntimeDao : HarnessBranchQueries, HarnessTaskCompletionQueries, HarnessUsageQueries {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertEntry(entry: HarnessEntryEntity): Long
 
