@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.database.AgentMemoryEntity
@@ -43,6 +44,7 @@ import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.TaixuMemoryEmptyIllustration
 
 /**
  * 会话工作记忆抽屉：长期记忆（memory 工具写入的 AgentMemoryEntity，全量观察流）
@@ -93,7 +95,7 @@ internal fun SessionMemorySheet(
                 }
                 if (memories.isEmpty()) {
                     item(key = "memories_empty") {
-                        EmptyHint(stringResource(R.string.chat_memory_empty))
+                        EmptyHint(stringResource(R.string.chat_memory_empty), illustration = true)
                     }
                 } else {
                     items(memories.size, key = { memories[it].id }) { index ->
@@ -235,13 +237,22 @@ private fun SectionHeader(
 }
 
 @Composable
-private fun EmptyHint(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-    )
+private fun EmptyHint(text: String, illustration: Boolean = false) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        if (illustration) {
+            TaixuMemoryEmptyIllustration()
+        }
+        Text(
+            text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 @Composable

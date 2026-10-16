@@ -1,10 +1,13 @@
 package top.wkbin.taixu.ui.theme
 
+import top.wkbin.taixu.core.model.ThemePalette
+
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -13,6 +16,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -51,6 +55,25 @@ val XuantongLightColors = lightColorScheme(
     surfaceContainerHighest = M3ExpLightSurfaceContainerHighest,
     outline = M3ExpLightOutline,
     outlineVariant = M3ExpLightOutlineVariant,
+    inversePrimary = M3ExpLightInversePrimary,
+    inverseSurface = M3ExpLightInverseSurface,
+    inverseOnSurface = M3ExpLightInverseOnSurface,
+    surfaceTint = M3ExpLightSurfaceTint,
+    scrim = M3ExpScrim,
+    surfaceBright = M3ExpLightSurfaceBright,
+    surfaceDim = M3ExpLightSurfaceDim,
+    primaryFixed = M3ExpPrimaryFixed,
+    primaryFixedDim = M3ExpPrimaryFixedDim,
+    onPrimaryFixed = M3ExpOnPrimaryFixed,
+    onPrimaryFixedVariant = M3ExpOnPrimaryFixedVariant,
+    secondaryFixed = M3ExpSecondaryFixed,
+    secondaryFixedDim = M3ExpSecondaryFixedDim,
+    onSecondaryFixed = M3ExpOnSecondaryFixed,
+    onSecondaryFixedVariant = M3ExpOnSecondaryFixedVariant,
+    tertiaryFixed = M3ExpTertiaryFixed,
+    tertiaryFixedDim = M3ExpTertiaryFixedDim,
+    onTertiaryFixed = M3ExpOnTertiaryFixed,
+    onTertiaryFixedVariant = M3ExpOnTertiaryFixedVariant,
 )
 
 val XuantongDarkColors = darkColorScheme(
@@ -83,15 +106,34 @@ val XuantongDarkColors = darkColorScheme(
     surfaceContainerHighest = M3ExpDarkSurfaceContainerHighest,
     outline = M3ExpDarkOutline,
     outlineVariant = M3ExpDarkOutlineVariant,
+    inversePrimary = M3ExpDarkInversePrimary,
+    inverseSurface = M3ExpDarkInverseSurface,
+    inverseOnSurface = M3ExpDarkInverseOnSurface,
+    surfaceTint = M3ExpDarkSurfaceTint,
+    scrim = M3ExpScrim,
+    surfaceBright = M3ExpDarkSurfaceBright,
+    surfaceDim = M3ExpDarkSurfaceDim,
+    primaryFixed = M3ExpPrimaryFixed,
+    primaryFixedDim = M3ExpPrimaryFixedDim,
+    onPrimaryFixed = M3ExpOnPrimaryFixed,
+    onPrimaryFixedVariant = M3ExpOnPrimaryFixedVariant,
+    secondaryFixed = M3ExpSecondaryFixed,
+    secondaryFixedDim = M3ExpSecondaryFixedDim,
+    onSecondaryFixed = M3ExpOnSecondaryFixed,
+    onSecondaryFixedVariant = M3ExpOnSecondaryFixedVariant,
+    tertiaryFixed = M3ExpTertiaryFixed,
+    tertiaryFixedDim = M3ExpTertiaryFixedDim,
+    onTertiaryFixed = M3ExpOnTertiaryFixed,
+    onTertiaryFixedVariant = M3ExpOnTertiaryFixedVariant,
 )
 
 /**
- * Material 3 形状体系 (Shape Scale)
+ * Material 3 Expressive 形状体系 (Shape Scale)
  *
- * M3 Expressive 在标准 M3 五级基础上引入更饱满的圆角：卡片 16dp、按钮全圆角（胶囊）、
- * 强调容器 28dp。原实现把 extraSmall 压到 4dp，导致 507 处调用点各自硬编码 4/6/8/10/12dp，
- * 形状 token 形同虚设。这里重新对齐到 M3 基线（4/8/12/16/28），
- * 并显式提供 extraExtraLarge 供摘要类大容器使用。
+ * 标准五级（4/8/12/16/28）+ Expressive 扩展三级：largeIncreased 20dp、extraLargeIncreased 32dp、
+ * extraExtraLarge 48dp，对应 M3 Expressive 的强调容器与英雄区域形态。
+ * 原实现把 extraSmall 压到 4dp，导致 507 处调用点各自硬编码 4/6/8/10/12dp，
+ * 形状 token 形同虚设。这里重新对齐到 M3 基线（4/8/12/16/28）并补齐扩展级。
  */
 val TaiXuShapes = Shapes(
     extraSmall = RoundedCornerShape(4.dp),
@@ -99,15 +141,20 @@ val TaiXuShapes = Shapes(
     medium = RoundedCornerShape(12.dp),
     large = RoundedCornerShape(16.dp),
     extraLarge = RoundedCornerShape(28.dp),
+    largeIncreased = RoundedCornerShape(20.dp),
+    extraLargeIncreased = RoundedCornerShape(32.dp),
+    extraExtraLarge = RoundedCornerShape(48.dp),
 )
 
 /**
- * 太墟主题：Material You (M3)，支持 Monet 动态壁纸取色与曜石/素白静态基调。
+ * 太墟主题：Material 3 Expressive，支持 Monet 动态壁纸取色（系统色板优先，HCT 兜底）
+ * 与曜石/素白静态基调（玄同色板）。
  */
 @Composable
 fun TaiXuTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    palette: ThemePalette = ThemePalette(),
     content: @Composable () -> Unit,
 ) {
     val view = LocalView.current
@@ -124,27 +171,33 @@ fun TaiXuTheme(
     }
 
     val context = LocalContext.current
-    val staticFallback = if (darkTheme) XuantongDarkColors else XuantongLightColors
+    val staticFallback = remember(darkTheme, palette) {
+        themePaletteColorScheme(palette, darkTheme)
+    }
     val colorScheme = if (dynamicColor) {
+        // Monet 优先：API 31+ 直接透传系统色板（含系统对比度偏好的「原汁原味」）
         val systemMonet = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         } else {
-            staticFallback
+            null
         }
         rememberWallpaperDynamicColorScheme(
             darkTheme = darkTheme,
-            fallback = systemMonet,
+            systemScheme = systemMonet,
+            fallback = staticFallback,
+            style = palette.style,
         )
     } else {
         staticFallback
     }
 
-    MaterialTheme(
+    MaterialExpressiveTheme(
         colorScheme = colorScheme,
+        motionScheme = MotionScheme.expressive(),
         typography = AppTypography,
         shapes = TaiXuShapes,
     ) {
-        val semantics = if (darkTheme) DarkSemantics else LightSemantics
+        val semantics = remember(colorScheme) { buildSemanticColors(colorScheme) }
         CompositionLocalProvider(LocalSemanticColors provides semantics, content = content)
     }
 }

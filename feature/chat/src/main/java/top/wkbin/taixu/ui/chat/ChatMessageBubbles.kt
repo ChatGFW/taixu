@@ -440,7 +440,7 @@ internal fun AssistantBubble(
             }
         }
 
-        if (message.text.isNotBlank()) {
+        if (message.text.isNotBlank()) ChatReadableMessage {
             if (live) {
                 val liveImageDataStart = remember(message.text) {
                     message.text.indexOf("data:image/", ignoreCase = true)

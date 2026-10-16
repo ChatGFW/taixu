@@ -13,7 +13,7 @@ enum class RuntimeIconName {
     Refresh, Shield, Storage, Globe, Trash, Close, Check, Alert, Logs,
     Download, Play, Stop, More, Plus, Chat, List, Copy,
     Folder, File, Code, Edit, Save, ArrowUp, Cpu, Search, Info,
-    Image, Attach,
+    Image, Attach, VolumeOn, VolumeOff,
     // 官方精准品牌与系统/框架 Logo
     Linux, Debian, Ubuntu, Arch, Kali, Fedora, Alpine, Void,
     Android, Flutter,
@@ -78,6 +78,8 @@ fun RuntimeIcon(
         RuntimeIconName.Info -> R.drawable.components_ic_info
         RuntimeIconName.Image -> R.drawable.components_ic_image
         RuntimeIconName.Attach -> R.drawable.components_ic_attach
+        RuntimeIconName.VolumeOn -> R.drawable.components_ic_volume_on
+        RuntimeIconName.VolumeOff -> R.drawable.components_ic_volume_off
         RuntimeIconName.Linux -> R.drawable.components_ic_logo_linux
         RuntimeIconName.Debian -> R.drawable.components_ic_logo_debian
         RuntimeIconName.Ubuntu -> R.drawable.components_ic_logo_ubuntu

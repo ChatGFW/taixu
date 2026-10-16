@@ -115,15 +115,15 @@ class HarnessProviderRunner(
         var outputBudgetReduced = false
         var outputLimitRecovered = false
         var netRetry = 0
+        val governance = top.wkbin.taixu.harness.diagnostics.ContextGovernanceTrace()
         suspend fun assembleFor(requestModel: ModelConfig) = contextAssembler.assemble(
             sessId = sessId,
             model = requestModel,
             workspacePath = sessionWorkspace,
             projectTypeOverride = sessionEntity?.projectType.orEmpty(),
             thinkingMode = stateMirrors.requestThinkingMode(sessId),
-            sessionRunMode = sessionEntity?.runMode,
+            sessionRunMode = sessionEntity?.runMode, trace = governance,
         )
-        // Network retries preserve context; only overflow recovery may compact history.
         var requestMessages = assembleFor(model)
         var imageStripped = false
         var overflowRecovered = false
@@ -160,7 +160,7 @@ class HarnessProviderRunner(
                     requestModel,
                     requestMessages,
                     onRequest = { protocol, body, bytes, secrets ->
-                        requestDiagnostics.record(sessId, operationId, round, ++requestAttempt, protocol, body, bytes, secrets)
+                        requestDiagnostics.record(sessId, operationId, round, ++requestAttempt, protocol, body, bytes, secrets, governance.report())
                     },
                     onReasoning = { chunk ->
                         withinStreamHandling {

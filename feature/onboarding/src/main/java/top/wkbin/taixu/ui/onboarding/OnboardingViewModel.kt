@@ -82,7 +82,7 @@ class OnboardingViewModel(
     val mirror = _mirror.asStateFlow()
     private val _page = MutableStateFlow(0)
     val page = _page.asStateFlow()
-    private val _modelProvider = MutableStateFlow("自定义 OpenAI 兼容接口")
+    private val _modelProvider = MutableStateFlow("OpenAI 兼容接口")
     val modelProvider = _modelProvider.asStateFlow()
     private val _modelName = MutableStateFlow("")
     val modelName = _modelName.asStateFlow()

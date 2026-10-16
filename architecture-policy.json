@@ -149,7 +149,7 @@
       "id": "feature.components", "path": "feature/components",
       "requires": ["core.common", "core.model", "feature.theme"]
     },
-    { "id": "feature.home", "path": "feature/home", "requires": ["core.datastore", "core.database", "harness", "runtime"] },
+    { "id": "feature.home", "path": "feature/home", "requires": ["core.datastore", "core.database", "harness", "runtime", "feature.theme"] },
     {
       "id": "feature.chat",
       "path": "feature/chat",

@@ -64,7 +64,7 @@ class AgentModelDiscoveryTest {
 
         val anthropicProvider = AgentProviderDefinition(
             id = "custom_anthropic",
-            name = "自定义 Anthropic 兼容接口",
+            name = "Anthropic 兼容接口",
             baseUrl = "",
             group = ProviderGroup.CUSTOM,
             protocol = ProviderProtocol.ANTHROPIC,

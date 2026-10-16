@@ -20,7 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -173,7 +173,7 @@ internal fun CreateProjectDialog(
         text = {
             Column(
                 modifier = Modifier
-                    .heightIn(min = 360.dp, max = 420.dp)
+                    .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -184,7 +184,7 @@ internal fun CreateProjectDialog(
                         val projectTypes = projectTemplates.map { it.manifest.projectType }.distinct()
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             // 空项目：跳过平台与模板选择，直接输入名称创建空文件夹
-                            RuntimeCard(
+                            RuntimeCard(shape = MaterialTheme.shapes.extraLarge,
                                 onClick = {
                                     state.selectedProjectType = null
                                     state.selectedTemplateId = null
@@ -219,7 +219,7 @@ internal fun CreateProjectDialog(
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 ) {
                                     rowTypes.forEach { type ->
-                                        RuntimeCard(
+                                        RuntimeCard(shape = MaterialTheme.shapes.extraLarge,
                                             onClick = {
                                                 state.selectedProjectType = type
                                                 state.selectedTemplateId = null
@@ -257,7 +257,7 @@ internal fun CreateProjectDialog(
                     CreateProjectStep.EMPTY_DETAILS -> {
                         Text("新建空项目", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Text("输入名称即创建一个空文件夹", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        OutlinedTextField(
+                        RuntimeFilledTextField(
                             value = state.projectName,
                             onValueChange = { state.projectName = it },
                             label = { Text(stringResource(R.string.workspace_project_name)) },
@@ -290,7 +290,7 @@ internal fun CreateProjectDialog(
                                     ) {
                                         rowTemplates.forEach { template ->
                                             val selected = state.selectedTemplateId == template.manifest.id
-                                            RuntimeCard(
+                                            RuntimeCard(shape = MaterialTheme.shapes.extraLarge,
                                                 onClick = {
                                                     state.selectedTemplateId = template.manifest.id
                                                     state.trustTemplateScripts = false
@@ -366,7 +366,7 @@ internal fun CreateProjectDialog(
                             }
                         }
 
-                        OutlinedTextField(
+                        RuntimeFilledTextField(
                             value = state.projectName,
                             onValueChange = {
                                 state.projectName = it

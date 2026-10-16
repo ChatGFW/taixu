@@ -6,13 +6,23 @@
 
 - 上下文用量面板仍为实时估算；请求诊断来自协议转换后、调用 HTTP 前的 JSON 请求体。
 - 主会话 Harness 模型回合接入诊断，覆盖 Chat Completions、Responses 和 Anthropic Messages。压缩摘要请求、子智能体请求目前不捕获。
-- 请求预览包含协议实际构造的系统提示、消息/工具调用及结果、工具定义和请求参数。记忆、技能等已注入的内容按实际请求位置呈现，暂不提供注入来源或压缩原因的独立追踪。
+- 请求预览包含协议实际构造的系统提示、消息/工具调用及结果、工具定义和请求参数。另有 `context_governance (local)` 本地治理记录，用于解释组装阶段的来源与处理动作；这个字段不会发送给模型。
 - 每次兼容性重试或模型重试都会重新捕获。显示轮次、该轮请求序号、时间、协议入口和原始请求体字节数。
 - 构造请求不代表已成功发送或服务端已接收；预览字节数不等于 Token 数。
+
+## 本地上下文治理记录
+
+- 每次组装生成独立的 `ContextGovernanceTrace`；网络重试复用同一组装视图，溢出恢复等重新组装会清空旧记录。报告随对应请求捕获，不通过“会话最近一次”全局缓存猜测归属。
+- 记录上下文窗口预算，system、summary、recall、failure_memory、plugin_context 的组装期文本占用，以及历史缩减、压缩折叠、保留段再缩减、超大用户消息、图片处理和字节兜底的阶段计数。技能包含在 system 中，尚不单独拆分。
+- 变更明细包含阶段、固定动作类别、消息 ID、来源条目 ID、来源序号与 BRANCH / RETAINED_SNAPSHOT / WATERMARK_RECOVERY 标记；快照保留消息的来源条目是压缩快照，不能误认为已加载其原始消息条目。无法确认的来源留空，带路径、空白或超过 64 字符的导入 ID 不进入明细。
+- 每次最多保留 32 条变更明细，额外变更累计在 omittedDecisionCount；阶段总计仍覆盖全部输入。原文、参数、路径、日志和正文指纹不进入治理报告。未变更消息的逐条保护原因、完整贡献优先级与预算分配策略尚未提供。
+- 阶段的 TextTokens 只估算文本、推理文本与工具参数，图片或不透明载荷变化不一定反映为文本 token 减少；阶段不是可相加的节省账单。contributions 是组装期来源估算，不是最终协议请求的分区计费。最终 MessageTokens/MessageBytes 指组装器返回时的消息层估算，不含独立工具定义、全部协议包装或之后的重试去图/Provider 兼容转换；实际序列化请求体大小仍看 bodyBytes。
+- 治理信息作为独立预览字段，复用已知凭据替换、整次预览脱敏、字段/总量截短、字段指纹、加密存档与会话删除规则；诊断显示截短仍有明确标记。来源与数值仅供排错，不授予权限，不触发工具重放，也不改变缩减决策。
 
 ## 请求差异
 
 - 选择一条请求时，与前一次捕获比较字段的新增、移除、变化和相同数量。系统提示、工具定义、模型配置和消息均按实际协议字段参与比较。
+- `context_governance (local)` 也参与差异比较；它的变化只表示本地组装记录变化，不能据此判定外发请求变化或缓存失效。
 - 展开变化字段可同时查看前次与本次预览，均可选择复制；被截短部分仍不展示。
 - 消息按字段位置匹配，插入或移除消息可能使后续位置显示变化；这不是会话树消息身份匹配。
 - 每个字段在脱敏、媒体/不透明数据移除后、显示截短前计算 SHA-256 指纹；尾部变化或显示预算耗尽的字段仍能识别。指纹不用于判断原始请求字节是否相同、缓存是否命中或服务器是否收到请求。
@@ -33,6 +43,7 @@
 
 - `harness/.../diagnostics/RequestDiagnosticsInterceptor.kt`：读取最终请求体，不修改请求。
 - `harness/.../diagnostics/RequestDiagnosticsStore.kt`：脱敏、字段投影、预览预算和会话隔离。
+- `harness/.../diagnostics/ContextGovernanceTrace.kt`：有界组装阶段、来源与变更元数据；由 ApiContextAssembler 记录，HarnessProviderRunner 随实际请求捕获。
 - `harness/.../diagnostics/RequestContextDiff.kt`：比较字段指纹和捕获完整性。
 - `harness/.../diagnostics/RequestDiagnosticsArchive.kt`：单写入者、重启合并、存档版本与容量验证。
 - `core/database/.../EncryptedRequestDiagnosticsRepository.kt`：有界读取、加密和原子存档写入。

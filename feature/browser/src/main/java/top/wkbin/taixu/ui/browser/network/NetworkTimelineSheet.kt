@@ -14,7 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
+import top.wkbin.taixu.ui.components.RuntimeTab
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.ui.graphics.luminance
@@ -91,12 +91,12 @@ fun NetworkTimelineSheet(
                         containerColor = Color.Transparent,
                         divider = {},
                     ) {
-                        Tab(
+                        RuntimeTab(
                             selected = selectedTab == 0,
                             onClick = { selectedTab = 0 },
                             text = { Text("请求 (${requests.size})", style = MaterialTheme.typography.labelMedium) },
                         )
-                        Tab(
+                        RuntimeTab(
                             selected = selectedTab == 1,
                             onClick = { selectedTab = 1 },
                             text = { Text("Hook 命中 (${hookHits.size})", style = MaterialTheme.typography.labelMedium) },

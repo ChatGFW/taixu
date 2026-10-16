@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -50,6 +51,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -80,6 +82,7 @@ import java.util.Locale
 /**
  * 模型档案管理全屏独立页面
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ModelProfilesScreen(
     onBack: () -> Unit,
@@ -97,12 +100,15 @@ fun ModelProfilesScreen(
     var modelPendingDelete by remember { mutableStateOf<AiModelEntity?>(null) }
     var importing by remember { mutableStateOf(false) }
 
+    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
                 title = "模型档案",
                 onBack = onBack,
+                scrollBehavior = scrollBehavior,
                 actions = {
                     // 📥 导入按钮
                     RuntimeIconButton(
@@ -242,14 +248,14 @@ private fun ModelProfilesContent(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
             RuntimeButton(
                 onClick = onCreate,
-                modifier = Modifier.fillMaxWidth().height(44.dp),
-                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                shape = RoundedCornerShape(50),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     RuntimeIcon(RuntimeIconName.Plus, Modifier.size(16.dp), MaterialTheme.colorScheme.onPrimary)
@@ -269,7 +275,7 @@ private fun ModelProfilesContent(
                     Text("暂无模型档案", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "点击上方新增或从右上角导入 OpenAI / DeepSeek / Claude / 本地模型配置",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -286,221 +292,4 @@ private fun ModelProfilesContent(
             )
         }
     }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ModelProfileCard(
-    model: AiModelEntity,
-    onEdit: () -> Unit,
-    onActivate: () -> Unit,
-    onDelete: () -> Unit,
-    onExport: () -> Unit,
-) {
-    var menuExpanded by remember { mutableStateOf(false) }
-
-    RuntimeCard(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = if (model.isActive) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-        } else {
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-        },
-        onClick = onEdit,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-        // 头部：Provider Badge + 标题 + 激活状态 + 更多菜单
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            ProviderBadge(providerIdOrName = model.provider, size = 24.dp)
-
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = model.name,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = model.provider,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            if (model.isActive) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(6.dp),
-                ) {
-                    Text(
-                        text = "当前激活",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                    )
-                }
-            } else {
-                RuntimeTextButton(
-                    onClick = onActivate,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                ) {
-                    Text("设为激活", style = MaterialTheme.typography.labelMedium)
-                }
-            }
-
-            // 更多操作下拉菜单
-            Box {
-                RuntimeIconButton(
-                    onClick = { menuExpanded = true },
-                    modifier = Modifier
-                        .minimumInteractiveComponentSize()
-                        .size(32.dp),
-                    contentDescription = "更多操作",
-                ) {
-                    RuntimeIcon(
-                        name = RuntimeIconName.More,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                RuntimeIcon(RuntimeIconName.Edit, Modifier.size(16.dp))
-                                Text("编辑档案")
-                            }
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            onEdit()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                RuntimeIcon(RuntimeIconName.OpenInNew, Modifier.size(16.dp))
-                                Text("导出为 JSON")
-                            }
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            onExport()
-                        },
-                    )
-                    if (!model.isActive) {
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    RuntimeIcon(RuntimeIconName.Check, Modifier.size(16.dp))
-                                    Text("设为激活")
-                                }
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onActivate()
-                            },
-                        )
-                    }
-                    HorizontalDivider()
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                RuntimeIcon(RuntimeIconName.Trash, Modifier.size(16.dp), MaterialTheme.colorScheme.error)
-                                Text("删除档案", color = MaterialTheme.colorScheme.error)
-                            }
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            onDelete()
-                        },
-                    )
-                }
-            }
-        }
-
-        // 模型列表标签
-        val modelList = remember(model.model) {
-            model.model.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-        }
-        if (modelList.isNotEmpty()) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                modelList.take(3).forEach { modelId ->
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ) {
-                        Text(
-                            text = modelId,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontFamily = FontFamily.Monospace),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
-                    }
-                }
-                if (modelList.size > 3) {
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-                    ) {
-                        Text(
-                            text = "+${modelList.size - 3} 更多",
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
-                    }
-                }
-            }
-        }
-
-        // 元数据摘要
-        // 元数据摘要：显式配置优先，否则展示主流模型自动适配值。
-        val explicitCtxTokens = model.contextTokens
-        val autoCtxTokens = if (explicitCtxTokens == null) {
-            ModelContextWindows.resolve(model.model, model.provider)
-        } else null
-        val metadataSummary = buildList {
-            if (model.baseUrl.isNotBlank()) add(model.baseUrl)
-            if (model.apiKeyCount > 0) add("${model.apiKeyCount} Key")
-            if (model.requestsPerMinutePerKey > 0) add("${model.requestsPerMinutePerKey} RPM/Key")
-            explicitCtxTokens?.let { add("${formatProfileContextWindow(it)} 上下文") }
-            autoCtxTokens?.let { add("自动 ${formatProfileContextWindow(it)} 上下文") }
-        }.joinToString(" • ")
-
-        if (metadataSummary.isNotBlank()) {
-            Text(
-                text = metadataSummary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-            )
-        }
-    }
-}
-}
-
-private fun formatProfileContextWindow(tokens: Int): String = when {
-    tokens <= 0 -> "0"
-    tokens % 1_000_000 == 0 -> "${tokens / 1_000_000}M"
-    tokens >= 1_000_000 -> String.format(Locale.US, "%.1fM", tokens / 1_000_000.0)
-    tokens % 1_000 == 0 -> "${tokens / 1_000}k"
-    else -> String.format(Locale.US, "%.1fk", tokens / 1_000.0)
 }

@@ -22,6 +22,8 @@ import top.wkbin.taixu.core.datastore.WorkshopPreferences
 
 /** Dependency registrations owned by the core:datastore module. */
 val coreDatastoreModule = module {
+    single { top.wkbin.taixu.core.datastore.ChatBackgroundPreferences(context = get()) }
+    single { top.wkbin.taixu.core.datastore.ChatBackgroundImageStore(context = get()) }
     single { top.wkbin.taixu.core.datastore.PluginPreferences(context = get()) }
     single<top.wkbin.taixu.core.datastore.RemoteServerRepository> {
         top.wkbin.taixu.core.datastore.EncryptedRemoteServerRepository(get(), get())

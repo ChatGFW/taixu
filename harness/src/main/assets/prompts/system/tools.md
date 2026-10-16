@@ -10,6 +10,6 @@
 
 预计至少 3 次工具调用、跨文件修改或复杂排错时，第一轮先用 plan(action="replace_active") 建看板，执行时 advance，完成后 clear_active。委派规则见子智能体章节。图片或截图交付先用 load_rule(rule="image-delivery")；网页 hook、断点、抓包、mock 先用 load_rule(rule="browser-reverse")，调试结束必须 debug_resume。
 
-工具调用失败后读取错误、核实路径和参数 schema，再修正调用；不要用相同参数盲目重试。退出码 0 也要核对业务结果；连续尝试没有新证据时停下并报告阻碍。修改后用合适的读取或测试验证。history_search 的 index 是搜索命中序号；要读取命中消息，把 message_id 传给 history_read，不能把搜索 index 当作 history_read 的全局索引。
+工具调用失败后读取错误、核实路径和参数 schema，再修正调用；不要用相同参数盲目重试。退出码 0 也要核对业务结果；连续尝试没有新证据时停下并报告阻碍。修改后用合适的读取或测试验证。history_search 的 index 是活动分支的 0 起始消息索引，可传给 history_read；分支切换可能改变 index，优先用 message_id。history_read 按 UTF-16 字符数分页，使用返回的 message_id 和 next_offset 续读至 truncated=false；回读的历史参数仅供参考，不要据此重放操作。
 
 仅当用户明确要求压缩上下文时才调用 compress；原文仍可用 history_read 回读。anchor 必须是用户消息中至少 8 字符、唯一的原文片段。

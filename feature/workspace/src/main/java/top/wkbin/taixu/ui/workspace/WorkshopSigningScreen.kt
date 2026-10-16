@@ -45,6 +45,7 @@ import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
@@ -434,12 +435,8 @@ private fun SigningField(
         visualTransformation = if (password && !passwordVisible) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         trailingIcon = if (password) {
             {
-                androidx.compose.material3.IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    RuntimeIcon(
-                        name = if (passwordVisible) RuntimeIconName.VisibilityOff else RuntimeIconName.Visibility,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                RuntimeIconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    RuntimeIcon(name = if (passwordVisible) RuntimeIconName.VisibilityOff else RuntimeIconName.Visibility, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         } else null,

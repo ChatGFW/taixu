@@ -1,5 +1,7 @@
 package top.wkbin.taixu.ui.chat
 
+import top.wkbin.taixu.ui.theme.chatBackdropChrome
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -38,12 +40,14 @@ internal fun ChatTopBar(
     onOpenRepository: (() -> Unit)? = null, repositoryHighlight: Boolean = false,
     toolchainHighlight: Boolean = false, onOpenToolchain: () -> Unit,
     onOpenReasoning: (() -> Unit)? = null, companion: ChatCompanionToggle? = null,
+    speech: ChatSpeechToggle? = null,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val model = activeModel?.let { it.model.substringBefore(',').trim().ifBlank { it.name } }
     Column(
         Modifier
             .fillMaxWidth()
+            .background(chatBackdropChrome())
             .statusBarsPadding(),
     ) {
         Row(
@@ -91,6 +95,13 @@ internal fun ChatTopBar(
             ) {
                 RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(20.dp),
                     if (companion.open || browserHighlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (speech != null) RuntimeIconButton(
+                onClick = speech.onToggle, modifier = Modifier.size(48.dp),
+                contentDescription = stringResource(if (speech.enabled) R.string.chat_speech_disable else R.string.chat_speech_enable),
+            ) {
+                RuntimeIcon(if (speech.enabled) RuntimeIconName.VolumeOn else RuntimeIconName.VolumeOff,
+                    Modifier.size(22.dp), if (speech.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Box {
                 RuntimeIconButton(

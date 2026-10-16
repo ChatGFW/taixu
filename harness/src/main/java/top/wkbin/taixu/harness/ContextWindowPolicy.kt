@@ -214,7 +214,7 @@ object ContextWindowPolicy {
 
     /**
      * 与引擎实际请求同口径的「投影」：把 UI 的全量消息投影成**真正会发送的那份**，
-     * 供用量面板估算使用。内部复用 [truncateStaleToolResults]，并把工具名映射
+     * 供用量面板估算使用。复用历史结果截断与大写入参数缩减，并把工具名映射
      * （[HarnessApiMapper]）一并收敛，避免调用方各写一遍导致口径再次分化。
      *
      * 为何需要它：引擎在压缩判定前先截断老轮次工具结果（见 ApiContextAssembler），
@@ -230,7 +230,7 @@ object ContextWindowPolicy {
         val toolCallDetails = messages.filterIsInstance<ToolCall>().associate {
             it.id to ((it.rawToolName ?: HarnessApiMapper.apiName(it.tool)) to it.args)
         }
-        return truncateStaleToolResults(messages, toolCallDetails)
+        return HistoricalToolArguments.project(truncateStaleToolResults(messages, toolCallDetails))
     }
 
     /** Conservative multilingual estimate used when a provider tokenizer is unavailable. */

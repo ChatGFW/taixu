@@ -1,7 +1,6 @@
 package top.wkbin.taixu.ui.navigation
 
 import org.koin.compose.viewmodel.koinViewModel
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -9,7 +8,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -107,12 +105,8 @@ fun TaiXuNavHost(
     // repository initialization. Let the settings navigation graph share the Activity-scoped
     // instance instead of constructing that whole graph once for every Navigation3 entry.
     val settingsViewModel: SettingsViewModel = koinViewModel()
-    val homeStack = rememberNavBackStack(HomeDestination)
-    val agentStack = rememberNavBackStack(AgentDestination)
-    val workspaceStack = rememberNavBackStack(WorkspaceDestination)
-    val settingsStack = rememberNavBackStack(SettingsDestination)
+    val activeStack = rememberNavBackStack(AgentDestination)
     var pendingHealingTask by remember { mutableStateOf<HealingTask?>(null) }
-    var selectedMain by rememberSaveable { mutableStateOf(MainDestination.Agent) }
     var showNavigation by rememberSaveable { mutableStateOf(false) }; var sidebarDocked by rememberSaveable { mutableStateOf(true) }
     var showNewSession by rememberSaveable { mutableStateOf(false) }
     /** Programmatic stack mutation (bus / workflow). */
@@ -120,23 +114,23 @@ fun TaiXuNavHost(
         if (lastOrNull() != destination) add(destination)
     }
 
-    val activeStack = when (selectedMain) {
-        MainDestination.Home -> homeStack
-        MainDestination.Agent -> agentStack
-        MainDestination.Workspace -> workspaceStack
-        MainDestination.Settings -> settingsStack
+    val sidebarGesturesEnabled = activeStack.canSwipeOpenNavigation()
+    LaunchedEffect(sidebarGesturesEnabled) { if (!sidebarGesturesEnabled) showNavigation = false }
+    val selectedMain = when (activeStack.lastOrNull { it == HomeDestination || it == WorkspaceDestination || it == SettingsDestination }) {
+        HomeDestination -> MainDestination.Home
+        WorkspaceDestination -> MainDestination.Workspace
+        SettingsDestination -> MainDestination.Settings
+        else -> MainDestination.Agent
     }
     fun navigateMain(destination: MainDestination) {
         if (activeStack.openMainOverlay(destination)) return
-        if (destination == MainDestination.Agent) while (agentStack.size > 1) agentStack.removeLastOrNull()
-        if (destination == MainDestination.Settings) while (settingsStack.size > 1) settingsStack.removeLastOrNull()
-        selectedMain = destination
+        if (destination == MainDestination.Agent) while (activeStack.size > 1) activeStack.removeLastOrNull()
     }
 
     LaunchedEffect(chatViewModel) {
         chatViewModel.workflowLaunchRequests.collect { request ->
             navigateMain(MainDestination.Agent)
-            agentStack.pushRaw(WorkflowDestination(request.projectName, request.workflowId, request.initialVariables))
+            activeStack.pushRaw(WorkflowDestination(request.projectName, request.workflowId, request.initialVariables))
         }
     }
 
@@ -144,30 +138,17 @@ fun TaiXuNavHost(
         globalNavigationBus?.events?.collect { target ->
             when (target) {
                 AppNavigationTarget.AdbLogcat -> {
-                    selectedMain = MainDestination.Settings
-                    if (settingsStack.lastOrNull() != AdbLogcatDestination) {
-                        if (settingsStack.lastOrNull() == SettingsDestination) {
-                            settingsStack.pushRaw(SystemDevSettingsDestination)
-                        }
-                        if (settingsStack.lastOrNull() == SystemDevSettingsDestination) {
-                            settingsStack.pushRaw(AdbLogcatDestination)
-                        } else if (settingsStack.lastOrNull() != AdbLogcatDestination) {
-                            settingsStack.pushRaw(AdbLogcatDestination)
-                        }
-                    }
+                    activeStack.openSettingsPath(SystemDevSettingsDestination, AdbLogcatDestination)
                     globalNavigationBus.clearLatest(target)
                 }
                 is AppNavigationTarget.WorkflowRun -> {
                     // 工作流通知点入：切到智枢栈并打开运行页
                     navigateMain(MainDestination.Agent)
-                    agentStack.pushRaw(WorkflowDestination(executionId = target.executionId))
+                    activeStack.pushRaw(WorkflowDestination(executionId = target.executionId))
                     globalNavigationBus.clearLatest(target)
                 }
                 AppNavigationTarget.AgentSettings -> {
-                    selectedMain = MainDestination.Settings
-                    if (settingsStack.lastOrNull() != AgentSettingsDestination) {
-                        settingsStack.pushRaw(AgentSettingsDestination)
-                    }
+                    activeStack.openSettingsPath(AgentSettingsDestination)
                     globalNavigationBus.clearLatest(target)
                 }
                 is AppNavigationTarget.SharedText -> {
@@ -188,9 +169,6 @@ fun TaiXuNavHost(
 
     fun popBack() {
         if (activeStack.size > 1) activeStack.removeLastOrNull()
-    }
-    BackHandler(enabled = activeStack.size == 1 && selectedMain != MainDestination.Agent && !showNavigation && !showNewSession) {
-        navigateMain(MainDestination.Agent)
     }
 
     @Composable
@@ -239,7 +217,7 @@ fun TaiXuNavHost(
                     ChatScreen(
                         viewModel = chatViewModel,
                         onNavigate = ::navigateMain,
-                        onOpenNavigation = { showNavigation = true }, onInstallMcp = { activeStack.pushRaw(ToolCenterDestination) }, onCreateModelProfile = { agentStack.pushRaw(ModelEditorDestination()) },
+                        onOpenNavigation = { showNavigation = true }, onInstallMcp = { activeStack.pushRaw(ToolCenterDestination) }, onCreateModelProfile = { activeStack.pushRaw(ModelEditorDestination()) },
                         // 内嵌终端面板非独立导航节点，无返回目标：隐藏顶栏返回箭头，避免点击无反馈
                         terminalPane = { project -> TerminalPluginPage(pluginPages, project = project, embedded = true, onBack = {}) },
                         // 内嵌浏览器面板：与独立浏览器页共享 Activity 级 BrowserViewModel，
@@ -248,10 +226,10 @@ fun TaiXuNavHost(
                         browserActivityTick = browserUiState.activityTick,
                         browserBackPressed = { browserPluginBack(pluginController, browserViewModel) },
                         onOpenFile = { projectName, relativePath ->
-                            agentStack.push(AgentDestination, CodeEditorDestination(projectName, relativePath))
+                            activeStack.push(AgentDestination, CodeEditorDestination(projectName, relativePath))
                         },
                         onOpenRepository = { projectName ->
-                            agentStack.push(AgentDestination, GitRepositoryDestination(projectName))
+                            activeStack.push(AgentDestination, GitRepositoryDestination(projectName))
                         },
                     )
                 }
@@ -334,14 +312,14 @@ fun TaiXuNavHost(
             entry<SettingsDestination> {
                 GuardedEntry(SettingsDestination) {
                     SettingsScreen(
-                        onNavigate = ::navigateMain,
-                        onOpenAgentEco = { settingsStack.push(SettingsDestination, AgentEcoSettingsDestination) },
-                        onOpenLinuxEnv = { settingsStack.push(SettingsDestination, LinuxEnvSettingsDestination) },
-                        onOpenAppearance = { settingsStack.push(SettingsDestination, AppearanceSettingsDestination) },
-                        onOpenSystemDev = { settingsStack.push(SettingsDestination, SystemDevSettingsDestination) },
-                        onOpenAboutCommunity = { settingsStack.push(SettingsDestination, AboutCommunityDestination) },
-                        onOpenSearch = { settingsStack.push(SettingsDestination, SettingsSearchDestination) },
-                        onOpenFeatureHub = { settingsStack.push(SettingsDestination, FeatureHubDestination) },
+                        onNavigate = ::navigateMain, onBack = ::popBack,
+                        onOpenAgentEco = { activeStack.push(SettingsDestination, AgentEcoSettingsDestination) },
+                        onOpenLinuxEnv = { activeStack.push(SettingsDestination, LinuxEnvSettingsDestination) },
+                        onOpenAppearance = { activeStack.push(SettingsDestination, AppearanceSettingsDestination) },
+                        onOpenSystemDev = { activeStack.push(SettingsDestination, SystemDevSettingsDestination) },
+                        onOpenAboutCommunity = { activeStack.push(SettingsDestination, AboutCommunityDestination) },
+                        onOpenSearch = { activeStack.push(SettingsDestination, SettingsSearchDestination) },
+                        onOpenFeatureHub = { activeStack.push(SettingsDestination, FeatureHubDestination) },
                         viewModel = settingsViewModel,
                     )
                 }
@@ -352,38 +330,38 @@ fun TaiXuNavHost(
                         onBack = ::popBack,
                         onNavigateToTarget = { target ->
                             when (target) {
-                                SettingsSearchTarget.MODEL_PROFILES -> settingsStack.push(SettingsSearchDestination, ModelProfilesDestination)
-                                SettingsSearchTarget.MODEL_EDITOR_NEW -> settingsStack.push(SettingsSearchDestination, ModelEditorDestination())
-                                SettingsSearchTarget.LOCAL_LLM -> settingsStack.push(SettingsSearchDestination, LocalLlmDestination)
-                                SettingsSearchTarget.QUICK_PHRASES -> settingsStack.push(SettingsSearchDestination, QuickPhrasesDestination)
-                                SettingsSearchTarget.STATS -> settingsStack.push(SettingsSearchDestination, StatsDestination)
-                                SettingsSearchTarget.TOOL_CENTER -> settingsStack.push(SettingsSearchDestination, ToolCenterDestination)
-                                SettingsSearchTarget.CC_SWITCH -> settingsStack.push(SettingsSearchDestination, CcSwitchDestination)
-                                SettingsSearchTarget.AGENT_EXECUTION -> settingsStack.push(SettingsSearchDestination, AgentSettingsDestination)
-                                SettingsSearchTarget.AGENT_SUBAGENTS -> settingsStack.push(SettingsSearchDestination, AgentSubagentSettingsDestination)
-                                SettingsSearchTarget.AGENT_SKILLS -> settingsStack.push(SettingsSearchDestination, AgentSkillSettingsDestination)
-                                SettingsSearchTarget.MCP_SETTINGS -> settingsStack.push(SettingsSearchDestination, McpSettingsDestination)
-                                SettingsSearchTarget.DISTRO_MANAGEMENT -> settingsStack.push(SettingsSearchDestination, DistroManagementDestination)
-                                SettingsSearchTarget.STORAGE_USAGE -> settingsStack.push(SettingsSearchDestination, StorageUsageDestination)
-                                SettingsSearchTarget.STORAGE_MOUNTS -> settingsStack.push(SettingsSearchDestination, StorageMountSettingsDestination)
-                                SettingsSearchTarget.ENV_VARS -> settingsStack.push(SettingsSearchDestination, EnvironmentVariableSettingsDestination)
-                                SettingsSearchTarget.SSH_SETTINGS -> settingsStack.push(SettingsSearchDestination, SshSettingsDestination)
-                                SettingsSearchTarget.FTP_SETTINGS -> settingsStack.push(SettingsSearchDestination, FtpSettingsDestination)
+                                SettingsSearchTarget.MODEL_PROFILES -> activeStack.push(SettingsSearchDestination, ModelProfilesDestination)
+                                SettingsSearchTarget.MODEL_EDITOR_NEW -> activeStack.push(SettingsSearchDestination, ModelEditorDestination())
+                                SettingsSearchTarget.LOCAL_LLM -> activeStack.push(SettingsSearchDestination, LocalLlmDestination)
+                                SettingsSearchTarget.QUICK_PHRASES -> activeStack.push(SettingsSearchDestination, QuickPhrasesDestination)
+                                SettingsSearchTarget.STATS -> activeStack.push(SettingsSearchDestination, StatsDestination)
+                                SettingsSearchTarget.TOOL_CENTER -> activeStack.push(SettingsSearchDestination, ToolCenterDestination)
+                                SettingsSearchTarget.CC_SWITCH -> activeStack.push(SettingsSearchDestination, CcSwitchDestination)
+                                SettingsSearchTarget.AGENT_EXECUTION -> activeStack.push(SettingsSearchDestination, AgentSettingsDestination)
+                                SettingsSearchTarget.AGENT_SUBAGENTS -> activeStack.push(SettingsSearchDestination, AgentSubagentSettingsDestination)
+                                SettingsSearchTarget.AGENT_SKILLS -> activeStack.push(SettingsSearchDestination, AgentSkillSettingsDestination)
+                                SettingsSearchTarget.MCP_SETTINGS -> activeStack.push(SettingsSearchDestination, McpSettingsDestination)
+                                SettingsSearchTarget.DISTRO_MANAGEMENT -> activeStack.push(SettingsSearchDestination, DistroManagementDestination)
+                                SettingsSearchTarget.STORAGE_USAGE -> activeStack.push(SettingsSearchDestination, StorageUsageDestination)
+                                SettingsSearchTarget.STORAGE_MOUNTS -> activeStack.push(SettingsSearchDestination, StorageMountSettingsDestination)
+                                SettingsSearchTarget.ENV_VARS -> activeStack.push(SettingsSearchDestination, EnvironmentVariableSettingsDestination)
+                                SettingsSearchTarget.SSH_SETTINGS -> activeStack.push(SettingsSearchDestination, SshSettingsDestination)
+                                SettingsSearchTarget.FTP_SETTINGS -> activeStack.push(SettingsSearchDestination, FtpSettingsDestination)
                                 SettingsSearchTarget.WEB_CHAT,
-                                SettingsSearchTarget.PRIVILEGE_MODE -> settingsStack.push(SettingsSearchDestination, LinuxEnvSettingsDestination)
-                                SettingsSearchTarget.APP_MANAGEMENT -> settingsStack.push(SettingsSearchDestination, AppManagementDestination)
+                                SettingsSearchTarget.PRIVILEGE_MODE -> activeStack.push(SettingsSearchDestination, LinuxEnvSettingsDestination)
+                                SettingsSearchTarget.APP_MANAGEMENT -> activeStack.push(SettingsSearchDestination, AppManagementDestination)
                                 SettingsSearchTarget.APPEARANCE_SETTINGS,
                                 SettingsSearchTarget.THEME_MODE,
                                 SettingsSearchTarget.DYNAMIC_COLOR,
                                 SettingsSearchTarget.FONT_SCALE,
                                 SettingsSearchTarget.TERMINAL_SETTINGS,
-                                SettingsSearchTarget.LANGUAGE_SETTINGS -> settingsStack.push(SettingsSearchDestination, AppearanceSettingsDestination)
+                                SettingsSearchTarget.LANGUAGE_SETTINGS -> activeStack.push(SettingsSearchDestination, AppearanceSettingsDestination)
                                 SettingsSearchTarget.BATTERY_OPTIMIZATION,
-                                SettingsSearchTarget.PHANTOM_PROCESS -> settingsStack.push(SettingsSearchDestination, SystemDevSettingsDestination)
-                                SettingsSearchTarget.DEVELOPER_OPTIONS -> settingsStack.push(SettingsSearchDestination, DeveloperDestination)
-                                SettingsSearchTarget.ADB_LOGCAT -> settingsStack.push(SettingsSearchDestination, AdbLogcatDestination)
-                                SettingsSearchTarget.CUSTOM_ITERATION -> settingsStack.push(SettingsSearchDestination, CustomIterationDestination)
-                                SettingsSearchTarget.PERMISSION_GUIDE -> settingsStack.push(SettingsSearchDestination, PermissionGuideDestination)
+                                SettingsSearchTarget.PHANTOM_PROCESS -> activeStack.push(SettingsSearchDestination, SystemDevSettingsDestination)
+                                SettingsSearchTarget.DEVELOPER_OPTIONS -> activeStack.push(SettingsSearchDestination, DeveloperDestination)
+                                SettingsSearchTarget.ADB_LOGCAT -> activeStack.push(SettingsSearchDestination, AdbLogcatDestination)
+                                SettingsSearchTarget.CUSTOM_ITERATION -> activeStack.push(SettingsSearchDestination, CustomIterationDestination)
+                                SettingsSearchTarget.PERMISSION_GUIDE -> activeStack.push(SettingsSearchDestination, PermissionGuideDestination)
                                 SettingsSearchTarget.WORKSHOP_SETTINGS -> {
                                     navigateMain(MainDestination.Workspace)
                                     activeStack.pushRaw(WorkshopSettingsDestination)
@@ -415,8 +393,8 @@ fun TaiXuNavHost(
                                     activeStack.pushRaw(BrowserDestination)
                                 }
                                 SettingsSearchTarget.ABOUT_COMMUNITY,
-                                SettingsSearchTarget.ABOUT_UPDATE -> settingsStack.push(SettingsSearchDestination, AboutCommunityDestination)
-                                SettingsSearchTarget.ABOUT_SPONSOR -> settingsStack.push(SettingsSearchDestination, SponsorDestination)
+                                SettingsSearchTarget.ABOUT_UPDATE -> activeStack.push(SettingsSearchDestination, AboutCommunityDestination)
+                                SettingsSearchTarget.ABOUT_SPONSOR -> activeStack.push(SettingsSearchDestination, SponsorDestination)
                             }
                         }
                     )
@@ -434,17 +412,17 @@ fun TaiXuNavHost(
                 GuardedEntry(AgentEcoSettingsDestination) {
                     AgentEcoSettingsScreen(
                         onBack = ::popBack,
-                        onOpenModelProfiles = { settingsStack.push(AgentEcoSettingsDestination, ModelProfilesDestination) },
-                        onOpenLocalLlm = { settingsStack.push(AgentEcoSettingsDestination, LocalLlmDestination) },
-                        onOpenCcSwitch = { settingsStack.push(AgentEcoSettingsDestination, CcSwitchDestination) },
-                        onOpenToolCenter = { settingsStack.push(AgentEcoSettingsDestination, ToolCenterDestination) },
-                        onOpenAgentSettings = { settingsStack.push(AgentEcoSettingsDestination, AgentSettingsDestination) },
-                        onOpenSubagentSettings = { settingsStack.push(AgentEcoSettingsDestination, AgentSubagentSettingsDestination) },
-                        onOpenSkillSettings = { settingsStack.push(AgentEcoSettingsDestination, AgentSkillSettingsDestination) },
-                        onOpenMcpSettings = { settingsStack.push(AgentEcoSettingsDestination, McpSettingsDestination) },
-                        onOpenQuickPhrases = { settingsStack.push(AgentEcoSettingsDestination, QuickPhrasesDestination) },
-                        onOpenStats = { settingsStack.push(AgentEcoSettingsDestination, StatsDestination) },
-                        onOpenPhoneAgent = { settingsStack.push(AgentEcoSettingsDestination, PhoneAgentSettingsDestination) },
+                        onOpenModelProfiles = { activeStack.push(AgentEcoSettingsDestination, ModelProfilesDestination) },
+                        onOpenLocalLlm = { activeStack.push(AgentEcoSettingsDestination, LocalLlmDestination) },
+                        onOpenCcSwitch = { activeStack.push(AgentEcoSettingsDestination, CcSwitchDestination) },
+                        onOpenToolCenter = { activeStack.push(AgentEcoSettingsDestination, ToolCenterDestination) },
+                        onOpenAgentSettings = { activeStack.push(AgentEcoSettingsDestination, AgentSettingsDestination) },
+                        onOpenSubagentSettings = { activeStack.push(AgentEcoSettingsDestination, AgentSubagentSettingsDestination) },
+                        onOpenSkillSettings = { activeStack.push(AgentEcoSettingsDestination, AgentSkillSettingsDestination) },
+                        onOpenMcpSettings = { activeStack.push(AgentEcoSettingsDestination, McpSettingsDestination) },
+                        onOpenQuickPhrases = { activeStack.push(AgentEcoSettingsDestination, QuickPhrasesDestination) },
+                        onOpenStats = { activeStack.push(AgentEcoSettingsDestination, StatsDestination) },
+                        onOpenPhoneAgent = { activeStack.push(AgentEcoSettingsDestination, PhoneAgentSettingsDestination) },
                         viewModel = settingsViewModel,
                     )
                 }
@@ -453,13 +431,13 @@ fun TaiXuNavHost(
                 GuardedEntry(LinuxEnvSettingsDestination) {
                     LinuxEnvironmentSettingsScreen(
                         onBack = ::popBack,
-                        onOpenDistroManagement = { settingsStack.push(LinuxEnvSettingsDestination, DistroManagementDestination) },
-                        onOpenStorageMounts = { settingsStack.push(LinuxEnvSettingsDestination, StorageMountSettingsDestination) },
-                        onOpenStorageUsage = { settingsStack.push(LinuxEnvSettingsDestination, StorageUsageDestination) },
-                        onOpenAppManagement = { settingsStack.push(LinuxEnvSettingsDestination, AppManagementDestination) },
-                        onOpenEnvironmentVariables = { settingsStack.push(LinuxEnvSettingsDestination, EnvironmentVariableSettingsDestination) },
-                        onOpenSshSettings = { settingsStack.push(LinuxEnvSettingsDestination, SshSettingsDestination) },
-                        onOpenFtpSettings = { settingsStack.push(LinuxEnvSettingsDestination, FtpSettingsDestination) },
+                        onOpenDistroManagement = { activeStack.push(LinuxEnvSettingsDestination, DistroManagementDestination) },
+                        onOpenStorageMounts = { activeStack.push(LinuxEnvSettingsDestination, StorageMountSettingsDestination) },
+                        onOpenStorageUsage = { activeStack.push(LinuxEnvSettingsDestination, StorageUsageDestination) },
+                        onOpenAppManagement = { activeStack.push(LinuxEnvSettingsDestination, AppManagementDestination) },
+                        onOpenEnvironmentVariables = { activeStack.push(LinuxEnvSettingsDestination, EnvironmentVariableSettingsDestination) },
+                        onOpenSshSettings = { activeStack.push(LinuxEnvSettingsDestination, SshSettingsDestination) },
+                        onOpenFtpSettings = { activeStack.push(LinuxEnvSettingsDestination, FtpSettingsDestination) },
                         viewModel = settingsViewModel,
                     )
                 }
@@ -468,10 +446,10 @@ fun TaiXuNavHost(
                 GuardedEntry(SystemDevSettingsDestination) {
                     SystemDevSettingsScreen(
                         onBack = ::popBack,
-                        onOpenDeveloper = { settingsStack.push(SystemDevSettingsDestination, DeveloperDestination) },
-                        onOpenAdbLogcat = { settingsStack.push(SystemDevSettingsDestination, AdbLogcatDestination) },
-                        onOpenCustomIteration = { settingsStack.push(SystemDevSettingsDestination, CustomIterationDestination) },
-                        onOpenPermissionGuide = { settingsStack.push(SystemDevSettingsDestination, PermissionGuideDestination) },
+                        onOpenDeveloper = { activeStack.push(SystemDevSettingsDestination, DeveloperDestination) },
+                        onOpenAdbLogcat = { activeStack.push(SystemDevSettingsDestination, AdbLogcatDestination) },
+                        onOpenCustomIteration = { activeStack.push(SystemDevSettingsDestination, CustomIterationDestination) },
+                        onOpenPermissionGuide = { activeStack.push(SystemDevSettingsDestination, PermissionGuideDestination) },
                         viewModel = settingsViewModel,
                     )
                 }
@@ -487,7 +465,7 @@ fun TaiXuNavHost(
                 GuardedEntry(AboutCommunityDestination) {
                     AboutCommunityScreen(
                         onBack = ::popBack,
-                        onOpenSponsor = { settingsStack.push(AboutCommunityDestination, SponsorDestination) },
+                        onOpenSponsor = { activeStack.push(AboutCommunityDestination, SponsorDestination) },
                         viewModel = settingsViewModel,
                     )
                 }
@@ -620,8 +598,8 @@ fun TaiXuNavHost(
                 GuardedEntry(ModelProfilesDestination) {
                     ModelProfilesScreen(
                         onBack = ::popBack,
-                        onCreate = { settingsStack.push(ModelProfilesDestination, ModelEditorDestination()) },
-                        onEdit = { modelId -> settingsStack.push(ModelProfilesDestination, ModelEditorDestination(modelId)) },
+                        onCreate = { activeStack.push(ModelProfilesDestination, ModelEditorDestination()) },
+                        onEdit = { modelId -> activeStack.push(ModelProfilesDestination, ModelEditorDestination(modelId)) },
                         viewModel = settingsViewModel,
                     )
                 }
@@ -630,7 +608,7 @@ fun TaiXuNavHost(
                 GuardedEntry(LocalLlmDestination) {
                     LocalLlmScreen(
                         onBack = ::popBack,
-                        onOpenEngine = { settingsStack.push(LocalLlmDestination, ToolDetailDestination("llama-cpp")) },
+                        onOpenEngine = { activeStack.push(LocalLlmDestination, ToolDetailDestination("llama-cpp")) },
                     )
                 }
             }
@@ -681,9 +659,9 @@ fun TaiXuNavHost(
                 GuardedEntry(FeatureHubDestination) {
                     FeatureHubScreen(
                         onBack = ::popBack,
-                        onOpenCustomIteration = { settingsStack.push(FeatureHubDestination, CustomIterationDestination) },
+                        onOpenCustomIteration = { activeStack.push(FeatureHubDestination, CustomIterationDestination) },
                         onStartRoundtable = { pendingHealingTask = HealingTask(AgentPresets.ROUNDTABLE_TITLE, AgentPresets.ROUNDTABLE_PROMPT); navigateMain(MainDestination.Agent) },
-                        onOpenA2uiPoc = { settingsStack.push(FeatureHubDestination, A2uiPocDestination) },
+                        onOpenA2uiPoc = { activeStack.push(FeatureHubDestination, A2uiPocDestination) },
                     )
                 }
             }
@@ -717,7 +695,7 @@ fun TaiXuNavHost(
             }
     }
 
-    // Hoist decorators so tab switches (key below) do not drop entry Saveable/ViewModel state.
+    // Keep entry state and ViewModels across pushes and pops in the shared navigation stack.
     // Explicit <NavKey>: outside NavDisplay's parameter context, listOf cannot infer T.
     val entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator<NavKey>(), rememberViewModelStoreNavEntryDecorator<NavKey>())
     PluginNavigationShell(pluginPlatform, pluginController, browserViewModel, selectedPage = selectedPluginPage(activeStack.lastOrNull()),
@@ -726,18 +704,16 @@ fun TaiXuNavHost(
     ) {
         ChatNavigationDrawer(
             viewModel = chatViewModel, visible = showNavigation, onDismiss = { showNavigation = false },
-            onOpen = { showNavigation = true }, docked = sidebarDocked, onDockedChange = { sidebarDocked = it }, newSessionVisible = showNewSession, selected = when (activeStack.lastOrNull()) { WorkspaceDestination -> MainDestination.Workspace; HomeDestination -> MainDestination.Home; else -> selectedMain },
+            onOpen = { showNavigation = true }, gesturesEnabled = sidebarGesturesEnabled, docked = sidebarDocked, onDockedChange = { sidebarDocked = it }, newSessionVisible = showNewSession, selected = selectedMain,
             onNewSession = { showNewSession = true }, onDismissNewSession = { showNewSession = false },
             onNavigate = ::navigateMain, onOpenTerminal = { activeStack.pushRaw(TerminalDestination()) },
             onOpenTools = { activeStack.pushRaw(ToolCenterDestination) },
         ) {
             Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                key(selectedMain) {
-                    NavDisplay(
-                        backStack = activeStack, modifier = Modifier.fillMaxSize(), onBack = ::popBack,
-                        entryDecorators = entryDecorators, entryProvider = appEntryProvider,
-                    )
-                }
+                NavDisplay(
+                    backStack = activeStack, modifier = Modifier.fillMaxSize(), onBack = ::popBack,
+                    entryDecorators = entryDecorators, entryProvider = appEntryProvider,
+                )
             }
         }
     }

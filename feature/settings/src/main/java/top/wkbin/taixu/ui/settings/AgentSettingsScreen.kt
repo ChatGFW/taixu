@@ -54,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -83,6 +84,7 @@ import top.wkbin.taixu.ui.settings.skill.SkillSecurityAuditDialog
 
 enum class AgentSettingsCategory { EXECUTION, SUBAGENTS, SKILLS }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AgentSettingsScreen(
     onBack: () -> Unit,
@@ -167,8 +169,10 @@ fun AgentSettingsScreen(
     }
     val skillDirPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> if (uri != null) viewModel?.importSkillsFromTree(uri) }
 
+    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
                 title = when (category) {
@@ -176,8 +180,8 @@ fun AgentSettingsScreen(
                     AgentSettingsCategory.SUBAGENTS -> "子智能体角色"
                     AgentSettingsCategory.SKILLS -> "Skills 与插件"
                 },
-                statusText = "按领域独立管理 Agent 能力",
                 onBack = onBack,
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { padding ->
@@ -185,7 +189,7 @@ fun AgentSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (category == AgentSettingsCategory.EXECUTION) {
@@ -776,254 +780,6 @@ fun AgentSettingsScreen(
         )
     }
 }
-
-@Composable
-private fun BaseCommandTimeoutSliderRow(
-    currentValue: Int,
-    onValueChange: (Int) -> Unit,
-) {
-    var sliderMinutes by remember(currentValue) {
-        mutableFloatStateOf((currentValue / 60f).coerceIn(1f, 60f))
-    }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("base 命令默认超时", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-            Text(
-                "${sliderMinutes.toInt()} 分钟",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-        Text(
-            "适用于普通前台命令；模型可为单次命令指定 1–60 分钟，常驻任务应使用 process 工具",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Slider(
-            value = sliderMinutes,
-            onValueChange = { sliderMinutes = it },
-            onValueChangeFinished = { onValueChange(sliderMinutes.toInt() * 60) },
-            valueRange = 1f..60f,
-            steps = 58,
-        )
-    }
-}
-
-@Composable
-private fun AgentSettingsGroup(content: @Composable () -> Unit) {
-    RuntimeCard(
-        Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = MaterialTheme.colorScheme.outlineVariant,
-        contentPadding = PaddingValues(0.dp),
-    ) {
-        Column { content() }
-    }
-}
-
-@Composable
-private fun AgentBlockTitle(title: String) {
-    Text(
-        text = title,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-        color = MaterialTheme.colorScheme.primary,
-    )
-}
-
-@Composable
-private fun AgentToggleRow(
-    icon: RuntimeIconName,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 68.dp)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            RuntimeIcon(icon, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurface)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
-            ),
-        )
-    }
-}
-
-
-@Composable
-private fun AgentDepartmentCard(
-    departmentId: String,
-    enabledCount: Int,
-    agentCount: Int,
-    expanded: Boolean,
-    onClick: () -> Unit,
-) {
-    val department = AgentDepartments.find(departmentId)
-    val departmentColor = Color(department.colorArgb)
-    RuntimeCard(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = departmentColor.copy(alpha = 0.4f),
-        onClick = onClick,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(departmentColor.copy(alpha = 0.14f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                RuntimeIcon(RuntimeIconName.Bot, Modifier.size(20.dp), departmentColor)
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    "${department.localizedName} · ${department.name}",
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                )
-                Text(
-                    "$enabledCount/$agentCount 已启用",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            RuntimeIcon(
-                if (expanded) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown,
-                Modifier.size(20.dp),
-                MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SubagentProfileCard(
-    profile: AgentSubagent,
-    modelLabel: String,
-    onToggle: (Boolean) -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    RuntimeCard(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = if (profile.isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    RuntimeIcon(RuntimeIconName.Bot, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
-                }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(profile.name, style = MaterialTheme.typography.titleMedium)
-                    Text(profile.id, style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.primary)
-                }
-                if (profile.isBuiltin) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        shape = RoundedCornerShape(4.dp),
-                    ) {
-                        Text(
-                            "Agency",
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
-            Text(profile.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(
-                "默认模型：$modelLabel",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (profile.defaultModelId == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End,
-            ) {
-                IconButton(
-                    onClick = onEdit,
-                    modifier = Modifier
-                        .minimumInteractiveComponentSize()
-                        .size(36.dp),
-                    contentDescription = "编辑角色",
-                ) {
-                    RuntimeIcon(RuntimeIconName.Edit, Modifier.size(17.dp), MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier
-                        .minimumInteractiveComponentSize()
-                        .size(36.dp),
-                    contentDescription = "删除角色",
-                ) {
-                    RuntimeIcon(RuntimeIconName.Trash, Modifier.size(17.dp), MaterialTheme.colorScheme.error)
-                }
-                Spacer(Modifier.width(6.dp))
-                Switch(
-                    checked = profile.isEnabled,
-                    onCheckedChange = onToggle,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primary,
-                    ),
-                )
-            }
-        }
-    }
-}
-
-
 
 @Composable
 private fun RoundsSliderRow(

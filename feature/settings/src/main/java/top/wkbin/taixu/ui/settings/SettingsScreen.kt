@@ -3,42 +3,31 @@ import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import top.wkbin.taixu.feature.settings.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import top.wkbin.taixu.ui.components.IconTile
 import top.wkbin.taixu.ui.components.MainDestination
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.LocalPluginSettingsContent
-import top.wkbin.taixu.ui.components.runtimeContentPadding
 
 /**
  * 太墟 · 乾坤配置 (TaiXu Settings & Models)
@@ -53,7 +42,7 @@ fun SettingsScreen(
     onOpenAboutCommunity: () -> Unit,
     onOpenSearch: () -> Unit = {},
     onOpenFeatureHub: () -> Unit = {},
-    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
+    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) },
 ) {
     val pluginSettings = LocalPluginSettingsContent.current
     val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
@@ -62,8 +51,7 @@ fun SettingsScreen(
     val skills by viewModel?.allSkills?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val effectiveExecutionMode by viewModel?.effectiveExecutionMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.ExecutionMode.PROOT)
     val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val activeDistroId by viewModel?.activeDistroId?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
-    val terminalFontSize by viewModel?.terminalFontSize?.collectAsStateWithLifecycle() ?: previewStateOf(0)
+    val terminalFontSize by viewModel?.terminalFontSize?.collectAsStateWithLifecycle() ?: previewStateOf(14)
 
     val themeLabel = when (themeMode) {
         "light" -> "浅色"
@@ -71,216 +59,77 @@ fun SettingsScreen(
         else -> "跟随系统"
     }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
     val appVersionName = rememberAppVersion()
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            RuntimeTopBar(
-                title = "太墟 · 乾坤", onBack = { onNavigate(MainDestination.Agent) },
-                statusText = "系统设置与控制中枢",
-            )
-        },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = runtimeContentPadding(horizontal = 16.dp, top = 10.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            item { pluginSettings?.invoke() }
-            // 全局功能搜索快捷入口卡片
-            item {
-                RuntimeCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = onOpenSearch,
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
-                    borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 11.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        RuntimeIcon(
-                            name = RuntimeIconName.Search,
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            text = "搜索全局功能与设置选项...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                            modifier = Modifier.weight(1f),
-                        )
-                        RuntimeIcon(
-                            name = RuntimeIconName.ChevronRight,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        )
-                    }
+
+    PersonalizationScaffold(stringResource(R.string.personal_settings_title), onBack) {
+        item("search") {
+            RuntimeCard(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenSearch,
+                shape = RoundedCornerShape(50),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentPadding = PaddingValues(20.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    RuntimeIcon(RuntimeIconName.Search, Modifier.size(24.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.personal_search), style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-
-            item { LocalBackupSettingsCard() }
-            item {
-                Text(
-                    text = "系统与配置分类",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 2.dp),
-                )
-            }
-
-            // 1. 智能体与 AI 模型生态
-            item {
-                SettingsCategoryCard(
-                    icon = RuntimeIconName.Brain,
-                    accent = MaterialTheme.colorScheme.primary,
-                    title = "智能体与 AI 模型",
-                    subtitle = "模型档案 · 插件工具中心 · 技能与 MCP 生态",
-                    badge = if (models.isEmpty()) "未配置模型" else "${models.size} 个模型 · ${skills.count { it.isEnabled }} 技能",
-                    onClick = onOpenAgentEco,
-                )
-            }
-
-            // 2. Linux 容器沙箱与存储
-            item {
-                SettingsCategoryCard(
-                    icon = RuntimeIconName.Server,
-                    accent = MaterialTheme.colorScheme.tertiary,
-                    title = "Linux 容器与存储",
-                    subtitle = "多发行版管理 · 宿主存储映射 · 运行特权模式",
-                    badge = "${installedDistros.size} 套系统 · ${effectiveExecutionMode.shortLabel}",
-                    onClick = onOpenLinuxEnv,
-                )
-            }
-
-            // 3. 外观、字号与终端定制
-            item {
-                SettingsCategoryCard(
-                    icon = RuntimeIconName.Palette,
-                    accent = MaterialTheme.colorScheme.secondary,
-                    title = "外观、字号与终端定制",
-                    subtitle = "深浅色主题 · 应用字号缩放 · 终端配色与字体",
-                    badge = "$themeLabel · ${terminalFontSize}sp",
-                    onClick = onOpenAppearance,
-                )
-            }
-
-            // 4. 系统保活与开发者诊断
-            item {
-                SettingsCategoryCard(
-                    icon = RuntimeIconName.Admin,
-                    accent = MaterialTheme.colorScheme.primary,
-                    title = "系统保活与开发者诊断",
-                    subtitle = "后台电池优化白名单 · 调试监控 · PRoot 控制台",
-                    badge = if (developer) "诊断模式已开启" else "运行平稳",
-                    onClick = onOpenSystemDev,
-                )
-            }
-
-            item {
-                SettingsCategoryCard(
-                    icon = RuntimeIconName.Sparkles,
-                    accent = MaterialTheme.colorScheme.tertiary,
-                    title = "特色功能",
-                    subtitle = "一句话做 App · AI 圆桌 · 晨报哨兵 · WebChat 大屏 · A2UI 界面",
-                    badge = "5 项功能",
-                    onClick = onOpenFeatureHub,
-                )
-            }
-
-            // 5. 关于、更新与官方社区
-            item {
-                SettingsCategoryCard(
-                    icon = RuntimeIconName.Community,
-                    accent = MaterialTheme.colorScheme.secondary,
-                    title = "关于、更新与官方社区",
-                    subtitle = "检查新版本 · GitHub 开源仓库 · 官方 QQ 交流群",
-                    badge = if (appVersionName == "unknown") "版本号未知 · 稳定版" else "v$appVersionName 稳定版",
-                    onClick = onOpenAboutCommunity,
-                )
+        }
+        item("appearance") {
+            SettingsCategoryCard(
+                icon = RuntimeIconName.Palette,
+                title = stringResource(R.string.personal_appearance_title),
+                subtitle = stringResource(R.string.settings_nav_appearance_summary),
+                value = "$themeLabel · ${terminalFontSize}sp",
+                onClick = onOpenAppearance,
+            )
+        }
+        item("environment") {
+            PersonalizationSection(stringResource(R.string.personal_environment)) {
+                SettingsCategoryCard(RuntimeIconName.Brain, stringResource(R.string.personal_agents_title),
+                    stringResource(R.string.settings_nav_agents_summary),
+                    if (models.isEmpty()) "未配置模型" else "${models.size} 个模型 · ${skills.count { it.isEnabled }} 技能",
+                    first = true, last = false, onClick = onOpenAgentEco)
+                SettingsCategoryCard(RuntimeIconName.Server, stringResource(R.string.personal_linux_title),
+                    stringResource(R.string.settings_nav_linux_summary),
+                    "${installedDistros.size} 套系统 · ${effectiveExecutionMode.shortLabel}",
+                    first = false, last = false, onClick = onOpenLinuxEnv)
+                SettingsCategoryCard(RuntimeIconName.Sparkles, "特色功能",
+                    stringResource(R.string.settings_nav_features_summary),
+                    "5 项功能", first = false, last = true, onClick = onOpenFeatureHub)
             }
         }
+        if (pluginSettings != null) item("plugins") { pluginSettings() }
+        item("application") {
+            PersonalizationSection(stringResource(R.string.personal_application)) {
+                SettingsCategoryCard(RuntimeIconName.Admin, stringResource(R.string.personal_diagnostics_title),
+                    stringResource(R.string.settings_nav_diagnostics_summary),
+                    if (developer) "诊断模式已开启" else "运行平稳",
+                    first = true, last = false, onClick = onOpenSystemDev)
+                SettingsCategoryCard(RuntimeIconName.Community, stringResource(R.string.settings_nav_about_title),
+                    stringResource(R.string.settings_nav_about_summary),
+                    if (appVersionName == "unknown") "版本号未知 · 稳定版" else "v$appVersionName 稳定版",
+                    first = false, last = true, onClick = onOpenAboutCommunity)
+            }
+        }
+        item("backup") { LocalBackupSettingsCard() }
     }
 }
 
-/**
- * 现代高质感大类导航卡片（紧凑精致）
- */
 @Composable
 private fun SettingsCategoryCard(
     icon: RuntimeIconName,
-    accent: Color,
     title: String,
     subtitle: String,
-    badge: String,
+    value: String,
+    first: Boolean = true,
+    last: Boolean = true,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    RuntimeCard(
-        modifier = modifier.fillMaxWidth(),
-        onClick = onClick,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            IconTile(
-                icon = icon,
-                size = 36.dp,
-                color = accent,
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(4.dp),
-                ) {
-                    Text(
-                        text = badge,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Medium),
-                        color = accent,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp),
-                    )
-                }
-            }
-
-            RuntimeIcon(
-                name = RuntimeIconName.ChevronRight,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-            )
-        }
+    PreferenceSurface(first = first, last = last) {
+        SettingsRow(icon = icon, title = title, subtitle = subtitle, value = value, onClick = onClick)
     }
 }

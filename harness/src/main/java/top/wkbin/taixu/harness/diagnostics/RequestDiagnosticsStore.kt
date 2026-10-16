@@ -56,17 +56,22 @@ class RequestDiagnosticsStore(private val redactor: SensitiveDataRedactor, repos
         body: String,
         bodyBytes: Long,
         secrets: Collection<String> = emptyList(),
+        governance: ContextGovernanceReport? = null,
     ) {
         if (sessionId.length > 256 || operationId.length > 256 || protocol.length > 256) return
         // Remove known credentials before parsing, and redact the entire entry before clipping.
         // This also removes secret echoes in a different message in the same request.
-        var safeBody = body
-        secrets.filter { it.isNotEmpty() }.distinct().sortedByDescending { it.length }.forEach {
-            safeBody = safeBody.replace(it, "[REDACTED]")
+        val knownSecrets = secrets.filter { it.isNotEmpty() }.distinct().sortedByDescending { it.length }
+        fun removeKnown(value: String): String {
+            var safe = value
+            knownSecrets.forEach { safe = safe.replace(it, "[REDACTED]") }
+            return safe
         }
-        val root = json.parseToJsonElement(safeBody) as? JsonObject ?: return
+        val root = json.parseToJsonElement(removeKnown(body)) as? JsonObject ?: return
         val cleaned = stripMedia(root) as JsonObject
         val allSections = buildList {
+            governance?.let { add(RequestContextSection("context_governance (local)",
+                removeKnown(json.encodeToString(ContextGovernanceReport.serializer(), it)))) }
             cleaned.forEach { (key, value) ->
                 if ((key == "messages" || key == "input") && value is JsonArray) {
                     value.forEachIndexed { index, item ->

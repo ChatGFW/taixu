@@ -1021,9 +1021,9 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "history_read",
-                    description = "读取当前会话某条历史消息的原文。必须提供 history_search 返回的 message_id 或活动分支的 0 起始 index（包含工具消息），至少提供一个；两者都提供时优先使用 message_id。单条返回有大小上限。只读。",
+                    description = "分页读取当前会话活动分支的历史原文及关联工具调用/结果。message_id 或 0 起始 index 至少提供一个，同时提供时优先 message_id。offset/limit 是包含 id/标签的关联文本的 UTF-16 字符数（非行号）；默认 offset=0、limit=8000，上限16000。用返回的 message_id 和 next_offset 续读至 truncated=false。仅供参考，不重放操作。只读。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"message_id":{"type":"string","description":"history_search 返回的消息 ID；与 index 至少提供一个"},"index":{"type":"integer","minimum":0,"description":"历史消息的 0 起始索引；与 message_id 至少提供一个"}}}""",
+                        """{"type":"object","properties":{"message_id":{"type":"string","description":"history_search 或上一页返回的消息 ID；与 index 至少提供一个"},"index":{"type":"integer","minimum":0,"description":"活动分支的 0 起始消息索引；与 message_id 至少提供一个"},"offset":{"type":"integer","minimum":0,"description":"UTF-16 字符偏移，默认0；续读使用 next_offset"},"limit":{"type":"integer","minimum":1,"maximum":16000,"description":"UTF-16 字符页大小，默认8000"}}}""",
                     ).jsonObject,
                 ),
             ),

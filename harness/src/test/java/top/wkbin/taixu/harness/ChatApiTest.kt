@@ -186,7 +186,7 @@ class ChatApiTest {
         server.enqueue(MockResponse().setBody("""{"choices":[]}"""))
         api.chat(
             model().copy(
-                provider = "自定义 OpenAI 兼容接口",
+                provider = "OpenAI 兼容接口",
                 reasoningMode = ReasoningMode.ENABLED,
                 reasoningEffort = ReasoningEffort.HIGH,
             ),

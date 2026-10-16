@@ -1,5 +1,4 @@
 package top.wkbin.taixu.harness
-import top.wkbin.taixu.harness.task.TaskDeliveryReport
 
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -14,6 +13,7 @@ data class ContextMemoryRequest(
     val tool: HarnessTool,       // HISTORY_SEARCH / HISTORY_READ / COMPRESS
     val args: JsonObject,
     val sessionId: String,
+    val redactText: (String) -> String = { it },
 )
 
 /**
@@ -21,7 +21,7 @@ data class ContextMemoryRequest(
  *
  * 职责边界：
  * - 只负责会话历史检索/回读与手动上下文压缩（会话树检索、CompactionManager 摘要路径）。
- * - 不持有审批逻辑、脱敏、输出截断等横切关注点——这些由 ToolExecutor 管道层处理。
+ * - 不持有审批或脱敏策略；历史切片前使用 ToolExecutor 管道提供的脱敏函数。
  */
 class ContextMemoryToolBackend(
     private val messageStore: SessionTreeStore? = null,
@@ -31,31 +31,36 @@ class ContextMemoryToolBackend(
 ) : ToolBackend<ContextMemoryRequest, Pair<Boolean, String>> {
 
     override suspend fun execute(request: ContextMemoryRequest): Pair<Boolean, String> = when (request.tool) {
-        HarnessTool.HISTORY_SEARCH -> executeHistorySearch(request.args, request.sessionId)
-        HarnessTool.HISTORY_READ -> executeHistoryRead(request.args, request.sessionId)
+        HarnessTool.HISTORY_SEARCH -> executeHistorySearch(request.args, request.sessionId, request.redactText)
+        HarnessTool.HISTORY_READ -> executeHistoryRead(request.args, request.sessionId, request.redactText)
         HarnessTool.COMPRESS -> executeCompress(request.args, request.sessionId)
         else -> throw IllegalArgumentException("Unsupported tool: ${request.tool}")
     }
 
-    private suspend fun executeHistorySearch(args: JsonObject, sessionId: String): Pair<Boolean, String> {
+    private suspend fun executeHistorySearch(args: JsonObject, sessionId: String, redact: (String) -> String): Pair<Boolean, String> {
         val query = JsonArgs.requireString(args, "query")
         val limit = JsonArgs.optionalLong(args, "limit", 8L, 1L, 20L).toInt()
         val matches = messageStore?.searchIndexed(sessionId, query, limit).orEmpty()
         if (matches.isEmpty()) return true to "未找到匹配历史：$query"
         return true to matches.map { (message, index) ->
-            "[index=$index] id=${message.id} time=${message.createdAt} ${historyLabel(message)}"
+            // Preview through the hit's whole call/result group: the label of an echoed secret can
+            // live in a sibling message, which a per-message redaction pass would never learn.
+            val related = messageStore?.readWithRelated(sessionId, messageId = message.id).orEmpty()
+            val preview = HistoryReadPage.preview(related.ifEmpty { listOf(message) }, message.id, redact)
+            "[index=$index] id=${message.id} time=${message.createdAt} $preview"
         }.joinToString("\n")
     }
 
-    private suspend fun executeHistoryRead(args: JsonObject, sessionId: String): Pair<Boolean, String> {
+    private suspend fun executeHistoryRead(args: JsonObject, sessionId: String, redact: (String) -> String): Pair<Boolean, String> {
         val messageId = args["message_id"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotBlank() }
-        val index = args["index"]?.jsonPrimitive?.content?.trim()?.toIntOrNull()
+        val index = if (messageId != null || "index" !in args) null else
+            JsonArgs.optionalLong(args, "index", 0, 0, Int.MAX_VALUE.toLong()).toInt()
         require(messageId != null || index != null) { "history.read 需要 message_id 或 index" }
+        val offset = JsonArgs.optionalLong(args, "offset", 0, 0, Int.MAX_VALUE.toLong()).toInt()
+        val limit = JsonArgs.optionalLong(args, "limit", HistoryReadPage.DEFAULT_LIMIT.toLong(), 1, HistoryReadPage.MAX_LIMIT.toLong()).toInt()
         val messages = messageStore?.readWithRelated(sessionId, messageId, index).orEmpty()
         if (messages.isEmpty()) return false to "未找到指定历史消息"
-        return true to messages.joinToString("\n\n") { message ->
-            "id=${message.id}\n${historyLabel(message, full = true)}"
-        }.take(MAX_HISTORY_READ_OUTPUT)
+        return true to HistoryReadPage.render(messages, offset, limit, redact)
     }
 
     /**
@@ -117,21 +122,4 @@ class ContextMemoryToolBackend(
         }
     }
 
-    private fun historyLabel(message: HarnessMessage, full: Boolean = false): String = when (message) {
-        is CapabilityEvent -> "能力事件 ${message.name}: ${message.details}"
-        is SkillSuggestion -> "技能建议 ${message.skillName}: ${message.description}"
-        is TaskDelivery -> "任务交付记录：" + kotlinx.serialization.json.Json.encodeToString(TaskDeliveryReport.serializer(), message.report)
-        is ModelSwitchEvent -> "切换模型 ${message.fromLabel} → ${message.toLabel}"
-        is UserMessage -> "用户：${message.text.take(if (full) MAX_HISTORY_READ_OUTPUT else 240)}"
-        is AssistantText -> "助手：${message.text.take(if (full) MAX_HISTORY_READ_OUTPUT else 240)}" +
-            if (full && !message.reasoning.isNullOrBlank()) "\nreasoning:\n${message.reasoning.take(MAX_HISTORY_READ_OUTPUT)}" else ""
-        is ToolCall -> "工具调用 ${message.rawToolName ?: message.tool}: ${message.args}" +
-            if (full) "\nreasoning:\n${message.reasoning.orEmpty().take(MAX_HISTORY_READ_OUTPUT)}" else ""
-        is ToolResult -> "工具结果：${message.output.take(if (full) MAX_HISTORY_READ_OUTPUT else 240)}"
-    }
-
-    companion object {
-        /** history_read / historyLabel 中单条消息的输出上限。 */
-        const val MAX_HISTORY_READ_OUTPUT = 48 * 1024
-    }
 }

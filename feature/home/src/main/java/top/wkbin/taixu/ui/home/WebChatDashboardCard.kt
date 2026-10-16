@@ -44,7 +44,7 @@ internal fun WebChatDashboardCard(
     val directUrl = "${status.accessUrl}?token=${status.pinCode}"
 
     RuntimeCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge,
         // 减强调：运行态仅保留容器色强调，不再叠加主色描边
         containerColor = if (status.isRunning) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.40f) else MaterialTheme.colorScheme.surfaceContainer,
         contentPadding = PaddingValues(if (status.isRunning) 16.dp else 12.dp),

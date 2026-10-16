@@ -8,6 +8,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
@@ -27,6 +28,7 @@ fun HomeScreen(onNavigate: (MainDestination) -> Unit, onOpenTerminal: () -> Unit
     else key(active, servers.firstOrNull { it.id == active }) { RemoteHomeScreen(checkNotNull(active), onNavigate, onBack = onBack) }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService? = previewOrNull { koinInject() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
     var refresh by remember { mutableIntStateOf(0) }
@@ -35,13 +37,14 @@ internal fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) ->
         service?.observe(serverId, target) ?: kotlinx.coroutines.flow.flowOf(RemoteSystemInspection(loading = false))
     }.collectAsStateWithLifecycle(RemoteSystemInspection(loading = service != null))
     val metrics = state.metrics
-    Scaffold(containerColor = MaterialTheme.colorScheme.background,
-        topBar = { RuntimeTopBar(title = "太墟", onBack = onBack, statusText = target?.name ?: "当前系统", actions = {
+    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    Scaffold(modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surface,
+        topBar = { RuntimeTopBar(title = androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.home.R.string.home_dashboard_title), onBack = onBack, scrollBehavior = scrollBehavior, actions = {
             RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) }
         }) },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp)
-            .padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 16.dp))
+            .padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
             Text("主系统概览", style = MaterialTheme.typography.titleMedium)
             SystemOverviewCard(target?.name ?: "服务器", target?.let { "${it.username}@${it.host}:${it.port}" }.orEmpty(),
                 target?.workspace.orEmpty(), state.loading, state.error, metrics?.let { listOf(

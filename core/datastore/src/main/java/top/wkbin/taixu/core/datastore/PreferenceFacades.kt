@@ -1,5 +1,4 @@
 package top.wkbin.taixu.core.datastore
-
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -7,9 +6,12 @@ import kotlinx.coroutines.flow.Flow
 import top.wkbin.taixu.core.model.EnvironmentVariable
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.core.model.RunningSendMode
-
 /** Narrow preference views keep consumers from depending on the complete settings schema. */
 class AppearancePreferences(private val store: SettingsDataStore) {
+    private val paletteStore = ThemePalettePreferences(store.appearanceDataStore)
+    val themePalette get() = paletteStore.palette
+    suspend fun selectThemeColor(id: String) = paletteStore.selectColor(id)
+    suspend fun setPaletteStyle(style: top.wkbin.taixu.core.model.ThemePaletteStyle) = paletteStore.selectStyle(style)
     val themeMode get() = store.themeMode
     val dynamicColorEnabled get() = store.dynamicColorEnabled
     val appFontScale get() = store.appFontScale
@@ -160,6 +162,8 @@ class AgentPreferences(private val store: SettingsDataStore) {
     val thinkingExpanded get() = store.thinkingExpanded
     val thinkingAutoTranslate get() = store.thinkingAutoTranslate
     val chatRoundCollapse get() = store.chatRoundCollapse
+    val autoReadReplies get() = store.autoReadReplies
+    suspend fun setAutoReadReplies(value: Boolean) = store.setAutoReadReplies(value)
     suspend fun setChatRoundCollapse(value: Boolean) = store.setChatRoundCollapse(value)
     val runningSendMode get() = store.runningSendMode
     suspend fun setRunningSendMode(value: RunningSendMode) = store.setRunningSendMode(value)

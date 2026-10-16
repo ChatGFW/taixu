@@ -21,14 +21,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.ui.res.stringResource
+import top.wkbin.taixu.feature.settings.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,7 +54,6 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
-import top.wkbin.taixu.ui.components.RuntimeTopBar
 /**
  * 二级子页 3：系统保活与开发者诊断
  */
@@ -105,158 +104,149 @@ fun SystemDevSettingsScreen(
         )
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = { RuntimeTopBar("保活与诊断", onBack) },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            item {
-                Text(
-                    text = "进程保活与唤醒",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+    PersonalizationScaffold(stringResource(R.string.personal_diagnostics_title), onBack) {
+        item {
+            Text(
+                text = "进程保活与唤醒",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
+            )
+            SettingsGroup {
+                SettingsRow(
+                    icon = RuntimeIconName.Shield,
+                    title = "厂商后台防杀与权限向导",
+                    subtitle = "自启动、电池无限制、多任务加锁等 OEM 专属配置指引",
+                    value = "查看向导",
+                    onClick = onOpenPermissionGuide,
                 )
-                SettingsGroup {
-                    SettingsRow(
-                        icon = RuntimeIconName.Shield,
-                        title = "厂商后台防杀与权限向导",
-                        subtitle = "自启动、电池无限制、多任务加锁等 OEM 专属配置指引",
-                        value = "查看向导",
-                        onClick = onOpenPermissionGuide,
-                    )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                SettingsRow(
+                    icon = RuntimeIconName.Battery,
+                    title = "电池优化与后台保活",
+                    subtitle = "豁免系统电池限制，防止 Agent 息屏被冻结",
+                    value = if (batteryExempted) "已豁免" else "未豁免",
+                    onClick = { showBatteryDialog = true },
+                )
+                if (isRestrictiveRom) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     SettingsRow(
-                        icon = RuntimeIconName.Battery,
-                        title = "电池优化与后台保活",
-                        subtitle = "豁免系统电池限制，防止 Agent 息屏被冻结",
-                        value = if (batteryExempted) "已豁免" else "未豁免",
-                        onClick = { showBatteryDialog = true },
-                    )
-                    if (isRestrictiveRom) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                        SettingsRow(
-                            icon = RuntimeIconName.Cpu,
-                            title = "$romLabel 快捷自启动跳转",
-                            subtitle = "一键直达厂商系统自启动管理设置项",
-                            value = "前往开启",
-                            onClick = {
-                                runCatching { RomAutostartHelper.openAutostartSettings(context) }.onFailure {
-                                    Toast.makeText(context, "无法跳转厂商设置，请在系统设置的应用管理中手动配置", Toast.LENGTH_LONG).show()
-                                }
-                            },
-                        )
-                    }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    SettingsRow(
-                        icon = RuntimeIconName.Speed,
-                        title = "Android 12 子进程限制",
-                        subtitle = "解除 Phantom Process 最多 32 个的后台限制",
-                        value = when {
-                            phantomBusy && phantomStatus == null -> "检测中"
-                            phantomStatus?.state == PhantomProcessLimitState.REMOVED -> "已解除"
-                            phantomStatus?.state == PhantomProcessLimitState.ACTIVE -> "未解除"
-                            phantomStatus?.state == PhantomProcessLimitState.UNSUPPORTED -> "无需处理"
-                            else -> "待检测"
-                        },
-                        onClick = {
-                            showPhantomProcessDialog = true
-                            viewModel?.refreshPhantomProcessLimit()
-                        },
-                    )
-                }
-            }
-
-            item {
-                Text(
-                    text = "Android 系统调试与日志",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-                )
-                SettingsGroup {
-                    SettingsRow(
-                        icon = RuntimeIconName.Terminal,
-                        title = "无线 ADB 与日志抓取",
-                        subtitle = "mDNS 自动配对发现、免配对自动重连与 Logcat 实时工作台",
-                        value = "进入工作台",
-                        onClick = onOpenAdbLogcat,
-                    )
-                }
-            }
-
-            item {
-                Text(
-                    text = "太墟自定义迭代与共建",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-                )
-                SettingsGroup {
-                    SettingsRow(
-                        icon = RuntimeIconName.Code,
-                        title = "自定义迭代（TaiXuDev）",
-                        subtitle = "在手机沙盒中调用 AI 开发太墟自身并云端构建 APK",
-                        onClick = onOpenCustomIteration,
-                    )
-                }
-            }
-
-            item {
-                Text(
-                    text = "开发者调试与控制台",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-                )
-                SettingsGroup {
-                    ToggleRow(
-                        icon = RuntimeIconName.Bug,
-                        title = "开发者诊断模式",
-                        subtitle = "开启底层健康监控与调试控制台",
-                        checked = developer,
-                        change = { arg0 -> viewModel?.setDeveloperMode(arg0) },
-                    )
-                    if (developer) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                        SettingsRow(
-                            icon = RuntimeIconName.Terminal,
-                            title = "开发者控制台",
-                            subtitle = "实时查看 PRoot 进程与命令追踪",
-                            onClick = onOpenDeveloper,
-                        )
-                    }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    ToggleRow(
                         icon = RuntimeIconName.Cpu,
-                        title = "QEMU x86_64 兼容模式",
-                        subtitle = if (qemuCompatibilityReady) {
-                            "允许明确请求的会话使用 QEMU x86_64 user-mode；ARM64 会话不受影响"
-                        } else {
-                            "未检测到 QEMU x86_64 兼容环境，请先在插件中心安装 qemu-x86-64-compat 插件"
+                        title = "$romLabel 快捷自启动跳转",
+                        subtitle = "一键直达厂商系统自启动管理设置项",
+                        value = "前往开启",
+                        onClick = {
+                            runCatching { RomAutostartHelper.openAutostartSettings(context) }.onFailure {
+                                Toast.makeText(context, "无法跳转厂商设置，请在系统设置的应用管理中手动配置", Toast.LENGTH_LONG).show()
+                            }
                         },
-                        checked = qemuCompatibilityEnabled && qemuCompatibilityReady,
-                        enabled = qemuCompatibilityReady,
-                        change = { arg0 -> viewModel?.setQemuCompatibilityEnabled(arg0) },
-                    )
-                    Text(
-                        text = qemuCompatibilityMessage ?: if (qemuCompatibilityEnabled) {
-                            "已开启。兼容插件只提供 ARM64 QEMU user-mode 与最小 x86_64 RootFS。"
-                        } else {
-                            "默认关闭，不会下载或使用 x86_64 工具。开启后仅对明确选择兼容环境的第三方项目生效，不会改变 APK 的 arm64-v8a 默认 ABI。"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (qemuCompatibilityReady) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
                     )
                 }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                SettingsRow(
+                    icon = RuntimeIconName.Speed,
+                    title = "Android 12 子进程限制",
+                    subtitle = "解除 Phantom Process 最多 32 个的后台限制",
+                    value = when {
+                        phantomBusy && phantomStatus == null -> "检测中"
+                        phantomStatus?.state == PhantomProcessLimitState.REMOVED -> "已解除"
+                        phantomStatus?.state == PhantomProcessLimitState.ACTIVE -> "未解除"
+                        phantomStatus?.state == PhantomProcessLimitState.UNSUPPORTED -> "无需处理"
+                        else -> "待检测"
+                    },
+                    onClick = {
+                        showPhantomProcessDialog = true
+                        viewModel?.refreshPhantomProcessLimit()
+                    },
+                )
             }
         }
-    }
+
+        item {
+            Text(
+                text = "Android 系统调试与日志",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
+            )
+            SettingsGroup {
+                SettingsRow(
+                    icon = RuntimeIconName.Terminal,
+                    title = "无线 ADB 与日志抓取",
+                    subtitle = "mDNS 自动配对发现、免配对自动重连与 Logcat 实时工作台",
+                    value = "进入工作台",
+                    onClick = onOpenAdbLogcat,
+                )
+            }
+        }
+
+        item {
+            Text(
+                text = "太墟自定义迭代与共建",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
+            )
+            SettingsGroup {
+                SettingsRow(
+                    icon = RuntimeIconName.Code,
+                    title = "自定义迭代（TaiXuDev）",
+                    subtitle = "在手机沙盒中调用 AI 开发太墟自身并云端构建 APK",
+                    onClick = onOpenCustomIteration,
+                )
+            }
+        }
+
+        item {
+            Text(
+                text = "开发者调试与控制台",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
+            )
+            SettingsGroup {
+                ToggleRow(
+                    icon = RuntimeIconName.Bug,
+                    title = "开发者诊断模式",
+                    subtitle = "开启底层健康监控与调试控制台",
+                    checked = developer,
+                    change = { arg0 -> viewModel?.setDeveloperMode(arg0) },
+                )
+                if (developer) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    SettingsRow(
+                        icon = RuntimeIconName.Terminal,
+                        title = "开发者控制台",
+                        subtitle = "实时查看 PRoot 进程与命令追踪",
+                        onClick = onOpenDeveloper,
+                    )
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                ToggleRow(
+                    icon = RuntimeIconName.Cpu,
+                    title = "QEMU x86_64 兼容模式",
+                    subtitle = if (qemuCompatibilityReady) {
+                        "允许明确请求的会话使用 QEMU x86_64 user-mode；ARM64 会话不受影响"
+                    } else {
+                        "未检测到 QEMU x86_64 兼容环境，请先在插件中心安装 qemu-x86-64-compat 插件"
+                    },
+                    checked = qemuCompatibilityEnabled && qemuCompatibilityReady,
+                    enabled = qemuCompatibilityReady,
+                    change = { arg0 -> viewModel?.setQemuCompatibilityEnabled(arg0) },
+                )
+                Text(
+                    text = qemuCompatibilityMessage ?: if (qemuCompatibilityEnabled) {
+                        "已开启。兼容插件只提供 ARM64 QEMU user-mode 与最小 x86_64 RootFS。"
+                    } else {
+                        "默认关闭，不会下载或使用 x86_64 工具。开启后仅对明确选择兼容环境的第三方项目生效，不会改变 APK 的 arm64-v8a 默认 ABI。"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (qemuCompatibilityReady) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                )
+            }
+        }
+        }
 }
 
 @Composable

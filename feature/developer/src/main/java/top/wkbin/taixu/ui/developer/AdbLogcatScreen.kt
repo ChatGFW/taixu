@@ -47,6 +47,7 @@ import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButt
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
 import top.wkbin.taixu.ui.components.StatusBadge
@@ -179,9 +180,8 @@ fun AdbLogcatScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    androidx.compose.material3.Switch(
-                        checked = adbNotificationEnabled,
-                        onCheckedChange = { arg0 -> viewModel?.setAdbNotificationEnabled(arg0) },
+                    Switch(
+                        checked = adbNotificationEnabled, onCheckedChange = { viewModel?.setAdbNotificationEnabled(it) },
                     )
                 }
             }

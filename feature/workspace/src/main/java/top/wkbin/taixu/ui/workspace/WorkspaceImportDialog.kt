@@ -17,12 +17,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import top.wkbin.taixu.ui.components.RuntimeFilterChip as FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -97,7 +98,6 @@ internal class ImportProjectWizardState(
         importInProgress = false
     }
 }
-
 @Composable
 internal fun rememberImportProjectWizardState(): ImportProjectWizardState =
     ImportProjectWizardState(
@@ -147,7 +147,7 @@ internal fun ImportProjectDialog(
         title = { Text(stringResource(R.string.workspace_import_project), fontWeight = FontWeight.Bold) },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 // GitHub 拉取进度：git 克隆可能耗时数分钟，实时展示最新进度与百分比
@@ -204,14 +204,14 @@ internal fun ImportProjectDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
+                    FilterChip(shape = androidx.compose.foundation.shape.CircleShape,
                         selected = state.importMode == ProjectImportMode.LOCAL,
                         onClick = { state.importMode = ProjectImportMode.LOCAL },
                         leadingIcon = { RuntimeIcon(RuntimeIconName.FolderDownload, Modifier.size(16.dp)) },
                         label = { Text(stringResource(R.string.workspace_local_archive)) },
                         modifier = Modifier.weight(1f),
                     )
-                    FilterChip(
+                    FilterChip(shape = androidx.compose.foundation.shape.CircleShape,
                         selected = state.importMode == ProjectImportMode.GITHUB,
                         onClick = { state.importMode = ProjectImportMode.GITHUB },
                         leadingIcon = { RuntimeIcon(RuntimeIconName.Github, Modifier.size(16.dp)) },
@@ -271,20 +271,20 @@ internal fun ImportProjectDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
+                        FilterChip(shape = androidx.compose.foundation.shape.CircleShape,
                             selected = state.gitTransport == GitTransport.HTTP,
                             onClick = { state.gitTransport = GitTransport.HTTP },
                             label = { Text("HTTP(S)") },
                             modifier = Modifier.weight(1f),
                         )
-                        FilterChip(
+                        FilterChip(shape = androidx.compose.foundation.shape.CircleShape,
                             selected = state.gitTransport == GitTransport.SSH,
                             onClick = { state.gitTransport = GitTransport.SSH },
                             label = { Text("SSH") },
                             modifier = Modifier.weight(1f),
                         )
                     }
-                    OutlinedTextField(
+                    RuntimeFilledTextField(
                         value = state.importGitUrl,
                         onValueChange = { state.importGitUrl = it },
                         label = { Text(stringResource(R.string.workspace_git_url)) },
@@ -313,7 +313,7 @@ internal fun ImportProjectDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     projectImportTypeOptions().forEach { (type, pair) ->
-                        FilterChip(
+                        FilterChip(shape = androidx.compose.foundation.shape.CircleShape,
                             selected = state.importProjectType == type,
                             onClick = { state.importProjectType = type },
                             leadingIcon = { RuntimeIcon(pair.second, Modifier.size(16.dp)) },
@@ -322,7 +322,7 @@ internal fun ImportProjectDialog(
                     }
                 }
 
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = state.importProjectName,
                     onValueChange = { state.importProjectName = it },
                     label = { Text(stringResource(R.string.workspace_project_name)) },
@@ -342,7 +342,7 @@ internal fun ImportProjectDialog(
                     expanded = state.importDirectoryMenuExpanded,
                     onExpandedChange = { state.importDirectoryMenuExpanded = it },
                 ) {
-                    OutlinedTextField(
+                    RuntimeFilledTextField(
                         value = state.importDirectoryPath,
                         onValueChange = {
                             state.importDirectoryPath = it

@@ -240,15 +240,21 @@ class SessionTreeStore(
             index != null && index >= 0 -> messages.getOrNull(index)
             else -> null
         } ?: return emptyList()
+        // Both anchors resolve to the same call-rooted group; otherwise a read started from a result
+        // returns the call ID as its continuation id and the next page would switch to a wider text set.
         val relatedIds = when (selected) {
-            is ToolCall -> messages.filterIsInstance<ToolResult>()
-                .filter { it.toolCallId == selected.id }
-                .mapTo(mutableSetOf(selected.id)) { it.id }
-            is ToolResult -> mutableSetOf(selected.id, selected.toolCallId)
+            is ToolCall -> relatedGroupIds(messages, selected.id)
+            is ToolResult -> relatedGroupIds(messages, selected.toolCallId)
             else -> mutableSetOf(selected.id)
         }
         return messages.filter { it.id in relatedIds }
     }
+
+    /** A call keeps pending-approval placeholders and the final settlement as separate results. */
+    private fun relatedGroupIds(messages: List<HarnessMessage>, callId: String): MutableSet<String> =
+        messages.filterIsInstance<ToolResult>()
+            .filter { it.toolCallId == callId }
+            .mapTo(mutableSetOf(callId)) { it.id }
 
     internal fun decode(entity: HarnessEntryEntity): HarnessMessage? {
         if (entity.entryType != "message") return null

@@ -6,6 +6,11 @@ agp = "9.4.1"
 kotlin = "2.4.21"
 ksp = "2.3.11"
 composeBom = "2026.09.00"
+# BOM 2026.09.00 钉的是 material3 稳定版 1.4.0，拿不到 LoadingIndicator / 波浪进度 /
+# ButtonGroup / MaterialShapes 等 M3 Expressive 组件，这里显式抬版（直接版本优先于 BOM 约束）
+material3 = "1.5.0-beta01"
+# 官方 HCT/Monet 取色算法的 KMP 移植：壁纸种子派生方案与语义色谐调（Apache-2.0）
+materialColorUtilities = "6.0.0"
 activityCompose = "1.13.0"
 leakcanaryAndroid = "2.14"
 lifecycle = "2.11.0"
@@ -75,7 +80,8 @@ androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
-androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+material-color-utilities = { module = "com.materialkolor:material-color-utilities", version.ref = "materialColorUtilities" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-navigation3-runtime = { group = "androidx.navigation3", name = "navigation3-runtime", version.ref = "navigation3" }

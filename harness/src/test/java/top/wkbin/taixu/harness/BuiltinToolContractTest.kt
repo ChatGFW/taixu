@@ -56,6 +56,10 @@ class BuiltinToolContractTest {
         assertTrue(parameters["properties"]!!.jsonObject.containsKey("message_id"))
         assertTrue(parameters["properties"]!!.jsonObject.containsKey("index"))
         assertTrue(read.function.description.contains("至少提供一个"))
+        val props = parameters["properties"]!!.jsonObject
+        assertEquals("0", props["offset"]!!.jsonObject["minimum"].toString())
+        assertEquals(HistoryReadPage.MAX_LIMIT.toString(), props["limit"]!!.jsonObject["maximum"].toString())
+        assertTrue(read.function.description.contains("next_offset"))
     }
 
     @Test

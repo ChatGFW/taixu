@@ -28,6 +28,7 @@ fun ChatNavigationDrawer(
     onNavigate: (MainDestination) -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenTools: () -> Unit,
+    gesturesEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
@@ -40,6 +41,7 @@ fun ChatNavigationDrawer(
         visible = visible,
         onDismiss = onDismiss,
         onOpen = onOpen,
+        gesturesEnabled = gesturesEnabled,
         docked = docked,
         onDockedChange = onDockedChange,
         rail = { onOpenSidebar ->

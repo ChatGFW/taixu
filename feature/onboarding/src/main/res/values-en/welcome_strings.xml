@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_welcome">Welcome to TaiXu</string>
+    <string name="onboarding_welcome_description">Linux, AI, and room to create. In your pocket.</string>
+    <string name="onboarding_feature_linux">Linux to go</string>
+    <string name="onboarding_feature_linux_description">Choose a distribution. No root needed.</string>
+    <string name="onboarding_feature_agent">AI by your side</string>
+    <string name="onboarding_feature_agent_description">Chat, write code, and bring ideas to life.</string>
+    <string name="onboarding_feature_workspace">A space of your own</string>
+    <string name="onboarding_feature_workspace_description">Manage projects, explore, and build in the terminal.</string>
+    <string name="onboarding_start">Get started</string>
+    <string name="onboarding_back">Back to welcome</string>
+    <string name="onboarding_step">%1$d / 3</string>
+</resources>

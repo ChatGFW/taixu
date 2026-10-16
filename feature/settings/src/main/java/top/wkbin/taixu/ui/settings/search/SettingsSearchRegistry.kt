@@ -541,8 +541,8 @@ object SettingsSearchRegistry {
             category = SettingsSearchCategory.APPEARANCE,
             target = SettingsSearchTarget.THEME_MODE,
             icon = RuntimeIconName.Palette,
-            keywords = listOf("theme", "dark", "light", "color", "主题", "浅色", "深色", "曜石", "色彩", "zhuti"),
-            breadcrumb = "外观、字号与终端 > 主题色彩",
+            keywords = listOf("theme", "dark", "light", "color", "主题", "浅色", "深色", "曜石", "色彩", "外观与体验", "look and feel", "zhuti"),
+            breadcrumb = "外观与体验 > 主题色彩",
         ),
         SettingsSearchItem(
             id = "appearance_dynamic_color",
@@ -552,7 +552,7 @@ object SettingsSearchRegistry {
             target = SettingsSearchTarget.DYNAMIC_COLOR,
             icon = RuntimeIconName.Palette,
             keywords = listOf("material you", "monet", "动态取色", "壁纸取色", "quse"),
-            breadcrumb = "外观、字号与终端 > 主题色彩 > 动态壁纸取色",
+            breadcrumb = "外观与体验 > 主题色彩 > 动态壁纸取色",
         ),
         SettingsSearchItem(
             id = "appearance_font_scale",
@@ -562,7 +562,7 @@ object SettingsSearchRegistry {
             target = SettingsSearchTarget.FONT_SCALE,
             icon = RuntimeIconName.FontSize,
             keywords = listOf("font", "scale", "size", "字号", "字体大小", "缩放", "排版", "zihao"),
-            breadcrumb = "外观、字号与终端 > 字号排版",
+            breadcrumb = "外观与体验 > 字号排版",
         ),
         SettingsSearchItem(
             id = "appearance_terminal",
@@ -572,7 +572,7 @@ object SettingsSearchRegistry {
             target = SettingsSearchTarget.TERMINAL_SETTINGS,
             icon = RuntimeIconName.Terminal,
             keywords = listOf("terminal", "color scheme", "font", "vibrate", "终端字体", "终端配色", "震动", "配色", "zhongduan"),
-            breadcrumb = "外观、字号与终端 > 终端定制",
+            breadcrumb = "外观与体验 > 终端定制",
         ),
         SettingsSearchItem(
             id = "appearance_terminal_fontsize",
@@ -582,7 +582,7 @@ object SettingsSearchRegistry {
             target = SettingsSearchTarget.TERMINAL_SETTINGS,
             icon = RuntimeIconName.FontSize,
             keywords = listOf("terminal font size", "终端字号", "字符大小", "sp", "zhongduanzihao"),
-            breadcrumb = "外观、字号与终端 > 终端定制 > 字体大小",
+            breadcrumb = "外观与体验 > 终端定制 > 字体大小",
         ),
         SettingsSearchItem(
             id = "appearance_terminal_colorscheme",
@@ -592,7 +592,7 @@ object SettingsSearchRegistry {
             target = SettingsSearchTarget.TERMINAL_SETTINGS,
             icon = RuntimeIconName.Palette,
             keywords = listOf("monokai", "dracula", "one dark", "solarized", "nord", "终端主题", "命令行颜色"),
-            breadcrumb = "外观、字号与终端 > 终端定制 > 配色方案",
+            breadcrumb = "外观与体验 > 终端定制 > 配色方案",
         ),
         SettingsSearchItem(
             id = "appearance_terminal_haptic",
@@ -602,7 +602,7 @@ object SettingsSearchRegistry {
             target = SettingsSearchTarget.TERMINAL_SETTINGS,
             icon = RuntimeIconName.Vibrate,
             keywords = listOf("vibrate", "haptic", "触感", "震动", "马达反馈", "zhendong"),
-            breadcrumb = "外观、字号与终端 > 终端定制 > 触感反馈",
+            breadcrumb = "外观与体验 > 终端定制 > 触感反馈",
         ),
         SettingsSearchItem(
             id = "appearance_language",
@@ -612,7 +612,7 @@ object SettingsSearchRegistry {
             target = SettingsSearchTarget.LANGUAGE_SETTINGS,
             icon = RuntimeIconName.Globe,
             keywords = listOf("language", "locale", "chinese", "english", "语言", "中文", "英文", "yuyan"),
-            breadcrumb = "外观、字号与终端 > 界面语言",
+            breadcrumb = "外观与体验 > 界面语言",
         ),
 
         // ==================== 4. 系统保活与开发者诊断 ====================

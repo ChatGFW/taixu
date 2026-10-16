@@ -162,7 +162,7 @@
     <string name="chat_refresh_models">刷新列表</string>
     <string name="chat_apply_model">应用</string>
     <string name="chat_model_not_set">未设置模型 ID</string>
-    <string name="chat_custom_provider">自定义 OpenAI 兼容接口</string>
+    <string name="chat_custom_provider">OpenAI 兼容接口</string>
     <string name="chat_optional_name">名称（可选）</string>
     <string name="chat_optional_base_url">Base URL（可选）</string>
     <string name="chat_model_id">模型 ID</string>

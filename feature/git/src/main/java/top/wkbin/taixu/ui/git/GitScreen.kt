@@ -423,38 +423,6 @@ fun GitScreen(
 }
 
 // ----------------------------------------------------------------------
-// 非仓库空态
-// ----------------------------------------------------------------------
-
-@Composable
-private fun NotARepoContent() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(32.dp),
-        ) {
-            RuntimeIcon(
-                RuntimeIconName.GitBranch,
-                Modifier.size(44.dp),
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-            )
-            Text(
-                stringResource(R.string.fgit_not_repo_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                stringResource(R.string.fgit_not_repo_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 12.dp),
-            )
-        }
-    }
-}
-
-// ----------------------------------------------------------------------
 // 仓库语义颜色辅助函数（深浅主题自适应，符合 MD3 对比度规范）
 // ----------------------------------------------------------------------
 
@@ -996,17 +964,6 @@ private fun TagsTab(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun EmptyHint(text: String) {
-    RuntimeCard(
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentPadding = PaddingValues(14.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
