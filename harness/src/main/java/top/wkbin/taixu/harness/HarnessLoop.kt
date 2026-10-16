@@ -116,7 +116,7 @@ class HarnessLoop(
     private val sessionJobs = ConcurrentHashMap<String, Job>()
     private val sessionCancelEpochs = ConcurrentHashMap<String, AtomicLong>()
     private val foregroundLoadGeneration = AtomicLong()
-    private val cancellingSessions = ConcurrentHashMap.newKeySet<String>()
+    private val cancellingSessions = CancellingFlags()
     private val sessionLoopDetectors = ConcurrentHashMap<String, ToolCallLoopDetector>()
     /** Sessions being deleted; reject new runs and skip pending drainage. */
     private val tombstonedSessions = ConcurrentHashMap.newKeySet<String>()
@@ -207,10 +207,10 @@ class HarnessLoop(
         return _sessionPendingMessages.getOrPut(sessId) { MutableStateFlow(emptyList()) }
     }
 
-    private fun isSessionBusy(sessId: String): Boolean =
-        sessionJobs[sessId]?.isCompleted == false ||
-            cancellingSessions.contains(sessId) ||
-            stateMirrors.isWaitingApproval(sessId)
+    private fun isSessionBusy(sessId: String): Boolean {
+        val hold = sessionJobs[sessId]?.isCompleted == false || stateMirrors.isWaitingApproval(sessId)
+        return hold || cancellingSessions.isCancelling(sessId, hold)
+    }
 
     private fun cancelApprovalTimeout(sessId: String) {
         approvalTimeoutJobs.remove(sessId)?.cancel()
@@ -570,7 +570,7 @@ class HarnessLoop(
         rewindController.dropSession(id)
         sessionLoopDetectors.remove(id)
         sessionCancelEpochs.remove(id)
-        cancellingSessions.remove(id)
+        cancellingSessions.clear(id)
         tombstonedSessions.remove(id)
         if (sessionTracker.currentSessionId.value == id) {
             val remaining = sessionDao.observeAll().first()
@@ -760,15 +760,14 @@ class HarnessLoop(
         if (sessId.isBlank()) return
         stateMirrors.setStatus(sessId, "正在停止…")
         loopScope.launch {
-            val job = turnCoordinator.withSessionMutex(sessId) {
-                cancellingSessions += sessId
+            val job = cancellingSessions.guarded(sessId) { turnCoordinator.withSessionMutex(sessId) {
                 sessionCancelEpochs.getOrPut(sessId) { AtomicLong() }.incrementAndGet()
                 val queuedTaskIds = promptQueueManager.list(sessId, PromptQueue.NEXT_RUN)
                     .mapNotNull { it.second.taskId }
                 PromptQueue.entries.forEach { promptQueueManager.clear(sessId, it) }
                 queuedTaskIds.forEach { agentTaskStateMachine.markCancelled(it, "会话运行已停止") }
                 sessionJobs[sessId]?.also { it.cancel() }
-            }
+            } }
             job?.cancelAndJoin()
             val restarted = turnCoordinator.withSessionMutex(sessId) {
                 cancelApprovalTimeout(sessId)
@@ -782,7 +781,7 @@ class HarnessLoop(
                     approvalsSettled = false
                     logger.e("Failed to settle pending approvals while cancelling $sessId", throwable)
                 } finally {
-                    cancellingSessions -= sessId
+                    cancellingSessions.clear(sessId)
                 }
                 approvalsSettled && !tombstonedSessions.contains(sessId) && startNextQueuedLocked(sessId)
             }
@@ -859,7 +858,7 @@ class HarnessLoop(
             sessionJobs.remove(sessId, job)
             val waitingApproval = stateMirrors.onRunFinished(sessId)
             if (waitingApproval || tombstonedSessions.contains(sessId)) return@withSessionMutex
-            if (sessionCancelEpochs[sessId]?.get() != runEpoch || cancellingSessions.contains(sessId)) return@withSessionMutex
+            if (sessionCancelEpochs[sessId]?.get() != runEpoch || cancellingSessions.isSet(sessId)) return@withSessionMutex
             startNextQueuedLocked(sessId)
         }
         refreshPendingProjection(sessId)
@@ -1079,7 +1078,7 @@ class HarnessLoop(
             // 因此在本 catch（属于被取消 job 的收尾段，join 会等它跑完）里该集合的
             // 成员关系可判定"是否用户主动停止"。会话删除走 tombstoneSessions 而非
             // cancellingSessions，据此避免在正在销毁的会话上补写消息。
-            val userInitiated = cancellingSessions.contains(sessId)
+            val userInitiated = cancellingSessions.isSet(sessId)
             val tombstoned = tombstonedSessions.contains(sessId)
             withContext(NonCancellable) {
                 repairDanglingToolCalls(sessId, interrupted = true)
