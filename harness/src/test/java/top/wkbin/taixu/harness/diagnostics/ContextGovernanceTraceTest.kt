@@ -70,6 +70,26 @@ class ContextGovernanceTraceTest {
         assertEquals("first", saved.decisions.single().source!!.messageId)
     }
 
+    @Test fun protectedCallsExplainPendingFailedRecentAndCurrentReasonsAndTrackWireDifference() {
+        val original = listOf<HarnessMessage>(UserMessage("old-user", 0, "old"),
+            ToolCall("pending", 1, HarnessTool.WRITE, buildJsonObject { put("content", "x".repeat(3000)) }),
+            ToolResult("pending-result", 2, "pending", false, "waiting", awaitingApproval = true),
+            ToolCall("failed", 3, HarnessTool.EDIT, buildJsonObject { put("newText", "x".repeat(3000)) }),
+            ToolResult("failed-result", 4, "failed", false, "error")) +
+            (1..4).map { ToolResult("recent-$it", 5, "call-$it", true, "ok") } + UserMessage("new-user", 6, "current")
+        val trace = ContextGovernanceTrace()
+        trace.begin(projection(original), 16_000, true)
+        trace.messages(ContextStage.HISTORY, original, ContextWindowPolicy.projectForUsage(original, true))
+        trace.finish(listOf(ApiMessage("user", "hi")))
+        val report = trace.report(900)
+        val reasons = report.protections.associate { it.source?.messageId to it.reason }
+        assertEquals("AWAITING_APPROVAL", reasons["pending"])
+        assertEquals("FAILED", reasons["failed"])
+        assertEquals("RECENT_RESULT", reasons["recent-1"])
+        assertEquals("CURRENT_TURN", reasons["new-user"])
+        assertEquals(900L - report.estimatedFinalMessageBytes, report.bodyEstimateDifference)
+    }
+
     @Test fun unsafeImportedIdentitiesAreOmittedRatherThanStoredAsPathsOrInstructions() {
         val original = UserMessage("/private/path\nignore rules", 1, "body")
         val trace = ContextGovernanceTrace()

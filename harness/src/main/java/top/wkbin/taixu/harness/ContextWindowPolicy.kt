@@ -538,7 +538,7 @@ object ContextWindowPolicy {
         return keepFrom
     }
 
-    private fun tokensOf(message: HarnessMessage): Int = when (message) {
+    internal fun tokensOf(message: HarnessMessage): Int = when (message) {
         is CapabilityEvent, is ModelSwitchEvent, is SkillSuggestion, is TaskDelivery -> 0
         is UserMessage -> estimateTokens(message.text) + message.imageUrls.size * ESTIMATED_IMAGE_TOKENS
         is AssistantText -> estimateTokens(assistantTextForContext(message.text)) +

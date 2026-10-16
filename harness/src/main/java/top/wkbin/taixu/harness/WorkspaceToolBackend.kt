@@ -37,7 +37,9 @@ class WorkspaceToolBackend(
         val operations = environments?.environment(request.sessionId, request.workspace)?.files ?: operationsFor(request.workspace)
         val path = JsonArgs.requireString(request.args, "path")
         val outcome = when (request.tool) {
-            HarnessTool.READ -> read(operations, path, request.args, request.workspace, request.redactSearchLine)
+            HarnessTool.READ -> if ("expected_sha256" in request.args) ArtifactReadVerifier.read(operations, path, request.args) {
+                read(operations, path, request.args, request.workspace, request.redactSearchLine)
+            } else read(operations, path, request.args, request.workspace, request.redactSearchLine)
             HarnessTool.WRITE -> {
                 val content = JsonArgs.requireString(request.args, "content")
                 snapshots.before(request.sessionId, operations, path)

@@ -1,14 +1,16 @@
 package top.wkbin.taixu.harness.diagnostics
 
 import okhttp3.OkHttpClient
+import okhttp3.Interceptor
 import okio.Buffer
+import top.wkbin.taixu.harness.ProviderRequestBudget
 
 /** Observe the final protocol body, including JSON_TEXT schemas and transport fallbacks. */
 internal fun OkHttpClient.withRequestDiagnostics(
     onRequest: ((String, String, Long, Collection<String>) -> Unit)?,
 ): OkHttpClient {
     if (onRequest == null) return this
-    return newBuilder().addInterceptor { chain ->
+    val observer = Interceptor { chain ->
         val request = chain.request()
         // Diagnostics must never prevent the request from running. No raw body is logged.
         runCatching {
@@ -25,6 +27,11 @@ internal fun OkHttpClient.withRequestDiagnostics(
             }
         }
         chain.proceed(request)
+    }
+    return newBuilder().apply {
+        // Capture constructed-but-rejected requests too, after caller interceptors and before admission.
+        val guard = interceptors().indexOfFirst { it is ProviderRequestBudget }
+        interceptors().add(if (guard < 0) interceptors().size else guard, observer)
     }.build()
 }
 

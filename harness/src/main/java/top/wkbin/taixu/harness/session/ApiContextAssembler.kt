@@ -7,6 +7,7 @@ import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.harness.ApiMessage
 import top.wkbin.taixu.harness.ContextWindowPolicy
+import top.wkbin.taixu.harness.ContextBudgetPlanner
 import top.wkbin.taixu.harness.ImagePayloadCompressor
 import top.wkbin.taixu.harness.HarnessApiMapper
 import top.wkbin.taixu.harness.HarnessMessage
@@ -83,7 +84,7 @@ class ApiContextAssembler(
         var msgs = compactedContext.messages
 
         // 用户轮前缀块（低权威背景资料：记忆召回 + 任务计划看板）：只对最新用户轮计算一次并
-        // 持久化到会话树（appendRecallBlock 幂等），此后该轮的投影永远携带同一段字节。
+        // 持久化到会话树（appendRecallBlock 幂等），保存的块不重算；请求按预算整块保留或省略。
         // 这取代了旧的「system prompt 尾部注入」——记忆召回与计划看板都是逐轮变化的内容，
         // 放在 system prompt 里会让整段前缀每轮/每步失效。
         // 持久化失败时放弃挂载：未持久化的字节进投影会导致下一轮组装漂移。
@@ -134,17 +135,38 @@ class ApiContextAssembler(
             ""
         }
         val systemPrompt = ContextWindowPolicy.fitSystemPrompt(rawSystemPrompt, budgetTokens)
-        val failureMemory = if (model.pureChatMode || toolCallMode == ToolCallMode.DISABLED) "" else operationCoordinator.failureMemoryBlock(sessId)
-        val pluginContext = if (model.pureChatMode || secretRedactor == null || plugins == null) "" else plugins.context(
+        var failureMemory = if (model.pureChatMode || toolCallMode == ToolCallMode.DISABLED) "" else operationCoordinator.failureMemoryBlock(sessId)
+        var pluginContext = if (model.pureChatMode || secretRedactor == null || plugins == null) "" else plugins.context(
             top.wkbin.taixu.harness.plugins.PluginContextRequest(sessId, workspacePath),
             top.wkbin.taixu.harness.environment.executionOutputRedactor(secretRedactor, environments, null, settingsDataStore, sessId, workspacePath),
         )
 
+        val rawFailureMemory = failureMemory
+        val rawPluginContext = pluginContext
+        var selectedRecall = compactedContext.recallBlocks
+        fun allocateBackground() {
+            if (!compactionEnabled) return
+            val lastUser = msgs.indexOfLast { it is UserMessage }.coerceAtLeast(0)
+            val plan = ContextBudgetPlanner.plan(budgetTokens, systemPrompt, compactedContext.summaryLayer,
+                msgs.drop(lastUser).sumOf(ContextWindowPolicy::tokensOf), model.compactionReserveTokens,
+                toolSchemaReserveTokens, foldingRatioPercent, msgs.filterIsInstance<UserMessage>()
+                    .mapNotNull { user -> compactedContext.recallBlocks[user.id]?.let { user.id to it } }.toMap(),
+                rawFailureMemory, rawPluginContext)
+            selectedRecall = plan.recall
+            failureMemory = plan.failureMemory
+            pluginContext = plan.pluginContext
+            trace?.allocations(plan.allocations)
+            trace?.contribution("recall", selectedRecall.values)
+            trace?.contribution("failure_memory", listOf(failureMemory))
+            trace?.contribution("plugin_context", listOf(pluginContext))
+        }
+        allocateBackground()
+
         // 召回后缀的 token 计入预算占用：它们会随 user 消息进入 provider 请求
-        val recallTokens = ContextWindowPolicy.estimateTokens(compactedContext.recallBlocks.values.joinToString("\n")) +
+        fun recallTokens() = ContextWindowPolicy.estimateTokens(selectedRecall.values.joinToString("\n")) +
             ContextWindowPolicy.estimateTokens(failureMemory) + ContextWindowPolicy.estimateTokens(pluginContext)
         trace?.contribution("system", listOf(systemPrompt))
-        trace?.contribution("recall", compactedContext.recallBlocks.values)
+        trace?.contribution("recall", selectedRecall.values)
         trace?.contribution("failure_memory", listOf(failureMemory))
         trace?.contribution("plugin_context", listOf(pluginContext))
 
@@ -172,7 +194,7 @@ class ApiContextAssembler(
                     budgetTokens,
                     ContextWindowPolicy.estimateTokens(systemPrompt) +
                         ContextWindowPolicy.estimateTokens(compactedContext.summaryLayer) +
-                        recallTokens,
+                        recallTokens(),
                     keepRecentTokens = model.compactionKeepRecentTokens ?: 0,
                     reserveTokens = model.compactionReserveTokens,
                     foldingRatioPercent = foldingRatioPercent,
@@ -195,12 +217,13 @@ class ApiContextAssembler(
                         summaryLayer = compactedContext.summaryLayer,
                         toolCallMode = toolCallMode,
                         visionEnabled = model.capabilities.images,
-                        recallBlocks = compactedContext.recallBlocks,
+                        recallBlocks = selectedRecall,
                         // 被折叠区域的 provider 可见形态：截断已发生过，与主对话实际发送的字节一致
                         replayPrefix = msgs.take(computedKeepFromIndex),
                     ),
                 ).also { trace?.messages(ContextStage.COMPACTION, msgs, it.messages) }
                 msgs = compactedContext.messages
+                allocateBackground()
                 // compact 返回的保留窗口来自原始 transcript（未截断），重放一次截断，
                 // 保证与压缩判定时同一口径。
                 if (compactionEnabled) {
@@ -219,7 +242,7 @@ class ApiContextAssembler(
                         ratioPercent = foldingRatioPercent,
                         systemTokens = ContextWindowPolicy.estimateTokens(systemPrompt) +
                             ContextWindowPolicy.estimateTokens(compactedContext.summaryLayer) +
-                            recallTokens,
+                            recallTokens(),
                         reserveTokens = model.compactionReserveTokens,
                         toolSchemaReserveTokens = toolSchemaReserveTokens,
                     ),
@@ -242,7 +265,7 @@ class ApiContextAssembler(
                 msgs = msgs,
                 toolCallMode = toolCallMode,
                 visionEnabled = model.capabilities.images,
-                recallSuffixes = compactedContext.recallBlocks,
+                recallSuffixes = selectedRecall,
             ).let { it + listOf(failureMemory, pluginContext).filter(String::isNotBlank).map { text -> ApiMessage(role = "user", content = text) } }
             // Split-Turn 压缩后保留段可能从 assistant / tool_call 中途开始。补一条合成 user
             // 消息作为角色桥接，满足 provider 的角色交替与「首条消息必须是 user」约束

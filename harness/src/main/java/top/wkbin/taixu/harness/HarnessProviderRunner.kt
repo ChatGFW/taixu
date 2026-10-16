@@ -160,7 +160,7 @@ class HarnessProviderRunner(
                     requestModel,
                     requestMessages,
                     onRequest = { protocol, body, bytes, secrets ->
-                        requestDiagnostics.record(sessId, operationId, round, ++requestAttempt, protocol, body, bytes, secrets, governance.report())
+                        requestDiagnostics.record(sessId, operationId, round, ++requestAttempt, protocol, body, bytes, secrets, governance.report(bytes))
                     },
                     onReasoning = { chunk ->
                         withinStreamHandling {

@@ -16,10 +16,12 @@ internal class ProviderTransport(
     private val keys = ApiKeyScheduler()
     // Total timeout for ordinary requests; SSE uses read inactivity and first-event watchdogs.
     private val httpClient = client.newBuilder()
+        .addInterceptor(ProviderRequestBudget())
         .callTimeout(5 * 60 * 1_000L, TimeUnit.MILLISECONDS)
         .readTimeout(ProviderClient.READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .build()
     private val streamClient = client.newBuilder()
+        .addInterceptor(ProviderRequestBudget())
         .callTimeout(0, TimeUnit.MILLISECONDS)
         .readTimeout(REASONING_STREAM_WAIT_MS, TimeUnit.MILLISECONDS)
         .build()

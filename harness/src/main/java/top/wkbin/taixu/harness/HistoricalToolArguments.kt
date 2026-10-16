@@ -10,20 +10,10 @@ internal object HistoricalToolArguments {
     fun project(messages: List<HarnessMessage>): List<HarnessMessage> {
         val lastUser = messages.indexOfLast { it is UserMessage }
         if (lastUser < 0) return messages
-        val results = messages.filterIsInstance<ToolResult>()
-        val protectedCalls = results.takeLast(ContextWindowPolicy.KEEP_RECENT_TOOL_RESULTS)
-            .mapTo(hashSetOf()) { it.toolCallId }
-        messages.drop(lastUser + 1).filterIsInstance<ToolResult>().forEach { protectedCalls += it.toolCallId }
-        // An approval-paused call keeps its awaiting placeholder after the approved run settles:
-        // the latest record decides, and a still-pending tail stays protected.
-        val completed = results.groupBy { it.toolCallId }.filterValues { group ->
-            val latest = group.last()
-            latest.success && !latest.awaitingApproval && !latest.approvalDeferred
-        }.keys
+        val protections = HistoryProtectionPolicy.reasons(messages)
         var changed = false
         val projected = messages.mapIndexed { index, message ->
-            if (index >= lastUser || message !is ToolCall || message.id in protectedCalls ||
-                message.id !in completed) return@mapIndexed message
+            if (index >= lastUser || message !is ToolCall || message.id in protections) return@mapIndexed message
             val fields = when (message.tool) {
                 HarnessTool.WRITE -> setOf("content")
                 HarnessTool.EDIT -> setOf("oldText", "newText")

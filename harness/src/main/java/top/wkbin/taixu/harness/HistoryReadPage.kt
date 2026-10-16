@@ -52,10 +52,19 @@ internal object HistoryReadPage {
         is SkillSuggestion -> listOf("技能建议 ${message.skillName}: ", message.description)
         is TaskDelivery -> listOf("任务交付记录：", Json.encodeToString(TaskDeliveryReport.serializer(), message.report))
         is ModelSwitchEvent -> listOf("切换模型 ${message.fromLabel} → ${message.toLabel}")
-        is UserMessage -> listOf("用户：", message.text)
+        is UserMessage -> listOf("用户：", message.text, if (message.imageUrls.isEmpty()) "" else
+            "\n[history_media=NOT_RESTORED count=${message.imageUrls.size}：本工具仅回读文本，不含图片内容；需要原图时请用户重新提供，不能据此推断视觉事实]")
         is AssistantText -> listOf("助手：", message.text, "\nreasoning:\n", message.reasoning.orEmpty())
         is ToolCall -> listOf("工具调用 ${message.rawToolName ?: message.tool}: ", message.args.toString(),
             "\nreasoning:\n", message.reasoning.orEmpty())
-        is ToolResult -> listOf("工具结果：", message.output)
+        is ToolResult -> listOf("工具结果：", message.output, artifactReference(message),
+            if (message.imageAttachments.isEmpty() && message.imageDataUrl == null) "" else
+                "\n[history_media=NOT_RESTORED：图片载荷未恢复；仅在原文件仍可访问时用当前环境 read 重新读取]")
     }
+
+    private fun artifactReference(message: ToolResult): String =
+        ToolOutputArtifact.decode(message.metadata[ToolOutputArtifact.METADATA_KEY])?.let { artifact ->
+            "\n[history_artifact status=UNVERIFIED path=${artifact.path} sha256=${artifact.sha256} bytes=${artifact.bytes} complete=${artifact.complete}; " +
+                "用 read(path, expected_sha256, offset=1, limit=200) 核验后分页读取；引用可能因7天/64MiB/256文件清理失效，不保证仍存在，不自动重放原操作]"
+        }.orEmpty()
 }
