@@ -7,6 +7,7 @@ import androidx.compose.ui.res.stringResource
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -22,7 +23,22 @@ import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
-internal class WorkspacePluginDebugAction(private val manager: ToolManager, private val scope: CoroutineScope) {
+internal class WorkspacePluginDebugAction(
+    private val scope: CoroutineScope,
+    private val checkAvailable: () -> Unit,
+    private val beginImport: (File) -> Unit,
+    private val pack: (File, () -> Unit) -> File = PluginDebugPackager::pack,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
+    constructor(manager: ToolManager, scope: CoroutineScope) : this(
+        scope = scope,
+        checkAvailable = {
+            val state = manager.localPluginImportState.value
+            check(state !is LocalPluginImportState.Reading && state !is LocalPluginImportState.Importing &&
+                state !is LocalPluginImportState.PendingConfirmation) { "请先在插件中心完成或取消当前导入" }
+        },
+        beginImport = { manager.startLocalPluginImport(Uri.fromFile(it), it.name, requireAvailable = true) },
+    )
     private var job: Job? = null
     var busy by mutableStateOf(false)
         private set
@@ -36,13 +52,15 @@ internal class WorkspacePluginDebugAction(private val manager: ToolManager, priv
             var archive: File? = null
             var handedOff = false
             try {
-                requireAvailableImport()
-                archive = withContext(Dispatchers.IO) {
+                checkAvailable()
+                withContext(dispatcher) {
                     val operation = currentCoroutineContext()
-                    PluginDebugPackager.pack(File(project.path)) { operation.ensureActive() }
+                    // Publish ownership inside the worker: prompt cancellation can discard a
+                    // withContext return value before the caller can take ownership of it.
+                    archive = pack(File(project.path)) { operation.ensureActive() }
                 }
-                requireAvailableImport()
-                manager.startLocalPluginImport(Uri.fromFile(archive), archive.name)
+                currentCoroutineContext().ensureActive()
+                beginImport(requireNotNull(archive))
                 handedOff = true
                 ready = true
             } catch (cancelled: CancellationException) {
@@ -51,18 +69,12 @@ internal class WorkspacePluginDebugAction(private val manager: ToolManager, priv
                 error = failure.message ?: "插件打包失败"
             } finally {
                 if (!handedOff) archive?.delete()
-                busy = false
             }
-        }
+        }.also { operation -> operation.invokeOnCompletion { busy = false } }
     }
 
     fun cancel() { job?.cancel() }
 
-    private fun requireAvailableImport() {
-        val state = manager.localPluginImportState.value
-        check(state !is LocalPluginImportState.Reading && state !is LocalPluginImportState.Importing &&
-            state !is LocalPluginImportState.PendingConfirmation) { "请先在插件中心完成或取消当前导入" }
-    }
 }
 
 @Composable

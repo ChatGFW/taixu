@@ -3,6 +3,14 @@ package top.wkbin.taixu.core.tools
 import android.net.Uri
 import top.wkbin.taixu.core.model.ToolManifest
 
+internal data class UninstallOutcome(val success: Boolean, val message: String)
+
+/** Invoked under ToolManager's import monitor, immediately before reserving the import slot. */
+internal fun requireLocalPluginImportAvailable(state: LocalPluginImportState, jobActive: Boolean) {
+    check(!jobActive && state !is LocalPluginImportState.Reading && state !is LocalPluginImportState.Importing &&
+        state !is LocalPluginImportState.PendingConfirmation) { "请先在插件中心完成或取消当前导入" }
+}
+
 data class ToolInstallProgress(
     val toolId: String,
     val message: String,

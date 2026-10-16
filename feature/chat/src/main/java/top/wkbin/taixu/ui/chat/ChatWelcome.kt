@@ -83,7 +83,7 @@ internal fun EmptyChatGuidance(
             ) {
                 TaiXuBrandBadge(size = 48.dp)
                 Text(
-                    text = greeting,
+                    text = greeting, modifier = chatGreetingModifier(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -134,7 +134,7 @@ internal fun EmptyChatGuidance(
             // 3. 核心场景快捷动作列表 (统一优雅卡片)
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(),
                 shape = RoundedCornerShape(20.dp),
                 borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
                 contentPadding = PaddingValues(vertical = 4.dp),

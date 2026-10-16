@@ -1,5 +1,4 @@
 package top.wkbin.taixu.core.datastore
-
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -21,13 +20,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
-
 internal val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
-
 class SettingsDataStore(
     private val context: Context,
     private val secretManager: SecretManager,
 ) {
+    internal val appearanceDataStore get() = context.settingsDataStore
     // 工坊 Android/Flutter 工具链覆盖配置。空值表示使用当前套件的标准路径。
     private val workshopAndroidSdkPathKey = stringPreferencesKey("workshop_android_sdk_path")
     private val workshopNdkPathKey = stringPreferencesKey("workshop_ndk_path")
@@ -617,6 +615,8 @@ class SettingsDataStore(
     /** 历史轮次中间过程自动折叠（默认关闭）。实现见 ChatRoundCollapsePreferences.kt。 */
     val chatRoundCollapse: Flow<Boolean> = context.chatRoundCollapsePreference
     suspend fun setChatRoundCollapse(value: Boolean) { context.setChatRoundCollapsePreference(value) }
+    val autoReadReplies: Flow<Boolean> = context.autoReadRepliesPreference
+    suspend fun setAutoReadReplies(value: Boolean) = context.setAutoReadRepliesPreference(value)
 
     /** 运行中发送方式：排队 / 引导（默认排队）。实现见 RunningSendModePreferences.kt。 */
     val runningSendMode: Flow<RunningSendMode> = context.runningSendModePreference

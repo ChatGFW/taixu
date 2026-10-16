@@ -81,6 +81,7 @@ scripts_patch/
 /.codex_schema/
 /codex_appserver_schema.json
 /.loomy-pr-review/
+/.loomy-attachments/
 /.opencode/
 
 

@@ -9,7 +9,6 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,7 +34,6 @@ import androidx.compose.material3.HorizontalDivider
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
@@ -44,7 +42,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,10 +62,9 @@ import top.wkbin.taixu.ui.components.CodeBlockRow
 import top.wkbin.taixu.ui.components.InfoRow
 import top.wkbin.taixu.ui.components.NoticeBanner
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
 import top.wkbin.taixu.ui.components.StatusBadge
 import kotlinx.coroutines.delay
 import top.wkbin.taixu.core.database.ToolEntity
@@ -122,177 +118,162 @@ internal fun LocalToolDetailContent(
         )
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            RuntimeTopBar(
-                title = tool?.name ?: toolId,
-                statusText = "配置详情",
-                onBack = onBack,
-            )
-        },
-    ) { innerPadding ->
+    RuntimeSettingsScaffold(
+        title = tool?.name ?: toolId, onBack = onBack, statusText = "配置详情",
+    ) {
         if (tool == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (!hasLoadedOnce) {
-                    // 工具列表尚未加载完成：显示加载中而非「未找到」
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
-                        Text("正在加载工具信息…", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            item {
+                Box(Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                    if (!hasLoadedOnce) {
+                        // Wait for the catalog before showing a missing-tool state.
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
+                            Text("正在加载工具信息…", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        }
+                    } else {
+                        Text("工具未找到", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                } else {
-                    Text("工具未找到", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            return@Scaffold
+            return@RuntimeSettingsScaffold
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            // ── 错误提示 / AI 自愈入口 ──
-            if (tool.state == ToolState.FAILED.name || state.error != null) {
-                RuntimeCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
-                ) {
-                    Row(
+        item {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // ── 错误提示 / AI 自愈入口 ──
+                if (tool.state == ToolState.FAILED.name || state.error != null) {
+                    SettingsDetailCard(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
                     ) {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.weight(1f),
                         ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Brain,
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.error,
-                            )
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(
-                                    text = "工具安装/环境自检未通过",
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.error,
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                RuntimeIcon(
+                                    name = RuntimeIconName.Brain,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.error,
                                 )
-                                Text(
-                                    text = state.error ?: "可呼叫太墟 Agent 在 PRoot 沙箱内自主排查与自愈",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = "工具安装/环境自检未通过",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                    Text(
+                                        text = state.error ?: "可呼叫太墟 Agent 在 PRoot 沙箱内自主排查与自愈",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                onStartAiHealing(
-                                    tool.id,
-                                    tool.name,
-                                    state.error?.let { listOf(it) } ?: emptyList(),
-                                )
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        ) {
-                            Text("呼叫自愈", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                            Spacer(Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    onStartAiHealing(
+                                        tool.id,
+                                        tool.name,
+                                        state.error?.let { listOf(it) } ?: emptyList(),
+                                    )
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            ) {
+                                Text("呼叫自愈", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     }
                 }
-            }
 
-            // ── 1. 工具概览卡片 ──
-            ToolOverviewCard(
-                tool = tool,
-                manifest = manifest,
-                gatewayRunning = state.gatewayRunning,
-                gatewayOperating = state.gatewayOperating,
-            )
-
-            // ── 2. 网关/服务管理（仅 Web 类工具） ──
-            if (state.isWebService) {
-                GatewayManagementCard(
-                    running = state.gatewayRunning,
-                    operating = state.gatewayOperating,
-                    port = state.servicePort,
-                    onStart = { viewModel?.startGateway() },
-                    onStop = { viewModel?.stopGateway() },
+                // ── 1. 工具概览卡片 ──
+                ToolOverviewCard(
+                    tool = tool,
+                    manifest = manifest,
+                    gatewayRunning = state.gatewayRunning,
+                    gatewayOperating = state.gatewayOperating,
                 )
 
-                // ── 2.5 服务实时控制台日志 ──
-                ServiceLogsCard(
-                    logs = state.serviceLogs,
-                    running = state.gatewayRunning,
-                    onClear = { viewModel?.clearServiceLogs() },
-                    onCopy = { text ->
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                        clipboard?.setPrimaryClip(ClipData.newPlainText("service_logs", text))
-                        Toast.makeText(context, "控制台日志已复制", Toast.LENGTH_SHORT).show()
-                    },
+                // ── 2. 网关/服务管理（仅 Web 类工具） ──
+                if (state.isWebService) {
+                    GatewayManagementCard(
+                        running = state.gatewayRunning,
+                        operating = state.gatewayOperating,
+                        port = state.servicePort,
+                        onStart = { viewModel?.startGateway() },
+                        onStop = { viewModel?.stopGateway() },
+                    )
+
+                    // ── 2.5 服务实时控制台日志 ──
+                    ServiceLogsCard(
+                        logs = state.serviceLogs,
+                        running = state.gatewayRunning,
+                        onClear = { viewModel?.clearServiceLogs() },
+                        onCopy = { text ->
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                            clipboard?.setPrimaryClip(ClipData.newPlainText("service_logs", text))
+                            Toast.makeText(context, "控制台日志已复制", Toast.LENGTH_SHORT).show()
+                        },
+                    )
+                }
+
+                // ── 3. 模型配置（仅 AI 类工具：AI Agent / Coding Agent，非 AI 的纯开发工具不需要模型注入） ──
+                if (tool.category == "AI_AGENT" || tool.category == "CODING_AGENT") {
+                    ModelApplyCard(
+                        toolName = tool.name,
+                        models = state.models,
+                        appliedModelId = state.appliedModelId,
+                        applying = state.applyingModel,
+                        onApply = { arg0 -> viewModel?.applyModel(arg0) },
+                    )
+                }
+
+                // ── 4. 自启动配置 ──
+                if (state.isWebService) {
+                    AutoStartCard(
+                        enabled = state.autoStartEnabled,
+                        toolName = tool.name,
+                        onToggle = { arg0 -> viewModel?.toggleAutoStart(arg0) },
+                    )
+                }
+
+                // ── 5. 带 Token 访问链接（仅 Web 类工具，支持局域网 IP / 0.0.0.0 / 127.0.0.1） ──
+                if (state.isWebService) {
+                    AccessLinkCard(
+                        state = state,
+                        running = state.gatewayRunning,
+                        onGenerate = { viewModel?.generateToken() },
+                        onClear = { viewModel?.clearToken() },
+                        onCopy = { url ->
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                            clipboard?.setPrimaryClip(ClipData.newPlainText("tool_url", url))
+                            Toast.makeText(context, "链接已复制", Toast.LENGTH_SHORT).show()
+                        },
+                    )
+                }
+
+                // ── 6. 工具元信息面板 ──
+                if (manifest != null) {
+                    ToolMetadataCard(tool = tool, manifest = manifest)
+                }
+
+                // ── 7. 操作区 ──
+                ToolActionsCard(
+                    isInstalled = tool.state == ToolState.INSTALLED.name || tool.state == ToolState.UPDATE_AVAILABLE.name,
+                    onLaunchTerminal = { onLaunchTerminal(toolId) },
+                    onUninstall = { showUninstallConfirm = true },
                 )
+
+                Spacer(Modifier.height(16.dp))
             }
-
-            // ── 3. 模型配置（仅 AI 类工具：AI Agent / Coding Agent，非 AI 的纯开发工具不需要模型注入） ──
-            if (tool.category == "AI_AGENT" || tool.category == "CODING_AGENT") {
-                ModelApplyCard(
-                    toolName = tool.name,
-                    models = state.models,
-                    appliedModelId = state.appliedModelId,
-                    applying = state.applyingModel,
-                    onApply = { arg0 -> viewModel?.applyModel(arg0) },
-                )
-            }
-
-            // ── 4. 自启动配置 ──
-            if (state.isWebService) {
-                AutoStartCard(
-                    enabled = state.autoStartEnabled,
-                    toolName = tool.name,
-                    onToggle = { arg0 -> viewModel?.toggleAutoStart(arg0) },
-                )
-            }
-
-            // ── 5. 带 Token 访问链接（仅 Web 类工具，支持局域网 IP / 0.0.0.0 / 127.0.0.1） ──
-            if (state.isWebService) {
-                AccessLinkCard(
-                    state = state,
-                    running = state.gatewayRunning,
-                    onGenerate = { viewModel?.generateToken() },
-                    onClear = { viewModel?.clearToken() },
-                    onCopy = { url ->
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                        clipboard?.setPrimaryClip(ClipData.newPlainText("tool_url", url))
-                        Toast.makeText(context, "链接已复制", Toast.LENGTH_SHORT).show()
-                    },
-                )
-            }
-
-            // ── 6. 工具元信息面板 ──
-            if (manifest != null) {
-                ToolMetadataCard(tool = tool, manifest = manifest)
-            }
-
-            // ── 7. 操作区 ──
-            ToolActionsCard(
-                isInstalled = tool.state == ToolState.INSTALLED.name || tool.state == ToolState.UPDATE_AVAILABLE.name,
-                onLaunchTerminal = { onLaunchTerminal(toolId) },
-                onUninstall = { showUninstallConfirm = true },
-            )
-
-            Spacer(Modifier.height(16.dp))
         }
     }
 }
@@ -388,7 +369,7 @@ private fun ToolOverviewCard(
         if (clean.isNotBlank()) "v$clean" else null
     } else null
 
-    RuntimeCard(modifier = Modifier.fillMaxWidth()) {
+    SettingsDetailCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -494,7 +475,7 @@ private fun GatewayManagementCard(
     onStart: () -> Unit,
     onStop: () -> Unit,
 ) {
-    RuntimeCard(modifier = Modifier.fillMaxWidth()) {
+    SettingsDetailCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -598,7 +579,7 @@ private fun ServiceLogsCard(
         }
     }
 
-    RuntimeCard(modifier = Modifier.fillMaxWidth()) {
+    SettingsDetailCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -720,7 +701,7 @@ private fun ModelApplyCard(
     applying: Boolean,
     onApply: (AiModelEntity) -> Unit,
 ) {
-    RuntimeCard(modifier = Modifier.fillMaxWidth()) {
+    SettingsDetailCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -874,7 +855,7 @@ private fun AutoStartCard(
     toolName: String,
     onToggle: (Boolean) -> Unit,
 ) {
-    RuntimeCard(modifier = Modifier.fillMaxWidth()) {
+    SettingsDetailCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -917,7 +898,7 @@ private fun AccessLinkCard(
         else -> state.loopbackAccessUrl
     }
 
-    RuntimeCard(modifier = Modifier.fillMaxWidth()) {
+    SettingsDetailCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1104,7 +1085,7 @@ private fun ToolMetadataCard(
     tool: ToolEntity,
     manifest: ToolManifest,
 ) {
-    RuntimeCard(modifier = Modifier.fillMaxWidth()) {
+    SettingsDetailCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1255,7 +1236,7 @@ private fun ToolActionsCard(
     onLaunchTerminal: () -> Unit,
     onUninstall: () -> Unit,
 ) {
-    RuntimeCard(modifier = Modifier.fillMaxWidth()) {
+    SettingsDetailCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),

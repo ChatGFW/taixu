@@ -47,11 +47,6 @@ import kotlinx.coroutines.launch
 import android.net.Uri
 import top.wkbin.taixu.core.common.result.AppResult
 
-private data class UninstallOutcome(
-    val success: Boolean,
-    val message: String,
-)
-
 class ToolManager(
     private val toolRepository: ToolRepository,
     private val installLogRepository: InstallLogRepository,
@@ -153,8 +148,9 @@ class ToolManager(
 
     /** Read and validate package metadata; no extraction or registry mutation occurs yet. */
     @Synchronized
-    fun startLocalPluginImport(uri: Uri, fileName: String): Job {
+    fun startLocalPluginImport(uri: Uri, fileName: String, requireAvailable: Boolean = false): Job {
         localAccess?.requireLocal()
+        if (requireAvailable) requireLocalPluginImportAvailable(_localPluginImportState.value, localPluginImportJob?.isActive == true)
         localPluginImportJob?.takeIf { it.isActive }?.let { return it }
         _localPluginImportState.value = LocalPluginImportState.Reading(fileName)
         return managerScope.launch {

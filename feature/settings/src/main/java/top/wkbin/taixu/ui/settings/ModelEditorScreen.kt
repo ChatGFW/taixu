@@ -18,6 +18,8 @@ import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +31,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -38,13 +41,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextFieldDefaults
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
+import top.wkbin.taixu.ui.components.RuntimeProviderCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -158,7 +164,7 @@ fun ModelEditorScreen(
         },
     ) { padding ->
         ModelEditorContent(
-            modifier = Modifier.padding(padding),
+            modifier = Modifier.padding(padding).consumeWindowInsets(padding),
             modelId = modelId,
             existing = existing,
             initialApiKey = initialApiKey,
@@ -466,85 +472,32 @@ private fun ModelEditorContent(
         )
     }
 
-    val compactFieldShape = RoundedCornerShape(12.dp)
-    val fieldColors = OutlinedTextFieldDefaults.colors(
+    val compactFieldShape = TextFieldDefaults.shape
+    val fieldColors = TextFieldDefaults.colors(
         focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-        focusedBorderColor = MaterialTheme.colorScheme.primary,
-        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+        unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
     )
 
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.fillMaxSize().imePadding(),
+        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // ---- 1. 服务商选择与 Hero 卡片 ----
+        // The preset card is one selection target, leaving the full name room to wrap.
         item {
-            RuntimeCard(
-                modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            RuntimeProviderCard(
+                providerId = provider.id, name = provider.name,
+                description = when (provider.group) {
+                    ProviderGroup.OFFICIAL -> "官方"
+                    ProviderGroup.CHINA -> "国内"
+                    ProviderGroup.AGGREGATOR -> "聚合"
+                    ProviderGroup.LOCAL -> "本地"
+                    ProviderGroup.CUSTOM -> "自定义"
+                } + " · " + if (provider.protocol == ProviderProtocol.ANTHROPIC) "Claude Messages API" else "OpenAI 兼容 API",
                 onClick = { showProviderPicker = true },
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        ProviderBadge(providerIdOrName = provider.id, size = 26.dp)
-                    }
-
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = provider.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                            ) {
-                                Text(
-                                    text = when (provider.group) {
-                                        ProviderGroup.OFFICIAL -> "官方"
-                                        ProviderGroup.CHINA -> "国内"
-                                        ProviderGroup.AGGREGATOR -> "聚合"
-                                        ProviderGroup.LOCAL -> "本地"
-                                        ProviderGroup.CUSTOM -> "自定义"
-                                    },
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
-                                )
-                            }
-                        }
-                        Text(
-                            text = if (provider.group == ProviderGroup.LOCAL) "本地沙箱轻量模型端点" else "OpenAI / Claude 兼容 API",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-
-                    RuntimeFilledTonalButton(
-                        onClick = { showProviderPicker = true },
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("切换预设", style = MaterialTheme.typography.labelMedium)
-                            RuntimeIcon(RuntimeIconName.ChevronDown, Modifier.size(14.dp))
-                        }
-                    }
-                }
-            }
+            )
         }
 
         // ---- 2. 基础连接卡片 (Connection Info) ----
@@ -552,7 +505,8 @@ private fun ModelEditorContent(
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                contentPadding = PaddingValues(SettingsDensity.cardPadding),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
@@ -569,7 +523,7 @@ private fun ModelEditorContent(
                     }
 
                     // 档案名称
-                    OutlinedTextField(
+                    RuntimeFilledTextField(
                         value = name,
                         onValueChange = { name = it },
                         modifier = Modifier.fillMaxWidth(),
@@ -584,7 +538,7 @@ private fun ModelEditorContent(
                     )
 
                     // Base URL
-                    OutlinedTextField(
+                    RuntimeFilledTextField(
                         value = url,
                         onValueChange = { url = it },
                         modifier = Modifier.fillMaxWidth(),
@@ -599,11 +553,9 @@ private fun ModelEditorContent(
                             )
                         },
                         isError = url.isNotBlank() && !urlValid,
-                        supportingText = {
-                            if (url.isNotBlank() && !urlValid) {
-                                Text("接口地址需以 http:// 或 https:// 开头")
-                            }
-                        },
+                        supportingText = if (url.isNotBlank() && !urlValid) {
+                            { Text("接口地址需以 http:// 或 https:// 开头") }
+                        } else null,
                         singleLine = true,
                         shape = compactFieldShape,
                         colors = fieldColors,
@@ -636,7 +588,8 @@ private fun ModelEditorContent(
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                contentPadding = PaddingValues(SettingsDensity.cardPadding),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
@@ -677,7 +630,7 @@ private fun ModelEditorContent(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            OutlinedTextField(
+                            RuntimeFilledTextField(
                                 value = currentKey,
                                 onValueChange = { newVal ->
                                     keyList = keyList.toMutableList().also { it[index] = newVal }
@@ -738,25 +691,23 @@ private fun ModelEditorContent(
                     }
 
                     // 添加备用 Key / 批量导入
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        RuntimeOutlinedButton(
+                        RuntimeFilledTonalButton(
                             onClick = { keyList = keyList + "" },
-                            modifier = Modifier.weight(1f).height(38.dp),
-                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f).widthIn(min = 140.dp).heightIn(min = 48.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp),
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 RuntimeIcon(RuntimeIconName.Plus, Modifier.size(14.dp), MaterialTheme.colorScheme.primary)
-                                Text("+ 备用 Key", style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("备用 Key", style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                         RuntimeOutlinedButton(
                             onClick = { showBatchImportKeysDialog = true },
-                            modifier = Modifier.weight(1f).height(38.dp),
-                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f).widthIn(min = 140.dp).heightIn(min = 48.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp),
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -780,7 +731,8 @@ private fun ModelEditorContent(
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                contentPadding = PaddingValues(SettingsDensity.cardPadding),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val totalSelectedCount = (selectedModels + customModelInput.split(",").map { it.trim() }).filter { it.isNotBlank() }.distinct().size
@@ -838,7 +790,7 @@ private fun ModelEditorContent(
                             }
                         }
 
-                        OutlinedTextField(
+                        RuntimeFilledTextField(
                             value = modelSearchQuery,
                             onValueChange = { modelSearchQuery = it },
                             modifier = Modifier.fillMaxWidth(),
@@ -933,7 +885,7 @@ private fun ModelEditorContent(
                     }
 
                     // 自定义模型输入
-                    OutlinedTextField(
+                    RuntimeFilledTextField(
                         value = customModelInput,
                         onValueChange = { customModelInput = it },
                         modifier = Modifier.fillMaxWidth(),
@@ -952,7 +904,8 @@ private fun ModelEditorContent(
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                contentPadding = PaddingValues(SettingsDensity.cardPadding),
                 onClick = { reasoningSectionExpanded = !reasoningSectionExpanded },
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1023,7 +976,7 @@ private fun ModelEditorContent(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                OutlinedTextField(
+                                RuntimeFilledTextField(
                                     value = maxTokensText,
                                     onValueChange = { maxTokensText = it.filter(Char::isDigit) },
                                     modifier = Modifier.weight(1f),
@@ -1040,7 +993,7 @@ private fun ModelEditorContent(
                                     colors = fieldColors,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 )
-                                OutlinedTextField(
+                                RuntimeFilledTextField(
                                     value = contextTokensText,
                                     onValueChange = { contextTokensText = it.filter(Char::isDigit) },
                                     modifier = Modifier.weight(1f),
@@ -1094,7 +1047,7 @@ private fun ModelEditorContent(
                                 expanded = reasoningModeMenu,
                                 onExpandedChange = { reasoningModeMenu = !reasoningModeMenu },
                             ) {
-                                OutlinedTextField(
+                                RuntimeFilledTextField(
                                     value = when (reasoningModeText) {
                                         "enabled" -> "开启深度推理（模型深入思考）"
                                         else -> "跟随模型默认"
@@ -1132,7 +1085,8 @@ private fun ModelEditorContent(
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                contentPadding = PaddingValues(SettingsDensity.cardPadding),
                 onClick = { advancedSectionExpanded = !advancedSectionExpanded },
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1168,7 +1122,7 @@ private fun ModelEditorContent(
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
                             // 单 Key 每分钟上限
-                            OutlinedTextField(
+                            RuntimeFilledTextField(
                                 value = rpmLimitText,
                                 onValueChange = { rpmLimitText = it },
                                 isError = !rpmValid,
@@ -1187,7 +1141,7 @@ private fun ModelEditorContent(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                OutlinedTextField(
+                                RuntimeFilledTextField(
                                     value = compactionKeepRecentText,
                                     onValueChange = { compactionKeepRecentText = it },
                                     isError = !keepRecentValid,
@@ -1200,7 +1154,7 @@ private fun ModelEditorContent(
                                     colors = fieldColors,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 )
-                                OutlinedTextField(
+                                RuntimeFilledTextField(
                                     value = compactionReserveText,
                                     onValueChange = { compactionReserveText = it },
                                     isError = !reserveValid,
@@ -1271,7 +1225,7 @@ private fun ModelEditorContent(
                             )
 
                             // 自定义请求头
-                            OutlinedTextField(
+                            RuntimeFilledTextField(
                                 value = customHeaders,
                                 onValueChange = { customHeaders = it },
                                 modifier = Modifier.fillMaxWidth(),
@@ -1300,8 +1254,7 @@ private fun ModelEditorContent(
                 RuntimeOutlinedButton(
                     onClick = { test(url, testModelTarget, combinedKey, responseApiEnabled, providerId) },
                     enabled = !testing && url.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth().height(44.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 ) {
                     if (testing) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1441,44 +1394,6 @@ internal fun filterCandidateModels(models: List<String>, query: String): List<St
         models.filter { it.contains(normalizedQuery, ignoreCase = true) }
     }
 }
-
-@Composable
-private fun EditorToggleRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
-        shape = RoundedCornerShape(10.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            RuntimeSwitch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-            )
-        }
-    }
-}
-
 @Composable
 private fun BatchImportKeysDialog(
     onDismiss: () -> Unit,

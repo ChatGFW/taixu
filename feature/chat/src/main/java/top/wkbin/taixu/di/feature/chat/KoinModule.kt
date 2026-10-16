@@ -4,9 +4,11 @@ import org.koin.dsl.module
 import top.wkbin.taixu.ui.chat.ChatViewModel
 import top.wkbin.taixu.ui.chat.ToolchainViewModel
 import org.koin.core.module.dsl.viewModel
+import top.wkbin.taixu.ui.chat.ChatBackgroundViewModel
 
 /** Dependency registrations owned by the feature:chat module. */
 val featureChatModule = module {
+    viewModel { ChatBackgroundViewModel(get()) }
     // 检测走 ToolchainInspector；补齐走进程级 ToolchainRepairer（不跟 ViewModel 取消）
     viewModel<ToolchainViewModel> {
         ToolchainViewModel(

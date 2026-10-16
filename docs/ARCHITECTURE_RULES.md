@@ -25,14 +25,16 @@
 1. **统一设计系统组件（严禁 raw Material 组件散落）**：
    - 容器必须使用 `top.wkbin.taixu.ui.components.RuntimeCard`（支持 `containerColor`, `borderColor`, `contentPadding`, `onClick`），**严禁**使用原生 `androidx.compose.material3.Card` 或自定义 `Modifier.border/background` 拼接容器，确保 Material You（标准 M3）主题下表面色与微边框统一生效。
    - 按钮统一使用 `RuntimeButton`, `RuntimeFilledTonalButton`, `RuntimeOutlinedButton`, `RuntimeTextButton`, `RuntimeIconButton`。
+   - 模型接入与档案主表单复用 `RuntimeProviderCard`（整卡选择预设）与 `RuntimeFilledTextField`（原生 Material3 填充式 TextField，保留浮动标签、焦点和错误指示）；连接信息合并分组，避免每个输入框外再独立套一张卡片。
    - 弹窗统一使用 `top.wkbin.taixu.ui.components.RuntimeAlertDialog`。
-   - 开关与进度指示使用 `RuntimeSwitch`, `RuntimeLinearProgressIndicator`, `RuntimeCircularProgressIndicator`。
+   - 开关与进度指示使用 `RuntimeSwitch`, `RuntimeLinearProgressIndicator`, `RuntimeCircularProgressIndicator`（后两者默认参数即 Expressive 波浪/形变加载实现；线性显式传 `progress` 时回落经典确定性样式，需要确定性波浪时传 `wavy = true`；圆环显式传 `strokeWidth`/`trackColor` 时回落经典确定性样式）。
 2. **弹窗与表单软键盘安全（IME 防遮挡）**：
    - 所有包含 `OutlinedTextField` 或列表的 Dialog `text` 内容区域，**严禁**设置死锁的固定高宽或外层硬编码 `offset`，**必须**包裹 `modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())`，确保在移动端软键盘弹起时表单可顺畅滑动，操作按钮始终可见可达。
 3. **顶部与主导航规范**：
-   - 顶部导航统一使用 `RuntimeTopBar`（支持 `title`, `statusText`, `onBack`）。
-   - 首次引导完成后默认进入智枢聊天；主页面不显示底部导航栏。会话与主功能统一通过对话页的菜单键打开左侧抽屉；项目、系统概览进入当前导航栈，使用与其他子页面一致的覆盖转场及返回行为；设置根页面返回对话页。侧栏底部提供设置入口，功能列表不重复显示对话与设置。
-   - 聊天顶栏突出会话与模型，不放新建会话按钮；新建入口位于侧栏搜索栏旁。审批模式在会话输入框工具栏展示与切换，全部放行状态始终可见；工作台控制按需展开。抽屉通过滑动或点击主页面遮罩关闭，不放关闭按钮；抽屉、键盘和系统导航栏均使用实际窗口 Insets，不保留旧底部栏占位。
+   - **聊天背景**：在“外观与终端”中使用系统照片选择器更换或移除图片，预览与聊天页共用 `RuntimeChatBackground`；聊天页由 `ChatPageSurface` 在内容内边距之外统一绘制全屏背景，覆盖顶栏和系统栏区域，不在消息面板重复绘制；有背景时使用主题提供的半透明表面承托顶栏、输入区与 AI 正文，并关闭消息列表的纯色渐变遮罩；可见度与模糊参数通过 `ChatBackgroundPreferences` 持久化。图片复制到 App 私有目录，仅作为界面背景，不自动附加到模型请求；终端和浏览器面板不使用聊天背景。
+   - 顶部导航统一使用 `RuntimeTopBar`（支持 `title`, `statusText`, `onBack`）。设置首页、外观、智能体、Linux 与诊断子页使用带 `scrollBehavior` 的大标题重载，经 `PersonalizationScaffold` 委托共用 `RuntimeSettingsScaffold` 连接滚动；工坊、环境变量、SSH/FTP、本地模型、Linux 系统管理、存储、关于及工具配置详情复用同一布局，统一宽屏居中与 IME 避让；状态摘要、工具栏操作与 Snackbar 通过同一布局保留；详情分组使用 `SettingsDetailCard`，端口编辑使用 `SettingsPortEditor` 让输入与操作分行，避免窄屏挤压；设置分组由 `PreferenceSurface` 复用 RuntimeCard，采用主题色面、28dp 外圆角与 4dp 内圆角；通用 SettingsRow / ToggleRow 的默认密度由 SettingsDensity 管理：80dp 最小行高、14dp 垂直内边距、24dp 图标、16sp 标题与 12sp/18sp 行高的说明；导航说明保持简短，普通说明最多两行。当前值以 12sp 放在标题旁，列表默认不放尾部箭头，避免状态独占一行和挤压说明；大字体仍允许自然增高。模型档案、插件工具、快捷短语、Agent 参数、MCP 服务与挂载列表也使用该大标题重载；模型编辑保留紧凑顶栏，表单消费 Scaffold Insets 并使用 imePadding，确保键盘弹出后仍可滚动到保存操作；工作流仅在目录态展开大标题，编辑和运行态保留紧凑工具栏。模型激活状态使用色面表达，卡片操作区采用可换行布局。系统概览使用同一大标题重载，资源卡片通过 FlowRow 与按字体缩放的最小宽度自然换行；聊天和终端保持各自的信息密度。
+   - 首次引导完成后默认进入智枢聊天；主页面不显示底部导航栏。会话与主功能统一通过对话页的菜单键打开左侧抽屉；项目、系统概览与设置均进入当前导航栈，使用与其他子页面一致的覆盖转场及返回行为；设置子页面和通知深链也共用该栈，顶栏返回与系统返回均执行出栈。侧栏底部提供设置入口，功能列表不重复显示对话与设置。
+   - 聊天顶栏突出会话与模型，不放新建会话按钮；新建入口位于侧栏搜索栏旁。审批模式在会话输入框工具栏展示与切换，全部放行状态始终可见；工作台控制按需展开。抽屉通过滑动或点击主页面遮罩关闭，不放关闭按钮；仅聊天根页面允许滑动打开抽屉，设置及其他覆盖页面禁用该手势，返回聊天后恢复。抽屉、键盘和系统导航栏均使用实际窗口 Insets，不保留旧底部栏占位。
    - **窗口三态（WindowSizeClass）**：断点统一读取 `LocalRuntimeWidthClass` / `widthClassOf()`（600dp / 840dp），**严禁**再写死 `maxWidth >= xxx.dp` 之类的散落断点。紧凑态沿用推拉抽屉；中间态左侧常驻 `RuntimeNavigationRail`，侧栏以浮层滑出；展开态侧栏常驻停靠、可收起为 Rail。导航常驻时 `LocalAppNavigation` 为空，顶栏不显示菜单键。
    - **形态切换不硬切**：跨断点（折叠/展开、分屏改宽）时，页面、侧栏、终端与浏览器面板必须以 `movableContentOf` 迁移而非重建；面板宽度用 `RuntimeAdaptiveMotion` 动画过渡；形态相关的选择状态（侧栏收起、伴随面板显隐与比例、终端/浏览器选择）上提为 `rememberSaveable`。双栏判定以“可用宽度”为准，空间不足时退回滑出面板。
 4. **响应式与小屏防截断/防折行**：
@@ -42,6 +44,14 @@
    - 横向多按钮行（如操作栏、卡片底部动作）必须配置适当紧凑的 `contentPadding` 与 `labelSmall` 单行字号，杜绝 360dp 窄屏宽度下文字断行造成按钮高度参差不齐。
 5. **层级与多层材质防冲突**：
    - 在 `RuntimeCard` 内嵌的日志区、终端代码块或次级子项中，应使用 `Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest/Highest)`，避免多层嵌套 Card 导致色调与阴影层级混乱。
+6. **M3 Expressive 主题体系（TaiXuTheme 单一装配入口）**：
+   - 主题装配唯一入口为 `feature/theme` 的 `TaiXuTheme`：内部使用 `MaterialExpressiveTheme` + `MotionScheme.expressive()`；**严禁**任何模块自建 `MaterialTheme(...)` 组件树或直接调用 `dynamicLightColorScheme` / `dynamicDarkColorScheme`。读取 token 仍用 `MaterialTheme.colorScheme/typography/shapes` 与 `semanticColors()`。
+   - 动态取色为「系统 Monet 优先 + HCT 兜底」：API 31+ 且系统色板未被 ROM 锁死时直接采用系统 `ColorScheme`；否则（API<31、ROM 锁死预置色、无壁纸种子）经 `rememberWallpaperDynamicColorScheme` 用 material-color-utilities 的 `SchemeTonalSpot`（SPEC_2025）从壁纸种子派生，与系统 Monet 同一算法族。
+   - 外观设置的手动色盘与配色风格共用 `AppearancePreferences` 持久化；选中色盘时原子关闭壁纸取色，重新启用时保留手动选择。预设种子与 HCT 风格生成集中于 `feature/theme`，经 `TaiXuTheme` 应用到全局；默认保留玄同色板与系统 Monet 行为。
+   - 排版回归 M3 规范字重：`AppTypography = Typography()` 仅保留字体族/字号微调，**严禁**在主题层对 label/title 等角色全局加粗；局部强调在调用点用 `fontWeight` 覆盖。
+   - 语义色（success / warning / info / agent / 图表色板）由主题装配时 `buildSemanticColors(colorScheme)` 用 `Blend.harmonize` 向当前主色谐调（保持 tone/chroma，色相旋转 ≤15°），经 `LocalSemanticColors` 下发；页面**严禁**硬编码色值，中性功能色（code/terminal）保持固定不参与谐调。
+   - 圆角使用扩展 `Shapes` token（largeIncreased=20 / extraLargeIncreased=32 / extraExtraLarge=48dp）；**严禁**散落硬编码圆角。
+   - 视觉 token（颜色、排版、形状、语义色、聊天背景偏好）只能在 `feature/theme` 定义，其他模块只消费不定义。
 
 ---
 

@@ -1,24 +1,28 @@
 package top.wkbin.taixu.ui.theme
 
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
+import com.materialkolor.blend.Blend
 
 /**
  * 太墟 · M3 语义色扩展。
  *
- * Material You 的 [androidx.compose.material3.ColorScheme] 只定义 primary / secondary / tertiary
+ * Material You 的 [ColorScheme] 只定义 primary / secondary / tertiary
  * 三组彩色角色，无法表达「成功 / 警告 / 信息 / 工具 / 分支」这类领域语义。全App 曾直接写死
  * Tailwind 色值（#10B981 绿、#F59E0B 橙、#7C4DFF 紫），导致开启动态取色后容器跟随壁纸变化，
  * 而徽标与状态点仍是固定色，破坏 Material You 的一致性。
  *
  * 这里把领域色收敛为随明暗主题切换的一等语义 token：
  * - 不再硬编码，保证浅色 / 深色两套都有足够对比度；
- * - 与 colorScheme 同源切换，用户切换主题时不会残留旧色。
+ * - 与 colorScheme 同源切换，用户切换主题时不会残留旧色；
+ * - 经 [buildSemanticColors] 按官方 harmonize 规则向当前主色靠拢（旋转 ≤15°、保持彩度与色调，
+ *   对比度不劣化），实现语义色随动态色板谐调。
  */
 @Immutable
 data class SemanticColors(
@@ -86,6 +90,10 @@ internal val LightSemantics = SemanticColors(
         Color(0xFF0369A1),
         Color(0xFFBE123C),
         Color(0xFF8C4A60),
+        Color(0xFF0F766E),
+        Color(0xFF9D174D),
+        Color(0xFF4338CA),
+        Color(0xFF4D7C0F),
     ),
 )
 
@@ -119,20 +127,53 @@ internal val DarkSemantics = SemanticColors(
         Color(0xFF96CCFF),
         Color(0xFFFFB4AB),
         Color(0xFFE6B8C9),
+        Color(0xFF5EEAD4),
+        Color(0xFFFDA4AF),
+        Color(0xFFA5B4FC),
+        Color(0xFFBEF264),
     ),
 )
 
 val LocalSemanticColors = staticCompositionLocalOf { LightSemantics }
 
 /**
- * 取当前主题下的语义色。优先使用 [MaterialTheme] 可判断的明暗态，
- * 保证与 colorScheme 同步切换，不会出现「深色容器 + 浅色语义字」的割裂。
+ * 取当前主题下的语义色（[TaiXuTheme] 已按当前材质色板谐调并通过 Local 提供）。
  */
 @Composable
 @ReadOnlyComposable
-fun semanticColors(): SemanticColors {
-    val dark = MaterialTheme.colorScheme.surface.luminanceIsDark()
-    return if (dark) DarkSemantics else LightSemantics
+fun semanticColors(): SemanticColors = LocalSemanticColors.current
+
+/**
+ * 从当前 [ColorScheme] 构建语义色：明暗基准随 surface 亮度选择，
+ * 色相经官方 harmonize 向主色靠拢（旋转 ≤15°、保持彩度与色调，WCAG 对比度不破坏）。
+ *
+ * code / 终端等功能性颜色保持固定：它们代表「代码」本身而非品牌身份，不应随壁纸漂移。
+ */
+internal fun buildSemanticColors(colorScheme: ColorScheme): SemanticColors {
+    val base = if (colorScheme.surface.luminanceIsDark()) DarkSemantics else LightSemantics
+    val source = colorScheme.primary.toArgb()
+
+    fun Color.harmonized(): Color = Color(Blend.harmonize(toArgb(), source))
+
+    return base.copy(
+        success = base.success.harmonized(),
+        onSuccess = base.onSuccess.harmonized(),
+        successContainer = base.successContainer.harmonized(),
+        onSuccessContainer = base.onSuccessContainer.harmonized(),
+        warning = base.warning.harmonized(),
+        onWarning = base.onWarning.harmonized(),
+        warningContainer = base.warningContainer.harmonized(),
+        onWarningContainer = base.onWarningContainer.harmonized(),
+        info = base.info.harmonized(),
+        onInfo = base.onInfo.harmonized(),
+        infoContainer = base.infoContainer.harmonized(),
+        onInfoContainer = base.onInfoContainer.harmonized(),
+        agent = base.agent.harmonized(),
+        onAgent = base.onAgent.harmonized(),
+        agentContainer = base.agentContainer.harmonized(),
+        onAgentContainer = base.onAgentContainer.harmonized(),
+        categorical = base.categorical.map { it.harmonized() },
+    )
 }
 
 private fun Color.luminanceIsDark(): Boolean = luminance() < 0.5f

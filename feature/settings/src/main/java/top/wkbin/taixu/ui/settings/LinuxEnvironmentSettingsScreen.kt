@@ -11,17 +11,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.ui.res.stringResource
+import top.wkbin.taixu.feature.settings.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,7 +40,6 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
-import top.wkbin.taixu.ui.components.RuntimeTopBar
 /**
  * 二级子页 2：Linux 容器沙箱与存储
  */
@@ -115,23 +113,10 @@ fun LinuxEnvironmentSettingsScreen(
         )
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = { RuntimeTopBar("Linux 容器与存储", onBack) },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            item {
-                Text(
-                    text = "容器系统与沙箱管理",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-                )
-                SettingsGroup {
+    PersonalizationScaffold(stringResource(R.string.personal_linux_title), onBack) {
+        item {
+            PersonalizationSection("容器系统与沙箱管理") {
+                PreferenceSurface(first = true, last = false) {
                     SettingsRow(
                         icon = RuntimeIconName.Server,
                         title = "Linux 发行版管理",
@@ -139,42 +124,48 @@ fun LinuxEnvironmentSettingsScreen(
                         value = "${installedDistros.size} 套系统",
                         onClick = onOpenDistroManagement,
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                }
+                PreferenceSurface(first = false, last = false) {
                     SettingsRow(
                         icon = RuntimeIconName.Storage,
                         title = "存储管理",
                         subtitle = "按 Linux、插件、项目与 Skills 分析占用",
                         onClick = onOpenStorageUsage,
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                }
+                PreferenceSurface(first = false, last = false) {
                     SettingsRow(
                         icon = RuntimeIconName.SdCard,
                         title = "存储挂载与共享",
                         subtitle = "PRoot 宿主存储映射 (-b /sdcard)",
                         onClick = onOpenStorageMounts,
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                }
+                PreferenceSurface(first = false, last = false) {
                     SettingsRow(
                         icon = RuntimeIconName.Key,
                         title = "环境变量",
                         subtitle = "为终端、Agent 和工具注入用户变量",
                         onClick = onOpenEnvironmentVariables,
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                }
+                PreferenceSurface(first = false, last = false) {
                     SettingsRow(
                         icon = RuntimeIconName.Network,
                         title = "SSH 远程访问",
                         subtitle = "公钥认证 · 端口与局域网监听 · 随运行时启动",
                         onClick = onOpenSshSettings,
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                }
+                PreferenceSurface(first = false, last = false) {
                     SettingsRow(
                         icon = RuntimeIconName.FolderOpen,
                         title = "FTP 远程文件访问",
                         subtitle = "挂载 Linux 根目录 (/) · FileZilla / 资源管理器直连",
                         onClick = onOpenFtpSettings,
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                }
+                PreferenceSurface(first = false, last = false) {
                     SettingsRow(
                         icon = RuntimeIconName.Globe,
                         title = "太墟智枢 Web 协作台",
@@ -186,7 +177,8 @@ fun LinuxEnvironmentSettingsScreen(
                         value = if (webChatStatus.isRunning) "已开启" else "未开启",
                         onClick = { showWebChatDialog = true },
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                }
+                PreferenceSurface(first = false, last = true) {
                     SettingsRow(
                         icon = RuntimeIconName.Package,
                         title = "应用管理",
@@ -195,15 +187,11 @@ fun LinuxEnvironmentSettingsScreen(
                     )
                 }
             }
+        }
 
-            item {
-                Text(
-                    text = "系统底层特权",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-                )
-                SettingsGroup {
+        item {
+            PersonalizationSection("系统底层特权") {
+                PreferenceSurface(first = true, last = true) {
                     SettingsRow(
                         icon = RuntimeIconName.Key,
                         title = "系统运行特权模式",

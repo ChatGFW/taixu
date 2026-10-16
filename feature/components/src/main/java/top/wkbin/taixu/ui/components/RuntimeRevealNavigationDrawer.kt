@@ -57,6 +57,7 @@ fun RuntimeRevealNavigationDrawer(
     onDismiss: () -> Unit,
     onOpen: (() -> Unit)?,
     drawerContent: @Composable () -> Unit,
+    gesturesEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize().clipToBounds()) {
@@ -93,12 +94,13 @@ fun RuntimeRevealNavigationDrawer(
         val latestVisible by rememberUpdatedState(visible)
         val latestDismiss by rememberUpdatedState(onDismiss)
         val latestOpen by rememberUpdatedState(onOpen)
+        val latestGesturesEnabled by rememberUpdatedState(gesturesEnabled)
         val scope = rememberCoroutineScope()
         val keyboard = LocalSoftwareKeyboardController.current
         fun progress() = (state.offset / widthPx).takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f
         val revealed by remember { derivedStateOf { state.offset > 0.5f } }
 
-        LaunchedEffect(visible, widthPx) {
+        LaunchedEffect(visible, widthPx, gesturesEnabled) {
             keyboard?.hide()
             state.animateTo(if (visible) RevealDrawerValue.Open else RevealDrawerValue.Closed, motion)
         }
@@ -110,7 +112,10 @@ fun RuntimeRevealNavigationDrawer(
                         abs(state.offset - state.anchors.positionOf(it)) < 0.5f
                 }
             }.filterNotNull().collect { settled ->
-                if (settled == RevealDrawerValue.Open && !latestVisible) latestOpen?.invoke()
+                if (settled == RevealDrawerValue.Open && !latestVisible) {
+                    if (latestGesturesEnabled) latestOpen?.invoke()
+                    else state.animateTo(RevealDrawerValue.Closed, motion)
+                }
                 if (settled == RevealDrawerValue.Closed && latestVisible) latestDismiss()
             }
         }
@@ -124,6 +129,7 @@ fun RuntimeRevealNavigationDrawer(
         val dragModifier = Modifier.anchoredDraggable(
             state = state,
             orientation = Orientation.Horizontal,
+            enabled = gesturesEnabled || visible || state.settledValue == RevealDrawerValue.Open,
             interactionSource = interactions,
             flingBehavior = fling,
         )

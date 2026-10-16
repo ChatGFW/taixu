@@ -1,5 +1,7 @@
 package top.wkbin.taixu.ui.theme
 
+import top.wkbin.taixu.core.model.ThemePaletteStyle
+
 import android.app.WallpaperColors
 import android.app.WallpaperManager
 import android.content.Context
@@ -10,8 +12,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -130,138 +130,20 @@ private fun extractColorFromDrawable(drawable: Drawable): Color? {
 }
 
 /**
- * 根据种子色严格按照 Google Material 3 调色板规范派生完整的深浅色 [ColorScheme]
- */
-fun generateM3ColorScheme(seedColor: Color, darkTheme: Boolean): ColorScheme {
-    val seedArgb = seedColor.toArgb()
-    val hsl = FloatArray(3)
-    ColorUtils.colorToHSL(seedArgb, hsl)
-    val h = hsl[0] // 0f .. 360f
-    val s = hsl[1] // 0f .. 1f
-
-    // 若种子色几乎无彩度（如纯黑白灰壁纸），给一个基础色相与柔和彩度保证界面不枯燥
-    val effectiveS = if (s < 0.05f) 0.15f else s.coerceIn(0.20f, 0.70f)
-    val effectiveH = if (s < 0.05f) 220f else h
-
-    val primaryH = effectiveH
-    val primaryS = effectiveS
-
-    val secondaryH = effectiveH
-    val secondaryS = (effectiveS * 0.35f).coerceIn(0.10f, 0.30f)
-
-    val tertiaryH = (effectiveH + 60f) % 360f
-    val tertiaryS = (effectiveS * 0.55f).coerceIn(0.18f, 0.50f)
-
-    val neutralS = (effectiveS * 0.06f).coerceAtMost(0.04f)
-    val neutralVariantS = (effectiveS * 0.15f).coerceAtMost(0.08f)
-
-    fun hslColor(hue: Float, sat: Float, lum: Float): Color {
-        val clampedH = (hue % 360f + 360f) % 360f
-        val clampedS = sat.coerceIn(0f, 1f)
-        val clampedL = lum.coerceIn(0f, 1f)
-        return Color(ColorUtils.HSLToColor(floatArrayOf(clampedH, clampedS, clampedL)))
-    }
-
-    return if (!darkTheme) {
-        lightColorScheme(
-            primary = hslColor(primaryH, primaryS, 0.40f),
-            onPrimary = Color.White,
-            primaryContainer = hslColor(primaryH, primaryS, 0.90f),
-            onPrimaryContainer = hslColor(primaryH, primaryS, 0.10f),
-            inversePrimary = hslColor(primaryH, primaryS, 0.80f),
-
-            secondary = hslColor(secondaryH, secondaryS, 0.40f),
-            onSecondary = Color.White,
-            secondaryContainer = hslColor(secondaryH, secondaryS, 0.90f),
-            onSecondaryContainer = hslColor(secondaryH, secondaryS, 0.10f),
-
-            tertiary = hslColor(tertiaryH, tertiaryS, 0.40f),
-            onTertiary = Color.White,
-            tertiaryContainer = hslColor(tertiaryH, tertiaryS, 0.90f),
-            onTertiaryContainer = hslColor(tertiaryH, tertiaryS, 0.10f),
-
-            background = hslColor(primaryH, neutralS, 0.98f),
-            onBackground = hslColor(primaryH, neutralS, 0.10f),
-            surface = hslColor(primaryH, neutralS, 0.98f),
-            onSurface = hslColor(primaryH, neutralS, 0.10f),
-            surfaceVariant = hslColor(primaryH, neutralVariantS, 0.90f),
-            onSurfaceVariant = hslColor(primaryH, neutralVariantS, 0.30f),
-            surfaceTint = hslColor(primaryH, primaryS, 0.40f),
-            inverseSurface = hslColor(primaryH, neutralS, 0.20f),
-            inverseOnSurface = hslColor(primaryH, neutralS, 0.95f),
-
-            error = Color(0xFFBA1A1A),
-            onError = Color.White,
-            errorContainer = Color(0xFFFFDAD6),
-            onErrorContainer = Color(0xFF410002),
-
-            outline = hslColor(primaryH, neutralVariantS, 0.50f),
-            outlineVariant = hslColor(primaryH, neutralVariantS, 0.80f),
-            scrim = Color.Black,
-
-            surfaceBright = hslColor(primaryH, neutralS, 0.98f),
-            surfaceDim = hslColor(primaryH, neutralS, 0.87f),
-            surfaceContainerLowest = Color.White,
-            surfaceContainerLow = hslColor(primaryH, neutralS, 0.96f),
-            surfaceContainer = hslColor(primaryH, neutralS, 0.94f),
-            surfaceContainerHigh = hslColor(primaryH, neutralS, 0.92f),
-            surfaceContainerHighest = hslColor(primaryH, neutralS, 0.90f),
-        )
-    } else {
-        darkColorScheme(
-            primary = hslColor(primaryH, primaryS, 0.80f),
-            onPrimary = hslColor(primaryH, primaryS, 0.20f),
-            primaryContainer = hslColor(primaryH, primaryS, 0.30f),
-            onPrimaryContainer = hslColor(primaryH, primaryS, 0.90f),
-            inversePrimary = hslColor(primaryH, primaryS, 0.40f),
-
-            secondary = hslColor(secondaryH, secondaryS, 0.80f),
-            onSecondary = hslColor(secondaryH, secondaryS, 0.20f),
-            secondaryContainer = hslColor(secondaryH, secondaryS, 0.30f),
-            onSecondaryContainer = hslColor(secondaryH, secondaryS, 0.90f),
-
-            tertiary = hslColor(tertiaryH, tertiaryS, 0.80f),
-            onTertiary = hslColor(tertiaryH, tertiaryS, 0.20f),
-            tertiaryContainer = hslColor(tertiaryH, tertiaryS, 0.30f),
-            onTertiaryContainer = hslColor(tertiaryH, tertiaryS, 0.90f),
-
-            background = hslColor(primaryH, neutralS, 0.06f),
-            onBackground = hslColor(primaryH, neutralS, 0.90f),
-            surface = hslColor(primaryH, neutralS, 0.06f),
-            onSurface = hslColor(primaryH, neutralS, 0.90f),
-            surfaceVariant = hslColor(primaryH, neutralVariantS, 0.30f),
-            onSurfaceVariant = hslColor(primaryH, neutralVariantS, 0.80f),
-            surfaceTint = hslColor(primaryH, primaryS, 0.80f),
-            inverseSurface = hslColor(primaryH, neutralS, 0.90f),
-            inverseOnSurface = hslColor(primaryH, neutralS, 0.20f),
-
-            error = Color(0xFFFFB4AB),
-            onError = Color(0xFF690005),
-            errorContainer = Color(0xFF93000A),
-            onErrorContainer = Color(0xFFFFDAD6),
-
-            outline = hslColor(primaryH, neutralVariantS, 0.60f),
-            outlineVariant = hslColor(primaryH, neutralVariantS, 0.30f),
-            scrim = Color.Black,
-
-            surfaceBright = hslColor(primaryH, neutralS, 0.24f),
-            surfaceDim = hslColor(primaryH, neutralS, 0.06f),
-            surfaceContainerLowest = hslColor(primaryH, neutralS, 0.04f),
-            surfaceContainerLow = hslColor(primaryH, neutralS, 0.10f),
-            surfaceContainer = hslColor(primaryH, neutralS, 0.12f),
-            surfaceContainerHigh = hslColor(primaryH, neutralS, 0.17f),
-            surfaceContainerHighest = hslColor(primaryH, neutralS, 0.22f),
-        )
-    }
-}
-
-/**
- * 监听系统壁纸变动并提供动态派生的 Material 3 色板，带容灾回退
+ * 监听系统壁纸变动并提供动态派生的 Material 3 色板。
+ *
+ * 取色优先级：
+ * 1. 系统 Monet 色板（正常 ROM 直接透传，含系统对比度偏好，最「原汁原味」）；
+ * 2. 检测到 ROM 把动态色锁死为预置色（系统主色与壁纸种子色相脱节）或系统不支持时，
+ *    用官方 HCT 算法从壁纸种子派生 [generateM3ColorScheme]；
+ * 3. 均不可得时回退玄同静态色板 [fallback]。
  */
 @Composable
 fun rememberWallpaperDynamicColorScheme(
     darkTheme: Boolean,
+    systemScheme: ColorScheme?,
     fallback: ColorScheme,
+    style: ThemePaletteStyle = ThemePaletteStyle.TONAL_SPOT,
 ): ColorScheme {
     val context = LocalContext.current.applicationContext
     var seedColor by remember { mutableStateOf(cachedWallpaperSeed) }
@@ -308,11 +190,18 @@ fun rememberWallpaperDynamicColorScheme(
     }
 
     val currentSeed = seedColor
-    return remember(currentSeed, darkTheme, fallback) {
-        if (currentSeed != null) {
-            generateM3ColorScheme(currentSeed, darkTheme)
-        } else {
-            fallback
+    return remember(currentSeed, darkTheme, systemScheme, fallback, style) {
+        when {
+            style != ThemePaletteStyle.TONAL_SPOT ->
+                generateM3ColorScheme(currentSeed ?: systemScheme?.primary ?: fallback.primary, darkTheme, style)
+            // 壁纸不可读：优先系统 Monet，其次玄同静态色板
+            currentSeed == null -> systemScheme ?: fallback
+            // 系统不支持动态取色（API < 31）：HCT 从种子派生
+            systemScheme == null -> generateM3ColorScheme(currentSeed, darkTheme)
+            // 系统色板被 ROM 锁死为预置色：HCT 从种子派生
+            isSystemSchemeColorLocked(systemScheme.primary, currentSeed) ->
+                generateM3ColorScheme(currentSeed, darkTheme)
+            else -> systemScheme
         }
     }
 }

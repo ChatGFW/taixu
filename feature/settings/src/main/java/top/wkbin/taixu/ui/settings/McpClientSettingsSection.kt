@@ -25,24 +25,25 @@ import top.wkbin.taixu.ui.components.previewStateOf
 internal fun McpClientSettingsSection(viewModel: McpClientSettingsViewModel? = previewOrNull { koinViewModel() }) {
     val minutes by viewModel?.idleMinutes?.collectAsStateWithLifecycle() ?: previewStateOf(McpIdlePolicy.DEFAULT_MINUTES)
     val failed by viewModel?.saveFailed?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    RuntimeCard(modifier = Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentPadding = PaddingValues(16.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            LocalizedText("Model Context Protocol (MCP)", style = MaterialTheme.typography.titleSmall)
-            LocalizedText(stringResource(R.string.mcp_client_intro), style = MaterialTheme.typography.bodySmall,
+    RuntimeCard(modifier = Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.extraLarge,
+        contentPadding = PaddingValues(SettingsDensity.cardPadding)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LocalizedText("Model Context Protocol (MCP)", style = MaterialTheme.typography.titleMedium)
+            LocalizedText(stringResource(R.string.mcp_client_intro), style = settingsSupportingStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            LocalizedText(stringResource(R.string.mcp_client_idle_title), style = MaterialTheme.typography.titleSmall)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LocalizedText(stringResource(R.string.mcp_client_idle_title), style = MaterialTheme.typography.titleMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 (listOf(1, 3, 5, 10, 30, 60) + minutes).distinct().sorted().forEach { value ->
-                    RuntimeFilterChip(selected = minutes == value, onClick = { viewModel?.setIdleMinutes(value) },
+                    RuntimeFilterChip(shape = androidx.compose.foundation.shape.RoundedCornerShape(50), selected = minutes == value, onClick = { viewModel?.setIdleMinutes(value) },
                         label = { LocalizedText(stringResource(R.string.mcp_client_minutes, value), maxLines = 1,
                             overflow = TextOverflow.Ellipsis) })
                 }
             }
-            LocalizedText(stringResource(R.string.mcp_client_idle_hint), style = MaterialTheme.typography.bodySmall,
+            LocalizedText(stringResource(R.string.mcp_client_idle_hint), style = settingsSupportingStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (failed) LocalizedText(stringResource(R.string.mcp_client_save_failed),
-                color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                color = MaterialTheme.colorScheme.error, style = settingsSupportingStyle())
         }
     }
 }

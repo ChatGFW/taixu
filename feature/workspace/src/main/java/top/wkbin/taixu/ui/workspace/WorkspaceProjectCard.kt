@@ -78,11 +78,14 @@ internal fun ProjectCard(
 
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentPadding = PaddingValues(16.dp),
         // 减法：常态无边框，仅构建中保留主色描边作为状态提示
         borderColor = if (isBuilding) MaterialTheme.colorScheme.primary else Color.Transparent,
         onClick = onOpenExplorer,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -93,16 +96,14 @@ internal fun ProjectCard(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Text(
                             text = project.name,
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
                         )
                         Surface(
                             color = if (isBuilding) MaterialTheme.colorScheme.primaryContainer else typeBadgeColor.copy(alpha = 0.15f),
@@ -122,7 +123,7 @@ internal fun ProjectCard(
                         text = "${project.linuxPath} · ${project.sizeBytes.toReadableSize()}",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                         ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -135,7 +136,7 @@ internal fun ProjectCard(
                         onClick = { moreExpanded = true },
                         enabled = !busy,
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(48.dp)
                             .minimumInteractiveComponentSize(),
                         contentDescription = stringResource(R.string.workspace_cd_more),
                     ) {
@@ -209,7 +210,7 @@ internal fun ProjectCard(
                     FilledTonalButton(
                         onClick = if (isBuilding) onShowBuildLog else onRunProject,
                         enabled = !busy || isBuilding,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(50),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                         modifier = Modifier.padding(end = 8.dp),
                     ) {

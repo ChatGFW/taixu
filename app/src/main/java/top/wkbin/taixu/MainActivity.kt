@@ -112,6 +112,7 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val themeMode by settingsDataStore.themeMode.collectAsStateWithLifecycle(initialValue = "system")
             val dynamicColorEnabled by settingsDataStore.dynamicColorEnabled.collectAsStateWithLifecycle(initialValue = true)
+            val themePalette by settingsDataStore.themePalette.collectAsStateWithLifecycle(initialValue = top.wkbin.taixu.core.model.ThemePalette())
             val pageScale by settingsDataStore.appFontScale.collectAsStateWithLifecycle(initialValue = 1f)
             val systemDark = isSystemInDarkTheme()
             val systemDensity = LocalDensity.current
@@ -130,6 +131,7 @@ class MainActivity : AppCompatActivity() {
                 TaiXuTheme(
                     darkTheme = isDark,
                     dynamicColor = dynamicColorEnabled,
+                    palette = themePalette,
                 ) {
                 val onboardingViewModel: OnboardingViewModel = koinViewModel()
                 val onboarding by onboardingViewModel.status.collectAsStateWithLifecycle()
@@ -237,6 +239,7 @@ class MainActivity : AppCompatActivity() {
                                             LinearProgressIndicator(
                                                 progress = { downloadProgress ?: 0f },
                                                 modifier = Modifier.fillMaxWidth(),
+                                                wavy = true,
                                             )
                                         } else {
                                             LinearProgressIndicator(

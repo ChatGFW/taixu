@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package top.wkbin.taixu.ui.components
 
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -33,8 +35,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -291,120 +293,16 @@ fun RuntimeCard(
     }
 }
 
-/**
- * 主操作按钮：tonal 为 true 时使用 FilledTonalButton，否则使用 Button。
- */
-@Composable
-fun RuntimeButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    tonal: Boolean = false,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-    shape: Shape = RoundedCornerShape(24.dp),
-    colors: ButtonColors? = null,
-    border: BorderStroke? = null,
-    content: @Composable RowScope.() -> Unit,
-) {
-    if (tonal) {
-        FilledTonalButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shape,
-            colors = colors ?: ButtonDefaults.filledTonalButtonColors(),
-            border = border,
-            contentPadding = contentPadding,
-            content = content,
-        )
-    } else {
-        Button(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            shape = shape,
-            colors = colors ?: ButtonDefaults.buttonColors(),
-            border = border,
-            contentPadding = contentPadding,
-            content = content,
-        )
-    }
-}
-
 @Composable
 fun RuntimeSwitch(
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
+    onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     colors: SwitchColors = SwitchDefaults.colors(),
     thumbContent: (@Composable (() -> Unit))? = null,
 ) {
-    androidx.compose.material3.Switch(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        modifier = modifier,
-        enabled = enabled,
-        colors = colors,
-        thumbContent = thumbContent,
-    )
-}
-
-@Composable
-fun RuntimeOutlinedButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(24.dp),
-    colors: ButtonColors = ButtonDefaults.outlinedButtonColors(),
-    border: BorderStroke? = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-    contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-    content: @Composable RowScope.() -> Unit,
-) {
-    androidx.compose.material3.OutlinedButton(onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors, border = border, contentPadding = contentPadding, content = content)
-}
-
-@Composable
-fun RuntimeFilledTonalButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(24.dp),
-    colors: ButtonColors = ButtonDefaults.filledTonalButtonColors(),
-    border: BorderStroke? = null,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-    content: @Composable RowScope.() -> Unit,
-) = RuntimeButton(onClick, modifier, enabled, tonal = true, contentPadding = contentPadding, shape = shape, colors = colors, border = border, content = content)
-
-@Composable
-fun RuntimeTextButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-    colors: ButtonColors = ButtonDefaults.textButtonColors(),
-    shape: Shape = RoundedCornerShape(18.dp),
-    content: @Composable RowScope.() -> Unit,
-) {
-    androidx.compose.material3.TextButton(onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors, contentPadding = contentPadding, content = content)
-}
-
-@Composable
-fun RuntimeIconButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    contentDescription: String? = null,
-    content: @Composable () -> Unit,
-) {
-    val accessibilityLabel = contentDescription
-    // 将无障碍标签挂到按钮节点上（Icon 自身 contentDescription 恒为 null）
-    IconButton(
-        onClick = onClick,
-        modifier = modifier.semantics { accessibilityLabel?.let { this.contentDescription = it } },
-        enabled = enabled,
-        content = content,
-    )
+    androidx.compose.material3.Switch(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, enabled = enabled, colors = colors, thumbContent = thumbContent)
 }
 
 @Composable
@@ -413,8 +311,11 @@ fun RuntimeLinearProgressIndicator(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primary,
     trackColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+    wavy: Boolean = false,
 ) {
-    if (progress == null) androidx.compose.material3.LinearProgressIndicator(modifier = modifier, color = color, trackColor = trackColor)
+    // 无确定进度即走 Expressive 波浪；确定进度默认回落经典样式，wavy 显式开启波浪
+    if (progress == null) androidx.compose.material3.LinearWavyProgressIndicator(modifier = modifier, color = color, trackColor = trackColor)
+    else if (wavy) androidx.compose.material3.LinearWavyProgressIndicator(progress = progress, modifier = modifier, color = color, trackColor = trackColor)
     else androidx.compose.material3.LinearProgressIndicator(progress = progress, modifier = modifier, color = color, trackColor = trackColor)
 }
 
@@ -425,12 +326,9 @@ fun RuntimeCircularProgressIndicator(
     trackColor: Color = Color.Transparent,
     strokeWidth: Dp = 4.5.dp,
 ) {
-    androidx.compose.material3.CircularProgressIndicator(
-        modifier = modifier,
-        color = color,
-        trackColor = trackColor,
-        strokeWidth = strokeWidth,
-    )
+    // 默认参数走 Expressive 形变加载指示器；显式描边/轨道参数保留经典圆环（小尺寸定制场景）
+    if (strokeWidth == 4.5.dp && trackColor == Color.Transparent) androidx.compose.material3.LoadingIndicator(modifier = modifier, color = color)
+    else androidx.compose.material3.CircularProgressIndicator(modifier = modifier, color = color, trackColor = trackColor, strokeWidth = strokeWidth)
 }
 
 @Composable

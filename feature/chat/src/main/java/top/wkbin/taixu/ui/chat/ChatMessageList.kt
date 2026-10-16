@@ -301,7 +301,7 @@ internal fun ChatMessageList(
         }
     }
         // 轻量渐隐：叠加在列表之上，不使用离屏合成（scrollFadingEdge 的性能替代）。
-        ScrollFadeOverlay(top = 4.dp, bottom = 20.dp)
+        if (!top.wkbin.taixu.ui.theme.LocalChatBackgroundActive.current) ScrollFadeOverlay(top = 4.dp, bottom = 20.dp)
     }
 }
 

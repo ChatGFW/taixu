@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -54,9 +55,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -103,20 +104,21 @@ import top.wkbin.taixu.core.model.InstalledDistro
 private const val DOCTOR_CHECK_MIN_INTERVAL_MS = 30_000L
 
 /**
- * 主题感知的健康绿 / 警告橙：替代硬编码深色，暗色主题下自动换用高亮度变体保证对比。
+ * 健康与警告色统一跟随主题的谐调语义色板。
  */
 @Composable
 private fun healthyStatusColor(): Color =
-    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) Color(0xFF81C784) else Color(0xFF2E7D32)
+    top.wkbin.taixu.ui.theme.semanticColors().success
 
 @Composable
 private fun warningStatusColor(): Color =
-    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) Color(0xFFFFB74D) else Color(0xFFE65100)
+    top.wkbin.taixu.ui.theme.semanticColors().warning
 
 /**
  * 太墟 · 运行仪表盘 (TaiXu Linux Runtime Dashboard)
  * 集成沙箱引擎状态、运行环境体检自愈中心、实时内存/存储监控与规格信息
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun LocalHomeScreen(
     onNavigate: (MainDestination) -> Unit,
@@ -199,12 +201,14 @@ internal fun LocalHomeScreen(
         }
     }
 
+    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
                 title = stringResource(R.string.home_dashboard_title), onBack = onBack,
-                statusText = "${metrics.linuxDistro} · ${metrics.cpuArch}",
+                scrollBehavior = scrollBehavior,
                 actions = {
                     IconButton(
                         onClick = {
@@ -241,7 +245,7 @@ internal fun LocalHomeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 12.dp, bottom = 12.dp))
                 .padding(bottom = innerPadding.calculateBottomPadding() + 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             // 1. 运行时引擎主状态卡片 (Status Banner)
             RuntimeEngineStatusCard(
@@ -276,17 +280,17 @@ internal fun LocalHomeScreen(
                 onOpenToolCenter = onOpenToolCenter,
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Max),
+            androidx.compose.foundation.layout.FlowRow(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                maxItemsInEachRow = 2,
             ) {
                 // 内存指标
                 ResourceMetricCard(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight(),
+                        .widthIn(min = 144.dp * androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)),
                     title = stringResource(R.string.home_memory),
                     primaryValue = "${metrics.memoryUsedMb} MB",
                     secondaryValue = stringResource(R.string.home_memory_total, metrics.memoryTotalMb),
@@ -301,7 +305,7 @@ internal fun LocalHomeScreen(
                 ResourceMetricCard(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight(),
+                        .widthIn(min = 144.dp * androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)),
                     title = stringResource(R.string.home_storage),
                     primaryValue = "${metrics.storageUsedGb} GB",
                     secondaryValue = stringResource(R.string.home_storage_total, metrics.storageTotalGb),
@@ -349,6 +353,7 @@ private fun EnvironmentDoctorCard(
 
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
         onClick = { isCardExpanded = !isCardExpanded },
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
@@ -461,11 +466,9 @@ private fun EnvironmentDoctorCard(
 
                                 RuntimeLinearProgressIndicator(
                                     progress = { repairProgress.progress },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(6.dp)
-                                        .clip(RoundedCornerShape(4.dp)),
+                                    modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(4.dp)),
                                     color = MaterialTheme.colorScheme.primary,
+                                    wavy = true,
                                 )
 
                                 Row(
@@ -844,6 +847,7 @@ private fun RuntimeEngineStatusCard(
 
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentPadding = PaddingValues(18.dp),
     ) {
@@ -981,11 +985,9 @@ private fun RuntimeEngineStatusCard(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     RuntimeLinearProgressIndicator(
                         progress = { initializing.progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(4.dp)),
+                        modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(4.dp)),
                         color = MaterialTheme.colorScheme.primary,
+                        wavy = true,
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1144,93 +1146,13 @@ private fun ExecutionModeBadge(
 }
 
 /** 资源监控指标卡片 */
-@Composable
-private fun ResourceMetricCard(
-    modifier: Modifier = Modifier,
-    title: String,
-    primaryValue: String,
-    secondaryValue: String,
-    progress: Float,
-    progressText: String,
-    extraInfo: String,
-    accentColor: Color,
-    icon: RuntimeIconName,
-) {
-    val effectiveAccent = when {
-        progress >= 0.9f -> MaterialTheme.colorScheme.error
-        progress >= 0.8f -> MaterialTheme.colorScheme.tertiary
-        else -> accentColor
-    }
-    RuntimeCard(
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentPadding = PaddingValues(14.dp),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                RuntimeIcon(
-                    name = icon,
-                    modifier = Modifier.size(16.dp),
-                    tint = effectiveAccent,
-                )
-            }
-
-            Text(
-                text = primaryValue,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                ),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-
-            RuntimeLinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                color = effectiveAccent,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            )
-
-            Text(
-                text = "$progressText · $secondaryValue",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (progress >= 0.8f) effectiveAccent else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            Text(
-                text = extraInfo,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
 /** 宿主与运行环境规格卡片（低频信息，默认折叠） */
 @Composable
 private fun SystemSpecsCard(metrics: SystemResourceMetrics, modeStatus: ExecutionModeStatus) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         contentPadding = PaddingValues(16.dp),
     ) {

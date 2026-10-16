@@ -196,7 +196,7 @@ internal fun ChatComposer(
     RuntimeCard(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp),
         shape = RoundedCornerShape(20.dp), contentPadding = PaddingValues(0.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(),
         borderColor = if (running) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
             else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
     ) {

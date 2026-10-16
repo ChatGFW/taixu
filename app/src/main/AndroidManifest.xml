@@ -36,6 +36,9 @@
 
     <!-- Android 11+ 包可见性：允许解析 Shizuku App 与 QQ（授权弹窗、群卡片调起与 Binder 交互） -->
     <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
         <package android:name="moe.shizuku.privileged.api" />
         <package android:name="com.tencent.mobileqq" />
         <package android:name="com.tencent.tim" />

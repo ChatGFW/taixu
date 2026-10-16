@@ -13,8 +13,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SystemOverviewCard(name: String, address: String, workspace: String, loading: Boolean,
     error: String?, facts: List<Pair<String, String>>) {
-    RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(20.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+    RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(24.dp),
+        shape = MaterialTheme.shapes.extraLarge, containerColor = MaterialTheme.colorScheme.surfaceContainer) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 IconTile(icon = RuntimeIconName.Server, size = 44.dp, color = MaterialTheme.colorScheme.primary)

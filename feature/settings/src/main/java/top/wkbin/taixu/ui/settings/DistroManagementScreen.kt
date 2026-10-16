@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -32,7 +31,6 @@ import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearPro
 import androidx.compose.material3.MaterialTheme
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeRadioButton as RadioButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
@@ -64,10 +62,9 @@ import top.wkbin.taixu.runtime.DistributionSpec
 import top.wkbin.taixu.runtime.RegistryRoute
 import top.wkbin.taixu.runtime.RuntimeInstallRequest
 import top.wkbin.taixu.ui.components.NoticeBanner
-import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
 import top.wkbin.taixu.ui.components.StatusBadge
 import top.wkbin.taixu.ui.components.distroIconFor
 
@@ -105,53 +102,39 @@ fun DistroManagementScreen(
         wasInstalling = installState.isInstalling
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+    RuntimeSettingsScaffold(
+        title = "Linux 系统管理", onBack = onBack,
+        statusText = "多系统并存与动态切换",
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            RuntimeTopBar(
-                title = "Linux 系统管理",
-                statusText = "多系统并存与动态切换",
-                onBack = onBack,
+    ) {
+        item {
+            SystemEnvironmentPicker(localCount = installedDistros.size, onInstallLocal = { showInstallDialog = true }, viewModel = remoteViewModel)
+        }
+
+        item { Text("本地 (${installedDistros.size})", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) }
+
+        items(installedDistros, key = { it.id }) { distro ->
+            DistroItemCard(
+                distro = distro,
+                isActive = activeServerId == null && distro.id.equals(activeDistroId, ignoreCase = true),
+                isRestoring = distro.id.equals(restoringDistroId, ignoreCase = true),
+                isDeleting = distro.id.equals(deletingDistroId, ignoreCase = true),
+                canOperateMulti = installedDistros.size > 1 || activeServerId != null,
+                onSwitchActive = {
+                    remoteViewModel?.select(null)
+                    viewModel?.switchActiveDistro(distro.id)
+                },
+                onReset = {
+                    distroToReset = distro
+                },
+                onUninstall = {
+                    distroToUninstall = distro
+                },
             )
-        },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            item {
-                SystemEnvironmentPicker(localCount = installedDistros.size, onInstallLocal = { showInstallDialog = true }, viewModel = remoteViewModel)
-            }
+        }
 
-            item { Text("本地 (${installedDistros.size})", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) }
-
-            items(installedDistros, key = { it.id }) { distro ->
-                DistroItemCard(
-                    distro = distro,
-                    isActive = activeServerId == null && distro.id.equals(activeDistroId, ignoreCase = true),
-                    isRestoring = distro.id.equals(restoringDistroId, ignoreCase = true),
-                    isDeleting = distro.id.equals(deletingDistroId, ignoreCase = true),
-                    canOperateMulti = installedDistros.size > 1 || activeServerId != null,
-                    onSwitchActive = {
-                        remoteViewModel?.select(null)
-                        viewModel?.switchActiveDistro(distro.id)
-                    },
-                    onReset = {
-                        distroToReset = distro
-                    },
-                    onUninstall = {
-                        distroToUninstall = distro
-                    },
-                )
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
-            }
+        item {
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 
@@ -346,7 +329,7 @@ private fun DistroItemCard(
     onReset: () -> Unit,
     onUninstall: () -> Unit,
 ) {
-    RuntimeCard(
+    SettingsDetailCard(
         borderColor = if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
     ) {
         Column(

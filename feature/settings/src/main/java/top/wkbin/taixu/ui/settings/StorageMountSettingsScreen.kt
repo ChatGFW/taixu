@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
@@ -59,6 +60,7 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
  * 宿主与沙箱存储挂载管理 (Storage Mounts & Bindings)
  * 基于 PRoot -b 机制，实现 Android 宿主目录与 Linux 容器内的无缝双向访问
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun StorageMountSettingsScreen(
     onBack: () -> Unit,
@@ -78,13 +80,15 @@ fun StorageMountSettingsScreen(
     var pendingDeleteBindingId by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     val pendingDeleteBinding = pendingDeleteBindingId?.let { id -> customBindings.firstOrNull { it.id == id } }
 
+    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
                 title = "存储挂载与共享",
-                statusText = "PRoot 宿主存储映射 (-b)",
                 onBack = onBack,
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { padding ->
@@ -92,7 +96,7 @@ fun StorageMountSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
@@ -120,8 +124,8 @@ fun StorageMountSettingsScreen(
                 )
                 RuntimeCard(
                     modifier = Modifier.fillMaxWidth(),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = MaterialTheme.shapes.extraLarge,
                     contentPadding = PaddingValues(0.dp),
                 ) {
                     Column {
@@ -173,7 +177,7 @@ fun StorageMountSettingsScreen(
                     )
                     OutlinedButton(
                         onClick = { showAddDialog = true },
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(50),
                         enabled = !localMountsOnly,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     ) {
@@ -188,7 +192,8 @@ fun StorageMountSettingsScreen(
                 item {
                     RuntimeCard(
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        shape = MaterialTheme.shapes.extraLarge,
                         borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                         contentPadding = PaddingValues(24.dp),
                     ) {
@@ -214,14 +219,12 @@ fun StorageMountSettingsScreen(
                 items(customBindings, key = { it.id }) { binding ->
                     RuntimeCard(
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        shape = MaterialTheme.shapes.extraLarge,
+                        contentPadding = PaddingValues(20.dp),
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
@@ -235,7 +238,7 @@ fun StorageMountSettingsScreen(
                                     text = "${binding.hostPath} ➔ ${binding.guestPath}",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontFamily = FontFamily.Monospace,
-                                        fontSize = 11.sp,
+                                        fontSize = 12.sp,
                                     ),
                                     color = MaterialTheme.colorScheme.primary,
                                     maxLines = 1,
@@ -268,7 +271,7 @@ fun StorageMountSettingsScreen(
                                 onClick = { pendingDeleteBindingId = binding.id },
                                 modifier = Modifier
                                     .minimumInteractiveComponentSize()
-                                    .size(32.dp),
+                                    .size(48.dp),
                                 enabled = !localMountsOnly,
                                 contentDescription = "删除挂载点 ${binding.name}",
                             ) {
@@ -325,52 +328,6 @@ fun StorageMountSettingsScreen(
 
 @Composable
 private fun MountToggleRow(
-    icon: RuntimeIconName,
-    title: String,
-    hostPath: String,
-    guestPath: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    enabled: Boolean = true,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            RuntimeIcon(icon, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
-        }
-
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = "$hostPath ➔ $guestPath",
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
-            ),
-        )
-    }
-}
+    icon: RuntimeIconName, title: String, hostPath: String, guestPath: String,
+    checked: Boolean, onCheckedChange: (Boolean) -> Unit, enabled: Boolean = true,
+) = ToggleRow(icon, title, "$hostPath\n→ $guestPath", checked, onCheckedChange, enabled)

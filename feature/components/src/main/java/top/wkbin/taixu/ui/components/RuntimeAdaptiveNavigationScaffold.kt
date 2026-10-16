@@ -71,6 +71,7 @@ fun RuntimeAdaptiveNavigationScaffold(
     onDockedChange: (Boolean) -> Unit,
     rail: @Composable (onOpenSidebar: () -> Unit) -> Unit,
     drawerContent: @Composable (onCollapse: (() -> Unit)?) -> Unit,
+    gesturesEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val widthClass = LocalRuntimeWidthClass.current
@@ -91,7 +92,7 @@ fun RuntimeAdaptiveNavigationScaffold(
 
     if (widthClass == RuntimeWidthClass.Compact) {
         RuntimeRevealNavigationDrawer(
-            visible = visible, onDismiss = onDismiss, onOpen = onOpen,
+            visible = visible, onDismiss = onDismiss, onOpen = onOpen, gesturesEnabled = gesturesEnabled,
             drawerContent = { sidebar(null) }, content = { page() },
         )
         return

@@ -28,7 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Tab
+import top.wkbin.taixu.ui.components.RuntimeTab
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Text
 import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
@@ -128,7 +128,7 @@ internal fun SkillsAndMcpSheet(
                 contentColor = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clip(RoundedCornerShape(12.dp)),
             ) {
-                Tab(
+                RuntimeTab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
                     text = {
@@ -140,7 +140,7 @@ internal fun SkillsAndMcpSheet(
                         )
                     },
                 )
-                Tab(
+                RuntimeTab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
                     text = {

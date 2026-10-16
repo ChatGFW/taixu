@@ -99,7 +99,6 @@ private val REPOSITORY_HIGHLIGHT_TOOLS = setOf(
     HarnessTool.BASE,
     HarnessTool.PROCESS,
 )
-
 @Composable
 private fun chatBottomInsets(): WindowInsets = WindowInsets.navigationBars.union(WindowInsets.ime)
 
@@ -161,6 +160,7 @@ fun ChatScreen(
     val mcpServers by viewModel?.mcpServers?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val mcpConnectionStates by viewModel?.mcpConnectionStates?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
     val initializing by viewModel?.initializing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val speech = rememberChatSpeech(currentSessionId, messages, running, initializing)
     val pendingApprovals by viewModel?.pendingApprovals?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val activePlan by viewModel?.activePlan?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val activeCompaction by viewModel?.activeCompaction?.collectAsStateWithLifecycle() ?: previewStateOf(null)
@@ -387,7 +387,7 @@ fun ChatScreen(
                 },
                 repositoryHighlight = repositoryHighlight,
                 toolchainHighlight = toolchainGap, onOpenToolchain = { showToolchainPanel = true },
-                onOpenReasoning = { showReasoningSlider = true }, companion = companion,
+                onOpenReasoning = { showReasoningSlider = true }, companion = companion, speech = speech,
             )
         }
 
@@ -399,7 +399,7 @@ fun ChatScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        ChatPageSurface(Modifier.fillMaxSize().padding(padding)) {
             val knownMentionNames = remember(allSkills, mcpServers) {
                 (allSkills.filter { it.isEnabled }.flatMap { skill ->
                     listOfNotNull(skill.name, skill.id, skill.triggerCommand?.removePrefix("/"))

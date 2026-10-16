@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -32,7 +31,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,14 +57,14 @@ import top.wkbin.taixu.ui.components.IconTile
 import top.wkbin.taixu.ui.components.NoticeBanner
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
-import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
-import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
+import top.wkbin.taixu.ui.theme.semanticColors
 import java.util.Locale
 /** Keep diagnostic paths out of the main storage overview. */
 @Composable
@@ -215,7 +213,7 @@ fun StorageUsageScreen(
                                 Text("• ${item.name}：${item.reclaimableBytes.readableSize()}")
                             }
                             if (category.riskLevel == StorageRiskLevel.CAUTION) {
-                                Text("提示：缓存需要重新下载或生成，会增加下次构建时间并可能影响离线使用。", style = MaterialTheme.typography.bodySmall, color = Color(0xFFD97706))
+                                Text("提示：缓存需要重新下载或生成，会增加下次构建时间并可能影响离线使用。", style = MaterialTheme.typography.bodySmall, color = semanticColors().warning)
                             } else if (category.riskLevel == StorageRiskLevel.DANGEROUS) {
                                 Text("警告：此操作不可撤销，请确认数据已备份。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                             }
@@ -273,142 +271,130 @@ fun StorageUsageScreen(
         }
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            RuntimeTopBar(
-                title = "存储管理",
-                onBack = onBack,
-                statusText = usage?.totalManagedBytes?.readableSize() ?: "统计中",
-            )
-        },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            // 1. 顶部存储看板与多段占比仪表条
-            item(key = "header_dashboard") {
-                usage?.let {
-                    StorageDashboardCard(
-                        usage = it,
-                        refreshing = refreshing,
-                        onRefresh = { viewModel?.refresh() },
-                    )
-                } ?: RuntimeCard(Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        RuntimeCircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                        Text(
-                            "正在深度分析 Linux 沙箱、依赖缓存与工作区存储…",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
-            usage?.scanWarnings?.takeIf { it.isNotEmpty() }?.let { warnings ->
-                item(key = "scan_warnings") {
-                    StorageScanNotice(warnings)
-                }
-            }
-            usage?.excludedMountPointCount?.takeIf { it > 0 }?.let { count ->
-                item(key = "excluded_mount_points") {
+    RuntimeSettingsScaffold(
+        title = "存储管理", onBack = onBack,
+        statusText = usage?.totalManagedBytes?.readableSize() ?: "统计中",
+    ) {
+        // 1. 顶部存储看板与多段占比仪表条
+        item(key = "header_dashboard") {
+            usage?.let {
+                StorageDashboardCard(
+                    usage = it,
+                    refreshing = refreshing,
+                    onRefresh = { viewModel?.refresh() },
+                )
+            } ?: SettingsDetailCard(Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    RuntimeCircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     Text(
-                        "已跳过 $count 个受限挂载入口，工作区与附件按实际目录统计。",
+                        "正在深度分析 Linux 沙箱、依赖缓存与工作区存储…",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
+        }
 
-            // 2. 智能清理建议卡片（安全释放 + 谨慎释放）
-            usage?.let { u ->
-                if (u.safeCleanableBytes > 0 || u.projectCleanableBytes > 0) {
-                    item(key = "smart_cleanup_suggestions") {
-                        SmartCleanupCards(
-                            safeCleanableBytes = u.safeCleanableBytes,
-                            cautionCleanableBytes = u.projectCleanableBytes,
-                            cleaningAction = cleaningAction,
-                            onQuickSafeClean = { viewModel?.openDialog(CleanupDialogTarget.QuickSafe) },
-                            onCleanProjectBuilds = { viewModel?.openDialog(CleanupDialogTarget.AllProjectBuilds) },
-                        )
-                    }
-                }
+        usage?.scanWarnings?.takeIf { it.isNotEmpty() }?.let { warnings ->
+            item(key = "scan_warnings") {
+                StorageScanNotice(warnings)
             }
-
-            // 3. 全局反馈提示横幅
-            message?.let {
-                item(key = "global_notice_banner") {
-                    NoticeBanner(it, isError = messageIsError, onDismiss = { viewModel?.dismissMessage() })
-                }
+        }
+        usage?.excludedMountPointCount?.takeIf { it > 0 }?.let { count ->
+            item(key = "excluded_mount_points") {
+                Text(
+                    "已跳过 $count 个受限挂载入口，工作区与附件按实际目录统计。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
+        }
 
-            // 4. 分类视图筛选 Chip 栏
-            item(key = "filter_chips") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        "分类细化明细",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    items(StorageFilter.entries) { filter ->
-                        FilterChip(
-                            selected = activeFilter == filter,
-                            onClick = { viewModel?.setFilter(filter) },
-                            label = { Text(filter.label, style = MaterialTheme.typography.labelMedium) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            ),
-                        )
-                    }
-                }
-            }
-
-            // 5. 过滤后的分类卡片列表与细化折叠树
-            val categories = usage?.categories.orEmpty()
-            if (filteredCategories.isEmpty() && usage != null) {
-                item(key = "empty_filter") {
-                    RuntimeCard(Modifier.fillMaxWidth()) {
-                        Text(
-                            "当前筛选分类下无数据",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            } else {
-                items(filteredCategories, key = { it.id }) { category ->
-                    val catIndex = categories.indexOfFirst { it.id == category.id }.coerceAtLeast(0)
-                    StorageCategoryDetailCard(
-                        category = category,
-                        color = categoryColor(catIndex),
+        // 2. 智能清理建议卡片（安全释放 + 谨慎释放）
+        usage?.let { u ->
+            if (u.safeCleanableBytes > 0 || u.projectCleanableBytes > 0) {
+                item(key = "smart_cleanup_suggestions") {
+                    SmartCleanupCards(
+                        safeCleanableBytes = u.safeCleanableBytes,
+                        cautionCleanableBytes = u.projectCleanableBytes,
                         cleaningAction = cleaningAction,
-                        onCleanCategory = { viewModel?.openDialog(CleanupDialogTarget.CategoryTarget(category)) },
-                        onCleanEntry = { entry -> viewModel?.openDialog(CleanupDialogTarget.EntryTarget(category.id, entry)) },
+                        onQuickSafeClean = { viewModel?.openDialog(CleanupDialogTarget.QuickSafe) },
+                        onCleanProjectBuilds = { viewModel?.openDialog(CleanupDialogTarget.AllProjectBuilds) },
                     )
                 }
             }
+        }
 
-            item(key = "bottom_spacer") {
-                Spacer(Modifier.height(16.dp))
+        // 3. 全局反馈提示横幅
+        message?.let {
+            item(key = "global_notice_banner") {
+                NoticeBanner(it, isError = messageIsError, onDismiss = { viewModel?.dismissMessage() })
             }
+        }
+
+        // 4. 分类视图筛选 Chip 栏
+        item(key = "filter_chips") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    "分类细化明细",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                items(StorageFilter.entries) { filter ->
+                    FilterChip(
+                        selected = activeFilter == filter,
+                        onClick = { viewModel?.setFilter(filter) },
+                        label = { Text(filter.label, style = MaterialTheme.typography.labelMedium) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                    )
+                }
+            }
+        }
+
+        // 5. 过滤后的分类卡片列表与细化折叠树
+        val categories = usage?.categories.orEmpty()
+        if (filteredCategories.isEmpty() && usage != null) {
+            item(key = "empty_filter") {
+                SettingsDetailCard(Modifier.fillMaxWidth()) {
+                    Text(
+                        "当前筛选分类下无数据",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        } else {
+            items(filteredCategories, key = { it.id }) { category ->
+                val catIndex = categories.indexOfFirst { it.id == category.id }.coerceAtLeast(0)
+                StorageCategoryDetailCard(
+                    category = category,
+                    color = categoryColor(catIndex),
+                    cleaningAction = cleaningAction,
+                    onCleanCategory = { viewModel?.openDialog(CleanupDialogTarget.CategoryTarget(category)) },
+                    onCleanEntry = { entry -> viewModel?.openDialog(CleanupDialogTarget.EntryTarget(category.id, entry)) },
+                )
+            }
+        }
+
+        item(key = "bottom_spacer") {
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
@@ -421,7 +407,7 @@ private fun StorageDashboardCard(
     usage: StorageUsage,
     refreshing: Boolean,
     onRefresh: () -> Unit,
-) = RuntimeCard(Modifier.fillMaxWidth()) {
+) = SettingsDetailCard(Modifier.fillMaxWidth()) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -615,7 +601,7 @@ private fun SmartCleanupCards(
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // 1. 可清理的归档日志卡片
         if (safeCleanableBytes > 0) {
-            RuntimeCard(
+            SettingsDetailCard(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f),
             ) {
@@ -666,7 +652,7 @@ private fun SmartCleanupCards(
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = Color(0xFFE6F8F0),
+                            color = semanticColors().successContainer,
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -676,13 +662,13 @@ private fun SmartCleanupCards(
                                 RuntimeIcon(
                                     name = RuntimeIconName.Check,
                                     modifier = Modifier.size(12.dp),
-                                    tint = Color(0xFF0E9F6E),
+                                    tint = semanticColors().onSuccessContainer,
                                 )
                                 Text(
                                     "零风险 · 不影响代码与配置",
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF0E9F6E),
+                                    color = semanticColors().onSuccessContainer,
                                 )
                             }
                         }
@@ -707,7 +693,7 @@ private fun SmartCleanupCards(
 
         // 2. 工作区构建生成物卡片
         if (cautionCleanableBytes > 0) {
-            RuntimeCard(
+            SettingsDetailCard(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.22f),
             ) {
@@ -758,7 +744,7 @@ private fun SmartCleanupCards(
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = Color(0xFFFFF4E5),
+                            color = semanticColors().warningContainer,
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -768,13 +754,13 @@ private fun SmartCleanupCards(
                                 RuntimeIcon(
                                     name = RuntimeIconName.Info,
                                     modifier = Modifier.size(12.dp),
-                                    tint = Color(0xFFB76E00),
+                                    tint = semanticColors().onWarningContainer,
                                 )
                                 Text(
                                     "谨慎清理 · 编译时重新生成",
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFFB76E00),
+                                    color = semanticColors().onWarningContainer,
                                 )
                             }
                         }
@@ -813,7 +799,7 @@ private fun StorageCategoryDetailCard(
     var expanded by remember(category.id) { mutableStateOf(false) }
     val isCategoryCleaning = cleaningAction == "category_${category.id}"
 
-    RuntimeCard(
+    SettingsDetailCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { if (category.entries.isNotEmpty()) expanded = !expanded },
@@ -1036,7 +1022,7 @@ private fun StorageEntryRow(
                                 sub.bytes.readableSize(),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (sub.cleanable) Color(0xFFD97706) else MaterialTheme.colorScheme.onSurface,
+                                color = if (sub.cleanable) semanticColors().warning else MaterialTheme.colorScheme.onSurface,
                             )
                         }
                     }
@@ -1054,18 +1040,18 @@ private fun RiskBadge(riskLevel: StorageRiskLevel, modifier: Modifier = Modifier
     val (label, bg, fg) = when (riskLevel) {
         StorageRiskLevel.SAFE -> Triple(
             "归档日志 · 可清理",
-            Color(0xFFE6F8F0),
-            Color(0xFF0E9F6E),
+            semanticColors().successContainer,
+            semanticColors().onSuccessContainer,
         )
         StorageRiskLevel.CAUTION -> Triple(
             "按需清理 · 需恢复缓存",
-            Color(0xFFFFF4E5),
-            Color(0xFFB76E00),
+            semanticColors().warningContainer,
+            semanticColors().onWarningContainer,
         )
         StorageRiskLevel.DANGEROUS -> Triple(
             "高风险 · 持久化数据",
-            Color(0xFFFFECEC),
-            Color(0xFFDC2626),
+            MaterialTheme.colorScheme.errorContainer,
+            MaterialTheme.colorScheme.onErrorContainer,
         )
         StorageRiskLevel.READONLY -> Triple(
             "保留 · 由所属功能管理",
@@ -1107,20 +1093,11 @@ private fun categoryIcon(categoryId: String): RuntimeIconName = when (categoryId
     else -> RuntimeIconName.Storage
 }
 
-private fun categoryColor(index: Int): Color = listOf(
-    Color(0xFF3B82F6), // 亮蓝 (SDK 工具链)
-    Color(0xFF10B981), // 翠绿 (包管理与依赖构建缓存)
-    Color(0xFFF59E0B), // 琥珀黄 (工作区项目工程)
-    Color(0xFF8B5CF6), // 紫罗兰 (Linux 基础系统)
-    Color(0xFF06B6D4), // 青蓝 (插件与扩展生态)
-    Color(0xFFEC4899), // 桃红 (共享运行时)
-    Color(0xFF64748B), // 蓝灰 (用户家目录)
-    Color(0xFF14B8A6), // 蓝绿 (日志)
-    Color(0xFFF97316), // 橙色 (下载缓存)
-    Color(0xFF6366F1), // 靛蓝 (附件与Skills)
-    Color(0xFF84CC16), // 黄绿 (数据库)
-    Color(0xFFD97706), // 棕黄 (应用配置)
-)[index % 12]
+@Composable
+private fun categoryColor(index: Int): Color {
+    val palette = semanticColors().categorical
+    return palette[index % palette.size]
+}
 
 private fun Long.readableSize(): String = when {
     this < 1024L -> "$this B"

@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -18,6 +18,7 @@ import top.wkbin.taixu.feature.workspace.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.components.RuntimeButton
 
 @Composable
 internal fun WorkspaceNameDialog(
@@ -38,7 +39,7 @@ internal fun WorkspaceNameDialog(
         title = { Text(title, fontWeight = FontWeight.Bold) },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = value,
                     onValueChange = onValueChange,
                     label = { Text(label) },
@@ -52,7 +53,7 @@ internal fun WorkspaceNameDialog(
             }
         },
         confirmButton = {
-            RuntimeTextButton(onClick = onSubmit, enabled = enabled && !busy) {
+            RuntimeButton(onClick = onSubmit, enabled = enabled && !busy) {
                 if (busy) RuntimeCircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                 else Text(actionLabel)
             }

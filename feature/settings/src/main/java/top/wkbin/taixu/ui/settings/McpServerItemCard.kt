@@ -49,8 +49,9 @@ internal fun McpServerItemCard(
 ) {
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.extraLarge,
+        contentPadding = PaddingValues(SettingsDensity.cardPadding),
         onClick = onClickDetail,
     ) {
         Row(
@@ -60,41 +61,25 @@ internal fun McpServerItemCard(
         ) {
             Column(
                 modifier = Modifier.weight(1f).padding(end = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(SettingsDensity.textGap),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        server.name,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f, fill = false),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                Text(
+                    server.name, style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     McpConnectionDot(state = connectionState, enabled = server.isEnabled)
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                    ) {
-                        MaterialText(
-                            server.transportType.name,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Visible,
-                            softWrap = false,
-                        )
+                    Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.secondaryContainer) {
+                        MaterialText(server.transportType.name, style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
                 if (server.description.isNotBlank()) {
                     Text(
                         server.description,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = settingsSupportingStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -103,14 +88,14 @@ internal fun McpServerItemCard(
                 if (server.isEnabled && connectionState in setOf(McpConnectionState.SLEEPING, McpConnectionState.WAKING)) {
                     Text(androidx.compose.ui.res.stringResource(if (connectionState == McpConnectionState.SLEEPING)
                         top.wkbin.taixu.feature.settings.R.string.mcp_client_sleeping else top.wkbin.taixu.feature.settings.R.string.mcp_client_waking),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = settingsSupportingStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 // 离线原因（含远程 MCP 可执行文件缺失等环境相关失败），在线时 error 为空不展示
                 if (connectionState == McpConnectionState.OFFLINE && !error.isNullOrBlank()) {
                     Text(
                         error,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        style = settingsSupportingStyle(),
                         color = MaterialTheme.colorScheme.error,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -120,7 +105,7 @@ internal fun McpServerItemCard(
                 if (requiredComponentName != null) {
                     Text(
                         "需先安装「$requiredComponentName」：设置 → 工具中心 → MCP 能力仓库",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        style = settingsSupportingStyle(),
                         color = MaterialTheme.colorScheme.tertiary,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -131,6 +116,11 @@ internal fun McpServerItemCard(
             Switch(
                 checked = server.isEnabled,
                 onCheckedChange = onToggle,
+                modifier = Modifier.semantics { contentDescription = server.name },
+                thumbContent = if (server.isEnabled) {
+                    { top.wkbin.taixu.ui.components.RuntimeIcon(top.wkbin.taixu.ui.components.RuntimeIconName.Check,
+                        Modifier.size(16.dp), MaterialTheme.colorScheme.onPrimaryContainer) }
+                } else null,
                 // 未安装时锁死开关：打开只会让启动期工具发现每次白等一个超时
                 enabled = !togglePending && (server.isEnabled || requiredComponentName == null),
             )

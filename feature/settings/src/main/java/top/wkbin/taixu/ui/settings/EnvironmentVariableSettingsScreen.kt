@@ -13,12 +13,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,14 +29,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
-import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
+import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.SectionHeader
 import top.wkbin.taixu.core.model.EnvironmentVariable
 import top.wkbin.taixu.core.model.RuntimeState
@@ -103,173 +101,161 @@ fun EnvironmentVariableSettingsScreen(
         )
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            RuntimeTopBar(
-                "环境变量",
-                onBack,
-                actions = {
-                    IconButton(onClick = { viewModel?.refreshEnvironmentVariables() }, contentDescription = "刷新环境变量", enabled = !loading && runtimeState is RuntimeState.Ready) {
-                        RuntimeIcon(RuntimeIconName.Refresh)
-                    }
-                    IconButton(onClick = { openEnvironmentEditor(null, "", "") }, contentDescription = "添加环境变量", enabled = !loading && runtimeState is RuntimeState.Ready) {
-                        RuntimeIcon(RuntimeIconName.Plus)
-                    }
-                },
-            )
+    RuntimeSettingsScaffold(
+        title = "环境变量", onBack = onBack,
+        actions = {
+            IconButton(onClick = { viewModel?.refreshEnvironmentVariables() }, contentDescription = "刷新环境变量", enabled = !loading && runtimeState is RuntimeState.Ready) {
+                RuntimeIcon(RuntimeIconName.Refresh)
+            }
+            IconButton(onClick = { openEnvironmentEditor(null, "", "") }, contentDescription = "添加环境变量", enabled = !loading && runtimeState is RuntimeState.Ready) {
+                RuntimeIcon(RuntimeIconName.Plus)
+            }
         },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                SettingsGroup {
-                    SettingsRow(
-                        icon = RuntimeIconName.Shield,
-                        title = "Agent 隐私遮盖",
-                        subtitle = "仅遮盖发送给 Agent 和写入对话的变量值；本页仍显示明文",
-                        trailing = { Switch(checked = privacyMode, onCheckedChange = { arg0 -> viewModel?.setEnvironmentPrivacyMode(arg0) }) },
-                    )
-                }
-            }
-            item {
-                RuntimeCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.72f),
-                    borderColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f),
-                    contentPadding = PaddingValues(14.dp),
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-                        RuntimeIcon(RuntimeIconName.Alert, tint = MaterialTheme.colorScheme.tertiary)
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                "警告 · 修改环境变量可能导致运行异常",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                            )
-                            Text(
-                                "错误覆盖 JAVA_HOME、GRADLE_HOME、LANG 等变量，可能使终端、构建工具或插件无法启动。请只修改你明确了解用途的变量；TaiXu 运行时关键变量会被强制保护。",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                            )
-                        }
-                    }
-                }
-            }
-            item {
-                Text(
-                    "用户变量保存在 $activeDistroId 的 Linux /etc/profile.d 中，并在下一次命令或终端会话启动时生效。值以受限文件权限保存。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        item {
+            SettingsGroup {
+                SettingsRow(
+                    icon = RuntimeIconName.Shield,
+                    title = "Agent 隐私遮盖",
+                    subtitle = "仅遮盖发送给 Agent 和写入对话的变量值；本页仍显示明文",
+                    trailing = { Switch(checked = privacyMode, onCheckedChange = { arg0 -> viewModel?.setEnvironmentPrivacyMode(arg0) }) },
                 )
             }
-            error?.let { message ->
-                item {
-                    RuntimeCard(modifier = Modifier.fillMaxWidth()) {
+        }
+        item {
+            SettingsDetailCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = semanticColors().warningContainer,
+                borderColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f),
+                contentPadding = PaddingValues(14.dp),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                    RuntimeIcon(RuntimeIconName.Alert, tint = semanticColors().warning)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            message,
-                            modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
+                            "警告 · 修改环境变量可能导致运行异常",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = semanticColors().onWarningContainer,
+                        )
+                        Text(
+                            "错误覆盖 JAVA_HOME、GRADLE_HOME、LANG 等变量，可能使终端、构建工具或插件无法启动。请只修改你明确了解用途的变量；TaiXu 运行时关键变量会被强制保护。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = semanticColors().onWarningContainer,
                         )
                     }
                 }
             }
+        }
+        item {
+            Text(
+                "用户变量保存在 $activeDistroId 的 Linux /etc/profile.d 中，并在下一次命令或终端会话启动时生效。值以受限文件权限保存。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        error?.let { message ->
             item {
-                SectionHeader(
-                    title = "用户变量",
-                    subtitle = "可编辑的 TaiXu 用户配置",
-                    trailing = { Text(entries.size.toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                )
-            }
-            if (loading && entries.isEmpty()) {
-                item {
-                    Row(Modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                    }
+                SettingsDetailCard(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        message,
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
-            } else if (entries.isEmpty()) {
-                item { RuntimeCard(modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text("暂无用户变量", style = MaterialTheme.typography.titleMedium); Text("点击右上角 + 添加", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }
-            } else {
-                items(entries, key = { it.id }) { entry ->
-                    RuntimeCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { openEnvironmentEditor(entry, entry.key, values[entry.key].orEmpty()) },
-                    ) {
-                        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
+            }
+        }
+        item {
+            SectionHeader(
+                title = "用户变量",
+                subtitle = "可编辑的 TaiXu 用户配置",
+                trailing = { Text(entries.size.toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            )
+        }
+        if (loading && entries.isEmpty()) {
+            item {
+                Row(Modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                }
+            }
+        } else if (entries.isEmpty()) {
+            item { SettingsDetailCard(modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text("暂无用户变量", style = MaterialTheme.typography.titleMedium); Text("点击右上角 + 添加", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }
+        } else {
+            items(entries, key = { it.id }) { entry ->
+                SettingsDetailCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { openEnvironmentEditor(entry, entry.key, values[entry.key].orEmpty()) },
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                entry.key,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (entry.note.isNotBlank()) {
                                 Text(
-                                    entry.key,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontFamily = FontFamily.Monospace,
+                                    entry.note,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                                if (entry.note.isNotBlank()) {
-                                    Text(
-                                        entry.note,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                                Text(
-                                    values[entry.key].orEmpty().ifEmpty { "（空值）" },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontFamily = FontFamily.Monospace,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
                             }
-                            IconButton(onClick = { openEnvironmentEditor(entry, entry.key, values[entry.key].orEmpty()) }, contentDescription = "编辑 ${entry.key}") { RuntimeIcon(RuntimeIconName.Edit) }
-                            IconButton(onClick = { deleteKey = entry.id }, contentDescription = "删除 ${entry.key}") { RuntimeIcon(RuntimeIconName.Trash, tint = MaterialTheme.colorScheme.error) }
-                        }
-                    }
-                }
-            }
-            item {
-                SectionHeader(
-                    title = "当前有效环境",
-                    subtitle = "新命令实际可见的变量与值",
-                    trailing = { Text(effectiveEntries.size.toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                )
-            }
-            if (loading && effectiveEntries.isEmpty()) {
-                item {
-                    Row(Modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                    }
-                }
-            } else if (effectiveEntries.isEmpty()) {
-                item {
-                    RuntimeCard(modifier = Modifier.fillMaxWidth()) {
-                        Text("暂无可读取的运行时环境", modifier = Modifier.padding(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            } else {
-                item {
-                    SettingsGroup {
-                        effectiveEntries.forEachIndexed { index, entry ->
-                            if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                            val managedEntry = entries.firstOrNull { it.key == entry.key }
-                            SettingsRow(
-                                icon = RuntimeIconName.Key,
-                                title = entry.key,
-                                subtitle = entry.value.ifEmpty { "（空值）" },
-                                onClick = {
-                                    if (managedEntry == null) {
-                                        openEnvironmentEditor(null, entry.key, entry.value)
-                                    } else {
-                                        openEnvironmentEditor(managedEntry, managedEntry.key, values[managedEntry.key].orEmpty())
-                                    }
-                                },
+                            Text(
+                                values[entry.key].orEmpty().ifEmpty { "（空值）" },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
+                        IconButton(onClick = { openEnvironmentEditor(entry, entry.key, values[entry.key].orEmpty()) }, contentDescription = "编辑 ${entry.key}") { RuntimeIcon(RuntimeIconName.Edit) }
+                        IconButton(onClick = { deleteKey = entry.id }, contentDescription = "删除 ${entry.key}") { RuntimeIcon(RuntimeIconName.Trash, tint = MaterialTheme.colorScheme.error) }
+                    }
+                }
+            }
+        }
+        item {
+            SectionHeader(
+                title = "当前有效环境",
+                subtitle = "新命令实际可见的变量与值",
+                trailing = { Text(effectiveEntries.size.toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            )
+        }
+        if (loading && effectiveEntries.isEmpty()) {
+            item {
+                Row(Modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                }
+            }
+        } else if (effectiveEntries.isEmpty()) {
+            item {
+                SettingsDetailCard(modifier = Modifier.fillMaxWidth()) {
+                    Text("暂无可读取的运行时环境", modifier = Modifier.padding(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        } else {
+            item {
+                SettingsGroup {
+                    effectiveEntries.forEachIndexed { index, entry ->
+                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        val managedEntry = entries.firstOrNull { it.key == entry.key }
+                        SettingsRow(
+                            icon = RuntimeIconName.Key,
+                            title = entry.key,
+                            subtitle = entry.value.ifEmpty { "（空值）" },
+                            onClick = {
+                                if (managedEntry == null) {
+                                    openEnvironmentEditor(null, entry.key, entry.value)
+                                } else {
+                                    openEnvironmentEditor(managedEntry, managedEntry.key, values[managedEntry.key].orEmpty())
+                                }
+                            },
+                        )
                     }
                 }
             }
@@ -306,9 +292,9 @@ private fun EnvironmentVariableEditor(
                         color = MaterialTheme.colorScheme.tertiary,
                     )
                 }
-                OutlinedTextField(value = key, onValueChange = { key = it.uppercase() }, label = { Text("名称") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text("值") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("备注（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                RuntimeFilledTextField(value = key, onValueChange = { key = it.uppercase() }, label = { Text("名称") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                RuntimeFilledTextField(value = value, onValueChange = { value = it }, label = { Text("值") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                RuntimeFilledTextField(value = note, onValueChange = { note = it }, label = { Text("备注（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
         },

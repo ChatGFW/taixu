@@ -18,13 +18,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,7 +42,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
-import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
 import top.wkbin.taixu.ui.components.MarkdownText
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -153,107 +151,100 @@ fun AboutCommunityScreen(
         )
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = { RuntimeTopBar("关于与社区", onBack) },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            item {
-                Text(
-                    text = "应用版本与更新",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+    RuntimeSettingsScaffold(
+        title = "关于与社区", onBack = onBack,
+    ) {
+        item {
+            Text(
+                text = "应用版本与更新",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+            )
+            SettingsGroup {
+                SettingsRow(
+                    icon = RuntimeIconName.Update,
+                    title = "检查新版本",
+                    subtitle = "基于 GitHub Releases 自动检测与在线升级",
+                    value = if (updateCheckState is UpdateCheckState.Checking) "检查中…" else "v$currentVersion",
+                    onClick = {
+                        // 检查进行中禁止重复触发
+                        if (updateCheckState !is UpdateCheckState.Checking) {
+                            viewModel?.checkForUpdates(currentVersion)
+                        }
+                    },
                 )
-                SettingsGroup {
-                    SettingsRow(
-                        icon = RuntimeIconName.Update,
-                        title = "检查新版本",
-                        subtitle = "基于 GitHub Releases 自动检测与在线升级",
-                        value = if (updateCheckState is UpdateCheckState.Checking) "检查中…" else "v$currentVersion",
-                        onClick = {
-                            // 检查进行中禁止重复触发
-                            if (updateCheckState !is UpdateCheckState.Checking) {
-                                viewModel?.checkForUpdates(currentVersion)
-                            }
-                        },
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    SettingsRow(
-                        icon = RuntimeIconName.Document,
-                        title = "版本更新日志",
-                        subtitle = "查看当前版本 (v$currentVersion) 的更新说明与功能亮点",
-                        onClick = {
-                            viewModel?.loadCurrentReleaseNotes(currentVersion)
-                            showReleaseNotesDialog = true
-                        },
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    ToggleRow(
-                        icon = RuntimeIconName.Update,
-                        title = "启动时自动检查更新",
-                        subtitle = "应用启动时在后台静默检测新版本",
-                        checked = autoCheckUpdates,
-                        change = { arg0 -> viewModel?.setAutoCheckUpdates(arg0) },
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    SettingsRow(
-                        icon = RuntimeIconName.Sparkles,
-                        title = "重看功能引导",
-                        subtitle = "重新展示插件中心、工作坊、多会话终端等首次使用引导",
-                        onClick = {
-                            viewModel?.replayFirstUseGuides()
-                            Toast.makeText(
-                                context,
-                                "已重置功能引导，下次进入相应页面会重新展示",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        },
-                    )
-                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                SettingsRow(
+                    icon = RuntimeIconName.Document,
+                    title = "版本更新日志",
+                    subtitle = "查看当前版本 (v$currentVersion) 的更新说明与功能亮点",
+                    onClick = {
+                        viewModel?.loadCurrentReleaseNotes(currentVersion)
+                        showReleaseNotesDialog = true
+                    },
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                ToggleRow(
+                    icon = RuntimeIconName.Update,
+                    title = "启动时自动检查更新",
+                    subtitle = "应用启动时在后台静默检测新版本",
+                    checked = autoCheckUpdates,
+                    change = { arg0 -> viewModel?.setAutoCheckUpdates(arg0) },
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                SettingsRow(
+                    icon = RuntimeIconName.Sparkles,
+                    title = "重看功能引导",
+                    subtitle = "重新展示插件中心、工作坊、多会话终端等首次使用引导",
+                    onClick = {
+                        viewModel?.replayFirstUseGuides()
+                        Toast.makeText(
+                            context,
+                            "已重置功能引导，下次进入相应页面会重新展示",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    },
+                )
             }
+        }
 
-            item {
-                Text(
-                    text = "官方社区与开源",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+        item {
+            Text(
+                text = "官方社区与开源",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+            )
+            SettingsGroup {
+                SettingsRow(
+                    icon = RuntimeIconName.Github,
+                    title = "GitHub 开源项目",
+                    subtitle = "https://github.com/wkbin/taixu · 欢迎 Star 支持",
+                    onClick = { openBrowser(context, "https://github.com/wkbin/taixu") },
                 )
-                SettingsGroup {
-                    SettingsRow(
-                        icon = RuntimeIconName.Github,
-                        title = "GitHub 开源项目",
-                        subtitle = "https://github.com/wkbin/taixu · 欢迎 Star 支持",
-                        onClick = { openBrowser(context, "https://github.com/wkbin/taixu") },
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    SettingsRow(
-                        icon = RuntimeIconName.Qq,
-                        title = "官方 QQ 交流群",
-                        subtitle = "群号: 964382207 · 点击一键加群 / 复制群号",
-                        value = "964382207",
-                        onClick = { joinQqGroup(context, "964382207") },
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    SettingsRow(
-                        icon = RuntimeIconName.Sponsor,
-                        title = "赞助支持",
-                        subtitle = "赞助太墟 · 助力开源持续开发",
-                        onClick = onOpenSponsor,
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    SettingsRow(
-                        icon = RuntimeIconName.Info,
-                        title = "关于太墟 · TaiXu",
-                        subtitle = "Android 原生 Linux PRoot 沙箱与 AI 结对中枢",
-                        onClick = { showAboutDialog = true },
-                    )
-                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                SettingsRow(
+                    icon = RuntimeIconName.Qq,
+                    title = "官方 QQ 交流群",
+                    subtitle = "群号: 964382207 · 点击一键加群 / 复制群号",
+                    value = "964382207",
+                    onClick = { joinQqGroup(context, "964382207") },
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                SettingsRow(
+                    icon = RuntimeIconName.Sponsor,
+                    title = "赞助支持",
+                    subtitle = "赞助太墟 · 助力开源持续开发",
+                    onClick = onOpenSponsor,
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                SettingsRow(
+                    icon = RuntimeIconName.Info,
+                    title = "关于太墟 · TaiXu",
+                    subtitle = "Android 原生 Linux PRoot 沙箱与 AI 结对中枢",
+                    onClick = { showAboutDialog = true },
+                )
             }
         }
     }
