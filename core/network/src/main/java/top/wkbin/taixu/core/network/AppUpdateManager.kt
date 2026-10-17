@@ -75,7 +75,7 @@ class AppUpdateManager(
                     }
                 }
 
-                val hasUpdate = isNewerVersion(latestVersion, currentVersionName)
+                val hasUpdate = VersionCompare.isNewer(latestVersion, currentVersionName)
 
                 AppUpdateInfo(
                     currentVersion = currentVersionName,
@@ -196,21 +196,4 @@ class AppUpdateManager(
         context.startActivity(intent)
     }
 
-    /**
-     * 语义化版本比对：latest > current 返回 true
-     */
-    private fun isNewerVersion(latest: String, current: String): Boolean {
-        if (latest.isBlank() || current.isBlank()) return false
-        val latestParts = latest.split('.').mapNotNull { it.takeWhile { c -> c.isDigit() }.toIntOrNull() }
-        val currentParts = current.split('.').mapNotNull { it.takeWhile { c -> c.isDigit() }.toIntOrNull() }
-
-        val maxLen = maxOf(latestParts.size, currentParts.size)
-        for (i in 0 until maxLen) {
-            val l = latestParts.getOrElse(i) { 0 }
-            val c = currentParts.getOrElse(i) { 0 }
-            if (l > c) return true
-            if (l < c) return false
-        }
-        return false
-    }
 }

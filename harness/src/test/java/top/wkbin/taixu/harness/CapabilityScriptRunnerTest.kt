@@ -106,6 +106,44 @@ class CapabilityScriptRunnerTest {
     }
 
     @Test
+    fun `bare completion values 1 and array use the kotlin json path`() = runBlocking {
+        val (numberOk, numberOut) = runner().execute("1", 10_000)
+        assertTrue(numberOut, numberOk)
+        assertEquals("1", numberOut)
+
+        val (arrayOk, arrayOut) = runner().execute("[1, 2, 3]", 10_000)
+        assertTrue(arrayOut, arrayOk)
+        assertEquals("[1,2,3]", arrayOut)
+
+        // NativeJSON.stringify 会调用 toJSON；Kotlin 序列化按元素展开。
+        // 桌面 JVM 有 java.beans，两条路径对普通对象输出相同，这条断言才能抓住 stringify 回归。
+        val (lockedOk, lockedOut) = runner().execute(
+            "var values = [1, 2, 3]; values.toJSON = function () { return 'native-json'; }; values",
+            10_000,
+        )
+        assertTrue(lockedOut, lockedOk)
+        assertEquals("[1,2,3]", lockedOut)
+
+        val (stringifiedOk, stringifiedOut) = runner().execute(
+            "var values = [1, 2, 3]; values.toJSON = function () { return 'native-json'; }; JSON.stringify(values)",
+            10_000,
+        )
+        assertTrue(stringifiedOut, stringifiedOk)
+        assertEquals("[1,2,3]", stringifiedOut)
+    }
+
+    @Test
+    fun `sparse array completion values encode holes as null`() = runBlocking {
+        val (literalOk, literalOut) = runner().execute("[1,,3]", 10_000)
+        assertTrue(literalOut, literalOk)
+        assertEquals("[1,null,3]", literalOut)
+
+        val (deletedOk, deletedOut) = runner().execute("var values = [1, 2, 3]; delete values[1]; values", 10_000)
+        assertTrue(deletedOut, deletedOk)
+        assertEquals("[1,null,3]", deletedOut)
+    }
+
+    @Test
     fun `result objects are json stringified`() = runBlocking {
         val runner = runner()
         val (ok, output) = runner.execute(
