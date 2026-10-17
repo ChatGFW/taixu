@@ -125,8 +125,10 @@ jobs:
         id: changelog
         run: |
           CURRENT_TAG="${{ env.TARGET_TAG }}"
-          # 找到上一个版本标签
-          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
+          # 找到上一个版本标签：排除当前 tag 后取最新一个。
+          # 不能依赖"当前 tag 一定在纯 semver 列表里"：预发布 tag（如 v1.0.0-rc.1）不匹配
+          # grep 模式，手动触发时当前 tag 甚至尚未创建，旧写法 sed -n '2p' 会多回退一个版本
+          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${CURRENT_TAG}$" | sed -n '1p')
           echo "当前版本：$CURRENT_TAG，上一版本：$PREV_TAG"
 
           if git rev-parse "$CURRENT_TAG" >/dev/null 2>&1; then
@@ -201,6 +203,7 @@ jobs:
             ${{ env.SHA_FILE }}
           draft: ${{ github.event.inputs.draft == 'true' }}
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
-          make_latest: true
+          # 预发布不占用 Latest 位（releases/latest 永远指向正式版，避免全量用户被推送 rc）
+          make_latest: ${{ github.event.inputs.prerelease == 'true' && 'legacy' || 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
