@@ -10,12 +10,8 @@ import top.wkbin.taixu.core.datastore.AppStatsPreferences
 import top.wkbin.taixu.core.model.StatsDateRange
 import top.wkbin.taixu.core.model.StatsHeatmapDay
 import top.wkbin.taixu.core.model.StatsLedger
-import top.wkbin.taixu.core.model.StatsLedgerCallRow
-import top.wkbin.taixu.core.model.StatsLedgerGroupRow
 import top.wkbin.taixu.core.model.StatsLedgerScopeDim
 import top.wkbin.taixu.core.model.StatsLedgerScopeOption
-import top.wkbin.taixu.core.model.StatsLedgerScopeOptions
-import top.wkbin.taixu.core.model.StatsRankItem
 import top.wkbin.taixu.core.model.StatsSnapshot
 import top.wkbin.taixu.core.model.StatsSummary
 import top.wkbin.taixu.core.model.StatsTokenBucket
@@ -165,27 +161,7 @@ class StatsRepository(
             hCursor = hCursor.plusDays(1)
         }
 
-        // 5. 话题会话排行（用聚合出的每会话条目数，替代原先对全量消息分组）
-        val topicRankRows = sessionEntryCounts.entries.sortedByDescending { it.value }.take(20)
-        val topicRank = topicRankRows.map {
-            StatsRankItem(
-                id = it.key,
-                label = allSessions[it.key]?.title?.ifBlank { "未命名会话" } ?: "未命名会话",
-                value = it.value,
-            )
-        }
-
-        // 6. 模型排行
-        val modelRank = modelUsageCounts.entries
-            .sortedByDescending { it.value }
-            .take(20)
-            .map { StatsRankItem(id = it.key, label = it.key, value = it.value) }
-
-        // 7. 助手/工作区排行
-        val assistantRank = assistantUsageCounts.entries
-            .sortedByDescending { it.value }
-            .take(20)
-            .map { StatsRankItem(id = it.key, label = it.key, value = it.value) }
+        // 5~7. 三个排行分区已按要求从界面下线，这里不再构建列表（原先每轮都在算却无人消费）。
 
         // 8. 趋势数据组装
         val trendList = trendBuckets.entries.map { (date, map) ->
@@ -262,9 +238,9 @@ class StatsRepository(
             ),
             heatmap = heatmapDays,
             trend = trendList,
-            modelRank = modelRank,
-            assistantRank = assistantRank,
-            topicRank = topicRank,
+            modelRank = emptyList(),
+            assistantRank = emptyList(),
+            topicRank = emptyList(),
             ledger = ledger,
         )
     }

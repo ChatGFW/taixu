@@ -91,7 +91,7 @@ fun LedgerUsagePanel(
         }
 
         Text(
-            text = "以上均为 harness_usage 账本的真实计量值；底部三项是与 token 无关的行为指标。成本显式留空——estimatedCostUsd 缺定价表支撑。",
+            text = "以上均为用量账本记录的真实计量值；底部三项是与 token 无关的行为指标。成本暂未计算——目前还没有定价表可用。",
             style = MaterialTheme.typography.bodySmall.copy(
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),

@@ -115,7 +115,7 @@ private fun LedgerDetailHeader(ledger: StatsLedger) {
             ),
         )
         Text(
-            text = "成本未计算：estimatedCostUsd 需要模型定价表支撑，当前没有定价来源，因此显式留空而不是给估算值。",
+            text = "成本暂未计算：目前还没有定价表可用，因此这里显式留空，而不是给一个看起来像真的估算值。",
             style = MaterialTheme.typography.bodySmall.copy(
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),

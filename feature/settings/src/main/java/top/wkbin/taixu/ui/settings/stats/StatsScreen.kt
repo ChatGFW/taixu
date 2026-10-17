@@ -42,7 +42,9 @@ import top.wkbin.taixu.ui.settings.stats.widgets.LedgerScopeControls
 import top.wkbin.taixu.ui.settings.stats.widgets.LedgerTrendPanel
 import top.wkbin.taixu.ui.settings.stats.widgets.LedgerUsagePanel
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsHeatmap
+import top.wkbin.taixu.ui.settings.stats.widgets.StatsMetricGrid
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsSectionCard
+import top.wkbin.taixu.ui.settings.stats.widgets.StatsUsageChart
 @Composable
 fun StatsScreen(
     onBack: () -> Unit,
@@ -206,6 +208,20 @@ fun StatsScreen(
                         // 5. 构成 —— token 类型构成，到这一节页面结束。
                         item {
                             LedgerCompositionPanel(ledger = snapshot.ledger)
+                        }
+                    } else {
+                        // 账本为空：早于用量账本落库的历史用法。这里回退到估算口径，
+                        // 否则这些用户整页只剩一张热力图——与「估算口径要覆盖账本落库之前的历史」
+                        // 这一设计前提直接矛盾。
+                        item {
+                            StatsSectionCard(title = "核心指标概览") {
+                                StatsMetricGrid(summary = snapshot.summary)
+                            }
+                        }
+                        item {
+                            StatsSectionCard(title = "Token 用量与消耗趋势") {
+                                StatsUsageChart(days = snapshot.trend)
+                            }
                         }
                     }
                 }

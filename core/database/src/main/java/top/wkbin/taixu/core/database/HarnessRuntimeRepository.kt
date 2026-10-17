@@ -25,13 +25,9 @@ interface HarnessRuntimeRepository {
     suspend fun aggregateDailyCounts(start: Long?, end: Long?, tzOffsetMs: Long): List<DailyCountRow>
 
     /**
-     * 用量统计用：`harness_usage` 账本按 (本地日, provider, model) 聚合。
-     * 与 [aggregateUsageInRange] 不同，这里读的是真实计量值，无需再从字符数估算，
-     * 且能给出推理 token 与缓存读写分列。
-     */
-    /**
-     * 用量统计用：`harness_usage` 账本按 (本地日, provider, model) 聚合。
-     * 三个过滤参数均可选，传 null 表示该维度不限定；全传 null 即整体口径。
+     * 用量统计用：账本按 (本地日, provider, model) 聚合。
+     * 与 [aggregateUsageInRange] 不同，这里读的是真实计量值、能给出推理 token 与缓存读写分列；
+     * 三个过滤参数均可选，传 null 表示该维度不限定，全传 null 即整体口径。
      */
     suspend fun aggregateUsageLedger(
         start: Long?,
