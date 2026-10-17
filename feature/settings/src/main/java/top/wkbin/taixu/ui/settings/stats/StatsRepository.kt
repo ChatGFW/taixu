@@ -9,7 +9,9 @@ import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.datastore.AppStatsPreferences
 import top.wkbin.taixu.core.model.StatsDateRange
 import top.wkbin.taixu.core.model.StatsHeatmapDay
-import top.wkbin.taixu.core.model.StatsRankItem
+import top.wkbin.taixu.core.model.StatsLedger
+import top.wkbin.taixu.core.model.StatsLedgerScopeDim
+import top.wkbin.taixu.core.model.StatsLedgerScopeOption
 import top.wkbin.taixu.core.model.StatsSnapshot
 import top.wkbin.taixu.core.model.StatsSummary
 import top.wkbin.taixu.core.model.StatsTokenBucket
@@ -25,6 +27,8 @@ class StatsRepository(
 ) {
     suspend fun buildSnapshot(
         range: StatsDateRange,
+        scopeDim: StatsLedgerScopeDim = StatsLedgerScopeDim.ALL,
+        scopeValue: String? = null,
         now: LocalDate = LocalDate.now(),
     ): StatsSnapshot = withContext(Dispatchers.IO) {
         val zone = ZoneId.systemDefault()
@@ -157,32 +161,70 @@ class StatsRepository(
             hCursor = hCursor.plusDays(1)
         }
 
-        // 5. 话题会话排行（用聚合出的每会话条目数，替代原先对全量消息分组）
-        val topicRankRows = sessionEntryCounts.entries.sortedByDescending { it.value }.take(20)
-        val topicRank = topicRankRows.map {
-            StatsRankItem(
-                id = it.key,
-                label = allSessions[it.key]?.title?.ifBlank { "未命名会话" } ?: "未命名会话",
-                value = it.value,
-            )
-        }
-
-        // 6. 模型排行
-        val modelRank = modelUsageCounts.entries
-            .sortedByDescending { it.value }
-            .take(20)
-            .map { StatsRankItem(id = it.key, label = it.key, value = it.value) }
-
-        // 7. 助手/工作区排行
-        val assistantRank = assistantUsageCounts.entries
-            .sortedByDescending { it.value }
-            .take(20)
-            .map { StatsRankItem(id = it.key, label = it.key, value = it.value) }
+        // 5~7. 三个排行分区已按要求从界面下线，这里不再构建列表（原先每轮都在算却无人消费）。
 
         // 8. 趋势数据组装
         val trendList = trendBuckets.entries.map { (date, map) ->
             StatsTrendDay(date = date, providerTokens = map)
         }
+
+        // 9. 用量账本（权威口径）—— harness_usage 里逐次 LLM 调用的真实计量值。
+        //
+        // 与第 1~8 步的估算口径并行存在，而不是替换：估算口径覆盖了账本落库之前的历史数据，
+        // 直接替换会让老会话用量凭空归零。它额外补上推理 token、缓存读写分列，
+        // 以及按 模型 / 供应商 / 会话 的归因。
+        //
+        // 三层：① 作用域决定数字"属于谁"；② 取值列表恒按未限定口径统计，否则选中一项后
+        // 其余胶囊会消失、再也切不回去；③ 三种分组在这里一次性预计算，界面切分组不查库。
+        val scopeModelId = scopeValue.takeIf { scopeDim == StatsLedgerScopeDim.MODEL }
+        val scopeProvider = scopeValue.takeIf { scopeDim == StatsLedgerScopeDim.PROVIDER }
+        val scopeSessionId = scopeValue.takeIf { scopeDim == StatsLedgerScopeDim.SESSION }
+
+        val baseDayRows = runtimeRepository.aggregateUsageLedger(startEpochMs, endEpochMs, tzOffsetMs, null, null, null)
+        // 按会话聚合不做日切，因此不需要时区偏移参数。
+        val baseSessionRows = runtimeRepository.aggregateUsageLedgerBySession(startEpochMs, endEpochMs, null, null, null)
+
+        // 按会话作用域必须走 SQL 过滤（按日聚合行里没有 sessionId）；模型/供应商在内存里筛即可。
+        val ledgerRows = if (scopeSessionId != null) {
+            runtimeRepository.aggregateUsageLedger(
+                startEpochMs, endEpochMs, tzOffsetMs, scopeModelId, scopeProvider, scopeSessionId,
+            )
+        } else {
+            baseDayRows.filter { row ->
+                (scopeModelId == null || row.modelId == scopeModelId) &&
+                    (scopeProvider == null || row.provider == scopeProvider)
+            }
+        }
+        val ledgerSessionRows = baseSessionRows.filter { row ->
+            (scopeModelId == null || row.modelId == scopeModelId) &&
+                (scopeProvider == null || row.provider == scopeProvider) &&
+                (scopeSessionId == null || row.sessionId == scopeSessionId)
+        }
+        val ledgerRecentRows = runtimeRepository.listRecentUsage(
+            startEpochMs, endEpochMs, 40, scopeModelId, scopeProvider, scopeSessionId,
+        )
+
+        fun modelLabelOf(modelId: String): String =
+            allModels[modelId]?.name ?: modelId.ifBlank { "未标注模型" }
+
+        fun providerLabelOf(provider: String, modelId: String): String =
+            allModels[modelId]?.provider?.ifBlank { "默认" } ?: provider.ifBlank { "内置" }
+
+        fun sessionLabelOf(sessionId: String): String =
+            allSessions[sessionId]?.title?.ifBlank { "未命名会话" } ?: "会话 " + sessionId.take(8)
+
+        val ledger = assembleLedger(
+            ledgerRows = ledgerRows,
+            ledgerSessionRows = ledgerSessionRows,
+            recentRows = ledgerRecentRows,
+            baseDayRows = baseDayRows,
+            baseSessionRows = baseSessionRows,
+            trendStart = trendStart,
+            trendEnd = trendEnd,
+            modelLabelOf = { modelLabelOf(it) },
+            providerLabelOf = { provider, modelId -> providerLabelOf(provider, modelId) },
+            sessionLabelOf = { sessionLabelOf(it) },
+        )
 
         StatsSnapshot(
             range = range,
@@ -196,9 +238,10 @@ class StatsRepository(
             ),
             heatmap = heatmapDays,
             trend = trendList,
-            modelRank = modelRank,
-            assistantRank = assistantRank,
-            topicRank = topicRank,
+            modelRank = emptyList(),
+            assistantRank = emptyList(),
+            topicRank = emptyList(),
+            ledger = ledger,
         )
     }
 
