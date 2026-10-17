@@ -136,6 +136,23 @@ class CancellingFlagsTest {
     }
 
     @Test
+    fun `successor started after the phase-two clear can drain before duringCancel returns`() = runBlocking {
+        val flags = flags(Clock())
+        val drained = mutableListOf<String>()
+        flags.duringCancel("s") {
+            flags.mark("s")
+            // 被取消的 run 在第二阶段摘标前结束：finishRun 看到标记，不排空。
+            if (!flags.isSet("s")) drained += "cancelled-job"
+            // 与 HarnessLoop.cancel 相同：收尾后、启动后继 run 之前摘标。
+            flags.clear("s")
+            // 后继 run 在 duringCancel 的 finally 之前结束，此时标记必须已经不在。
+            if (!flags.isSet("s")) drained += "successor"
+        }
+        assertEquals(listOf("successor"), drained)
+        assertFalse(flags.isSet("s"))
+    }
+
+    @Test
     fun `duringCancel clears when the block fails after guarded already cleared`() = runBlocking {
         val flags = flags(Clock())
 

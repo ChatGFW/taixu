@@ -95,6 +95,8 @@ internal class CancellingFlags(
      * [NonCancellable] 包住整段（含第二阶段的挂起点）：调用方协程被取消时，
      * 也不能在 `rejectPendingApprovals` / `markCancelled` 之前摘标。提前摘标会让
      * `isSessionBusy()` 放行新 run，第二阶段再把那个新 run 误标成已取消。
+     * 这里的 [clear] 是泄漏兜底，且幂等。启动后继 run 之前调用方仍要自己摘标：
+     * `finishRun` 看到标记还在会跳过队列排空，不能等到本函数返回。
      */
     internal suspend inline fun <T> duringCancel(
         sessionId: String,

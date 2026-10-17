@@ -209,7 +209,6 @@ class HarnessLoop(
 
     private fun isSessionBusy(sessId: String): Boolean {
         val hold = sessionJobs[sessId]?.isCompleted == false || stateMirrors.isWaitingApproval(sessId)
-        // 第二阶段结束前标记一直算忙；无任务的陈旧标记要闲置数十秒才自愈。
         return hold || cancellingSessions.isCancelling(sessId, hold)
     }
 
@@ -783,6 +782,7 @@ class HarnessLoop(
                         approvalsSettled = false
                         logger.e("Failed to settle pending approvals while cancelling $sessId", throwable)
                     }
+                    cancellingSessions.clear(sessId)
                     approvalsSettled && !tombstonedSessions.contains(sessId) && startNextQueuedLocked(sessId)
                 }
                 refreshPendingProjection(sessId)
