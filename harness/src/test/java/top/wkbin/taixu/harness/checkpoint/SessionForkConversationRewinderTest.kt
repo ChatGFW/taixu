@@ -17,6 +17,8 @@ import top.wkbin.taixu.core.database.HarnessLaneEntity
 import top.wkbin.taixu.core.database.HarnessOperationEntity
 import top.wkbin.taixu.core.database.HarnessQueueItemEntity
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
+import top.wkbin.taixu.core.database.UsageLedgerSessionRow
+import top.wkbin.taixu.core.database.UsageLedgerRow
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.database.HarnessUsageEntity
@@ -55,6 +57,35 @@ class SessionForkConversationRewinderTest {
     }
 
     private class FakeRuntimeRepository : HarnessRuntimeRepository {
+        // 账本聚合（SQL 层）：本 Fake 不模拟聚合语义，返回空列表即可——
+        // 这两个测试都不涉及用量统计，与 aggregateUsageInRange 的处理保持一致。
+        override suspend fun aggregateUsageLedger(
+            start: Long?,
+            end: Long?,
+            tzOffsetMs: Long,
+            modelId: String?,
+            provider: String?,
+            sessionId: String?,
+        ): List<UsageLedgerRow> = emptyList()
+
+        override suspend fun aggregateUsageLedgerBySession(
+            start: Long?,
+            end: Long?,
+            modelId: String?,
+            provider: String?,
+            sessionId: String?,
+        ): List<UsageLedgerSessionRow> = emptyList()
+
+        override suspend fun listRecentUsage(
+            start: Long?,
+            end: Long?,
+            limit: Int,
+            modelId: String?,
+            provider: String?,
+            sessionId: String?,
+        ): List<HarnessUsageEntity> = emptyList()
+
+
         val lanes = LinkedHashMap<Pair<String, String>, HarnessLaneEntity>()
         val entries = mutableListOf<HarnessEntryEntity>()
 

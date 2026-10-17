@@ -23,6 +23,39 @@ interface HarnessRuntimeRepository {
      * [tzOffsetMs] 与 StatsRepository 使用的 [java.time.ZoneId] 偏移一致。
      */
     suspend fun aggregateDailyCounts(start: Long?, end: Long?, tzOffsetMs: Long): List<DailyCountRow>
+
+    /**
+     * 用量统计用：账本按 (本地日, provider, model) 聚合。
+     * 与 [aggregateUsageInRange] 不同，这里读的是真实计量值、能给出推理 token 与缓存读写分列；
+     * 三个过滤参数均可选，传 null 表示该维度不限定，全传 null 即整体口径。
+     */
+    suspend fun aggregateUsageLedger(
+        start: Long?,
+        end: Long?,
+        tzOffsetMs: Long,
+        modelId: String?,
+        provider: String?,
+        sessionId: String?,
+    ): List<UsageLedgerRow>
+
+    /** 用量统计用：账本按 (sessionId, provider, model) 聚合，服务会话维度的拆分与取值列表。 */
+    suspend fun aggregateUsageLedgerBySession(
+        start: Long?,
+        end: Long?,
+        modelId: String?,
+        provider: String?,
+        sessionId: String?,
+    ): List<UsageLedgerSessionRow>
+
+    /** 用量统计用：账本最近若干次调用明细（倒序），供界面下钻。 */
+    suspend fun listRecentUsage(
+        start: Long?,
+        end: Long?,
+        limit: Int,
+        modelId: String?,
+        provider: String?,
+        sessionId: String?,
+    ): List<HarnessUsageEntity>
     suspend fun branch(sessionId: String, leafId: String?): List<HarnessEntryEntity>
     suspend fun branchTail(sessionId: String, leafId: String?, limit: Int): List<HarnessEntryEntity> {
         require(limit > 0) { "Branch tail limit must be positive" }
@@ -127,6 +160,36 @@ class RoomHarnessRuntimeRepository(
 
     override suspend fun aggregateDailyCounts(start: Long?, end: Long?, tzOffsetMs: Long): List<DailyCountRow> =
         dao.aggregateDailyCounts(start, end, tzOffsetMs)
+
+    override suspend fun aggregateUsageLedger(
+        start: Long?,
+        end: Long?,
+        tzOffsetMs: Long,
+        modelId: String?,
+        provider: String?,
+        sessionId: String?,
+    ): List<UsageLedgerRow> =
+        // 纯标量聚合，不涉及 payloadJson 实体，因此不做 restoreFromStorage。
+        dao.aggregateLedgerByDay(start, end, tzOffsetMs, modelId, provider, sessionId)
+
+    override suspend fun aggregateUsageLedgerBySession(
+        start: Long?,
+        end: Long?,
+        modelId: String?,
+        provider: String?,
+        sessionId: String?,
+    ): List<UsageLedgerSessionRow> =
+        dao.aggregateLedgerBySession(start, end, modelId, provider, sessionId)
+
+    override suspend fun listRecentUsage(
+        start: Long?,
+        end: Long?,
+        limit: Int,
+        modelId: String?,
+        provider: String?,
+        sessionId: String?,
+    ): List<HarnessUsageEntity> =
+        dao.listRecentUsage(start, end, limit, modelId, provider, sessionId)
 
     override suspend fun branch(sessionId: String, leafId: String?): List<HarnessEntryEntity> {
         return leafId?.let { dao.branch(sessionId, it).map(::restoreFromStorage) }.orEmpty()
