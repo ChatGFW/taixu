@@ -20,7 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.core.model.StatsLedger
 import top.wkbin.taixu.core.model.StatsLedgerCallRow
-import top.wkbin.taixu.core.model.StatsLedgerModelRow
+import top.wkbin.taixu.core.model.StatsLedgerGroupDim
+import top.wkbin.taixu.core.model.StatsLedgerGroupRow
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import java.time.Instant
@@ -30,22 +31,23 @@ import java.time.format.DateTimeFormatter
 private val LEDGER_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm")
 
 /**
- * 用量账本明细弹窗。
+ * 用量明细弹窗。
  *
- * 与 [StatsRankSection] 的「查看全部」同构：右上角图标打开、内容可滚动、
- * 底部单个「关闭」按钮。区别是这里给的是逐模型的完整 token 拆分与逐次调用明细，
- * 也就是估算口径下拿不到的推理 token 与缓存读写分列。
+ * 与 [StatsRankSection] 的「查看全部」同构：图标触发、内容可滚动、底部单个「关闭」。
+ * 区别是这里给的是逐对象的完整 token 拆分与逐次调用明细——也就是估算口径下拿不到的
+ * 推理 token 与缓存读写分列。拆分维度跟随页面上选的分组方式。
  */
 @Composable
 internal fun LedgerDetailDialog(
     ledger: StatsLedger,
+    groupDim: StatsLedgerGroupDim,
     onDismiss: () -> Unit,
 ) {
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "用量账本明细",
+                text = "用量明细",
                 style = MaterialTheme.typography.titleMedium,
             )
         },
@@ -62,19 +64,20 @@ internal fun LedgerDetailDialog(
                 ) {
                     LedgerDetailHeader(ledger = ledger)
 
-                    DetailBlock(title = "按模型拆分") {
-                        if (ledger.models.isEmpty()) {
-                            DetailEmpty(text = "所选时间范围内没有账本记录")
+                    DetailBlock(title = "按" + ledgerGroupDimLabel(groupDim) + "拆分") {
+                        val rows = ledger.groupsOf(groupDim)
+                        if (rows.isEmpty()) {
+                            DetailEmpty(text = "所选范围内没有账本记录")
                         } else {
-                            for (row in ledger.models) {
-                                LedgerModelRowItem(row = row)
+                            for (row in rows) {
+                                LedgerGroupRowItem(row = row)
                             }
                         }
                     }
 
                     DetailBlock(title = "最近调用") {
                         if (ledger.recentCalls.isEmpty()) {
-                            DetailEmpty(text = "所选时间范围内没有账本记录")
+                            DetailEmpty(text = "所选范围内没有账本记录")
                         } else {
                             for (call in ledger.recentCalls) {
                                 LedgerCallRowItem(call = call)
@@ -112,7 +115,7 @@ private fun LedgerDetailHeader(ledger: StatsLedger) {
             ),
         )
         Text(
-            text = "成本未计算：estimatedCostUsd 需要模型定价表支撑，当前没有定价来源，因此这里显式留空而不是给估算值。",
+            text = "成本未计算：estimatedCostUsd 需要模型定价表支撑，当前没有定价来源，因此显式留空而不是给估算值。",
             style = MaterialTheme.typography.bodySmall.copy(
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -151,11 +154,12 @@ private fun DetailEmpty(text: String) {
 }
 
 @Composable
-private fun LedgerModelRowItem(row: StatsLedgerModelRow) {
+private fun LedgerGroupRowItem(row: StatsLedgerGroupRow) {
     DetailRow(
         primary = row.label,
-        secondary = "${row.provider} · ${row.calls} 次调用",
-        trailing = "入 ${ledgerCompact(row.inputTokens)} 出 ${ledgerCompact(row.outputTokens)} 推 ${ledgerCompact(row.reasoningTokens)}",
+        secondary = row.provider + " · " + row.calls + " 次调用",
+        trailing = "入 ${ledgerCompact(row.inputTokens)} 出 ${ledgerCompact(row.outputTokens)} " +
+            "推 ${ledgerCompact(row.reasoningTokens)}",
     )
 }
 
@@ -163,8 +167,9 @@ private fun LedgerModelRowItem(row: StatsLedgerModelRow) {
 private fun LedgerCallRowItem(call: StatsLedgerCallRow) {
     DetailRow(
         primary = call.label,
-        secondary = "${formatTime(call.createdAt)} · ${call.provider}",
-        trailing = "入 ${ledgerCompact(call.inputTokens)} 出 ${ledgerCompact(call.outputTokens)} 推 ${ledgerCompact(call.reasoningTokens)}",
+        secondary = formatLedgerTime(call.createdAt) + " · " + call.provider,
+        trailing = "入 ${ledgerCompact(call.inputTokens)} 出 ${ledgerCompact(call.outputTokens)} " +
+            "推 ${ledgerCompact(call.reasoningTokens)}",
     )
 }
 
@@ -213,5 +218,5 @@ private fun DetailRow(
     }
 }
 
-private fun formatTime(epochMs: Long): String =
+private fun formatLedgerTime(epochMs: Long): String =
     Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).format(LEDGER_TIME_FORMAT)

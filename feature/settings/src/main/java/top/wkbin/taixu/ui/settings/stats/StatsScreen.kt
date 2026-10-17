@@ -19,6 +19,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
@@ -26,25 +29,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.core.model.StatsDateRangePreset
-import top.wkbin.taixu.core.model.StatsRankItem
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.settings.stats.widgets.LedgerBreakdownPanel
+import top.wkbin.taixu.ui.settings.stats.widgets.LedgerCompositionPanel
+import top.wkbin.taixu.ui.settings.stats.widgets.LedgerDetailDialog
+import top.wkbin.taixu.ui.settings.stats.widgets.LedgerScopeControls
+import top.wkbin.taixu.ui.settings.stats.widgets.LedgerTrendPanel
+import top.wkbin.taixu.ui.settings.stats.widgets.LedgerUsagePanel
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsHeatmap
-import top.wkbin.taixu.ui.settings.stats.widgets.StatsLedgerSection
-import top.wkbin.taixu.ui.settings.stats.widgets.StatsMetricGrid
-import top.wkbin.taixu.ui.settings.stats.widgets.StatsRankSection
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsSectionCard
-import top.wkbin.taixu.ui.settings.stats.widgets.StatsUsageChart
 @Composable
 fun StatsScreen(
     onBack: () -> Unit,
     viewModel: StatsViewModel? = previewOrNull { koinViewModel() },
 ) {
     val uiState by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(StatsUiState())
+
+    // 明细弹窗的开关就放在页面这一层：多个分区（用量右上角、分解行）都可能打开它。
+    var showLedgerDetail by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -89,6 +96,20 @@ fun StatsScreen(
                                 ),
                             )
                         },
+                    )
+                }
+            }
+
+            // 作用域控件是页面级的（与时间范围同级），不放在 LazyColumn 里，
+            // 否则滚动时会跟着内容跑掉。账本为空时整块隐藏，不出现空壳控件。
+            val ledgerForScope = uiState.snapshot?.ledger?.takeIf { it.calls > 0 }
+            if (ledgerForScope != null) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    LedgerScopeControls(
+                        scopeDim = uiState.scopeDim,
+                        scopeValue = uiState.scopeValue,
+                        options = ledgerForScope.scopeOptions,
+                        onScopeChange = { dim, value -> viewModel?.setLedgerScope(dim, value) },
                     )
                 }
             }
@@ -147,93 +168,57 @@ fun StatsScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    // 1. 活跃度打卡热力图
+                    // 1. 活跃度打卡热力图（与用量无关的独立维度，原样保留）
                     item {
                         StatsSectionCard(title = "活跃度打卡热力图") {
                             StatsHeatmap(days = snapshot.heatmap)
                         }
                     }
 
-                    // 2. 核心指标概览 6 宫格
-                    item {
-                        StatsSectionCard(title = "核心指标概览") {
-                            StatsMetricGrid(summary = snapshot.summary)
-                        }
-                    }
-
-                    // 3. Token 用量趋势图表
-                    item {
-                        StatsSectionCard(title = "Token 用量与消耗趋势") {
-                            StatsUsageChart(days = snapshot.trend)
-                        }
-                    }
-
-                    // 3.5 用量账本（权威口径）—— 与上面 1~3 的估算口径并行展示。
-                    // 推理 token、缓存读写分列、模型归因此前在界面上完全不存在，
-                    // 这里是账本落库的真实计量值，作为对照而非替换（替换会让老会话用量归零）。
                     if (snapshot.ledger.calls > 0) {
+                        // 2. 用量 —— 账本的真实计量值。估算口径的 token 三项已从这里退场，
+                        //    只保留它独有的行为指标，因此与下面几个分区不重复。
                         item {
-                            StatsLedgerSection(ledger = snapshot.ledger)
-                        }
-
-                        // 复用既有趋势图承接账本数据：点立柱看当日各模型、左右滑动看趋势两个手感随之继承。
-                        item {
-                            StatsSectionCard(title = "账本日趋势 · 点柱看当日各模型") {
-                                StatsUsageChart(days = snapshot.ledger.trend)
-                            }
-                        }
-
-                        item {
-                            StatsRankSection(
-                                title = "账本口径 · 模型调用排行",
-                                leftHeader = "模型 / 供应商",
-                                rightHeader = "调用次数",
-                                items = snapshot.ledger.models.map {
-                                    StatsRankItem(
-                                        id = it.id,
-                                        label = "${it.label} · ${it.provider}",
-                                        value = it.calls,
-                                    )
-                                },
-                                icon = RuntimeIconName.Brain,
+                            LedgerUsagePanel(
+                                ledger = snapshot.ledger,
+                                conversations = snapshot.summary.totalConversations,
+                                messages = snapshot.summary.totalMessages,
+                                launches = snapshot.summary.launchCount,
+                                onOpenDetail = { showLedgerDetail = true },
                             )
                         }
-                    }
 
-                    // 4. 模型使用排行
-                    item {
-                        StatsRankSection(
-                            title = "模型使用排行",
-                            leftHeader = "模型名称",
-                            rightHeader = "调用次数",
-                            items = snapshot.modelRank,
-                            icon = RuntimeIconName.Brain,
-                        )
-                    }
+                        // 3. 用量趋势 —— 复用既有图表组件：点立柱看当日各模型、
+                        //    左右滑动看趋势两个手感原样继承，不必重写手势。
+                        item {
+                            LedgerTrendPanel(days = snapshot.ledger.trend)
+                        }
 
-                    // 5. 助手 / 工程工作区排行
-                    item {
-                        StatsRankSection(
-                            title = "助手与工程排行",
-                            leftHeader = "工作区 / 助手",
-                            rightHeader = "使用频次",
-                            items = snapshot.assistantRank,
-                            icon = RuntimeIconName.Bot,
-                        )
-                    }
+                        // 4. 分解 —— 三种分组在快照里已预计算，切换分组不查库。
+                        item {
+                            LedgerBreakdownPanel(
+                                rows = snapshot.ledger.groupsOf(uiState.groupDim),
+                                groupDim = uiState.groupDim,
+                                onGroupChange = { viewModel?.setLedgerGroupDim(it) },
+                            )
+                        }
 
-                    // 6. 热门话题排行
-                    item {
-                        StatsRankSection(
-                            title = "热门话题会话排行",
-                            leftHeader = "会话标题",
-                            rightHeader = "消息条数",
-                            items = snapshot.topicRank,
-                            icon = RuntimeIconName.Chat,
-                        )
+                        // 5. 构成 —— token 类型构成，到这一节页面结束。
+                        item {
+                            LedgerCompositionPanel(ledger = snapshot.ledger)
+                        }
                     }
                 }
             }
+        }
+
+        val ledger = uiState.snapshot?.ledger
+        if (showLedgerDetail && ledger != null) {
+            LedgerDetailDialog(
+                ledger = ledger,
+                groupDim = uiState.groupDim,
+                onDismiss = { showLedgerDetail = false },
+            )
         }
     }
 }

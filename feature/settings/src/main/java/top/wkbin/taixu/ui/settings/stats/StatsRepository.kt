@@ -11,7 +11,10 @@ import top.wkbin.taixu.core.model.StatsDateRange
 import top.wkbin.taixu.core.model.StatsHeatmapDay
 import top.wkbin.taixu.core.model.StatsLedger
 import top.wkbin.taixu.core.model.StatsLedgerCallRow
-import top.wkbin.taixu.core.model.StatsLedgerModelRow
+import top.wkbin.taixu.core.model.StatsLedgerGroupRow
+import top.wkbin.taixu.core.model.StatsLedgerScopeDim
+import top.wkbin.taixu.core.model.StatsLedgerScopeOption
+import top.wkbin.taixu.core.model.StatsLedgerScopeOptions
 import top.wkbin.taixu.core.model.StatsRankItem
 import top.wkbin.taixu.core.model.StatsSnapshot
 import top.wkbin.taixu.core.model.StatsSummary
@@ -28,6 +31,8 @@ class StatsRepository(
 ) {
     suspend fun buildSnapshot(
         range: StatsDateRange,
+        scopeDim: StatsLedgerScopeDim = StatsLedgerScopeDim.ALL,
+        scopeValue: String? = null,
         now: LocalDate = LocalDate.now(),
     ): StatsSnapshot = withContext(Dispatchers.IO) {
         val zone = ZoneId.systemDefault()
@@ -190,95 +195,58 @@ class StatsRepository(
         // 9. 用量账本（权威口径）—— harness_usage 里逐次 LLM 调用的真实计量值。
         //
         // 与第 1~8 步的估算口径并行存在，而不是替换：估算口径覆盖了账本落库之前的历史数据，
-        // 直接替换会让老会话用量凭空归零。它额外补上三样一直以来在界面上完全不存在的东西：
-        // 推理 token、缓存读写分列、按模型/供应商的归因。
-        val ledgerRows = runtimeRepository.aggregateUsageLedger(startEpochMs, endEpochMs, tzOffsetMs)
-        val ledgerRecentRows = runtimeRepository.listRecentUsage(startEpochMs, endEpochMs, 40)
+        // 直接替换会让老会话用量凭空归零。它额外补上推理 token、缓存读写分列，
+        // 以及按 模型 / 供应商 / 会话 的归因。
+        //
+        // 三层：① 作用域决定数字"属于谁"；② 取值列表恒按未限定口径统计，否则选中一项后
+        // 其余胶囊会消失、再也切不回去；③ 三种分组在这里一次性预计算，界面切分组不查库。
+        val scopeModelId = scopeValue.takeIf { scopeDim == StatsLedgerScopeDim.MODEL }
+        val scopeProvider = scopeValue.takeIf { scopeDim == StatsLedgerScopeDim.PROVIDER }
+        val scopeSessionId = scopeValue.takeIf { scopeDim == StatsLedgerScopeDim.SESSION }
 
-        var ledgerCalls = 0
-        var ledgerInput = 0L
-        var ledgerOutput = 0L
-        var ledgerReasoning = 0L
-        var ledgerCacheRead = 0L
-        var ledgerCacheWrite = 0L
-        val ledgerModelRows = linkedMapOf<String, StatsLedgerModelRow>()
-        val ledgerTrendBuckets = mutableMapOf<LocalDate, MutableMap<String, StatsTokenBucket>>()
+        val baseDayRows = runtimeRepository.aggregateUsageLedger(startEpochMs, endEpochMs, tzOffsetMs, null, null, null)
+        val baseSessionRows = runtimeRepository.aggregateUsageLedgerBySession(startEpochMs, endEpochMs, tzOffsetMs, null, null, null)
 
-        for (row in ledgerRows) {
-            ledgerCalls += row.calls
-            ledgerInput += row.inputTokens
-            ledgerOutput += row.outputTokens
-            ledgerReasoning += row.reasoningTokens
-            ledgerCacheRead += row.cacheReadTokens
-            ledgerCacheWrite += row.cacheWriteTokens
-
-            val ledgerModel = row.modelId.takeIf { it.isNotBlank() }?.let { allModels[it] }
-            val modelLabel = ledgerModel?.name ?: row.modelId.ifBlank { "未标注模型" }
-            val providerLabel = ledgerModel?.provider?.ifBlank { "默认" }
-                ?: row.provider.ifBlank { "内置" }
-            val key = row.modelId.ifBlank { providerLabel }
-
-            // 同一模型可能分布在多个本地日/供应商桶里，这里按 key 累加成一个模型行。
-            val merged = ledgerModelRows[key]
-            ledgerModelRows[key] = StatsLedgerModelRow(
-                id = key,
-                label = modelLabel,
-                provider = providerLabel,
-                calls = (merged?.calls ?: 0) + row.calls,
-                inputTokens = (merged?.inputTokens ?: 0L) + row.inputTokens,
-                outputTokens = (merged?.outputTokens ?: 0L) + row.outputTokens,
-                reasoningTokens = (merged?.reasoningTokens ?: 0L) + row.reasoningTokens,
-                cacheReadTokens = (merged?.cacheReadTokens ?: 0L) + row.cacheReadTokens,
-                cacheWriteTokens = (merged?.cacheWriteTokens ?: 0L) + row.cacheWriteTokens,
+        // 按会话作用域必须走 SQL 过滤（按日聚合行里没有 sessionId）；模型/供应商在内存里筛即可。
+        val ledgerRows = if (scopeSessionId != null) {
+            runtimeRepository.aggregateUsageLedger(
+                startEpochMs, endEpochMs, tzOffsetMs, scopeModelId, scopeProvider, scopeSessionId,
             )
-
-            val day = runCatching { LocalDate.parse(row.localDay) }.getOrNull() ?: continue
-            if (day.isBefore(trendStart) || day.isAfter(trendEnd)) continue
-            val dayMap = ledgerTrendBuckets.getOrPut(day) { mutableMapOf() }
-            dayMap[modelLabel] = (dayMap[modelLabel] ?: StatsTokenBucket()).add(
-                input = row.inputTokens,
-                output = row.outputTokens,
-                cached = row.cacheReadTokens,
-                // 推理与缓存写入归入 uncategorized，才能计入 totalTokens、参与柱高。
-                uncategorized = row.reasoningTokens + row.cacheWriteTokens,
-                activity = row.calls,
-            )
+        } else {
+            baseDayRows.filter { row ->
+                (scopeModelId == null || row.modelId == scopeModelId) &&
+                    (scopeProvider == null || row.provider == scopeProvider)
+            }
         }
-
-        val ledgerTrend = ledgerTrendBuckets.entries
-            .sortedBy { it.key }
-            .map { (date, map) -> StatsTrendDay(date = date, providerTokens = map) }
-
-        val ledgerRecentCalls = ledgerRecentRows.map { row ->
-            val ledgerModel = row.modelId?.takeIf { it.isNotBlank() }?.let { allModels[it] }
-            StatsLedgerCallRow(
-                id = row.id,
-                createdAt = row.createdAt,
-                label = ledgerModel?.name ?: row.modelId?.takeIf { it.isNotBlank() } ?: "未标注模型",
-                provider = ledgerModel?.provider?.ifBlank { "默认" }
-                    ?: row.provider?.takeIf { it.isNotBlank() } ?: "内置",
-                inputTokens = row.inputTokens,
-                outputTokens = row.outputTokens,
-                reasoningTokens = row.reasoningTokens,
-                cacheReadTokens = row.cacheReadTokens,
-                cacheWriteTokens = row.cacheWriteTokens,
-            )
+        val ledgerSessionRows = baseSessionRows.filter { row ->
+            (scopeModelId == null || row.modelId == scopeModelId) &&
+                (scopeProvider == null || row.provider == scopeProvider) &&
+                (scopeSessionId == null || row.sessionId == scopeSessionId)
         }
+        val ledgerRecentRows = runtimeRepository.listRecentUsage(
+            startEpochMs, endEpochMs, 40, scopeModelId, scopeProvider, scopeSessionId,
+        )
 
-        // 成本一律留空：estimatedCostUsd 需要模型定价表支撑，当前没有任何定价来源，
-        // 宁可显式呈现「未计算」，也不给一个看起来像真的估算数字。
-        val ledger = StatsLedger(
-            calls = ledgerCalls,
-            inputTokens = ledgerInput,
-            outputTokens = ledgerOutput,
-            reasoningTokens = ledgerReasoning,
-            cacheReadTokens = ledgerCacheRead,
-            cacheWriteTokens = ledgerCacheWrite,
-            pricedCalls = 0,
-            estimatedCostUsd = null,
-            models = ledgerModelRows.values.sortedByDescending { it.calls }.take(20),
-            recentCalls = ledgerRecentCalls,
-            trend = ledgerTrend,
+        fun modelLabelOf(modelId: String): String =
+            allModels[modelId]?.name ?: modelId.ifBlank { "未标注模型" }
+
+        fun providerLabelOf(provider: String, modelId: String): String =
+            allModels[modelId]?.provider?.ifBlank { "默认" } ?: provider.ifBlank { "内置" }
+
+        fun sessionLabelOf(sessionId: String): String =
+            allSessions[sessionId]?.title?.ifBlank { "未命名会话" } ?: "会话 " + sessionId.take(8)
+
+        val ledger = assembleLedger(
+            ledgerRows = ledgerRows,
+            ledgerSessionRows = ledgerSessionRows,
+            recentRows = ledgerRecentRows,
+            baseDayRows = baseDayRows,
+            baseSessionRows = baseSessionRows,
+            trendStart = trendStart,
+            trendEnd = trendEnd,
+            modelLabelOf = { modelLabelOf(it) },
+            providerLabelOf = { provider, modelId -> providerLabelOf(provider, modelId) },
+            sessionLabelOf = { sessionLabelOf(it) },
         )
 
         StatsSnapshot(
