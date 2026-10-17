@@ -21,9 +21,11 @@
 -keep class kotlinx.coroutines.** { *; }
 -dontwarn io.ktor.**
 
-# Rhino's optional JavaBean JSON converter references desktop-only java.beans APIs.
-# CapabilityScriptRunner blocks Java interop and installs its own rejecting converter;
-# these missing types are never needed for the supported JS-only execution path.
+# Rhino's JavaToJSONConverters <clinit> references desktop-only java.beans APIs.
+# CapabilityScriptRunner never calls NativeJSON.stringify: completion values and the
+# sandbox JSON.stringify go through a Kotlin serializer, so that class stays uninitialized
+# on the supported path. R8 still sees the bytecode references. dontwarn does not make
+# NativeJSON.stringify safe — the rejecting Java-to-JSON converter cannot stop the clinit.
 -dontwarn java.beans.BeanDescriptor
 -dontwarn java.beans.BeanInfo
 -dontwarn java.beans.IntrospectionException

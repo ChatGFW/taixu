@@ -209,6 +209,7 @@ class HarnessLoop(
 
     private fun isSessionBusy(sessId: String): Boolean {
         val hold = sessionJobs[sessId]?.isCompleted == false || stateMirrors.isWaitingApproval(sessId)
+        // 第二阶段结束前标记一直算忙；无任务的陈旧标记要闲置数十秒才自愈。
         return hold || cancellingSessions.isCancelling(sessId, hold)
     }
 
@@ -760,43 +761,43 @@ class HarnessLoop(
         if (sessId.isBlank()) return
         stateMirrors.setStatus(sessId, "正在停止…")
         loopScope.launch {
-            val job = cancellingSessions.guarded(sessId) { turnCoordinator.withSessionMutex(sessId) {
-                sessionCancelEpochs.getOrPut(sessId) { AtomicLong() }.incrementAndGet()
-                val queuedTaskIds = promptQueueManager.list(sessId, PromptQueue.NEXT_RUN)
-                    .mapNotNull { it.second.taskId }
-                PromptQueue.entries.forEach { promptQueueManager.clear(sessId, it) }
-                queuedTaskIds.forEach { agentTaskStateMachine.markCancelled(it, "会话运行已停止") }
-                sessionJobs[sessId]?.also { it.cancel() }
-            } }
-            job?.cancelAndJoin()
-            val restarted = turnCoordinator.withSessionMutex(sessId) {
-                cancelApprovalTimeout(sessId)
-                var approvalsSettled = true
-                try {
-                    rejectPendingApprovalsForCancel(sessId)
-                    agentTaskStateMachine.activeForSession(sessId)?.let { active ->
-                        agentTaskStateMachine.markCancelled(active.id)
+            cancellingSessions.duringCancel(sessId) {
+                val job = cancellingSessions.guarded(sessId) { turnCoordinator.withSessionMutex(sessId) {
+                    sessionCancelEpochs.getOrPut(sessId) { AtomicLong() }.incrementAndGet()
+                    val queuedTaskIds = promptQueueManager.list(sessId, PromptQueue.NEXT_RUN)
+                        .mapNotNull { it.second.taskId }
+                    PromptQueue.entries.forEach { promptQueueManager.clear(sessId, it) }
+                    queuedTaskIds.forEach { agentTaskStateMachine.markCancelled(it, "会话运行已停止") }
+                    sessionJobs[sessId]?.also { it.cancel() }
+                } }
+                job?.cancelAndJoin()
+                val restarted = turnCoordinator.withSessionMutex(sessId) {
+                    cancelApprovalTimeout(sessId)
+                    var approvalsSettled = true
+                    try {
+                        rejectPendingApprovalsForCancel(sessId)
+                        agentTaskStateMachine.activeForSession(sessId)?.let { active ->
+                            agentTaskStateMachine.markCancelled(active.id)
+                        }
+                    } catch (throwable: Throwable) {
+                        approvalsSettled = false
+                        logger.e("Failed to settle pending approvals while cancelling $sessId", throwable)
                     }
-                } catch (throwable: Throwable) {
-                    approvalsSettled = false
-                    logger.e("Failed to settle pending approvals while cancelling $sessId", throwable)
-                } finally {
-                    cancellingSessions.clear(sessId)
+                    approvalsSettled && !tombstonedSessions.contains(sessId) && startNextQueuedLocked(sessId)
                 }
-                approvalsSettled && !tombstonedSessions.contains(sessId) && startNextQueuedLocked(sessId)
-            }
-            refreshPendingProjection(sessId)
-            if (!restarted) {
-                val stillWaiting = runCatching { approvalRepository.pendingNow(sessId).isNotEmpty() }
-                    .getOrDefault(true)
-                if (stillWaiting) {
-                    stateMirrors.setRunState(sessId, SessionRunState.WAITING_APPROVAL)
-                    stateMirrors.setStatus(sessId, "等待用户批准")
-                    scheduleApprovalTimeout(sessId)
-                } else {
-                    stateMirrors.setRunState(sessId, SessionRunState.IDLE)
-                    stateMirrors.setStatus(sessId, null)
-                    if (sessId == sessionTracker.foregroundId) stateMirrors.setForegroundRunning(false)
+                refreshPendingProjection(sessId)
+                if (!restarted) {
+                    val stillWaiting = runCatching { approvalRepository.pendingNow(sessId).isNotEmpty() }
+                        .getOrDefault(true)
+                    if (stillWaiting) {
+                        stateMirrors.setRunState(sessId, SessionRunState.WAITING_APPROVAL)
+                        stateMirrors.setStatus(sessId, "等待用户批准")
+                        scheduleApprovalTimeout(sessId)
+                    } else {
+                        stateMirrors.setRunState(sessId, SessionRunState.IDLE)
+                        stateMirrors.setStatus(sessId, null)
+                        if (sessId == sessionTracker.foregroundId) stateMirrors.setForegroundRunning(false)
+                    }
                 }
             }
         }

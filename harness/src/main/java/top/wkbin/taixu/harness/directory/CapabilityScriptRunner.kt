@@ -184,7 +184,8 @@ class CapabilityScriptRunner(
     private fun jsToJsonString(value: Any?, depth: Int = 0): String {
         if (depth >= MAX_JSON_DEPTH) return "\"<max-depth>\""
         return when {
-            value == null || value is Undefined -> "null"
+            // 数组空洞的 getProperty 得到 NOT_FOUND，按 JSON.stringify 编码为 null。
+            value == null || value === Scriptable.NOT_FOUND || value is Undefined -> "null"
             value is CharSequence -> jsonStringLiteral(value.toString())
             value is Boolean -> if (value) "true" else "false"
             value is Number -> jsonNumberLiteral(value.toDouble())
