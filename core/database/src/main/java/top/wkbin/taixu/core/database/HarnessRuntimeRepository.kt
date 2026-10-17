@@ -46,7 +46,6 @@ interface HarnessRuntimeRepository {
     suspend fun aggregateUsageLedgerBySession(
         start: Long?,
         end: Long?,
-        tzOffsetMs: Long,
         modelId: String?,
         provider: String?,
         sessionId: String?,
@@ -180,12 +179,11 @@ class RoomHarnessRuntimeRepository(
     override suspend fun aggregateUsageLedgerBySession(
         start: Long?,
         end: Long?,
-        tzOffsetMs: Long,
         modelId: String?,
         provider: String?,
         sessionId: String?,
     ): List<UsageLedgerSessionRow> =
-        dao.aggregateLedgerBySession(start, end, tzOffsetMs, modelId, provider, sessionId)
+        dao.aggregateLedgerBySession(start, end, modelId, provider, sessionId)
 
     override suspend fun listRecentUsage(
         start: Long?,

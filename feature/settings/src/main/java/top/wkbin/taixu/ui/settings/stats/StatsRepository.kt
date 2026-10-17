@@ -205,7 +205,8 @@ class StatsRepository(
         val scopeSessionId = scopeValue.takeIf { scopeDim == StatsLedgerScopeDim.SESSION }
 
         val baseDayRows = runtimeRepository.aggregateUsageLedger(startEpochMs, endEpochMs, tzOffsetMs, null, null, null)
-        val baseSessionRows = runtimeRepository.aggregateUsageLedgerBySession(startEpochMs, endEpochMs, tzOffsetMs, null, null, null)
+        // 按会话聚合不做日切，因此不需要时区偏移参数。
+        val baseSessionRows = runtimeRepository.aggregateUsageLedgerBySession(startEpochMs, endEpochMs, null, null, null)
 
         // 按会话作用域必须走 SQL 过滤（按日聚合行里没有 sessionId）；模型/供应商在内存里筛即可。
         val ledgerRows = if (scopeSessionId != null) {

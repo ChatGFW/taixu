@@ -88,7 +88,6 @@ interface HarnessUsageQueries {
     suspend fun aggregateLedgerBySession(
         start: Long?,
         end: Long?,
-        tzOffsetMs: Long,
         modelId: String?,
         provider: String?,
         sessionId: String?,
