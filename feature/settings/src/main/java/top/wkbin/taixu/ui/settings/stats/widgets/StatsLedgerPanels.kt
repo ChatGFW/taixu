@@ -107,7 +107,7 @@ private fun LedgerMetricRow(label: String, value: String) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 5.dp),
-        verticalAlignment = Alignment.Baseline,
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(

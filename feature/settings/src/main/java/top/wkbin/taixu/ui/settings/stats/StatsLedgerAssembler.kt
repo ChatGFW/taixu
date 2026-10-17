@@ -115,7 +115,7 @@ val ledgerTrend = ledgerTrendBuckets.entries
     .sortedBy { it.key }
     .map { (date, map) -> StatsTrendDay(date = date, providerTokens = map) }
 
-val ledgerRecentCalls = ledgerRecentRows.map { row ->
+val ledgerRecentCalls = recentRows.map { row ->
     StatsLedgerCallRow(
         id = row.id,
         createdAt = row.createdAt,
