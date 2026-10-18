@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <code>Source v0.21.0</code> · <code>Android 10+ (API 29+)</code> · <code>arm64-v8a</code> · <code>Kotlin 2.4.20</code> · <code>Jetpack Compose</code>
+  <code>Source v1.0.0</code> · <code>Android 10+ (API 29+)</code> · <code>arm64-v8a</code> · <code>Kotlin 2.4.21</code> · <code>Jetpack Compose</code>
 </p>
 
 <p align="center">
@@ -53,13 +53,14 @@ Persistent workflows -> Conditions / parallel nodes / schedules / background run
 | **Mobile Workspaces** | Empty projects, ZIP import with Zip Slip checks, GitHub clone, source trees, line diffs, background Gradle / Flutter builds, APK signing, and installation. |
 | **Git Workbench** | JGit-based changes, staging, commits, branches, commit graphs, tags, push/pull, push preview, AI commit messages, and encrypted HTTPS tokens. |
 | **Browser Automation** | Multi-tab WebView pool, Browser MCP, page hooks, CDP breakpoints, Worker-level Fetch interception, network timelines, and debug state. |
-| **MCP and Plugins** | Browser, SQLite, Git, APK audit, CodeGraph, and WebSearch presets. STDIO, common Streamable HTTP request/response flows, legacy SSE, and OAuth Authorization Code + PKCE. |
+| **MCP and Tools** | Browser, SQLite, Git, APK audit, CodeGraph, and WebSearch presets. STDIO, common Streamable HTTP request/response flows, legacy SSE, and OAuth Authorization Code + PKCE. |
+| **Plugin Platform** | Native page lifecycles, compiled-in Harness extensions, v1-compatible `.txplugin` v2 PROCESS packages, and importable static WEB packages. Web pages support capability approval and page-owned PRoot static services. |
 | **Host Automation** | Wireless ADB discovery and notification pairing, Android / PRoot logs, device diagnostics, and Intent inspection. Authorized ADB, Shizuku, Root, accessibility, and virtual-screen tooling. |
 | **Device Collaboration** | Floating assistant, temporary-PIN LAN WebChat, FTP transfer, foreground services, WakeLock, and Wi-Fi Lock support for long tasks. |
 | **Native Interactive UI** | Agent-produced A2UI through `render_surface`, rendered in Compose with interactive forms, recent surfaces, and examples. |
 | **Backup and Migration** | Local ZIP backups for sessions, memories, plans, skills, attachments, and portable preferences. Separate model-profile JSON import preview, copy/update, export, and system sharing. |
 
-> This README describes source version `v0.21.0`. Published packages and their corresponding features are listed on [Releases](https://github.com/wkbin/taixu/releases).
+> This README describes source version `v1.0.0`. Published packages and their corresponding features are listed on [Releases](https://github.com/wkbin/taixu/releases).
 
 ---
 
@@ -94,6 +95,7 @@ Main entries:
 - **Workflows / Git / Browser / Wireless ADB**: Automation, repository management, web debugging, and authorized device diagnostics.
 - **乾坤 → 特色功能**: One-sentence app creation, AI Roundtable, Morning Sentinel, LAN WebChat, and A2UI surfaces.
 - **Settings backups and model profiles**: Export/restore local data and migrate model configuration.
+- **Settings → App feature plugins → External Web plugins**: Import, open, and remove `.txplugin` Web page packages.
 
 Notifications and exemption from battery optimization help long-running tasks. Android background restrictions can still delay or interrupt execution.
 
@@ -132,15 +134,41 @@ RootFS installation prefers OCI images; some distributions support LXC image fal
 
 ---
 
+## 🧩 Plugin Platform and Web Pages
+
+| Form | Current support | Boundary |
+| :--- | :--- | :--- |
+| **Native plugins** | Compose pages, lifecycle management, and Harness extensions assembled at build time | Trusted code shipped in the APK; no external Dex or Kotlin loading. |
+| **PROCESS packages** | `.txplugin` v1 compatibility and v2 identity, API/dependency versions, resource declarations, SHA-256 checks, and installation receipts | Run in Linux. Scripts retain existing PRoot permissions; declarations do not isolate arbitrary scripts. |
+| **WEB packages** | Import, open, upgrade, and remove static HTML/CSS/JS pages with a fixed `index.html` entry | Independent WebView origins and implemented host capabilities; no arbitrary network, shell, or file access. |
+
+Import Web packages through **Settings → App feature plugins → External Web plugins**. The default `PACKAGE` source needs no Linux. Each page allows up to 63 files and 2 MiB of assets, verified on import and open. Version directories cannot be overwritten; upgrades and removal invalidate old pages and grants.
+
+Supported capabilities are **APP_INFO** (basic app information) and **CLIPBOARD_WRITE** (plain text). Import grants no permissions. Calls require native confirmation; clipboard writes show the exact text and require confirmation each time, without reading the previous content. Host credentials are short-lived, single-use, bound to the current document, and never exposed to JavaScript.
+
+Generate importable examples from the repository root:
+
+```powershell
+.\tools\package-web-example.ps1                    # build/examples/web-info.txplugin
+.\tools\package-web-example.ps1 -Clipboard         # build/examples/web-clipboard.txplugin
+.\tools\package-web-example.ps1 -Proot             # build/examples/web-info-proot.txplugin
+```
+
+The `PROOT_STATIC` source starts a fixed host-managed Python static server when opening a page and releases that instance on exit. It requires ready local Linux and `/usr/bin/python3`, without automatic dependency installation. The complete startup packet is limited to 4 KiB and checked during preview and import, making this suitable for small static pages. Combine `-Clipboard -Proot` for the clipboard example.
+
+The platform remains in development: arbitrary PROCESS service pages, dynamic APIs/WebSockets, migration of the legacy shared HostBridge key, and developer full-access mode are pending. Local tests and Debug builds pass; real-device PRoot/WebView interaction still needs validation. See [Platform Progress](docs/PLUGIN_PLATFORM.md), [v2 Package Protocol](docs/PLUGIN_PACKAGE_V2.md), and [Web Extensions](docs/PLUGIN_WEB_EXTENSIONS.md).
+
+---
+
 ## 🛠️ Build from Source
 
 ### Requirements
 
 - **JDK 17**: Project and CI baseline; Android Studio JBR is also used for local builds.
 - **Android SDK**: compileSdk 37.1 / targetSdk 37 / minSdk 29.
-- **Gradle Wrapper**: 9.7.0.
+- **Gradle Wrapper**: 9.8.1.
 - **Android Gradle Plugin**: 9.4.1.
-- **Kotlin**: 2.4.20; **Compose BOM**: 2026.09.00.
+- **Kotlin**: 2.4.21; **Compose BOM**: 2026.09.00.
 - Complete Git checkout, including the local Maven AAR repository and prebuilt ARM64 native libraries.
 
 Normal APK builds use the checked-in native artifacts. Rebuilding native PTY components additionally requires Android NDK `30.0.15729638`, CMake `3.22.1`, and Ninja.
@@ -168,7 +196,7 @@ export JAVA_HOME="/path/to/jdk-17"
 Debug output:
 
 ```text
-app/build/outputs/apk/debug/taixu-v0.21.0-debug.apk
+app/build/outputs/apk/debug/taixu-v1.0.0-debug.apk
 ```
 
 Only run the following if the bundled `app/src/main/jniLibs/arm64-v8a/libproot*.so` files are missing, fail validation, or need refreshing:
@@ -212,6 +240,11 @@ TaiXu/
 ├── harness/              # Agent loop, providers, tools, approvals, subagents, MCP
 │   └── core/             # Pure Kotlin turn interpreter and execution contracts
 ├── tools/                # Registry, recipes, installation, providers, backups
+├── plugin/
+│   ├── api/              # Pure Kotlin descriptors, extension contracts, catalog
+│   ├── runtime/          # Lifecycles, generations, resource leases, page grants
+│   ├── packages/         # v1/v2 protocol, versions, dependencies, resource checks
+│   └── ui/               # Compose page hosts and restricted WebView adapter
 ├── showerclient/         # Virtual-screen client and display
 ├── webchat/              # LAN collaboration frontend: React / TypeScript / Vite
 └── feature/              # Jetpack Compose features
@@ -243,6 +276,7 @@ Most engineering documents are in Chinese:
 - [AI Navigation](docs/AI_NAVIGATION.md), [Architecture](docs/ARCHITECTURE.md), [Execution Traces](docs/EXECUTION_TRACES.md), and [Architecture Rules](docs/ARCHITECTURE_RULES.md).
 - [Workflows](docs/WORKFLOW.md) and [Browser Design](docs/BROWSER_DESIGN.md).
 - [Plugin Development](docs/PLUGIN_DEVELOPMENT_GUIDELINES.md) and [Android Offline Plugins](docs/ANDROID_OFFLINE_PLUGIN.md).
+- [Plugin Platform Progress](docs/PLUGIN_PLATFORM.md), [v2 Package Protocol](docs/PLUGIN_PACKAGE_V2.md), and [Web Extensions and Examples](docs/PLUGIN_WEB_EXTENSIONS.md).
 - [Storage Management](docs/STORAGE_MANAGEMENT.md), [Local Backup](docs/LOCAL_BACKUP.md), and [Model Profile Transfer](docs/MODEL_PROFILE_TRANSFER.md).
 - [Request Context Diagnostics](docs/CONTEXT_DIAGNOSTICS.md) and [Security Surface](docs/SECURITY_SURFACE.md).
 - [Sandbox Backend ADR](docs/ADR_SANDBOX_BACKEND.md), [Known Issues](docs/KNOWN_ISSUES.md), and [Commands](docs/COMMANDS.md).
