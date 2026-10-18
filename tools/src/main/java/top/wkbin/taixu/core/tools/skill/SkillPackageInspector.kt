@@ -86,17 +86,6 @@ class SkillPackageInspector {
             }
         }
 
-        if (pkg.rawFiles.size > SkillPackageParser.MAX_ZIP_ENTRIES) {
-            findings.add(
-                AuditFinding(
-                    level = AuditLevel.BLOCKED,
-                    ruleId = "SEC-002",
-                    title = "压缩包条目数超限",
-                    detail = "技能包文件数 (${pkg.rawFiles.size}) 超过安全阈值 (${SkillPackageParser.MAX_ZIP_ENTRIES})",
-                ),
-            )
-        }
-
         val totalSize = pkg.rawFiles.values.sumOf { it.size.toLong() }
         if (totalSize > SkillPackageParser.MAX_ZIP_TOTAL_BYTES) {
             findings.add(
