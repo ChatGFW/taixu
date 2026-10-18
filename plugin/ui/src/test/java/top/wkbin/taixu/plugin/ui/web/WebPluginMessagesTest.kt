@@ -6,6 +6,25 @@ import org.junit.Test
 import top.wkbin.taixu.plugin.runtime.PluginCapabilityResult
 
 class WebPluginMessagesTest {
+    @Test fun acceptsOnlyTheTypedClipboardTextEnvelope() {
+        val call = WebPluginMessages.decode("""{"id":"copy","action":"host.clipboard-write","target":"clipboard","text":"太墟\n{[example]}"}""")
+        assertEquals("太墟\n{[example]}", call.text)
+        assertEquals("clipboard", call.capability.target)
+    }
+
+    @Test fun clipboardRejectsNullMissingOversizedAndDuplicateTextOrExtraParameters() {
+        val prefix = """{"id":"copy","action":"host.clipboard-write","target":"clipboard"""
+        listOf("$prefix}", "$prefix,\"text\":null}", "$prefix,\"text\":\"\"}",
+            "$prefix,\"text\":\"a\",\"text\":\"b\"}", "$prefix,\"text\":\"a\",\"approved\":true}",
+            "$prefix,\"text\":\"${"x".repeat(1025)}\"}", "$prefix,\"text\":\"a\\u0000b\"}",
+        ).forEach { assertTrue(it, runCatching { WebPluginMessages.decode(it) }.isFailure) }
+    }
+
+    @Test fun existingReadOperationsCannotSmuggleClipboardInput() {
+        assertTrue(runCatching {
+            WebPluginMessages.decode("""{"id":"a","action":"host.app-info","target":"application","text":"payload"}""")
+        }.isFailure)
+    }
     @Test fun decodesOnlyStructuredActionAndTarget() {
         val call = WebPluginMessages.decode("""{"id":"a-1","action":"host.app-info","target":"application"}""")
         assertEquals("a-1", call.id)

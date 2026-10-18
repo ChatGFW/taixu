@@ -7,6 +7,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":plugin:ui"))
     implementation(project(":feature:theme"))
     implementation(project(":core:datastore"))
     implementation(project(":core:database"))

@@ -35,6 +35,14 @@ class WebPluginResourcesTest {
         }
     }
 
+    @Test fun hostThemeHasItsOwnBoundedAllowanceAtThePayloadLimit() {
+        val resources = WebPluginResources(policy, mapOf("index.html" to ByteArray(2 * 1024 * 1024), "theme.css" to ByteArray(4096)))
+        assertEquals(200, resources.response("${policy.origin}/index.html", "GET").statusCode)
+        assertTrue(runCatching {
+            WebPluginResources(policy, mapOf("index.html" to byteArrayOf(), "theme.css" to ByteArray(4097)))
+        }.isFailure)
+    }
+
     @Test fun realBundledExampleContainsItsScriptAndStyles() {
         val context = org.robolectric.RuntimeEnvironment.getApplication()
         val assets = listOf("index.html", "plugin.js", "plugin.css").associateWith { name ->

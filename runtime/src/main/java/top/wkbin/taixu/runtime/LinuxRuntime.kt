@@ -61,6 +61,8 @@ interface LinuxRuntime {
     ): ManagedProcess
 
     suspend fun stopBackground(id: String): Boolean
+    val supportsBackgroundInstanceStop: Boolean get() = false
+    suspend fun stopBackgroundInstance(process: ManagedProcess): Boolean = false
     fun listBackground(): List<ManagedProcess>
     suspend fun cleanupDeadBackground(): Int
     fun observeBackgroundLogs(idOrToolId: String): Flow<List<String>> = emptyFlow()

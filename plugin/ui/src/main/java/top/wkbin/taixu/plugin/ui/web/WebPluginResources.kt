@@ -7,7 +7,9 @@ import java.io.ByteArrayInputStream
 internal class WebPluginResources(private val policy: WebPluginPolicy, assets: Map<String, ByteArray>) {
     init {
         require(assets.containsKey("index.html") && assets.size <= 64)
-        require(assets.values.sumOf { it.size.toLong() } <= 2 * 1024 * 1024)
+        val themeBytes = assets["theme.css"]?.size ?: 0
+        require(themeBytes <= 4096)
+        require(assets.values.sumOf { it.size.toLong() } - themeBytes <= 2 * 1024 * 1024)
         require(assets.keys.all { policy.assetPath("${policy.origin}/$it") == it })
     }
     private val assets = assets.mapValues { it.value.copyOf() }

@@ -9,7 +9,7 @@ import top.wkbin.taixu.plugin.ui.NativePluginPageRegistry
 class WebPagePluginTest {
     @Test fun registersThroughRealPageCatalogWithoutLoadingAssetsOrExecutingOperations() {
         val definition = WebPagePlugin("example.web", "1.0.0", { "Example" }, { "Example" },
-            listOf(WebPluginCapability(PluginCapability("host.app-info", "application"), { "Read" }, { "Read app info" }) {
+            listOf(WebPluginCapability(PluginCapability("host.app-info", "application"), { "Read" }, { "Read app info" }) { _, _, _ ->
                 error("registration must not execute")
             }),
         ) { error("registration must not load assets") }
@@ -20,7 +20,7 @@ class WebPagePluginTest {
     }
 
     @Test fun rejectsDuplicateCapabilitiesBeforePublishingPage() {
-        val capability = WebPluginCapability(PluginCapability("read", "app"), { "Read" }, { "Read" }) { "ok" }
+        val capability = WebPluginCapability(PluginCapability("read", "app"), { "Read" }, { "Read" }) { _, _, _ -> "ok" }
         assertTrue(runCatching {
             WebPagePlugin("example.web", "1", { "Example" }, { "Example" }, listOf(capability, capability)) { emptyMap() }
         }.isFailure)

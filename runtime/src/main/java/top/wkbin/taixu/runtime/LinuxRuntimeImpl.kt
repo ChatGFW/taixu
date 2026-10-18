@@ -751,6 +751,8 @@ class LinuxRuntimeImpl(
     }
 
     override suspend fun stopBackground(id: String): Boolean = processRegistry.stop(id)
+    override val supportsBackgroundInstanceStop = true
+    override suspend fun stopBackgroundInstance(process: ManagedProcess): Boolean = processRegistry.stopInstance(process)
 
     override fun listBackground(): List<ManagedProcess> = processRegistry.list()
 
@@ -762,9 +764,7 @@ class LinuxRuntimeImpl(
     override fun getBackgroundLogs(idOrToolId: String): List<String> =
         processRegistry.getLogs(idOrToolId)
 
-    override fun clearBackgroundLogs(idOrToolId: String) {
-        processRegistry.clearLogs(idOrToolId)
-    }
+    override fun clearBackgroundLogs(idOrToolId: String) = processRegistry.clearLogs(idOrToolId)
 
     override suspend fun shutdown() = initializeMutex.withLock { withRuntimeMaintenance {
         closeRuntimeProcesses()

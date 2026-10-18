@@ -89,7 +89,7 @@ LinuxAIRuntime/
 ## 4. 依赖装配（Koin）
 
 - 插件平台：`plugin:api` 与 `plugin:runtime` 均保持纯 Kotlin，`plugin:ui` 适配 Compose。`navigationModule` 装配 `NativePluginPlatform`、单例 `PluginPages` 与 `PluginController`；终端/浏览器的独立页与聊天面板共享带代次准入的页面宿主。`PluginPreferences` 只保存启用选择；状态机按依赖启停并保留未确认释放资源。菜单/设置贡献通过共享 slot 注入，管理页由通用宿主装配。页面插件不拥有全部终端/浏览器引擎，也没有外部原生代码加载或授权隔离，详见 [`PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md)。
-- P5 首片由 `WebPagePlugin` 将宿主登记的静态页面接入现有 PAGE 目录；独立 WebView 使用随机固定来源和结构化消息，`PluginCapabilitySession` 按文档绑定身份、代次、动作、目标及本地 Android 环境，提供原生单次/限时确认和撤销。它不改变 v2 PROCESS 包或旧 HostBridge 的权限，也不接入外部 Web 包，详见 [`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md)。
+- P5 由 `WebPagePlugin` 将静态页面接入 PAGE 目录；独立 WebView 使用随机来源和结构化消息，`PluginCapabilitySession` 按文档绑定身份、代次、动作、目标及本地 Android 环境，提供原生单次/限时确认和撤销。`WebPluginRepository` 复用 v2 包目录提供外部静态 WEB 导入、完整性快照和移除；settings 装配宿主白名单能力，WEB 不进入 Linux 工具目录和进程安装收据，不改变旧 HostBridge 权限。详见 [`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md)。
 - Provider 边界由 `harness/di/harness/ProviderModule.kt` 装配：`ProviderModelResolver` 管理档案、凭证与偏好，`ProviderTransport` 管理请求策略，`LlmApiRegistry` 按模型的 API 选择协议实现。兼容门面 `ProviderClient` 保留已有调用入口；纯 `ModelDescriptor` 不含密钥或端点。
 - P4 的 `HarnessPluginRegistry` 装配受信任的编译时工具、背景资料、检查点、Provider 工厂和工作流节点。工具通过 `use_capability` 的 `plugin.<id>` 域沿用审批/PLAN；背景资料脱敏后以有来源标注的合成 user 消息计入预算。三种协议与等待节点已迁入插件工厂；`PLUGIN_ACTION` 是新节点的通用路由，执行前通过工作流 broker 进行带令牌的确认。详见 [`PLUGIN_HARNESS_EXTENSIONS.md`](PLUGIN_HARNESS_EXTENSIONS.md)。
 - 工具边界由 `harness/di/harness/ToolBackendModule.kt` 装配：纯 JVM `ToolBackend` / `ToolCheckpoints` 定义可等待契约；`WorkspaceToolBackend` 通过 `WorkspaceToolOperations` 使用受限工作区访问与写入快照。`ToolExecutor` 保留审批、PLAN、宿主权限和其他工具分派；检查点只允许否决或追加经脱敏的说明，不能授予权限或替换结果状态。默认检查点为空，应用代码可注入受信任实现。
@@ -100,3 +100,5 @@ LinuxAIRuntime/
 - 工作流执行器与工具适配器集合使用不同 qualifier，避免泛型擦除后的 Set 定义冲突。
 - WorkManager 保留 `Configuration.Provider` 按需初始化，使用 `KoinWorkerFactory` 创建 Worker；WorkerParameters 来自系统，Context 来自应用容器。
 - DI 使用经典 DSL，不引入 Koin 编译插件；KSP 仅用于 Room。依赖完整性由图测试保障，不能把 Kotlin 编译通过等同于 DI 图验证通过。
+
+P5 受管理静态来源由 navigation 装配 runtime 的 loopback 资源服务与 plugin/ui 的页面租约；navigation 显式依赖 runtime，已登记架构依赖白名单。服务不在注册或启用阶段启动，外部包不能声明此来源。

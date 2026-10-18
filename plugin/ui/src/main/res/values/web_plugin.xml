@@ -11,4 +11,10 @@
     <string name="ui_web_plugin_allow_once">仅允许一次</string>
     <string name="ui_web_plugin_allow_session">允许此页面 5 分钟</string>
     <string name="ui_web_plugin_deny">拒绝</string>
+    <string name="ui_web_plugin_text_preview">将复制以下文本（覆盖当前剪贴板，不可见字符以转义显示）：
+%1$s</string>
+    <string name="ui_web_service_title">受管理 Web 服务示例</string>
+    <string name="ui_web_service_description">打开时启动本地资源服务，关闭页面后回收服务</string>
+    <string name="ui_web_proot_title">PRoot Web 服务示例</string>
+    <string name="ui_web_proot_description">需要已就绪的本地 Linux 和 /usr/bin/python3。打开后启动独立资源进程，切换系统或关闭页面后回收；不会自动安装依赖。</string>
 </resources>

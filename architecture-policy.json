@@ -167,7 +167,7 @@
     },
     {
       "id": "feature.settings", "path": "feature/settings",
-      "requires": ["core.database", "core.datastore", "core.network", "runtime", "tools", "harness", "feature.theme"]
+      "requires": ["core.database", "core.datastore", "core.network", "runtime", "tools", "harness", "feature.theme", "plugin.ui"]
     },
     {
       "id": "feature.developer", "path": "feature/developer",
@@ -186,7 +186,7 @@
         "feature.theme", "feature.home", "feature.chat", "feature.terminal",
         "feature.workspace", "feature.workflow", "feature.settings", "feature.developer",
         "feature.custom_iteration", "feature.browser", "feature.git", "feature.a2uipoc",
-        "plugin.ui", "core.datastore"
+        "plugin.ui", "core.datastore", "runtime"
       ]
     },
     {

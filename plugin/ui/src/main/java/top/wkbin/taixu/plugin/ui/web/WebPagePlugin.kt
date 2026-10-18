@@ -6,6 +6,8 @@ import top.wkbin.taixu.plugin.api.PluginDescriptor
 import top.wkbin.taixu.plugin.api.PluginExtension
 import top.wkbin.taixu.plugin.api.PluginExtensionPoint
 import top.wkbin.taixu.plugin.runtime.PluginCapability
+import top.wkbin.taixu.plugin.runtime.PluginCapabilityIdentity
+import top.wkbin.taixu.plugin.runtime.PluginCapabilityCall
 import top.wkbin.taixu.plugin.ui.*
 import top.wkbin.taixu.ui.components.RuntimeIconName
 
@@ -14,8 +16,11 @@ class WebPluginCapability(
     val capability: PluginCapability,
     val title: @Composable () -> String,
     val description: @Composable () -> String,
-    val execute: suspend (Context) -> String,
-)
+    allowSession: Boolean = true,
+    val execute: suspend (Context, PluginCapabilityIdentity, PluginCapabilityCall) -> String,
+) {
+    val allowSession = allowSession && capability != top.wkbin.taixu.plugin.runtime.PluginCapabilityInput.CLIPBOARD_WRITE
+}
 
 /** Trusted static Web adapter using the existing PAGE lifecycle, independent of .txplugin. */
 class WebPagePlugin(
@@ -24,7 +29,9 @@ class WebPagePlugin(
     val title: @Composable () -> String,
     val description: @Composable () -> String,
     capabilities: List<WebPluginCapability>,
-    val loadAssets: (Context) -> Map<String, ByteArray>,
+    val isAvailable: () -> Boolean = { true },
+    val openSource: (suspend (Context) -> WebPluginAssetLease)? = null,
+    val loadAssets: suspend (Context) -> Map<String, ByteArray>,
 ) {
     val capabilities: List<WebPluginCapability> = java.util.Collections.unmodifiableList(capabilities.toList())
     init {

@@ -4,6 +4,7 @@ import kotlinx.serialization.json.*
 import top.wkbin.taixu.plugin.runtime.PluginCapability
 import top.wkbin.taixu.plugin.runtime.PluginCapabilityCall
 import top.wkbin.taixu.plugin.runtime.PluginCapabilityResult
+import top.wkbin.taixu.plugin.runtime.PluginCapabilityInput
 
 /** No identity, environment, shell, credential or authorization fields accepted on the wire. */
 internal object WebPluginMessages {
@@ -27,9 +28,9 @@ internal object WebPluginMessages {
                 ':' -> fields++
             }
         }
-        require(fields == 3) // Reject duplicate fields even when the JSON parser would keep the last.
         val root = Json.parseToJsonElement(text).jsonObject
-        require(root.keys == setOf("id", "action", "target"))
+        require(fields == root.size) // Reject duplicate fields even when the parser keeps the last.
+        require(root.keys == setOf("id", "action", "target") || root.keys == setOf("id", "action", "target", "text"))
         fun string(key: String, limit: Int): String {
             val value = root.getValue(key).jsonPrimitive
             require(value.isString && value.content.length in 1..limit)
@@ -37,7 +38,10 @@ internal object WebPluginMessages {
         }
         val id = string("id", 64)
         require(id.matches(Regex("[A-Za-z0-9_-]+")))
-        return PluginCapabilityCall(id, PluginCapability(string("action", 128), string("target", 256)))
+        val call = PluginCapabilityCall(id, PluginCapability(string("action", 128), string("target", 256)),
+            if ("text" in root) string("text", PluginCapabilityInput.MAX_TEXT_LENGTH) else null)
+        require(PluginCapabilityInput.valid(call))
+        return call
     }
 
     fun encode(result: PluginCapabilityResult): String = buildJsonObject {

@@ -19,6 +19,42 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ProcessRegistryLifecycleTest {
+    @Test fun queuedInstanceStopCannotFollowAReplacementWithTheSameId() = scenario { f ->
+        val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+        f.start("service").apply { beforeClose = { entered.complete(Unit); release.await() } }
+        val owned = f.registry.list().single()
+        val replacing = async(start = CoroutineStart.UNDISPATCHED) { f.start("service") }
+        entered.await()
+        val staleStop = async(start = CoroutineStart.UNDISPATCHED) { f.registry.stopInstance(owned) }
+        release.complete(Unit)
+        val replacement = replacing.await()
+        assertTrue(staleStop.await())
+        assertTrue(replacement.isAlive)
+        assertSame(replacement, f.registry.list().single().session)
+        f.registry.stopAll()
+    }
+    @Test fun exactInstanceStopRejectsCopiedHandlesAndCannotStopAReplacement() = scenario { f ->
+        f.start("service")
+        val old = f.registry.list().single()
+        assertFalse(f.registry.stopInstance(old.copy()))
+        assertTrue(old.session.isAlive)
+        val replacement = f.start("service")
+        assertTrue(f.registry.stopInstance(old))
+        assertTrue(replacement.isAlive)
+        assertSame(replacement, f.registry.list().single().session)
+        assertTrue(f.registry.stopInstance(f.registry.list().single()))
+        assertTrue(f.registry.list().isEmpty())
+    }
+
+    @Test fun exactInstanceStopKeepsFailedCleanupForRetry() = scenario { f ->
+        val session = f.start("service").apply { failures = 1 }
+        val owned = f.registry.list().single()
+        assertTrue(failure { f.registry.stopInstance(owned) } is ProcessCleanupException)
+        assertSame(owned, f.registry.list().single())
+        assertTrue(f.registry.stopInstance(owned))
+        assertEquals(2, session.closes)
+        assertTrue(f.registry.list().isEmpty())
+    }
     @Test fun failedReplacementRetainsOldProcessAndDoesNotLaunchNewOne() = scenario { f ->
         val old = f.start("service")
         old.failures = 1

@@ -26,6 +26,8 @@ class PluginNavigationTest {
             assertNotNull(pages.resolve(BrowserPlugin.page))
             val platform = application.koin.get<NativePluginPlatform>()
             assertNotNull(pages.resolve(WebPluginDemo.page))
+            assertNotNull(pages.resolve(WebPluginDemo.managedPage))
+            assertNotNull(pages.resolve(WebPluginDemo.prootPage))
             platform.plugins.forEach { plugin ->
                 assertTrue(plugin.entries.isNotEmpty())
                 plugin.entries.forEach { entry ->
@@ -54,5 +56,12 @@ class PluginNavigationTest {
     @Test fun pluginManagerRouteCanBeRestoredWithoutAnExecutableAction() {
         val encoded = Json.encodeToString(PluginManagerDestination.serializer(), PluginManagerDestination)
         assertEquals(PluginManagerDestination, Json.decodeFromString(PluginManagerDestination.serializer(), encoded))
+    }
+
+    @Test fun externalWebRoutePinsIdentityAndVersionWithoutPayloadOrPermissions() {
+        val route = PluginPageDestination("example.web-info", "main", mapOf("web.package.id" to "web-info", "web.package.version" to "1.0.0"))
+        assertEquals(route, Json.decodeFromString(PluginPageDestination.serializer(), Json.encodeToString(PluginPageDestination.serializer(), route)))
+        val manager = Json.encodeToString(WebPluginManagerDestination.serializer(), WebPluginManagerDestination)
+        assertEquals(WebPluginManagerDestination, Json.decodeFromString(WebPluginManagerDestination.serializer(), manager))
     }
 }

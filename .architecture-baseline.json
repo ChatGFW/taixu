@@ -5,9 +5,9 @@
         "\u4e0d\u5728\u57fa\u7ebf\u4e2d\u7684\u65b0\u6587\u4ef6\u5fc5\u987b <= architecture-policy.json \u7684 global.maxFileLines\u3002",
         "\u7ef4\u62a4\uff1a\u8fd0\u884c .\\gradlew.bat architectureBaselineSync \u81ea\u52a8\u540c\u6b65\u3002"
     ],
-    "generatedAt": "2026-10-18",
+    "generatedAt": "2026-10-19",
     "maxFileLines": 400,
-    "fileCount": 99,
+    "fileCount": 98,
     "files": {
         "core/database/src/main/java/top/wkbin/taixu/core/database/PersistenceRepositories.kt": 426,
         "core/datastore/src/main/java/top/wkbin/taixu/core/datastore/SettingsDataStore.kt": 980,
@@ -38,7 +38,7 @@
         "feature/git/src/main/java/top/wkbin/taixu/ui/git/GitScreen.kt": 1408,
         "feature/git/src/main/java/top/wkbin/taixu/ui/git/GitViewModel.kt": 434,
         "feature/home/src/main/java/top/wkbin/taixu/ui/home/HomeScreen.kt": 1263,
-        "feature/navigation/src/main/java/top/wkbin/taixu/ui/navigation/TaiXuNavHost.kt": 722,
+        "feature/navigation/src/main/java/top/wkbin/taixu/ui/navigation/TaiXuNavHost.kt": 721,
         "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/AboutCommunityScreen.kt": 476,
         "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/AgentSettingsScreen.kt": 1842,
         "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/CcSwitchScreen.kt": 1141,
@@ -94,7 +94,6 @@
         "runtime/src/main/java/top/wkbin/taixu/runtime/SshServiceManager.kt": 576,
         "runtime/src/main/java/top/wkbin/taixu/runtime/StorageManager.kt": 422,
         "runtime/src/main/java/top/wkbin/taixu/runtime/WorkspaceManager.kt": 1008,
-        "runtime/src/main/java/top/wkbin/taixu/runtime/bridge/HostBridge.kt": 451,
         "runtime/src/main/java/top/wkbin/taixu/runtime/bridge/adb/EmbeddedAdbManager.kt": 584,
         "runtime/src/main/java/top/wkbin/taixu/runtime/build/WorkspaceBuildRunner.kt": 992,
         "runtime/src/main/java/top/wkbin/taixu/runtime/doctor/EnvironmentDoctor.kt": 462,

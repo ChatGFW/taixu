@@ -16,6 +16,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewFeature
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.plugin.runtime.*
 import top.wkbin.taixu.plugin.ui.PluginPageRequest
@@ -34,25 +36,47 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
             "--container: ${cssColor(colors.surfaceContainerHigh)}; }"
     }
     val policy = remember(plugin, request.activation) { WebPluginPolicy() }
+    val source = remember(plugin, request.activation, policy) { java.util.concurrent.atomic.AtomicReference<WebPluginAssetLease?>(null) }
     val session = remember(plugin, context, request.activation, policy) {
+        val identity = PluginCapabilityIdentity(plugin.id, plugin.version, request.activation?.generation ?: 0,
+            policy.origin, "android:local")
         PluginCapabilitySession(
-            PluginCapabilityIdentity(plugin.id, plugin.version, request.activation?.generation ?: 0,
-                policy.origin, "android:local"),
-            plugin.capabilities.associate { it.capability to suspend { it.execute(context) } },
-            isAvailable = { request.activation?.let { it.pluginId == plugin.id && it.isAccepting } == true },
+            identity,
+            plugin.capabilities.associate { capability -> capability.capability to suspend { call: PluginCapabilityCall -> capability.execute(context, identity, call) } },
+            isAvailable = { plugin.isAvailable() && source.get()?.isAvailable == true && request.activation?.let { it.pluginId == plugin.id && it.isAccepting } == true },
+            oneShotCapabilities = plugin.capabilities.filter { !it.allowSession }.map { it.capability }.toSet(),
         )
     }
     val prompt by session.prompt.collectAsState()
-    val resources by produceState<Result<WebPluginResources>?>(null, plugin, policy, context) {
-        value = try {
-            Result.success(withContext(Dispatchers.IO) {
-                val assets = plugin.loadAssets(context) + ("theme.css" to themeCss.toByteArray(Charsets.UTF_8))
-                WebPluginResources(policy, assets)
-            })
+    val resources by produceState<Result<WebPluginResources>?>(null, plugin, policy, context, session) {
+        value = null
+        val sourceId = "web-source:${policy.origin}"
+        var owner: WebPluginSourceOwner? = null
+        try {
+            val activation = requireNotNull(request.activation)
+            // Do not acquire services if this device cannot host a verified message origin.
+            check(WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER))
+            owner = WebPluginSourceOwner(activation, sourceId)
+            withContext(Dispatchers.IO) {
+                // Factories clean up cancellation before returning; register before dispatching back.
+                val lease = owner!!.open { plugin.openSource?.invoke(context) ?: WebPluginAssetLease(plugin.loadAssets(context)) }
+                source.set(lease)
+                val assets = lease.loadAssets() + ("theme.css" to themeCss.toByteArray(Charsets.UTF_8))
+                value = Result.success(WebPluginResources(policy, assets))
+            }
+            while (plugin.isAvailable() && source.get()?.isAvailable == true && activation.isAccepting) delay(250)
+            session.close()
+            value = Result.failure(IllegalStateException("Web plugin source unavailable"))
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            Result.failure(IllegalStateException("Web plugin assets unavailable"))
+            session.close()
+            value = Result.failure(IllegalStateException("Web plugin assets unavailable"))
+        } finally {
+            source.set(null)
+            withContext(NonCancellable + Dispatchers.IO) {
+                owner?.close()
+            }
         }
     }
     var view by remember(session) { mutableStateOf<WebPluginView?>(null) }
@@ -62,6 +86,7 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
     Scaffold(topBar = { RuntimeTopBar(plugin.title(), request.onBack) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             RuntimeCard(Modifier.fillMaxWidth().padding(12.dp)) {
+                if (plugin.openSource != null) Text(plugin.description())
                 Text(stringResource(R.string.ui_web_plugin_scope))
                 RuntimeTextButton(onClick = { session.revoke() }) {
                     Text(stringResource(R.string.ui_web_plugin_revoke))
@@ -92,6 +117,7 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(capability.description())
+                    pending.call.text?.let { text -> Text(stringResource(R.string.ui_web_plugin_text_preview, PluginCapabilityInput.preview(text))) }
                     Text("${pending.identity.pluginId} · ${pending.identity.version}\n${pending.call.capability.action}\n${pending.call.capability.target}\n${pending.identity.environment}")
                 }
             },
@@ -100,7 +126,7 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
                     RuntimeTextButton(onClick = { session.decide(pending.token, PluginGrantChoice.ONCE) }) {
                         Text(stringResource(R.string.ui_web_plugin_allow_once))
                     }
-                    RuntimeTextButton(onClick = { session.decide(pending.token, PluginGrantChoice.SESSION) }) {
+                    if (capability.allowSession) RuntimeTextButton(onClick = { session.decide(pending.token, PluginGrantChoice.SESSION) }) {
                         Text(stringResource(R.string.ui_web_plugin_allow_session))
                     }
                 }

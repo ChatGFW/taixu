@@ -39,6 +39,17 @@ class PluginActivation internal constructor(
         resources[id] = release
     }
 
+    /** Page disposal may return its resource before the entire generation stops. */
+    suspend fun releaseOwned(id: String): Boolean {
+        val release = synchronized(monitor) { resources[id] } ?: return true
+        val confirmed = try { release() } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) { false }
+        if (!confirmed) return false
+        synchronized(monitor) { if (resources[id] === release) resources.remove(id) }
+        return true
+    }
+
     internal fun acquire(): PluginLease? = synchronized(monitor) {
         if (!accepting) return null
         leases++

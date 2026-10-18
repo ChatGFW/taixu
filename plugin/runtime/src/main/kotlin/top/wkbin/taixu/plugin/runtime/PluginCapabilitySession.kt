@@ -18,7 +18,7 @@ data class PluginCapabilityIdentity(
 )
 
 data class PluginCapability(val action: String, val target: String)
-data class PluginCapabilityCall(val id: String, val capability: PluginCapability)
+data class PluginCapabilityCall(val id: String, val capability: PluginCapability, val text: String? = null)
 data class PluginCapabilityPrompt(
     val token: String, val identity: PluginCapabilityIdentity, val call: PluginCapabilityCall,
 )
@@ -32,15 +32,17 @@ data class PluginCapabilityResult(val id: String, val success: Boolean, val text
  */
 class PluginCapabilitySession(
     val identity: PluginCapabilityIdentity,
-    executors: Map<PluginCapability, suspend () -> String>,
+    executors: Map<PluginCapability, suspend (PluginCapabilityCall) -> String>,
     private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
     private val grantLifetimeMillis: Long = 300_000,
     private val approvalTimeoutMillis: Long = 60_000,
     private val executionTimeoutMillis: Long = 10_000,
     private val isAvailable: () -> Boolean = { true },
+    oneShotCapabilities: Set<PluginCapability> = emptySet(),
 ) : AutoCloseable {
     private val monitor = Any()
     private val executors = executors.toMap()
+    private val oneShotCapabilities = oneShotCapabilities.toSet() + PluginCapabilityInput.CLIPBOARD_WRITE
     private val grants = mutableMapOf<PluginCapability, Long>()
     private val seen = mutableSetOf<String>()
     private val jobs = mutableSetOf<Job>()
@@ -67,6 +69,7 @@ class PluginCapabilitySession(
             if (closed || !isAvailable() || !mainFrame || sourceOrigin != identity.origin) return@coroutineScope denied("origin_denied")
             if (!call.id.matches(Regex("[A-Za-z0-9_-]{1,64}"))) return@coroutineScope denied("invalid_request")
             if (call.capability !in executors) return@coroutineScope denied("capability_denied")
+            if (!PluginCapabilityInput.valid(call)) return@coroutineScope denied("invalid_request")
             if (call.id in seen) return@coroutineScope denied("replayed_request")
             if (seen.size >= 256) return@coroutineScope denied("session_limit")
             // Bound both work and native prompts; never queue arbitrary document requests.
@@ -93,6 +96,7 @@ class PluginCapabilitySession(
                         mutablePrompt.value = null
                     }
                     if (choice == null || choice == PluginGrantChoice.DENY) return@coroutineScope denied("permission_denied")
+                    if (choice == PluginGrantChoice.SESSION && call.capability in oneShotCapabilities) return@coroutineScope denied("permission_denied")
                     if (choice == PluginGrantChoice.SESSION) {
                         grants[call.capability] = nowMillis() + grantLifetimeMillis
                         mutableGrantCount.value = grants.size
@@ -100,7 +104,7 @@ class PluginCapabilitySession(
                 }
             }
             currentCoroutineContext().ensureActive()
-            val text = withTimeoutOrNull(executionTimeoutMillis) { executors.getValue(call.capability)() }
+            val text = withTimeoutOrNull(executionTimeoutMillis) { executors.getValue(call.capability)(call) }
                 ?: return@coroutineScope denied("execution_timeout")
             currentCoroutineContext().ensureActive()
             synchronized(monitor) {

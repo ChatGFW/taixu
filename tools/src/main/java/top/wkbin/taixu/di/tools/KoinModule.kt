@@ -46,6 +46,7 @@ import org.koin.core.qualifier.named
 
 /** Dependency registrations owned by the tools module. */
 val toolsModule = module {
+    single { top.wkbin.taixu.core.tools.WebPluginRepository(registry = get()) }
     single<BackupLocations> {
         val context = get<Context>()
         val paths = get<RuntimePathManager>()

@@ -150,7 +150,7 @@ class PluginCapabilitySessionTest {
 
     @Test fun exceptionsAreRedactedAndOversizedResultsAreRejected() = runTest {
         for ((executor, expected) in listOf<suspend () -> String>({ error("secret-token") }, { "x".repeat(32_769) }).zip(listOf("execution_failed", "result_too_large"))) {
-            val session = PluginCapabilitySession(identity, mapOf(capability to executor))
+            val session = PluginCapabilitySession(identity, mapOf(capability to { _: PluginCapabilityCall -> executor() }))
             val result = async { session.call(call(), identity.origin, true) }
             runCurrent()
             session.decide(session.prompt.value!!.token, PluginGrantChoice.ONCE)

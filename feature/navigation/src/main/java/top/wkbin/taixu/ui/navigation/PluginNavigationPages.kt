@@ -12,6 +12,11 @@ import top.wkbin.taixu.plugin.runtime.PluginController
 /** New plugins use this generic destination; existing saved terminal destinations remain valid. */
 @Composable
 internal fun RegisteredPluginPage(pages: PluginPages, destination: PluginPageDestination, onBack: () -> Unit) {
+    if (destination.pageId == "main" && destination.arguments.keys == setOf("web.package.id", "web.package.version")) {
+        top.wkbin.taixu.ui.settings.PackagedWebPluginScreen(
+            destination.arguments.getValue("web.package.id"), destination.arguments.getValue("web.package.version"), destination.pluginId, onBack)
+        return
+    }
     PluginPageHost(
         pages = pages,
         reference = PluginExtensionRef(destination.pluginId, destination.pageId),
@@ -51,8 +56,11 @@ internal fun selectedPluginPage(destination: androidx.navigation3.runtime.NavKey
 }
 
 @Composable
-internal fun ManagedPluginsScreen(platform: NativePluginPlatform, controller: PluginController, onOpen: (PluginExtensionRef) -> Unit, onOpenTool: (String) -> Unit, onBack: () -> Unit) {
+internal fun ManagedPluginsScreen(platform: NativePluginPlatform, controller: PluginController, onOpen: (PluginExtensionRef) -> Unit, onOpenTool: (String) -> Unit, onBack: () -> Unit, onOpenWebPackages: () -> Unit = {}) {
     top.wkbin.taixu.plugin.ui.PluginManagerScreen(platform.plugins, controller, onOpen, onBack) {
+        top.wkbin.taixu.ui.components.RuntimeTextButton(onClick = onOpenWebPackages) {
+            androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.settings.R.string.web_packages_title))
+        }
         top.wkbin.taixu.ui.settings.PackagedPluginInventorySection(onOpenTool)
     }
 }
