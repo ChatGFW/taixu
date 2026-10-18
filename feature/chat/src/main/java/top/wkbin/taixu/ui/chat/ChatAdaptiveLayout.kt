@@ -130,14 +130,13 @@ internal fun ChatAdaptiveLayout(
         }
 
         val screenWidth = maxWidth
-        Column(
+        Box(
             Modifier.fillMaxSize()
                 .then(if (browserPage || overlayProgress > 0.5f) Modifier.clearAndSetSemantics {} else Modifier),
         ) {
-            topBar(openBrowser, browserActivityTick > lastSeenBrowserTick, toggle)
             val innerWidth = screenWidth - 24.dp - ResizeHandleWidth
             Row(
-                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
+                Modifier.fillMaxSize().padding(horizontal = 12.dp),
             ) {
                 chatContent(Modifier.weight(1f).fillMaxHeight())
                 if (mode == CompanionMode.Docked && dockedFraction > 0f) {
@@ -146,10 +145,13 @@ internal fun ChatAdaptiveLayout(
                     }
                     companion(
                         Modifier.width(innerWidth * companionRatio * dockedFraction)
-                            .fillMaxHeight().windowInsetsPadding(bottomInsets).padding(vertical = 4.dp),
+                            .fillMaxHeight().statusBarsPadding().padding(top = 64.dp).windowInsetsPadding(bottomInsets).padding(vertical = 4.dp),
                     )
                 }
             }
+        }
+        Box(Modifier.fillMaxWidth().then(if (browserPage || overlayProgress > 0.5f) Modifier.clearAndSetSemantics {} else Modifier)) {
+            topBar(openBrowser, browserActivityTick > lastSeenBrowserTick, toggle)
         }
         if (mode == CompanionMode.Overlay && (overlayOpen || overlayProgress > 0f)) {
             CompanionOverlay(overlayProgress, (maxWidth * 0.55f).coerceIn(360.dp, 480.dp).coerceAtMost(maxWidth - 48.dp),

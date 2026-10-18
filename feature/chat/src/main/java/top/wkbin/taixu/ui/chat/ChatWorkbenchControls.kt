@@ -18,22 +18,9 @@ import top.wkbin.taixu.ui.components.*
 
 @Composable
 internal fun ChatWorkspaceBar(
-    workspace: String, environment: String, onOpenWorkspace: () -> Unit,
     onOpenBrowser: (() -> Unit)?, browserHighlight: Boolean,
     onOpenRepository: (() -> Unit)?, repositoryHighlight: Boolean,
 ) {
-    RuntimeCard(Modifier.fillMaxWidth(), onClick = onOpenWorkspace) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            RuntimeIcon(RuntimeIconName.FolderOpen, Modifier.size(24.dp), MaterialTheme.colorScheme.primary)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(workspace.trimEnd('/').substringAfterLast('/').ifBlank { stringResource(R.string.chat_default_workspace) },
-                    style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(environment, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
     val entries = buildList {
         if (onOpenBrowser != null) add(WorkbenchAction(RuntimeIconName.Globe,
             stringResource(R.string.chat_browser_entry), onClick = onOpenBrowser, highlighted = browserHighlight))
@@ -48,9 +35,14 @@ internal fun ChatWorkbenchControls(
     runMode: RunMode, branch: ConversationBranch?, events: List<HarnessEvent>, running: Boolean,
     onRunMode: () -> Unit, onBranches: () -> Unit, onRuntime: () -> Unit, onTools: () -> Unit,
     toolchainHighlight: Boolean, onReasoning: (() -> Unit)? = null, onFloatingChat: (() -> Unit)? = null,
+    speech: ChatSpeechToggle? = null,
 ) {
     val rounds = events.count { it is HarnessEvent.ProviderRoundStarted }
     val actions = buildList {
+        speech?.let { toggle -> add(WorkbenchAction(
+            if (toggle.enabled) RuntimeIconName.VolumeOn else RuntimeIconName.VolumeOff,
+            stringResource(if (toggle.enabled) R.string.chat_speech_disable else R.string.chat_speech_enable),
+            onClick = toggle.onToggle, highlighted = toggle.enabled)) }
         add(WorkbenchAction(runModeIcon(runMode), stringResource(R.string.chat_menu_run_mode),
             stringResource(if (runMode == RunMode.PLAN) R.string.chat_run_mode_plan else R.string.chat_run_mode_build), onRunMode))
         add(WorkbenchAction(RuntimeIconName.GitBranch, stringResource(R.string.chat_branches_title),

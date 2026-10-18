@@ -1,5 +1,4 @@
 package top.wkbin.taixu.ui.chat
-
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.LinearEasing
@@ -15,6 +14,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -92,7 +93,6 @@ internal fun ChatMessageList(
     toolResults: Map<String, ToolResult>,
     initializing: Boolean,
     running: Boolean,
-    imageGenerationModel: Boolean = false,
     status: String?,
     workspace: String,
     workspaceProject: WorkspaceProject?,
@@ -142,27 +142,17 @@ internal fun ChatMessageList(
             }
         },
         running,
-        imageGenerationModel,
     ) {
-        if (!running) false else {
-            val lastUserIndex = messages.indexOfLast { it is UserMessage }
-            imageGenerationModel && lastUserIndex >= 0 && messages.drop(lastUserIndex + 1).none { message ->
-                when (message) {
-                    is AssistantText -> message.text.isNotBlank() || !message.reasoning.isNullOrBlank()
-                    is ToolCall -> true
-                    else -> false
-                }
-            }
-        }
+        isWaitingForFirstToken(messages, running)
     }
-    // 性能：原实现给 LazyColumn 挂 scrollFadingEdge（内部依赖 CompositingStrategy.Offscreen），
-    // 使整个列表**滚动期间每帧都要全量离屏合成**——屏幕越大代价越高，
-    // 表现为「静止不卡、快速滑动明显掉帧」。现改为在列表之上叠加轻量渐变（零离屏合成）。
+
+    // 顶部悬浮栏使用轻量渐变，避免列表滚动期间全量离屏合成。
+    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalMinimumInteractiveComponentSize provides 0.dp) {
     Box(modifier = modifier) {
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(top = androidx.compose.foundation.layout.WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp, bottom = 8.dp),
     ) {
         if (initializing) {
             item {
@@ -190,15 +180,7 @@ internal fun ChatMessageList(
                 }
             }
             itemsIndexed(renderItems, key = { _, item -> item.stableKey }) { index, item ->
-                val top = when {
-                    item is ChatRenderItem.MessageItem && item.message is UserMessage -> 32.dp
-                    // 连续过程项保持分组感，同时为标题与摘要留出呼吸空间。
-                    isThinkingOrActionItem(item) && isThinkingOrActionItem(renderItems.getOrNull(index - 1)) -> 8.dp
-                    // 最终回答与执行过程拉开距离，形成清晰的阅读停顿。
-                    item is ChatRenderItem.MessageItem && item.message is AssistantText && isThinkingOrActionItem(renderItems.getOrNull(index - 1)) -> 24.dp
-                    else -> 16.dp
-                }
-                if (index > 0) Spacer(Modifier.height(top))
+                if (index > 0) Spacer(Modifier.height(2.dp))
                 when (item) {
                     is ChatRenderItem.CollapseButtonItem -> {
                         RoundCollapseButton(
@@ -276,7 +258,7 @@ internal fun ChatMessageList(
             if (waitingForFirstOutput) {
                 item(key = "assistant_generation_placeholder") {
                     Spacer(Modifier.height(8.dp))
-                    AssistantGenerationPlaceholder()
+                    ChatTypingIndicator()
                 }
             }
         }
@@ -300,43 +282,9 @@ internal fun ChatMessageList(
             Spacer(Modifier.height(4.dp))
         }
     }
-        // 轻量渐隐：叠加在列表之上，不使用离屏合成（scrollFadingEdge 的性能替代）。
-        if (!top.wkbin.taixu.ui.theme.LocalChatBackgroundActive.current) ScrollFadeOverlay(top = 4.dp, bottom = 20.dp)
+        if (!top.wkbin.taixu.ui.theme.LocalChatBackgroundActive.current) ScrollFadeOverlay(top = androidx.compose.foundation.layout.WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 72.dp, bottom = 0.dp)
     }
 }
-
-/** Visible while a non-streaming model (notably image generators) is still preparing its result. */
-@Composable
-private fun AssistantGenerationPlaceholder() {
-    RuntimeCard(
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            IconTile(
-                icon = RuntimeIconName.Image,
-                size = 44.dp,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = stringResource(R.string.chat_generating_content),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = stringResource(R.string.chat_generating_content_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.5.dp)
-        }
-    }
 }
 
 @Composable

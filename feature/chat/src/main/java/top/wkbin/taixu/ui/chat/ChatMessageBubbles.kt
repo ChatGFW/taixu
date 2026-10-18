@@ -420,7 +420,7 @@ internal fun AssistantBubble(
         Toast.makeText(context, context.getString(R.string.chat_response_copied), Toast.LENGTH_SHORT).show()
     }
 
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         if (!reasoning.isNullOrBlank()) {
             ThinkingBlock(
                 id = message.id,
@@ -497,71 +497,70 @@ internal fun AssistantBubble(
             }
         }
 
-        // 底部动作栏：耗时信息 + 复制按钮。
-        // 两个信息 Text 必须可收缩（weight 上限 + 单行省略），否则长 token 明细会把
-        // Spacer 压成 0 宽并把「重新生成/分支/复制」挤出气泡右缘，功能点不到。
+        // 统计区域占满剩余宽度，操作按钮始终贴右；长统计文本可收缩省略。
         if (!live && message.text.isNotBlank()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 0.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                message.totalMs?.let {
-                    Text(
-                        stringResource(R.string.chat_elapsed, formatChatDuration(it)),
-                        modifier = Modifier.weight(1f, fill = false),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.Monospace,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    message.totalMs?.let {
+                        Text(
+                            stringResource(R.string.chat_elapsed, formatChatDuration(it)),
+                            modifier = Modifier.weight(1f, fill = false),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
 
-                // Provider 报告的本轮 token 用量明细（输入/输出/缓存命中与命中率）。
-                val tokenParts = buildList {
-                    message.promptTokens?.let { add("↑${formatTokenCount(it)}") }
-                    message.completionTokens?.let { add("↓${formatTokenCount(it)}") }
-                    message.cachedTokens?.takeIf { cached -> cached > 0 }?.let { cached ->
-                        val prompt = message.promptTokens ?: 0
-                        val pct = if (prompt > 0) ((cached.toLong() * 100L) / prompt.toLong()).toInt().coerceIn(1, 100) else null
-                        if (pct != null) {
-                            add("⚡${formatTokenCount(cached)} ($pct%)")
-                        } else {
-                            add("⚡${formatTokenCount(cached)}")
+                    // Provider 报告的本轮 token 用量明细（输入/输出/缓存命中与命中率）。
+                    val tokenParts = buildList {
+                        message.promptTokens?.let { add("↑${formatTokenCount(it)}") }
+                        message.completionTokens?.let { add("↓${formatTokenCount(it)}") }
+                        message.cachedTokens?.takeIf { cached -> cached > 0 }?.let { cached ->
+                            val prompt = message.promptTokens ?: 0
+                            val pct = if (prompt > 0) ((cached.toLong() * 100L) / prompt.toLong()).toInt().coerceIn(1, 100) else null
+                            if (pct != null) {
+                                add("⚡${formatTokenCount(cached)} ($pct%)")
+                            } else {
+                                add("⚡${formatTokenCount(cached)}")
+                            }
                         }
                     }
-                }
 
-                if (tokenParts.isNotEmpty()) {
-                    Text(
-                        tokenParts.joinToString(" "),
-                        modifier = Modifier.weight(1f, fill = false),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                        fontFamily = FontFamily.Monospace,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                    if (tokenParts.isNotEmpty()) {
+                        Text(
+                            tokenParts.joinToString(" "),
+                            modifier = Modifier.weight(1f, fill = false),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
 
-                Spacer(Modifier.weight(1f))
+                }
 
                 if (showRegenerate) {
-                    IconButton(onClick = onRegenerate, modifier = Modifier.size(48.dp), contentDescription = stringResource(R.string.chat_regenerate)) {
-                        RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                    IconButton(onClick = onRegenerate, modifier = Modifier.size(24.dp), contentDescription = stringResource(R.string.chat_regenerate)) {
+                        RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
 
-                IconButton(onClick = onCreateBranch, modifier = Modifier.size(48.dp), contentDescription = stringResource(R.string.chat_branch_from_here)) {
-                    RuntimeIcon(RuntimeIconName.GitBranch, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                IconButton(onClick = onCreateBranch, modifier = Modifier.size(24.dp), contentDescription = stringResource(R.string.chat_branch_from_here)) {
+                    RuntimeIcon(RuntimeIconName.GitBranch, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 // 复制按钮
-                IconButton(onClick = copyAll, modifier = Modifier.size(48.dp), contentDescription = stringResource(R.string.chat_copy)) {
+                IconButton(onClick = copyAll, modifier = Modifier.size(24.dp), contentDescription = stringResource(R.string.chat_copy)) {
                     RuntimeIcon(
                         RuntimeIconName.Copy,
-                        Modifier.size(24.dp),
+                        Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -760,11 +759,9 @@ internal fun ThinkingBlock(
     var translatedText by rememberSaveable(id) { mutableStateOf<String?>(null) }
     var isTranslating by remember { mutableStateOf(false) }
     var showMissingModelDialog by rememberSaveable(id) { mutableStateOf(false) }
-
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-
     val translationManager = remember {
         GlobalContext.getOrNull()
             ?.getOrNull<TranslationManager>()
@@ -780,7 +777,6 @@ internal fun ThinkingBlock(
     }
     val translationModelStatus by (translationManager?.status ?: fallbackStatusFlow)
         .collectAsStateWithLifecycle()
-
     LaunchedEffect(expanded, autoTranslate) {
         if (expanded && autoTranslate && !live && !showTranslation && translatedText == null) {
             if (translationManager?.isReady() == true) {
@@ -794,7 +790,6 @@ internal fun ThinkingBlock(
             }
         }
     }
-
     val copyToClipboard = {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val textToCopy = if (showTranslation && translatedText != null) translatedText else reasoning
@@ -804,31 +799,29 @@ internal fun ThinkingBlock(
 
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large,
-        containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(
-            if (live) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
-        ), contentPadding = PaddingValues(16.dp),
+        containerColor = Color.Transparent, contentPadding = PaddingValues(0.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier
-                .fillMaxWidth().heightIn(min = 48.dp).clip(MaterialTheme.shapes.medium)
+                .fillMaxWidth().clip(MaterialTheme.shapes.medium)
                 .clickable { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); expanded = !expanded },
         ) {
             Box(
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(18.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 if (live) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(18.dp),
                         strokeWidth = 1.5.dp,
                         color = MaterialTheme.colorScheme.primary,
                     )
                 } else {
                     RuntimeIcon(
                         RuntimeIconName.Brain,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -841,9 +834,9 @@ internal fun ThinkingBlock(
                         stringResource(R.string.chat_reasoning_duration, "%.1f".format(durationMs / 1000.0))
                     else -> stringResource(R.string.chat_reasoning_process)
                 },
-                style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f),
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
-                color = if (live) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onSurface,
             )
 
             if (expanded) {
@@ -877,19 +870,19 @@ internal fun ThinkingBlock(
                                 }
                             }
                         },
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier.size(18.dp),
                         contentDescription = if (showTranslation) "查看英文原文" else "离线翻译思考",
                     ) {
                         if (isTranslating) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(18.dp),
                                 strokeWidth = 1.5.dp,
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         } else {
                             RuntimeIcon(
                                 RuntimeIconName.Globe,
-                                Modifier.size(24.dp),
+                                Modifier.size(18.dp),
                                 tint = if (showTranslation) MaterialTheme.colorScheme.primary
                                        else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -899,12 +892,12 @@ internal fun ThinkingBlock(
 
                 IconButton(
                     onClick = copyToClipboard,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(18.dp),
                     contentDescription = stringResource(R.string.chat_copy_reasoning),
                 ) {
                     RuntimeIcon(
                         RuntimeIconName.Copy,
-                        Modifier.size(24.dp),
+                        Modifier.size(18.dp),
                         MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -912,7 +905,7 @@ internal fun ThinkingBlock(
 
             RuntimeIcon(
                 if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                Modifier.size(24.dp),
+                Modifier.size(18.dp),
                 MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -925,6 +918,10 @@ internal fun ThinkingBlock(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        expanded = false
+                    }
                     .padding(top = 12.dp, bottom = 4.dp),
             ) {
                 if (showTranslation && translatedText != null) {

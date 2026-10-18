@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -102,7 +103,7 @@ internal fun ToolCard(
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
         Column(
             Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             if (showReasoning) {
                 call.reasoning?.takeIf { it.isNotBlank() }
@@ -116,33 +117,31 @@ internal fun ToolCard(
             }
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(), onClick = { expanded = !expanded },
-                shape = MaterialTheme.shapes.large, contentPadding = PaddingValues(16.dp),
-                containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(),
+                shape = MaterialTheme.shapes.large, contentPadding = PaddingValues(0.dp),
+                containerColor = Color.Transparent,
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Box(
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(18.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        // 工具语义图标：形状标识工具类别，tint 沿用状态色（运行中/成功/失败/待定）
-                        val iconModifier = if (dotDesc != null) Modifier.semantics { contentDescription = dotDesc } else Modifier
-                        RuntimeIcon(
-                            toolIcon(call.tool),
-                            Modifier.size(24.dp).then(iconModifier),
-                            dotColor,
-                        )
+                        ToolStatusIndicator(toolIcon(call.tool), dotColor, dotDesc)
                     }
                     Text(
-                        if (call.tool == HarnessTool.MCP) stringResource(R.string.chat_call_tool) else toolName(call.tool, call.rawToolName),
-                        style = MaterialTheme.typography.titleSmall,
+                        toolName(call.tool, call.rawToolName),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        toolArgsSummary(call).replace('\n', ' ').replace('\r', ' '),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
                     )
                     // 代码改动统计徽章 (+N -M)
                     val diffStat = remember(call, result) {
@@ -171,20 +170,15 @@ internal fun ToolCard(
                             it,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontFamily = FontFamily.Monospace,
+                            fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false,
                         )
                     }
                     RuntimeIcon(
                         if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                        Modifier.size(24.dp),
+                        Modifier.size(18.dp),
                         MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Text(
-                    if (call.tool == HarnessTool.MCP) "${toolName(call.tool, call.rawToolName)} · ${toolArgsSummary(call)}" else toolArgsSummary(call),
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp), maxLines = 2, overflow = TextOverflow.Ellipsis,
-                )
             }
 
             val downloadingPrefix = stringResource(R.string.chat_downloading_prefix)
@@ -232,7 +226,7 @@ internal fun ToolCard(
                 if (result != null && !running) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = onRetry) {
-                            RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(24.dp), MaterialTheme.colorScheme.primary)
+                            RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(4.dp))
                             Text(stringResource(R.string.chat_retry_from_tool), style = MaterialTheme.typography.labelLarge)
                         }

@@ -136,7 +136,7 @@ class ApiContextAssembler(
         }
         val systemPrompt = ContextWindowPolicy.fitSystemPrompt(rawSystemPrompt, budgetTokens)
         var failureMemory = if (model.pureChatMode || toolCallMode == ToolCallMode.DISABLED) "" else operationCoordinator.failureMemoryBlock(sessId)
-        var pluginContext = if (model.pureChatMode || secretRedactor == null || plugins == null) "" else plugins.context(
+        var pluginContext = if (model.pureChatMode || toolCallMode == ToolCallMode.DISABLED || secretRedactor == null || plugins == null) "" else plugins.context(
             top.wkbin.taixu.harness.plugins.PluginContextRequest(sessId, workspacePath),
             top.wkbin.taixu.harness.environment.executionOutputRedactor(secretRedactor, environments, null, settingsDataStore, sessId, workspacePath),
         )

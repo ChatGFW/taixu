@@ -269,13 +269,13 @@ internal fun StickyPlanBar(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
+            .clip(MaterialTheme.shapes.medium)
             .clickable {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 expanded = !expanded
             },
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp),
+        shape = MaterialTheme.shapes.medium,
         border = BorderStroke(
             1.dp,
             if (allDone) MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
@@ -283,7 +283,7 @@ internal fun StickyPlanBar(
         ),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp).animateContentSize(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp).animateContentSize(),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             // ── 标题行 ──

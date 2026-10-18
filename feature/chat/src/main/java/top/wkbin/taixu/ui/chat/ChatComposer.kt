@@ -192,7 +192,7 @@ internal fun ChatComposer(
         }
     }
     RuntimeCard(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp),
         shape = MaterialTheme.shapes.extraLarge, contentPadding = PaddingValues(0.dp),
         containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(MaterialTheme.colorScheme.surfaceContainer),
         borderColor = if (running) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
@@ -201,8 +201,8 @@ internal fun ChatComposer(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             // 显式挂载的能力才展示标签；常驻能力从 + 菜单管理。
             val allDisplayItems = remember(pinnedCapabilities, attachedMentions) {
@@ -305,8 +305,8 @@ internal fun ChatComposer(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                    .heightIn(min = 40.dp)
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 if (input.isEmpty()) {
@@ -367,7 +367,6 @@ internal fun ChatComposer(
                 )
             }
 
-            ToolActivityPill(running, status, messages, toolResults, workspace, onStop, compact = true)
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -382,7 +381,7 @@ internal fun ChatComposer(
                     onPickImage = { imagePickerLauncher.launch("image/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
                 )
-                // 右侧发送 / 停止控制区（圆形灵动按钮）
+                // 右侧发送 / 停止控制区。
                 val canSend = !initializing && (input.isNotBlank() || attachments.isNotEmpty())
                 if (running) {
                     Row(
@@ -395,32 +394,9 @@ internal fun ChatComposer(
                                 ComposerSendMode.STEER -> semanticColors().agent
                                 ComposerSendMode.NEXT_RUN -> MaterialTheme.colorScheme.secondary
                             }
-                            // STEER 是固定品牌紫（白字为其原生配对）；NEXT_RUN 跟随主题
-                            // secondary，必须用 onSecondary——玄同深色 secondary 是浅紫，
-                            // 写死白字几乎不可见。
-                            val sendIconTint = when (sendMode) {
-                                ComposerSendMode.STEER -> Color.White
-                                ComposerSendMode.NEXT_RUN -> MaterialTheme.colorScheme.onSecondary
-                            }
-                            val sendDesc = stringResource(R.string.chat_send)
-                            Surface(
-                                onClick = doSend,
-                                shape = CircleShape,
-                                color = sendTint,
-                                modifier = Modifier
-                                    .minimumInteractiveComponentSize()
-                                    .size(48.dp)
-                                    .semantics { contentDescription = sendDesc },
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    RuntimeIcon(
-                                        name = RuntimeIconName.ArrowUp,
-                                        modifier = Modifier.size(24.dp),
-                                        tint = sendIconTint,
-                                    )
-                                }
-                            }
+                            ComposerSendButton(onClick = doSend, enabled = true, tint = sendTint)
                         }
+
                         run {
                             val stopDesc = stringResource(R.string.chat_stop_generation)
                             Surface(
@@ -448,25 +424,7 @@ internal fun ChatComposer(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         ContextUsageRing(contextUsage)
-                        val sendDesc = stringResource(R.string.chat_send)
-                        Surface(
-                            onClick = { if (canSend) doSend() },
-                            enabled = canSend,
-                            shape = CircleShape,
-                            color = if (canSend) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier.minimumInteractiveComponentSize().size(48.dp)
-                                .semantics { contentDescription = sendDesc },
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                RuntimeIcon(
-                                    name = RuntimeIconName.ArrowUp,
-                                    modifier = Modifier.size(24.dp),
-                                    tint = if (canSend) MaterialTheme.colorScheme.onPrimary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                                )
-                            }
-                        }
+                        ComposerSendButton(onClick = doSend, enabled = canSend, tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
