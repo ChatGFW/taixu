@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonObject
@@ -23,13 +22,14 @@ import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
-import java.io.BufferedReader
 import java.io.File
-import java.io.InputStreamReader
-import java.io.OutputStream
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
+import top.wkbin.taixu.runtime.bridge.HostBridgeHttp.HttpRequest
+import top.wkbin.taixu.runtime.bridge.HostBridgeHttp.HttpResponse
+import top.wkbin.taixu.runtime.bridge.HostBridgeHttp.parseHttpRequest
+import top.wkbin.taixu.runtime.bridge.HostBridgeHttp.writeResponse
 import java.util.UUID
 import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
 
@@ -57,7 +57,6 @@ class HostBridge(
         const val BRIDGE_PORT = 7980
         const val BRIDGE_HOST = "127.0.0.1"
         const val BRIDGE_URL = "http://127.0.0.1:7980"
-        private const val MAX_BODY_BYTES = 4 * 1024 * 1024
         private const val READ_TIMEOUT_MS = 10_000
     }
 
@@ -65,6 +64,20 @@ class HostBridge(
 
     /** 桥接 API 密钥——构造时生成，始终可用（即使桥接未启动）。 */
     val bridgeKey: String = UUID.randomUUID().toString().replace("-", "")
+
+    private val pluginGateway = PluginHostGateway(appInfo = {
+        buildJsonObject {
+            put("package", context.packageName)
+            put("androidApi", android.os.Build.VERSION.SDK_INT)
+        }.toString()
+    }, clipboardWrite = { PluginHostClipboard.write(context, it) })
+
+    /** Native-only call after document approval; the credential never leaves this host adapter. */
+    fun readPluginAppInfo(scope: PluginHostScope, available: () -> Boolean): String =
+        pluginGateway.readAppInfo(scope, available)
+
+    fun writePluginClipboard(scope: PluginHostScope, text: String, available: () -> Boolean): String =
+        pluginGateway.writeClipboard(scope, text, available)
 
     private var serverSocket: ServerSocket? = null
     private var serverJob: Job? = null
@@ -103,6 +116,7 @@ class HostBridge(
     /** 停止 HTTP 监听。 */
     @Synchronized
     fun stop() {
+        pluginGateway.revokeAll()
         serverJob?.cancel()
         serverSocket?.runCatching { close() }
         serverSocket = null
@@ -115,8 +129,7 @@ class HostBridge(
     private suspend fun handleClient(client: Socket) {
         try {
             client.soTimeout = READ_TIMEOUT_MS
-            val reader = BufferedReader(InputStreamReader(client.getInputStream(), Charsets.UTF_8))
-            val request = parseHttpRequest(reader) ?: run {
+            val request = parseHttpRequest(client.getInputStream()) ?: run {
                 writeResponse(client, 400, errorJson("Failed to parse HTTP request"))
                 return
             }
@@ -129,52 +142,8 @@ class HostBridge(
         }
     }
 
-    private data class HttpRequest(
-        val method: String,
-        val path: String,
-        val headers: Map<String, String>,
-        val body: String,
-    )
-
-    private data class HttpResponse(val status: Int, val body: String)
-
-    private fun parseHttpRequest(reader: BufferedReader): HttpRequest? {
-        val requestLine = reader.readLine() ?: return null
-        val parts = requestLine.split(" ", limit = 3)
-        if (parts.size < 2) return null
-        val method = parts[0].uppercase()
-        val path = parts[1]
-
-        val headers = mutableMapOf<String, String>()
-        while (true) {
-            val line = reader.readLine() ?: break
-            if (line.isEmpty()) break
-            val colonIdx = line.indexOf(':')
-            if (colonIdx > 0) {
-                val key = line.substring(0, colonIdx).trim().lowercase()
-                val value = line.substring(colonIdx + 1).trim()
-                headers[key] = value
-            }
-        }
-
-        val contentLength = headers["content-length"]?.toIntOrNull() ?: 0
-        val body = if (contentLength > 0 && contentLength <= MAX_BODY_BYTES) {
-            val chars = CharArray(contentLength)
-            var read = 0
-            while (read < contentLength) {
-                val n = reader.read(chars, read, contentLength - read)
-                if (n < 0) break
-                read += n
-            }
-            String(chars, 0, read)
-        } else {
-            ""
-        }
-
-        return HttpRequest(method, path, headers, body)
-    }
-
     private suspend fun route(request: HttpRequest): HttpResponse {
+        pluginGateway.route(request)?.let { return HttpResponse(it.status, it.body) }
         // 认证检查（health 端点免认证）
         val isHealth = request.path.startsWith("/api/health")
         if (!isHealth && !checkAuth(request.headers)) {
@@ -422,26 +391,6 @@ class HostBridge(
                 }
             }
         }
-    }
-
-    private fun writeResponse(client: Socket, status: Int, body: String) {
-        val statusText = when (status) {
-            200 -> "OK"
-            400 -> "Bad Request"
-            401 -> "Unauthorized"
-            404 -> "Not Found"
-            500 -> "Internal Server Error"
-            else -> "OK"
-        }
-        val bodyBytes = body.toByteArray(Charsets.UTF_8)
-        val output: OutputStream = client.getOutputStream()
-        output.write("HTTP/1.1 $status $statusText\r\n".toByteArray(Charsets.US_ASCII))
-        output.write("Content-Type: application/json; charset=utf-8\r\n".toByteArray(Charsets.US_ASCII))
-        output.write("Content-Length: ${bodyBytes.size}\r\n".toByteArray(Charsets.US_ASCII))
-        output.write("Connection: close\r\n".toByteArray(Charsets.US_ASCII))
-        output.write("\r\n".toByteArray(Charsets.US_ASCII))
-        output.write(bodyBytes)
-        output.flush()
     }
 
     private fun errorJson(message: String): String = buildJsonObject {

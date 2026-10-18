@@ -34,14 +34,15 @@ internal object LocalPluginArchive {
         return decoder.decode(java.nio.ByteBuffer.wrap(bytes.toByteArray())).toString()
     }
 
-    fun inspect(input: InputStream, checkCancellation: () -> Unit = {}): String = ZipInputStream(input.buffered()).use { zip ->
+    fun inspect(input: InputStream, checkCancellation: () -> Unit = {}, maximumBytes: Long = MAX_BYTES,
+        maximumEntries: Int = MAX_ENTRIES): String = ZipInputStream(input.buffered()).use { zip ->
         var entries = 0
         var bytes = 0L
         val buffer = ByteArray(64 * 1024)
         while (true) {
             checkCancellation()
             val entry = zip.nextEntry ?: break
-            require(++entries <= MAX_ENTRIES) { "插件包条目过多" }
+            require(++entries <= maximumEntries) { "插件包条目过多" }
             val name = entryName(entry.name)
             if (name == "manifest.json" && !entry.isDirectory) return readManifest(zip)
             while (true) {
@@ -49,13 +50,14 @@ internal object LocalPluginArchive {
                 val count = zip.read(buffer)
                 if (count < 0) break
                 bytes += count
-                require(bytes <= MAX_BYTES) { "预览扫描超过大小限制" }
+                require(bytes <= maximumBytes) { "预览扫描超过大小限制" }
             }
         }
         error("插件包缺少 manifest.json")
     }
 
-    fun extract(input: InputStream, staging: File, total: Long?, progress: (LocalPluginImportProgress) -> Unit, checkCancellation: () -> Unit = {}): ToolManifest {
+    fun extract(input: InputStream, staging: File, total: Long?, progress: (LocalPluginImportProgress) -> Unit, checkCancellation: () -> Unit = {},
+        maximumBytes: Long = MAX_BYTES, maximumEntries: Int = MAX_ENTRIES): ToolManifest {
         var text: String? = null
         var bytes = 0L
         var lastReport = 0L
@@ -67,7 +69,7 @@ internal object LocalPluginArchive {
                 checkCancellation()
                 val entry = zip.nextEntry ?: break
                 val name = entryName(entry.name)
-                require(names.add(name) && names.size <= MAX_ENTRIES) { "插件包条目重复或过多" }
+                require(names.add(name) && names.size <= maximumEntries) { "插件包条目重复或过多" }
                 if (entry.isDirectory) { require(name != "manifest.json"); continue }
                 require(name != "payload") { "payload 必须是目录" }
                 if (name == "manifest.json") {
@@ -85,7 +87,7 @@ internal object LocalPluginArchive {
                             val count = zip.read(buffer)
                             if (count < 0) break
                             bytes += count
-                            require(bytes <= MAX_BYTES) { "插件包超过大小限制" }
+                            require(bytes <= maximumBytes) { "插件包超过大小限制" }
                             output.write(buffer, 0, count)
                             digest.update(buffer, 0, count)
                             if (bytes - lastReport >= 4L * 1024 * 1024) {
@@ -96,15 +98,20 @@ internal object LocalPluginArchive {
                     }
                     hashes[name.removePrefix("payload/")] = digest.digest().joinToString("") { "%02x".format(it) }
                 }
-                require(bytes <= MAX_BYTES) { "插件包超过大小限制" }
+                require(bytes <= maximumBytes) { "插件包超过大小限制" }
             }
         }
         val manifestText = requireNotNull(text) { "插件包缺少 manifest.json" }
         val manifest = PluginPackageProtocol.decode(manifestText)
         ToolManifestValidator.validateAll(listOf(manifest))
         manifest.plugin?.let { require(it.integrity == hashes) { "payload 文件集合或 SHA-256 与清单不一致" } }
+        if (top.wkbin.taixu.plugin.packages.WebPluginPackagePolicy.isWeb(manifest)) {
+            val payloadBytes = hashes.keys.sumOf { File(staging, "payload/$it").length() }
+            require(payloadBytes <= top.wkbin.taixu.plugin.packages.WebPluginPackagePolicy.MAX_PAYLOAD_BYTES) { "Web 插件资源超过大小限制" }
+        }
         File(staging, "manifest.json").writeText(manifestText)
         File(staging, "payload").mkdirs()
+        ProotWebPackagePreflight.verify(manifest, staging, checkCancellation)
         progress(LocalPluginImportProgress(total ?: bytes, total, "校验完成"))
         return manifest
     }

@@ -29,13 +29,16 @@ internal class LocalPluginStore(private val root: File, private val cache: File)
         input: () -> InputStream, total: Long?, expected: ToolManifest?,
         validateCandidate: (ToolManifest) -> Unit,
         progress: (LocalPluginImportProgress) -> Unit,
+        maximumBytes: Long = LocalPluginArchive.MAX_BYTES,
+        maximumEntries: Int = LocalPluginArchive.MAX_ENTRIES,
     ): ToolManifest = mutations.withLock {
         check(cache.mkdirs() || cache.isDirectory)
         val staging = File(cache, "txplugin-${java.util.UUID.randomUUID()}")
         check(staging.mkdir())
         try {
             val operation = currentCoroutineContext()
-            val manifest = input().use { LocalPluginArchive.extract(it, staging, total, progress) { operation.ensureActive() } }
+            val manifest = input().use { LocalPluginArchive.extract(it, staging, total, progress,
+                checkCancellation = { operation.ensureActive() }, maximumBytes = maximumBytes, maximumEntries = maximumEntries) }
             operation.ensureActive()
             require(expected == null || manifest == expected) { "插件清单已变化，请重新预览并确认" }
             validateCandidate(manifest)
@@ -60,6 +63,26 @@ internal class LocalPluginStore(private val root: File, private val cache: File)
         } finally {
             if (staging.exists()) staging.deleteRecursively()
         }
+    }
+
+    /** Remove only a confirmed current static package, under the same lock used for imports. */
+    suspend fun removeWeb(expected: ToolManifest) = mutations.withLock {
+        require(top.wkbin.taixu.plugin.packages.WebPluginPackagePolicy.isWeb(expected))
+        val directory = versionDirectory(expected.id, expected.version).parentFile!!
+        require(selected(directory) == expected) { "插件版本已变化，请重新确认移除" }
+        val canonical = directory.canonicalFile
+        require(canonical.toPath().startsWith(root.canonicalFile.toPath()) && canonical != root.canonicalFile)
+        java.nio.file.Files.walkFileTree(canonical.toPath(), object : java.nio.file.SimpleFileVisitor<java.nio.file.Path>() {
+            override fun visitFile(file: java.nio.file.Path, attributes: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                java.nio.file.Files.delete(file)
+                return java.nio.file.FileVisitResult.CONTINUE
+            }
+            override fun postVisitDirectory(directory: java.nio.file.Path, failure: java.io.IOException?): java.nio.file.FileVisitResult {
+                if (failure != null) throw failure
+                java.nio.file.Files.delete(directory)
+                return java.nio.file.FileVisitResult.CONTINUE
+            }
+        })
     }
 
     private fun selected(idDir: File): ToolManifest? {

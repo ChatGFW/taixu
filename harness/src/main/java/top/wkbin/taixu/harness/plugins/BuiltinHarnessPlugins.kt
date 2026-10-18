@@ -14,7 +14,6 @@ import top.wkbin.taixu.plugin.api.*
 fun builtinHarnessPlugins(): List<HarnessPlugin> = listOf(HarnessPlugin(
     descriptor = PluginDescriptor("taixu.harness", "1.0.0", extensions = listOf(
         PluginExtension("runtime-facts", PluginExtensionPoint.TOOL),
-        PluginExtension("capability-guide", PluginExtensionPoint.CONTEXT),
         PluginExtension("chat", PluginExtensionPoint.PROVIDER),
         PluginExtension("responses", PluginExtensionPoint.PROVIDER),
         PluginExtension("anthropic", PluginExtensionPoint.PROVIDER),
@@ -24,9 +23,6 @@ fun builtinHarnessPlugins(): List<HarnessPlugin> = listOf(HarnessPlugin(
     tools = listOf(PluginTool("runtime-facts", "查看插件 SDK 和扩展范围，不执行命令。",
         Json.parseToJsonElement("""{"type":"object","properties":{},"additionalProperties":false}""").jsonObject,
     ) { PluginToolOutput(true, "插件 SDK 1；编译时工具、背景资料、Provider 协议、工作流执行器扩展已装配。") }),
-    contexts = listOf(PluginContext("capability-guide") {
-        "编译时插件工具通过 use_capability(action=inspect, server=plugin.taixu.harness) 查询；调用仍受审批及 PLAN 门禁。"
-    }),
     providers = listOf(
         PluginProvider("chat", LlmApi.OPENAI_COMPLETIONS) { client, json -> ChatApi(client, json) },
         PluginProvider("responses", LlmApi.OPENAI_RESPONSES) { client, json -> ResponsesApi(client, json) },

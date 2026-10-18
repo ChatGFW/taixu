@@ -1,0 +1,25 @@
+<resources>
+    <string name="web_packages_title">External Web plugins</string>
+    <string name="web_packages_scope">Import static page plugins. Ordinary pages need no Linux; PRoot pages require local Linux and Python 3. App capabilities require separate confirmation.</string>
+    <string name="web_packages_proot_label">PRoot static service</string>
+    <string name="web_packages_proot_too_large">This package exceeds the PRoot startup capacity. Ask its author to reduce the assets or use the ordinary PACKAGE page source.</string>
+    <string name="web_packages_proot_source">Opening starts a host-managed static service in the current local distribution; closing releases it. Requires ready Linux and /usr/bin/python3; dependencies are not installed automatically. Compressed assets and authentication must fit a 4 KiB bootstrap packet or startup is refused.</string>
+    <string name="web_packages_import">Import</string>
+    <string name="web_packages_open">Open</string>
+    <string name="web_packages_remove">Remove</string>
+    <string name="web_packages_cancel">Cancel</string>
+    <string name="web_packages_retry">Retry</string>
+    <string name="web_packages_busy">Validating and processing plugin…</string>
+    <string name="web_packages_failed">Could not process the plugin. Check its format, integrity and version, then try again.</string>
+    <string name="web_packages_empty">No Web plugins imported</string>
+    <string name="web_packages_confirm_title">Import external Web plugin?</string>
+    <string name="web_packages_confirmation">Names and descriptions are supplied by the plugin, without official endorsement. Import verifies file integrity. It does not open the page or grant app capabilities.</string>
+    <string name="web_packages_no_capabilities">This package requests no app capabilities.</string>
+    <string name="web_packages_app_info">Requests the app package name, Android API and plugin API versions. No credentials, files or device logs are included.</string>
+    <string name="web_packages_permission_title">Allow plugin to read app information?</string>
+    <string name="web_packages_remove_title">Remove Web plugin?</string>
+    <string name="web_packages_remove_detail">Remove all imported versions of “%1$s” and invalidate permissions for its open pages.</string>
+    <string name="web_packages_unavailable">The plugin is loading, has been upgraded or has been removed. Return to the list and open it again.</string>
+    <string name="web_packages_clipboard_title">Allow plugin to copy this text?</string>
+    <string name="web_packages_clipboard_write">Requests plain-text clipboard writes, with confirmation of the exact text each time. Replaces the current clipboard without reading it.</string>
+</resources>

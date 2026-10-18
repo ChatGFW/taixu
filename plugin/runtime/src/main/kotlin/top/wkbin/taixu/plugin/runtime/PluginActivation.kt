@@ -27,6 +27,8 @@ class PluginActivation internal constructor(
     })
     private val resources = linkedMapOf<String, suspend () -> Boolean>()
     private var accepting = true
+    /** Synchronous admission hint for document bridges; stop closes this before UI disposal. */
+    val isAccepting: Boolean get() = synchronized(monitor) { accepting && !failed.get() && job.isActive }
     private var leases = 0
     private val drained = CompletableDeferred<Unit>()
 
@@ -35,6 +37,17 @@ class PluginActivation internal constructor(
         check(accepting) { "Plugin generation is draining" }
         require(id.isNotBlank() && id !in resources) { "Invalid or duplicate resource identity" }
         resources[id] = release
+    }
+
+    /** Page disposal may return its resource before the entire generation stops. */
+    suspend fun releaseOwned(id: String): Boolean {
+        val release = synchronized(monitor) { resources[id] } ?: return true
+        val confirmed = try { release() } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) { false }
+        if (!confirmed) return false
+        synchronized(monitor) { if (resources[id] === release) resources.remove(id) }
+        return true
     }
 
     internal fun acquire(): PluginLease? = synchronized(monitor) {

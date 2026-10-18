@@ -16,6 +16,41 @@ class SkillPackageParserTest {
     private val parser = SkillPackageParser()
 
     @Test
+    fun parseFromZip_acceptsMoreThan500FilesAndDirectories() {
+        val entries = buildList {
+            add("SKILL.md" to "# Large Skill")
+            repeat(600) { index ->
+                add("references/dir-$index/" to "")
+                add("references/dir-$index/note.md" to "Reference $index")
+            }
+        }
+
+        val pkg = parser.parseFromZip(createTestZip(*entries.toTypedArray()))
+
+        assertEquals(601, pkg.rawFiles.size)
+        assertEquals("Reference 599", pkg.rawFiles.getValue("references/dir-599/note.md").toString(StandardCharsets.UTF_8))
+        assertTrue(SkillPackageInspector().inspect(pkg).isSafe)
+    }
+
+    @Test
+    fun parseFromDirectory_acceptsMoreThan500Files() {
+        val dir = java.nio.file.Files.createTempDirectory("large-skill").toFile()
+        try {
+            java.io.File(dir, "SKILL.md").writeText("# Large Skill")
+            repeat(600) { index ->
+                java.io.File(dir, "note-$index.md").writeText("Reference $index")
+            }
+
+            val pkg = parser.parseFromDirectory(dir)
+
+            assertEquals(601, pkg.rawFiles.size)
+            assertTrue(SkillPackageInspector().inspect(pkg).isSafe)
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun parseFromZip_deconstructsTemplatesCorrectly() {
         val zipBytes = createTestZip(
             "SKILL.md" to """

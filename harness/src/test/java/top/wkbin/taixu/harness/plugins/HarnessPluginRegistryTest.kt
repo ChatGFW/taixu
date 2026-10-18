@@ -86,6 +86,12 @@ class HarnessPluginRegistryTest {
         assertEquals(LlmApi.entries.toSet(), registry.providers(OkHttpClient(), Json).map { it.api }.toSet())
         assertEquals(setOf(top.wkbin.taixu.core.model.workflow.WorkflowNodeType.DELAY), registry.workflowExecutors().flatMap { it.supportedTypes }.toSet())
     }
+    @Test fun builtinCapabilityGuideDoesNotCreateSyntheticUserMessages() = runBlocking {
+        val registry = HarnessPluginRegistry(builtinHarnessPlugins())
+        assertEquals("", registry.context(PluginContextRequest("s", "/workspace")) { it })
+        assertTrue(registry.summaries().contains("plugin.taixu.harness"))
+        assertTrue(registry.inspect("plugin.taixu.harness").second.contains("runtime-facts"))
+    }
     private class Stub(override val api: LlmApi) : LlmApiAdapter {
         override suspend fun chat(model: ModelConfig, messages: List<ApiMessage>) = ChatResult("ok", emptyList())
         override suspend fun chatStream(model: ModelConfig, messages: List<ApiMessage>, onReasoning: (String) -> Unit, onToolProgress: (ToolCallStreamProgress) -> Unit, onDelta: (String) -> Unit) = chat(model, messages)

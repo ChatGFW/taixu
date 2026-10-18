@@ -8,6 +8,9 @@ import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.core.model.RunningSendMode
 /** Narrow preference views keep consumers from depending on the complete settings schema. */
 class AppearancePreferences(private val store: SettingsDataStore) {
+    private val toolStatusStore = ToolStatusPreferences(store.appearanceDataStore)
+    val classicToolStatusDots = toolStatusStore.classicDots
+    suspend fun setClassicToolStatusDots(value: Boolean) = toolStatusStore.setClassicDots(value)
     private val paletteStore = ThemePalettePreferences(store.appearanceDataStore)
     val themePalette get() = paletteStore.palette
     suspend fun selectThemeColor(id: String) = paletteStore.selectColor(id)

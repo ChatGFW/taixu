@@ -70,6 +70,7 @@ fun AppearanceSettingsScreen(
             }
         }
         item("background") { ChatBackgroundSettingsCard() }
+        item("tool_status_style") { ToolStatusStyleSettingsCard() }
         item("scale") {
             PersonalizationSection(stringResource(R.string.settings_interface_scale)) {
                 PreferenceSurface {

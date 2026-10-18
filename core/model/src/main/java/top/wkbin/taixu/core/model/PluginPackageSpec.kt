@@ -14,6 +14,8 @@ data class PluginPackageSpec(
     val resources: List<PackageResource> = emptyList(),
     /** Every regular payload file must have a SHA-256 entry relative to payload/. */
     val integrity: Map<String, String> = emptyMap(),
+    /** WEB assets are read directly by default; PROOT_STATIC selects a fixed host-owned server. */
+    val webSource: String = "PACKAGE",
 )
 
 @Serializable data class PackageApiRange(val minimum: Int, val maximum: Int)

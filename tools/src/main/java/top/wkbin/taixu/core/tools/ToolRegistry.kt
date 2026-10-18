@@ -10,6 +10,8 @@ import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.common.result.ErrorCode
 import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.core.model.ToolRegistryDocument
+import top.wkbin.taixu.plugin.packages.WebPluginPackagePolicy
+import top.wkbin.taixu.plugin.packages.SemanticVersion
 import java.io.ByteArrayOutputStream
 import java.io.File
 
@@ -64,7 +66,11 @@ class ToolRegistry(
     private val persistedFile: File
         get() = File(context.filesDir, "registry/tools.json")
 
-    fun load(): List<ToolManifest> {
+    fun load(): List<ToolManifest> = loadAll().filterNot(WebPluginPackagePolicy::isWeb)
+
+    fun webPackages(): List<ToolManifest> = loadLocalManifests().filter(WebPluginPackagePolicy::isWeb)
+
+    private fun loadAll(): List<ToolManifest> {
         val persisted = persistedFile.takeIf { it.isFile }?.let { file ->
             runCatching { parseAndValidate(file.readText()) }.getOrNull()
         }
@@ -130,17 +136,23 @@ class ToolRegistry(
     }
 
     /** Import a self-contained .txplugin ZIP into app-private storage. */
-    suspend fun inspectLocal(uri: Uri): AppResult<LocalPluginPreview> = withContext(Dispatchers.IO) {
+    suspend fun inspectLocal(uri: Uri, execution: String = "PROCESS"): AppResult<LocalPluginPreview> = withContext(Dispatchers.IO) {
         try {
             val totalBytes = queryDocumentSize(uri)
             // Most document providers expose a seekable descriptor. Reading the ZIP central
             // directory avoids walking through multi-gigabyte payload entries before showing
             // the confirmation dialog. Pipe-backed providers fall back to streaming safely.
-            val manifestText = inspectSeekableManifest(uri) ?: inspectStreamingManifest(uri)
+            val manifestText = inspectSeekableManifest(uri, execution) ?: inspectStreamingManifest(uri, execution)
             val parsed = top.wkbin.taixu.plugin.packages.PluginPackageProtocol.decode(manifestText)
             val manifest = parsed.copy(source = "LOCAL", offlineOnly = true, installMethod = "LOCAL_PACKAGE")
             ToolManifestValidator.validateAll(listOf(manifest))
+            requireExecution(manifest, execution)
             validateCandidate(manifest)
+            if (ProotWebPackagePreflight.required(manifest)) {
+                val operation = currentCoroutineContext()
+                ProotWebPackagePreflight.preview(context.cacheDir, manifest,
+                    { context.contentResolver.openInputStream(uri) ?: error("无法读取插件包") }, { operation.ensureActive() })
+            }
             AppResult.Success(
                 LocalPluginPreview(
                     manifest = manifest,
@@ -154,7 +166,7 @@ class ToolRegistry(
         }
     }
 
-    private suspend fun inspectSeekableManifest(uri: Uri): String? {
+    private suspend fun inspectSeekableManifest(uri: Uri, execution: String): String? {
         val descriptor = context.contentResolver.openFileDescriptor(uri, "r") ?: return null
         descriptor.use {
             val archive = try {
@@ -169,7 +181,7 @@ class ToolRegistry(
                 while (entries.hasMoreElements()) {
                     currentCoroutineContext().ensureActive()
                     val entry = entries.nextElement()
-                    require(++entryCount <= LocalPluginArchive.MAX_ENTRIES) { "插件包条目过多" }
+                    require(++entryCount <= if (execution == "WEB") WebPluginPackagePolicy.MAX_ARCHIVE_ENTRIES else LocalPluginArchive.MAX_ENTRIES) { "插件包条目过多" }
                     val name = validatePluginEntryName(entry.name)
                     if (name == "manifest.json" && !entry.isDirectory) {
                         require(manifestEntry == null) { "插件包包含重复的 manifest.json" }
@@ -183,9 +195,12 @@ class ToolRegistry(
         }
     }
 
-    private suspend fun inspectStreamingManifest(uri: Uri): String {
+    private suspend fun inspectStreamingManifest(uri: Uri, execution: String): String {
         val operation = currentCoroutineContext()
-        return context.contentResolver.openInputStream(uri)?.use { LocalPluginArchive.inspect(it) { operation.ensureActive() } } ?: error("无法读取插件包")
+        return context.contentResolver.openInputStream(uri)?.use { LocalPluginArchive.inspect(it,
+            checkCancellation = { operation.ensureActive() },
+            maximumBytes = if (execution == "WEB") WebPluginPackagePolicy.MAX_ARCHIVE_BYTES else LocalPluginArchive.MAX_BYTES,
+            maximumEntries = if (execution == "WEB") WebPluginPackagePolicy.MAX_ARCHIVE_ENTRIES else LocalPluginArchive.MAX_ENTRIES) } ?: error("无法读取插件包")
     }
 
     private fun validatePluginEntryName(rawName: String) = LocalPluginArchive.entryName(rawName)
@@ -195,11 +210,15 @@ class ToolRegistry(
         uri: Uri,
         onProgress: (LocalPluginImportProgress) -> Unit = {},
         expected: ToolManifest? = null,
+        execution: String = "PROCESS",
     ): AppResult<ToolManifest> = withContext(Dispatchers.IO) {
         try {
             AppResult.Success(localStore.import(
                 input = { context.contentResolver.openInputStream(uri) ?: error("无法读取插件包") },
-                total = queryDocumentSize(uri), expected = expected, validateCandidate = ::validateCandidate, progress = onProgress,
+                total = queryDocumentSize(uri), expected = expected,
+                validateCandidate = { requireExecution(it, execution); validateCandidate(it) }, progress = onProgress,
+                maximumBytes = if (execution == "WEB") WebPluginPackagePolicy.MAX_ARCHIVE_BYTES else LocalPluginArchive.MAX_BYTES,
+                maximumEntries = if (execution == "WEB") WebPluginPackagePolicy.MAX_ARCHIVE_ENTRIES else LocalPluginArchive.MAX_ENTRIES,
             ))
         } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
         catch (failure: Exception) {
@@ -207,12 +226,26 @@ class ToolRegistry(
         }
     }
 
+    suspend fun removeWebPackage(expected: ToolManifest) = withContext(Dispatchers.IO) { localStore.removeWeb(expected) }
+
+    private fun requireExecution(manifest: ToolManifest, execution: String) {
+        require(execution in setOf("PROCESS", "WEB"))
+        require((if (WebPluginPackagePolicy.isWeb(manifest)) "WEB" else "PROCESS") == execution) {
+            "请从对应的 Web 插件或进程工具入口导入此包"
+        }
+    }
+
     private fun validateCandidate(candidate: ToolManifest) {
-        val previous = load()
+        val previous = loadAll()
+        if (WebPluginPackagePolicy.isWeb(candidate)) require(candidate.id !in REMOVED_TOOL_IDS) { "此工具标识不能用于 Web 插件" }
         val sameTool = previous.find { it.id == candidate.id }
         if (candidate.schemaVersion == 2) {
             require(sameTool?.source != "REMOTE") { "v2 包不能覆盖内置或在线工具身份" }
             require(sameTool?.plugin?.id?.let { it == candidate.plugin!!.id } != false) { "更新不能更换插件身份" }
+            require(sameTool == null || WebPluginPackagePolicy.isWeb(sameTool) == WebPluginPackagePolicy.isWeb(candidate)) { "更新不能更换执行形态" }
+            if (WebPluginPackagePolicy.isWeb(candidate) && sameTool != null) {
+                require(candidate.version == sameTool.version || SemanticVersion.parse(candidate.version)!! > SemanticVersion.parse(sameTool.version)!!) { "Web 插件版本必须递增" }
+            }
         } else require(sameTool?.plugin == null) { "不能用 v1 覆盖 v2 插件身份" }
         require(previous.none { it.id != candidate.id && top.wkbin.taixu.plugin.packages.PluginPackageProtocol.identity(it) == top.wkbin.taixu.plugin.packages.PluginPackageProtocol.identity(candidate) }) {
             "插件身份已被其他包占用"

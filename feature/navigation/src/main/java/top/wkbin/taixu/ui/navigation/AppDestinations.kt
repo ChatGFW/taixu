@@ -62,3 +62,4 @@ sealed interface AppDestination : NavKey
 
 @Serializable data class PluginPageDestination(val pluginId: String, val pageId: String, val arguments: Map<String, String> = emptyMap()) : AppDestination
 @Serializable data object PluginManagerDestination : AppDestination
+@Serializable data object WebPluginManagerDestination : AppDestination

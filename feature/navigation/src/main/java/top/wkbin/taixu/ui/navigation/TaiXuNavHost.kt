@@ -676,9 +676,8 @@ fun TaiXuNavHost(
                     )
                 }
             }
-            entry<PluginManagerDestination> {
-                GuardedEntry(PluginManagerDestination) { ManagedPluginsScreen(pluginPlatform, pluginController, { activeStack.pushRaw(PluginPageDestination(it.pluginId, it.extensionId)) }, { activeStack.pushRaw(ToolDetailDestination(it)) }, ::popBack) }
-            }
+            entry<PluginManagerDestination> { GuardedEntry(PluginManagerDestination) { ManagedPluginsScreen(pluginPlatform, pluginController, { activeStack.pushRaw(PluginPageDestination(it.pluginId, it.extensionId)) }, { activeStack.pushRaw(ToolDetailDestination(it)) }, ::popBack, { activeStack.pushRaw(WebPluginManagerDestination) }) } }
+            entry<WebPluginManagerDestination> { GuardedEntry(WebPluginManagerDestination) { top.wkbin.taixu.ui.settings.WebPluginsScreen({ id, version, plugin -> activeStack.pushRaw(PluginPageDestination(plugin, "main", mapOf("web.package.id" to id, "web.package.version" to version))) }, ::popBack) } }
             entry<PluginPageDestination> { destination ->
                 GuardedEntry(destination) { RegisteredPluginPage(pluginPages, destination, ::popBack) }
             }

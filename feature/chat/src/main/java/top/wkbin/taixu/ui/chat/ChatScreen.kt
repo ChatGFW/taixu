@@ -263,6 +263,7 @@ fun ChatScreen(
         }
     }
 
+    val followLatest = rememberChatFollowLatest(listState)
     // 🌟 1. 消息发送与流式输出跟随滚动
     // 仅当用户本来就停在底部附近时才跟随输出滚动；上滑阅读历史时不打扰，
     // 重新滑回底部（或新发消息）后恢复自动跟随。
@@ -272,14 +273,8 @@ fun ChatScreen(
             if (initialPositionedSessionKey != currentSessionKey) {
                 initialPositionedSessionKey = currentSessionKey
                 listState.safeScrollToLastItem()
-            } else {
-                val layoutInfo = listState.layoutInfo
-                val totalCount = layoutInfo.totalItemsCount
-                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
-                val isNearBottom = lastVisible == null || lastVisible.index >= totalCount - 3
-                if (isNearBottom) {
-                    listState.safeScrollToLastItem()
-                }
+            } else if (followLatest) {
+                listState.safeScrollToLastItem()
             }
         }
     }
@@ -360,16 +355,11 @@ fun ChatScreen(
     val chatTopBar: @Composable (onOpenBrowser: (() -> Unit)?, browserHighlight: Boolean, companion: ChatCompanionToggle?) -> Unit =
         { onOpenBrowser, browserHighlight, companion ->
             ChatTopBar(
-                title = sessions.firstOrNull { it.id == currentSessionId }?.title.orEmpty(),
-                workspace = workspace,
-                distroDisplayName = distroDisplayName,
-                activeModel = activeModel,
                 runMode = currentRunMode,
                 currentBranch = currentBranch,
                 runtimeEvents = runtimeEvents,
                 running = running,
-                onOpenSessions = onOpenNavigation,
-                onOpenModels = openModels,
+                onOpenSessions = onOpenNavigation, onOpenWorkshop = { onNavigate(MainDestination.Workspace) },
                 onOpenRunModes = { showRunModes = true },
                 onOpenBranches = { showBranches = true },
                 onOpenRuntime = { showRuntimeTimeline = true },
@@ -721,14 +711,13 @@ private fun ChatPaneContent(
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.TopCenter) {
     Column(modifier = Modifier.widthIn(max = 840.dp).fillMaxSize()) {
-        ChatMessageList(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
+        ChatMessageViewport(listState, Modifier.weight(1f).fillMaxWidth()) { ChatMessageList(
+            modifier = Modifier.fillMaxSize(),
             listState = listState,
             messages = messages,
             toolResults = toolResults,
             initializing = initializing,
             running = running,
-            imageGenerationModel = activeModel?.imageGenerationEnabled == true,
             status = status,
             workspace = workspace,
             workspaceProject = workspaceProject,
@@ -760,7 +749,7 @@ private fun ChatPaneContent(
             hiddenSkillSuggestions = hiddenSkillSuggestions,
             onApplySkillSuggestion = onApplySkillSuggestion,
             onDismissSkillSuggestion = onDismissSkillSuggestion,
-        )
+        ) }
 
         activePlan?.let { plan ->
             val steps = remember(plan.stepsJson) { PlanStepParser.parse(plan.stepsJson) }
@@ -770,7 +759,7 @@ private fun ChatPaneContent(
                     steps = steps,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                        .padding(vertical = 2.dp),
                 )
             }
         }

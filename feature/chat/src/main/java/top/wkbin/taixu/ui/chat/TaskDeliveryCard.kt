@@ -29,18 +29,22 @@ internal fun TaskDeliveryCard(message: TaskDelivery) {
     var expanded by rememberSaveable(message.id) { mutableStateOf(false) }
     var showAll by rememberSaveable(message.id) { mutableStateOf(false) }
     val report = message.report
-    RuntimeCard(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    RuntimeCard(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.delivery_title), style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
+                    Text(stringResource(R.string.delivery_title), style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(stringResource(R.string.delivery_counts, report.observations.size, report.artifacts.size),
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 RuntimeTextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                     Text(stringResource(if (expanded) R.string.delivery_collapse else R.string.delivery_expand), maxLines = 1)
                 }
             }
-            Text(stringResource(R.string.delivery_counts, report.observations.size, report.artifacts.size), style = MaterialTheme.typography.bodySmall)
-            Text(stringResource(R.string.delivery_unverified), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (expanded) {
+                Text(stringResource(R.string.delivery_unverified), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 report.gaps.filter { it != DeliveryGap.GOAL_NOT_VERIFIED }.forEach { gap ->
                     Text(stringResource(gapLabel(gap)), style = MaterialTheme.typography.bodySmall)
                 }

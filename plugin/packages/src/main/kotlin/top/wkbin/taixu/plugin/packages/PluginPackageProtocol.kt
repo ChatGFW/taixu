@@ -40,8 +40,14 @@ object PluginPackageProtocol {
         require(qualifiedId.matches(spec.id) && spec.id.length <= 128) { "插件身份无效" }
         require(!spec.id.startsWith("taixu.") && !spec.id.startsWith("legacy.")) { "插件使用了宿主保留身份" }
         require(PluginApiRange.CURRENT in PluginApiRange(spec.api.minimum, spec.api.maximum)) { "插件 SDK 不兼容" }
-        require(spec.execution == "PROCESS") { "当前包只支持 PROCESS 执行形态" }
+        require(spec.execution in setOf("PROCESS", "WEB")) { "当前包只支持 PROCESS 或静态 WEB 执行形态" }
         require(SemanticVersion.parse(manifest.version) != null) { "v2 版本必须为 SemVer" }
+        if (spec.execution == "WEB") {
+            WebPluginPackagePolicy.validate(manifest)
+            spec.integrity.forEach { (path, sha) -> require(safePayloadPath(path) && digest.matches(sha)) { "payload 完整性声明无效" } }
+            return
+        }
+        require(spec.webSource == WebPluginPackagePolicy.PACKAGE_SOURCE) { "PROCESS 不能声明 Web 页面来源" }
         require(manifest.uninstallSteps.isEmpty()) { "v2 使用框架卸载，暂不接受任意卸载脚本" }
         require(manifest.commandLinks.size <= 64 && manifest.commandLinks.distinct().size == manifest.commandLinks.size &&
             manifest.commandLinks.all { it.matches(Regex("[a-z0-9][a-z0-9._+-]{0,63}")) }) { "命令入口无效或重复" }
@@ -80,12 +86,15 @@ object PluginPackageProtocol {
             id = identity(manifest), version = manifest.version,
             api = spec?.api?.let { PluginApiRange(it.minimum, it.maximum) } ?: PluginApiRange(),
             dependencies = spec?.dependencies?.map { it.id }?.toSet().orEmpty(),
-            extensions = if (spec != null) spec.extensions.map { PluginExtension(it.id, PluginExtensionPoint.PROCESS) }
+            extensions = if (spec != null) spec.extensions.map { PluginExtension(it.id,
+                if (spec.execution == "WEB") PluginExtensionPoint.PAGE else PluginExtensionPoint.PROCESS) }
                 else if (manifest.launchCommand != null) listOf(PluginExtension("launch", PluginExtensionPoint.PROCESS)) else emptyList(),
         )
     }
 
-    fun receipt(manifest: ToolManifest) = PluginInstallReceipt(
+    fun receipt(manifest: ToolManifest): PluginInstallReceipt {
+        require(!WebPluginPackagePolicy.isWeb(manifest)) { "静态 Web 包不能进入进程安装或命令资源收据" }
+        return PluginInstallReceipt(
         toolId = manifest.id, pluginId = identity(manifest), version = manifest.version,
         dependencies = manifest.plugin?.dependencies.orEmpty(),
         capabilities = (manifest.permissions.map { PackageCapability(it) } + manifest.plugin?.capabilities.orEmpty()).distinct(),
@@ -95,7 +104,8 @@ object PluginPackageProtocol {
         ) + (manifest.commandLinks.ifEmpty { listOf(manifest.id) }).distinct().map {
             PackageResource("host.command-$it", "/opt/taixu/bin/$it")
         },
-    )
+        )
+    }
 
     fun safePayloadPath(path: String): Boolean = path.isNotBlank() && path.length <= 512 &&
         !path.startsWith('/') && '\\' !in path && ':' !in path && '\u0000' !in path &&

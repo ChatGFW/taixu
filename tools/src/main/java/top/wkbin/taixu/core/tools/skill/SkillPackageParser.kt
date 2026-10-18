@@ -20,7 +20,7 @@ class SkillPackageParser {
 
     /**
      * 从本地目录解析技能包。
-     * 与 ZIP 路径共享同一组防护上限（条目数/单文件/总量），目录来源不受信任程度相同，
+     * 与 ZIP 路径共享单文件和总大小防护上限，目录来源不受信任程度相同，
      * 无上限的 walkTopDown + readBytes 会在超大目录上直接 OOM。
      */
     fun parseFromDirectory(dir: File): SkillPackage {
@@ -28,12 +28,7 @@ class SkillPackageParser {
 
         val files = mutableMapOf<String, ByteArray>()
         var totalBytes = 0L
-        var fileCount = 0
         dir.walkTopDown().maxDepth(4).filter { it.isFile }.forEach { file ->
-            fileCount++
-            if (fileCount > MAX_ZIP_ENTRIES) {
-                throw SecurityException("技能目录内文件数超过上限 ($MAX_ZIP_ENTRIES)")
-            }
             if (file.length() > MAX_SINGLE_ENTRY_BYTES) {
                 throw SecurityException("技能目录内单个文件超过大小上限 $MAX_SINGLE_ENTRY_BYTES 字节: ${file.name}")
             }
@@ -62,14 +57,8 @@ class SkillPackageParser {
         ZipInputStream(inputStream).use { zip ->
             var entry: ZipEntry? = zip.nextEntry
             var totalBytes = 0L
-            var entryCount = 0
 
             while (entry != null) {
-                entryCount++
-                if (entryCount > MAX_ZIP_ENTRIES) {
-                    throw SecurityException("技能压缩包内条目数超过上限 ($MAX_ZIP_ENTRIES)")
-                }
-
                 val name = entry.name.replace('\\', '/')
                 // 防御 Zip Slip 路径穿越
                 if (name.contains("../") || name.startsWith("/") || name.contains("/../")) {
@@ -332,7 +321,6 @@ class SkillPackageParser {
     }
 
     companion object {
-        const val MAX_ZIP_ENTRIES = 500
         const val MAX_SINGLE_ENTRY_BYTES = 10L * 1024 * 1024 // 10MB
         const val MAX_ZIP_TOTAL_BYTES = 50L * 1024 * 1024 // 50MB
     }

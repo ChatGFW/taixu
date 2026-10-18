@@ -18,9 +18,9 @@ import kotlinx.coroutines.sync.withPermit
  * 约束：
  * - 连续的 [isParallelSafe] 工具在 [parallelism] 个许可内并发执行；其他工具形成顺序屏障，
  *   等前一组全部完成后执行，完成后才启动下一组；
- * - 变更类工具（写文件/命令/下载/MCP 等）按 mutationScope（工作区）互斥，避免同一工作区
- *   内的副作用互相踩踏。互斥只按工作区分片：BASE 超时上限 1 小时、DOWNLOAD 可达 4GB×10
- *   次重试，若做成跨会话全局单例，一个工作区的长构建会挡住所有其他工作区的普通写入；
+ * - 需要工作区锁的工具（写文件/下载/MCP 等）按 mutationScope（工作区）互斥。
+ *   base 保持回合内顺序，但不持有跨会话工作区锁，避免长下载阻塞其他会话的命令；
+ *   已识别的重型命令由运行时资源调度器另行排队，不保证任意 Shell 写入互斥。
  *   审批恢复（resolveApproval）执行被批准的变更工具也经 [withMutationLock] 走同一把锁；
  *   自行协调写隔离的子智能体仍形成回合屏障，但可通过 [needsMutationLock] 避免整批持锁；
  * - 任一工具触发审批暂停（[Pause.abort]）后，尚未开始的工具不再启动，在途工具自然跑完，
@@ -35,7 +35,7 @@ class ToolRoundDispatcher() {
 
     /**
      * 按工作区串行执行变更类副作用。除本调度器外，审批恢复路径（被批准的
-     * write/base/mcp 等）也必须经此方法取锁，否则会与并发会话的同工作区写入踩踏。
+     * write/download/mcp 等）也必须经此方法取锁，否则会与并发会话的同工作区写入踩踏。
      */
     suspend fun <T> withMutationLock(scopeKey: String, block: suspend () -> T): T {
         val key = scopeKey.trim().ifBlank { GLOBAL_SCOPE }

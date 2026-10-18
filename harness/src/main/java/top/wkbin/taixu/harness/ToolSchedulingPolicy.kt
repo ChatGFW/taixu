@@ -12,9 +12,12 @@ internal object ToolSchedulingPolicy {
     fun isParallelSafe(tool: HarnessTool): Boolean = tool in readOnlyTools
 
     fun needsMutationLock(tool: HarnessTool): Boolean =
-        tool !in readOnlyTools && tool != HarnessTool.SUBAGENT
+        tool !in readOnlyTools && tool != HarnessTool.SUBAGENT && tool != HarnessTool.BASE
 
     // Memory/plan/scratchpad actions can mutate state; MCP and unknown capabilities are exclusive.
+    // Base remains a round barrier, but a long shell command must not hold the workspace lock
+    // across sessions. Shell effects have no structured path lease; concurrent commands may
+    // touch the same files. Runtime admission separately serializes known memory-heavy commands.
     // Subagents form a round barrier but coordinate their own write leases. Holding the parent
     // workspace lock for their entire batch would obstruct child execution and other sessions.
 }

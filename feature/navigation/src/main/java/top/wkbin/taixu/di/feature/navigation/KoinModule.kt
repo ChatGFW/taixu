@@ -17,7 +17,14 @@ import top.wkbin.taixu.di.feature.workspace.featureWorkspaceModule
 
 /** Feature composition stays at the navigation boundary. */
 val navigationModule = module {
-    single { NativePluginPlatform() }
+    single { NativePluginPlatform(prootSource = { context ->
+        val linux = get<top.wkbin.taixu.runtime.LinuxRuntime>()
+        val servers = get<top.wkbin.taixu.core.datastore.RemoteServerRepository>()
+        val source = top.wkbin.taixu.runtime.service.ProotWebAssetService(linux,
+            top.wkbin.taixu.plugin.ui.web.WebPluginDemo.assets(context), { servers.activeId.value == null })
+        top.wkbin.taixu.plugin.ui.web.WebPluginAssetLease(emptyMap(), available = { source.isAvailable },
+            release = { source.close() }, load = { source.snapshot() })
+    }) }
     single<PluginPages> { get<NativePluginPlatform>().pages }
     single<PluginController> { get<NativePluginPlatform>().controller(get()) }
     includes(

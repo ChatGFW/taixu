@@ -37,7 +37,8 @@ class PluginHarnessEndToEndTest {
         val executions = AtomicInteger()
         val calls = AtomicInteger()
         val plugin = HarnessPlugin(
-            PluginDescriptor("example.e2e", "1.0.0", extensions = listOf(PluginExtension("record", PluginExtensionPoint.TOOL), PluginExtension("fake", PluginExtensionPoint.PROVIDER))),
+            PluginDescriptor("example.e2e", "1.0.0", extensions = listOf(PluginExtension("record", PluginExtensionPoint.TOOL), PluginExtension("fake", PluginExtensionPoint.PROVIDER), PluginExtension("facts", PluginExtensionPoint.CONTEXT))),
+            contexts = listOf(PluginContext("facts") { "plugin-fixture-background" }),
             tools = listOf(PluginTool("record", "Record a test action", Json.parseToJsonElement("""{"type":"object","properties":{},"additionalProperties":false}""").jsonObject) {
                 assertTrue(it.sessionId.isNotBlank()); executions.incrementAndGet(); PluginToolOutput(true, "plugin-effect-recorded")
             }),
@@ -48,6 +49,7 @@ class PluginHarnessEndToEndTest {
                     val backgrounds = messages.filter { it.content.orEmpty().contains("[插件背景资料") }
                     assertTrue("Plugin context must reach the actual provider request", backgrounds.isNotEmpty())
                     assertTrue(backgrounds.all { it.role == "user" })
+                    assertTrue(backgrounds.any { it.content.orEmpty().contains("example.e2e/facts") && it.content.orEmpty().contains("plugin-fixture-background") })
                     return if (messages.any { it.content.orEmpty().contains("plugin-effect-recorded") }) ChatResult("plugin-chain-complete", emptyList())
                     else ChatResult(null, listOf(ApiToolCallSpec("plugin-call", "use_capability", """{"action":"call","server":"plugin.example.e2e","tool":"record","arguments":{}}""")))
                 }

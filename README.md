@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <code>源码 v0.21.0</code> · <code>Android 10+ (API 29+)</code> · <code>arm64-v8a</code> · <code>Kotlin 2.4.20</code> · <code>Jetpack Compose</code>
+  <code>源码 v1.0.0</code> · <code>Android 10+ (API 29+)</code> · <code>arm64-v8a</code> · <code>Kotlin 2.4.21</code> · <code>Jetpack Compose</code>
 </p>
 
 <p align="center">
@@ -58,12 +58,13 @@
 | **端侧 Git 工作台** | 基于 JGit 直接管理宿主工作区，支持改动、暂存、提交、分支、提交图、标签、push/pull、推送预览、AI 提交说明与加密 HTTPS Token。 |
 | **浏览器与 Web 自动化** | 内置多 Tab WebView 池与 Browser MCP；支持页面 Hook、CDP 断点、Worker 级 Fetch 拦截、网络时间线与调试状态展示。 |
 | **MCP 与工具生态** | 内置 Browser、SQLite、Git、APK 审计、CodeGraph、WebSearch 等预设；支持 STDIO、常用 Streamable HTTP 请求-响应与 legacy SSE，远程服务可使用 OAuth Authorization Code + PKCE。 |
+| **插件平台** | 原生页面生命周期与编译时 Harness 扩展、兼容 v1 的 `.txplugin` v2 PROCESS 包、可导入的静态 WEB 包；Web 页面支持逐项能力审批和页面自有的 PRoot 静态服务。 |
 | **无线 ADB 与宿主自动化** | mDNS 发现、通知栏配对码输入、Android / PRoot 日志、设备体检与 Intent 诊断；经用户授权后，可通过无线 ADB、Shizuku、Root 或无障碍通道执行不同级别的宿主与 GUI 自动化，也可使用虚拟屏工具链。 |
 | **端侧协作** | 提供全局悬浮助手、带临时 PIN 的局域网 WebChat、FTP 文件传输，以及 FGS、WakeLock 与 Wi-Fi Lock 长任务保活能力。 |
 | **原生交互界面** | Agent 可通过 `render_surface` 输出 A2UI 声明式界面，在 Compose 中呈现表单等交互内容；提供最近界面查看与示例入口。 |
 | **备份与配置迁移** | 本地 ZIP 备份涵盖会话、记忆、计划、技能资源、附件与可移植偏好；模型档案另支持 JSON 导入预览、复制或更新、导出与系统分享。 |
 
-> 本文按当前源码 `v0.21.0` 更新。已发布版本及其安装包请以 [Releases](https://github.com/wkbin/taixu/releases) 页面为准。
+> 本文按当前源码 `v1.0.0` 更新。已发布版本及其安装包请以 [Releases](https://github.com/wkbin/taixu/releases) 页面为准。
 
 ---
 
@@ -115,6 +116,7 @@
 - **无线 ADB**：配对设备、查看日志并执行授权范围内的诊断。
 - **乾坤 → 特色功能**：一句话做 App、AI 圆桌会议、晨报哨兵、WebChat 电脑大屏协作与 A2UI 界面。
 - **设置中的备份与模型档案**：导出或恢复本地数据，迁移模型配置。
+- **设置 → 应用功能插件 → 外部 Web 插件**：导入、打开和移除 `.txplugin` Web 页面包。
 
 > 长时间运行 Agent、构建或工作流时，建议允许通知并将太墟加入系统电池优化白名单。Android 的后台限制仍可能影响任务时效。
 
@@ -166,15 +168,41 @@ RootFS 优先通过 OCI 镜像获取，部分发行版在自动路由下支持 L
 
 ---
 
+## 🧩 插件平台与 Web 页面
+
+| 形态 | 当前支持 | 使用边界 |
+| :--- | :--- | :--- |
+| **原生插件** | 编译时装配的 Compose 页面、生命周期管理与 Harness 扩展 | 受信任代码随 APK 发布，不加载外部 Dex 或 Kotlin。 |
+| **PROCESS 包** | `.txplugin` v1 兼容与 v2 身份、API/依赖版本、资源声明、SHA-256 校验和安装收据 | 在 Linux 中运行；安装脚本沿用既有 PRoot 权限，能力声明不隔离任意脚本。 |
+| **WEB 包** | 导入、打开、升级与移除静态 HTML/CSS/JS 页面；固定入口 `index.html` | 独立 WebView 来源；只接受已实现的宿主能力声明，不开放任意网络、Shell 或文件操作。 |
+
+Web 包从 **设置 → 应用功能插件 → 外部 Web 插件** 导入。默认 `PACKAGE` 来源无需 Linux；页面最多 63 个文件、合计 2 MiB，导入和打开时校验完整性，版本目录不可覆盖。升级或移除使旧页面与授权失效。
+
+目前可声明 **APP_INFO**（应用基本信息）和 **CLIPBOARD_WRITE**（写入纯文本）。导入不会授予能力；调用由原生界面确认，剪贴板写入每次展示具体文本并确认，不读取原内容。宿主调用凭据绑定当前文档且短期、单次有效，不交给 JavaScript。
+
+在仓库根目录生成可导入的示例：
+
+```powershell
+.\tools\package-web-example.ps1                    # build/examples/web-info.txplugin
+.\tools\package-web-example.ps1 -Clipboard         # build/examples/web-clipboard.txplugin
+.\tools\package-web-example.ps1 -Proot             # build/examples/web-info-proot.txplugin
+```
+
+`PROOT_STATIC` 来源在打开页面时启动宿主固定的 Python 静态服务，退出时回收该实例。需要已就绪的本地 Linux 和 `/usr/bin/python3`，不会自动安装依赖；启动数据总计最多 4 KiB，预览和导入时预检，因此适用于小型静态页面。也可组合 `-Clipboard -Proot` 生成复制示例。
+
+插件平台仍在开发：任意 PROCESS 服务页面、动态 API/WebSocket、旧共享 HostBridge 密钥迁移与开发者全权模式尚未完成；本轮实现已通过本地测试和 Debug 构建，真机 PRoot/WebView 交互仍待验收。详见 [平台进度](docs/PLUGIN_PLATFORM.md)、[v2 包协议](docs/PLUGIN_PACKAGE_V2.md)和 [Web 扩展指南](docs/PLUGIN_WEB_EXTENSIONS.md)。
+
+---
+
 ## 🛠️ 从源码构建
 
 ### 标准 APK 构建要求
 
 - **JDK 17**（项目与 CI 基线，推荐 Android Studio JBR）
 - **Android SDK**：compileSdk 37.1 / targetSdk 37 / minSdk 29
-- **Gradle Wrapper**：9.7.0
+- **Gradle Wrapper**：9.8.1
 - **Android Gradle Plugin**：9.4.1
-- **Kotlin**：2.4.20；Compose BOM：2026.09.00
+- **Kotlin**：2.4.21；Compose BOM：2026.09.00
 - 完整 Git checkout，包括仓库内的本地 Maven AAR 与预编译 ARM64 原生库
 
 普通 APK 构建直接使用仓库内的预编译 native 制品；只有重新编译 PTY 等原生组件时，才额外需要 **Android NDK 30.0.15729638、CMake 3.22.1 与 Ninja**。
@@ -202,7 +230,7 @@ export JAVA_HOME="/path/to/jdk-17"
 Debug APK 默认输出到：
 
 ```text
-app/build/outputs/apk/debug/taixu-v0.21.0-debug.apk
+app/build/outputs/apk/debug/taixu-v1.0.0-debug.apk
 ```
 
 ### 可选步骤
@@ -246,6 +274,11 @@ TaiXu/
 ├── harness/              # Agent 循环、Provider、工具、审批、子智能体与 MCP
 │   └── core/             # 纯 Kotlin 回合解释器与执行协议
 ├── tools/                # Registry、Recipe、安装事务、依赖与 Provider 仓储
+├── plugin/
+│   ├── api/              # 纯 Kotlin 插件描述、扩展契约与目录
+│   ├── runtime/          # 生命周期、代次、资源租约与页面能力授权
+│   ├── packages/         # v1/v2 包协议、版本、依赖与资源校验
+│   └── ui/               # Compose 页面宿主与受限 WebView 适配
 ├── showerclient/         # 虚拟屏客户端与画面显示
 ├── webchat/              # 局域网协作前端（React / TypeScript / Vite）
 └── feature/              # Jetpack Compose 业务特性
@@ -279,6 +312,9 @@ Android 应用业务层以 Kotlin 与 Jetpack Compose 为主；底层还包含 C
 - 🔀 [可视化工作流](docs/WORKFLOW.md)
 - 🌐 [内置浏览器与 Hook 引擎](docs/BROWSER_DESIGN.md)
 - 🔌 [插件生态开发指南](docs/PLUGIN_DEVELOPMENT_GUIDELINES.md)
+- 🧩 [插件平台方案与实现进度](docs/PLUGIN_PLATFORM.md)
+- 📦 [`.txplugin` v2 包协议](docs/PLUGIN_PACKAGE_V2.md)
+- 🌐 [Web 插件扩展、能力授权与示例](docs/PLUGIN_WEB_EXTENSIONS.md)
 - 📦 [Android 离线插件说明](docs/ANDROID_OFFLINE_PLUGIN.md)
 - 💾 [存储管理](docs/STORAGE_MANAGEMENT.md)
 - 🗃️ [本地数据备份与恢复](docs/LOCAL_BACKUP.md)

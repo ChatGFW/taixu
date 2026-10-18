@@ -6,6 +6,10 @@
 
 ## 插件平台（P1 页面扩展 / P2 生命周期）
 
+P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md)；[`WebPagePlugin.kt`](../plugin/ui/src/main/java/top/wkbin/taixu/plugin/ui/web/WebPagePlugin.kt) 提供编译时适配，[`WebPluginView.kt`](../plugin/ui/src/main/java/top/wkbin/taixu/plugin/ui/web/WebPluginView.kt) 提供专用 WebView，[`PluginCapabilitySession.kt`](../plugin/runtime/src/main/kotlin/top/wkbin/taixu/plugin/runtime/PluginCapabilitySession.kt) 管理文档授权和撤销。
+
+外部 WEB 包：[`WebPluginPackagePolicy.kt`](../plugin/packages/src/main/kotlin/top/wkbin/taixu/plugin/packages/WebPluginPackagePolicy.kt) 校验静态包边界；[`WebPluginRepository.kt`](../tools/src/main/java/top/wkbin/taixu/core/tools/WebPluginRepository.kt) 负责导入、当前版本与完整性快照；[`WebPluginsScreen.kt`](../feature/settings/src/main/java/top/wkbin/taixu/ui/settings/WebPluginsScreen.kt) 提供管理入口；[`package-web-example.ps1`](../tools/package-web-example.ps1) 生成可导入示例。
+
 | 关键文件 | 职责 |
 | --- | --- |
 | [`PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md) | 内核与插件边界、三种执行形态、授权设计与 P1–P6 路线 |
@@ -168,3 +172,21 @@
 | `feature/settings/LocalBackupDialog.kt` | 导出/导入 UI（含预览、偏好复选框）|
 | `feature/settings/LocalBackupViewModel.kt` | 备份 UI ViewModel |
 | `app/BackupStartupRecovery.kt` | Application 启动检查并完成挂起恢复 |
+
+- `runtime/src/main/java/top/wkbin/taixu/runtime/bridge/PluginHostGateway.kt`：外部 Web 原生批准后的短期单次宿主凭据、身份绑定、撤销与 APP_INFO 代理。
+- `runtime/src/main/java/top/wkbin/taixu/runtime/bridge/HostBridgeHttp.kt`：有界 HTTP 字节分帧与响应写入。
+
+- `runtime/src/main/java/top/wkbin/taixu/runtime/bridge/PluginHostClipboard.kt`：原生确认后的纯文本剪贴板写入，不读取旧值。
+- `plugin/runtime/src/main/kotlin/top/wkbin/taixu/plugin/runtime/PluginCapabilityInput.kt`：能力输入类型与文本容量校验。
+- `tools/examples/web-clipboard/`：逐次授权复制文本的离线 Web 示例源文件。
+
+- `runtime/src/main/java/top/wkbin/taixu/runtime/service/ManagedWebAssets.kt`：固定 loopback 目标、哈希与配额校验的服务静态快照读取。
+- `runtime/src/main/java/top/wkbin/taixu/runtime/service/LoopbackWebAssetService.kt`：按页面创建与回收的宿主示例资源服务。
+- `plugin/ui/src/main/java/top/wkbin/taixu/plugin/ui/web/WebPluginSourceOwner.kt`：预留清理记录、取得与取消/排空期间归还页面资源。
+- `plugin/ui/src/main/java/top/wkbin/taixu/plugin/ui/web/WebPluginAssetLease.kt`：来源可用性、快照与幂等释放。
+
+- `runtime/src/main/java/top/wkbin/taixu/runtime/service/ProotWebAssetService.kt`：准备态租约、固定发行版、管道启动配置及精确实例回收的 PRoot 静态来源。
+- `runtime/src/main/java/top/wkbin/taixu/runtime/service/ProotWebAssetProgram.kt`：宿主固定 Python 标准库资源程序，不接受包脚本。
+- `feature/settings/src/main/java/top/wkbin/taixu/ui/settings/PackagedWebPluginSources.kt`：按外部 WEB 选中版本校验静态资源，创建页面自有的惰性 PRoot 来源租约。
+- `runtime/src/main/java/top/wkbin/taixu/runtime/service/ProotWebBootstrap.kt`：预览与启动共用的确定容量编码，定长认证头及有序资源压缩。
+- `tools/src/main/java/top/wkbin/taixu/core/tools/ProotWebPackagePreflight.kt`：PRoot 包完整预览、容量复核和临时文件清理，不分配进程。

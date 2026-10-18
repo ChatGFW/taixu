@@ -47,6 +47,7 @@ interface ProcessRegistry {
         mounts: List<StorageMountBinding> = emptyList(),
     ): ManagedProcess
     suspend fun stop(id: String): Boolean
+    suspend fun stopInstance(process: ManagedProcess): Boolean = false
     suspend fun stopAll()
     suspend fun cleanupDeadProcesses(): Int
     fun list(): List<ManagedProcess>
@@ -169,6 +170,13 @@ class ProcessRegistryImpl internal constructor(
             release(target)
             true
         }
+    }
+
+    override suspend fun stopInstance(process: ManagedProcess): Boolean = mutex.withLock {
+        val target = processes[process.id]
+        if (target?.process !== process) return@withLock !process.session.isAlive
+        release(target)
+        true
     }
 
     override suspend fun stopAll() = mutex.withLock {
