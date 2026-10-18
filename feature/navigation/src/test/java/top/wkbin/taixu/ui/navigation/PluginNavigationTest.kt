@@ -7,6 +7,7 @@ import org.koin.dsl.koinApplication
 import top.wkbin.taixu.di.feature.navigation.navigationModule
 import top.wkbin.taixu.plugin.api.PluginExtensionRef
 import top.wkbin.taixu.plugin.ui.PluginPages
+import top.wkbin.taixu.plugin.ui.web.WebPluginDemo
 import top.wkbin.taixu.ui.terminal.TerminalPlugin
 import top.wkbin.taixu.ui.browser.BrowserPlugin
 
@@ -24,7 +25,7 @@ class PluginNavigationTest {
             assertNotNull(pages.resolve(TerminalPlugin.page))
             assertNotNull(pages.resolve(BrowserPlugin.page))
             val platform = application.koin.get<NativePluginPlatform>()
-            assertEquals(2, platform.plugins.size)
+            assertNotNull(pages.resolve(WebPluginDemo.page))
             platform.plugins.forEach { plugin ->
                 assertTrue(plugin.entries.isNotEmpty())
                 plugin.entries.forEach { entry ->

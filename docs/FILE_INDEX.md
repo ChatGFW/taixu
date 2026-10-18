@@ -6,6 +6,8 @@
 
 ## 插件平台（P1 页面扩展 / P2 生命周期）
 
+P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md)；[`WebPagePlugin.kt`](../plugin/ui/src/main/java/top/wkbin/taixu/plugin/ui/web/WebPagePlugin.kt) 提供编译时适配，[`WebPluginView.kt`](../plugin/ui/src/main/java/top/wkbin/taixu/plugin/ui/web/WebPluginView.kt) 提供专用 WebView，[`PluginCapabilitySession.kt`](../plugin/runtime/src/main/kotlin/top/wkbin/taixu/plugin/runtime/PluginCapabilitySession.kt) 管理文档授权和撤销。
+
 | 关键文件 | 职责 |
 | --- | --- |
 | [`PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md) | 内核与插件边界、三种执行形态、授权设计与 P1–P6 路线 |

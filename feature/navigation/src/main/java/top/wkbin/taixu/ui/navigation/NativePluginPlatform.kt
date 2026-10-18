@@ -7,12 +7,13 @@ import top.wkbin.taixu.plugin.runtime.PluginSelectionStore
 import top.wkbin.taixu.plugin.ui.NativePagePlugin
 import top.wkbin.taixu.plugin.ui.NativePluginPageRegistry
 import top.wkbin.taixu.plugin.ui.PluginPages
+import top.wkbin.taixu.plugin.ui.web.WebPluginDemo
 import top.wkbin.taixu.ui.browser.BrowserPlugin
 import top.wkbin.taixu.ui.terminal.TerminalPlugin
 
 /** Explicit host assembly; factories register descriptions and do not start PTY or WebView engines. */
 class NativePluginPlatform {
-    val plugins: List<NativePagePlugin> = listOf(TerminalPlugin.create(), BrowserPlugin.create())
+    val plugins: List<NativePagePlugin> = listOf(TerminalPlugin.create(), BrowserPlugin.create(), WebPluginDemo.create())
     val pages: PluginPages = NativePluginPageRegistry(plugins)
 
     fun controller(preferences: PluginPreferences): PluginController = PluginRuntime(

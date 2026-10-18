@@ -27,6 +27,8 @@ class PluginActivation internal constructor(
     })
     private val resources = linkedMapOf<String, suspend () -> Boolean>()
     private var accepting = true
+    /** Synchronous admission hint for document bridges; stop closes this before UI disposal. */
+    val isAccepting: Boolean get() = synchronized(monitor) { accepting && !failed.get() && job.isActive }
     private var leases = 0
     private val drained = CompletableDeferred<Unit>()
 

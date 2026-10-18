@@ -157,6 +157,14 @@
 终端/浏览器目前只迁移界面作用域，停用界面不会关闭已有 PTY、共享 WebView 引擎、Agent 浏览器工具或 MCP，也不改变审批与 HostBridge 权限。
 冷启动只恢复界面选择，不重放旧副作用；外部进程恢复仍由实际资源所有者负责。详见 [`PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md) 第 13–14 节。
 
+## 9. 静态 Web 页面与文档授权（P5 首片）
+
+`WebPagePlugin` 只接受宿主代码登记的静态资源与结构化执行器，不改变 `.txplugin` 的 PROCESS 限制。每个页面使用独立随机 HTTPS 来源与专用 WebView；外部网络、file/content 访问、跳转、iframe、Worker、下载及系统权限请求均关闭。AndroidX WebKit 消息通道校验精确来源与主帧，不支持时拒绝启用，不降级到 JavaScriptInterface。
+
+`PluginCapabilitySession` 固定插件、版本、代次、文档来源及 `android:local` 环境，JS 不能指定这些身份字段。仅允许宿主登记的精确动作和目标，经原生令牌弹窗确认后执行；单次或最多 5 分钟的授权不落盘。关闭页面、刷新、换代或停用后旧授权失效；撤销取消协作式在途任务，不保证回滚已经发生的副作用。消息、返回值、静态资源和请求数量均有上限，重复请求 ID 拒绝执行。执行器需自行遵守业务权限、脱敏和可取消 IO 约定。
+
+内置示例仅返回包名、Android API 与插件 API 版本，不读取凭证、不使用 Shell/PRoot/HostBridge。此代理没有共享 `.bridge-key`，但未迁移旧 HostBridge 的进程访问路径，因此不能称为全局插件隔离。外部包、更多宿主动作、长期授权和开发者全权模式尚未接入。详见 [`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md)。
+
 ## 维护约定
 
 P4 Harness 扩展只接受受信任的编译时 Kotlin 实现。`plugin.<id>` 能力域保留原工具意图/结果屏障、PLAN、审批、后台交接、嵌套留痕与输出脱敏；插件没有声明免审或写入可信产物 metadata 的入口。插件 Schema 使用严格独立子集，不套用历史参数别名/字符串转换。背景资料先经过当前执行环境脱敏，再限额投影为标注来源的合成 user 文本并计入预算，不能修改 system 权限。

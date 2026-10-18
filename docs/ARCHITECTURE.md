@@ -46,7 +46,7 @@ LinuxAIRuntime/
 │   ├── packages/        # 纯 Kotlin v1/v2 包协议、SemVer、安装依赖与资源声明检查
 │   ├── api/             # 纯 Kotlin 插件描述、扩展引用与不可变目录校验
 │   ├── runtime/         # 纯 Kotlin 插件状态机、代次、使用租约与资源排空
-│   └── ui/              # 编译时原生页面贡献、注册表与 Compose 页面宿主
+│   └── ui/              # 原生页面贡献、Compose 宿主与受限静态 Web 页面适配
 └── feature/              # Compose UI 业务特性层
     ├── components/      # 太墟 M3 Expressive 设计规范、通用组件 (RuntimeCard, TopBar, Icons)
     ├── theme/           # Material 3 调色板、字体、主题配置
@@ -89,6 +89,7 @@ LinuxAIRuntime/
 ## 4. 依赖装配（Koin）
 
 - 插件平台：`plugin:api` 与 `plugin:runtime` 均保持纯 Kotlin，`plugin:ui` 适配 Compose。`navigationModule` 装配 `NativePluginPlatform`、单例 `PluginPages` 与 `PluginController`；终端/浏览器的独立页与聊天面板共享带代次准入的页面宿主。`PluginPreferences` 只保存启用选择；状态机按依赖启停并保留未确认释放资源。菜单/设置贡献通过共享 slot 注入，管理页由通用宿主装配。页面插件不拥有全部终端/浏览器引擎，也没有外部原生代码加载或授权隔离，详见 [`PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md)。
+- P5 首片由 `WebPagePlugin` 将宿主登记的静态页面接入现有 PAGE 目录；独立 WebView 使用随机固定来源和结构化消息，`PluginCapabilitySession` 按文档绑定身份、代次、动作、目标及本地 Android 环境，提供原生单次/限时确认和撤销。它不改变 v2 PROCESS 包或旧 HostBridge 的权限，也不接入外部 Web 包，详见 [`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md)。
 - Provider 边界由 `harness/di/harness/ProviderModule.kt` 装配：`ProviderModelResolver` 管理档案、凭证与偏好，`ProviderTransport` 管理请求策略，`LlmApiRegistry` 按模型的 API 选择协议实现。兼容门面 `ProviderClient` 保留已有调用入口；纯 `ModelDescriptor` 不含密钥或端点。
 - P4 的 `HarnessPluginRegistry` 装配受信任的编译时工具、背景资料、检查点、Provider 工厂和工作流节点。工具通过 `use_capability` 的 `plugin.<id>` 域沿用审批/PLAN；背景资料脱敏后以有来源标注的合成 user 消息计入预算。三种协议与等待节点已迁入插件工厂；`PLUGIN_ACTION` 是新节点的通用路由，执行前通过工作流 broker 进行带令牌的确认。详见 [`PLUGIN_HARNESS_EXTENSIONS.md`](PLUGIN_HARNESS_EXTENSIONS.md)。
 - 工具边界由 `harness/di/harness/ToolBackendModule.kt` 装配：纯 JVM `ToolBackend` / `ToolCheckpoints` 定义可等待契约；`WorkspaceToolBackend` 通过 `WorkspaceToolOperations` 使用受限工作区访问与写入快照。`ToolExecutor` 保留审批、PLAN、宿主权限和其他工具分派；检查点只允许否决或追加经脱敏的说明，不能授予权限或替换结果状态。默认检查点为空，应用代码可注入受信任实现。

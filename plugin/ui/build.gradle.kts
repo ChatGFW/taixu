@@ -11,6 +11,8 @@ dependencies {
     api(project(":plugin:runtime"))
     implementation(project(":feature:components"))
     implementation(libs.bundles.compose.ui)
+    implementation(libs.androidx.webkit)
+    implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
