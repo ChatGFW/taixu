@@ -47,14 +47,17 @@ import top.wkbin.taixu.ui.components.previewStateOf
 fun OnboardingScreen(
     viewModel: OnboardingViewModel? = previewOrNull { koinViewModel() },
     previewPage: Int = -1,
+    onOpenAutostartSettings: (() -> Boolean)? = null,
+    onNotificationGranted: () -> Unit = {},
 ) {
     val page by viewModel?.page?.collectAsStateWithLifecycle() ?: previewStateOf(previewPage)
     val runtime by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(RuntimeState.Ready)
     val importing by viewModel?.isImporting?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     var started by rememberSaveable { mutableStateOf(previewPage >= 0) }
-    val stage = if (!started && page <= 0) 0 else if (page <= 0) 1 else 2
+    val stage = if (!started && page <= 0) 0 else if (page <= 0) 1 else if (page == 1) 2 else 3
     val busy = runtime is RuntimeState.Initializing || importing
     BackHandler(enabled = stage == 1 && !busy) { started = false }
+    BackHandler(enabled = stage == 3) { viewModel?.setPage(1) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -64,15 +67,15 @@ fun OnboardingScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (stage == 1 && !busy) {
-                    RuntimeIconButton(onClick = { started = false }, contentDescription = stringResource(R.string.onboarding_back)) {
+                if ((stage == 1 && !busy) || stage == 3) {
+                    RuntimeIconButton(onClick = { if (stage == 3) viewModel?.setPage(1) else started = false }, contentDescription = stringResource(R.string.onboarding_back)) {
                         RuntimeIcon(RuntimeIconName.Back, Modifier.size(24.dp))
                     }
                 } else {
                     Box(Modifier.size(48.dp))
                 }
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-                    repeat(3) { index ->
+                    repeat(4) { index ->
                         Surface(
                             shape = MaterialTheme.shapes.extraLarge,
                             color = if (index == stage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -93,6 +96,9 @@ fun OnboardingScreen(
                     }
                 }
             }
+            if (stage == 2) {
+                PermissionContinueActions(onContinue = { viewModel?.setPage(2) })
+            }
         },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
@@ -100,6 +106,11 @@ fun OnboardingScreen(
                 when (current) {
                     0 -> OnboardingWelcomePage(Modifier.fillMaxSize())
                     1 -> SystemSetupPage(viewModel, Modifier.widthIn(max = 840.dp).fillMaxSize())
+                    2 -> OnboardingPermissionPage(
+                        modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
+                        onOpenAutostartSettings = onOpenAutostartSettings,
+                        onNotificationGranted = onNotificationGranted,
+                    )
                     else -> ModelSetupPage(viewModel, Modifier.widthIn(max = 840.dp).fillMaxSize())
                 }
             }

@@ -36,6 +36,15 @@ private fun OnboardingWelcomeVariantsPreview() {
 @Composable
 private fun OnboardingModelPagePreview() {
     RuntimePreview {
-        OnboardingScreen(previewPage = 1)
+        OnboardingScreen(previewPage = 2)
     }
+}
+
+@FoldablePreviews
+@Preview(name = "权限引导 · 窄屏大字体", widthDp = 320, heightDp = 720, fontScale = 1.3f, locale = "zh")
+@Preview(name = "权限引导 · 深色", widthDp = 360, heightDp = 800, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, locale = "zh")
+@Preview(name = "Permissions · English", widthDp = 360, heightDp = 800, locale = "en")
+@Composable
+private fun OnboardingPermissionPagePreview() {
+    RuntimePreview { OnboardingScreen(previewPage = 1) }
 }
