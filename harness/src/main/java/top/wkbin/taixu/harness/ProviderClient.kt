@@ -1152,9 +1152,9 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "ask_user",
-                    description = "在关键决策点向用户提出结构化问题（选择题或自由输入）。当多个合理方案难以自行取舍、或缺失会显著影响结果的关键信息时使用；不要用它确认显而易见的步骤，也不要频繁调用打断用户。",
+                    description = "在关键决策点向用户提出结构化问题（选择题或自由输入）。当多个合理方案难以自行取舍、或缺失会显著影响结果的关键信息时使用；不要用它确认显而易见的步骤，也不要频繁调用打断用户。最多等待60秒，未回复自动采用推荐答案继续；将推荐选项放第一项并标记 recommended=true，自由输入问题提供 default_answer。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"questions":{"type":"array","minItems":1,"maxItems":4,"items":{"type":"object","properties":{"question":{"type":"string","description":"问题正文，具体、可直接回答"},"header":{"type":"string","description":"短标签（≤12 字），用于卡片分组"},"options":{"type":"array","minItems":0,"maxItems":6,"items":{"type":"object","properties":{"label":{"type":"string","description":"选项短文本"},"description":{"type":"string","description":"选项补充说明，可省略"}},"required":["label"]},"description":"候选项；省略或为空表示自由文本问题"},"allow_custom":{"type":"boolean","description":"除候选项外是否允许用户自定义输入；有 options 时默认 true"}},"required":["question"]}}},"required":["questions"]}""",
+                        """{"type":"object","properties":{"questions":{"type":"array","minItems":1,"maxItems":4,"items":{"type":"object","properties":{"question":{"type":"string","description":"问题正文，具体、可直接回答"},"default_answer":{"type":"string","description":"自由输入问题的推荐答案，60秒未回复时采用"},"header":{"type":"string","description":"短标签（≤12 字），用于卡片分组"},"options":{"type":"array","minItems":0,"maxItems":6,"items":{"type":"object","properties":{"label":{"type":"string","description":"选项短文本"},"description":{"type":"string","description":"选项补充说明，可省略"},"recommended":{"type":"boolean","description":"是否为推荐答案；超时优先采用"}},"required":["label"]},"description":"候选项；省略或为空表示自由文本问题"},"allow_custom":{"type":"boolean","description":"除候选项外是否允许用户自定义输入；有 options 时默认 true"}},"required":["question"]}}},"required":["questions"]}""",
                     ).jsonObject,
                 ),
             ),

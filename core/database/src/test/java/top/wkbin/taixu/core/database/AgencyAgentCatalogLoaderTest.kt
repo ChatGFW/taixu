@@ -30,7 +30,8 @@ class AgencyAgentCatalogLoaderTest {
 
         assertEquals(136, catalog.profiles.size)
         assertEquals(
-            AgentDepartments.agency.map { it.id }.toSet(),
+            setOf("engineering", "design", "product", "project-management", "testing",
+                "security", "game-development", "spatial-computing", "specialized"),
             catalog.profiles.map { it.departmentId }.toSet(),
         )
         assertFalse(catalog.profiles.any { it.departmentId == "marketing" })

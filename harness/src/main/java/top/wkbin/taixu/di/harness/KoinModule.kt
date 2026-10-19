@@ -211,7 +211,7 @@ val harnessModule = module {
 
     includes(toolBackendModule)
     single<ToolRoundDispatcher> { ToolRoundDispatcher() }
-    single<TurnRunner> { TurnRunner(normalizer = get()) }
+    single<TurnRunner> { TurnRunner(normalizer = get(), groupFreshness = get()) }
 
     single<ApprovalResumePolicy> { ApprovalResumePolicy(sessionDao = get(), operationCoordinator = get()) }
 

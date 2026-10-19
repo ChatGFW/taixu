@@ -23,6 +23,7 @@ import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.harness.browser.BrowserMcpBootstrap
 import top.wkbin.taixu.bot.BotSchedulePlanner
 import top.wkbin.taixu.harness.agent.AgentMcpBootstrap
+import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +71,8 @@ class TaiXuApplication : Application(), Configuration.Provider {
     val browserMcpBootstrap: BrowserMcpBootstrap by inject()
     val agentMcpBootstrap: AgentMcpBootstrap by inject()
     val botSchedulePlannerLazy: Lazy<BotSchedulePlanner> = inject()
+    private val botAssignmentRuntimeLazy: Lazy<top.wkbin.taixu.harness.bot.BotAssignmentRuntime> = inject()
+    private val groupChatDispatcherLazy: Lazy<GroupChatDispatcher> = inject()
     private val botAssignmentTrackerLazy: Lazy<BotAssignmentTracker> = inject()
 
     private val appLoggerLazy: Lazy<AppLogger> = inject()
@@ -160,6 +163,10 @@ class TaiXuApplication : Application(), Configuration.Provider {
             }.onFailure {
                 Log.w(TAG, "恢复中断会话失败", it)
             }
+            runCatching { botAssignmentRuntimeLazy.value.start() }
+                .onFailure { Log.w(TAG, "恢复独立委派失败", it) }
+            runCatching { groupChatDispatcherLazy.value.startDeliveryProcessing() }
+                .onFailure { Log.w(TAG, "恢复群消息分发失败", it) }
             // 工作流后台化：启动对账（把进程死亡遗留的非终态运行标为已中断）+ 通知/HUD
             // 控制器 + FGS 联动。工作流 agent 会话由工作流体系自管，已在恢复中排除。
             val workflowRunManager = workflowRunManagerLazy.value

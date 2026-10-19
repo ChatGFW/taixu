@@ -87,8 +87,8 @@ internal class GroupReplyObserver(
                     sessionControl.cancel(sessionId)
                     return@coroutineScope ReplyOutcome(latestWithText ?: latestCandidate, steps = latestSteps, replyTimedOut = true, reasoning = reasoning)
                 }
-                val settled = state != SessionRunState.WAITING_APPROVAL && (latestCandidate?.totalMs != null ||
-                    (state in TERMINAL_STATES && (seenRunning || now - startedAt >= START_GRACE_MS)))
+                // A persisted text response can still consume follow-ups and continue this run.
+                val settled = state in TERMINAL_STATES && (seenRunning || now - startedAt >= START_GRACE_MS)
                 if (settled) break
                 if (state != SessionRunState.WAITING_APPROVAL && latestCandidate == null && now >= firstTokenDeadline) {
                     logger.w("[GroupReplyObserver] Bot ${bot.name} 等待首 token 超时，已请求取消")

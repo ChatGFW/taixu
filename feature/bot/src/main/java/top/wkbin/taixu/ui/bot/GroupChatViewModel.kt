@@ -55,6 +55,7 @@ class GroupChatViewModel(
     private val dispatcher: GroupChatDispatcher,
     private val exporter: BotDiagnosticsExporter,
     private val assignments: BotAssignmentTracker,
+    private val assignmentRuntime: top.wkbin.taixu.harness.bot.BotAssignmentRuntime,
     private val orchestrator: BotOrchestrator,
     private val scheduleRepository: BotScheduleRepository,
     private val groupSessions: BotGroupSessionRepository,
@@ -82,8 +83,8 @@ class GroupChatViewModel(
 
     val pendingApprovals: StateFlow<List<AgentApprovalRequestEntity>> = groupId.filterNotNull()
         .flatMapLatest { id ->
-            sessionControl.sessionRunStates.flatMapLatest {
-                val ids = groupSessions.listSessionIdsForGroup(id)
+            combine(sessionControl.sessionRunStates, assignments.observeForGroup(id)) { _, tasks -> tasks }.flatMapLatest { tasks ->
+                val ids = (groupSessions.listSessionIdsForGroup(id) + tasks.filter { it.independent }.mapNotNull { it.sessionId }).distinct()
                 if (ids.isEmpty()) flowOf(emptyList())
                 else combine(ids.map(approvals::pendingForSession)) { rows -> rows.flatMap { it }.sortedBy { it.createdAt } }
             }
@@ -162,6 +163,7 @@ class GroupChatViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(deleting = true) }
             runCatching {
+                assignmentRuntime.cancelGroup(groupId)
                 dispatcher.cancelGroup(groupId)
                 assignments.cancelGroup(groupId)
                 orchestrator.deleteGroupSessions(groupId)
@@ -184,6 +186,7 @@ class GroupChatViewModel(
         val groupId = groupId.value ?: return
         viewModelScope.launch {
             runCatching {
+                assignmentRuntime.cancelGroup(groupId)
                 dispatcher.cancelGroup(groupId)
                 assignments.cancelGroup(groupId)
                 orchestrator.deleteGroupSessions(groupId)
@@ -192,6 +195,10 @@ class GroupChatViewModel(
             }
                 .onFailure { _notices.tryEmit("清空失败：${it.message}") }
         }
+    }
+
+    suspend fun continueAssignment(id: String, instruction: String, requestId: String) {
+        assignmentRuntime.continueTask(id, requireNotNull(groupId.value), instruction, requestId)
     }
 
     fun exportDiagnostics() {
@@ -226,7 +233,8 @@ class GroupChatViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(stopping = true) }
             val background = activeAssignments.value
-            runCatching { dispatcher.cancelGroup(groupId) }
+            runCatching { assignmentRuntime.cancelGroup(groupId)
+                dispatcher.cancelGroup(groupId) }
                 .onFailure { _notices.tryEmit(context.getString(R.string.fbot_stop_failed, it.message)) }
             assignments.cancelGroup(groupId)
             if (background.isNotEmpty()) {

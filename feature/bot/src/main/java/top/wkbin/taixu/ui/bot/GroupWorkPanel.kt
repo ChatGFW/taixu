@@ -47,8 +47,13 @@ internal fun GroupWorkDialog(
     messages: List<GroupMessage>,
     onDismiss: () -> Unit,
     onCancel: (String) -> Unit,
+    onContinue: suspend (String, String, String) -> Unit,
 ) {
-    val running = assignments.count { it.status == BotAssignmentStatus.RUNNING }
+    var continueTarget by rememberSaveable { mutableStateOf<String?>(null) }
+    assignments.firstOrNull { it.id == continueTarget }?.let { task ->
+        GroupAssignmentContinueDialog(task, { continueTarget = null }, onContinue)
+    }
+    val running = assignments.count { it.status.isActive }
     val finished = assignments.size - running
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -58,7 +63,10 @@ internal fun GroupWorkDialog(
         }
     }
     val runningByBot = remember(assignments) {
-        assignments.filter { it.status == BotAssignmentStatus.RUNNING }.associateBy { it.botId }
+        assignments.filter { it.status.isActive }.associateBy { it.botId }
+    }
+    val streamingByTask = remember(messages) {
+        messages.filter { it.isStreaming && it.delegatedTaskId != null }.associateBy { it.delegatedTaskId }
     }
     val streamingByBot = remember(messages) {
         messages.filter { it.isStreaming }.associateBy { it.senderId }
@@ -116,12 +124,13 @@ internal fun GroupWorkDialog(
                         WorkCard(
                             assignment = assignment,
                             liveText = if (assignment.status == BotAssignmentStatus.RUNNING) {
-                                liveStatusText(streamingByBot[assignment.botId], assignment)
+                                liveStatusText(streamingByTask[assignment.id], assignment)
                             } else {
                                 null
                             },
                             now = now,
                             onCancel = onCancel,
+                            onContinue = { continueTarget = it.id },
                         )
                     }
                 }
@@ -209,10 +218,12 @@ private fun WorkCard(
     liveText: String?,
     now: Long,
     onCancel: (String) -> Unit,
+    onContinue: (BotAssignment) -> Unit,
 ) {
     var expanded by rememberSaveable(assignment.id) { mutableStateOf(false) }
     val statusColor = when (assignment.status) {
-        BotAssignmentStatus.RUNNING -> MaterialTheme.colorScheme.primary
+        BotAssignmentStatus.QUEUED, BotAssignmentStatus.RUNNING -> MaterialTheme.colorScheme.primary
+        BotAssignmentStatus.BLOCKED, BotAssignmentStatus.INTERRUPTED -> MaterialTheme.colorScheme.error
         BotAssignmentStatus.COMPLETED -> MaterialTheme.colorScheme.tertiary
         BotAssignmentStatus.FAILED -> MaterialTheme.colorScheme.error
         BotAssignmentStatus.CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -257,7 +268,7 @@ private fun WorkCard(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     )
                 }
-                if (assignment.status == BotAssignmentStatus.RUNNING) {
+                if (assignment.status.isActive) {
                     RuntimeIconButton(
                         onClick = { onCancel(assignment.id) },
                         modifier = Modifier.size(32.dp),
@@ -266,6 +277,12 @@ private fun WorkCard(
                         RuntimeIcon(RuntimeIconName.Stop, Modifier.size(16.dp), tint = statusColor)
                     }
                 }
+            }
+            if (expanded && assignment.independent) {
+                RuntimeTextButton(onClick = { onContinue(assignment) }) {
+                    Text(stringResource(if (assignment.status.isActive) R.string.fbot_assignment_add_instruction else R.string.fbot_assignment_continue))
+                }
+                Text(stringResource(R.string.fbot_assignment_round, assignment.revision), style = MaterialTheme.typography.labelSmall)
             }
             Text(
                 assignment.title,
@@ -279,6 +296,9 @@ private fun WorkCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            if (expanded && !assignment.error.isNullOrBlank()) {
+                Text(assignment.error.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
             if (!liveText.isNullOrBlank()) {
                 Row(
@@ -331,6 +351,9 @@ private fun liveStatusText(message: GroupMessage?, assignment: BotAssignment?): 
 
 @Composable
 private fun statusLabel(status: BotAssignmentStatus): String = when (status) {
+    BotAssignmentStatus.QUEUED -> stringResource(R.string.fbot_assignment_queued)
+    BotAssignmentStatus.BLOCKED -> stringResource(R.string.fbot_assignment_blocked)
+    BotAssignmentStatus.INTERRUPTED -> stringResource(R.string.fbot_assignment_interrupted)
     BotAssignmentStatus.RUNNING -> stringResource(R.string.fbot_work_status_running)
     BotAssignmentStatus.COMPLETED -> stringResource(R.string.fbot_work_status_completed)
     BotAssignmentStatus.FAILED -> stringResource(R.string.fbot_work_status_failed)

@@ -96,7 +96,7 @@ fun GroupChatScreen(
     val streamingCount = messages.filter { it.isStreaming }.map { it.senderId }.distinct().size
     val workingCount = streamingCount + activeAssignments.size
     val busy = workingCount > 0
-    val runningAssignments = workAssignments.count { it.status == BotAssignmentStatus.RUNNING }
+    val runningAssignments = workAssignments.count { it.status.isActive }
     val yesterdayLabel = stringResource(R.string.fbot_yesterday)
     val admin = remember(members, state.group?.adminBotId) {
         members.firstOrNull { it.id == state.group?.adminBotId }
@@ -326,6 +326,7 @@ fun GroupChatScreen(
             messages = messages,
             onDismiss = { showWork = false },
             onCancel = viewModel::cancelAssignment,
+            onContinue = viewModel::continueAssignment,
         )
     }
     if (showMembers) {

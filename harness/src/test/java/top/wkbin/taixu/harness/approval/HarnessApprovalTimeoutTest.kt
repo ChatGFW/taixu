@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -22,6 +24,11 @@ import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
 import top.wkbin.taixu.core.database.RoomHarnessSessionRepository
 import top.wkbin.taixu.harness.ApprovalPolicyEngine
 import top.wkbin.taixu.harness.AskUserQuestions
+import top.wkbin.taixu.harness.AskUserRequest
+import top.wkbin.taixu.harness.AskUserToolBackend
+import top.wkbin.taixu.harness.HarnessPathResolver
+import top.wkbin.taixu.harness.HarnessTool
+import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.events.HarnessEventBus
 import top.wkbin.taixu.harness.operation.OperationCoordinator
 
@@ -39,6 +46,50 @@ class HarnessApprovalTimeoutTest {
     private lateinit var approvalRepo: AgentApprovalRepository
 
     private val nowMs = 1_700_000_000_000L
+    private val questionArgs = """{"questions":[{"question":"方式？","options":[{"label":"推荐方式","recommended":true},{"label":"另一种"}]}]}"""
+
+    @Test fun `question waits at most sixty seconds and background lane continues immediately`() = runBlocking {
+        seedSession("s1")
+        val backend = AskUserToolBackend(ApprovalPolicyEngine(HarnessPathResolver()), approvalRepo)
+        val call = ToolCall("ask", nowMs, HarnessTool.ASK_USER, Json.parseToJsonElement(questionArgs) as kotlinx.serialization.json.JsonObject)
+        val request = AskUserRequest(call, "s1", "/workspace/proj", null, true, nowMs)
+        val pending = backend.execute(request)
+        assertTrue(pending.awaitingApproval)
+        assertEquals(nowMs + 60_000, approvalRepo.find(pending.approvalRequestId!!)!!.expiresAt)
+        val lane = backend.execute(request.copy(toolCall = call.copy(id = "lane-ask"), allowApprovalRequest = false))
+        assertTrue(lane.success)
+        assertFalse(lane.awaitingApproval)
+        assertFalse(lane.approvalDeferred)
+        assertTrue(lane.output.contains("→ 推荐方式"))
+    }
+
+    @Test fun `expired question returns recommendation while tool approval never auto approves`() = runBlocking {
+        seedSession("s1")
+        val question = approvalRequest("question", toolName = AskUserQuestions.TOOL_NAME, expiresAt = nowMs - 1)
+            .copy(argumentsJson = questionArgs, argsHash = ApprovalPolicyEngine.argsHash(questionArgs))
+        val result = expiredRequestResult(question, nowMs, policy)
+        assertTrue(result.success)
+        assertTrue(result.output.contains("→ 推荐方式"))
+        assertFalse(expiredRequestResult(question.copy(toolName = "base"), nowMs, policy).success)
+        assertFalse(expiredRequestResult(question.copy(argsHash = "corrupt"), nowMs, policy).success)
+        assertFalse(expiredRequestResult(question.copy(operationId = "stopped-operation"), nowMs, policy).success)
+    }
+
+    @Test fun `human answer and timeout claim have one winner and repeated timeout cannot answer twice`() = runBlocking {
+        seedSession("s1")
+        val question = approvalRequest("question", toolName = AskUserQuestions.TOOL_NAME, expiresAt = nowMs - 1)
+            .copy(argumentsJson = questionArgs, argsHash = ApprovalPolicyEngine.argsHash(questionArgs))
+        approvalRepo.create(question)
+        val answer = async(Dispatchers.Default) { approvalRepo.claimPending(question.id, AgentApprovalRequestEntity.STATUS_APPROVED) }
+        val timeout = async(Dispatchers.Default) { approvalRepo.sweepExpiredForSession("s1", nowMs).size }
+        assertEquals(1, (if (answer.await()) 1 else 0) + timeout.await())
+        assertTrue(approvalRepo.sweepExpiredForSession("s1", nowMs).isEmpty())
+    }
+
+    @Test fun `new settings and sessions use full access without prompt instructions`() = runBlocking {
+        assertEquals(top.wkbin.taixu.core.model.ApprovalMode.FULL_ACCESS, approvalRepo.currentMode())
+        assertEquals("full_access", HarnessSessionEntity("new", "chat", 1, 1, modelId = null).approvalMode)
+    }
 
     @Before
     fun setUp() {

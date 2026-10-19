@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 
-interface BotAssignmentRepository {
+interface BotAssignmentRepository : IndependentAssignmentRepository {
     fun observeForGroup(groupId: String): Flow<List<BotAssignment>>
     suspend fun listRunning(groupId: String): List<BotAssignment>
     suspend fun listRecent(limit: Int = 20): List<BotAssignment>
@@ -19,5 +19,5 @@ interface BotAssignmentRepository {
     )
 
     /** 进程重启后把遗留的 RUNNING 记录收敛为失败，避免工作面板永久显示“执行中”。 */
-    suspend fun failRunning(now: Long = System.currentTimeMillis(), error: String = "进程已退出，任务中断")
+    suspend fun failRunning(now: Long = System.currentTimeMillis(), error: String = "进程已退出，原执行结果待核对；请检查原会话和产物，不要重复执行")
 }

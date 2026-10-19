@@ -22,7 +22,7 @@ import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.repository.*
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
-import top.wkbin.taixu.harness.subagent.SubagentLaneResult
+import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -55,6 +55,14 @@ class BotManagementExecutionTest {
             PluginToolRequest(JsonObject(args.mapValues { JsonPrimitive(it.value) }), session, "/workspace", null),
         )
 
+    @Test fun `management plugin registers every declared tool including continuation and reports`() {
+        val registry = HarnessPluginRegistry(listOf(plugin()))
+        val inspected = registry.inspect("plugin.taixu.bot-management")
+        assertTrue(inspected.first)
+        assertTrue(inspected.second.contains("continue-assignment"))
+        assertTrue(inspected.second.contains("report-assignment"))
+    }
+
     @Test fun `chief manages team from group session while members and unknown sessions cannot`() = runBlocking {
         seed()
         assertTrue(call("list-bots", "group-chief").text.contains("小前"))
@@ -76,7 +84,7 @@ class BotManagementExecutionTest {
         val assignment = newAssignment(bots.getBot("member")!!, groups.getGroup("group"), "implement", emptyList())
         val reported = CompletableDeferred<Unit>()
         val proceed = CompletableDeferred<Unit>()
-        launchBotAssignment(tracker, assignment, { proceed.await(); SubagentLaneResult(true, "done", 3) }) { _, wake ->
+        launchBotAssignment(tracker, assignment, { proceed.await(); GroupTurnOutcome("done", false) }) { _, wake ->
             assertEquals(BotAssignmentStatus.COMPLETED, tracker.get(assignment.id)?.status)
             assertTrue(tracker.active.value.isEmpty())
             assertTrue(wake)
@@ -115,7 +123,7 @@ class BotManagementExecutionTest {
         val assignment = newAssignment(bots.getBot("member")!!, groups.getGroup("group"), "implement", emptyList())
         val notifying = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
-        launchBotAssignment(tracker, assignment, { SubagentLaneResult(true, "done", 1) }) { _, _ ->
+        launchBotAssignment(tracker, assignment, { GroupTurnOutcome("done", false) }) { _, _ ->
             notifying.complete(Unit)
             release.await()
         }

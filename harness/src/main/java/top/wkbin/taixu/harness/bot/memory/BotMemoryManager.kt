@@ -5,7 +5,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
-import java.nio.file.StandardCopyOption
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.diff.DiffFormatter
 import org.eclipse.jgit.lib.Repository
@@ -37,7 +36,14 @@ class BotMemoryManager(
         locks.getOrPut(botId) { Mutex() }.withLock { block() }
     }
 
-    fun memoryDir(botId: String): File = File(File(pathManager.baseDir, "bots"), "$botId/memory")
+    fun memoryDir(botId: String): File {
+        require(botId.matches(Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,127}"))) { "非法 Bot ID" }
+        val bots = File(pathManager.baseDir, "bots")
+        val bot = File(bots, botId)
+        val memory = File(bot, "memory")
+        require(listOf(bots, bot, memory).none { Files.isSymbolicLink(it.toPath()) }) { "Bot 记忆根目录不能是符号链接" }
+        return memory
+    }
 
     suspend fun initRepo(botId: String, botName: String) = withMemory(botId) {
         val dir = memoryDir(botId)
@@ -58,27 +64,32 @@ class BotMemoryManager(
         relativePath: String,
         content: String,
         commitMessage: String,
+        expectedRevision: String? = null,
     ): MemoryCommit? = withMemory(botId) {
         val dir = memoryDir(botId)
-        ensureRepo(dir, botId)
         val target = resolveSafe(dir, relativePath)
         require(target.extension.lowercase() == "md") { "记忆文件仅允许 Markdown: $relativePath" }
-        target.parentFile?.mkdirs()
-        require(content.toByteArray(Charsets.UTF_8).size <= MAX_MEMORY_BYTES) { "单个记忆文件不能超过 1 MiB" }
-        val temporary = File.createTempFile(".memory-", ".tmp", target.parentFile)
-        try {
-            temporary.writeText(content, Charsets.UTF_8)
-            Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-        } finally {
-            temporary.delete()
+        if (expectedRevision != null) require(MemoryFileAccess.read(dir, relativePath).revision == expectedRevision) {
+            "记忆已被其他执行修改；草稿已保留，请重新载入后合并，未覆盖当前内容"
         }
+        require(content.toByteArray(Charsets.UTF_8).size <= MAX_MEMORY_BYTES) { "单个记忆文件不能超过 1 MiB" }
+        ensureRepo(dir, botId)
+        MemoryFileAccess.write(target, content.toByteArray(Charsets.UTF_8))
         cleanStaleLock(dir)
         Git.open(dir).use { git ->
             val identity = git.repository.config.getString("user", null, "name") ?: "Bot $botId"
-            val commit = commitAll(git, identity, commitMessage)
+            val gitPath = target.relativeTo(dir).invariantSeparatorsPath
+            git.add().addFilepattern(gitPath).call()
+            val commit = if (git.status().addPath(gitPath).call().isClean) null else git.commit()
+                .setOnly(gitPath).setMessage(commitMessage).setAuthor(identity, "bot-$botId@taixu.local")
+                .setCommitter(identity, "bot-$botId@taixu.local").call()
             commit?.let { toMemoryCommit(git.repository, it, listOf(relativePath)) }
         }
     }
+
+    suspend fun readDocument(botId: String, path: String) = withMemory(botId) { MemoryFileAccess.read(memoryDir(botId), path) }
+
+    suspend fun getCommitDiff(botId: String, hash: String) = withMemory(botId) { MemoryVersionOperations.diff(memoryDir(botId), hash) }
 
     suspend fun readMemory(botId: String, relativePath: String): String = withMemory(botId) {
         val dir = memoryDir(botId)
@@ -128,10 +139,9 @@ class BotMemoryManager(
     }
 
     suspend fun rollbackToCommit(botId: String, hash: String) = withMemory(botId) {
-        require(hash.matches(Regex("[0-9a-fA-F]{7,40}"))) { "无效的提交哈希" }
         val dir = memoryDir(botId)
         cleanStaleLock(dir)
-        Git.open(dir).use { git -> git.reset().setMode(org.eclipse.jgit.api.ResetCommand.ResetType.HARD).setRef(hash).call() }
+        MemoryVersionOperations.restore(dir, hash)
     }
 
     suspend fun deleteMemory(botId: String) = withMemory(botId) {
@@ -231,7 +241,7 @@ class BotMemoryManager(
             formatter.setRepository(repository)
             RevWalk(repository).use { walk ->
                 val parent = walk.parseCommit(commit.getParent(0).id)
-                formatter.scan(parent.tree, commit.tree).map { it.newPath }
+                formatter.scan(parent.tree, commit.tree).map { if (it.changeType == org.eclipse.jgit.diff.DiffEntry.ChangeType.DELETE) it.oldPath else it.newPath }
             }
         }
     }
@@ -245,15 +255,7 @@ class BotMemoryManager(
     }
 
     private fun resolveSafe(root: File, relativePath: String): File {
-        val normalized = relativePath.replace('\\', '/').trim().removePrefix("/")
-        require(normalized.isNotBlank()) { "记忆路径不能为空" }
-        val parts = normalized.split('/')
-        require(parts.none { it.isEmpty() || it == "." || it == ".." }) { "非法记忆路径: $relativePath" }
-        require(parts.firstOrNull() != ".git") { "禁止直接操作 Git 元数据" }
-        val target = File(root, normalized)
-        val rootPath = root.canonicalFile.toPath()
-        require(target.canonicalFile.toPath().startsWith(rootPath)) { "记忆路径越界: $relativePath" }
-        return target
+        return MemoryFileAccess.resolve(root, relativePath)
     }
 
     private fun copyTreeSafely(source: File, dest: File, skipGitLocks: Boolean = false) {

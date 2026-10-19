@@ -58,6 +58,10 @@ class BotDetailViewModel(
     val deleted = _deleted.asSharedFlow()
 
     private var boundBotId: String? = null
+    private val memoryDrafts = mutableMapOf<Pair<String, String>, BotMemoryEditorState>()
+
+    internal fun memoryDraft(botId: String, path: String) = memoryDrafts.getOrPut(botId to path) { BotMemoryEditorState() }
+    internal fun closeMemoryDraft(botId: String, path: String) { memoryDrafts.remove(botId to path) }
 
     fun bind(botId: String) {
         if (boundBotId == botId) return
@@ -116,9 +120,9 @@ class BotDetailViewModel(
     fun rollback(hash: String) {
         val bot = _uiState.value.bot ?: return
         launchBusy {
-            memoryManager.rollbackToCommit(bot.id, hash)
+            val result = memoryManager.rollbackToCommit(bot.id, hash)
             refreshMemory(bot.id)
-            "已回滚到 ${hash.take(8)}"
+            "已恢复到 ${hash.take(8)}，恢复前快照 ${result.backupHash.take(8)} 已保留"
         }
     }
 
@@ -132,6 +136,16 @@ class BotDetailViewModel(
             packageService.exportBot(bot.id, target)
             "已导出到 ${target.absolutePath}"
         }
+    }
+
+    suspend fun readMemoryDocument(botId: String, path: String) = memoryManager.readDocument(botId, path)
+
+    suspend fun memoryDiff(botId: String, hash: String) = memoryManager.getCommitDiff(botId, hash)
+
+    suspend fun saveMemoryDocument(botId: String, document: top.wkbin.taixu.core.model.bot.BotMemoryDocument, content: String) {
+        check(boundBotId == botId && _uiState.value.bot?.id == botId) { "Bot 已切换，未保存" }
+        memoryManager.writeMemory(botId, document.path, content, "memory: 编辑 ${document.path}", document.revision)
+        refreshMemory(botId)
     }
 
     fun addSchedule(cron: String, instruction: String, groupId: String?) {

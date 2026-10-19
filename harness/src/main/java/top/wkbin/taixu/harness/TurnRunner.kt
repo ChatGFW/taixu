@@ -16,6 +16,7 @@ sealed interface TurnProviderOutcome {
  */
 class TurnRunner(
     private val normalizer: ProviderResponseNormalizer,
+    private val groupFreshness: top.wkbin.taixu.harness.groupchat.GroupReplyFreshness? = null,
 ) {
     private val core = AgentTurnRunner()
 
@@ -29,8 +30,10 @@ class TurnRunner(
         executeTools: suspend (List<ApiToolCallSpec>, ChatResult) -> Boolean,
         remainingRounds: Int = Int.MAX_VALUE,
         lifecycle: TurnLifecycle<NormalizedProviderResponse>? = null,
+        sessionId: String? = null,
     ): TurnOutcome = core.run(
         callProvider = {
+            sessionId?.let { groupFreshness?.refresh(it) }
             when (val provider = callProvider()) {
                 is TurnProviderOutcome.Failed -> ProviderTurnResult.Failed(provider.message)
                 is TurnProviderOutcome.Success -> ProviderTurnResult.Success(
@@ -40,7 +43,9 @@ class TurnRunner(
         },
         observeResponse = observeResponse,
         persistAssistant = persistAssistant,
-        consumeFollowUps = consumeFollowUps,
+        consumeFollowUps = {
+            consumeFollowUps() + (sessionId?.let { groupFreshness?.refresh(it, beforeCompletion = true) } ?: 0)
+        },
         enforceToolLimit = { calls, response -> enforceToolLimit(calls, response.result) },
         executeTools = { calls, response -> executeTools(calls, response.result) },
         remainingRounds = remainingRounds,

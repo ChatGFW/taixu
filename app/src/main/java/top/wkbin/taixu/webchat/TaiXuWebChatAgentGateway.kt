@@ -59,7 +59,7 @@ class TaiXuWebChatAgentGateway(
                 modelId = defaultModel?.id,
                 modelVariant = defaultModel?.model?.substringBefore(',')?.trim()?.takeIf { it.isNotBlank() },
                 workspace = workspace,
-                approvalMode = ApprovalMode.ASSISTED.id,
+                approvalMode = ApprovalMode.FULL_ACCESS.id,
             ),
         )
         return id

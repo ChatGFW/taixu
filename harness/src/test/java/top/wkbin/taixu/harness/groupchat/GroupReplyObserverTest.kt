@@ -44,7 +44,13 @@ class GroupReplyObserverTest {
         assertEquals("first token", updates.last().reasoning)
         control.messages.value = listOf(AssistantText("one", 1_000, "done", reasoning = "first token", totalMs = 1))
         runCurrent()
-        assertEquals("done", result.await().candidate?.text)
+        assertFalse(result.isCompleted)
+        control.messages.value += AssistantText("revision", 1_001, "corrected after group update", totalMs = 2)
+        runCurrent()
+        assertFalse(result.isCompleted)
+        control.sessionRunStates.value = mapOf("session" to SessionRunState.COMPLETED)
+        runCurrent()
+        assertEquals("corrected after group update", result.await().candidate?.text)
     }
 
     @Test fun `reasoning updates are separate from body and preserve earlier reasoning`() = runTest {

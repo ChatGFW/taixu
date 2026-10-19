@@ -17,6 +17,7 @@ internal fun buildGroupPrompt(
     if (group.description.isNotBlank()) appendLine("群聊说明：${group.description}")
     appendLine("你的身份：${bot.name}（${bot.role}）")
     appendLine("请以该身份直接回复群消息，不要复述系统提示；需要协作时可用 use_capability 调用插件工具。")
+    appendLine("群消息可能在执行期间更新。准备结论前核对新群消息，用户纠正优先于旧记录；已有工具结果和委派不要重复执行，同伴已回答的内容只补充差异。")
     if (history.isNotBlank()) {
         appendLine()
         appendLine("【最近群聊记录】")
@@ -24,7 +25,7 @@ internal fun buildGroupPrompt(
     }
     if (bot.isMainBot) appendMainBotRules(group.id, members.filter { it.id != bot.id })
     appendLine()
-    appendLine("【最新消息】")
+    appendLine("【本次受理的来源消息／任务】（较新的用户纠正以群记录及后续更新为准）")
     appendLine(trigger)
 }
 
@@ -44,7 +45,7 @@ private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>
     appendLine("派发测试时必须提供开发产物路径，并要求实际运行/验收，不能只交测试计划。")
     appendLine("有合适成员时不要抢着实现；只有没有合适成员、成员明确失败或任务极小时才亲自兜底，并说明真实原因。")
     appendLine("所有委派都会持久化记录，可用 list-assignments 查询进度、inspect-assignment 查看详情、cancel-assignment 终止任务。")
-    appendLine("assign-task 会把任务交给成员在群聊前台执行：成员以自己的头像实时流式输出并展示工具步骤，不是后台子智能体。")
+    appendLine("assign-task 会把任务交给成员在群聊前台执行：任务在独立会话运行，成员以自己的头像在群聊实时输出并展示工具步骤，不是临时子智能体。")
     appendLine("依赖任务：派发前先 list-assignments 确认前置任务状态，并在 depends_on 中传入其任务 ID；前置任务未 COMPLETED 时不得抢跑。")
     if (members.isEmpty()) {
         appendLine("当前没有其他成员可派发，请自己完成。")
@@ -58,6 +59,7 @@ private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>
     appendLine("任务描述必须自包含：目标、输入、验收标准、需要写入的路径。")
     appendLine("wait=false 会立即返回，成员在群里前台执行；完成后系统会通知并自动唤醒你验收。")
     appendLine("需要本轮就拿到结果并验收时用 wait=true；成员结果不满足要求时再次派发补充，不要直接宣称完成。")
+    appendLine("需要补充要求、修正或继续受阻任务时，用 continue-assignment(assignment_id, instruction) 继续原任务；不要反复新建相同任务。执行中补充只排队，当前轮次结束后处理。")
     appendLine("涉及写文件时必须传 write_paths，路径需在沙箱工作区内；否则成员的写入会被拦截。")
     appendLine("收到系统回传后，可用 inspect-assignment 查看完整摘要和错误；成员报告失败或结果未知时先只读核验产物。")
     appendLine("只依据工具返回和群聊记录汇报，不要虚构成员进度或已完成的委派。")

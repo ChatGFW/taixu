@@ -3,7 +3,10 @@ package top.wkbin.taixu.core.model.bot
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class BotAssignmentStatus { RUNNING, COMPLETED, FAILED, CANCELLED }
+enum class BotAssignmentStatus {
+    QUEUED, RUNNING, BLOCKED, INTERRUPTED, COMPLETED, FAILED, CANCELLED;
+    val isActive: Boolean get() = this == QUEUED || this == RUNNING
+}
 
 /** 主控派发给某个 Bot 的一次后台任务，持久化后可供查询、验收和取消。 */
 @Serializable
@@ -23,4 +26,9 @@ data class BotAssignment(
     val error: String? = null,
     val sessionId: String? = null,
     val laneName: String? = null,
+    /** Background result recipient; null means no asynchronous report is requested. */
+    val reportToBotId: String? = null,
+    val independent: Boolean = false,
+    val revision: Int = 0,
+    val activeRequestId: String? = null,
 )
