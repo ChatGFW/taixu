@@ -1,11 +1,8 @@
 package top.wkbin.taixu.harness.plugins
 
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -21,7 +18,6 @@ import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
 import top.wkbin.taixu.harness.bot.BotOrchestrator
 import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
-import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 
 /**
  * 主控 Bot 的团队管理工具：孵化新 Bot、向指定 Bot 派发后台子任务、查看名册。
@@ -35,8 +31,8 @@ fun botManagementPlugin(
     dispatcher: () -> GroupChatDispatcher,
     assignments: BotAssignmentTracker,
     logger: AppLogger,
+    runtime: (() -> top.wkbin.taixu.harness.bot.BotAssignmentRuntime)? = null,
 ): HarnessPlugin {
-    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val descriptor = botManagementDescriptor()
     val createSchema = pluginObjectSchema(
         required = listOf("name", "role", "system_prompt"),
@@ -55,12 +51,12 @@ fun botManagementPlugin(
             "bot_name" to pluginStringProperty("目标 Bot 名称"),
             "task" to pluginStringProperty("要交给它独立完成的具体任务"),
             "write_paths" to pluginStringArrayProperty(
-                "可选建议写入目录；群聊前台执行时作为任务提示，无群聊子任务会作为写入租约",
+                "可选建议写入目录；群聊独立任务作为提示，无群聊子任务作为写入租约",
                 "建议写入的沙箱路径",
             ),
             "group_id" to pluginStringProperty("可选群聊 ID；省略时使用主控 Bot 所在的第一个群"),
             "wait" to pluginBooleanProperty(
-                "是否等待成员在群聊前台执行完成并直接返回；省略时有群聊则立即返回、成员前台执行",
+                "是否等待独立任务本轮结束并返回；省略时有群聊则立即返回任务 ID",
             ),
             "depends_on" to pluginStringArrayProperty(
                 "可选前置任务 ID 列表；全部 COMPLETED 后才允许派发，用于串行依赖",
@@ -121,7 +117,7 @@ fun botManagementPlugin(
             },
             PluginTool(
                 id = "assign-task",
-                description = "把任务交给指定 Bot 在群聊前台执行：成员以自己的头像实时流式输出与工具步骤，任务会持久化。仅主控 Bot 可用。",
+                description = "把任务交给指定 Bot 在独立会话执行：成员仍在群聊实时输出与展示工具步骤，任务可继续。仅主控 Bot 可用。",
                 schema = assignSchema,
             ) { request ->
                 val caller = requireMainBot(request.sessionId, botRepository)
@@ -153,97 +149,42 @@ fun botManagementPlugin(
                 if (group != null && groupRepository.getMembers(group.id).none { it.id == target.id }) {
                     return@PluginTool PluginToolOutput(
                         false,
-                        "${target.name} 不在群聊「${group.name}」中；请先把成员拉进群，前台执行才能显示在群里。",
+                        "${target.name} 不在群聊「${group.name}」中；请先把成员加入群聊再派发。",
                     )
                 }
-                val groupSessionId = group?.let { resolved ->
-                    runCatching { orchestrator().ensureGroupSession(target, resolved.id) }
-                        .onFailure {
-                            logger.w("[BotManagementPlugin] 准备群维度会话失败: ${it.message}", it)
-                        }
-                        .getOrElse { return@PluginTool PluginToolOutput(false, "准备群会话失败：${it.message}") }
-                }
-                val wait = request.arguments["wait"]?.jsonPrimitive?.booleanOrNull ?: (group == null)
-                if (wait) {
-                    val assignment = newAssignment(
-                        target, group, task, writePaths, sessionId = groupSessionId,
-                    )
-                    assignments.start(assignment, currentCoroutineContext()[Job])
-                    var status = BotAssignmentStatus.FAILED
-                    var summary: String? = null
-                    var error: String? = null
-                    try {
-                        val outcome = if (group != null) {
-                            dispatcher().runAssignment(
-                                group = group,
-                                target = target,
-                                requester = caller,
-                                task = task,
-                                taskId = assignment.id,
-                                writePaths = writePaths,
-                            )
-                        } else {
-                            val result = orchestrator().dispatchSubtask(
-                                target.id,
-                                task,
-                                writePaths,
-                                laneName = assignment.laneName,
-                                groupId = null,
-                            )
-                            GroupTurnOutcome(result.summary, !result.success)
-                        }
-                        summary = outcome.text
-                        status = if (outcome.failed) {
-                            BotAssignmentStatus.FAILED
-                        } else {
-                            BotAssignmentStatus.COMPLETED
-                        }
-                        if (outcome.failed) error = "成员执行未成功"
-                        val mark = if (outcome.failed) "⚠️" else "✅"
-                        val place = if (group != null) "已在群聊前台执行结束" else "执行结束"
-                        PluginToolOutput(
-                            !outcome.failed,
-                            "$mark ${target.name} $place（任务 ${assignment.id}）\n\n${outcome.text.take(BOT_TOOL_MAX_CHARS)}",
-                        )
-                    } catch (cancelled: CancellationException) {
-                        status = BotAssignmentStatus.CANCELLED
-                        error = "已取消"
-                        throw cancelled
-                    } catch (failure: Throwable) {
-                        error = failure.message ?: "未知错误"
-                        PluginToolOutput(false, "派发失败（任务 ${assignment.id}）：$error")
-                    } finally {
-                        withContext(NonCancellable) { assignments.finish(assignment.id, status, summary, error) }
+                if (group != null) {
+                    val engine = runtime?.invoke() ?: return@PluginTool PluginToolOutput(false, "独立任务执行器尚未初始化")
+                    val created = engine.create(target.id, group.id, caller.id, request.sessionId, task, writePaths)
+                    val wait = request.arguments["wait"]?.jsonPrimitive?.booleanOrNull ?: false
+                    if (wait) {
+                        val result = engine.awaitRequest("initial:${created.id}")
+                        return@PluginTool PluginToolOutput(result.status == "completed" && result.blockedReason == null,
+                            "任务 ${created.id}：${result.summary ?: result.error ?: result.status}")
                     }
-                } else {
-                    val notifyGroup = group ?: return@PluginTool PluginToolOutput(
-                        false,
-                        "后台委派需要至少一个群聊来回传结果；请加入群聊、指定 group_id，或改用 wait=true",
-                    )
-                    val assignment = newAssignment(
-                        target, notifyGroup, task, writePaths, sessionId = groupSessionId,
-                    )
-                    scope.launchBotAssignment(assignments, assignment,
-                        run = {
-                            dispatcher().runAssignment(
-                                group = notifyGroup,
-                                target = target,
-                                requester = caller,
-                                task = task,
-                                taskId = assignment.id,
-                                writePaths = writePaths,
-                            )
-                        },
-                        report = { text, wakeMainBot ->
-                            notifyAssignmentResult(
-                                dispatcher(), logger, caller, notifyGroup, assignment.id, text, wakeMainBot,
-                            )
-                        },
-                    )
-                    PluginToolOutput(
-                        true,
-                        "🚀 已把任务交给 ${target.name} 在群聊前台执行（任务 ${assignment.id}）；你能实时看到它的头像、流式输出与工具步骤，完成后会自动唤醒你验收。",
-                    )
+                    return@PluginTool PluginToolOutput(true, "已交给 ${target.name} 独立执行（任务 ${created.id}）；群内实时展示过程，完成后回报。补充要求请用 continue-assignment 继续原任务。")
+                }
+                if (request.arguments["wait"]?.jsonPrimitive?.booleanOrNull == false) {
+                    return@PluginTool PluginToolOutput(false, "独立后台委派需要群聊来源；请加入群聊或使用 wait=true 同步执行")
+                }
+                val assignment = newAssignment(target, null, task, writePaths)
+                assignments.start(assignment, currentCoroutineContext()[Job])
+                var status = BotAssignmentStatus.FAILED
+                var summary: String? = null
+                var error: String? = null
+                try {
+                    val result = orchestrator().dispatchSubtask(target.id, task, writePaths)
+                    summary = result.summary
+                    status = if (result.success) BotAssignmentStatus.COMPLETED else BotAssignmentStatus.FAILED
+                    PluginToolOutput(result.success, "任务 ${assignment.id}：${result.summary}")
+                } catch (cancelled: CancellationException) {
+                    status = BotAssignmentStatus.CANCELLED
+                    error = "用户取消"
+                    throw cancelled
+                } catch (failure: Exception) {
+                    error = failure.message
+                    PluginToolOutput(false, "执行失败：$error")
+                } finally {
+                    withContext(NonCancellable) { assignments.finish(assignment.id, status, summary, error) }
                 }
             },
             PluginTool(
@@ -268,7 +209,7 @@ fun botManagementPlugin(
             botRepository = botRepository,
             groupRepository = groupRepository,
             assignments = assignments,
-        ),
+        ) + independentAssignmentTools(botRepository, groupRepository, runtime),
     )
 }
 

@@ -46,7 +46,7 @@ val featureBotModule = module {
             groupSessions = get(),
             approvals = get(),
             sessionControl = get(),
-            assignments = get(),
+            assignments = get(), assignmentRuntime = get(),
             orchestrator = get(),
             scheduleRepository = get<BotScheduleRepository>(),
         )

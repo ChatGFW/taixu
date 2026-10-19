@@ -1,5 +1,7 @@
 package top.wkbin.taixu.harness.bot
 
+import kotlinx.coroutines.flow.first
+
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
@@ -34,6 +36,7 @@ class BotOrchestrator(
     private val laneRunner: SubagentLaneRunner,
     private val memoryManager: BotMemoryManager,
     private val logger: AppLogger,
+    private val assignmentRepository: top.wkbin.taixu.core.database.repository.BotAssignmentRepository? = null,
 ) {
     private val groupSessionLocks = ConcurrentHashMap<String, Mutex>()
 
@@ -135,6 +138,10 @@ class BotOrchestrator(
         val bot = botRepository.getBot(botId) ?: return
         val adminGroups = groupRepository.countGroupsAsAdmin(botId)
         check(adminGroups == 0) { "该 Bot 仍是 $adminGroups 个群聊的管理员，请先转移管理员" }
+        assignmentRepository?.assignmentsForBot(botId)?.forEach { task ->
+            assignmentRepository.cancelAssignment(task.id)
+            task.sessionId?.let { sessionControl.deleteSession(it) }
+        }
         runCatching { sessionControl.deleteSession(bot.sessionId) }
             .onFailure { logger.w("[BotOrchestrator] 删除 Bot 会话失败: ${it.message}", it) }
         runCatching { groupSessionRepository.listSessionIdsForBot(botId) }.getOrDefault(emptyList())
@@ -182,7 +189,9 @@ class BotOrchestrator(
 
     /** 解散群聊前移除各 Bot 的群维度会话，避免留下无主会话。 */
     suspend fun deleteGroupSessions(groupId: String) {
-        groupSessionRepository.listSessionIdsForGroup(groupId).forEach { sessionId ->
+        val independent = assignmentRepository?.observeForGroup(groupId)?.first().orEmpty()
+            .filter { it.independent }.mapNotNull { it.sessionId }
+        (groupSessionRepository.listSessionIdsForGroup(groupId) + independent).distinct().forEach { sessionId ->
             sessionControl.deleteSession(sessionId)
         }
     }

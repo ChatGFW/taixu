@@ -183,8 +183,8 @@ class ApiContextAssemblerTest {
 
         assertEquals("system", out[0].role)
         val systemPrompt = out[0].content!!
-        assertTrue(systemPrompt.isNotBlank())
-        assertEquals(9, Regex("department=\\\"").findAll(systemPrompt).count())
+        assertTrue(top.wkbin.taixu.core.model.AgentDepartments.agency.all { systemPrompt.contains(it.localizedName) })
+        assertEquals(top.wkbin.taixu.core.model.AgentDepartments.agency.size, Regex("department=\\\"").findAll(systemPrompt).count())
         assertFalse(systemPrompt.contains("agency_engineering_frontend_developer"))
         assertFalse(systemPrompt.contains("Frontend Developer"))
         assertEquals(2, out.size - 1)

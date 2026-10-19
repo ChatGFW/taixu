@@ -46,7 +46,7 @@ data class AgentApprovalRequestEntity(
 @Entity(tableName = "agent_approval_settings")
 data class AgentApprovalSettingsEntity(
     @PrimaryKey val id: Int = SINGLETON_ID,
-    val mode: String = ApprovalMode.ASSISTED.id,
+    val mode: String = ApprovalMode.FULL_ACCESS.id,
     /** 全局默认运行意图（BUILD / PLAN）：新会话创建时的初始值。 */
     @ColumnInfo(defaultValue = "build") val runMode: String = RunMode.BUILD.id,
 ) {
@@ -151,7 +151,7 @@ class AgentApprovalRepository(
     /** 只改运行意图，保留既有审批模式。 */
     suspend fun setRunMode(mode: RunMode) {
         val existing = dao.getSettings()
-        dao.upsertSettings(AgentApprovalSettingsEntity(mode = existing?.mode ?: ApprovalMode.ASSISTED.id, runMode = mode.id))
+        dao.upsertSettings(AgentApprovalSettingsEntity(mode = existing?.mode ?: ApprovalMode.FULL_ACCESS.id, runMode = mode.id))
     }
 
     suspend fun create(request: AgentApprovalRequestEntity) = dao.upsertRequest(request)

@@ -218,38 +218,21 @@ class HarnessLoop(
 
     private fun scheduleApprovalTimeout(sessId: String) {
         cancelApprovalTimeout(sessId)
-        val job = loopScope.launch {
-            val pending = runCatching { approvalRepository.pendingNow(sessId) }.getOrDefault(emptyList())
-            if (pending.isEmpty()) {
-                var settled = false
-                turnCoordinator.withSessionMutex(sessId) {
-                    settled = checkAndSettleExpiredApprovalsLocked(sessId)
-                    if (settled) {
-                        startNextQueuedLocked(sessId)
-                    }
-                }
-                if (settled) {
-                    refreshPendingProjection(sessId)
-                }
-                return@launch
-            }
-            val minExpiry = pending.minOf { it.expiresAt }
-            val delayMs = (minExpiry - System.currentTimeMillis()).coerceAtLeast(0L)
-            delay(delayMs)
+        val job = loopScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
+            val pending = approvalRepository.pendingNow(sessId)
+            pending.minOfOrNull { it.expiresAt }?.let { delay((it - System.currentTimeMillis()).coerceAtLeast(0L)) }
+            sessionJobs[sessId]?.takeIf { it.isActive }?.join()
+            approvalTimeoutJobs.remove(sessId, currentCoroutineContext()[Job])
             var settled = false
             turnCoordinator.withSessionMutex(sessId) {
                 settled = checkAndSettleExpiredApprovalsLocked(sessId)
-                if (settled) {
-                    startNextQueuedLocked(sessId)
-                }
+                if (settled) startNextQueuedLocked(sessId)
             }
-            if (settled) {
-                refreshPendingProjection(sessId)
-            }
+            if (settled) refreshPendingProjection(sessId)
         }
         approvalTimeoutJobs[sessId] = job
+        job.start()
     }
-
     /**
      * 检查并自愈已过期的等待审批：
      * 若会话无活跃 Job 且处于 WAITING_APPROVAL，清扫已过期的 pending 请求并补充超时 ToolResult。
@@ -262,27 +245,16 @@ class HarnessLoop(
 
         val swept = approvalRepository.sweepExpiredForSession(sessId)
         val now = now()
+        var continueQuestions = swept.isNotEmpty()
         for (expired in swept) {
-            val output = if (expired.toolName == AskUserQuestions.TOOL_NAME) {
-                "用户未在规定时间内回答提问（提问已超时），本次等待已结束。"
-            } else {
-                val ttlMinutes = ApprovalPolicyEngine.APPROVAL_TTL_MS / 60_000L
-                resumePolicy.invalidationResultMessage("该审批已过期（超过 $ttlMinutes 分钟未处理）")
-            }
-            val result = ToolResult(
-                id = newId(),
-                createdAt = now,
-                toolCallId = expired.toolCallId,
-                success = false,
-                output = output,
-            )
+            val result = top.wkbin.taixu.harness.approval.expiredRequestResult(expired, now, resumePolicy)
             val active = operationCoordinator.active(sessId)
-            if (active != null && (expired.operationId == null || expired.operationId == active.id)) {
-                operationCoordinator.toolSettled(active.id, result, round = 0, toolName = expired.toolName)
+            val ownsTurn = active != null && (expired.operationId == null || expired.operationId == active.id)
+            continueQuestions = continueQuestions && result.success && ownsTurn
+            if (ownsTurn) {
+                operationCoordinator.toolSettled(requireNotNull(active).id, result, round = 0, toolName = expired.toolName)
                 messageProjector.publishPersisted(sessId, result)
-            } else {
-                messageProjector.append(sessId, result)
-            }
+            } else messageProjector.append(sessId, result)
         }
 
         val remainingPending = approvalRepository.pendingNow(sessId)
@@ -292,6 +264,15 @@ class HarnessLoop(
         }
 
         cancelApprovalTimeout(sessId)
+        if (continueQuestions) {
+            val taskId = agentTaskStateMachine.activeForSession(sessId)?.id
+            val operationId = operationCoordinator.active(sessId)?.id
+            startClaimedSessionRun(sessId, taskId) {
+                if (operationCoordinator.active(sessId)?.id != operationId) RunResult.Cancelled
+                else runLoopInternal(sessId, startedAt = now(), taskId = taskId)
+            }
+            return false
+        }
         logger.i("Session $sessId had approvals expired or settled; resetting WAITING_APPROVAL to IDLE")
 
         if (swept.isEmpty()) {
@@ -1252,8 +1233,8 @@ class HarnessLoop(
             val effectiveModel = providerRunner.resolveEffectiveModel(sessId, model)
             val assistantId = newId()
             val assistantAt = now()
-
             val turn = turnRunner.run(
+                sessionId = sessId,
                 remainingRounds = budget.remainingInSegment,
                 toolsEnabled = !effectiveModel.pureChatMode &&
                     effectiveModel.toolCallMode != ToolCallMode.DISABLED,

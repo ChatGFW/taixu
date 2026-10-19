@@ -5,6 +5,8 @@ import org.koin.dsl.module
 import top.wkbin.taixu.core.database.repository.BotScheduleRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.harness.bot.BotAssignmentExecutor
+import top.wkbin.taixu.harness.bot.BotAssignmentRuntime
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
 import top.wkbin.taixu.harness.bot.BotOrchestrator
 import top.wkbin.taixu.harness.bot.archive.BotPackageService
@@ -23,6 +25,7 @@ import top.wkbin.taixu.harness.plugins.botSchedulePlugin
 
 /** PersonaBot：独立会话、Git 记忆、群聊调度与定时唤醒。 */
 val botHarnessModule = module {
+    single { top.wkbin.taixu.harness.groupchat.GroupReplyFreshness(groups = get(), messages = get()) }
     single { BotMemoryManager(pathManager = get(), logger = get()) }
     single { BotAttachmentPreparer(context = get(), paths = get()) }
     single { BotAssignmentTracker(repository = get()) }
@@ -35,7 +38,7 @@ val botHarnessModule = module {
             sessionControl = get(),
             laneRunner = get(),
             memoryManager = get(),
-            logger = get(),
+            logger = get(), assignmentRepository = get(),
         )
     }
     single {
@@ -46,7 +49,35 @@ val botHarnessModule = module {
             orchestrator = get(),
             sessionControl = get(),
             logger = get(),
+            freshness = get(),
         )
+    }
+    single {
+        BotAssignmentRuntime(
+            repository = get(),
+            groups = get(),
+            bots = get(),
+            sessions = get(),
+            control = get(),
+            tracker = get(),
+            logger = get(),
+            executor = get(),
+        )
+    }
+    single<BotAssignmentExecutor> {
+        BotAssignmentExecutor { task, request, admitted ->
+                val groups = get<GroupChatRepository>()
+                val bots = get<PersonaBotRepository>()
+                val group = requireNotNull(groups.getGroup(requireNotNull(task.groupId)))
+                val target = requireNotNull(bots.getBot(task.botId))
+                val caller = requireNotNull(bots.getBot(requireNotNull(task.reportToBotId)))
+                get<GroupChatDispatcher>().runAssignment(
+                    group, target, caller,
+                    "【独立任务 ${task.id} · 第 ${task.revision} 轮】\n${request.instruction}\n" +
+                            "这是同一任务的后续工作，先核验已有产物再修改。真正受阻时用 report-assignment 记录原因与产物；偏好问题60秒未回复采用推荐项继续。",
+                    task.id, task.writePaths, task.sessionId, admitted
+                )
+        }
     }
     single<BotScheduledSubmission> {
         BotScheduledSubmission { bot, instruction, group -> get<GroupChatDispatcher>().triggerScheduled(bot, instruction, group) }
@@ -74,6 +105,7 @@ val botHarnessModule = module {
             dispatcher = { get() },
             assignments = get(),
             logger = get(),
+            runtime = { get() },
         )
     }
     single<HarnessPlugin>(named("taixu.bot-schedule")) {

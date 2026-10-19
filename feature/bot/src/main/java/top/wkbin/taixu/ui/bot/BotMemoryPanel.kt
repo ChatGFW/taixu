@@ -43,6 +43,8 @@ internal fun BotMemoryPanel(
     commits: List<MemoryCommit>,
     busy: Boolean,
     onRollback: (String) -> Unit,
+    onOpenFile: (String) -> Unit,
+    onOpenDiff: (String) -> Unit,
 ) {
     var pendingRollback by remember { mutableStateOf<MemoryCommit?>(null) }
     LazyColumn(
@@ -69,6 +71,7 @@ internal fun BotMemoryPanel(
         }
         items(files, key = { it.path }) { file ->
             RuntimeCard(
+                onClick = if (!busy && file.path.endsWith(".md", true)) ({ onOpenFile(file.path) }) else null,
                 modifier = Modifier.padding(bottom = 10.dp),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
             ) {
@@ -114,6 +117,7 @@ internal fun BotMemoryPanel(
                     modifier = Modifier.width(24.dp).fillMaxHeight(),
                 )
                 RuntimeCard(
+                    onClick = { onOpenDiff(commit.hash) },
                     modifier = Modifier.weight(1f).padding(bottom = 10.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
                 ) {
@@ -155,10 +159,16 @@ internal fun BotMemoryPanel(
                                 modifier = Modifier.weight(1f),
                             )
                         }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        RuntimeTextButton(
+                            onClick = { onOpenDiff(commit.hash) },
+                            enabled = !busy,
+                        ) { Text(stringResource(R.string.fbot_memory_diff), maxLines = 1, style = MaterialTheme.typography.labelSmall) }
                         RuntimeTextButton(
                             onClick = { pendingRollback = commit },
                             enabled = !busy,
-                        ) { Text(stringResource(R.string.fbot_rollback)) }
+                        ) { Text(stringResource(R.string.fbot_rollback), maxLines = 1, style = MaterialTheme.typography.labelSmall) }
                     }
                 }
             }

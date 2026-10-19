@@ -38,7 +38,7 @@ interface PersonaBotRepository {
     suspend fun deleteBot(id: String)
 }
 
-interface GroupChatRepository {
+interface GroupChatRepository : GroupDeliveryRepository {
     fun observeGroups(): Flow<List<GroupChat>>
     fun observeGroupsForBot(botId: String): Flow<List<GroupChat>>
     suspend fun getGroup(id: String): GroupChat?
@@ -111,7 +111,7 @@ class RoomPersonaBotRepository(
 class RoomGroupChatRepository(
     private val dao: GroupChatDao,
     private val json: Json,
-) : GroupChatRepository {
+) : GroupChatRepository, GroupDeliveryRepository by RoomGroupDeliveryRepository(dao, json) {
     private val reactionMutex = Mutex()
 
     override fun observeGroups(): Flow<List<GroupChat>> = dao.observeAll().map { rows -> rows.map { it.toModel() } }
@@ -266,7 +266,7 @@ private fun GroupChat.toEntity() = GroupChatEntity(
     background = background,
 )
 
-private fun GroupMessageEntity.toModel(json: Json) = GroupMessage(
+internal fun GroupMessageEntity.toModel(json: Json) = GroupMessage(
     id = id,
     groupId = groupId,
     senderId = senderId,
@@ -282,7 +282,7 @@ private fun GroupMessageEntity.toModel(json: Json) = GroupMessage(
     reasoning = reasoning,
 )
 
-private fun GroupMessage.toEntity(json: Json) = GroupMessageEntity(
+internal fun GroupMessage.toEntity(json: Json) = GroupMessageEntity(
     id = id,
     groupId = groupId,
     senderId = senderId,

@@ -55,6 +55,14 @@ class BotManagementExecutionTest {
             PluginToolRequest(JsonObject(args.mapValues { JsonPrimitive(it.value) }), session, "/workspace", null),
         )
 
+    @Test fun `management plugin registers every declared tool including continuation and reports`() {
+        val registry = HarnessPluginRegistry(listOf(plugin()))
+        val inspected = registry.inspect("plugin.taixu.bot-management")
+        assertTrue(inspected.first)
+        assertTrue(inspected.second.contains("continue-assignment"))
+        assertTrue(inspected.second.contains("report-assignment"))
+    }
+
     @Test fun `chief manages team from group session while members and unknown sessions cannot`() = runBlocking {
         seed()
         assertTrue(call("list-bots", "group-chief").text.contains("小前"))

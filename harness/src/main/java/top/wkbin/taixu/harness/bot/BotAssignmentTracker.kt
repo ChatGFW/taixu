@@ -2,6 +2,8 @@ package top.wkbin.taixu.harness.bot
 
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,13 +26,20 @@ data class ActiveBotAssignment(
 class BotAssignmentTracker(
     private val repository: BotAssignmentRepository,
 ) {
+    private val recoveryLock = Mutex()
+    private var recovered = false
     private val jobs = ConcurrentHashMap<String, Job>()
     private val jobGroups = ConcurrentHashMap<String, String>()
     private val _active = MutableStateFlow<List<ActiveBotAssignment>>(emptyList())
     val active: StateFlow<List<ActiveBotAssignment>> = _active.asStateFlow()
 
     suspend fun start(assignment: BotAssignment, job: Job?) {
+        recoverOrphaned()
         repository.save(assignment)
+        track(assignment, job)
+    }
+
+    fun track(assignment: BotAssignment, job: Job?) {
         if (job != null) {
             jobs[assignment.id] = job
             assignment.groupId?.let { jobGroups[assignment.id] = it }
@@ -40,7 +49,7 @@ class BotAssignmentTracker(
             }
         }
         _active.update { current ->
-            current + ActiveBotAssignment(
+            current.filterNot { it.taskId == assignment.id } + ActiveBotAssignment(
                 taskId = assignment.id,
                 groupId = assignment.groupId,
                 botName = assignment.botName,
@@ -61,22 +70,23 @@ class BotAssignmentTracker(
 
     suspend fun cancel(taskId: String) {
         val job = jobs[taskId]
-        if (job != null) {
-            job.cancel()
-        }
-        repository.finish(taskId, BotAssignmentStatus.CANCELLED, error = "用户取消")
+        try { repository.cancelAssignment(taskId) } finally { job?.cancel() }
         _active.update { current -> current.filterNot { it.taskId == taskId } }
     }
 
     suspend fun cancelGroup(groupId: String) {
-        val tasks = _active.value.filter { it.groupId == groupId }
+        val tasks = listForGroup(groupId).filter { it.status.isActive }
         val pending = jobGroups.filterValues { it == groupId }.keys.mapNotNull { jobs[it] }
         tasks.forEach { assignment ->
-            cancel(assignment.taskId)
+            cancel(assignment.id)
         }
         // 清空会话前排空 finally 中的结果通知，防止删除后又写回旧消息。
         pending.joinAll()
         _active.update { current -> current.filterNot { it.groupId == groupId } }
+    }
+
+    fun untrack(taskId: String) {
+        _active.update { current -> current.filterNot { it.taskId == taskId } }
     }
 
     fun observeForGroup(groupId: String): Flow<List<BotAssignment>> = repository.observeForGroup(groupId)
@@ -88,5 +98,10 @@ class BotAssignmentTracker(
 
     suspend fun get(taskId: String): BotAssignment? = repository.get(taskId)
 
-    suspend fun recoverOrphaned() = repository.failRunning()
+    suspend fun recoverOrphaned() = recoveryLock.withLock {
+        if (!recovered) {
+            repository.failRunning()
+            recovered = true
+        }
+    }
 }

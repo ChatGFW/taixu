@@ -146,7 +146,8 @@ interface PersonaBotDao {
     suspend fun findById(id: String): BotEntity?
 
     @Query("SELECT * FROM persona_bots WHERE sessionId = :sessionId OR id IN " +
-        "(SELECT botId FROM bot_group_sessions WHERE sessionId = :sessionId) LIMIT 1")
+        "(SELECT botId FROM bot_group_sessions WHERE sessionId = :sessionId) OR id IN " +
+        "(SELECT botId FROM bot_assignments WHERE independent = 1 AND sessionId = :sessionId) LIMIT 1")
     suspend fun findBySessionId(sessionId: String): BotEntity?
 
     @Query("SELECT * FROM persona_bots WHERE isMainBot = 1 LIMIT 1")
@@ -175,7 +176,7 @@ interface PersonaBotDao {
 }
 
 @Dao
-interface GroupChatDao {
+interface GroupChatDao : GroupDeliveryDao {
     @Query("SELECT * FROM group_chats ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<GroupChatEntity>>
 
@@ -213,7 +214,13 @@ interface GroupChatDao {
     suspend fun addMember(member: GroupMemberEntity)
 
     @Query("DELETE FROM group_members WHERE groupId = :groupId AND botId = :botId")
-    suspend fun removeMember(groupId: String, botId: String)
+    suspend fun deleteMember(groupId: String, botId: String)
+
+    @Transaction
+    suspend fun removeMember(groupId: String, botId: String) {
+        cancelGroupDeliveries(groupId, botId)
+        deleteMember(groupId, botId)
+    }
 
     @Query("SELECT * FROM group_messages WHERE groupId = :groupId ORDER BY timestamp ASC")
     fun observeMessages(groupId: String): Flow<List<GroupMessageEntity>>

@@ -7,7 +7,6 @@ import java.util.UUID
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
-import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.bot.Bot
@@ -15,7 +14,6 @@ import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
-import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
 import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 
 internal fun PluginToolRequest.stringArray(name: String): List<String> =
@@ -63,23 +61,6 @@ internal suspend fun unmetDependencies(
     }
 }
 
-internal suspend fun notifyAssignmentResult(
-    dispatcher: GroupChatDispatcher,
-    logger: AppLogger,
-    caller: Bot,
-    group: GroupChat,
-    taskId: String,
-    text: String,
-    wakeMainBot: Boolean = true,
-) {
-    runCatching { dispatcher.postSystemNotification(group.id, text, taskId) }
-        .onFailure { logger.w("[BotManagementPlugin] 委派结果回传失败: ${it.message}", it) }
-    if (wakeMainBot) {
-        runCatching { dispatcher.triggerAssignmentReport(caller, group.id, text) }
-            .onFailure { logger.w("[BotManagementPlugin] 委派结果唤醒主控失败: ${it.message}", it) }
-    }
-}
-
 internal fun formatAssignmentReport(
     assignment: BotAssignment,
     result: GroupTurnOutcome,
@@ -95,6 +76,7 @@ internal fun botAssignmentTools(
     botRepository: PersonaBotRepository,
     groupRepository: GroupChatRepository,
     assignments: BotAssignmentTracker,
+    runtime: (() -> top.wkbin.taixu.harness.bot.BotAssignmentRuntime)? = null,
 ): List<PluginTool> {
     val listSchema = pluginObjectSchema(
         emptyList(),
@@ -136,7 +118,10 @@ internal fun botAssignmentTools(
             val id = request.arguments["assignment_id"]?.jsonPrimitive?.content.orEmpty()
             val assignment = assignments.get(id)
                 ?: return@PluginTool PluginToolOutput(false, "找不到任务「$id」")
-            PluginToolOutput(true, assignmentDetail(assignment).take(BOT_TOOL_MAX_CHARS))
+            val history = runtime?.invoke()?.history(id).orEmpty().joinToString("\n\n") {
+                "补充要求 ${it.id} · ${it.status}\n${it.instruction.take(800)}\n${it.blockedReason ?: it.summary ?: it.error ?: ""}\n报告产物：${it.artifacts.joinToString()}"
+            }
+            PluginToolOutput(true, (assignmentDetail(assignment) + "\n\n【轮次记录】\n" + history).take(BOT_TOOL_MAX_CHARS))
         },
         PluginTool(
             id = "cancel-assignment",
@@ -148,7 +133,7 @@ internal fun botAssignmentTools(
             val id = request.arguments["assignment_id"]?.jsonPrimitive?.content.orEmpty()
             val assignment = assignments.get(id)
                 ?: return@PluginTool PluginToolOutput(false, "找不到任务「$id」")
-            if (assignment.status != BotAssignmentStatus.RUNNING) {
+            if (!assignment.status.isActive) {
                 return@PluginTool PluginToolOutput(
                     false,
                     "任务已结束（${statusLabel(assignment.status)}），无需取消",
@@ -164,6 +149,9 @@ internal fun botAssignmentTools(
 }
 
 internal fun statusLabel(status: BotAssignmentStatus): String = when (status) {
+    BotAssignmentStatus.QUEUED -> "排队中"
+    BotAssignmentStatus.BLOCKED -> "受阻"
+    BotAssignmentStatus.INTERRUPTED -> "结果待核对"
     BotAssignmentStatus.RUNNING -> "执行中"
     BotAssignmentStatus.COMPLETED -> "已完成"
     BotAssignmentStatus.FAILED -> "失败"

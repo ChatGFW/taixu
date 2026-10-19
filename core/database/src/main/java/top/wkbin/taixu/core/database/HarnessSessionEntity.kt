@@ -27,7 +27,7 @@ data class HarnessSessionEntity(
     /** Explicit type selected for empty/imported workspaces; blank means auto-detect. */
     val projectType: String = "",
     /** Tool approval authority for this session; new sessions inherit the global default. */
-    val approvalMode: String = ApprovalMode.ASSISTED.id,
+    val approvalMode: String = ApprovalMode.FULL_ACCESS.id,
     /** 运行意图（BUILD/PLAN），与 [approvalMode] 正交；新会话继承全局默认。 */
     @ColumnInfo(defaultValue = "build") val runMode: String = RunMode.BUILD.id,
     /** Pre-SSH history binds to the local distro on first use; portable imports require a new session. */

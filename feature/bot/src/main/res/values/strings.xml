@@ -44,9 +44,17 @@
     <string name="fbot_memory_commits">Git 提交</string>
     <string name="fbot_memory_empty">暂无记忆文件</string>
     <string name="fbot_commits_empty">暂无提交记录</string>
-    <string name="fbot_rollback">回滚到此版本</string>
-    <string name="fbot_rollback_title">回滚记忆</string>
-    <string name="fbot_rollback_confirm">回滚到 %1$s 会覆盖当前记忆文件，且不可撤销。</string>
+    <string name="fbot_rollback">恢复此版本</string>
+    <string name="fbot_rollback_title">恢复记忆</string>
+    <string name="fbot_rollback_confirm">将记忆文件恢复为 %1$s 的内容。恢复前会保存当前快照，历史提交继续保留，可再次恢复。</string>
+    <string name="fbot_memory_edit">阅读与编辑记忆</string>
+    <string name="fbot_memory_body">Markdown 正文</string>
+    <string name="fbot_memory_reload">放弃草稿，重新载入</string>
+    <string name="fbot_memory_diff">提交差异</string>
+    <string name="fbot_memory_diff_hint">与该提交的父版本比较；首个提交展示新增内容。</string>
+    <string name="fbot_memory_diff_truncated">差异较大，仅展示前 64 KiB，原文件未截断。</string>
+    <string name="fbot_memory_diff_empty">此提交没有文件差异。</string>
+    <string name="fbot_memory_retry">重试</string>
     <string name="fbot_schedule_add">添加定时任务</string>
     <string name="fbot_schedule_cron">Cron 表达式</string>
     <string name="fbot_schedule_instruction">到点执行的指令</string>
@@ -169,4 +177,13 @@
     <string name="fbot_member_step">正在调用 %1$s</string>
     <string name="fbot_member_thinking">思考中…</string>
     <string name="fbot_member_outputting">正在输出…</string>
+    <string name="fbot_assignment_add_instruction">补充要求</string>
+    <string name="fbot_assignment_continue">继续任务</string>
+    <string name="fbot_assignment_round">已启动 %1$d 轮</string>
+    <string name="fbot_assignment_queued">排队中</string>
+    <string name="fbot_assignment_blocked">受阻</string>
+    <string name="fbot_assignment_interrupted">结果待核对</string>
+    <string name="fbot_assignment_continue_hint">在原任务会话中继续。执行中的补充要求按顺序排队；结果待核对时，请先要求核验已有产物。</string>
+    <string name="fbot_assignment_instruction">补充要求</string>
+    <string name="fbot_assignment_submit">提交并继续</string>
 </resources>

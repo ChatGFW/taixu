@@ -43,6 +43,7 @@ class BotDiagnosticsExporter(
         val messages = groupRepository.observeMessages(groupId).first()
         val assignments = runCatching { assignmentRepository.observeForGroup(groupId).first() }
             .getOrDefault(emptyList())
+        val deliveries = groupRepository.listDeliveries(groupId)
         val runStates = sessionControl.sessionRunStates.value
         val statuses = sessionControl.sessionStatuses.value
         val transcripts = mutableMapOf<String, List<HarnessMessage>>()
@@ -101,9 +102,33 @@ class BotDiagnosticsExporter(
             appendLine("## 群聊消息（${messages.size}）")
             messages.forEach { message -> appendLine(renderGroupMessage(message)) }
             appendLine()
+            appendLine("## 群消息收件回执（最近 ${deliveries.size} 条）")
+            deliveries.forEach { receipt ->
+                appendLine("- ${receipt.id} · ${receipt.status} · Bot=${receipt.botId} · 来源=${receipt.sourceMessageId}")
+                appendLine("  会话=${receipt.sessionId ?: "—"} · 执行=${receipt.taskId ?: "—"} · ${receipt.error ?: ""}")
+            }
+            appendLine()
             appendLine("## 委派任务（${assignments.size}）")
             if (assignments.isEmpty()) appendLine("（无委派记录）")
             assignments.forEach { assignment -> appendAssignment(assignment) }
+            appendLine()
+            appendLine("## 独立任务轮次与会话")
+            assignments.filter { it.independent }.take(30).forEach { task ->
+                appendLine("### ${task.title} · ${task.id} · ${task.status} · 第 ${task.revision} 轮")
+                appendLine("原会话：${task.sessionId ?: "缺失"}")
+                assignmentRepository.requestsFor(task.id).forEach { request ->
+                    appendLine("- 要求 ${request.id} · ${request.status} · nativeTask=${request.nativeTaskId ?: "—"}")
+                    appendLine(request.instruction.take(2_000))
+                    appendLine(request.blockedReason ?: request.summary ?: request.error ?: "")
+                    appendLine("报告产物：${request.artifacts.joinToString()}")
+                }
+                val sessionId = task.sessionId
+                if (sessionId != null && assignmentRepository.assignmentForSession(sessionId)?.id == task.id) {
+                    runCatching { sessionControl.persistedMessages(sessionId) }
+                        .onSuccess { rows -> rows.takeLast(SESSION_MESSAGE_LIMIT).forEach { appendLine(renderSessionMessage(it)) } }
+                        .onFailure { appendLine("原会话读取失败：${it.message}") }
+                }
+            }
             appendLine()
             appendLine("## Bot 会话记录")
             members.forEach { bot ->
