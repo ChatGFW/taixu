@@ -84,7 +84,7 @@ class BotManagementExecutionTest {
         val assignment = newAssignment(bots.getBot("member")!!, groups.getGroup("group"), "implement", emptyList())
         val reported = CompletableDeferred<Unit>()
         val proceed = CompletableDeferred<Unit>()
-        launchBotAssignment(tracker, assignment, { proceed.await(); GroupTurnOutcome("done", false) }) { _, wake ->
+        launchBotAssignment(tracker, assignment, { proceed.await(); GroupTurnOutcome("done", failed = false) }) { _, wake ->
             assertEquals(BotAssignmentStatus.COMPLETED, tracker.get(assignment.id)?.status)
             assertTrue(tracker.active.value.isEmpty())
             assertTrue(wake)
@@ -123,7 +123,7 @@ class BotManagementExecutionTest {
         val assignment = newAssignment(bots.getBot("member")!!, groups.getGroup("group"), "implement", emptyList())
         val notifying = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
-        launchBotAssignment(tracker, assignment, { GroupTurnOutcome("done", false) }) { _, _ ->
+        launchBotAssignment(tracker, assignment, { GroupTurnOutcome("done", failed = false) }) { _, _ ->
             notifying.complete(Unit)
             release.await()
         }

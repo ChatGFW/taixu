@@ -125,7 +125,8 @@ class BotOrchestrator(
         sessionRepository.rename(updated.sessionId, sessionTitle(updated), updated.updatedAt)
         sessionRepository.setModelSelection(updated.sessionId, updated.modelId, null, updated.updatedAt)
         groupSessionRepository.listSessionIdsForBot(botId).forEach { sessionId ->
-            sessionRepository.setModelSelection(sessionId, updated.modelId, updated.providerId, updated.updatedAt)
+            // 与主会话一致：第三参是 modelVariant，而非 providerId；providerId 未作会话模型变体使用。
+            sessionRepository.setModelSelection(sessionId, updated.modelId, null, updated.updatedAt)
         }
         if (updated.systemPrompt != current.systemPrompt) {
             memoryManager.writeMemory(botId, BotMemoryManager.PERSONA, updated.systemPrompt, "feat: 更新 Persona 设定")
@@ -167,7 +168,7 @@ class BotOrchestrator(
      * 映射缺失时按需创建；同一 (bot, group) 只会创建一次。
      */
     suspend fun ensureGroupSession(bot: Bot, groupId: String): String =
-        groupSessionLocks.getOrPut("${bot.id}:$groupId") { Mutex() }.withLock {
+        groupSessionLocks.computeIfAbsent("${bot.id}:$groupId") { Mutex() }.withLock {
         val existing = groupSessionRepository.sessionIdFor(bot.id, groupId)
         val title = groupSessionTitle(bot, groupRepository.getGroup(groupId)?.name)
         if (existing != null && sessionRepository.findById(existing) != null) {
