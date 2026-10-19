@@ -105,7 +105,7 @@ val coreDatabaseModule = module {
 
     factory<WorkspaceRepository> { get<RoomWorkspaceRepository>() }
 
-    single<RoomPersonaBotRepository> { RoomPersonaBotRepository(dao = get()) }
+    single<RoomPersonaBotRepository> { RoomPersonaBotRepository(dao = get(), groupSessionDao = get()) }
 
     factory<PersonaBotRepository> { get<RoomPersonaBotRepository>() }
 

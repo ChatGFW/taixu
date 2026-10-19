@@ -139,8 +139,10 @@ internal fun GroupChatComposer(
                     ),
                     modifier = Modifier.weight(1f),
                 )
-                val canSend = (value.isNotBlank() || attachments.isNotEmpty()) && !sending
-                val showStop = busy
+                val hasContent = value.isNotBlank() || attachments.isNotEmpty()
+                val canSend = hasContent && !sending && !stopping
+                // 有输入时优先显示发送，允许在 Bot 执行期间追加消息；只有输入为空才显示停止。
+                val showStop = busy && !hasContent
                 val buttonEnabled = if (showStop) !stopping else canSend
                 val buttonColor = when {
                     showStop -> MaterialTheme.colorScheme.error

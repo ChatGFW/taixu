@@ -2,7 +2,6 @@ package top.wkbin.taixu.ui.bot
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -22,13 +21,18 @@ import top.wkbin.taixu.ui.theme.TaiXuTheme
 class GroupReasoningPanelTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun `reasoning grows inside a fixed viewport and follows its tail`() {
+    @Test fun `reasoning viewport grows with content up to its maximum height`() {
         val reasoning = mutableStateOf("short thought")
         compose.setContent { TaiXuTheme { GroupReasoningPanel("message", reasoning.value, true) } }
-        compose.onNodeWithTag("group-reasoning-viewport").assertHeightIsEqualTo(160.dp)
+        val maximum = with(compose.density) { 160.dp.roundToPx() }
+        val shortHeight = compose.onNodeWithTag("group-reasoning-viewport")
+            .fetchSemanticsNode().size.height
+        assertTrue("short reasoning should not fill the max viewport", shortHeight < maximum)
         compose.runOnIdle { reasoning.value = (1..100).joinToString("\n") { "Reasoning line $it" } }
         compose.waitForIdle()
-        compose.onNodeWithTag("group-reasoning-viewport").assertHeightIsEqualTo(160.dp)
+        val tallHeight = compose.onNodeWithTag("group-reasoning-viewport")
+            .fetchSemanticsNode().size.height
+        assertEquals(maximum, tallHeight)
         compose.runOnIdle {
             val range = compose.onNodeWithTag("group-reasoning-scroll").fetchSemanticsNode()
                 .config[SemanticsProperties.VerticalScrollAxisRange]

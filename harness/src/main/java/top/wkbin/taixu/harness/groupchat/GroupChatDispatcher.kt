@@ -29,6 +29,9 @@ import top.wkbin.taixu.harness.bot.BotOrchestrator
 import top.wkbin.taixu.harness.session.PromptSubmission
 import top.wkbin.taixu.harness.session.SessionControl
 
+/** 一轮群聊成员回复的结果；主控委派据此判断成员是否真正完成。 */
+data class GroupTurnOutcome(val text: String, val failed: Boolean)
+
 /**
  * 群聊消息分流：精确 @ 路由优先，否则交给 Admin Bot；Bot 独占会话的助手文本
  * 流式回写到群消息表。不在群内做 Bot 间自动广播，避免两个 Bot 互相客套死循环。
@@ -143,12 +146,66 @@ class GroupChatDispatcher(
     }
 
     /**
-     * 后台委派完成后唤醒主控验收：结果先以系统通知落群，再由主控读取群记录并决定汇总/补派。
+     * 主控把任务交给成员在群聊**前台**执行：成员以自己的头像/会话流式输出与工具步骤，
+     * 不再走后台子智能体 Lane。挂起等待本轮结束并返回结果，供 wait=true 的委派直接验收。
+     */
+    suspend fun runAssignment(
+        group: GroupChat,
+        target: Bot,
+        requester: Bot,
+        task: String,
+        taskId: String,
+        writePaths: List<String> = emptyList(),
+    ): GroupTurnOutcome {
+        val history = runCatching { groupRepository.observeMessages(group.id).first() }
+            .getOrDefault(emptyList())
+        val members = groupRepository.getMembers(group.id)
+        val trigger = buildString {
+            appendLine("【主控 ${requester.name} 委派】")
+            appendLine("请以你在本群的身份直接执行并实时回复进度与结果，不要只给计划；")
+            appendLine("需要时可以调用你的工具，完成后给出可验收的结论。")
+            if (writePaths.isNotEmpty()) {
+                appendLine("建议写入范围：${writePaths.joinToString("、")}")
+            }
+            appendLine()
+            appendLine(task)
+        }
+        val result = CompletableDeferred<GroupTurnOutcome>()
+        val job = replies.launch(group.id, "${target.id}:${group.id}") {
+            result.complete(
+                respond(
+                    group = group,
+                    bot = target,
+                    trigger = trigger,
+                    history = formatGroupHistory(group, history),
+                    members = members,
+                    imageUrls = emptyList(),
+                    admission = null,
+                    delegatedTaskId = taskId,
+                ),
+            )
+        }
+        if (job == null) {
+            return GroupTurnOutcome("❌ 群聊正在停止，任务未开始", failed = true)
+        }
+        job.invokeOnCompletion { cause ->
+            if (cause != null && !result.isCompleted) result.completeExceptionally(cause)
+        }
+        return try {
+            result.await()
+        } catch (cancelled: CancellationException) {
+            job.cancel()
+            throw cancelled
+        }
+    }
+
+    /**
+     * 委派完成后唤醒主控验收：结果已作为成员消息落在群里，主控直接读群记录并决定汇总/补派。
      */
     suspend fun triggerAssignmentReport(orchestratorBot: Bot, groupId: String, report: String): Boolean {
         val group = groupRepository.getGroup(groupId) ?: return false
         val trigger = buildString {
-            appendLine("【后台委派结果】")
+            appendLine("【成员委派结果】")
             appendLine(report)
             appendLine()
             appendLine("请核对是否满足原任务：满足则向群聊简要汇总；不满足则说明缺口并再次派发。")
@@ -217,7 +274,8 @@ class GroupChatDispatcher(
         members: List<Bot>,
         imageUrls: List<String>,
         admission: CompletableDeferred<Boolean>?,
-    ) {
+        delegatedTaskId: String? = null,
+    ): GroupTurnOutcome {
         var activeSessionId: String? = null
         val placeholderId = UUID.randomUUID().toString()
         val startedAt = System.currentTimeMillis()
@@ -232,14 +290,16 @@ class GroupChatDispatcher(
                     content = "",
                     timestamp = startedAt,
                     isStreaming = true,
+                    delegatedTaskId = delegatedTaskId,
                 ),
             )
             val sessionReady = runCatching { orchestrator.ensureGroupSession(bot, group.id) }
             if (sessionReady.isFailure) {
                 val error = sessionReady.exceptionOrNull()
                 logger.e("[GroupChatDispatcher] Bot ${bot.name} 群维度会话准备失败", error)
-                groupRepository.updateStreamingMessage(placeholderId, "❌ 无法准备会话：${error?.message}", false)
-                return
+                val text = "❌ 无法准备会话：${error?.message}"
+                groupRepository.updateStreamingMessage(placeholderId, text, false)
+                return GroupTurnOutcome(text, failed = true)
             }
             val sessionId = sessionReady.getOrThrow()
             activeSessionId = sessionId
@@ -251,8 +311,9 @@ class GroupChatDispatcher(
             admission?.complete(submission is PromptSubmission.Accepted)
             if (submission !is PromptSubmission.Accepted) {
                 val reason = (submission as? PromptSubmission.Rejected)?.reason?.name ?: "提交异常"
-                groupRepository.updateStreamingMessage(placeholderId, "❌ 无法开始回复：$reason", false)
-                return
+                val text = "❌ 无法开始回复：$reason"
+                groupRepository.updateStreamingMessage(placeholderId, text, false)
+                return GroupTurnOutcome(text, failed = true)
             }
 
             var lastCheckpoint = startedAt
@@ -277,6 +338,10 @@ class GroupChatDispatcher(
             }
             groupRepository.updateStreamingMessage(placeholderId, finalText, false, outcome.steps, outcome.reasoning)
             awaitSettledPlaceholder(group.id, placeholderId)
+            return GroupTurnOutcome(
+                text = finalText,
+                failed = outcome.replyTimedOut || outcome.firstTokenTimedOut || latest == null,
+            )
         } catch (cancelled: CancellationException) {
             activeSessionId?.let { sessionControl.cancel(it) }
             withContext(NonCancellable) {
@@ -289,8 +354,10 @@ class GroupChatDispatcher(
             activeSessionId?.let { sessionControl.cancel(it) }
             admission?.completeExceptionally(failure)
             logger.e("[GroupChatDispatcher] 群聊回复失败", failure)
-            groupRepository.updateStreamingMessage(placeholderId, "❌ 回复失败：${failure.message}", false)
+            val text = "❌ 回复失败：${failure.message}"
+            groupRepository.updateStreamingMessage(placeholderId, text, false)
             awaitSettledPlaceholder(group.id, placeholderId)
+            return GroupTurnOutcome(text, failed = true)
         } finally {
             liveReplies.update { it - placeholderId }
             admission?.complete(false)

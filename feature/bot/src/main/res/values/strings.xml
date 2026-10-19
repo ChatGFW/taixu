@@ -160,4 +160,13 @@
     <string name="fbot_delivery_rejected">%1$s：投递未被受理，请检查目标会话</string>
     <string name="fbot_delivery_unknown">%1$s：投递结果待核对，未自动重试</string>
     <string name="fbot_delivery_pending">%1$s：等待投递</string>
+    <string name="fbot_work_members_live">成员实时状态</string>
+    <string name="fbot_work_assignments">委派任务</string>
+    <string name="fbot_member_idle">空闲</string>
+    <string name="fbot_member_working">执行中</string>
+    <string name="fbot_member_replying">回复中</string>
+    <string name="fbot_member_waiting_start">已接单，等待开始</string>
+    <string name="fbot_member_step">正在调用 %1$s</string>
+    <string name="fbot_member_thinking">思考中…</string>
+    <string name="fbot_member_outputting">正在输出…</string>
 </resources>

@@ -160,4 +160,13 @@
     <string name="fbot_delivery_rejected">%1$s: admission rejected; check the destination</string>
     <string name="fbot_delivery_unknown">%1$s: outcome needs review; no automatic retry</string>
     <string name="fbot_delivery_pending">%1$s: awaiting admission</string>
+    <string name="fbot_work_members_live">Member status</string>
+    <string name="fbot_work_assignments">Assignments</string>
+    <string name="fbot_member_idle">Idle</string>
+    <string name="fbot_member_working">Working</string>
+    <string name="fbot_member_replying">Replying</string>
+    <string name="fbot_member_waiting_start">Accepted, waiting to start</string>
+    <string name="fbot_member_step">Calling %1$s</string>
+    <string name="fbot_member_thinking">Thinking…</string>
+    <string name="fbot_member_outputting">Writing…</string>
 </resources>
