@@ -37,8 +37,13 @@ class BotScheduleRunner(
     suspend fun runDue(now: Long = System.currentTimeMillis()): Int = mutex.withLock {
         recoverOnce()
         scheduleRepository.listDue(now).take(MAX_DUE_PER_RUN).forEach { schedule ->
-            val next = runCatching { CronSchedule.parse(schedule.cron).nextAfter(now) }.getOrNull()
-            scheduleRepository.stageDelivery(schedule, now, next ?: Long.MAX_VALUE)
+            val parsed = runCatching { CronSchedule.parse(schedule.cron).nextAfter(now) }
+            if (parsed.isFailure) {
+                logger.e("[BotScheduleRunner] 排期 ${schedule.id} 的 cron 表达式无效（${schedule.cron}），已禁用该排期以停止无效重复触发", parsed.exceptionOrNull())
+                scheduleRepository.setScheduleEnabled(schedule.id, false)
+                return@forEach
+            }
+            scheduleRepository.stageDelivery(schedule, now, parsed.getOrThrow())
         }
         var admitted = 0
         scheduleRepository.pendingDeliveries(MAX_DUE_PER_RUN).forEach { delivery ->

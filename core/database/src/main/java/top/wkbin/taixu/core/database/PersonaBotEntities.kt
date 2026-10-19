@@ -276,6 +276,9 @@ interface BotScheduleDao {
     @Query("DELETE FROM bot_schedules WHERE botId = :botId")
     suspend fun deleteForBot(botId: String)
 
+    @Query("UPDATE bot_schedules SET enabled = :enabled WHERE id = :id")
+    suspend fun setEnabled(id: String, enabled: Boolean)
+
     @Query("UPDATE bot_schedules SET lastRunAt = :lastRunAt, nextRunAt = :nextRunAt WHERE id = :id")
     suspend fun markRun(id: String, lastRunAt: Long, nextRunAt: Long)
 }
