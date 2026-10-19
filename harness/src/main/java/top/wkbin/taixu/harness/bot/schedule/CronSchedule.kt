@@ -48,9 +48,32 @@ data class CronSchedule(
                 time = time.plusMinutes(1)
                 continue
             }
-            return time.atZone(zone).toInstant().toEpochMilli()
+            val fire = fireInstant(time, zone, now)
+            if (fire != null) return fire
+            // 本地时刻在回拨重叠里只有较早的瞬时，且已早于 now：跳过该本地分钟继续找。
+            time = time.plusMinutes(1)
         }
         return null
+    }
+
+    /**
+     * 把一个「本地时刻已匹配」的候选解析成真正晚于 [after] 的瞬时。
+     *
+     * 夏令时回拨时同一本地时刻对应两个瞬时（如 Europe/Berlin 2026-10-25 的 02:45 既是
+     * 00:45Z 也是 01:45Z），[LocalDateTime.atZone] 只取较早的那个；若 now 已越过较早瞬时，
+     * 直接返回就会得到早于 now 的时刻，违反「严格晚于 now」的契约。这里枚举全部合法偏移，
+     * 取仍晚于 [after] 的最小瞬时。春季跳变的空洞时刻没有合法偏移，按既有行为向后归一并
+     * 以归一时刻判定。
+     */
+    private fun fireInstant(time: LocalDateTime, zone: ZoneId, after: Long): Long? {
+        val offsets = zone.rules.getValidOffsets(time)
+        if (offsets.isEmpty()) {
+            return time.atZone(zone).toInstant().toEpochMilli().takeIf { it > after }
+        }
+        return offsets.asSequence()
+            .map { time.toInstant(it).toEpochMilli() }
+            .filter { it > after }
+            .minOrNull()
     }
 
     private fun dayMatches(time: LocalDateTime): Boolean {

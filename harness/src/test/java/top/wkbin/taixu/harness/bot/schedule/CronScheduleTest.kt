@@ -79,6 +79,38 @@ class CronScheduleTest {
     }
 
     @Test
+    fun `dst overlap returns the later occurrence instead of a past instant`() {
+        // Europe/Berlin 2026-10-25 回拨：本地 02:45 出现两次（00:45Z CEST 与 01:45Z CET）。
+        // now 落在第二次的 02:30 CET(01:30Z)：必须返回 01:45Z，而不是已过去的 00:45Z。
+        val berlin = ZoneId.of("Europe/Berlin")
+        val schedule = CronSchedule.parse("45 2 * * *")
+        val now = Instant.parse("2026-10-25T01:30:00Z").toEpochMilli()
+
+        val next = schedule.nextAfter(now, berlin)
+
+        assertNotNull("回拨重叠必须仍有未来触发点", next)
+        val fire = requireNotNull(next)
+        assertTrue("nextAfter 必须严格晚于 now，实际 delta=${fire - now}", fire > now)
+        assertEquals(Instant.parse("2026-10-25T01:45:00Z").toEpochMilli(), fire)
+    }
+
+    @Test
+    fun `nextAfter never returns a past instant while scanning a dst overlap`() {
+        // 回拨窗口内逐分钟扫描，任何起点都不得产出 <= now 的结果。
+        val berlin = ZoneId.of("Europe/Berlin")
+        val schedule = CronSchedule.parse("*/15 * * * *")
+        val start = Instant.parse("2026-10-25T00:00:00Z").toEpochMilli()
+        val end = Instant.parse("2026-10-25T02:00:00Z").toEpochMilli()
+
+        var now = start
+        while (now <= end) {
+            val next = schedule.nextAfter(now, berlin)
+            assertTrue("now=${Instant.ofEpochMilli(now)} 返回了非未来时刻 $next", next != null && next > now)
+            now += 60_000L
+        }
+    }
+
+    @Test
     fun `validate accepts standard expressions and rejects malformed ones`() {
         assertNull(CronSchedule.validate("0 9 * * *"))
         assertNull(CronSchedule.validate("*/5 1-6/2 1,15 * 1-5"))
