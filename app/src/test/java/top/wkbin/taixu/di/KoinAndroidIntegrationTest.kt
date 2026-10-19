@@ -121,6 +121,10 @@ class KoinAndroidIntegrationTest {
             val control = koin.get<SessionControl>()
             assertSame(loop, control)
             assertSame(loop, koin.get<InteractiveSessionControl>())
+            listOf("taixu.bot-memory", "taixu.bot-management", "taixu.bot-schedule").forEach { id ->
+                val plugin = koin.get<top.wkbin.taixu.harness.plugins.HarnessPlugin>(org.koin.core.qualifier.named(id))
+                assertEquals(id, plugin.descriptor.id)
+            }
             val foreground = control.currentSessionId.value
             assertEquals(PromptSubmission.Rejected(
                 PromptSubmission.Rejection.SESSION_NOT_FOUND),

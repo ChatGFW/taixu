@@ -52,6 +52,9 @@ sealed interface AppDestination : NavKey
 @Serializable data class TerminalDestination(val toolId: String = "", val project: String = "") : AppDestination
 @Serializable data object BrowserDestination : AppDestination
 @Serializable data class GitRepositoryDestination(val projectName: String) : AppDestination
+@Serializable data object BotsDestination : AppDestination
+@Serializable data class BotDetailDestination(val botId: String) : AppDestination
+@Serializable data class GroupChatDestination(val groupId: String) : AppDestination
 @Serializable data class WorkflowDestination(
     val projectName: String = "",
     val workflowId: String? = null,

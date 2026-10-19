@@ -7,7 +7,7 @@
     ],
     "generatedAt": "2026-10-19",
     "maxFileLines": 400,
-    "fileCount": 98,
+    "fileCount": 97,
     "files": {
         "core/database/src/main/java/top/wkbin/taixu/core/database/PersistenceRepositories.kt": 426,
         "core/datastore/src/main/java/top/wkbin/taixu/core/datastore/SettingsDataStore.kt": 980,
@@ -24,7 +24,6 @@
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatToolCards.kt": 620,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatViewModel.kt": 1555,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatWorkbenchPanels.kt": 1490,
-        "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/SessionsSideDrawer.kt": 562,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ToolDiffView.kt": 478,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/artifact/ArtifactPreviewSheet.kt": 525,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/floating/FloatingChatView.kt": 656,

@@ -13,6 +13,8 @@ import top.wkbin.taixu.core.database.AgentSkillRepository
 import top.wkbin.taixu.core.database.AgentSubagentRepository
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.database.AndroidAppRepository
+import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
+import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
 import top.wkbin.taixu.core.database.BuildScriptRepository
 import top.wkbin.taixu.core.database.DatabaseBackupRepository
 import top.wkbin.taixu.core.database.RoomDatabaseBackupRepository
@@ -26,6 +28,8 @@ import top.wkbin.taixu.core.database.RoomAgentContextRepository
 import top.wkbin.taixu.core.database.RoomAiModelRepository
 import top.wkbin.taixu.core.database.RoomAndroidAppRepository
 import top.wkbin.taixu.core.database.RoomBuildScriptRepository
+import top.wkbin.taixu.core.database.RoomBotAssignmentRepository
+import top.wkbin.taixu.core.database.RoomBotGroupSessionRepository
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
 import top.wkbin.taixu.core.database.RoomHarnessSessionRepository
 import top.wkbin.taixu.core.database.RoomQuickPhraseRepository
@@ -38,6 +42,12 @@ import top.wkbin.taixu.core.database.TerminalSessionRepository
 import top.wkbin.taixu.core.database.ToolSettingsRepository
 import top.wkbin.taixu.core.database.WorkflowRepository
 import top.wkbin.taixu.core.database.WorkspaceRepository
+import top.wkbin.taixu.core.database.repository.BotScheduleRepository
+import top.wkbin.taixu.core.database.repository.GroupChatRepository
+import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.core.database.repository.RoomBotScheduleRepository
+import top.wkbin.taixu.core.database.repository.RoomGroupChatRepository
+import top.wkbin.taixu.core.database.repository.RoomPersonaBotRepository
 import top.wkbin.taixu.core.database.task.AgentTaskRepository
 import top.wkbin.taixu.core.database.task.RoomAgentTaskRepository
 
@@ -94,6 +104,26 @@ val coreDatabaseModule = module {
     factory<HarnessSessionRepository> { get<RoomHarnessSessionRepository>() }
 
     factory<WorkspaceRepository> { get<RoomWorkspaceRepository>() }
+
+    single<RoomPersonaBotRepository> { RoomPersonaBotRepository(dao = get()) }
+
+    factory<PersonaBotRepository> { get<RoomPersonaBotRepository>() }
+
+    single<RoomGroupChatRepository> { RoomGroupChatRepository(dao = get(), json = get()) }
+
+    factory<GroupChatRepository> { get<RoomGroupChatRepository>() }
+
+    single<RoomBotScheduleRepository> { RoomBotScheduleRepository(dao = get(), deliveries = get()) }
+
+    factory<BotScheduleRepository> { get<RoomBotScheduleRepository>() }
+
+    single<RoomBotAssignmentRepository> { RoomBotAssignmentRepository(dao = get(), json = get()) }
+
+    factory<BotAssignmentRepository> { get<RoomBotAssignmentRepository>() }
+
+    single<RoomBotGroupSessionRepository> { RoomBotGroupSessionRepository(dao = get()) }
+
+    factory<BotGroupSessionRepository> { get<RoomBotGroupSessionRepository>() }
 
     factory<TerminalSessionRepository> { get<RoomTerminalSessionRepository>() }
 

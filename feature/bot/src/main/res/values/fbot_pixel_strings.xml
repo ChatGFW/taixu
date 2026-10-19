@@ -1,0 +1,83 @@
+<resources>
+    <string name="fbot_pixel_apply">使用此造型</string>
+    <string name="fbot_pixel_edit">设计像素角色</string>
+    <string name="fbot_pixel_title">像素角色编辑</string>
+    <string name="fbot_pixel_random">随机生成</string>
+    <string name="fbot_pixel_kind">造型</string>
+    <string name="fbot_pixel_hair">发型（人形）</string>
+    <string name="fbot_pixel_eyes">眼睛</string>
+    <string name="fbot_pixel_mouth">嘴型</string>
+    <string name="fbot_pixel_outfit">服装</string>
+    <string name="fbot_pixel_accessory">配饰</string>
+    <string name="fbot_pixel_skin">肤色 / 机身色</string>
+    <string name="fbot_pixel_hair_color">发色 / 机械面板色</string>
+    <string name="fbot_pixel_outfit_color">服装颜色</string>
+    <string name="fbot_pixel_backdrop">头像背景</string>
+    <string-array name="fbot_pixel_kinds">
+        <item>人形</item>
+        <item>猫耳</item>
+        <item>机器人</item>
+    </string-array>
+    <string-array name="fbot_pixel_hairs">
+        <item>短发</item>
+        <item>波波头</item>
+        <item>长发</item>
+        <item>刺猬头</item>
+    </string-array>
+    <string-array name="fbot_pixel_eye_styles">
+        <item>明亮</item>
+        <item>笑眼</item>
+        <item>专注</item>
+    </string-array>
+    <string-array name="fbot_pixel_mouth_styles">
+        <item>微笑</item>
+        <item>平静</item>
+        <item>开口</item>
+    </string-array>
+    <string-array name="fbot_pixel_outfits">
+        <item>T 恤</item>
+        <item>连帽衫</item>
+        <item>西装</item>
+    </string-array>
+    <string-array name="fbot_pixel_accessories">
+        <item>无</item>
+        <item>眼镜</item>
+        <item>耳机</item>
+        <item>帽子</item>
+    </string-array>
+    <string-array name="fbot_pixel_skins">
+        <item>浅色</item>
+        <item>暖色</item>
+        <item>小麦</item>
+        <item>棕色</item>
+        <item>深色</item>
+    </string-array>
+    <string-array name="fbot_pixel_hair_colors">
+        <item>墨黑</item>
+        <item>栗棕</item>
+        <item>铜色</item>
+        <item>金色</item>
+        <item>银白</item>
+        <item>蓝色</item>
+        <item>粉紫</item>
+        <item>青绿</item>
+    </string-array>
+    <string-array name="fbot_pixel_outfit_colors">
+        <item>蓝紫</item>
+        <item>青绿</item>
+        <item>玫红</item>
+        <item>琥珀</item>
+        <item>浅紫</item>
+        <item>藏青</item>
+        <item>朱红</item>
+        <item>米白</item>
+    </string-array>
+    <string-array name="fbot_pixel_backdrops">
+        <item>淡紫</item>
+        <item>薄荷</item>
+        <item>桃色</item>
+        <item>天蓝</item>
+        <item>奶油</item>
+        <item>浅灰</item>
+    </string-array>
+</resources>

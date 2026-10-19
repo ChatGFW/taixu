@@ -1,9 +1,7 @@
 package top.wkbin.taixu.harness.subagent
 
 import android.content.Context
-import java.io.IOException
 import java.util.UUID
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.datastore.AgentPreferences
@@ -22,7 +20,6 @@ import top.wkbin.taixu.harness.session.SessionTreeStore
 import top.wkbin.taixu.harness.R
 import kotlinx.coroutines.CancellationException
 import top.wkbin.taixu.harness.ApiToolCallSpec
-import top.wkbin.taixu.harness.ChatResult
 import top.wkbin.taixu.harness.ModelConfig
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.session.ApiMessageProjector
@@ -107,10 +104,11 @@ class SubagentLaneRunner(
                 val responseId = UUID.randomUUID().toString()
                 operations.providerIntent(operationId, responseId, round, 1, NETWORK_ATTEMPTS)
                 val text = StringBuilder()
-                val result = chatWithRetry(
-                    model,
-                    providerMessages(sessionId, laneName, forceFinalAnswer, configuredModel, historyBudgetTokens),
-                    text,
+                val result = subagentChatWithRetry(
+                    providerClient = providerClient,
+                    model = model,
+                    messages = providerMessages(sessionId, laneName, forceFinalAnswer, configuredModel, historyBudgetTokens),
+                    text = text,
                 )
                 val rawAssistantText = text.toString().ifBlank { result.content.orEmpty() }
                 val textNormalization = TextToolCallCodec.normalize(json, rawAssistantText)
@@ -277,26 +275,6 @@ class SubagentLaneRunner(
         }
     }
 
-    private suspend fun chatWithRetry(
-        model: ModelConfig,
-        messages: List<ApiMessage>,
-        text: StringBuilder,
-    ): ChatResult {
-        var lastFailure: IOException? = null
-        repeat(NETWORK_ATTEMPTS) { attempt ->
-            try {
-                return providerClient.chatStream(model, messages, onReasoning = {}) { text.append(it) }
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (failure: IOException) {
-                lastFailure = failure
-                text.clear()
-                if (attempt + 1 < NETWORK_ATTEMPTS) delay(NETWORK_RETRY_DELAY_MS)
-            }
-        }
-        throw requireNotNull(lastFailure)
-    }
-
     private fun now() = System.currentTimeMillis()
 
     companion object {
@@ -309,7 +287,6 @@ class SubagentLaneRunner(
          */
         private const val MAX_MAX_ROUNDS = 60
         private const val NETWORK_ATTEMPTS = 2
-        private const val NETWORK_RETRY_DELAY_MS = 1_000L
         private const val DEFAULT_CONTEXT_BUDGET_TOKENS = 128_000
         private const val LANE_HISTORY_BUDGET_FRACTION = 0.55
         private const val MIN_LANE_HISTORY_TOKENS = 4_000

@@ -108,6 +108,18 @@ class AppLogger(
         }
     }.getOrDefault("读取日志失败")
 
+    /** 运行日志（Bot 编排/群聊分流等非 Agent 标签日志落在这里）。 */
+    fun readGeneralLogs(maxChars: Int = 100_000): String = runCatching {
+        val file = existingLogFile(GENERAL_LOG_FILE)
+            ?: return@runCatching "暂无运行日志"
+        val text = safe(file.readText(Charsets.UTF_8))
+        when {
+            text.isEmpty() -> "暂无运行日志"
+            text.length > maxChars -> text.takeLast(maxChars)
+            else -> text
+        }
+    }.getOrDefault("读取日志失败")
+
     fun getAgentLogSizeBytes(): Long = runCatching {
         existingLogFile(AGENT_LOG_FILE)?.length() ?: 0L
     }.getOrDefault(0L)

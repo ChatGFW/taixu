@@ -8,6 +8,9 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * ask_user 工具的参数模型（对齐 opencode question 工具）：
@@ -33,6 +36,15 @@ object AskUserQuestions {
     const val MAX_QUESTIONS = 4
     const val MAX_OPTIONS = 6
     const val TOOL_NAME = "ask_user"
+
+    fun parseJson(arguments: String): List<AskUserQuestion> = parse(Json.parseToJsonElement(arguments).jsonObject)
+
+    fun answersJson(answers: List<String>): String = buildJsonArray {
+        answers.forEachIndexed { index, answer -> add(buildJsonObject {
+            put("index", index)
+            put("answer", answer)
+        }) }
+    }.toString()
 
     /** 解析并校验 ask_user 入参；不合法时抛 [IllegalArgumentException]（文案可直接回写模型）。 */
     fun parse(args: JsonObject): List<AskUserQuestion> {
