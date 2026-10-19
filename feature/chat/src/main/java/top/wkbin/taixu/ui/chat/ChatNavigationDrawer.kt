@@ -2,8 +2,12 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.map
+import org.koin.compose.koinInject
+import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.ui.components.AppNavigationSection
 import top.wkbin.taixu.ui.components.LocalPluginDestinationActive
@@ -32,6 +36,13 @@ fun ChatNavigationDrawer(
     content: @Composable () -> Unit,
 ) {
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
+    val botRepository = koinInject<PersonaBotRepository>()
+    val botSessionIds by remember(botRepository) {
+        botRepository.observeBots().map { bots -> bots.mapTo(mutableSetOf()) { it.sessionId } }
+    }.collectAsStateWithLifecycle(emptySet())
+    val (botSessions, normalSessions) = remember(sessions, botSessionIds) {
+        sessions.partition { it.id in botSessionIds }
+    }
     val catalog by viewModel.workspaceCatalog.collectAsStateWithLifecycle()
     val currentSessionId by viewModel.currentSessionId.collectAsStateWithLifecycle()
     val runStates by viewModel.sessionRunStates.collectAsStateWithLifecycle()
@@ -65,7 +76,8 @@ fun ChatNavigationDrawer(
         drawerContent = { onCollapse ->
             SessionsSideDrawer(
                 visible = true,
-                sessions = sessions,
+                sessions = normalSessions,
+                botSessions = botSessions,
                 currentSessionId = currentSessionId,
                 workspaces = catalog.projects,
                 sessionRunStates = runStates,

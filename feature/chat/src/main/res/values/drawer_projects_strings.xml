@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chat_drawer_collapse_projects">收起项目列表</string>
+    <string name="chat_drawer_expand_projects">展开项目列表</string>
+    <string name="chat_drawer_projects_expanded">已展开</string>
+    <string name="chat_drawer_projects_collapsed">已收起</string>
+</resources>

@@ -27,6 +27,13 @@ data class AgentSubagentIndexEntry(
     val departmentId: String,
 )
 
+/** 内置角色目录的界面本地化文案（不落入数据库，避免同步覆盖用户数据）。 */
+@Serializable
+data class AgentSubagentLocalization(
+    val name: String,
+    val description: String,
+)
+
 @Serializable
 data class AgentDepartmentCount(
     val departmentId: String,

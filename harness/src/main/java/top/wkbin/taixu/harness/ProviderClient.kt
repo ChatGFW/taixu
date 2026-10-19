@@ -787,7 +787,7 @@ class ProviderClient internal constructor(
         const val MAX_STREAM_CHARS = 4 * 1024 * 1024
 
         /** 流式增量上屏的发布间隔：SSE chunk 频率远高于帧率，逐 chunk 全量发布是 O(n²) 分配。 */
-        const val STREAM_PUBLISH_INTERVAL_MS = 100L
+        const val STREAM_PUBLISH_INTERVAL_MS = 16L // Snapshot allocation only; SSE reception is never throttled.
 
         /**
          * 空响应的用户可见文案（唯一来源：流式层报错与 turn 层兜底共用同一句）。
@@ -1143,9 +1143,9 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "load_rule",
-                    description = "按需加载系统提示词的详细规则块（workflow / code-navigation / security / memory / environment-proot / tools）。当当前任务需要某块规则但系统提示词中未注入时调用；只读，无副作用。",
+                    description = "按需加载系统提示词的详细规则块（含 image-delivery / browser-reverse）。当当前任务需要某块规则但系统提示词中未注入时调用；只读，无副作用。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"rule":{"type":"string","enum":["workflow","code-navigation","security","memory","environment-proot","tools"],"description":"要加载的规则块名称"}},"required":["rule"]}""",
+                        """{"type":"object","properties":{"rule":{"type":"string","enum":[${top.wkbin.taixu.harness.prompt.PromptRouter.RuleBlock.entries.joinToString(",") { "\"${it.loadName}\"" }}],"description":"要加载的规则块名称"}},"required":["rule"]}""",
                     ).jsonObject,
                 ),
             ),

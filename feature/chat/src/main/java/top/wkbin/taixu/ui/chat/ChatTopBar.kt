@@ -28,7 +28,7 @@ import top.wkbin.taixu.ui.chat.floating.rememberFloatingChatLauncher
 internal fun ChatTopBar(
     runMode: RunMode, currentBranch: ConversationBranch?,
     runtimeEvents: List<HarnessEvent>, running: Boolean,
-    onOpenSessions: () -> Unit, onOpenWorkshop: () -> Unit,
+    onOpenSessions: () -> Unit, onOpenBots: () -> Unit, onOpenWorkshop: () -> Unit,
     onOpenRunModes: () -> Unit, onOpenBranches: () -> Unit,
     onOpenRuntime: () -> Unit, onOpenBrowser: (() -> Unit)? = null, browserHighlight: Boolean = false,
     onOpenRepository: (() -> Unit)? = null, repositoryHighlight: Boolean = false,
@@ -57,6 +57,10 @@ internal fun ChatTopBar(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
             borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f), contentPadding = PaddingValues(0.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                RuntimeIconButton(onClick = onOpenBots, modifier = Modifier.size(48.dp),
+                    contentDescription = stringResource(MainDestination.Bots.labelRes)) {
+                    RuntimeIcon(MainDestination.Bots.icon, Modifier.size(22.dp))
+                }
                 RuntimeIconButton(onClick = onOpenWorkshop, modifier = Modifier.size(48.dp),
                     contentDescription = stringResource(MainDestination.Workspace.labelRes)) {
                     RuntimeIcon(MainDestination.Workspace.icon, Modifier.size(22.dp))

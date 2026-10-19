@@ -47,6 +47,8 @@ class TaiXuModulesTest {
                 definition<BackupLocations>(File::class),
                 definition<top.wkbin.taixu.core.tools.PluginReceiptStore>(File::class),
                 definition<top.wkbin.taixu.harness.plugins.HarnessPluginRegistry>(List::class, Function0::class),
+                // Bot plugin factories construct their immutable descriptors; these are not DI services.
+                definition<top.wkbin.taixu.harness.plugins.HarnessPlugin>(top.wkbin.taixu.plugin.api.PluginDescriptor::class),
                 definition<top.wkbin.taixu.harness.plugins.ExternalHarnessPlugins>(Function2::class, top.wkbin.taixu.harness.mcp.McpTransport::class),
                 definition<top.wkbin.taixu.core.tools.InstalledPluginCatalog>(Function0::class, kotlinx.coroutines.CoroutineScope::class),
                 definition<HttpClient>(HttpClientEngine::class),

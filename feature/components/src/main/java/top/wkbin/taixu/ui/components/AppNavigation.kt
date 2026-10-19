@@ -23,24 +23,17 @@ fun AppNavigationSection(
     modifier: Modifier = Modifier,
 ) {
     val pluginMenu = LocalPluginMenuContent.current
-    val destinations = listOf(
-        MainDestination.Workspace to R.string.components_drawer_tab_workspace,
-        MainDestination.Home to R.string.components_drawer_tab_system,
-    )
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        destinations.chunked(2).forEach { pair ->
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                pair.forEach { (destination, label) ->
-                    RuntimeNavigationTile(stringResource(label), destination.icon, { onNavigate(destination) },
-                        Modifier.weight(1f), active = selected == destination && !LocalPluginDestinationActive.current)
-                }
-            }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            RuntimeNavigationTile(stringResource(R.string.components_drawer_tab_system), MainDestination.Home.icon,
+                { onNavigate(MainDestination.Home) }, Modifier.weight(1f),
+                active = selected == MainDestination.Home && !LocalPluginDestinationActive.current)
+            RuntimeNavigationTile(stringResource(R.string.components_tools), RuntimeIconName.Wrench,
+                onOpenTools, Modifier.weight(1.5f))
         }
         if (pluginMenu != null) pluginMenu() else {
             RuntimeNavigationTile(stringResource(R.string.components_local_terminal), RuntimeIconName.Terminal,
                 onOpenTerminal, Modifier.fillMaxWidth())
         }
-        RuntimeNavigationTile(stringResource(R.string.components_tools), RuntimeIconName.Wrench,
-            onOpenTools, Modifier.fillMaxWidth(), showChevron = true)
     }
 }

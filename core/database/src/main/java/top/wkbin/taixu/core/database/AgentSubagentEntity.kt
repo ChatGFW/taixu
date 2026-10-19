@@ -11,6 +11,7 @@ import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import top.wkbin.taixu.core.model.AgentSubagent
+import top.wkbin.taixu.core.model.AgentSubagentLocalization
 import top.wkbin.taixu.core.model.AgentDepartmentCount
 import top.wkbin.taixu.core.model.AgentSubagentIndexEntry
 
@@ -145,6 +146,8 @@ class AgentSubagentRepository(
         ensureInitialized()
         return dao.listEnabledIndex()
     }
+
+    suspend fun localization(): Map<String, AgentSubagentLocalization> = catalogLoader.localization()
 
     suspend fun enabledDepartmentCounts(): List<AgentDepartmentCount> {
         ensureInitialized()

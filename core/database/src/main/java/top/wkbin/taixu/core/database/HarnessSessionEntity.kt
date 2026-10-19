@@ -79,7 +79,20 @@ interface HarnessSessionDao {
     suspend fun setModelSelection(id: String, modelId: String?, modelVariant: String?, updatedAt: Long)
 
     @Query("DELETE FROM harness_sessions WHERE id = :id")
-    suspend fun deleteSession(id: String)
+    suspend fun deleteSessionRow(id: String)
+
+    @Query("DELETE FROM bot_group_sessions WHERE sessionId = :id")
+    suspend fun deleteBotGroupSession(id: String)
+
+    @Query("DELETE FROM bot_assignments WHERE sessionId = :id")
+    suspend fun deleteBotAssignments(id: String)
+
+    @androidx.room.Transaction
+    suspend fun deleteSession(id: String) {
+        deleteBotAssignments(id)
+        deleteBotGroupSession(id)
+        deleteSessionRow(id)
+    }
 
     @Query("SELECT COUNT(*) FROM harness_sessions WHERE (:start IS NULL OR createdAt >= :start) AND (:end IS NULL OR createdAt < :end)")
     suspend fun countInRange(start: Long?, end: Long?): Int

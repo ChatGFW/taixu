@@ -1,0 +1,83 @@
+<resources>
+    <string name="fbot_pixel_apply">Use this look</string>
+    <string name="fbot_pixel_edit">Design pixel character</string>
+    <string name="fbot_pixel_title">Pixel character</string>
+    <string name="fbot_pixel_random">Randomize</string>
+    <string name="fbot_pixel_kind">Character</string>
+    <string name="fbot_pixel_hair">Hair (human)</string>
+    <string name="fbot_pixel_eyes">Eyes</string>
+    <string name="fbot_pixel_mouth">Mouth</string>
+    <string name="fbot_pixel_outfit">Outfit</string>
+    <string name="fbot_pixel_accessory">Accessory</string>
+    <string name="fbot_pixel_skin">Skin / body color</string>
+    <string name="fbot_pixel_hair_color">Hair / panel color</string>
+    <string name="fbot_pixel_outfit_color">Outfit color</string>
+    <string name="fbot_pixel_backdrop">Backdrop</string>
+    <string-array name="fbot_pixel_kinds">
+        <item>Human</item>
+        <item>Cat ears</item>
+        <item>Robot</item>
+    </string-array>
+    <string-array name="fbot_pixel_hairs">
+        <item>Short</item>
+        <item>Bob</item>
+        <item>Long</item>
+        <item>Spiky</item>
+    </string-array>
+    <string-array name="fbot_pixel_eye_styles">
+        <item>Bright</item>
+        <item>Happy</item>
+        <item>Focused</item>
+    </string-array>
+    <string-array name="fbot_pixel_mouth_styles">
+        <item>Smile</item>
+        <item>Calm</item>
+        <item>Open</item>
+    </string-array>
+    <string-array name="fbot_pixel_outfits">
+        <item>T-shirt</item>
+        <item>Hoodie</item>
+        <item>Suit</item>
+    </string-array>
+    <string-array name="fbot_pixel_accessories">
+        <item>None</item>
+        <item>Glasses</item>
+        <item>Headphones</item>
+        <item>Cap</item>
+    </string-array>
+    <string-array name="fbot_pixel_skins">
+        <item>Light</item>
+        <item>Warm</item>
+        <item>Tan</item>
+        <item>Brown</item>
+        <item>Deep</item>
+    </string-array>
+    <string-array name="fbot_pixel_hair_colors">
+        <item>Ink</item>
+        <item>Chestnut</item>
+        <item>Copper</item>
+        <item>Gold</item>
+        <item>Silver</item>
+        <item>Blue</item>
+        <item>Pink</item>
+        <item>Teal</item>
+    </string-array>
+    <string-array name="fbot_pixel_outfit_colors">
+        <item>Indigo</item>
+        <item>Teal</item>
+        <item>Rose</item>
+        <item>Amber</item>
+        <item>Lilac</item>
+        <item>Navy</item>
+        <item>Red</item>
+        <item>Cream</item>
+    </string-array>
+    <string-array name="fbot_pixel_backdrops">
+        <item>Lilac</item>
+        <item>Mint</item>
+        <item>Peach</item>
+        <item>Sky</item>
+        <item>Cream</item>
+        <item>Gray</item>
+    </string-array>
+</resources>

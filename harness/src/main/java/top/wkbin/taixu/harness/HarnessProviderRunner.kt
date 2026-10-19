@@ -113,7 +113,7 @@ class HarnessProviderRunner(
 
         var requestModel = model
         var outputBudgetReduced = false
-        var outputLimitRecovered = false
+        var outputLimitRecoveries = 0
         var netRetry = 0
         val governance = top.wkbin.taixu.harness.diagnostics.ContextGovernanceTrace()
         suspend fun assembleFor(requestModel: ModelConfig) = contextAssembler.assemble(
@@ -139,15 +139,12 @@ class HarnessProviderRunner(
         val maxNetworkRetries = maxNetworkRetriesFor(estimatedRequestTokens, retryPolicy.maxRetries)
         val maxAttempts = maxNetworkRetries + 1
         if (maxNetworkRetries < retryPolicy.maxRetries) {
-            agentEventLogger.log(
-                sessId,
-                "LargeContextRetryPolicy",
-                "估算输入约 $estimatedRequestTokens tokens，大上下文网络重试限制为 $maxNetworkRetries 次",
-            )
+            agentEventLogger.log(sessId, "LargeContextRetryPolicy", "估算输入约 $estimatedRequestTokens tokens，大上下文网络重试限制为 $maxNetworkRetries 次")
         }
         var requestAttempt = 0
         while (streamed == null) {
             try {
+                agentEventLogger.logModelAttempt(sessId, requestModel, requestMessages.size, netRetry + 1, maxAttempts)
                 stateMirrors.setStatus(sessId, "等待模型首个响应（${netRetry + 1}/$maxAttempts）")
                 operationCoordinator.providerIntent(
                     operationId = operationId,
@@ -265,8 +262,8 @@ class HarnessProviderRunner(
             } catch (outputLimit: LlmOutputLimitException) {
                 currentCoroutineContext().ensureActive()
                 stateMirrors.setThinkingLive(sessId, false)
-                val recovered = if (!outputLimitRecovered && !outputBudgetReduced) {
-                    outputLimitRecovered = true
+                val recovered = if (outputLimitRecoveries < OUTPUT_LIMIT_MAX_RECOVERIES && !outputBudgetReduced) {
+                    outputLimitRecoveries++
                     stateMirrors.setStatus(sessId, "输出达到上限，正在调整预算后重试")
                     recoverFromOutputLimit(sessId, requestModel, requestMessages, toolSchemaTokens,
                         compactionManager, agentEventLogger)
@@ -413,7 +410,8 @@ class HarnessProviderRunner(
                     sessId,
                     "NetworkRetry",
                     "网络中断，第 $netRetry 次失败（重试上限 $retryBudget 次" +
-                        (if (transient) "，瞬态故障不受大上下文降级" else "") + "）：${io.message}",
+                        (if (transient) "，瞬态故障不受大上下文降级" else "") +
+                        "，${retryPolicy.delayForRetry(netRetry)}ms 后重试）：${io.message}",
                     io,
                 )
                 if (netRetry > retryBudget) {
@@ -583,7 +581,7 @@ class HarnessProviderRunner(
     companion object {
         private const val LARGE_REQUEST_TOKEN_THRESHOLD = 64_000
         private const val LARGE_REQUEST_MAX_RETRIES = 1
-
+        private const val OUTPUT_LIMIT_MAX_RECOVERIES = 2
         /** 瞬态故障（断线 / 5xx 等）的保底重试次数，不受大上下文降级影响。 */
         private const val TRANSIENT_MAX_RETRIES = 3
 

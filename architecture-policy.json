@@ -27,7 +27,7 @@
       "feature.theme", "feature.components", "feature.home", "feature.chat",
       "feature.terminal", "feature.workspace", "feature.workflow", "feature.settings",
       "feature.developer", "feature.custom_iteration", "feature.onboarding",
-      "feature.navigation", "feature.browser", "feature.git", "feature.a2uipoc"
+      "feature.navigation", "feature.browser", "feature.git", "feature.bot", "feature.a2uipoc"
     ]
   },
   "importBans": [
@@ -73,7 +73,7 @@
         "core.security", "core.datastore", "runtime", "project-template", "tools", "harness",
         "feature.components", "feature.chat", "feature.workspace", "feature.workflow",
         "feature.navigation", "feature.custom_iteration", "feature.onboarding",
-        "feature.theme", "feature.git"
+        "feature.theme", "feature.git", "feature.bot"
       ]
     },
     { "id": "baselineprofile", "path": "baselineprofile", "requires": [] },
@@ -185,7 +185,7 @@
       "requires": [
         "feature.theme", "feature.home", "feature.chat", "feature.terminal",
         "feature.workspace", "feature.workflow", "feature.settings", "feature.developer",
-        "feature.custom_iteration", "feature.browser", "feature.git", "feature.a2uipoc",
+        "feature.custom_iteration", "feature.browser", "feature.git", "feature.bot", "feature.a2uipoc",
         "plugin.ui", "core.datastore", "runtime"
       ]
     },
@@ -196,6 +196,11 @@
     {
       "id": "feature.git", "path": "feature/git",
       "requires": ["core.security", "runtime", "harness", "feature.theme"]
+    },
+    {
+      "id": "feature.bot", "path": "feature/bot",
+      "_doc": "PersonaBot 团队与群聊：只依赖仓储接口与 harness 编排，不直接触 DAO",
+      "requires": ["harness", "core.database", "feature.theme"]
     },
     {
       "id": "feature.a2uipoc",
