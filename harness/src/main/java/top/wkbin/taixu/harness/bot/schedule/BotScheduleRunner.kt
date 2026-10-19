@@ -43,7 +43,7 @@ class BotScheduleRunner(
                 scheduleRepository.setScheduleEnabled(schedule.id, false)
                 return@forEach
             }
-            scheduleRepository.stageDelivery(schedule, now, parsed.getOrThrow())
+            scheduleRepository.stageDelivery(schedule, now, parsed.getOrThrow() ?: schedule.nextRunAt)
         }
         var admitted = 0
         scheduleRepository.pendingDeliveries(MAX_DUE_PER_RUN).forEach { delivery ->
