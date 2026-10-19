@@ -44,6 +44,9 @@ interface BotGroupSessionDao {
     @Query("SELECT sessionId FROM bot_group_sessions WHERE botId = :botId")
     suspend fun listSessionIds(botId: String): List<String>
 
+    @Query("SELECT botId FROM bot_group_sessions WHERE sessionId = :sessionId LIMIT 1")
+    suspend fun findBotIdBySession(sessionId: String): String?
+
     @Query("SELECT sessionId FROM bot_group_sessions WHERE groupId = :groupId")
     suspend fun listSessionIdsForGroup(groupId: String): List<String>
 

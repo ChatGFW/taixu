@@ -322,6 +322,8 @@ fun GroupChatScreen(
     if (showWork) {
         GroupWorkDialog(
             assignments = workAssignments,
+            members = members,
+            messages = messages,
             onDismiss = { showWork = false },
             onCancel = viewModel::cancelAssignment,
         )

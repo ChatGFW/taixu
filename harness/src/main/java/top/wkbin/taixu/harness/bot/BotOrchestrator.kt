@@ -195,19 +195,34 @@ class BotOrchestrator(
             logger.w("[BotOrchestrator] Bot 会话缺失，已重建: ${bot.name} ($sessionId)")
             return
         }
+        val now = System.currentTimeMillis()
+        // 群聊自动执行没有审批 UI；旧会话可能仍是 ASSISTED，发言前统一升级为完全访问。
+        val needsFullAccess = existing.approvalMode != ApprovalMode.FULL_ACCESS.id
         // Bot 会话会切换群聊与工作区，不能沿用用户项目的 workspace 绑定；否则换群后会报
         // “会话已绑定其他工作区”。空闲时归零，下一次运行按统一工作区重新绑定。
-        if (sessionControl.sessionRunStates.value[sessionId] !in setOf(SessionRunState.RUNNING, SessionRunState.WAITING_APPROVAL) &&
+        val idle = sessionControl.sessionRunStates.value[sessionId] !in
+            setOf(SessionRunState.RUNNING, SessionRunState.WAITING_APPROVAL)
+        val needsWorkspaceReset = idle &&
             (existing.workspace.isNotBlank() || existing.executionTargetJson != "unbound")
-        ) {
+        if (needsFullAccess || needsWorkspaceReset) {
             sessionRepository.upsert(
                 existing.copy(
-                    workspace = "",
-                    executionTargetJson = "unbound",
-                    updatedAt = System.currentTimeMillis(),
+                    approvalMode = ApprovalMode.FULL_ACCESS.id,
+                    workspace = if (needsWorkspaceReset) "" else existing.workspace,
+                    executionTargetJson = if (needsWorkspaceReset) {
+                        "unbound"
+                    } else {
+                        existing.executionTargetJson
+                    },
+                    updatedAt = now,
                 ),
             )
-            logger.w("[BotOrchestrator] 已重置 Bot 会话工作区绑定: ${bot.name} ($sessionId)")
+            if (needsFullAccess) {
+                logger.i("[BotOrchestrator] Bot 会话已启用完全访问（免审批）: ${bot.name} ($sessionId)")
+            }
+            if (needsWorkspaceReset) {
+                logger.w("[BotOrchestrator] 已重置 Bot 会话工作区绑定: ${bot.name} ($sessionId)")
+            }
         }
     }
 
@@ -272,7 +287,7 @@ class BotOrchestrator(
         modelId = bot.modelId,
         workspace = "",
         projectType = "",
-        approvalMode = ApprovalMode.ASSISTED.id,
+        approvalMode = ApprovalMode.FULL_ACCESS.id,
         executionTargetJson = "unbound",
     )
 }

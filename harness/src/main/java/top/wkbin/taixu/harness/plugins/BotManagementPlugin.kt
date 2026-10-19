@@ -21,6 +21,7 @@ import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
 import top.wkbin.taixu.harness.bot.BotOrchestrator
 import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
+import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 
 /**
  * 主控 Bot 的团队管理工具：孵化新 Bot、向指定 Bot 派发后台子任务、查看名册。
@@ -54,11 +55,13 @@ fun botManagementPlugin(
             "bot_name" to pluginStringProperty("目标 Bot 名称"),
             "task" to pluginStringProperty("要交给它独立完成的具体任务"),
             "write_paths" to pluginStringArrayProperty(
-                "可选写入租约；为空表示只读任务，写入会被拦截",
-                "允许写入的沙箱路径",
+                "可选建议写入目录；群聊前台执行时作为任务提示，无群聊子任务会作为写入租约",
+                "建议写入的沙箱路径",
             ),
-            "group_id" to pluginStringProperty("可选群聊 ID；省略时结果回传到主控 Bot 所在群"),
-            "wait" to pluginBooleanProperty("是否等待子任务完成后直接返回结果；省略时后台执行并回传群聊"),
+            "group_id" to pluginStringProperty("可选群聊 ID；省略时使用主控 Bot 所在的第一个群"),
+            "wait" to pluginBooleanProperty(
+                "是否等待成员在群聊前台执行完成并直接返回；省略时有群聊则立即返回、成员前台执行",
+            ),
             "depends_on" to pluginStringArrayProperty(
                 "可选前置任务 ID 列表；全部 COMPLETED 后才允许派发，用于串行依赖",
                 "assign-task 返回的任务 ID",
@@ -118,7 +121,7 @@ fun botManagementPlugin(
             },
             PluginTool(
                 id = "assign-task",
-                description = "把一项专项任务派发给指定 Bot，在独立后台 Lane 中执行并持久化任务记录。仅主控 Bot 可用。",
+                description = "把任务交给指定 Bot 在群聊前台执行：成员以自己的头像实时流式输出与工具步骤，任务会持久化。仅主控 Bot 可用。",
                 schema = assignSchema,
             ) { request ->
                 val caller = requireMainBot(request.sessionId, botRepository)
@@ -147,6 +150,12 @@ fun botManagementPlugin(
                 if (!request.arguments["group_id"]?.jsonPrimitive?.content.isNullOrBlank() && group == null) {
                     return@PluginTool PluginToolOutput(false, "找不到群聊或你不是群成员")
                 }
+                if (group != null && groupRepository.getMembers(group.id).none { it.id == target.id }) {
+                    return@PluginTool PluginToolOutput(
+                        false,
+                        "${target.name} 不在群聊「${group.name}」中；请先把成员拉进群，前台执行才能显示在群里。",
+                    )
+                }
                 val groupSessionId = group?.let { resolved ->
                     runCatching { orchestrator().ensureGroupSession(target, resolved.id) }
                         .onFailure {
@@ -164,23 +173,37 @@ fun botManagementPlugin(
                     var summary: String? = null
                     var error: String? = null
                     try {
-                        val result = orchestrator().dispatchSubtask(
-                            target.id,
-                            task,
-                            writePaths,
-                            laneName = assignment.laneName,
-                            groupId = group?.id,
-                        )
-                        summary = result.summary
-                        if (result.success) {
-                            status = BotAssignmentStatus.COMPLETED
+                        val outcome = if (group != null) {
+                            dispatcher().runAssignment(
+                                group = group,
+                                target = target,
+                                requester = caller,
+                                task = task,
+                                taskId = assignment.id,
+                                writePaths = writePaths,
+                            )
                         } else {
-                            error = "子任务未成功结束（${result.termination}）"
+                            val result = orchestrator().dispatchSubtask(
+                                target.id,
+                                task,
+                                writePaths,
+                                laneName = assignment.laneName,
+                                groupId = null,
+                            )
+                            GroupTurnOutcome(result.summary, !result.success)
                         }
-                        val mark = if (result.success) "✅" else "⚠️"
+                        summary = outcome.text
+                        status = if (outcome.failed) {
+                            BotAssignmentStatus.FAILED
+                        } else {
+                            BotAssignmentStatus.COMPLETED
+                        }
+                        if (outcome.failed) error = "成员执行未成功"
+                        val mark = if (outcome.failed) "⚠️" else "✅"
+                        val place = if (group != null) "已在群聊前台执行结束" else "执行结束"
                         PluginToolOutput(
-                            result.success,
-                            "$mark ${target.name} 执行结束（任务 ${assignment.id}，工具调用 ${result.toolCallCount} 次）\n\n${result.summary.take(BOT_TOOL_MAX_CHARS)}",
+                            !outcome.failed,
+                            "$mark ${target.name} $place（任务 ${assignment.id}）\n\n${outcome.text.take(BOT_TOOL_MAX_CHARS)}",
                         )
                     } catch (cancelled: CancellationException) {
                         status = BotAssignmentStatus.CANCELLED
@@ -202,9 +225,13 @@ fun botManagementPlugin(
                     )
                     scope.launchBotAssignment(assignments, assignment,
                         run = {
-                            orchestrator().dispatchSubtask(
-                                target.id, task, writePaths, laneName = assignment.laneName,
-                                groupId = notifyGroup.id,
+                            dispatcher().runAssignment(
+                                group = notifyGroup,
+                                target = target,
+                                requester = caller,
+                                task = task,
+                                taskId = assignment.id,
+                                writePaths = writePaths,
                             )
                         },
                         report = { text, wakeMainBot ->
@@ -215,7 +242,7 @@ fun botManagementPlugin(
                     )
                     PluginToolOutput(
                         true,
-                        "🚀 已把任务派发给 ${target.name}（任务 ${assignment.id}），完成后会回传到群聊「${notifyGroup.name}」；可用 list-assignments 查看进度。",
+                        "🚀 已把任务交给 ${target.name} 在群聊前台执行（任务 ${assignment.id}）；你能实时看到它的头像、流式输出与工具步骤，完成后会自动唤醒你验收。",
                     )
                 }
             },

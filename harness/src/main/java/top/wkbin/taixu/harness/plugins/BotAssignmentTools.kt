@@ -16,7 +16,7 @@ import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
 import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
-import top.wkbin.taixu.harness.subagent.SubagentLaneResult
+import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 
 internal fun PluginToolRequest.stringArray(name: String): List<String> =
     (arguments[name] as? JsonArray)
@@ -47,7 +47,7 @@ internal fun newAssignment(
         createdAt = now,
         startedAt = now,
         sessionId = sessionId ?: target.sessionId,
-        laneName = "subagent:bot-${target.id.take(8)}:${taskId.take(8)}",
+        laneName = null,
     )
 }
 
@@ -80,15 +80,15 @@ internal suspend fun notifyAssignmentResult(
     }
 }
 
-internal fun formatBackgroundReport(
+internal fun formatAssignmentReport(
     assignment: BotAssignment,
-    result: SubagentLaneResult,
+    result: GroupTurnOutcome,
 ): String {
-    val mark = if (result.success) "✅" else "⚠️"
-    val status = if (result.success) "已完成主控委派" else "执行未完成"
-    val truncated = if (result.summary.length > BOT_BACKGROUND_SUMMARY_CHARS) "\n\n…（结果已截断）" else ""
+    val mark = if (result.failed) "⚠️" else "✅"
+    val status = if (result.failed) "执行未完成" else "已在群聊完成主控委派"
+    val truncated = if (result.text.length > BOT_BACKGROUND_SUMMARY_CHARS) "\n\n…（结果已截断）" else ""
     return "$mark **${assignment.botName}** $status（任务 ${assignment.id}）\n\n" +
-        result.summary.take(BOT_BACKGROUND_SUMMARY_CHARS) + truncated
+        result.text.take(BOT_BACKGROUND_SUMMARY_CHARS) + truncated
 }
 
 internal fun botAssignmentTools(

@@ -44,6 +44,7 @@ private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>
     appendLine("派发测试时必须提供开发产物路径，并要求实际运行/验收，不能只交测试计划。")
     appendLine("有合适成员时不要抢着实现；只有没有合适成员、成员明确失败或任务极小时才亲自兜底，并说明真实原因。")
     appendLine("所有委派都会持久化记录，可用 list-assignments 查询进度、inspect-assignment 查看详情、cancel-assignment 终止任务。")
+    appendLine("assign-task 会把任务交给成员在群聊前台执行：成员以自己的头像实时流式输出并展示工具步骤，不是后台子智能体。")
     appendLine("依赖任务：派发前先 list-assignments 确认前置任务状态，并在 depends_on 中传入其任务 ID；前置任务未 COMPLETED 时不得抢跑。")
     if (members.isEmpty()) {
         appendLine("当前没有其他成员可派发，请自己完成。")
@@ -55,7 +56,7 @@ private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>
     appendLine("1. 先调用 use_capability(action=\"inspect\", server=\"plugin.taixu.bot-management\") 查看 assign-task 参数；")
     appendLine("2. 再调用 use_capability(action=\"call\", server=\"plugin.taixu.bot-management\", tool=\"assign-task\", arguments={\"bot_name\":\"成员名\",\"task\":\"完整任务\",\"write_paths\":[\"/root/目标目录\"],\"group_id\":\"$groupId\",\"wait\":false})。")
     appendLine("任务描述必须自包含：目标、输入、验收标准、需要写入的路径。")
-    appendLine("wait=false 会在后台执行并把结果作为系统通知回传到本群，并自动唤醒你验收；先核对结果再决定继续派发或汇总。")
+    appendLine("wait=false 会立即返回，成员在群里前台执行；完成后系统会通知并自动唤醒你验收。")
     appendLine("需要本轮就拿到结果并验收时用 wait=true；成员结果不满足要求时再次派发补充，不要直接宣称完成。")
     appendLine("涉及写文件时必须传 write_paths，路径需在沙箱工作区内；否则成员的写入会被拦截。")
     appendLine("收到系统回传后，可用 inspect-assignment 查看完整摘要和错误；成员报告失败或结果未知时先只读核验产物。")

@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -32,7 +32,7 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
-/** A stable viewport: new tokens scroll inside it instead of resizing the conversation. */
+/** 思考内容从一行开始随正文增长，达到上限后固定视口并自动跟随尾部。 */
 @Composable
 internal fun GroupReasoningPanel(messageId: String, reasoning: String, streaming: Boolean) {
     var expanded by rememberSaveable(messageId) { mutableStateOf(true) }
@@ -73,7 +73,12 @@ internal fun GroupReasoningPanel(messageId: String, reasoning: String, streaming
                 RuntimeIcon(if (expanded) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown, Modifier.size(15.dp))
             }
             if (expanded) {
-                Box(Modifier.fillMaxWidth().height(160.dp).testTag("group-reasoning-viewport")) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 160.dp)
+                        .testTag("group-reasoning-viewport"),
+                ) {
                     Text(
                         reasoning.ifBlank { stringResource(R.string.fbot_waiting_response) },
                         modifier = Modifier.fillMaxWidth().verticalScroll(scroll).testTag("group-reasoning-scroll"),

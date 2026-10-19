@@ -105,8 +105,9 @@ private fun BotMessageBubble(
 ) {
     val role = bot?.role.orEmpty()
     val botId = bot?.id
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-        if (lastInGroup) {
+    // 头像跟随作者名放在消息组顶部；同组后续消息用等宽占位保持缩进。
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        if (firstInGroup) {
             BotAvatar(
                 seed = bot?.avatarSeed ?: message.senderName,
                 colorHex = bot?.colorHex ?: "#3D5AFE",
