@@ -134,6 +134,7 @@
     <string name="chat_rename_session">重命名会话</string>
     <string name="chat_drawer_new_task">新任务</string>
     <string name="chat_drawer_projects">项目</string>
+    <string name="chat_drawer_bot_sessions">Bot 会话</string>
     <string name="chat_drawer_recent">最近</string>
     <string name="chat_drawer_no_projects">暂无关联项目</string>
     <string name="chat_drawer_no_sessions_in_project">暂无会话，点击 + 新建</string>

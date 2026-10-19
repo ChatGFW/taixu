@@ -10,6 +10,7 @@ import top.wkbin.taixu.di.core.network.coreNetworkModule
 import top.wkbin.taixu.di.core.security.coreSecurityModule
 import top.wkbin.taixu.di.feature.onboarding.featureOnboardingModule
 import top.wkbin.taixu.di.harness.harnessModule
+import top.wkbin.taixu.di.harness.botHarnessModule
 import top.wkbin.taixu.di.project.template.projectTemplateModule
 import top.wkbin.taixu.di.runtime.runtimeModule
 import top.wkbin.taixu.di.runtime.browser.runtimeBrowserModule
@@ -27,6 +28,7 @@ val taiXuModule = module {
         coreSecurityModule,
         featureOnboardingModule,
         harnessModule,
+        botHarnessModule,
         projectTemplateModule,
         runtimeModule,
         runtimeBrowserModule,

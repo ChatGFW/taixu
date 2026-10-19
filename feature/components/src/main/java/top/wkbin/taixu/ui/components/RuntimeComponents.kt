@@ -92,7 +92,7 @@ import androidx.compose.ui.res.stringResource
  */
 enum class MainDestination(val labelRes: Int, val subtitleRes: Int, val icon: RuntimeIconName) {
     Home(R.string.components_nav_home, R.string.components_nav_subtitle_home, RuntimeIconName.NavDashboard),
-    Agent(R.string.components_nav_agent, R.string.components_nav_subtitle_agent, RuntimeIconName.NavMessage),
+    Agent(R.string.components_nav_agent, R.string.components_nav_subtitle_agent, RuntimeIconName.NavMessage), Bots(R.string.components_nav_bots, R.string.components_nav_subtitle_bots, RuntimeIconName.Bot),
     Workspace(R.string.components_nav_workspace, R.string.components_nav_subtitle_workspace, RuntimeIconName.NavRepository),
     Settings(R.string.components_nav_settings, R.string.components_nav_subtitle_settings, RuntimeIconName.NavSettings),
 }

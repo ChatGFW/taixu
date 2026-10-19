@@ -21,6 +21,7 @@ dependencies {
     implementation(project(":feature:custom_iteration"))
     implementation(project(":feature:browser"))
     implementation(project(":feature:git"))
+    implementation(project(":feature:bot"))
     implementation(project(":feature:a2uipoc"))
     implementation(libs.kotlinx.serialization.json)
     // miuix-navigation3-ui 提供 androidx.navigation3.ui.NavDisplay 的 MIUI/HyperOS 风格实现，

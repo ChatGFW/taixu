@@ -51,6 +51,7 @@ import top.wkbin.taixu.core.common.navigation.AppNavigationTarget
 import top.wkbin.taixu.core.common.navigation.GlobalNavigationBus
 import top.wkbin.taixu.feature.a2uipoc.A2uiPocScreen
 import top.wkbin.taixu.ui.browser.BrowserViewModel
+import top.wkbin.taixu.ui.bot.BotsScreen
 import top.wkbin.taixu.ui.git.GitScreen
 import top.wkbin.taixu.ui.settings.AboutCommunityScreen
 import top.wkbin.taixu.ui.settings.AgentEcoSettingsScreen
@@ -115,12 +116,7 @@ fun TaiXuNavHost(
 
     val sidebarGesturesEnabled = activeStack.canSwipeOpenNavigation()
     LaunchedEffect(sidebarGesturesEnabled) { if (!sidebarGesturesEnabled) showNavigation = false }
-    val selectedMain = when (activeStack.lastOrNull { it == HomeDestination || it == WorkspaceDestination || it == SettingsDestination }) {
-        HomeDestination -> MainDestination.Home
-        WorkspaceDestination -> MainDestination.Workspace
-        SettingsDestination -> MainDestination.Settings
-        else -> MainDestination.Agent
-    }
+    val selectedMain = activeStack.lastOrNull { it == HomeDestination || it == WorkspaceDestination || it == BotsDestination || it == SettingsDestination }.toMainDestination()
     fun navigateMain(destination: MainDestination) {
         if (activeStack.openMainOverlay(destination)) return
         if (destination == MainDestination.Agent) while (activeStack.size > 1) activeStack.removeLastOrNull()
@@ -233,6 +229,7 @@ fun TaiXuNavHost(
                     )
                 }
             }
+            entry<BotsDestination> { GuardedEntry(BotsDestination) { BotsScreen(onBack = { if (activeStack.size > 1) popBack() else navigateMain(MainDestination.Agent) }, onOpenBot = { activeStack.push(BotsDestination, BotDetailDestination(it)) }, onOpenGroup = { activeStack.push(BotsDestination, GroupChatDestination(it)) }) } }
             entry<WorkspaceDestination> {
                 GuardedEntry(WorkspaceDestination) {
                     WorkspaceScreen(
@@ -688,6 +685,8 @@ fun TaiXuNavHost(
                     GitScreen(projectName = destination.projectName, onBack = ::popBack)
                 }
             }
+            entry<BotDetailDestination> { destination -> GuardedEntry(destination) { top.wkbin.taixu.ui.bot.BotDetailScreen(botId = destination.botId, onBack = ::popBack) } }
+            entry<GroupChatDestination> { destination -> GuardedEntry(destination) { top.wkbin.taixu.ui.bot.GroupChatScreen(groupId = destination.groupId, onBack = ::popBack, onOpenBot = { activeStack.pushRaw(BotDetailDestination(it)) }) } }
     }
 
     // Keep entry state and ViewModels across pushes and pops in the shared navigation stack.

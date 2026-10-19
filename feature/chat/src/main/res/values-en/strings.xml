@@ -113,6 +113,7 @@
     <string name="chat_rename_session">Rename session</string>
     <string name="chat_drawer_new_task">New Task</string>
     <string name="chat_drawer_projects">Projects</string>
+    <string name="chat_drawer_bot_sessions">Bot sessions</string>
     <string name="chat_drawer_recent">Recent</string>
     <string name="chat_drawer_no_projects">No linked projects</string>
     <string name="chat_drawer_no_sessions_in_project">No sessions yet; tap + to create</string>

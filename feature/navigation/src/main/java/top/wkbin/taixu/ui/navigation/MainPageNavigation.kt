@@ -11,6 +11,7 @@ internal fun MutableList<NavKey>.openMainOverlay(destination: MainDestination): 
     val page = when (destination) {
         MainDestination.Workspace -> WorkspaceDestination
         MainDestination.Home -> HomeDestination
+        MainDestination.Bots -> BotsDestination
         MainDestination.Settings -> SettingsDestination
         else -> return false
     }
@@ -18,6 +19,15 @@ internal fun MutableList<NavKey>.openMainOverlay(destination: MainDestination): 
     if (existingSettings >= 0) while (lastIndex > existingSettings) removeAt(lastIndex)
     if (lastOrNull() != page) add(page)
     return true
+}
+
+/** Reverse mapping for the navigation drawer: only root overlay pages change the selected tab. */
+internal fun NavKey?.toMainDestination(): MainDestination = when (this) {
+    HomeDestination -> MainDestination.Home
+    WorkspaceDestination -> MainDestination.Workspace
+    BotsDestination -> MainDestination.Bots
+    SettingsDestination -> MainDestination.Settings
+    else -> MainDestination.Agent
 }
 
 /** Notification/deep-link settings entries use the same stack as in-app navigation. */
