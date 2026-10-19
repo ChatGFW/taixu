@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,6 +15,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import top.wkbin.taixu.ui.components.RuntimeIllustration
+import top.wkbin.taixu.ui.components.RuntimeIllustrationScene
+import top.wkbin.taixu.ui.components.RuntimeUsageNoticeDialog
+import top.wkbin.taixu.feature.components.R as ComponentsR
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +52,8 @@ fun SettingsScreen(
     onOpenFeatureHub: () -> Unit = {},
     viewModel: SettingsViewModel? = previewOrNull { koinViewModel() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) },
 ) {
+    var showUsageNotice by rememberSaveable { mutableStateOf(false) }
+    if (showUsageNotice) RuntimeUsageNoticeDialog(onDismiss = { showUsageNotice = false })
     val openPluginManager = LocalOpenPluginManager.current
     val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val developer by viewModel?.developerMode?.collectAsStateWithLifecycle() ?: previewStateOf(false)
@@ -63,6 +73,9 @@ fun SettingsScreen(
 
 
     PersonalizationScaffold(stringResource(R.string.personal_settings_title), onBack) {
+        item("settings_illustration") {
+            RuntimeIllustration(RuntimeIllustrationScene.Settings, Modifier.height(144.dp))
+        }
         item("search") {
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -119,7 +132,10 @@ fun SettingsScreen(
                 SettingsCategoryCard(RuntimeIconName.Community, stringResource(R.string.settings_nav_about_title),
                     stringResource(R.string.settings_nav_about_summary),
                     if (appVersionName == "unknown") "版本号未知 · 稳定版" else "v$appVersionName 稳定版",
-                    first = false, last = true, onClick = onOpenAboutCommunity)
+                    first = false, last = false, onClick = onOpenAboutCommunity)
+                SettingsCategoryCard(RuntimeIconName.Shield, stringResource(ComponentsR.string.runtime_notice_title),
+                    stringResource(ComponentsR.string.runtime_notice_summary), value = null,
+                    first = false, last = true, onClick = { showUsageNotice = true })
             }
         }
     }

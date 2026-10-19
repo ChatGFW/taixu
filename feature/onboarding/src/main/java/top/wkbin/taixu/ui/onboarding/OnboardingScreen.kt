@@ -53,11 +53,22 @@ fun OnboardingScreen(
     val page by viewModel?.page?.collectAsStateWithLifecycle() ?: previewStateOf(previewPage)
     val runtime by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(RuntimeState.Ready)
     val importing by viewModel?.isImporting?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    var started by rememberSaveable { mutableStateOf(previewPage >= 0) }
-    val stage = if (!started && page <= 0) 0 else if (page <= 0) 1 else if (page == 1) 2 else 3
+    // Entry UI stays local. Existing installation, permission, and model page indices stay intact.
+    var entryStep by rememberSaveable {
+        mutableStateOf(when {
+            previewPage == -2 -> OnboardingIntroStep.DISCLAIMER
+            previewPage >= 0 -> OnboardingIntroStep.SETUP
+            else -> OnboardingIntroStep.WELCOME
+        })
+    }
+    var acknowledged by rememberSaveable { mutableStateOf(false) }
+    val stage = entryStep.stage(page)
     val busy = runtime is RuntimeState.Initializing || importing
-    BackHandler(enabled = stage == 1 && !busy) { started = false }
-    BackHandler(enabled = stage == 3) { viewModel?.setPage(1) }
+    BackHandler(enabled = stage == 1) { entryStep = OnboardingIntroStep.WELCOME }
+    BackHandler(enabled = stage == 2 && !busy) { entryStep = OnboardingIntroStep.DISCLAIMER }
+    // Linux is already ready here: go back to the notice without offering a second installation.
+    BackHandler(enabled = stage == 3) { entryStep = OnboardingIntroStep.DISCLAIMER }
+    BackHandler(enabled = stage == 4) { viewModel?.setPage(1) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -67,15 +78,21 @@ fun OnboardingScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if ((stage == 1 && !busy) || stage == 3) {
-                    RuntimeIconButton(onClick = { if (stage == 3) viewModel?.setPage(1) else started = false }, contentDescription = stringResource(R.string.onboarding_back)) {
+                if (stage == 1 || (stage == 2 && !busy) || stage == 3 || stage == 4) {
+                    RuntimeIconButton(onClick = {
+                        when (stage) {
+                            4 -> viewModel?.setPage(1)
+                            3 -> entryStep = OnboardingIntroStep.DISCLAIMER
+                            else -> entryStep = entryStep.previous()
+                        }
+                    }, contentDescription = stringResource(R.string.onboarding_back)) {
                         RuntimeIcon(RuntimeIconName.Back, Modifier.size(24.dp))
                     }
                 } else {
                     Box(Modifier.size(48.dp))
                 }
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-                    repeat(4) { index ->
+                    repeat(5) { index ->
                         Surface(
                             shape = MaterialTheme.shapes.extraLarge,
                             color = if (index == stage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -88,15 +105,20 @@ fun OnboardingScreen(
             }
         },
         bottomBar = {
-            if (stage == 0) {
+            if (stage == 0 || stage == 1) {
                 Box(Modifier.fillMaxWidth().padding(WindowInsets.navigationBars.asPaddingValues())
                     .padding(horizontal = 24.dp, vertical = 16.dp), contentAlignment = Alignment.Center) {
-                    RuntimeButton(onClick = { started = true }, modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth()) {
-                        Text(stringResource(R.string.onboarding_start), modifier = Modifier.padding(4.dp))
+                    RuntimeButton(
+                        onClick = { entryStep = entryStep.advance(acknowledged) },
+                        enabled = stage == 0 || acknowledged,
+                        modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
+                    ) {
+                        Text(stringResource(if (stage == 0) R.string.onboarding_start else R.string.onboarding_notice_continue),
+                            modifier = Modifier.padding(4.dp))
                     }
                 }
             }
-            if (stage == 2) {
+            if (stage == 3) {
                 PermissionContinueActions(onContinue = { viewModel?.setPage(2) })
             }
         },
@@ -105,8 +127,10 @@ fun OnboardingScreen(
             AnimatedContent(targetState = stage, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "onboardingStage") { current ->
                 when (current) {
                     0 -> OnboardingWelcomePage(Modifier.fillMaxSize())
-                    1 -> SystemSetupPage(viewModel, Modifier.widthIn(max = 840.dp).fillMaxSize())
-                    2 -> OnboardingPermissionPage(
+                    1 -> OnboardingDisclaimerPage(acknowledged, { acknowledged = it },
+                        Modifier.widthIn(max = 840.dp).fillMaxSize())
+                    2 -> SystemSetupPage(viewModel, Modifier.widthIn(max = 840.dp).fillMaxSize())
+                    3 -> OnboardingPermissionPage(
                         modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
                         onOpenAutostartSettings = onOpenAutostartSettings,
                         onNotificationGranted = onNotificationGranted,

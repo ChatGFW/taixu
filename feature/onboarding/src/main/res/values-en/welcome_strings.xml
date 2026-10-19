@@ -9,6 +9,9 @@
     <string name="onboarding_feature_workspace">A space of your own</string>
     <string name="onboarding_feature_workspace_description">Manage projects, explore, and build in the terminal.</string>
     <string name="onboarding_start">Get started</string>
-    <string name="onboarding_back">Back to welcome</string>
-    <string name="onboarding_step">%1$d / 4</string>
+    <string name="onboarding_back">Back to previous step</string>
+    <string name="onboarding_step">%1$d / 5</string>
+    <string name="onboarding_notice_intro">Before setup, review what TaiXu can do and the limits of its use. You can read these notes again in Settings.</string>
+    <string name="onboarding_notice_acknowledge">I have read and understood the disclaimer and usage notes</string>
+    <string name="onboarding_notice_continue">Confirm and continue</string>
 </resources>

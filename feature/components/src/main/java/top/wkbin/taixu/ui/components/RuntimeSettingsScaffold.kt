@@ -24,11 +24,12 @@ fun RuntimeSettingsScaffold(
     statusText: String? = null,
     actions: @Composable RowScope.() -> Unit = {},
     snackbarHost: @Composable () -> Unit = {},
+    modifier: Modifier = Modifier,
     content: LazyListScope.() -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = { RuntimeTopBar(title, onBack, scrollBehavior, actions = actions) },
         snackbarHost = snackbarHost,

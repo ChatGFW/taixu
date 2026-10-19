@@ -48,3 +48,11 @@ private fun OnboardingModelPagePreview() {
 private fun OnboardingPermissionPagePreview() {
     RuntimePreview { OnboardingScreen(previewPage = 1) }
 }
+
+@Preview(name = "免责声明 · 窄屏大字体", widthDp = 320, heightDp = 720, fontScale = 1.3f, locale = "zh")
+@Preview(name = "Disclaimer · Dark", widthDp = 360, heightDp = 800,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, locale = "en")
+@Composable
+private fun OnboardingDisclaimerPreview() {
+    RuntimePreview { OnboardingScreen(previewPage = -2) }
+}

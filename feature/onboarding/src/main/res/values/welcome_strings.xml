@@ -9,6 +9,9 @@
     <string name="onboarding_feature_workspace">自己的工作空间</string>
     <string name="onboarding_feature_workspace_description">管理项目，在终端中探索与构建。</string>
     <string name="onboarding_start">开始探索</string>
-    <string name="onboarding_back">返回欢迎页</string>
-    <string name="onboarding_step">%1$d / 4</string>
+    <string name="onboarding_back">返回上一步</string>
+    <string name="onboarding_step">%1$d / 5</string>
+    <string name="onboarding_notice_intro">开始配置前，请了解太墟的能力与使用边界。这些说明也可在设置中随时查看。</string>
+    <string name="onboarding_notice_acknowledge">我已阅读并理解以上免责声明与使用须知</string>
+    <string name="onboarding_notice_continue">确认并继续</string>
 </resources>
