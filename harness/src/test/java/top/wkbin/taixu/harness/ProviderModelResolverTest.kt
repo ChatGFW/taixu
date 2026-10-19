@@ -11,6 +11,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.Implements
+import org.robolectric.annotation.Implementation
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.RoomAiModelRepository
@@ -22,12 +24,19 @@ import top.wkbin.taixu.core.tools.ProviderRepository
 import top.wkbin.taixu.harness.core.LlmApi
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], shadows = [ProviderModelResolverTest.FakeSecrets::class], instrumentedPackages = ["top.wkbin.taixu.core.security"])
 class ProviderModelResolverTest {
+    /** Only credential persistence is faked; resolution still reads the real DataStore facade. */
+    @Implements(SecretManager::class, isInAndroidSdk = false)
+    class FakeSecrets {
+        @Implementation fun encrypt(value: String): String = "fixture:$value"
+        @Implementation fun decrypt(value: String): String = value.removePrefix("fixture:")
+    }
     private lateinit var database: AppDatabase
     private lateinit var models: RoomAiModelRepository
     private lateinit var preferences: AgentPreferences
     private lateinit var resolver: ProviderModelResolver
+    private lateinit var providers: ProviderRepository
     private val profile = AiModelEntity(
         id = "profile", name = "gateway", provider = "custom", model = "gpt-4o-mini,gpt-4.1-mini",
         baseUrl = "https://gateway.example/v1", isActive = true, createdAt = 1,
@@ -40,10 +49,21 @@ class ProviderModelResolverTest {
         val settings = SettingsDataStore(context, SecretManager())
         preferences = AgentPreferences(settings)
         preferences.setDefaultReasoningDepth("auto")
-        resolver = ProviderModelResolver(ProviderRepository(ProviderPreferences(settings)), models, preferences)
+        providers = ProviderRepository(ProviderPreferences(settings))
+        resolver = ProviderModelResolver(providers, models, preferences)
     }
 
     @After fun tearDown() { database.close() }
+
+    @Test fun `external profile never inherits the global provider key`() = runBlocking {
+        providers.setApiKey("global-host-secret")
+        try {
+            models.upsert(profile.copy(provider = "plugin.example.offline", model = "plugin-default"))
+            val resolved = resolver.resolveConfigured()
+            assertNull(resolved.apiKey)
+            assertTrue(resolved.apiKeys.isEmpty())
+        } finally { providers.setApiKey("") }
+    }
 
     @Test fun `requested variant is resolved before inferred context capacity`() = runBlocking {
         models.upsert(profile)

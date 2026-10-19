@@ -1,6 +1,6 @@
 # Agent 与工作流插件扩展（P4）
 
-P4 开放编译时装配的受信任 Kotlin 扩展。`.txplugin` v2 仍只接受 PROCESS 声明，不能通过 JSON 注册这些回调。注册入口为 `HarnessPluginRegistry`，契约位于 `harness/plugins/HarnessPlugin.kt`；最小 `plugin:api` 只增加扩展点标识，不引入 Android、OkHttp 或 Harness 业务依赖。
+P4 支持编译时装配的受信任 Kotlin 扩展；v2 PROCESS 包还可以通过受限 `plugin.harness` 元数据注册 MCP 工具、Provider 和工作流节点，不能通过 JSON 加载任意 Kotlin 回调。外部协议见 [本轮补齐说明](PLUGIN_V2_COMPLETION.md)。注册入口为 `HarnessPluginRegistry`，契约位于 `harness/plugins/HarnessPlugin.kt`；最小 `plugin:api` 只增加扩展点标识，不引入 Android、OkHttp 或 Harness 业务依赖。
 
 ## 装配
 
@@ -61,7 +61,7 @@ Schema 最大 32,768 字符、最多 12 层，object 最多 64 个字段；参�
 
 工厂接收宿主配置的普通/流式 OkHttpClient 和 Json；仍由现有 ProviderTransport 处理 Key 轮换、取消、诊断、超时、空响应及 transcript 修复。适配器只接收当前选中模型的 ModelConfig（可能含此 Provider 的凭证）与请求消息，不提供其它 Provider 的密钥仓库。回调是受信任代码，宿主不能证明它会遵守所给客户端和凭证使用范围。
 
-新增协议枚举与模型设置 UI 不在本轮通用化；新增 Provider 可基于已支持的协议注册专属适配器。外部协议包、进程 IPC 与完整 SDK 兼容矩阵见后续 P6。
+新增协议枚举与模型设置 UI 不在本轮通用化；新增 Provider 可基于已支持的协议注册专属适配器。外部 PROCESS 包的 MCP 适配已经接入；原生 IPC、后端替换与完整 SDK 兼容矩阵仍属于后续 P6。
 
 ## 工作流
 

@@ -3,6 +3,7 @@ package top.wkbin.taixu.di.tools
 import android.content.Context
 import java.io.File
 import org.koin.dsl.module
+import org.koin.dsl.onClose
 import top.wkbin.taixu.core.tools.ProviderManager
 import top.wkbin.taixu.core.tools.AgentModelConnectionTester
 import top.wkbin.taixu.core.tools.AgentModelDiscovery
@@ -46,6 +47,9 @@ import org.koin.core.qualifier.named
 
 /** Dependency registrations owned by the tools module. */
 val toolsModule = module {
+    single { val local = get<top.wkbin.taixu.runtime.environment.LocalBackendAccess>()
+        top.wkbin.taixu.core.tools.InstalledPluginCatalog(get(), get(), get(), local::requireLocal) }
+        .onClose { it?.close() }
     single { top.wkbin.taixu.core.tools.WebPluginRepository(registry = get()) }
     single<BackupLocations> {
         val context = get<Context>()
@@ -57,11 +61,11 @@ val toolsModule = module {
     }
     single<ProviderManager> { ProviderManager(providerRepository = get()) }
 
-    single<AgentModelConnectionTester> { AgentModelConnectionTester(http = get()) }
+    single<AgentModelConnectionTester> { AgentModelConnectionTester(http = get(), external = getOrNull()) }
 
     single<AgentModelDiscovery> { AgentModelDiscovery(http = get()) }
 
-    single<AgentProviderCatalog> { AgentProviderCatalog(context = get()) }
+    single<AgentProviderCatalog> { AgentProviderCatalog(context = get(), installed = get()) }
 
     single<AiProfileBackupCodec> {
         AiProfileBackupCodec(
@@ -93,7 +97,7 @@ val toolsModule = module {
     single<InstallTransactionManager> { InstallTransactionManager(pathManager = get(), logger = get()) }
     single { top.wkbin.taixu.core.tools.PluginReceiptStore(context = get()) }
     single { top.wkbin.taixu.core.tools.PackagePluginInventory(repository = get(), runtime = get()) }
-    single { top.wkbin.taixu.core.tools.ToolPackageOperations(repository = get(), receipts = get()) }
+    single { top.wkbin.taixu.core.tools.ToolPackageOperations(repository = get(), receipts = get(), hostGrants = get()) }
 
     single<LocalPluginPayloadManager> { LocalPluginPayloadManager(registry = get(), pathManager = get()) }
 

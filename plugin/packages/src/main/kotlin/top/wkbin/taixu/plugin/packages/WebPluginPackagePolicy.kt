@@ -43,6 +43,7 @@ object WebPluginPackagePolicy {
 
     fun validate(manifest: ToolManifest) {
         val spec = requireNotNull(manifest.plugin)
+        require(spec.harness == null) { "WEB packages cannot register process callbacks" }
         require(isWeb(manifest)) { "不是静态 Web 插件" }
         require(spec.webSource in setOf(PACKAGE_SOURCE, PROOT_STATIC_SOURCE, TOOL_SERVICE_SOURCE, PROOT_SERVICE_SOURCE)) {
             "不支持的 Web 页面来源"

@@ -11,6 +11,7 @@ import top.wkbin.taixu.core.tools.ManifestDependencyParser
 import top.wkbin.taixu.core.tools.ProviderManager
 import top.wkbin.taixu.core.tools.ToolActionResult
 import top.wkbin.taixu.core.tools.ToolRuntimeAdapter
+import top.wkbin.taixu.core.tools.executionIdentity
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.shell.CommandResult
 import top.wkbin.taixu.runtime.shell.ManagedProcess
@@ -234,6 +235,7 @@ class GenericRecipeInstaller(
         commandLine = "exec ${manifest.launchCommand ?: manifest.id}",
         environment = runtimeEnvironment(),
         allowSttyResize = false,
+        pluginIdentity = manifest.executionIdentity(),
     )
 
     override suspend fun startService(): ManagedProcess = linuxRuntime.startBackground(
@@ -248,7 +250,7 @@ class GenericRecipeInstaller(
 
     override suspend fun serviceLaunch(): ServiceLaunch? {
         val commandLine = manifest.launchCommand ?: return null
-        return ServiceLaunch(commandLine, runtimeEnvironment())
+        return ServiceLaunch(commandLine, runtimeEnvironment(), manifest.executionIdentity())
     }
 
     override suspend fun uninstall(deleteData: Boolean): ToolActionResult {

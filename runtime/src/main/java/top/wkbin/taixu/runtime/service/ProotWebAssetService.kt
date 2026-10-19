@@ -10,6 +10,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.NonCancellable
 import top.wkbin.taixu.core.model.RuntimeState
+import top.wkbin.taixu.core.model.PluginExecutionIdentity
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.shell.ManagedProcess
 import top.wkbin.taixu.runtime.shell.ProcessType
@@ -59,7 +60,8 @@ class ProotWebAssetService(
                 synchronized(monitor) { check(isAvailable); starting = true }
                 try {
                     check(process.get() == null) { "PRoot Web source already loaded" }
-                    val owned = runtime.startBackground(id, ShellCommand(ProotWebAssetProgram.command, workingDirectory = "/"),
+                    val owned = runtime.startBackground(id, ShellCommand(ProotWebAssetProgram.command, workingDirectory = "/",
+                        pluginIdentity = PluginExecutionIdentity(ownerPluginId, "host-static")),
                         toolId = ownerPluginId, type = ProcessType.SERVICE, distroId = distro)
                     process.set(owned)
                 } finally { synchronized(monitor) { starting = false } }

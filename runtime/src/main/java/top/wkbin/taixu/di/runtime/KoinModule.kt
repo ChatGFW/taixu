@@ -1,6 +1,7 @@
 package top.wkbin.taixu.di.runtime
 
 import org.koin.dsl.module
+import org.koin.dsl.onClose
 import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
 import top.wkbin.taixu.core.database.BuildScriptRepository
 import top.wkbin.taixu.runtime.BackgroundTaskRegistry
@@ -78,14 +79,14 @@ val runtimeModule = module {
     /** 宿主凭据权威：插件宿主调用与沙箱凭据共用同一签发/校验路径，禁用旧共享密钥。 */
     single<HostCredentialAuthority> { HostCredentialAuthority() }
 
-    /** 开发者全权授权：把持久的开发者模式偏好映射为沙箱凭据动作集（默认不含 host.shell）。 */
+    /** 开发者偏好仅开启确认入口；临时授权保存在内存并在每次鉴权时复核。 */
     single<FullAccessGrant> {
         FullAccessGrant(developerMode = get<top.wkbin.taixu.core.datastore.AppearancePreferences>().developerMode)
-    }
+    }.onClose { it?.close() }
 
     single<SandboxCredentialStore> {
         val grant = get<FullAccessGrant>()
-        SandboxCredentialStore(authority = get(), grantedActions = grant::actions)
+        SandboxCredentialStore(authority = get(), grantSnapshot = grant::snapshot, onRevokeDistro = grant::revokeDistro)
     }
 
     single<ElfInspector> { ElfInspector() }

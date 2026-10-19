@@ -7,6 +7,15 @@ import org.junit.Test
 import top.wkbin.taixu.harness.core.LlmApi
 
 class LlmApiRegistryTest {
+    @Test fun `external providers follow installed snapshot and never fall back to HTTP`() {
+        val adapter = Stub(LlmApi.OPENAI_COMPLETIONS)
+        var overrides = mapOf((adapter.api to "plugin.example.offline") to adapter as LlmApiAdapter)
+        val registry = LlmApiRegistry(LlmApi.entries.map(::Stub), liveOverrides = { overrides })
+        val model = ModelConfig("profile", "plugin.example.offline", "plugin-default", "https://plugin.invalid", null)
+        assertSame(adapter, registry.forModel(model))
+        overrides = emptyMap()
+        assertThrows(IllegalStateException::class.java) { registry.forModel(model) }
+    }
     private class Stub(override val api: LlmApi) : LlmApiAdapter {
         override suspend fun chat(model: ModelConfig, messages: List<ApiMessage>): ChatResult = error("unused")
         override suspend fun chatStream(

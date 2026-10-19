@@ -28,6 +28,8 @@ class ProotWebAssetServiceTest {
             val source = ProotWebAssetService(fake.runtime, mapOf("index.html" to html), { fake.local }, ownerPluginId = "example.web")
             assertTrue(runCatching { source.snapshot() }.isFailure)
             assertEquals("example.web", fake.processes.values.single().toolId)
+            assertEquals("example.web", fake.command?.pluginIdentity?.pluginId)
+            assertEquals("host-static", fake.command?.pluginIdentity?.version)
             fake.stopFailures = 1
             assertFalse(source.close())
             assertTrue(source.close())

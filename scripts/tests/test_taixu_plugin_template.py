@@ -47,14 +47,29 @@ class PluginTemplateTest(unittest.TestCase):
         output = self.root / "dist/demo-tool-1.0.0.txplugin"
         self.assertIn(output.name, result.stdout)
         with zipfile.ZipFile(output) as archive:
-            self.assertEqual({"manifest.json", "payload/bin/demo-tool"}, set(archive.namelist()))
+            self.assertEqual({"manifest.json", "payload/bin/demo-tool", "payload/lib/plugin_server.py"}, set(archive.namelist()))
             manifest = json.loads(archive.read("manifest.json"))
             self.assertEqual(2, manifest["schemaVersion"])
             self.assertEqual("example.demo", manifest["plugin"]["id"])
             self.assertEqual("演示插件", manifest["name"])
-            self.assertEqual({"bin/demo-tool": hashlib.sha256(archive.read("payload/bin/demo-tool")).hexdigest()},
-                             manifest["plugin"]["integrity"])
+            self.assertEqual({name.removeprefix("payload/"): hashlib.sha256(archive.read(name)).hexdigest()
+                              for name in archive.namelist() if name.startswith("payload/")}, manifest["plugin"]["integrity"])
         self.assertEqual(original, (self.root / "manifest.json").read_bytes())
+
+    def test_offline_mcp_serves_tool_and_provider_without_network(self):
+        requests = [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05"}},
+            {"jsonrpc": "2.0", "method": "notifications/initialized"},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "echo", "arguments": {"text": "中文 echo"}}},
+            {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "provider", "arguments": {"messages": [{"role": "user", "content": "hello"}]}}},
+        ]
+        result = subprocess.run([sys.executable, str(self.root / "payload/lib/plugin_server.py")],
+                                input="".join(json.dumps(r, ensure_ascii=False) + "\n" for r in requests).encode("utf-8"),
+                                capture_output=True, check=True, timeout=5, env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        responses = [json.loads(line) for line in result.stdout.decode("utf-8").splitlines()]
+        self.assertEqual([1, 2, 3], [response["id"] for response in responses])
+        self.assertEqual("中文 echo", responses[1]["result"]["content"][0]["text"])
+        self.assertEqual("Offline plugin: hello", json.loads(responses[2]["result"]["content"][0]["text"])["content"])
 
     def test_packager_recalculates_hashes_after_payload_changes(self):
         output = self.packager.build()

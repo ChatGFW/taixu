@@ -513,7 +513,7 @@ class LinuxRuntimeImpl(
                 command = command,
                 mounts = mounts,
                 emulatorBinary = execution.emulatorBinary,
-                hostCredential = sandboxCredentials.environment(safeDistro),
+                hostCredential = sandboxCredentials.environment(safeDistro, command.pluginIdentity?.pluginId ?: "sandbox", command.pluginIdentity?.version ?: "sandbox"),
             ),
             environment = pathManager.hostProcessEnvironment(safeDistro, execution.rootfsDir),
             timeoutMs = command.timeoutMs,
@@ -643,7 +643,7 @@ class LinuxRuntimeImpl(
             config = effectiveConfig,
             nativePty = true,
             mounts = mounts,
-            hostCredential = sandboxCredentials.environment(safeDistro),
+            hostCredential = sandboxCredentials.environment(safeDistro, effectiveConfig.pluginIdentity?.pluginId ?: "sandbox", effectiveConfig.pluginIdentity?.version ?: "sandbox"),
         )
         val fallbackCommand = prootCommandBuilder.buildInteractive(
             prootBinary = pathManager.activeProotFile(),
@@ -656,7 +656,7 @@ class LinuxRuntimeImpl(
             config = effectiveConfig,
             ptyMarker = markerPath,
             mounts = mounts,
-            hostCredential = sandboxCredentials.environment(safeDistro),
+            hostCredential = sandboxCredentials.environment(safeDistro, effectiveConfig.pluginIdentity?.pluginId ?: "sandbox", effectiveConfig.pluginIdentity?.version ?: "sandbox"),
         )
         return PreparedInteractive(
             distroId = safeDistro,

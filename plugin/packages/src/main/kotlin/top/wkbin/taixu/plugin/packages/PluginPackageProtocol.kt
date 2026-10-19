@@ -43,6 +43,7 @@ object PluginPackageProtocol {
         require(spec.execution in setOf("PROCESS", "WEB")) { "当前包只支持 PROCESS 或静态 WEB 执行形态" }
         require(SemanticVersion.parse(manifest.version) != null) { "v2 版本必须为 SemVer" }
         if (spec.execution == "WEB") {
+            require(spec.harness == null) { "WEB 不能声明进程 Harness 扩展" }
             WebPluginPackagePolicy.validate(manifest)
             spec.integrity.forEach { (path, sha) -> require(safePayloadPath(path) && digest.matches(sha)) { "payload 完整性声明无效" } }
             return
@@ -51,8 +52,12 @@ object PluginPackageProtocol {
         require(manifest.uninstallSteps.isEmpty()) { "v2 使用框架卸载，暂不接受任意卸载脚本" }
         require(manifest.commandLinks.size <= 64 && manifest.commandLinks.distinct().size == manifest.commandLinks.size &&
             manifest.commandLinks.all { it.matches(Regex("[a-z0-9][a-z0-9._+-]{0,63}")) }) { "命令入口无效或重复" }
-        require(spec.extensions.size <= 1 && spec.extensions.all { it.id == "launch" && it.point == "PROCESS" }) { "不支持的包扩展" }
-        require(spec.extensions.isEmpty() || !manifest.launchCommand.isNullOrBlank()) { "启动扩展缺少命令" }
+        PackageHarnessPolicy.validate(manifest)
+        val processExtensions = spec.extensions.filter { it.point == "PROCESS" }
+        require(processExtensions.size <= 1 && processExtensions.all { it.id == "launch" } &&
+            spec.extensions.size == spec.extensions.distinct().size &&
+            spec.extensions.filter { it.point != "PROCESS" }.toSet() == PackageHarnessPolicy.extensions(manifest).toSet()) { "扩展声明与 Harness 元数据不一致" }
+        require(processExtensions.isEmpty() || !manifest.launchCommand.isNullOrBlank()) { "启动扩展缺少命令" }
         require(spec.dependencies.size <= 64 && spec.dependencies.map { it.id }.distinct().size == spec.dependencies.size) { "插件依赖重复或过多" }
         spec.dependencies.forEach { dependency ->
             require(qualifiedId.matches(dependency.id) && dependency.id != spec.id && !dependency.id.startsWith("taixu.")) { "进程插件依赖身份无效" }
@@ -87,7 +92,7 @@ object PluginPackageProtocol {
             api = spec?.api?.let { PluginApiRange(it.minimum, it.maximum) } ?: PluginApiRange(),
             dependencies = spec?.dependencies?.map { it.id }?.toSet().orEmpty(),
             extensions = if (spec != null) spec.extensions.map { PluginExtension(it.id,
-                if (spec.execution == "WEB") PluginExtensionPoint.PAGE else PluginExtensionPoint.PROCESS) }
+                PluginExtensionPoint.valueOf(it.point)) }
                 else if (manifest.launchCommand != null) listOf(PluginExtension("launch", PluginExtensionPoint.PROCESS)) else emptyList(),
         )
     }

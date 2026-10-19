@@ -10,15 +10,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,16 +28,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import top.wkbin.taixu.feature.settings.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.core.database.AndroidAppEntity
 import top.wkbin.taixu.ui.components.RuntimeButton
-import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
+import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 @Composable
 fun AppManagementScreen(
@@ -59,78 +58,73 @@ fun AppManagementScreen(
     val userApps = apps.filterNot { it.isSystemApp }
     val systemApps = apps.filter { it.isSystemApp }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = { RuntimeTopBar("应用管理", onBack, statusText = if (syncing) "正在同步" else "普通读取 · 特权增强") },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
-            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, PaddingValues(16.dp)),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                RuntimeCard(contentPadding = PaddingValues(16.dp)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("受控应用索引", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text(
-                            "任何模式均可读取应用并写入 Room；以后进入只增量对比包名。Shizuku/Root 会额外读取冻结和后台联网限制状态，冻结或授权等执行操作在 PRoot 模式会提示权限不足。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            RuntimeButton(onClick = { viewModel?.synchronize() }, enabled = !syncing) {
-                                if (syncing) RuntimeCircularProgressIndicator(Modifier.size(18.dp)) else RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(18.dp))
-                                Text(if (syncing) "同步中" else "立即同步", modifier = Modifier.padding(start = 8.dp))
-                            }
-                            Text("共 ${apps.size} 个", style = MaterialTheme.typography.labelLarge)
-                        }
-                        message?.let {
-                            Text(it, color = if (messageIsError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                }
-            }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    // 纯计数标签：不可交互，避免伪装成可点击的 FilterChip
-                    Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)) {
-                        Text(
-                            "用户应用 (${userApps.size})",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        )
-                    }
-                    FilterChip(
-                        selected = showSystemApps,
-                        onClick = { showSystemApps = !showSystemApps },
-                        label = { Text("显示系统应用 (${systemApps.size})") },
-                    )
-                }
-            }
-            if (userApps.isEmpty() && !syncing) {
-                item { Text("暂无应用数据，请执行一次同步。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            }
-            items(userApps, key = { it.packageName }) { app -> AndroidAppRow(app) }
-            if (showSystemApps && systemApps.isNotEmpty()) {
-                item {
+    RuntimeSettingsScaffold(
+        title = "应用管理", onBack = onBack, itemSpacing = 12.dp,
+        statusText = if (syncing) "正在同步" else "普通读取 · 特权增强",
+    ) {
+        item {
+            SettingsDetailCard(contentPadding = PaddingValues(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("受控应用索引", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
-                        "系统应用",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        stringResource(R.string.settings_app_inventory_summary),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        RuntimeButton(onClick = { viewModel?.synchronize() }, enabled = !syncing) {
+                            if (syncing) RuntimeCircularProgressIndicator(Modifier.size(18.dp)) else RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(18.dp))
+                            Text(if (syncing) "同步中" else "立即同步", modifier = Modifier.padding(start = 8.dp))
+                        }
+                        Text("共 ${apps.size} 个", style = MaterialTheme.typography.labelLarge)
+                    }
+                    message?.let {
+                        Text(it, color = if (messageIsError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+        item {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // 纯计数标签：不可交互，避免伪装成可点击的 FilterChip
+                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
+                    Text(
+                        "用户应用 (${userApps.size})",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     )
                 }
-                items(systemApps, key = { it.packageName }) { app -> AndroidAppRow(app) }
+                RuntimeFilterChip(
+                    shape = CircleShape,
+                    selected = showSystemApps,
+                    onClick = { showSystemApps = !showSystemApps },
+                    label = { Text("显示系统应用 (${systemApps.size})") },
+                )
             }
+        }
+        if (userApps.isEmpty() && !syncing) {
+            item { Text("暂无应用数据，请执行一次同步。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+        items(userApps, key = { it.packageName }) { app -> AndroidAppRow(app) }
+        if (showSystemApps && systemApps.isNotEmpty()) {
+            item {
+                Text(
+                    "系统应用",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+            items(systemApps, key = { it.packageName }) { app -> AndroidAppRow(app) }
         }
     }
 }
 
 @Composable
 private fun AndroidAppRow(app: AndroidAppEntity) {
-    RuntimeCard(contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)) {
+    SettingsDetailCard(contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             AndroidAppIcon(app.packageName)
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -177,7 +171,7 @@ private fun AndroidAppIcon(packageName: String) {
     Box(
         modifier = Modifier
             .size(40.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh),
         contentAlignment = Alignment.Center,
     ) {

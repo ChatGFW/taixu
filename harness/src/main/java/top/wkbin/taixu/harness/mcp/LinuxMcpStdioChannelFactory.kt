@@ -27,14 +27,21 @@ class LinuxMcpStdioChannelFactory(
     private val spillDirectory: java.io.File? = null,
 ) : McpStdioChannelFactory {
     private data class Key(val server: String, val environment: ExecutionEnvironmentId?)
-    private val locks = ConcurrentHashMap<Key, Mutex>()
+    private data class LockSlot(val mutex: Mutex = Mutex(), var users: Int = 0)
+    private val locks = mutableMapOf<Key, LockSlot>()
     private val acquisitions = ConcurrentHashMap<Key, McpChannelAcquisition>()
 
     override suspend fun open(server: McpServerConfig): McpStdioChannel {
         commandBuilder.commandLine(server) // Validate before acquiring resources.
         val binding = currentCoroutineContext()[ExecutionEnvironmentContext]
+        if (server.pluginIdentity != null) {
+            require(!server.pluginDistribution.isNullOrBlank()) { "插件 MCP 缺少安装系统绑定" }
+            require(binding == null || (binding.environment.id.backend == "local-proot" &&
+                binding.environment.id.distribution == server.pluginDistribution)) { "插件 MCP 执行环境不匹配" }
+        }
         val key = Key(server.id, binding?.environment?.id)
-        return locks.getOrPut(key) { Mutex() }.withLock {
+        val slot = synchronized(locks) { locks.getOrPut(key) { LockSlot() }.also { it.users++ } }
+        try { return slot.mutex.withLock {
             acquisitions[key]?.close()
             if (binding == null && environments == null && !awaitLinuxRuntimeReady(linuxRuntime.state)) {
                 error("Linux runtime is not ready. Call initialize() first.")
@@ -50,12 +57,12 @@ class LinuxMcpStdioChannelFactory(
                     withContext(ActiveMcpAcquisition(owned)) {
                         owned.ownership = binding?.own { owned.close() }
                         checkCreation(owned)
-                        val environment = binding?.environment ?: environments?.open("mcp:${server.id}", "", null)
+                        val environment = binding?.environment ?: if (server.pluginIdentity == null) environments?.open("mcp:${server.id}", "", null) else null
                         if (binding == null) owned.environment = environment
                         checkCreation(owned)
                         val prepared = mcpExecutionConfig(server, environment)
                         val config = SessionConfig(workingDirectory = environment?.workingDirectory() ?: "/root", environment = prepared.env,
-                            commandLine = commandBuilder.commandLine(prepared, configureTty = false), allowSttyResize = false, usePty = false)
+                            commandLine = commandBuilder.commandLine(prepared, configureTty = false), allowSttyResize = false, usePty = false, pluginIdentity = server.pluginIdentity)
                         requireMcpExecutable(environment, prepared)
                         if (server.requiresInstall) {
                             val entry = checkNotNull(top.wkbin.taixu.core.model.McpCatalog.find(server.id.mcpServerKey()))
@@ -64,7 +71,7 @@ class LinuxMcpStdioChannelFactory(
                             check(result.isSuccess) { "MCP ${server.name} 在当前环境未安装或安装已损坏" }
                         }
                         checkCreation(owned)
-                        owned.session = environment?.openSession(config) ?: linuxRuntime.startSession(config)
+                        owned.session = environment?.openSession(config) ?: linuxRuntime.startSession(config, server.pluginDistribution)
                         checkCreation(owned)
                         val channel = LinuxMcpStdioChannel(server.id, owned.session!!, environment = owned.environment, secretValues = prepared.env.values, spillDirectory = spillDirectory)
                         owned.channel = channel
@@ -74,6 +81,8 @@ class LinuxMcpStdioChannelFactory(
                     }
                 }
             } catch (t: Throwable) { rollbackMcpFailure(t) { acquired?.close(drainCreation = false) } }
+        } } finally {
+            synchronized(locks) { if (--slot.users == 0) locks.remove(key) }
         }
     }
 

@@ -22,6 +22,7 @@ import kotlin.coroutines.coroutineContext
 data class ServiceLaunch(
     val launchCommand: String,
     val environment: Map<String, String>,
+    val pluginIdentity: top.wkbin.taixu.core.model.PluginExecutionIdentity? = null,
 )
 
 /**
@@ -36,6 +37,7 @@ data class ProotServiceDescriptor(
     val environment: Map<String, String>,
     val ownerPluginId: String,
     val distroId: String,
+    val pluginIdentity: top.wkbin.taixu.core.model.PluginExecutionIdentity? = null,
 ) {
     init {
         require(port in 1..65535) { "工具服务端口无效" }
@@ -118,6 +120,7 @@ class ProotToolServiceSource(
                         command = ShellCommand(
                             commandLine = descriptor.launchCommand,
                             environment = descriptor.environment,
+                            pluginIdentity = descriptor.pluginIdentity,
                         ),
                         toolId = descriptor.ownerPluginId,
                         type = ProcessType.SERVICE,

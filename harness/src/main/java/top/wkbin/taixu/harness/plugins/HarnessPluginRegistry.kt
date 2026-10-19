@@ -16,14 +16,17 @@ import top.wkbin.taixu.harness.workflow.NodeExecutor
 import top.wkbin.taixu.plugin.api.*
 
 /** Validates the complete contribution set before publishing; no last-writer-wins overrides. */
-class HarnessPluginRegistry(plugins: List<HarnessPlugin>) {
+class HarnessPluginRegistry(plugins: List<HarnessPlugin>, private val external: () -> List<HarnessPlugin> = { emptyList() }) {
     private val captured = plugins.map { it.copy(tools = it.tools.map { tool -> tool.copy(schema = Json.parseToJsonElement(tool.schema.toString()).jsonObject) }, contexts = it.contexts.toList(),
         providers = it.providers.toList(), workflows = it.workflows.toList(),
         nodes = it.nodes.map { node -> node.copy(schema = Json.parseToJsonElement(node.schema.toString()).jsonObject) }, checkpoints = it.checkpoints.toList()) }
-    val catalog = PluginCatalog.create(captured.map { it.descriptor })
-    private val entries = catalog.plugins.map { descriptor -> captured.single { it.descriptor.id == descriptor.id }.copy(descriptor = descriptor) }
+    private val baseCatalog = PluginCatalog.create(captured.map { it.descriptor })
+    private val baseEntries = baseCatalog.plugins.map { descriptor -> captured.single { it.descriptor.id == descriptor.id }.copy(descriptor = descriptor) }
+    private fun snapshot() = external().let { if (it.isEmpty()) null else HarnessPluginRegistry(captured + it) }
+    val catalog get() = snapshot()?.baseCatalog ?: baseCatalog
+    private val entries get() = snapshot()?.baseEntries ?: baseEntries
     init {
-        entries.forEach { plugin ->
+        baseEntries.forEach { plugin ->
             fun actual(ids: List<String>, point: PluginExtensionPoint) = ids.map { PluginExtension(it, point) }
             val contributions = actual(plugin.tools.map { it.id }, PluginExtensionPoint.TOOL) +
                 actual(plugin.contexts.map { it.id }, PluginExtensionPoint.CONTEXT) +
@@ -38,17 +41,19 @@ class HarnessPluginRegistry(plugins: List<HarnessPlugin>) {
             }
             plugin.nodes.forEach { node -> require(node.description.length <= 2_048); PluginSchemas.requireSupported(node.schema) }
         }
-        val protocols = entries.flatMap { it.providers }.map { it.api to it.providerId }
+        val protocols = baseEntries.flatMap { it.providers }.map { it.api to it.providerId }
         require(protocols.distinct().size == protocols.size) { "插件 Provider 协议重复" }
         require(protocols.all { it.second == null || it.second!!.matches(Regex("[a-z][a-z0-9.-]{0,63}")) }) { "Provider 身份无效" }
-        val checkpointIds = entries.flatMap { it.checkpoints }.map { it.id }
+        val checkpointIds = baseEntries.flatMap { it.checkpoints }.map { it.id }
         require(checkpointIds.size <= 32 && checkpointIds.distinct().size == checkpointIds.size) { "检查点重复或过多" }
+        val packages = baseEntries.mapNotNull { it.packageId }
+        require(packages.distinct().size == packages.size) { "外部包身份重复" }
     }
 
     val descriptors: List<PluginDescriptor> get() = entries.map { it.descriptor }
     private fun owner(server: String) = entries.singleOrNull { server == "plugin.${it.descriptor.id}" }
     fun handles(server: String) = server.startsWith("plugin.")
-    fun node(pluginId: String, extension: String): PluginWorkflowNode? = entries.singleOrNull { it.descriptor.id == pluginId }?.nodes?.singleOrNull { it.id == extension }
+    fun node(pluginId: String, extension: String): PluginWorkflowNode? = entries.singleOrNull { it.descriptor.id == pluginId || it.packageId == pluginId }?.nodes?.singleOrNull { it.id == extension }
     fun summaries(): String = entries.filter { it.tools.isNotEmpty() }.joinToString("\n") { "- plugin.${it.descriptor.id} · ${it.tools.size} 个插件工具" }
     fun inspect(server: String): Pair<Boolean, String> {
         val plugin = owner(server) ?: return false to "插件能力域不存在"

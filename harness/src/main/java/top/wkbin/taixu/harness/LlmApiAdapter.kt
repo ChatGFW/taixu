@@ -20,7 +20,8 @@ interface LlmApiAdapter {
 }
 
 /** Immutable registry: no silent fallback and no ambiguous protocol registration. */
-internal class LlmApiRegistry(adapters: List<LlmApiAdapter>, providerOverrides: Map<Pair<LlmApi, String>, LlmApiAdapter> = emptyMap()) {
+internal class LlmApiRegistry(adapters: List<LlmApiAdapter>, providerOverrides: Map<Pair<LlmApi, String>, LlmApiAdapter> = emptyMap(),
+    private val liveOverrides: (() -> Map<Pair<LlmApi, String>, LlmApiAdapter>)? = null) {
     private val providerOverrides = providerOverrides.toMap()
     private val byApi = adapters.associateBy { it.api }
 
@@ -30,7 +31,13 @@ internal class LlmApiRegistry(adapters: List<LlmApiAdapter>, providerOverrides: 
         require(providerOverrides.all { (key, adapter) -> key.first == adapter.api }) { "Provider API mismatch" }
     }
 
-    fun forModel(model: ModelConfig): LlmApiAdapter = providerOverrides[model.api to model.provider] ?: byApi.getValue(model.api)
+    fun forModel(model: ModelConfig): LlmApiAdapter {
+        val overrides = liveOverrides?.invoke() ?: providerOverrides
+        if (model.provider.startsWith("plugin.")) return overrides.entries.singleOrNull { it.key.second == model.provider }?.value
+            ?: error("外部 Provider 未安装或版本已改变")
+        overrides[model.api to model.provider]?.let { return it }
+        return byApi.getValue(model.api)
+    }
 
     companion object {
         fun builtIn(client: OkHttpClient, json: Json): LlmApiRegistry = LlmApiRegistry(

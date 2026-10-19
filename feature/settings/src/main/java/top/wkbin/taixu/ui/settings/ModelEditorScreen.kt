@@ -168,7 +168,7 @@ fun ModelEditorScreen(
             modelId = modelId,
             existing = existing,
             initialApiKey = initialApiKey,
-            providers = viewModel?.providerCatalog.orEmpty(),
+            providers = livePluginProviders(viewModel?.providerCatalog.orEmpty(), existing?.provider),
             discovered = discovered,
             discovering = discovering,
             discoveryError = discoveryError,
@@ -489,7 +489,7 @@ private fun ModelEditorContent(
         item {
             RuntimeProviderCard(
                 providerId = provider.id, name = provider.name,
-                description = when (provider.group) {
+                description = if (provider.id.startsWith("plugin.")) "已安装的本地插件" else when (provider.group) {
                     ProviderGroup.OFFICIAL -> "官方"
                     ProviderGroup.CHINA -> "国内"
                     ProviderGroup.AGGREGATOR -> "聚合"
@@ -516,7 +516,7 @@ private fun ModelEditorContent(
                     ) {
                         RuntimeIcon(RuntimeIconName.Globe, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
                         Text(
-                            text = "接口与基础连接",
+                            text = if (provider.id.startsWith("plugin.")) "档案信息" else "接口与基础连接",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface,
                         )
@@ -537,8 +537,8 @@ private fun ModelEditorContent(
                         },
                     )
 
-                    // Base URL
-                    RuntimeFilledTextField(
+                    // External providers use installed MCP metadata rather than a user URL.
+                    if (provider.id.startsWith("plugin.")) LocalPluginProviderNotice() else RuntimeFilledTextField(
                         value = url,
                         onValueChange = { url = it },
                         modifier = Modifier.fillMaxWidth(),
@@ -584,7 +584,7 @@ private fun ModelEditorContent(
         }
 
         // ---- 3. API 凭证与密钥池 ----
-        item {
+        if (!provider.id.startsWith("plugin.") || combinedKey.isNotBlank()) item {
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,

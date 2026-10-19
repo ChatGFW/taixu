@@ -33,10 +33,18 @@ internal fun OnboardingWelcomePage(modifier: Modifier = Modifier) {
         ) {
             OnboardingArtwork()
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.onboarding_welcome), style = MaterialTheme.typography.displaySmall,
+                Text(stringResource(R.string.onboarding_welcome), style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
                 Text(stringResource(R.string.onboarding_welcome_description), style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                WelcomeFeature(RuntimeIconName.Terminal, stringResource(R.string.onboarding_feature_linux),
+                    stringResource(R.string.onboarding_feature_linux_description))
+                WelcomeFeature(RuntimeIconName.Sparkles, stringResource(R.string.onboarding_feature_agent),
+                    stringResource(R.string.onboarding_feature_agent_description))
+                WelcomeFeature(RuntimeIconName.Folder, stringResource(R.string.onboarding_feature_workspace),
+                    stringResource(R.string.onboarding_feature_workspace_description))
             }
         }
     }
@@ -52,7 +60,7 @@ private fun WelcomeFeature(icon: RuntimeIconName, title: String, description: St
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

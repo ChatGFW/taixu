@@ -10,4 +10,5 @@ dependencies {
     implementation(project(":core:datastore"))
     implementation(project(":runtime"))
     implementation(project(":tools"))
+    testImplementation(libs.junit)
 }

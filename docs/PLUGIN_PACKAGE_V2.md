@@ -40,7 +40,25 @@ ZIP 根目录只允许 `manifest.json` 和 `payload/`。v2 严格拒绝未知字
 
 实际携带文件时，`integrity` 必须逐一列出 payload 下所有普通文件的相对路径和小写 SHA-256。示例 `payload/run.sh` 对应键 `run.sh`；多一个、少一个或内容不符均拒绝。安装复制时再次校验，v2 不改写换行符或 BOM。v1 保留旧 `.sh` 换行修复。
 
-## 依赖与版本
+## PROCESS 的 Agent 扩展
+
+`plugin.harness` 可声明受限 MCP 工具、Provider、工作流节点。`entry` 必须是 `commandLinks` 中的私有可执行入口，宿主使用 `/opt/taixu/tools/<id>/bin/<entry> --mcp` 启动；元数据发现不运行进程。示例：
+
+```json
+{"entry":"hello-plugin","tools":[{"id":"echo","description":"返回文字","schema":{"type":"object","properties":{"text":{"type":"string","maxLength":1024}},"required":["text"],"additionalProperties":false}}],"nodes":[{"id":"echo-step","description":"返回文字","rpcTool":"echo","schema":{"type":"object","properties":{"text":{"type":"string"}},"required":["text"],"additionalProperties":false}}],"providers":[{"id":"offline","rpcTool":"provider","api":"OPENAI_COMPLETIONS","models":["plugin-default"]}]}
+```
+
+`plugin.extensions` 必须精确对应 TOOL/WORKFLOW/PROVIDER 声明，可额外保留 `launch/PROCESS`。总数最多 32；Schema 使用共享严格子集。WEB 包不接受 harness 字段。
+
+仅安装收据对应的包可调用。工具能力域带安装版本指纹，升级后旧审批不能路由至新版；工作流用稳定包身份，已捕获执行器仍在调用前检查安装版本。调用与安装/卸载互斥，绑定当前本地发行版，切换到远程后拒绝。单次 MCP 执行最多 120 秒，输出最多 256 KiB UTF-8，随后关闭连接；回收失败时阻止下一次分配并先重试回收。
+
+Provider 标识为 `plugin.<plugin.id>.<provider.id>`，须在模型设置显式选择，模型列表来自包元数据。宿主不继承全局模型密钥，携带 Key 的请求拒绝；可在插件内部管理其所需凭据。Provider 的 MCP 返回 text 是 JSON：`content`、可选 `reasoning`、`toolCalls`（每项 `id/name/arguments`）。流式 API 当前为完整响应后分发文字的兼容模式，不提供逐 token SSE。卸载后禁止退回普通 HTTP Provider。
+
+开发者模式不直接赋予宿主权限。原生设置按发行版、包身份、安装版本确认最长 30 分钟的 Shell/APK/Logcat 代理准入；撤销、超时、关闭开关、重启及安装/卸载使旧凭据失效。PRoot 仍与 App 同 UID，这不是恶意代码强隔离。原生 IPC、后端替换尚未开放。
+
+可运行示例位于 `project-template` 的 `taixu-plugin/process`，使用 Python 标准库并保持离线。
+
+## 依赖版本规则
 
 v2 使用严格 SemVer，含预发布优先级，build metadata 不影响排序。插件依赖与旧 `dependencies` 运行时依赖字段分开：
 

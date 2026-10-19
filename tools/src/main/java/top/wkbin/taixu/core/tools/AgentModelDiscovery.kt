@@ -20,6 +20,7 @@ class AgentModelDiscovery(
         baseUrl: String,
         apiKey: String?,
     ): List<String> = withContext(Dispatchers.IO) {
+        if (provider.id.startsWith("plugin.")) return@withContext provider.recommendedModels
         val cleanBaseUrl = ProviderEndpointPolicy.normalizeUrl(baseUrl)
         val url = when {
             provider.id == "custom" -> "${cleanBaseUrl.trimEnd('/')}/models"

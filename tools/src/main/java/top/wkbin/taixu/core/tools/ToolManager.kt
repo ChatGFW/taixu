@@ -330,10 +330,10 @@ class ToolManager(
         if (!manifest.installScript.isNullOrBlank() || manifest.installMethod.isNotBlank()) {
             return GenericRecipeInstaller(
                 manifest = manifest,
-                linuxRuntime = distroId?.let { PinnedToolRuntime(linuxRuntime, it) } ?: linuxRuntime,
+                linuxRuntime = distroId?.let { PinnedToolRuntime(linuxRuntime, it, manifest.executionIdentity()) } ?: linuxRuntime,
                 dependencyManager = dependencyManager,
                 providerManager = providerManager,
-                toolCommandLinker = distroId?.let { ToolCommandLinker(PinnedToolRuntime(linuxRuntime, it)) } ?: toolCommandLinker,
+                toolCommandLinker = distroId?.let { ToolCommandLinker(PinnedToolRuntime(linuxRuntime, it, manifest.executionIdentity())) } ?: toolCommandLinker,
                 localPluginPayloadManager = localPluginPayloadManager,
             )
         }
@@ -365,7 +365,7 @@ class ToolManager(
             port = spec.port,
             basePath = spec.path.trimEnd('/') + "/",
             launchCommand = launch.launchCommand,
-            environment = launch.environment,
+            environment = launch.environment, pluginIdentity = launch.pluginIdentity,
             ownerPluginId = toolId,
             distroId = distro,
         )
