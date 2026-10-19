@@ -51,6 +51,20 @@ class ProcessShellLifecycleTest {
         assertFalse(executor.hasUnsettled())
         assertEquals(2, process.forces.get())
     }
+    @Test fun teardownFailureReapsProcessTreeBeforeRetainingResources() = runBlocking {
+        val process = FakeSessionProcess().apply { forcedExit = false }
+        val reaper = FakeReaper()
+        val executor = ProcessShellExecutor({ emptyMap() }, reaper = reaper) { _, _, _ -> process }
+        val running = launch { executor.execute(listOf("fake")) }
+        awaitReader(process)
+        running.cancelAndJoin()
+        assertEquals(listOf(4242L), reaper.reaped)
+        assertTrue(executor.hasUnsettled())
+        process.forcedExit = true
+        executor.closePending()
+        assertFalse(executor.hasPending())
+        assertEquals(1, reaper.reaped.size)
+    }
     @Test fun closedEnvironmentRejectsCommandBeforeHostAllocation() = runBlocking {
         var starts = 0
         val executor = ProcessShellExecutor({ emptyMap() }) { _, _, _ -> starts++; FakeSessionProcess() }
@@ -93,6 +107,14 @@ class ProcessShellLifecycleTest {
         assertFalse(executor.hasPending())
     }
     private fun executor(process: FakeSessionProcess) = ProcessShellExecutor({ emptyMap() }) { _, _, _ -> process }
+
+    /** 固定返回 tid/子进程 pid，记录被收的根进程，避免单元测试触碰 /proc 与 android.os.Process。 */
+    private class FakeReaper : ProcessTreeReaper {
+        val reaped = mutableListOf<Long>()
+        override fun forkTid(): Int? = 7
+        override fun childOfThread(tid: Int): Long? = if (tid == 7) 4242L else null
+        override fun reap(rootPid: Long): Int { reaped += rootPid; return 1 }
+    }
     private suspend fun awaitReader(process: FakeSessionProcess) = withContext(Dispatchers.IO) {
         assertTrue(process.stdout.entered.await(3, TimeUnit.SECONDS))
     }

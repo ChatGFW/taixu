@@ -142,6 +142,37 @@ class EnvironmentDoctorTest {
 
         // UNKNOWN 项不可修复：一键自愈不应被灰牌触发
         assertTrue(sandboxItems.all { !it.fixable })
+
+        // 执行异常要透出异常原文，不能再一律写成「探针超时」
+        val storageItem = report.items.first { it.id == "sandbox_storage" }
+        assertTrue(storageItem.detail!!.contains("sandbox busy (fake)"))
+        assertFalse(storageItem.detail!!.contains("探针超时"))
+    }
+
+    @Test
+    fun reportsTimeoutInsteadOfMissingAndroidEnvironment() = runBlocking {
+        val runtime = FakeLinuxRuntime()
+        runtime.state.value = RuntimeState.Ready
+        val androidCoreCheckCmd = BuiltinPluginBundles.bundles
+            .firstOrNull { it.id == "android-suite" }
+            ?.components?.firstOrNull { it.id == "android-core" }
+            ?.checkCommand
+        checkNotNull(androidCoreCheckCmd)
+        // 命令触达执行超时：以超时退出码返回结果（不抛异常），需与执行异常区分
+        runtime.commandResults[androidCoreCheckCmd] = CommandResult(
+            exitCode = 124,
+            stdout = "",
+            stderr = "Command timed out after 8000ms",
+            durationMs = 8000,
+            outputDiagnostic = "Command timed out after 8000ms",
+        )
+
+        val report = EnvironmentDoctor(linuxRuntime = runtime).check()
+
+        val androidItem = report.items.first { it.id == "android_environment" }
+        assertEquals(DoctorStatus.UNKNOWN, androidItem.status)
+        assertTrue(androidItem.detail!!.contains("Android 环境探针超时"))
+        assertFalse(androidItem.summary.contains("未安装"))
     }
 
     @Test
