@@ -22,9 +22,9 @@ internal fun ComposerSendButton(onClick: () -> Unit, enabled: Boolean, tint: Col
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         RuntimeCard(shape = CircleShape, contentPadding = PaddingValues(0.dp),
             containerColor = if (enabled) tint.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceContainerHighest) {
-            RuntimeIconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(24.dp),
+            RuntimeIconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(30.dp),
                 contentDescription = stringResource(R.string.chat_send)) {
-                RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(18.dp),
+                RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(22.dp),
                     if (enabled) tint else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f))
             }
         }

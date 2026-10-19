@@ -107,7 +107,7 @@
     {
       "id": "runtime", "path": "runtime", "requires": [
         "core.common", "core.model", "core.database", "core.datastore",
-        "core.network", "project-template", "showerclient", "termux-terminal-emulator"
+        "core.network", "core.security", "project-template", "showerclient", "termux-terminal-emulator"
       ]
     },
     {

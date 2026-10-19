@@ -214,4 +214,51 @@ class ProotCommandBuilderTest {
         assert(index > 0)
         assertEquals("-b", args[index - 1])
     }
+
+    @Test
+    fun hostCredentialIsInjectedLastAndOverridesProviderEnvironment() {
+        val args = ProotCommandBuilder(EnvironmentResolver()).build(
+            prootBinary = File("/p"),
+            rootfsDir = File("/r"),
+            workspaceDir = File("/w"),
+            command = ShellCommand(
+                commandLine = "taixu-host health",
+                environment = mapOf("TAIXU_BRIDGE_TOKEN" to "provider-forged"),
+            ),
+            hostCredential = mapOf(
+                "TAIXU_BRIDGE_TOKEN" to "native-issued",
+                "TAIXU_BRIDGE_ACTIONS" to "host.install-apk,host.logcat",
+            ),
+        )
+
+        val resolved = args.last()
+        assert(!resolved.contains("provider-forged"))
+        assert(resolved.contains("export TAIXU_BRIDGE_TOKEN='native-issued'"))
+        assert(resolved.contains("export TAIXU_BRIDGE_ACTIONS='host.install-apk,host.logcat'"))
+    }
+
+    @Test
+    fun interactiveBuildAlsoCarriesHostCredential() {
+        val args = ProotCommandBuilder(EnvironmentResolver()).buildInteractive(
+            prootBinary = File("/p"),
+            rootfsDir = File("/r"),
+            workspaceDir = File("/w"),
+            config = SessionConfig(commandLine = "/bin/bash -i"),
+            nativePty = true,
+            hostCredential = mapOf("TAIXU_BRIDGE_TOKEN" to "native-issued"),
+        )
+
+        assert(args.last().contains("export TAIXU_BRIDGE_TOKEN='native-issued'"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsIllegalHostCredentialKeyNames() {
+        ProotCommandBuilder(EnvironmentResolver()).build(
+            prootBinary = File("/p"),
+            rootfsDir = File("/r"),
+            workspaceDir = File("/w"),
+            command = ShellCommand(commandLine = "true"),
+            hostCredential = mapOf("BAD-NAME" to "value"),
+        )
+    }
 }

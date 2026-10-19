@@ -38,7 +38,7 @@
         "feature/git/src/main/java/top/wkbin/taixu/ui/git/GitScreen.kt": 1408,
         "feature/git/src/main/java/top/wkbin/taixu/ui/git/GitViewModel.kt": 434,
         "feature/home/src/main/java/top/wkbin/taixu/ui/home/HomeScreen.kt": 1263,
-        "feature/navigation/src/main/java/top/wkbin/taixu/ui/navigation/TaiXuNavHost.kt": 721,
+        "feature/navigation/src/main/java/top/wkbin/taixu/ui/navigation/TaiXuNavHost.kt": 717,
         "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/AboutCommunityScreen.kt": 476,
         "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/AgentSettingsScreen.kt": 1842,
         "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/CcSwitchScreen.kt": 1141,
@@ -55,7 +55,7 @@
         "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/StorageUsageScreen.kt": 1110,
         "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/SystemDevSettingsScreen.kt": 510,
         "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/ToolCenterScreen.kt": 825,
-        "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/ToolDetailScreen.kt": 1357,
+        "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/ToolDetailScreen.kt": 1306,
         "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/search/SettingsSearchRegistry.kt": 939,
         "feature/settings/src/main/java/top/wkbin/taixu/ui/settings/search/SettingsSearchScreen.kt": 493,
         "feature/workflow/src/main/java/top/wkbin/taixu/ui/workflow/WorkflowCanvas2D.kt": 730,
@@ -89,8 +89,8 @@
         "harness/src/main/java/top/wkbin/taixu/harness/workflow/HostActionNodeExecutor.kt": 509,
         "runtime/browser/src/main/java/top/wkbin/taixu/runtime/browser/engine/AndroidInAppBrowserEngine.kt": 614,
         "runtime/browser/src/main/java/top/wkbin/taixu/runtime/browser/tools/BrowserMcpTools.kt": 730,
-        "runtime/src/main/java/top/wkbin/taixu/runtime/DistroConfigurator.kt": 516,
-        "runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntimeImpl.kt": 873,
+        "runtime/src/main/java/top/wkbin/taixu/runtime/DistroConfigurator.kt": 498,
+        "runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntimeImpl.kt": 840,
         "runtime/src/main/java/top/wkbin/taixu/runtime/SshServiceManager.kt": 576,
         "runtime/src/main/java/top/wkbin/taixu/runtime/StorageManager.kt": 422,
         "runtime/src/main/java/top/wkbin/taixu/runtime/WorkspaceManager.kt": 1008,
@@ -104,8 +104,8 @@
         "runtime/src/main/java/top/wkbin/taixu/runtime/terminal/AnsiTerminalBuffer.kt": 571,
         "runtime/src/main/java/top/wkbin/taixu/runtime/webchat/WebChatBridgeServer.kt": 619,
         "showerclient/src/main/java/com/ai/assistance/showerclient/ShowerController.kt": 485,
-        "tools/src/main/java/top/wkbin/taixu/core/tools/ToolManager.kt": 930,
+        "tools/src/main/java/top/wkbin/taixu/core/tools/ToolManager.kt": 923,
         "tools/src/main/java/top/wkbin/taixu/core/tools/skill/ClawHubClient.kt": 417,
-        "tools/src/main/java/top/wkbin/taixu/core/tools/skill/SkillPackageInspector.kt": 418
+        "tools/src/main/java/top/wkbin/taixu/core/tools/skill/SkillPackageInspector.kt": 407
     }
 }

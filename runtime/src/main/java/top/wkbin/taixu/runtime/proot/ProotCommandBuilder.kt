@@ -34,6 +34,7 @@ class ProotCommandBuilder private constructor(
         command: ShellCommand,
         mounts: List<StorageMountBinding> = emptyList(),
         emulatorBinary: File? = null,
+        hostCredential: Map<String, String> = emptyMap(),
     ): List<String> = buildList {
         add(prootBinary.absolutePath)
         addEmulator(emulatorBinary)
@@ -71,7 +72,8 @@ class ProotCommandBuilder private constructor(
         add("-lc")
         val resolvedCommand = shellCommand(
             commandLine = command.commandLine,
-            environment = environmentResolver.merge(provider = command.environment),
+            // 宿主注入的凭据最后叠加：可撤销、由原生代码签发，且优先级高于 Provider 环境。
+            environment = environmentResolver.merge(provider = command.environment) + hostCredential,
         )
         add(if (command.forcePty) wrapInPty(resolvedCommand) else resolvedCommand)
     }
@@ -89,6 +91,7 @@ class ProotCommandBuilder private constructor(
         nativePty: Boolean = false,
         mounts: List<StorageMountBinding> = emptyList(),
         emulatorBinary: File? = null,
+        hostCredential: Map<String, String> = emptyMap(),
     ): List<String> = buildList {
         val columns = config.columns.coerceIn(20, 400)
         val rows = config.rows.coerceIn(5, 200)
@@ -129,7 +132,7 @@ class ProotCommandBuilder private constructor(
         val environment = environmentResolver.merge(
             provider = config.environment,
             interactive = true,
-        )
+        ) + hostCredential
         val bannerPrelude = if (config.showBanner) "cat $GUEST_MOTD 2>/dev/null; " else ""
         if (nativePty) {
             // 真 PTY：命令串直接交给 bash 解析。commandLine 已由调用方完成 shell 引用

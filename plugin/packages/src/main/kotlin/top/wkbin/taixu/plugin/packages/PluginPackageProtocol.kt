@@ -47,7 +47,7 @@ object PluginPackageProtocol {
             spec.integrity.forEach { (path, sha) -> require(safePayloadPath(path) && digest.matches(sha)) { "payload 完整性声明无效" } }
             return
         }
-        require(spec.webSource == WebPluginPackagePolicy.PACKAGE_SOURCE) { "PROCESS 不能声明 Web 页面来源" }
+        require(spec.webSource == WebPluginPackagePolicy.PACKAGE_SOURCE && spec.serviceToolId == null) { "PROCESS 不能声明 Web 页面来源或工具服务引用" }
         require(manifest.uninstallSteps.isEmpty()) { "v2 使用框架卸载，暂不接受任意卸载脚本" }
         require(manifest.commandLinks.size <= 64 && manifest.commandLinks.distinct().size == manifest.commandLinks.size &&
             manifest.commandLinks.all { it.matches(Regex("[a-z0-9][a-z0-9._+-]{0,63}")) }) { "命令入口无效或重复" }

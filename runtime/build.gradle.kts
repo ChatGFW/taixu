@@ -37,6 +37,8 @@ dependencies {
     // Termux VT100 emulator + PTY JNI fork (GPL-3.0). Exported so feature/terminal can attach TerminalView.
     api(project(":termux-terminal-emulator"))
     testImplementation(libs.junit)
+    // Bridge auth convergence tests need SettingsDataStore's SecretManager to build RuntimePreferences.
+    testImplementation(project(":core:security"))
     testImplementation(libs.bundles.test.robolectric)
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation("org.apache.sshd:sshd-core:2.16.0")

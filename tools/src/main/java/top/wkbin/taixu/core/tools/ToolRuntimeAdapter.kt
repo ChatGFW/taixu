@@ -1,5 +1,6 @@
 ﻿package top.wkbin.taixu.core.tools
 
+import top.wkbin.taixu.runtime.service.ServiceLaunch
 import top.wkbin.taixu.runtime.shell.CommandResult
 import top.wkbin.taixu.runtime.shell.ManagedProcess
 import top.wkbin.taixu.runtime.shell.SessionConfig
@@ -16,6 +17,8 @@ interface ToolRuntimeAdapter : ToolInstallerAdapter {
     suspend fun uninstall(deleteData: Boolean = false): ToolActionResult
     suspend fun startService(): ManagedProcess? = null
     suspend fun interactiveSessionConfig(): SessionConfig? = null
+    /** Native launch plan the page may use to start this tool's own service; never from Web content. */
+    suspend fun serviceLaunch(): ServiceLaunch? = null
 }
 
 data class ToolActionResult(

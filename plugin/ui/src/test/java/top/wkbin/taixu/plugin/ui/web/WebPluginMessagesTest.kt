@@ -43,6 +43,31 @@ class WebPluginMessagesTest {
             assertTrue(input, runCatching { WebPluginMessages.decode(input) }.isFailure)
         }
     }
+    @Test fun serviceRequestsCarryOnlyARelativeSubPathInThePayload() {
+        val call = WebPluginMessages.decode(
+            """{"id":"s1","action":"host.service-request","target":"service","text":"api/status.json"}""",
+        )
+        assertEquals("api/status.json", call.text)
+        assertEquals("service", call.capability.target)
+        val stream = WebPluginMessages.decode(
+            """{"id":"s2","action":"host.service-stream","target":"service","text":"events.log"}""",
+        )
+        assertEquals("events.log", stream.text)
+        listOf(
+            """{"id":"s","action":"host.service-request","target":"service"}""",
+            """{"id":"s","action":"host.service-request","target":"service","text":"/etc/passwd"}""",
+            """{"id":"s","action":"host.service-request","target":"service","text":"../up"}""",
+            """{"id":"s","action":"host.service-request","target":"service","text":"a/./b"}""",
+            """{"id":"s","action":"host.service-stream","target":"service","text":"http://127.0.0.1:80/x"}""",
+            """{"id":"s","action":"host.service-stream","target":"service","text":"a?b=1"}""",
+        ).forEach { input -> assertTrue(input, runCatching { WebPluginMessages.decode(input) }.isFailure) }
+    }
+
+    @Test fun aChunkEnvelopeIsIndistinguishableFromADataReplyExceptForItsFlag() {
+        val encoded = WebPluginMessages.encodeChunk("s1", "chunk")
+        assertEquals("""{"id":"s1","success":true,"text":"chunk","more":true}""", encoded)
+    }
+
     @Test fun outputEscapesPluginTextWithoutJavaScriptEvaluation() {
         val text = "</script>\"\\\n"
         val encoded = WebPluginMessages.encode(PluginCapabilityResult("id", true, text))

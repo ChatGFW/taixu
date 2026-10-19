@@ -38,6 +38,9 @@ import androidx.compose.material3.Surface
 import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.RuntimeCard
+import androidx.compose.ui.res.stringResource
+import top.wkbin.taixu.feature.settings.R as SettingsR
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -88,6 +91,7 @@ internal fun LocalToolDetailContent(
     onBack: () -> Unit,
     onLaunchTerminal: (toolId: String) -> Unit,
     onStartAiHealing: (toolId: String, toolName: String, errorLogs: List<String>) -> Unit = { _, _, _ -> },
+    onOpenPluginPage: (toolId: String) -> Unit = {},
     viewModel: ToolDetailViewModel? = previewOrNull { koinViewModel() },
 ) {
     androidx.compose.runtime.LaunchedEffect(toolId) {
@@ -258,6 +262,17 @@ internal fun LocalToolDetailContent(
                             Toast.makeText(context, "链接已复制", Toast.LENGTH_SHORT).show()
                         },
                     )
+                    RuntimeCard(Modifier.fillMaxWidth()) {
+                        Text(
+                            stringResource(SettingsR.string.web_tool_service_scope),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { onOpenPluginPage(toolId) },
+                            enabled = state.gatewayRunning,
+                        ) { Text(stringResource(SettingsR.string.web_tool_service_open)) }
+                    }
                 }
 
                 // ── 6. 工具元信息面板 ──
@@ -281,72 +296,6 @@ internal fun LocalToolDetailContent(
 // ════════════════════════════════════════════════════════════════════════
 // 子组件
 // ════════════════════════════════════════════════════════════════════════
-
-/**
- * 工具品牌专属视觉 Avatar（复用 ToolCenterScreen 的映射逻辑）
- */
-@Composable
-private fun DetailToolAvatar(
-    toolId: String,
-    category: String,
-    modifier: Modifier = Modifier,
-    size: androidx.compose.ui.unit.Dp = 56.dp,
-) {
-    val key = toolId.lowercase().trim()
-    val (logoRes, emoji, brandColor) = when {
-        key.contains("claude") || key.contains("anthropic") ->
-            Triple(R.drawable.components_ic_provider_anthropic, null, Color(0xFFD97757))
-        key.contains("codex") || key.contains("openai") ->
-            Triple(R.drawable.components_ic_provider_openai, null, Color(0xFF10A37F))
-        key.contains("android") ->
-            Triple(null, "🤖", Color(0xFF3DDC84))
-        key.contains("devtools") || key.contains("base-devtools") ->
-            Triple(null, "⚡", Color(0xFF0284C7))
-        key.contains("hello") ->
-            Triple(null, "🧪", Color(0xFF10B981))
-        else -> when (category) {
-            "CODING_AGENT" -> Triple(null, "💻", Color(0xFF6366F1))
-            "AI_AGENT" -> Triple(null, "🤖", Color(0xFF0EA5E9))
-            else -> Triple(null, "📦", Color(0xFF64748B))
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .size(size)
-            .clip(RoundedCornerShape(16.dp))
-            .background(brandColor.copy(alpha = 0.12f))
-            .border(1.dp, brandColor.copy(alpha = 0.28f), RoundedCornerShape(16.dp)),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (logoRes != null) {
-            Box(
-                modifier = Modifier
-                    .size(size * 0.72f)
-                    .clip(CircleShape)
-                    .background(brandColor),
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painter = painterResource(logoRes),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(6.dp),
-                    contentScale = ContentScale.Fit,
-                )
-            }
-        } else if (emoji != null) {
-            Text(text = emoji, fontSize = (size.value * 0.44f).sp)
-        } else {
-            RuntimeIcon(
-                name = RuntimeIconName.Package,
-                modifier = Modifier.size(size * 0.48f),
-                tint = brandColor,
-            )
-        }
-    }
-}
 
 /** 1. 工具概览 */
 @Composable

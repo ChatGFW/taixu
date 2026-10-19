@@ -63,11 +63,11 @@ HTML 使用外部脚本和样式，不使用内联脚本、iframe 或 Worker。�
 
 身份由宿主固定为插件 ID、版本、运行代次、随机文档来源与 `android:local` 环境；动作和目标必须精确匹配登记的能力。只读操作不接受输入；剪贴板写入只接受有界纯文本。不开放文件通配符、任意参数、Shell、凭证或全权能力。
 
-原生授权弹窗携带随机令牌；旧弹窗令牌不能批准后来的请求。单次授权只执行被冻结的当前请求；剪贴板写入始终逐次确认，不接受持续授权。其它能力的持续授权限定同一文档、同一动作与目标，按单调时钟最多 5 分钟，不落盘。新页面、新版本、新代次、进程重启没有旧授权。插件停止时同步关闭代次准入，尚未销毁的页面也不能新发起调用或批准旧弹窗。
+原生授权弹窗携带随机令牌；旧弹窗令牌不能批准后来的请求。单次授权只执行被冻结的当前请求；写能力（`clipboard-write` 与 `install-apk`）始终逐次确认，不接受持续授权。只读能力的持续授权限定同一文档、同一动作与目标，按单调时钟在写能力 5 分钟上界之外可放宽到最长 30 分钟（`PluginCapabilitySession.longLivedGrantMillis`，上界 1 小时），仍不落盘。新页面、新版本、新代次、进程重启没有旧授权。插件停止时同步关闭代次准入，尚未销毁的页面也不能新发起调用或批准旧弹窗。
 
 撤销清空授权、关闭待确认窗口并取消在途请求；页面关闭永久作废该文档会话并销毁其专用 WebView。执行器不配合取消时，不保证按时停止；撤销不能回滚已提交的副作用，也不保证底层动作 exactly-once。这里提供应用层代理门控，不是同 uid 恶意代码隔离。
 
-共享 HostBridge 的旧 key、进程插件、Agent 与浏览器 MCP 不使用此文档会话；本片不改变这些路径的权限。受管理本地服务、长期授权、开发者全权模式及共享 key 迁移仍待实现。
+共享 HostBridge 的旧 key 已迁移（见 [`PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md) 第 26 节）：插件调用与沙箱写端点共用 `HostCredentialAuthority`，但进程插件、Agent 与浏览器 MCP 不使用此文档会话；本片不改变这些路径的权限。受管理本地服务、只读长期授权与开发者全权模式的收尾见文末「Phase C 收尾」节。
 
 ## 本地验证
 
@@ -134,11 +134,13 @@ $env:JAVA_HOME="D:\Program Files\Android\Android Studio\jbr"
 
 ## 独立宿主凭据（2026-10-19）
 
-外部包 APP_INFO 现由原生执行器将文档身份交给 `HostBridge.readPluginAppInfo`，与 `POST /api/plugin/call` 共用 `PluginHostGateway`。原生确认是签发前提，签发没有 HTTP 接口。凭据是宿主内存中的随机值，最多存活 10 秒且只能消费一次；失败请求也消费它，不能重放、续期或变更目标。最多保存 256 个未消费凭据，超限拒绝签发；签发时清理过期记录。
+外部包 APP_INFO 现由原生执行器将文档身份交给 `HostBridge.readPluginAppInfo`，与 `POST /api/plugin/call` 共用 `PluginHostGateway`。原生确认是签发前提，签发没有 HTTP 接口。凭据是宿主内存中的随机值，最多存活 10 秒且只能消费一次；失败请求也消费它，不能重放、续期或变更目标。凭据表由 `HostCredentialAuthority` 统一持有，全实例上限 256（插件票据与沙箱凭据共用该额度），超限拒绝签发；签发时清理过期记录。
 
-凭据不返回 JS、不写入包/磁盘/日志，不使用 `.bridge-key`。请求绑定插件、版本、代次、页面来源、环境、动作和目标；旧共享 key 无法用于新入口，新凭据不能用于旧 Shell/安装接口。当前唯一结构化动作仍是 `host.app-info/application`，没有参数命令、文件路径或任意执行器入口。内置示例继续使用编译时只读执行器。
+凭据不返回 JS、不写入包/磁盘/日志，不使用 `.bridge-key`。请求绑定插件、版本、代次、页面来源、环境、动作和目标；旧共享密钥与该入口无关。当前插件侧结构化动作仍是 `host.app-info/application`，没有参数命令、文件路径或任意执行器入口；内置示例继续使用编译时只读执行器。
 
-撤销取消原调用 Job，升级/移除关闭包准入；执行前后核验调用存活、包仍可用及凭据期限。停止 HostBridge 会作废所有凭据与正在返回的旧代结果；页面自身授权仍按原文档会话管理。撤销不能回滚已完成副作用。本片没有迁移进程插件/CLI 的共享 key，也没有引入网络或同 UID 强隔离。
+沙箱侧（P5 收尾片）已迁移到同一权威：`SandboxCredentialStore` 按发行版签发一枚 8 小时、可复用、可撤销的凭据，经 `ProotCommandBuilder` 在 Provider 环境之后叠加注入 `TAIXU_BRIDGE_TOKEN` / `TAIXU_BRIDGE_ACTIONS`；`/api/install-apk`、`/api/shell`、`/api/logcat` 分别要求 `host.install-apk`、`host.shell`、`host.logcat` 绑定动作，`HostBridge` 不再有构造期共享密钥，也不再有 `.bridge-key` 文件与免动作的 Bearer 比较。写入端点不再接受沙箱传入的自由端口。凭据可被同 uid 的沙箱进程读取，故仍是应用层代理门控而非强隔离。
+
+撤销取消原调用 Job，升级/移除关闭包准入；执行前后核验调用存活、包仍可用及凭据期限。停止 HostBridge 推进凭据代次、作废全部凭据（含沙箱凭据）与正在返回的旧代结果；页面自身授权仍按原文档会话管理。撤销不能回滚已完成副作用。本片未引入网络或同 UID 强隔离；`host.shell` 现默认随沙箱凭据移除，仅当持久开发者模式开启时经 `FullAccessGrant` 升权下发（应用层门控，非强隔离边界），见文末「Phase C 收尾」节。
 
 新增离线测试覆盖全部身份维度、动作/目标变更、过期、单次消费、并发重放、撤销/停止、容量、错误脱敏及真实 loopback HTTP 的中文 UTF-8 请求；请求解析另覆盖旧入口兼容、截断/重复/负长度/分块头和容量拒绝。无需 API Key：
 
@@ -203,7 +205,7 @@ $env:JAVA_HOME="D:\Program Files\Android\Android Studio\jbr"
 
 `stopBackgroundInstance` 将实际 `ManagedProcess` 句柄传到注册表，在锁内验证仍是同一实例后回收；排队的旧停止请求不能停止同名替代实例，复制/伪造句柄也不会取得停止权限。接口默认不支持此能力，来源在不支持的后端上拒绝分配进程。关闭或取消不按当前 UI 发行版重选目标；确认失败保留原句柄供重试，不停止其它工具或进程。
 
-这是宿主固定程序的 PRoot 静态来源；外部 WEB 的固定来源选择见下节。现有任意工具服务页面、动态 API/WebSocket 和开发者全权模式尚未开放。`env -i` 只控制初始环境，不改变 PRoot 的 App UID、存储挂载及旧共享 HostBridge key 可读性，不提供恶意同 UID 代码隔离。
+这是宿主固定程序的 PRoot 静态来源；外部 WEB 的固定来源选择见下节。现有任意工具服务页面与动态 API 见后续节，WebSocket 不开放，开发者全权模式见文末「Phase C 收尾」节。`env -i` 只控制初始环境，不改变 PRoot 的 App UID、存储挂载及旧共享 HostBridge key 可读性，不提供恶意同 UID 代码隔离。
 
 本片验收：新增 14 项测试通过（PRoot 来源 9、精确实例停止 3、惰性加载 2），覆盖固定发行版、远端/未就绪/不支持后端拒绝、凭据仅走管道、标记跨块、超时/缺依赖、分配后取消、启动报错后从注册表取回原句柄、停止失败重试及同名替代实例保护。最终全库 `test :app:assembleDebug architectureCheck --continue` 通过，含 36 模块架构门禁、应用 DI 图和导航惰性注册。本机 Python 实际执行验证三个资源、认证拒绝、日志无凭据及超长配置拒绝；示例启动包为 3353 字节。文档链接和改动格式检查通过。未调用真实模型 API；本机 Python 冒烟不等于真机 PRoot/WebView 验收，后者仍待执行。
 
@@ -233,3 +235,73 @@ PRoot 包在预览时完整读取有界归档，复核文件集合、SHA-256 与
 `ProotWebBootstrap` 供预检和启动共同使用：一行最多 4096 ASCII 字节，格式为实例 UUID、制表符、两个 UUID 组成的认证随机值、制表符、资源 JSON 的 zlib/Base64、换行。随机值不参与资源压缩，路径排序固定，因此容量与身份随机值和归档顺序无关。Python 从实例 ID 推导资源前缀，从随机值构造 Bearer 认证；该内部管道格式不提供给包或页面，也不是外部服务协议。启动前继续保留容量检查。
 
 本片验收：新增 10 项测试通过（编码与容量边界 4，超限预览/导入、失败升级保留、普通来源兼容、哈希错误清理、取消清理、源清单变化 6）。全库 `test :app:assembleDebug architectureCheck --continue` 通过（979 tasks、36 模块架构门禁），日志 `build/p5-proot-preflight-full-regression.log`。本机固定 Python 服务验证两份示例、认证拒绝与日志无凭据；新启动包分别为 3271/3959 字节，异常头、Base64、超长配置和解压上限均只返回固定失败。未调用真实模型 API，未提交，未做真机 PRoot/WebView 验收。
+
+## 已安装工具服务作为页面来源（2026-10-19）
+
+工具中心里已运行的本地 Web 服务工具（`ToolManifest` 声明 `isWebService`）可在其详情页打开只读页面：设置 → 工具中心 → 目标工具 → 打开 Web 页面。页面只在后端为本机且服务已在运行时创建，源不启动、不停止、不重启该服务；关闭页面只回收本次来源。远程后端（已选远端服务器）在分配前直接拒绝，不尝试本地回退。
+
+端口与资源路径只来自原生清单，经 `ToolManager.serviceSpec(toolId)` 取得；页面不接受来自 JS、外部包或偏好设置的地址、凭据或命令。`ToolServiceDescriptor` 只承载原生字段（端口、基础路径、所有者插件 ID、固定发行版），空值或越界在构造时拒绝。
+
+该来源的资源集在创建时未知，因此采用 `IndexedManagedWebAssets`：按路径有界、阻塞读取，**首次响应即钉住该路径的 SHA-256**；同一路径后续字节变化、路径数超过 64 或合计超过 2 MiB 时整条来源立即关闭（会话内漂移即失效），不允许静默替换内容。总快照仅先取入口 `index.html`，其余路径按 WebView 实际请求经 `resolve(path)` 代理。读取只连接数字地址 `127.0.0.1`，不使用系统代理、不跟随重定向、不接受压缩响应、不保存 Cookie，每个响应只接受 HTTP 200 且总量有界；默认 2 秒连接、5 秒读取超时。探活入口最多等待 15 秒，失败返回固定错误而非发布文档。
+
+来源经 `WebPluginAssetLease.resolve` 注入 `WebPluginResources`：固定快照命中的路径仍走本地快照，未命中的路径才经宿主 resolver；非本域来源、非 GET 方法或已关闭来源一律固定 403。页面仍使用独立随机 HTTPS 来源，CSP 不放开 fetch/WebSocket/iframe/Worker，资源请求绝不回退真实网络；页面不获得 loopback 地址或任何凭据。本片当时未登记应用能力，下一节补上两个只读服务能力。这是应用层代理门控，不隔离同 UID 的沙箱代码。
+
+导航入口为 `PluginPageDestination("taixu.tool-service", "main", mapOf("web.tool.id" to toolId))`，由 `feature:navigation` 按参数键 `web.tool.id` 分发到 `ToolServicePluginScreen`。`plugin.ui` 不依赖 `runtime`，HTTP 读取留在 `runtime`，仅通过 lambda 注入，无需变更依赖白名单。
+
+验证命令（无 API Key）：
+
+```powershell
+.\gradlew.bat :runtime:testDebugUnitTest --tests "top.wkbin.taixu.runtime.service.*" :plugin:ui:testDebugUnitTest :feature:settings:compileDebugKotlin :app:testDebugUnitTest --tests "top.wkbin.taixu.di.*" :app:assembleDebug architectureCheck --continue --console=plain
+```
+
+本片验收：新增 12 项测试通过（`IndexedManagedWebAssets` 7、`ToolServiceWebSource` 4、`WebPluginResources` 宿主 resolver 1），覆盖入口钉哈希、后续路径按首字节解析、响应漂移整源关闭、非法/穿越路径不请求、合计字节预算、不可用/已关闭来源、原生认证头、非法原生目标拒绝、远端后端拒绝、探活失败不发布文档。全库 `test :app:assembleDebug architectureCheck --continue` 通过，含 36 模块架构门禁、应用 DI 图。为守尺寸棘轮抽出 `ToolDetailAvatar.kt`、`ToolDetailRoute.kt`。未调用真实模型 API，未做真机 WebView 验收。外部分包声明工具服务来源见文末「Phase C 收尾」节；任意启动命令仍不接受，WebSocket 不开放，开发者全权模式见同节。
+
+## PRoot 启动服务作为页面来源（2026-10-19）
+
+同一入口 `PackagedWebPluginSources.openToolService(toolId)` 现在按原生运行状态择一：服务已在运行 → 上节 `ToolServiceWebSource`（只读、不自启）；未运行 → 新增 `ProotToolServiceSource`，由页面持有并启动**工具自持的本地服务**，关闭页面只回收本次实例。
+
+`ProotToolServiceSource` 参数化 `ProotWebAssetService` 的固定程序假设：**不复用 4 KiB bootstrap**（服务端由工具自身提供，宿主不写入脚本或管道），改为就绪探测——在 `127.0.0.1:descriptor.port` 上以有界 `Socket.connect` 轮询（语义同 `ToolServiceController.isPortOpen` / `LocalServiceLauncher.awaitPort`），进程退出或运行环境变更即失败，整体等待最多 15 秒。启动仍走 `LinuxRuntime.startBackground(id, ShellCommand(commandLine, environment), toolId=ownerPluginId, type=SERVICE, distroId)`，停止只用 `stopBackgroundInstance(owned)` 精确回收本实例，绝不停工具中心既有服务或其它进程。
+
+命令、环境、端口与路径全部来自原生解析，页面不接受命令/端口/URL/环境/脚本：端口与路径来自已安装清单（经 `ToolManager.serviceSpec`），`launchCommand` 与 Provider/环境合并由 `ToolRuntimeAdapter.serviceLaunch()` → `GenericRecipeInstaller.serviceLaunch()` 提供，`ToolManager.serviceLaunch(toolId)` 用**已安装版本清单**（`packageOperations.runtimeManifest`）组装 `ProotServiceDescriptor`。`ProotServiceDescriptor` 构造时校验端口范围、基础路径、非空有界启动命令、环境键名（`[A-Za-z_][A-Za-z0-9_]*`）与环境值上限。
+
+资源读取复用上节的 `IndexedManagedWebAssets`：活服务的文件集合事先未知，故**首次响应即钉住该路径 SHA-256**，同一路径后续不同字节、超过 64 个路径或超过 2 MiB 即整源关闭；漂移同时使来源 `isAvailable` 变假，页面收到固定 403 而非新内容。`ProotToolServiceSource.isAvailable` 同时纳入来源关闭、启动失败、目标不适配（非本机 / 未就绪 / 发行版切换）与所持进程存活。
+
+**分配前拒绝**：本地后端且运行时 `Ready`、发行版匹配，且 `runtime.supportsBackgroundInstanceStop` 为真时才允许构造；远程、未就绪或不支持单实例停止的后端在构造阶段直接 `check` 失败，不分配进程。停止失败保留原句柄，重试不停其它进程（与 PRoot 静态来源同口径）。
+
+枚举：`WebPluginPackagePolicy` 新增常量 `PROOT_SERVICE_SOURCE = "PROOT_SERVICE"`（与 `TOOL_SERVICE_SOURCE` 并列）；该片 `validate()` **仍不放行**——外部分包引用服务由文末「Phase C 收尾」节经显式 `serviceToolId` 放行，避免 UI 先承诺运行时尚未准入的能力。
+
+验证命令（无 API Key）：
+
+```powershell
+.\gradlew.bat :runtime:testDebugUnitTest --tests "top.wkbin.taixu.runtime.service.*" :tools:testDebugUnitTest :feature:settings:testDebugUnitTest :plugin:ui:testDebugUnitTest architectureCheck --continue --console=plain
+```
+
+本片验收：新增 `ProotToolServiceSourceTest` 9 项，覆盖远程/未就绪/不支持实例停止后端分配前拒绝、描述符越界拒绝、就绪探测成功后钉哈希快照与按路径解析、同路径字节漂移整源关闭、就绪期间进程退出不发布文档、就绪超时回收已启实例、环境（发行版）切换失效、停止失败保留实例与重试隔离、准备态关闭后不再启动。为守尺寸棘轮把 `InstallEvent` 脱敏/日志与卸载结果映射抽到 `ToolInstallEventMapping.kt`（`ToolManager.kt` 951 → 923）。全部 fake / MockWebServer，无 API Key 全绿；未做真机 PRoot/WebView 验收。动态读取见下节；外部分包服务声明与开发者全权模式见文末「Phase C 收尾」节。
+
+## 工具服务的有界动态读取与分块流（2026-10-19）
+
+工具服务页面现在可以在**本服务上**做有界动态读取：CSP 仍为 `connect-src 'none'`，WebView 绝不直连 loopback，动态数据一律走 `window.taixuPlugin.postMessage()` → `PluginCapabilitySession` → 原生代理 → `127.0.0.1`。新增两个宿主登记能力：`host.service-request`（单次读）与 `host.service-stream`（分块流），由 `WebPluginServiceCapabilities` 工厂产出并在 `ToolServicePluginScreen` 登记。
+
+**路径放在 `text`，不是 `target`。** 消息信封仍是 `{id, action, target [, text]}`，`target` 固定为 `service`：授权按 (动作, 目标) 维度缓存，页面对同一服务的多个路径只需一次会话授权；若把路径写进 `target`，每个新路径都会被当成新能力而重新弹窗。相对子路径经 `PluginCapabilityInput.validServicePath` 轻量校验（非绝对、无 `..`/`.` 段、长度 ≤256、字符限 `[A-Za-z0-9_./-]`，因此没有 scheme/host/query/空白），原生侧再由 `ManagedWebAssets.safePath` 逐段复核（排除空段与保留的 `theme.css`），两层都通过才发出请求，否则一个包都不发。
+
+**单次读**由 `ManagedWebServiceClient.read` 执行：数字 `127.0.0.1` + 原生基础路径 + 可选原生认证头，无系统代理、不跟随重定向、HTTP/1.1、只接受 200 与 identity 编码、固定 UTF-8 解码，最多 32768 字符（与 session 的 `result_too_large` 同口径）；越界、非 200 或不可用一律回复固定失败，不抛出细节。
+
+**分块流**刻意**不是**新的会话机制，而是一次普通的单发能力调用：执行器通过 `WebPluginStreamBridge` 在**同一请求 id** 下反向推送 `{id,success,text,more:true}` 分块，收尾仍由既有 `{id,success,text:""}` 信封标记结束。因此它天然继承单页一个在途（`busy`）、单次或 5 分钟会话授权、`revoke()` / `close()` 取消在途 Job，以及 10 秒执行超时（= 单流时长上界），无需改动 `PluginCapabilitySession` 的准入与既有测试。`WebPluginStreamBridge` 限制单块 ≤4096 字符、单流 ≤65536 字符，且只在恰好绑定了一个请求 id 时推送；一页同时只能有一个在途流，`WebPluginView` 在调用前 `attach`、结束后 `detach`，视 WebView 关闭会 `close` 桥并让 `push` 返回 false —— 页面停止接收时生产者（native 读取）立即停止。取消异常始终向上传播，不被 `runCatching` 吞掉。
+
+**真 WebSocket 不做**：`connect-src` 仍为 `none`，端口、基础路径与凭据始终留在原生侧；分块流已覆盖「持续获取」的实际需要，开放 WebSocket 只会扩大攻击面。
+
+验证命令（无 API Key）：
+
+```powershell
+.\gradlew.bat :plugin:runtime:test :plugin:ui:testDebugUnitTest :runtime:testDebugUnitTest --tests "top.wkbin.taixu.runtime.service.*" :feature:settings:testDebugUnitTest architectureCheck --continue --console=plain
+```
+
+本片验收：`ManagedWebServiceClientTest` 7 项（原生基础路径与认证头、外域/穿越/超长路径不发出请求、来源失效或关闭后不答、超限与非 200 一律脱敏为失败、分块流按预算结束、预算耗尽或消费者停止即停止、越界预算拒绝）；`PluginCapabilityInputTest` 3 项（相对路径白名单、仅服务动作接受路径载荷、动作集合与登记能力一致）；`WebPluginStreamBridgeTest` 5 项（单流互斥与分块信封、detach 释放槽位、单块/总量预算、未绑定或关闭即停止、越界预算拒绝）；`WebPluginServiceCapabilitiesTest` 2 项（只登记两个只读能力、页面定义可直接接受）；`WebPluginAssetLeaseTest` 增 3 项（固定快照无动态路径、漂移或关闭后不答动态读取、流取消向上抛出）；`WebPluginMessagesTest` 增 2 项（服务请求只在 `text` 携带相对子路径、分块信封形状）。全部 fake / MockWebServer，无 API Key 全绿；未做真机 PRoot/WebView 验收。
+
+## Phase C 收尾
+
+- **更多宿主动作（C1）**：外部分包能力白名单显式枚举为 `APP_INFO / CLIPBOARD_WRITE / INSTALL_APK / LOGCAT`；`install-apk` 每次确认、路径只做形状校验并由 `HostBridgeApkInstall` 原生复核沙箱根，`logcat` 由宿主固定为 `{"lines":200}`。
+- **外部分包服务来源（C3）**：`plugin.webSource` 可为 `TOOL_SERVICE`（只读引用已运行服务、绝不自启）或 `PROOT_SERVICE`（打开时启动并仅回收本实例），且必须给出 `serviceToolId`（已安装 PROCESS 工具的小写 ID）；两类来源都要求 `integrity` 为空，端口/路径/命令/环境一律原生解析，包内不接受地址、凭据、端口或命令。来源进入导入确认与不可变版本比较。`validate()` 现在确实放行（此前第「外部 WEB 的固定 PRoot 来源」片只登记未准入）。
+- **只读长期授权（C4）**：只读能力（页面 `allowSession`）的会话授权可缓存到 30 分钟（`longLivedGrantMillis`，上界 1 小时），写能力（`clipboard-write`、`install-apk`）仍逐次确认、寿命 ≤5 分钟；授权不落盘，页面/进程/代次变化即清空重认。授权弹窗文案为「允许此页面（只读能力，最长 30 分钟）」。
+- **开发者全权模式（C2）**：沙箱凭据默认动作集移除 `host.shell`，仅持久开发者模式经 `FullAccessGrant` 升权下发；应用层门控，非强隔离。细节见 [`PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md) 第 30 节与 [`SECURITY_SURFACE.md`](SECURITY_SURFACE.md)。
+

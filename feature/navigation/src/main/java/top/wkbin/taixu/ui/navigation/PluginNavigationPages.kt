@@ -17,6 +17,10 @@ internal fun RegisteredPluginPage(pages: PluginPages, destination: PluginPageDes
             destination.arguments.getValue("web.package.id"), destination.arguments.getValue("web.package.version"), destination.pluginId, onBack)
         return
     }
+    if (destination.pageId == "main" && destination.arguments.keys == setOf("web.tool.id")) {
+        top.wkbin.taixu.ui.settings.ToolServicePluginScreen(destination.arguments.getValue("web.tool.id"), onBack)
+        return
+    }
     PluginPageHost(
         pages = pages,
         reference = PluginExtensionRef(destination.pluginId, destination.pageId),

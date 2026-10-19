@@ -9,6 +9,7 @@ import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.BackgroundTaskRegistry
 import top.wkbin.taixu.runtime.service.LocalServiceSpec
+import top.wkbin.taixu.runtime.service.ProotServiceDescriptor
 import top.wkbin.taixu.runtime.tools.InstallEvent
 import top.wkbin.taixu.runtime.shell.LinuxSession
 import top.wkbin.taixu.runtime.shell.ManagedProcess
@@ -350,6 +351,26 @@ class ToolManager(
         )
     }
 
+    /**
+     * Native launch plan for a tool service a plugin page may start itself. Port, path, command and
+     * environment are all resolved natively from the installed manifest and provider environment,
+     * never from Web content, a package field or a page argument.
+     */
+    suspend fun serviceLaunch(toolId: String): ProotServiceDescriptor? {
+        val spec = serviceSpec(toolId) ?: return null
+        val distro = currentDistroId()
+        val manifest = packageOperations.runtimeManifest(distro, toolId) ?: return null
+        val launch = getAdapter(toolId, manifest, distro)?.serviceLaunch() ?: return null
+        return ProotServiceDescriptor(
+            port = spec.port,
+            basePath = spec.path.trimEnd('/') + "/",
+            launchCommand = launch.launchCommand,
+            environment = launch.environment,
+            ownerPluginId = toolId,
+            distroId = distro,
+        )
+    }
+
     suspend fun syncRegistry() {
         val liveInstallTools = installJobs.keys.toSet()
         // 中断任务恢复按任务记录的所属系统恢复；元数据同步覆盖所有已安装系统
@@ -525,7 +546,7 @@ class ToolManager(
             // run the candidate recipe first, then its own post-install verification.
             transaction = installTransactionManager.begin(distroId, toolId, preservePreviousInstall)
             adapter.install().collect { event ->
-                val safeEvent = event.redacted()
+                val safeEvent = event.redacted(secretRedactor)
                 recordEvent(distroId, safeEvent)
                 updateFromEvent(safeEvent)
                 when (safeEvent) {
@@ -843,13 +864,6 @@ class ToolManager(
         )
     }
 
-    private fun InstallEvent.redacted(): InstallEvent = when (this) {
-        is InstallEvent.Progress -> copy(message = secretRedactor.redact(message))
-        is InstallEvent.Output -> copy(line = secretRedactor.redact(line))
-        is InstallEvent.Failed -> copy(message = secretRedactor.redact(message))
-        else -> this
-    }
-
     private fun updateFromEvent(event: InstallEvent) {
         val state = when (event) {
             is InstallEvent.Started -> ToolInstallProgress(event.toolId, "开始安装", 0f)
@@ -894,27 +908,6 @@ class ToolManager(
             runtimeName?.let { dependencyManager.release(it, toolId) }
         }
     }
-
-    private fun InstallEvent.toLog(distroId: String): InstallLogEntity = when (this) {
-        is InstallEvent.Started -> InstallLogEntity(distroId = distroId, toolId = toolId, event = "STARTED", message = "开始安装")
-        is InstallEvent.Progress -> InstallLogEntity(
-            distroId = distroId,
-            toolId = toolId,
-            event = "PROGRESS_${phase.name}",
-            message = message,
-        )
-        is InstallEvent.Output -> InstallLogEntity(distroId = distroId, toolId = toolId, event = "OUTPUT", message = line)
-        is InstallEvent.Completed -> InstallLogEntity(distroId = distroId, toolId = toolId, event = "COMPLETED", message = "安装完成${version?.let { "：$it" } ?: ""}")
-        is InstallEvent.Failed -> InstallLogEntity(distroId = distroId, toolId = toolId, event = "FAILED", message = message)
-        is InstallEvent.RolledBack -> InstallLogEntity(distroId = distroId, toolId = toolId, event = "ROLLED_BACK", message = "已回滚安装事务")
-        is InstallEvent.Cancelled -> InstallLogEntity(distroId = distroId, toolId = toolId, event = "CANCELLED", message = "用户取消安装")
-    }
-
-    private fun ToolActionResult.toUninstallOutcome(): UninstallOutcome =
-        UninstallOutcome(success, message)
-
-    private fun CommandResult.toUninstallOutcome(): UninstallOutcome =
-        UninstallOutcome(isSuccess, stderr.ifBlank { stdout })
 
     private companion object {
         const val OPERATION_INSTALL = "INSTALL"

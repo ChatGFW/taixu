@@ -52,6 +52,7 @@ class TaiXuModulesTest {
                 definition<SubagentLaneRunner>(Function0::class),
                 definition<BrowserMcpTools>(List::class, Function1::class, BrowserPreferences::class),
                 definition<BrowserMcpResources>(Function0::class),
+                definition<top.wkbin.taixu.runtime.bridge.FullAccessGrant>(kotlinx.coroutines.flow.Flow::class, kotlinx.coroutines.CoroutineScope::class),
                 // These callbacks/files are built by explicit provider lambdas or secondary constructors.
                 definition<top.wkbin.taixu.runtime.SessionWorkspaceCatalog>(Function0::class, Function2::class),
                 definition<top.wkbin.taixu.harness.environment.SessionExecutionTargets>(Function1::class),

@@ -22,9 +22,10 @@ import kotlinx.coroutines.currentCoroutineContext
 class ProcessShellExecutor internal constructor(
     private val baseEnvironment: () -> Map<String, String>,
     private val captureDirectory: () -> File = { File(System.getProperty("java.io.tmpdir"), "taixu-command-output") },
+    private val reaper: ProcessTreeReaper = SystemProcessTreeReaper,
     private val startProcess: (List<String>, File?, Map<String, String>) -> Process,
 ) : ShellExecutor {
-    constructor(pathManager: RuntimePathManager) : this({ pathManager.hostProcessEnvironment() }, { pathManager.commandOutputCacheDir }, { command, cwd, env ->
+    constructor(pathManager: RuntimePathManager) : this({ pathManager.hostProcessEnvironment() }, { pathManager.commandOutputCacheDir }, startProcess = { command, cwd, env ->
         ProcessBuilder(command).apply {
             cwd?.let { directory(it) }
             environment().clear()
@@ -47,9 +48,13 @@ class ProcessShellExecutor internal constructor(
         var acquired: ShellProcessOwner? = null
         val capture = currentCoroutineContext()[CommandOutputCapture]?.start(captureDirectory())
         val registration = currentCoroutineContext()[ExecutionEnvironmentContext]?.own { acquired?.close() }
+        // forkTid 必须取样于 startProcess 之前，且两者之间不得有挂起点：/proc 以线程粒度记录
+        // children，一旦期间线程被调度走，解析出的 pid 就不再是本次 fork 的子进程。
+        val forkTid = reaper.forkTid()
         val process = try { startProcess(command, workingDirectory, baseEnvironment() + environment) }
         catch (failure: Throwable) { registration?.close(); throw failure }
-        val owned = ShellProcessOwner(process) { pending.remove(it) }
+        val childPid = forkTid?.let(reaper::childOfThread)
+        val owned = ShellProcessOwner(process = process, reaper = reaper, childPid = childPid) { pending.remove(it) }
         acquired = owned
         owned.ownership = registration
         pending[owned] = false

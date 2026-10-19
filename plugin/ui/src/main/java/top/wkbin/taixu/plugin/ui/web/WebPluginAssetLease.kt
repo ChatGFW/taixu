@@ -9,6 +9,9 @@ class WebPluginAssetLease(
     private val available: () -> Boolean = { true },
     private val release: suspend () -> Boolean = { true },
     private val load: (suspend () -> Map<String, ByteArray>)? = null,
+    private val resolve: ((String) -> ByteArray?)? = null,
+    private val request: (suspend (String) -> String?)? = null,
+    private val stream: (suspend (String, suspend (String) -> Boolean) -> Boolean)? = null,
 ) {
     private val lock = Mutex()
     private var released = false
@@ -21,6 +24,22 @@ class WebPluginAssetLease(
         check(isAvailable)
         return result
     }
+
+    /**
+     * Bounded blocking read for a live indexed source. A fixed-snapshot lease has no resolver and
+     * answers only paths already in its map; a closed or drifted lease answers nothing.
+     */
+    internal fun resolveAsset(path: String): ByteArray? = if (isAvailable) resolve?.invoke(path) else null
+
+    /**
+     * Bounded dynamic read of the lease's own live service. A fixed snapshot lease has no dynamic
+     * source, and a closed lease answers nothing, so the page can never reach another endpoint.
+     */
+    internal suspend fun requestPath(path: String): String? = if (isAvailable) request?.invoke(path) else null
+
+    /** Bounded incremental read of the lease's own live service; false stops a spent or closed source. */
+    internal suspend fun streamPath(path: String, emit: suspend (String) -> Boolean): Boolean =
+        if (isAvailable) stream?.invoke(path, emit) ?: false else false
 
     /** False keeps the resource in the activation ledger for a later cleanup attempt. */
     suspend fun close(): Boolean = lock.withLock {

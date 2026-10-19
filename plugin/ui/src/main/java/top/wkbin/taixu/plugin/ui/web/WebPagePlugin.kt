@@ -17,9 +17,14 @@ class WebPluginCapability(
     val title: @Composable () -> String,
     val description: @Composable () -> String,
     allowSession: Boolean = true,
-    val execute: suspend (Context, PluginCapabilityIdentity, PluginCapabilityCall) -> String,
+    val stream: (suspend (Context, PluginCapabilityIdentity, PluginCapabilityCall, suspend (String) -> Boolean) -> Unit)? = null,
+    val execute: (suspend (Context, PluginCapabilityIdentity, PluginCapabilityCall) -> String)? = null,
 ) {
-    val allowSession = allowSession && capability != top.wkbin.taixu.plugin.runtime.PluginCapabilityInput.CLIPBOARD_WRITE
+    init {
+        require(execute != null || stream != null) { "A capability needs a single-shot or stream executor" }
+    }
+
+    val allowSession = allowSession && capability !in top.wkbin.taixu.plugin.runtime.PluginCapabilityInput.ONE_SHOT
 }
 
 /** Trusted static Web adapter using the existing PAGE lifecycle, independent of .txplugin. */

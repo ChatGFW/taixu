@@ -46,9 +46,7 @@ if [ -f /opt/taixu/.adb-port ]; then
     PORT=$(cat /opt/taixu/.adb-port 2>/dev/null | tr -d '[:space:]')
 fi
 if [ -z "$PORT" ]; then
-    BRIDGE_KEY=""
-    [ -f /opt/taixu/.bridge-key ] && BRIDGE_KEY=$(cat /opt/taixu/.bridge-key 2>/dev/null | tr -d '[:space:]')
-    PORT=$(curl -s http://127.0.0.1:7980/api/health ${BRIDGE_KEY:+-H "Authorization: Bearer $BRIDGE_KEY"} 2>/dev/null | grep -o '"adbPort":[0-9]*' | cut -d':' -f2 || true)
+    PORT=$(curl -s http://127.0.0.1:7980/api/health 2>/dev/null | grep -o '"adbPort":[0-9]*' | cut -d':' -f2 || true)
 fi
 
 HOST="127.0.0.1"

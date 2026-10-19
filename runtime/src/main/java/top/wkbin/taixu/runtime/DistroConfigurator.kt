@@ -4,7 +4,6 @@ import android.system.Os
 import java.io.File
 import java.nio.file.Files
 import top.wkbin.taixu.core.common.logging.AppLogger
-import top.wkbin.taixu.runtime.bridge.HostBridge
 import top.wkbin.taixu.runtime.scripts.RuntimeAssetSynchronizer
 
 /**
@@ -12,7 +11,7 @@ import top.wkbin.taixu.runtime.scripts.RuntimeAssetSynchronizer
  *
  * 覆盖 apt/pip 国内镜像（TUNA）、dpkg 免文档与 statoverride、setuid 剥离
  * （PRoot 下 setuid 不生效，保留会导致 dpkg 升级卡死）、perl 硬链接修复脚本、
- * DNS、环境变量、HostBridge 沙箱端脚本与密钥。
+ * DNS、环境变量、HostBridge 沙箱端脚本（凭据由宿主签发并经环境注入，不落盘）。
  *
  * 从 LinuxRuntimeImpl 拆出（原 configureRootfs 系列），逻辑逐字保留；
  * 唯一行为变化：[configureRootfs] 由同步 runBlocking 改为 suspend，
@@ -20,7 +19,6 @@ import top.wkbin.taixu.runtime.scripts.RuntimeAssetSynchronizer
  */
 class DistroConfigurator(
     private val pathManager: RuntimePathManager,
-    private val hostBridge: HostBridge,
     private val assetSynchronizer: RuntimeAssetSynchronizer,
     private val logger: AppLogger,
 ) {
@@ -358,16 +356,16 @@ class DistroConfigurator(
             	version = HTTP/1.1
             """.trimIndent() + "\n",
         )
-        // 安装 HostBridge 沙箱脚本与密钥
+        // 安装 HostBridge 沙箱端脚本
         installHostBridgeScripts(distroId)
     }
 
-    /** 安装宿主桥接沙箱端脚本与 API 密钥到 /opt/taixu/（bind-mounted 到沙箱）：
-     *  bin/taixu-host 桥接 CLI（install-apk / shell / health）、bin/taixu-android-exec 链接环境包装器、.bridge-key API 密钥。 */
+    /** 安装宿主桥接沙箱端脚本到 /opt/taixu/（bind-mounted 到沙箱）：
+     *  bin/taixu-host 桥接 CLI（install-apk / shell / logcat / health）与 bin/taixu-android-exec 链接环境包装器。
+     *  桥接凭据由宿主在每次命令/会话构建时经环境注入（TAIXU_BRIDGE_TOKEN），沙箱内不落盘任何密钥文件。 */
     private fun installHostBridgeScripts(distroId: String) {
         val binDir = pathManager.taixuBinDir(distroId)
         binDir.mkdirs()
-        val rootDir = pathManager.taixuRootDir(distroId)
 
         // taixu-host — 宿主桥接 CLI
         val hostScript = File(binDir, "taixu-host")
@@ -379,10 +377,8 @@ class DistroConfigurator(
         androidExecScript.writeText(TAIXU_ANDROID_EXEC_SCRIPT)
         runCatching { Os.chmod(androidExecScript.absolutePath, 0x1ED) }
 
-        // API 密钥 — 每次配置时刷新；显式 0600 收紧读取面（SECURITY_SURFACE #5）
-        val bridgeKeyFile = File(rootDir, ".bridge-key")
-        bridgeKeyFile.writeText(hostBridge.bridgeKey)
-        runCatching { Os.chmod(bridgeKeyFile.absolutePath, 0x180) } // 0600 = 仅属主可读写
+        // 迁移收尾：清理历史版本写入的共享密钥文件（旧脚本会因此失效，需重启会话刷新凭据）
+        File(pathManager.taixuRootDir(distroId), ".bridge-key").takeIf { it.exists() }?.delete()
 
         logger.i("HostBridge scripts installed for distro: $distroId")
     }
@@ -391,23 +387,21 @@ class DistroConfigurator(
         val TAIXU_HOST_SCRIPT = listOf(
             "#!/bin/sh",
             "# TaiXu Host Bridge CLI",
-            "# Usage: taixu-host install-apk <path> | taixu-host shell <cmd> | taixu-host health",
+            "# Usage: taixu-host install-apk <path> | taixu-host shell <cmd> | taixu-host logcat [pkg] [tag] [prio] [kw] [lines] | taixu-host health",
             "",
             "BRIDGE_URL=\"http://127.0.0.1:7980\"",
-            "KEY_FILE=\"/opt/taixu/.bridge-key\"",
             "",
-            "if [ -f \"\${KEY_FILE}\" ]; then",
-            "  BRIDGE_KEY=\$(cat \"\${KEY_FILE}\" 2>/dev/null | tr -d '[:space:]')",
-            "else",
-            "  BRIDGE_KEY=\"\"",
+            "# 桥接凭据由宿主签发并经 PRoot 命令环境注入（宿主可撤销）；沙箱内不再有共享密钥文件。",
+            "if [ -z \"\${TAIXU_BRIDGE_TOKEN:-}\" ] && [ \"\${1:-}\" != \"health\" ] && [ \"\${1:-}\" != \"status\" ]; then",
+            "  echo '{\"success\":false,\"error\":\"missing host credential: restart the TaiXu session to refresh it\"}' >&2",
+            "  exit 1",
             "fi",
             "",
             "if ! command -v curl >/dev/null 2>&1; then",
             "  echo '{\"success\":false,\"error\":\"curl not installed\"}' >&2; exit 1",
             "fi",
             "",
-            "AUTH=\"\"",
-            "if [ -n \"\${BRIDGE_KEY}\" ]; then AUTH=\"Authorization: Bearer \${BRIDGE_KEY}\"; fi",
+            "AUTH=\"Authorization: Bearer \${TAIXU_BRIDGE_TOKEN:-}\"",
             "",
             "case \"\$1\" in",
             "  install-apk)",
@@ -443,11 +437,7 @@ class DistroConfigurator(
             "    else",
             "      ABS_TARGET=\"\$TARGET\"",
             "    fi",
-            "    if [ -n \"\${AUTH}\" ]; then",
-            "      curl -s -X POST \"\${BRIDGE_URL}/api/install-apk\" -H 'Content-Type: application/json' -H \"\${AUTH}\" -d \"{\\\"path\\\":\\\"\${ABS_TARGET}\\\"}\"",
-            "    else",
-            "      curl -s -X POST \"\${BRIDGE_URL}/api/install-apk\" -H 'Content-Type: application/json' -d \"{\\\"path\\\":\\\"\${ABS_TARGET}\\\"}\"",
-            "    fi",
+            "    curl -s -X POST \"\${BRIDGE_URL}/api/install-apk\" -H 'Content-Type: application/json' -H \"\${AUTH}\" -d \"{\\\"path\\\":\\\"\${ABS_TARGET}\\\"}\"",
             "    echo \"\"",
             "    ;;",
             "  shell)",
@@ -459,11 +449,7 @@ class DistroConfigurator(
             "      ESC=\$(printf '%s' \"\${CMD}\" | sed 's/\\\\/\\\\\\\\/g; s/\"/\\\\\"/g' | tr '\\n' ' ')",
             "      BODY=\"{\\\"command\\\":\\\"\${ESC}\\\"}\"",
             "    fi",
-            "    if [ -n \"\${AUTH}\" ]; then",
-            "      curl -s -X POST \"\${BRIDGE_URL}/api/shell\" -H 'Content-Type: application/json' -H \"\${AUTH}\" -d \"\${BODY}\"",
-            "    else",
-            "      curl -s -X POST \"\${BRIDGE_URL}/api/shell\" -H 'Content-Type: application/json' -d \"\${BODY}\"",
-            "    fi",
+            "    curl -s -X POST \"\${BRIDGE_URL}/api/shell\" -H 'Content-Type: application/json' -H \"\${AUTH}\" -d \"\${BODY}\"",
             "    echo \"\"",
             "    ;;",
             "  logcat)",
@@ -478,15 +464,11 @@ class DistroConfigurator(
             "    else",
             "      BODY=\"{\\\"package\\\":\\\"\$PKG\\\",\\\"tag\\\":\\\"\$TAG\\\",\\\"priority\\\":\\\"\$PRIO\\\",\\\"keyword\\\":\\\"\$KW\\\",\\\"lines\\\":\$LINES}\"",
             "    fi",
-            "    if [ -n \"\${AUTH}\" ]; then",
-            "      curl -s -X POST \"\${BRIDGE_URL}/api/logcat\" -H 'Content-Type: application/json' -H \"\${AUTH}\" -d \"\${BODY}\"",
-            "    else",
-            "      curl -s -X POST \"\${BRIDGE_URL}/api/logcat\" -H 'Content-Type: application/json' -d \"\${BODY}\"",
-            "    fi",
+            "    curl -s -X POST \"\${BRIDGE_URL}/api/logcat\" -H 'Content-Type: application/json' -H \"\${AUTH}\" -d \"\${BODY}\"",
             "    echo \"\"",
             "    ;;",
             "  health|status)",
-            "    if [ -n \"\${AUTH}\" ]; then curl -s \"\${BRIDGE_URL}/api/health\" -H \"\${AUTH}\"; else curl -s \"\${BRIDGE_URL}/api/health\"; fi",
+            "    curl -s \"\${BRIDGE_URL}/api/health\"",
             "    echo \"\"",
             "    ;;",
             "  *)",

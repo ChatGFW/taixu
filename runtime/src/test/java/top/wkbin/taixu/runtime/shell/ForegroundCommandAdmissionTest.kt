@@ -163,4 +163,25 @@ class ForegroundCommandAdmissionTest {
             assertEquals(2, starts)
         }
     }
+
+    @Test fun retainedTeardownSelfHealsOnNextHeavyCommandOnceProcessIsGone() = runBlocking {
+        withTimeout(10_000) {
+            val process = FakeSessionProcess().apply { forcedExit = false }
+            var starts = 0
+            val processes = ProcessShellExecutor({ emptyMap() }) { _, _, _ ->
+                starts++; if (starts == 1) process else FakeSessionProcess().also { it.exit() }
+            }
+            val gate = ForegroundCommandAdmission()
+            val first = launch { gate.execute(heavy, processes) { processes.execute(listOf("fake"), timeoutMs = 10_000) } }
+            withContext(Dispatchers.IO) { assertTrue(process.stdout.entered.await(3, TimeUnit.SECONDS)) }
+            first.cancelAndJoin()
+            assertTrue(processes.hasUnsettled())
+
+            // 残留进程此刻已消亡：下一次重型命令准入即自动重试收尾并放行，不必等用户手动清理
+            process.forcedExit = true
+            assertTrue(gate.execute(heavy, processes) { processes.execute(listOf("fake")) }.isSuccess)
+            assertFalse(processes.hasUnsettled())
+            assertEquals(2, starts)
+        }
+    }
 }

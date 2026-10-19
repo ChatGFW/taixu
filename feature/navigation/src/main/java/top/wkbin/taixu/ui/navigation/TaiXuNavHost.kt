@@ -72,7 +72,6 @@ import top.wkbin.taixu.ui.settings.StorageMountSettingsScreen
 import top.wkbin.taixu.ui.settings.StorageUsageScreen
 import top.wkbin.taixu.ui.settings.SystemDevSettingsScreen
 import top.wkbin.taixu.ui.settings.ToolCenterScreen
-import top.wkbin.taixu.ui.settings.ToolDetailScreen
 import top.wkbin.taixu.ui.settings.ToolSelfHealingHelper
 import top.wkbin.taixu.ui.settings.permission.PermissionGuideScreen
 import top.wkbin.taixu.ui.settings.search.SettingsSearchScreen
@@ -546,15 +545,12 @@ fun TaiXuNavHost(
             }
             entry<ToolDetailDestination> { destination ->
                 GuardedEntry(destination) {
-                    ToolDetailScreen(
-                        toolId = destination.toolId,
+                    ToolDetailRoute(
+                        destination = destination,
                         onBack = ::popBack,
                         onLaunchTerminal = { toolId -> activeStack.push(destination, TerminalDestination(toolId = toolId)) },
-                        onStartAiHealing = { toolId, toolName, logs ->
-                            val prompt = ToolSelfHealingHelper.buildHealingPrompt(toolId, toolName, logs)
-                            pendingHealingTask = HealingTask("🔧 自愈: $toolName", prompt)
-                            navigateMain(MainDestination.Agent)
-                        },
+                        onHealing = { name, prompt -> pendingHealingTask = HealingTask("🔧 自愈: $name", prompt); navigateMain(MainDestination.Agent) },
+                        onOpenPluginPage = { activeStack.push(destination, PluginPageDestination("taixu.tool-service", "main", mapOf("web.tool.id" to it))) },
                     )
                 }
             }

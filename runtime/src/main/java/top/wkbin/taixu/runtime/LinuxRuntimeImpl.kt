@@ -15,8 +15,10 @@ import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.core.model.StorageMountBinding
 import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
 import top.wkbin.taixu.runtime.proot.QemuCompatibilityLayout
+import top.wkbin.taixu.runtime.proot.hostSupplementaryGroupIds
 import top.wkbin.taixu.runtime.proot.syncGuestGroups
 import top.wkbin.taixu.runtime.bridge.HostBridge
+import top.wkbin.taixu.runtime.bridge.SandboxCredentialStore
 import top.wkbin.taixu.runtime.pty.PtyManager
 import top.wkbin.taixu.runtime.proot.ProotInstaller
 import top.wkbin.taixu.runtime.rootfs.RootfsInstaller
@@ -56,6 +58,7 @@ class LinuxRuntimeImpl(
     private val settingsDataStore: RuntimePreferences,
     private val storageMountBindingRepository: StorageMountBindingRepository,
     private val hostBridge: HostBridge,
+    private val sandboxCredentials: SandboxCredentialStore,
     private val distroConfigurator: DistroConfigurator,
     private val logger: AppLogger,
 ) : LinuxRuntime {
@@ -202,6 +205,7 @@ class LinuxRuntimeImpl(
                 )
             }
             closeRuntimeProcesses(safeId)
+            sandboxCredentials.revoke(safeId)
             val wasActive = _activeDistroId.value == safeId
             if (wasActive) {
                 hostBridge.stop()
@@ -228,6 +232,7 @@ class LinuxRuntimeImpl(
             val wasActive = _activeDistroId.value == safeId
             try {
                 closeRuntimeProcesses(safeId)
+                sandboxCredentials.revoke(safeId)
                 if (wasActive) {
                     hostBridge.stop()
                 }
@@ -508,6 +513,7 @@ class LinuxRuntimeImpl(
                 command = command,
                 mounts = mounts,
                 emulatorBinary = execution.emulatorBinary,
+                hostCredential = sandboxCredentials.environment(safeDistro),
             ),
             environment = pathManager.hostProcessEnvironment(safeDistro, execution.rootfsDir),
             timeoutMs = command.timeoutMs,
@@ -540,21 +546,6 @@ class LinuxRuntimeImpl(
         val emulatorBinary: File?,
         val optDir: File,
     )
-
-    /**
-     * App 进程在宿主上携带的补充组列表（含 inet/everybody/OEM 组等）。
-     * android.system.Os 未暴露 getgroups，改从 /proc/self/status 的 Groups 行解析。
-     */
-    private fun hostSupplementaryGroupIds(): List<Int> =
-        runCatching {
-            File("/proc/self/status").useLines { lines ->
-                lines.firstOrNull { it.startsWith("Groups:") }
-                    ?.removePrefix("Groups:")
-                    ?.split(' ', '\t')
-                    ?.mapNotNullTo(mutableListOf()) { it.trim().toIntOrNull() }
-                    .orEmpty()
-            }
-        }.getOrElse { emptyList() }
 
     override suspend fun startSession(config: SessionConfig, distroId: String?): LinuxSession = storageActivities.activity {
         val prepared = prepareInteractiveSession(config, distroId)
@@ -652,6 +643,7 @@ class LinuxRuntimeImpl(
             config = effectiveConfig,
             nativePty = true,
             mounts = mounts,
+            hostCredential = sandboxCredentials.environment(safeDistro),
         )
         val fallbackCommand = prootCommandBuilder.buildInteractive(
             prootBinary = pathManager.activeProotFile(),
@@ -664,6 +656,7 @@ class LinuxRuntimeImpl(
             config = effectiveConfig,
             ptyMarker = markerPath,
             mounts = mounts,
+            hostCredential = sandboxCredentials.environment(safeDistro),
         )
         return PreparedInteractive(
             distroId = safeDistro,
@@ -676,34 +669,8 @@ class LinuxRuntimeImpl(
         )
     }
 
-    private suspend fun storageMounts(): List<StorageMountBinding> = buildList {
-        val sharedEnabled = settingsDataStore.mountSharedStorageEnabled.first()
-        val sharedDir = File("/storage/emulated/0")
-        if (sharedEnabled && sharedDir.isDirectory && sharedDir.canRead()) {
-            add(StorageMountBinding("system-shared", "共享存储", "/storage/emulated/0", "/sdcard", true, true))
-        }
-        val downloadDir = File("/storage/emulated/0/Download")
-        if (!sharedEnabled && settingsDataStore.mountDownloadEnabled.first() && downloadDir.isDirectory && downloadDir.canRead()) {
-            add(StorageMountBinding("system-download", "下载", "/storage/emulated/0/Download", "/sdcard/Download", true, true))
-        }
-        val documentsDir = File("/storage/emulated/0/Documents")
-        if (!sharedEnabled && settingsDataStore.mountDocumentsEnabled.first() && documentsDir.isDirectory && documentsDir.canRead()) {
-            add(StorageMountBinding("system-documents", "文档", "/storage/emulated/0/Documents", "/sdcard/Documents", true, true))
-        }
-        // 自定义绑定来自用户可编辑的 Room 表，历史版本可能存入越界路径。
-        // 这里必须先行过滤并告警，绝不能让非法绑定流入 ProotCommandBuilder 导致会话启动崩溃；
-        // ProotCommandBuilder 内的 require 仅作为防挂载逃逸的最后安全防线。
-        storageMountBindingRepository.bindings.first().forEach { binding ->
-            if (!binding.enabled) return@forEach
-            val error = StorageMountBinding.validationError(binding)
-            if (error == null) {
-                add(binding)
-            } else {
-                logger.w("忽略非法存储挂载绑定（请在存储挂载设置中删除后重建） id=${binding.id} " +
-                    "host=${binding.hostPath} guest=${binding.guestPath}: $error")
-            }
-        }
-    }
+    private suspend fun storageMounts(): List<StorageMountBinding> =
+        resolveStorageMounts(settingsDataStore, storageMountBindingRepository, logger)
 
     private suspend fun resizePty(markerPath: String, columns: Int, rows: Int, distroId: String = "ubuntu") {
         val safeColumns = columns.coerceIn(20, 400)

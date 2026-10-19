@@ -80,6 +80,17 @@ class ProcessLinuxSessionLifecycleTest {
         assertEquals(1, f.cleanups)
     }
 
+    @Test fun forcedTimeoutReapsDescendantsWhileRootIsStillReachable() = scenario(childPid = 4242L) { f ->
+        f.process.gracefulExit = false
+        f.process.forcedExit = false
+        assertTrue(failure { f.session.close() }.message!!.contains("仍未退出"))
+        assertEquals(listOf(4242L), f.reaper.reaped)
+        f.process.forcedExit = true
+        f.session.close()
+        assertEquals(1, f.reaper.reaped.size)
+        assertEquals(1, f.cleanups)
+    }
+
     @Test fun failedWaitCanBeRetriedWithoutSkippingReaderDrain() = scenario { f ->
         val error = IllegalStateException("wait failed")
         f.process.waitFailure = error
@@ -193,9 +204,9 @@ class ProcessLinuxSessionLifecycleTest {
         assertEquals(0, f.resizes)
     }
 
-    private fun scenario(test: suspend CoroutineScope.(Fixture) -> Unit) = runBlocking {
+    private fun scenario(childPid: Long? = null, test: suspend CoroutineScope.(Fixture) -> Unit) = runBlocking {
         withTimeout(10_000) {
-            val fixture = Fixture()
+            val fixture = Fixture(childPid)
             try {
                 fixture.process.stdout.entered.awaitReady()
                 test(fixture)
@@ -218,18 +229,27 @@ class ProcessLinuxSessionLifecycleTest {
         throw AssertionError("Expected failure")
     }
 
-    private class Fixture {
+    private class Fixture(childPid: Long? = null) {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val process = FakeSessionProcess()
+        val reaper = FakeReaper()
         var cleanups = 0
         var cleanupFailures = 0
         var resizes = 0
         var beforeCleanup: suspend () -> Unit = {}
-        val session = ProcessLinuxSession(process, scope = scope,
+        val session = ProcessLinuxSession(process, scope = scope, reaper = reaper, childPid = childPid,
             resizeCallback = { _, _ -> resizes++ }, cleanupCallback = {
                 cleanups++
                 beforeCleanup()
                 if (cleanupFailures > 0) { cleanupFailures--; error("cleanup failed") }
             })
+    }
+
+    /** 记录被收的根进程，避免单元测试触碰 /proc 与 android.os.Process。 */
+    private class FakeReaper : ProcessTreeReaper {
+        val reaped = mutableListOf<Long>()
+        override fun forkTid(): Int? = null
+        override fun childOfThread(tid: Int): Long? = null
+        override fun reap(rootPid: Long): Int { reaped += rootPid; return 1 }
     }
 }
