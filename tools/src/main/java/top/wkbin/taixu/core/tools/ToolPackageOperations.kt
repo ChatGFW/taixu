@@ -8,8 +8,16 @@ import top.wkbin.taixu.plugin.packages.PackageInstallPolicy
 import top.wkbin.taixu.plugin.packages.PluginPackageProtocol
 
 /** Serializes install/uninstall reference checks; receipts are minimal, version-specific metadata. */
-class ToolPackageOperations(private val repository: ToolRepository, private val receipts: PluginReceiptStore) {
+class ToolPackageOperations(private val repository: ToolRepository, private val receipts: PluginReceiptStore,
+    private val hostGrants: top.wkbin.taixu.runtime.bridge.FullAccessGrant? = null) {
     private val operations = Mutex()
+
+    suspend fun <T> useInstalled(distro: String, expected: ToolManifest, action: suspend () -> T): T = operations.withLock {
+        val installed = repository.findById(distro, expected.id)
+        check(installed?.installedVersion != null && installed.state == "INSTALLED") { "插件未安装或正在改变" }
+        check(runtimeManifest(distro, expected.id) == expected) { "插件安装版本已改变，请重新发现扩展" }
+        action()
+    }
 
     suspend fun <T> install(distro: String, id: String, expected: ToolManifest? = null, action: suspend (ToolManifest) -> T): T = operations.withLock {
         val manifest = requireNotNull(repository.manifest(id)) { "工具清单不存在" }
@@ -22,6 +30,7 @@ class ToolPackageOperations(private val repository: ToolRepository, private val 
             require(oldCommands.all { it in nextCommands }) { "更新暂不能移除既有命令入口，请先卸载旧版本" }
         }
         PackageInstallPolicy.requireInstall(manifest, installed)
+        manifest.plugin?.let { hostGrants?.revokePlugin(distro, it.id) }
         action(manifest)
     }
 
@@ -31,6 +40,7 @@ class ToolPackageOperations(private val repository: ToolRepository, private val 
         val manifest = requireNotNull(runtimeManifest(distro, id))
         // Use the installed receipt to preserve v2 framework-only uninstall after selecting another version.
         val receipt = installed.find { it.toolId == id }
+        receipt?.let { hostGrants?.revokePlugin(distro, it.pluginId) }
         require(receipt == null || receipt.pluginId.startsWith("legacy.") || manifest.schemaVersion == 2) { "已安装插件与清单形态不一致" }
         val commandLinks = receipt?.resources?.filter { it.path.startsWith("/opt/taixu/bin/") }?.map { it.path.removePrefix("/opt/taixu/bin/") }
         action(if (manifest.schemaVersion == 2 && !commandLinks.isNullOrEmpty()) manifest.copy(commandLinks = commandLinks) else manifest)

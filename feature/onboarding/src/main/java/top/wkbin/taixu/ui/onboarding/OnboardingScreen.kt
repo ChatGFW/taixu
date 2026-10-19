@@ -105,18 +105,24 @@ fun OnboardingScreen(
             }
         },
         bottomBar = {
-            if (stage == 0 || stage == 1) {
+            if (stage == 0) {
                 Box(Modifier.fillMaxWidth().padding(WindowInsets.navigationBars.asPaddingValues())
                     .padding(horizontal = 24.dp, vertical = 16.dp), contentAlignment = Alignment.Center) {
                     RuntimeButton(
                         onClick = { entryStep = entryStep.advance(acknowledged) },
-                        enabled = stage == 0 || acknowledged,
                         modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
                     ) {
-                        Text(stringResource(if (stage == 0) R.string.onboarding_start else R.string.onboarding_notice_continue),
+                        Text(stringResource(R.string.onboarding_start),
                             modifier = Modifier.padding(4.dp))
                     }
                 }
+            }
+            if (stage == 1) {
+                OnboardingDisclaimerActions(
+                    acknowledged = acknowledged,
+                    onAcknowledge = { acknowledged = it },
+                    onContinue = { entryStep = entryStep.advance(acknowledged) },
+                )
             }
             if (stage == 3) {
                 PermissionContinueActions(onContinue = { viewModel?.setPage(2) })
@@ -127,8 +133,7 @@ fun OnboardingScreen(
             AnimatedContent(targetState = stage, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "onboardingStage") { current ->
                 when (current) {
                     0 -> OnboardingWelcomePage(Modifier.fillMaxSize())
-                    1 -> OnboardingDisclaimerPage(acknowledged, { acknowledged = it },
-                        Modifier.widthIn(max = 840.dp).fillMaxSize())
+                    1 -> OnboardingDisclaimerPage(Modifier.widthIn(max = 840.dp).fillMaxSize())
                     2 -> SystemSetupPage(viewModel, Modifier.widthIn(max = 840.dp).fillMaxSize())
                     3 -> OnboardingPermissionPage(
                         modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),

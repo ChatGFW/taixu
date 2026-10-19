@@ -1,7 +1,7 @@
 # 太墟插件平台方案与迁移路线
 
 状态：P1–P4 已完成本地实现、单元测试与 Debug 打包；P5 已接入静态 Web 宿主、页面级授权、外部静态包和宿主注册的服务静态来源，范围见第 18–23 节。尚未做真机交互验证。
-目标是让业务能力通过插件装配，逐步形成稳定内核与开放生态。P3 已接入 v1 目录适配与 v2 包协议；P4 接入编译时 Harness 扩展。P5 已接入静态 Web 宿主、页面级授权、外部静态包、受管理服务通用化（已安装工具服务与 PRoot 启动服务）、有界动态 API、外部分包服务声明、只读长期授权与开发者全权模式，范围见第 18–30 节。WebSocket 通道、真机验收与 P6 仍待实现。原生页面和 Harness 回调能力不会自动赋予 `.txplugin` 包。
+目标是让业务能力通过插件装配，逐步形成稳定内核与开放生态。P3 已接入 v1 目录适配与 v2 包协议；P4 接入编译时 Harness 扩展；2026-10-19 增加外部 PROCESS/MCP 工具、Provider 和工作流节点，详见 [补齐说明](PLUGIN_V2_COMPLETION.md)。P5 已接入静态 Web 宿主、页面级授权、外部静态包、受管理服务通用化（已安装工具服务与 PRoot 启动服务）、有界动态 API、外部分包服务声明、只读长期授权与开发者全权模式，范围见第 18–30 节。WebSocket 通道、真机验收与 P6 仍待实现。原生页面和 Harness 回调能力不会自动赋予 `.txplugin` 包。
 
 ## 1. 目标与当前事实
 
@@ -385,7 +385,7 @@ WEB 包新增可选 `plugin.webSource`：默认 `PACKAGE` 直接读取资源，`
 
 **C1 更多结构化宿主动作**：`host.install-apk` 与 `host.logcat` 登记为页面能力（`WebPluginPackagePolicy.INSTALL_APK/LOGCAT`），外部分包能力白名单显式枚举为 `APP_INFO / CLIPBOARD_WRITE / INSTALL_APK / LOGCAT`。四者都先经 `PluginCapabilitySession` 授权，写性质动作（`clipboard-write`、`install-apk`）由 `PluginCapabilityInput.ONE_SHOT` 固定为逐次确认。`install-apk` 的路径只做形状校验，宿主侧仍用与 guest 端点完全相同的 `HostBridgeApkInstall` 解析沙箱根、拒绝 `.apk` 之外的文件；插件 `logcat` 请求体由宿主固定为 `{"lines":200}`，页面无法加宽 tag/priority/行数。
 
-**C2 开发者全权模式**：新增 `FullAccessGrant`（`runtime/bridge`），只读 `AppearancePreferences.developerMode`，缺省 `MutableStateFlow(false)` fail-safe。沙箱凭据动作集默认收窄为 `SANDBOX_ACTIONS = host.install-apk, host.logcat`（移除 `host.shell`）；仅当持久开发者模式开启时经 `FULL_ACCESS_ACTIONS = SANDBOX_ACTIONS + host.shell` 升权，关闭后下次签发即降权。`SandboxCredentialStore` 改为以 `grantedActions` 供应商注入（`KoinModule` 中 `single<FullAccessGrant>{ FullAccessGrant(get<AppearancePreferences>().developerMode) }`）。开发者诊断模式设置项文案明确标注「允许沙箱内 Agent 通过 host.shell 请求宿主执行命令（应用层门控，非强隔离边界）」。宿主 bridge 的 `/api/shell` 动作本身与 guest 端点保持原样，仅凭据下发面随门控收紧；细节见 [`SECURITY_SURFACE.md`](SECURITY_SURFACE.md) §4/§7。
+**C2 开发者全权模式（历史记录，已由下述限时确认替代）**：新增 `FullAccessGrant`（`runtime/bridge`），只读 `AppearancePreferences.developerMode`，缺省 `MutableStateFlow(false)` fail-safe。沙箱凭据动作集默认收窄为 `SANDBOX_ACTIONS = host.install-apk, host.logcat`（移除 `host.shell`）；仅当持久开发者模式开启时经 `FULL_ACCESS_ACTIONS = SANDBOX_ACTIONS + host.shell` 升权，关闭后下次签发即降权。`SandboxCredentialStore` 改为以 `grantedActions` 供应商注入（`KoinModule` 中 `single<FullAccessGrant>{ FullAccessGrant(get<AppearancePreferences>().developerMode) }`）。开发者诊断模式设置项文案明确标注「允许沙箱内 Agent 通过 host.shell 请求宿主执行命令（应用层门控，非强隔离边界）」。宿主 bridge 的 `/api/shell` 动作本身与 guest 端点保持原样，仅凭据下发面随门控收紧；细节见 [`SECURITY_SURFACE.md`](SECURITY_SURFACE.md) §4/§7。
 
 **C3 外部分包服务声明**：`PluginPackageSpec` 新增可选 `serviceToolId`。`WebPluginPackagePolicy.validate()` 放行 `webSource ∈ {TOOL_SERVICE, PROOT_SERVICE}` 且要求显式 `serviceToolId`（工具 ID 形状 `[a-z0-9][a-z0-9-]{1,63}`）；其它来源携带该字段、或 PROCESS 包声明来源/引用（`PluginPackageProtocol`）一律拒绝。两类服务来源都要求 `integrity` 为空——页面内容完全由被引用工具自述的本地服务提供，包内不接受地址、凭据、端口、命令或环境；端口、基础路径、启动命令与 Provider 环境在打开时由原生 `ToolManager.serviceSpec/serviceLaunch` 解析。`TOOL_SERVICE` 只读引用已运行服务、绝不自启；`PROOT_SERVICE` 允许页面在打开时启动该工具自述服务并在关闭时只回收本实例（`PackagedWebPluginSources.openService(toolId, allowStart)`，`openToolService` = `allowStart = true`）。来源与所引工具 ID 进入导入预览确认与列表展示，来源占用不可变版本比较（`isCurrent` 比较整份清单）。引用工具未安装或未声明服务时，打开即拒绝。
 
@@ -395,3 +395,7 @@ WEB 包新增可选 `plugin.webSource`：默认 `PACKAGE` 直接读取资源，`
 
 本片本地验收：`test :app:assembleDebug architectureCheck --continue` 通过；新增/更新 `HostCredentialAuthorityTest`（13）、`FullAccessGrantTest`（1）、`WebPluginPackagePolicyTest`（含服务来源用例）、`WebPluginRepositoryTest`（服务来源空载荷导入与来源不可变）、`PluginCapabilitySessionTest`（只读长期授权与写能力上界）全部通过；为守尺寸棘轮把 APK 安装解析抽到 `HostBridgeApkInstall.kt`（`HostBridge.kt` 364 → 310）。全部 fake / MockWebServer，无 API Key 全绿；未做真机验收。
 
+
+## 31. 外部 Harness 与限时确认（2026-10-19）
+
+外部包的受限 `plugin.harness` 声明已接入安装收据目录、MCP stdio 工具、显式选择的 Provider 与逐次确认的工作流节点。发现不启动进程；工具域绑定安装版本，候选升级不改变运行配置。Provider 不继承全局模型 Key，流式调用为缓冲兼容模式。原生确认按系统/包身份/安装版本保存在内存，最长 30 分钟；开发者开关本身不授权，关闭、撤销和超时会立即拒绝旧令牌。详细边界、验证记录见 [PLUGIN_V2_COMPLETION.md](PLUGIN_V2_COMPLETION.md)，包契约见 [PLUGIN_PACKAGE_V2.md](PLUGIN_PACKAGE_V2.md)。

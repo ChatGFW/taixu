@@ -1,6 +1,13 @@
 package top.wkbin.taixu.ui.onboarding
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Surface
+import top.wkbin.taixu.ui.components.RuntimeButton
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,8 +34,6 @@ import top.wkbin.taixu.ui.components.runtimeContentPadding
 
 @Composable
 internal fun OnboardingDisclaimerPage(
-    acknowledged: Boolean,
-    onAcknowledge: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -45,16 +50,34 @@ internal fun OnboardingDisclaimerPage(
             }
         }
         item { RuntimeUsageNoticeContent() }
-        item {
-            Row(
-                Modifier.fillMaxWidth().toggleable(acknowledged, role = Role.Checkbox, onValueChange = onAcknowledge)
-                    .heightIn(min = 48.dp).padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                RuntimeCheckbox(acknowledged, onCheckedChange = null)
-                Text(stringResource(R.string.onboarding_notice_acknowledge),
-                    style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+    }
+}
+
+/** The acknowledgement and primary action stay together outside the scrollable notice. */
+@Composable
+internal fun OnboardingDisclaimerActions(
+    acknowledged: Boolean,
+    onAcknowledge: (Boolean) -> Unit,
+    onContinue: () -> Unit,
+) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Box(Modifier.fillMaxWidth().padding(WindowInsets.navigationBars.asPaddingValues()),
+            contentAlignment = Alignment.Center) {
+            Column(Modifier.widthIn(max = 560.dp).fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().toggleable(acknowledged, role = Role.Checkbox, onValueChange = onAcknowledge)
+                        .heightIn(min = 48.dp).padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    RuntimeCheckbox(acknowledged, onCheckedChange = null)
+                    Text(stringResource(R.string.onboarding_notice_acknowledge),
+                        style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                }
+                RuntimeButton(onClick = onContinue, enabled = acknowledged, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.onboarding_notice_continue), modifier = Modifier.padding(4.dp))
+                }
             }
         }
     }

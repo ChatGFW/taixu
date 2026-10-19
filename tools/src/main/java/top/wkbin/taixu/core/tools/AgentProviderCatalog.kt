@@ -31,10 +31,11 @@ private data class AgentProviderDocument(
 
 class AgentProviderCatalog(
     private val context: Context,
+    private val installed: InstalledPluginCatalog? = null,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    val providers: List<AgentProviderDefinition> by lazy {
+    private val builtInProviders: List<AgentProviderDefinition> by lazy {
         val document = context.assets.open(ASSET_PATH).bufferedReader().use { reader ->
             json.decodeFromString<AgentProviderDocument>(reader.readText())
         }
@@ -55,8 +56,19 @@ class AgentProviderCatalog(
         }
     }
 
+    val providers: List<AgentProviderDefinition> get() = builtInProviders + installed?.current().orEmpty().flatMap { binding ->
+        val spec = binding.manifest.plugin!!
+        spec.harness?.providers.orEmpty().map { provider ->
+            val identity = "plugin.${spec.id}.${provider.id}"
+            AgentProviderDefinition(identity, identity, "https://plugin.invalid", group = ProviderGroup.LOCAL,
+                protocol = if (provider.api == "ANTHROPIC_MESSAGES") ProviderProtocol.ANTHROPIC else ProviderProtocol.OPENAI,
+                recommendedModels = provider.models, apiKeyOptional = true)
+        }
+    }
+
     fun find(id: String): AgentProviderDefinition = providers.firstOrNull { it.id == id }
-        ?: providers.first { it.group == ProviderGroup.CUSTOM }
+        ?: if (id.startsWith("plugin.")) AgentProviderDefinition(id, id, "https://plugin.invalid", group = ProviderGroup.LOCAL, apiKeyOptional = true)
+        else providers.first { it.group == ProviderGroup.CUSTOM }
 
     private companion object {
         const val ASSET_PATH = "agent_providers.json"

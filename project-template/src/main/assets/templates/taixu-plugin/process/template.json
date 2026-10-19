@@ -13,7 +13,7 @@
     { "name": "pluginVersion", "label": "初始版本", "description": "使用主版本.次版本.修订版本，例如 1.0.0", "prompt": true, "defaultValue": "1.0.0", "validationRegex": "^(?=.{1,128}$)(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" }
   ],
   "validation": {
-    "requiredFiles": ["manifest.json", "payload/bin/{{toolId}}", "tools/package_plugin.py", "README.md", "AGENTS.md"],
+    "requiredFiles": ["manifest.json", "payload/bin/{{toolId}}", "payload/lib/plugin_server.py", "tools/package_plugin.py", "README.md", "AGENTS.md"],
     "contentRules": [{ "path": "manifest.json", "contains": ["\"schemaVersion\": 2", "{{pluginId}}"] }]
   }
 }

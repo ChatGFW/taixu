@@ -156,7 +156,7 @@ internal class ProviderModelResolver(
         val baseUrl = this.baseUrl.ifBlank { DEFAULT_BASE_URL }
         val resolvedProtocol = inferProtocol(baseUrl, provider)
         val modelKeys = providerRepository.readModelApiKeys(secretRef)
-        val fallbackKey = providerRepository.readApiKey().orEmpty().ifBlank { null }
+        val fallbackKey = if (provider.startsWith("plugin.")) null else providerRepository.readApiKey().orEmpty().ifBlank { null }
         val effectiveKeys = modelKeys.ifEmpty { listOfNotNull(fallbackKey) }
         return ModelConfig(
             name = name,

@@ -48,6 +48,8 @@ data class McpServerConfig(
      */
     @Transient
     val authToken: String = "",
+    @Transient val pluginIdentity: PluginExecutionIdentity? = null,
+    @Transient val pluginDistribution: String? = null,
     /** 是否启用 */
     val isEnabled: Boolean = true,
     /** 是否为内置预设服务 */

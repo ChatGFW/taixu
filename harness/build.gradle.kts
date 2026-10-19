@@ -12,6 +12,7 @@ android {
 
 dependencies {
     api(project(":plugin:api"))
+    implementation(project(":plugin:packages"))
     api(project(":harness:core"))
     api(project(":core:common"))
     api(project(":core:browser"))

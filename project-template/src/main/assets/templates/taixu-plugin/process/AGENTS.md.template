@@ -11,3 +11,5 @@
 - 不用安装步骤申请 Root 或宿主权限；能力声明不等于授权，也不是恶意代码隔离。
 - 不写自定义卸载脚本；只使用本插件程序/数据目录，显式声明依赖及共享资源。
 - 不调用付费模型 API 作为默认测试；优先离线命令与假服务。
+
+- MCP 示例在 payload/lib/plugin_server.py，运行需目标系统 Python 3；工具、Provider、节点契约在 plugin.harness，扩展列表须一致。默认使用离线 Provider，不继承全局模型 Key。

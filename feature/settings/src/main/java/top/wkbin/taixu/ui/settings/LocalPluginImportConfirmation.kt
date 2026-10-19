@@ -30,6 +30,10 @@ internal fun LocalPluginImportConfirmation(pending: LocalPluginImportState.Pendi
                 manifest.plugin?.let { spec ->
                     Text(spec.id)
                     Text("PROCESS · SDK ${spec.api.minimum}–${spec.api.maximum}")
+                    spec.harness?.let { harness ->
+                        Text(stringResource(R.string.package_harness_extensions, harness.entry, harness.tools.size, harness.providers.size, harness.nodes.size))
+                        if (harness.providers.isNotEmpty()) Text(stringResource(R.string.package_harness_provider_scope))
+                    }
                     if (spec.dependencies.isNotEmpty()) {
                         Text(stringResource(R.string.package_dependencies))
                         spec.dependencies.forEach { Text("${it.id} ≥ ${it.minimumVersion}" + (it.maximumVersionExclusive?.let { upper -> " < $upper" } ?: "")) }

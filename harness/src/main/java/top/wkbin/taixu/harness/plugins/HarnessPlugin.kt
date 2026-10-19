@@ -20,6 +20,8 @@ data class HarnessPlugin(
     val workflows: List<PluginWorkflow> = emptyList(),
     val nodes: List<PluginWorkflowNode> = emptyList(),
     val checkpoints: List<ToolCheckpoint<ToolExecutionRequest, ToolResult>> = emptyList(),
+    /** Stable package identity for workflow lookup; tool domains themselves are version-pinned. */
+    val packageId: String? = null,
 )
 
 data class PluginToolRequest(val arguments: JsonObject, val sessionId: String, val workspace: String, val operationId: String?)

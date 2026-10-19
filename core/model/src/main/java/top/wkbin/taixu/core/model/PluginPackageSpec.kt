@@ -22,6 +22,7 @@ data class PluginPackageSpec(
      * time and never travel in the package. Required for a service source, absent for every other.
      */
     val serviceToolId: String? = null,
+    val harness: PackageHarnessSpec? = null,
 )
 
 @Serializable data class PackageApiRange(val minimum: Int, val maximum: Int)

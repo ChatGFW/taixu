@@ -18,6 +18,7 @@ data class ShellCommand(
     val outputCapture: CommandOutputCapture? = null,
     /** Trusted callers may escalate arbitrary build scripts; this never disables inferred admission. */
     val memoryHeavy: Boolean = false,
+    val pluginIdentity: top.wkbin.taixu.core.model.PluginExecutionIdentity? = null,
 ) {
     companion object {
         const val DEFAULT_TIMEOUT_MS = 30_000L

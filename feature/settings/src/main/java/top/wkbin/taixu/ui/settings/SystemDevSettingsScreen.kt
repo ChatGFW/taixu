@@ -205,22 +205,7 @@ fun SystemDevSettingsScreen(
                 modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
             )
             SettingsGroup {
-                ToggleRow(
-                    icon = RuntimeIconName.Bug,
-                    title = "开发者诊断模式",
-                    subtitle = "开启底层健康监控与调试控制台；同时允许沙箱内 Agent 通过 host.shell 请求宿主执行命令（应用层门控，非强隔离边界）",
-                    checked = developer,
-                    change = { arg0 -> viewModel?.setDeveloperMode(arg0) },
-                )
-                if (developer) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    SettingsRow(
-                        icon = RuntimeIconName.Terminal,
-                        title = "开发者控制台",
-                        subtitle = "实时查看 PRoot 进程与命令追踪",
-                        onClick = onOpenDeveloper,
-                    )
-                }
+                DeveloperAccessSettings(developer, { viewModel?.setDeveloperMode(it) }, onOpenDeveloper, hostControls = viewModel != null)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 ToggleRow(
                     icon = RuntimeIconName.Cpu,

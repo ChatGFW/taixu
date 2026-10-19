@@ -24,6 +24,7 @@ data class SessionConfig(
     val showBanner: Boolean = false,
     /** Protocol subprocesses use pipes; terminal sessions keep PTY semantics. */
     val usePty: Boolean = true,
+    val pluginIdentity: top.wkbin.taixu.core.model.PluginExecutionIdentity? = null,
 )
 
 interface LinuxSession {

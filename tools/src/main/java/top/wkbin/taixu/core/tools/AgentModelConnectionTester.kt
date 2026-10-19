@@ -7,7 +7,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
-class AgentModelConnectionTester(private val http: OkHttpClient) {
+class AgentModelConnectionTester(private val http: OkHttpClient, private val external: ExternalProviderProbe? = null) {
     suspend fun test(
         baseUrl: String,
         model: String,
@@ -16,6 +16,11 @@ class AgentModelConnectionTester(private val http: OkHttpClient) {
         protocol: ProviderProtocol = ProviderProtocol.OPENAI,
         providerName: String? = null,
     ) = withContext(Dispatchers.IO) {
+        if (providerName?.startsWith("plugin.") == true) {
+            require(apiKey.isNullOrBlank()) { "外部 Provider 请在插件内配置凭据" }
+            requireNotNull(external) { "外部 Provider 尚未接入" }.test(providerName, model.ifBlank { "plugin-default" })
+            return@withContext
+        }
         val cleanBaseUrl = ProviderEndpointPolicy.normalizeUrl(baseUrl)
         require(cleanBaseUrl.isNotBlank() && ProviderEndpointPolicy.isSafeBaseUrl(cleanBaseUrl)) { "Base URL 不安全或为空" }
         val isAnthropic = protocol == ProviderProtocol.ANTHROPIC ||

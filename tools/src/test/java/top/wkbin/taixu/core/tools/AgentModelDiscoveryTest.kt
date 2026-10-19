@@ -12,6 +12,23 @@ import org.junit.Before
 import org.junit.Test
 
 class AgentModelDiscoveryTest {
+    @Test fun `external models come from package metadata without HTTP`() = runBlocking {
+        val external = provider().copy(id = "plugin.example.offline", name = "plugin.example.offline", recommendedModels = listOf("offline-model"))
+        assertEquals(listOf("offline-model"), discovery().discover(external, server.url("/v1").toString(), null))
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test fun `external connection tests use the installed adapter and reject host keys`() = runBlocking {
+        var calls = 0
+        val tester = AgentModelConnectionTester(OkHttpClient(), ExternalProviderProbe { provider, model ->
+            assertEquals("plugin.example.offline", provider); assertEquals("plugin-default", model); calls++
+        })
+        tester.test(server.url("/v1").toString(), "", null, providerName = "plugin.example.offline")
+        assertEquals(1, calls)
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { tester.test(server.url("/v1").toString(), "", "secret", providerName = "plugin.example.offline") } }
+        assertEquals(1, calls)
+        assertEquals(0, server.requestCount)
+    }
     private lateinit var server: MockWebServer
 
     @Before
