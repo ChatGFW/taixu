@@ -22,7 +22,7 @@ import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.repository.*
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
-import top.wkbin.taixu.harness.subagent.SubagentLaneResult
+import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -76,7 +76,7 @@ class BotManagementExecutionTest {
         val assignment = newAssignment(bots.getBot("member")!!, groups.getGroup("group"), "implement", emptyList())
         val reported = CompletableDeferred<Unit>()
         val proceed = CompletableDeferred<Unit>()
-        launchBotAssignment(tracker, assignment, { proceed.await(); SubagentLaneResult(true, "done", 3) }) { _, wake ->
+        launchBotAssignment(tracker, assignment, { proceed.await(); GroupTurnOutcome("done", failed = false) }) { _, wake ->
             assertEquals(BotAssignmentStatus.COMPLETED, tracker.get(assignment.id)?.status)
             assertTrue(tracker.active.value.isEmpty())
             assertTrue(wake)
@@ -115,7 +115,7 @@ class BotManagementExecutionTest {
         val assignment = newAssignment(bots.getBot("member")!!, groups.getGroup("group"), "implement", emptyList())
         val notifying = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
-        launchBotAssignment(tracker, assignment, { SubagentLaneResult(true, "done", 1) }) { _, _ ->
+        launchBotAssignment(tracker, assignment, { GroupTurnOutcome("done", failed = false) }) { _, _ ->
             notifying.complete(Unit)
             release.await()
         }
