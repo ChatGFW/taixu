@@ -28,21 +28,27 @@ data class PluginCapabilityResult(val id: String, val success: Boolean, val text
 /**
  * Per-document application-layer gate, independent of the shared HostBridge key.
  * Grants expire, are exact action/target matches, and never survive a new document or process.
- * Executors must cooperate with cancellation; revocation cannot undo an existing side effect.
+ * Read-only capabilities may cache a longer session grant; state-changing ones stay short-lived or
+ * one-shot. Nothing is persisted, and any generation switch re-asks. Executors must cooperate with
+ * cancellation; revocation cannot undo an existing side effect.
  */
 class PluginCapabilitySession(
     val identity: PluginCapabilityIdentity,
     executors: Map<PluginCapability, suspend (PluginCapabilityCall) -> String>,
     private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
     private val grantLifetimeMillis: Long = 300_000,
+    private val longLivedGrantMillis: Long = 1_800_000,
     private val approvalTimeoutMillis: Long = 60_000,
     private val executionTimeoutMillis: Long = 10_000,
     private val isAvailable: () -> Boolean = { true },
     oneShotCapabilities: Set<PluginCapability> = emptySet(),
+    longLivedCapabilities: Set<PluginCapability> = emptySet(),
 ) : AutoCloseable {
     private val monitor = Any()
     private val executors = executors.toMap()
-    private val oneShotCapabilities = oneShotCapabilities.toSet() + PluginCapabilityInput.CLIPBOARD_WRITE
+    private val oneShotCapabilities = oneShotCapabilities.toSet() + PluginCapabilityInput.ONE_SHOT
+    // Only read-only actions may hold a longer grant; a one-shot action can never gain one by naming it.
+    private val longLivedCapabilities = longLivedCapabilities - PluginCapabilityInput.ONE_SHOT
     private val grants = mutableMapOf<PluginCapability, Long>()
     private val seen = mutableSetOf<String>()
     private val jobs = mutableSetOf<Job>()
@@ -55,7 +61,8 @@ class PluginCapabilitySession(
     val grantCount = mutableGrantCount.asStateFlow()
 
     init {
-        require(grantLifetimeMillis in 1..300_000 && approvalTimeoutMillis in 1..60_000 && executionTimeoutMillis in 1..30_000)
+        require(grantLifetimeMillis in 1..300_000 && longLivedGrantMillis in grantLifetimeMillis..3_600_000 &&
+            approvalTimeoutMillis in 1..60_000 && executionTimeoutMillis in 1..30_000)
         require(identity.pluginId.isNotBlank() && identity.version.isNotBlank() && identity.environment.isNotBlank())
     }
 
@@ -98,7 +105,8 @@ class PluginCapabilitySession(
                     if (choice == null || choice == PluginGrantChoice.DENY) return@coroutineScope denied("permission_denied")
                     if (choice == PluginGrantChoice.SESSION && call.capability in oneShotCapabilities) return@coroutineScope denied("permission_denied")
                     if (choice == PluginGrantChoice.SESSION) {
-                        grants[call.capability] = nowMillis() + grantLifetimeMillis
+                        val lifetime = if (call.capability in longLivedCapabilities) longLivedGrantMillis else grantLifetimeMillis
+                        grants[call.capability] = nowMillis() + lifetime
                         mutableGrantCount.value = grants.size
                     }
                 }

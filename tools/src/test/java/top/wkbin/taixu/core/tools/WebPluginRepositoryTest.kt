@@ -91,6 +91,18 @@ class WebPluginRepositoryTest {
         assertArrayEquals(content.getValue("index.html"), fixture.repository.snapshot(expected)["index.html"])
     }
 
+    @Test fun serviceSourcePackageImportsWithoutPayloadAndSourceDeclarationIsImmutable() = runBlocking {
+        val fixture = fixture()
+        val expected = manifest(content = emptyMap()).let { it.copy(plugin = it.plugin!!.copy(webSource = "PROOT_SERVICE", serviceToolId = "web-tool")) }
+        val uri = archive(expected, emptyMap())
+        assertEquals(expected, fixture.repository.preview(uri).manifest)
+        fixture.repository.import(uri, expected)
+        assertTrue(fixture.repository.snapshot(expected).isEmpty())
+        val moved = expected.copy(plugin = expected.plugin!!.copy(serviceToolId = "other-tool"))
+        reject { fixture.repository.import(archive(moved, emptyMap()), moved) }
+        assertTrue(fixture.repository.isCurrent(expected))
+    }
+
     @Test fun prootPreviewVerifiesFullArchiveAndCleansUpOnHashFailure() = runBlocking {
         val fixture = fixture()
         val expected = manifest().let { it.copy(plugin = it.plugin!!.copy(webSource = "PROOT_STATIC")) }

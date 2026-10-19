@@ -46,6 +46,49 @@ class WebPluginPackagePolicyTest {
             assertThrows(IllegalArgumentException::class.java) { PluginPackageProtocol.validate(web.copy(plugin = spec.copy(capabilities = listOf(it)))) }
         }
     }
+    @Test fun structuredHostActionsAreAdmittedOnlyWithTheirExactTargets() {
+        val web = web()
+        val spec = web.plugin!!
+        PluginPackageProtocol.validate(web.copy(plugin = spec.copy(capabilities = listOf(
+            WebPluginPackagePolicy.APP_INFO, WebPluginPackagePolicy.CLIPBOARD_WRITE,
+            WebPluginPackagePolicy.INSTALL_APK, WebPluginPackagePolicy.LOGCAT,
+        ))))
+        listOf(
+            PackageCapability("INSTALL_APK", "*"), PackageCapability("INSTALL_APK", "application"),
+            PackageCapability("LOGCAT", "clipboard"), PackageCapability("LOGCAT", "*"),
+            PackageCapability("SHELL", "*"),
+        ).forEach {
+            assertThrows(IllegalArgumentException::class.java) {
+                PluginPackageProtocol.validate(web.copy(plugin = spec.copy(capabilities = listOf(it))))
+            }
+        }
+    }
+
+    @Test fun serviceSourcesReferenceExactlyOneInstalledToolIdAndCarryNoPayload() {
+        val bare = web().let { it.copy(plugin = it.plugin!!.copy(integrity = emptyMap())) }
+        listOf("TOOL_SERVICE", "PROOT_SERVICE").forEach { source ->
+            PluginPackageProtocol.validate(bare.copy(plugin = bare.plugin!!.copy(webSource = source, serviceToolId = "web-tool")))
+        }
+        val spec = bare.plugin!!
+        listOf(
+            spec.copy(webSource = "TOOL_SERVICE"),
+            spec.copy(webSource = "PROOT_SERVICE", serviceToolId = "Bad_Id"),
+            spec.copy(webSource = "PROOT_SERVICE", serviceToolId = ""),
+            spec.copy(webSource = "PROOT_SERVICE", serviceToolId = "web-tool", integrity = mapOf("index.html" to "a".repeat(64))),
+        ).forEach { candidate ->
+            assertThrows(IllegalArgumentException::class.java) { PluginPackageProtocol.validate(bare.copy(plugin = candidate)) }
+        }
+        val plain = web().plugin!!
+        listOf(
+            plain.copy(serviceToolId = "web-tool"),
+            plain.copy(webSource = "PROOT_STATIC", serviceToolId = "web-tool"),
+        ).forEach { candidate ->
+            assertThrows(IllegalArgumentException::class.java) { PluginPackageProtocol.validate(web().copy(plugin = candidate)) }
+        }
+        val process = bare.copy(plugin = bare.plugin!!.copy(execution = "PROCESS", extensions = emptyList(), capabilities = emptyList(), serviceToolId = "web-tool"))
+        assertThrows(IllegalArgumentException::class.java) { PluginPackageProtocol.validate(process) }
+    }
+
     private fun web() = ToolManifest(schemaVersion = 2, id = "web-example", name = "Example", description = "Static", version = "1.0.0",
         source = "LOCAL", offlineOnly = true, installMethod = "LOCAL_PACKAGE",
         plugin = PluginPackageSpec("example.web", PackageApiRange(1, 1), "WEB", extensions = listOf(PackageExtension("main", "PAGE")),

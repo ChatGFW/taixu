@@ -37,14 +37,30 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
     }
     val policy = remember(plugin, request.activation) { WebPluginPolicy() }
     val source = remember(plugin, request.activation, policy) { java.util.concurrent.atomic.AtomicReference<WebPluginAssetLease?>(null) }
+    val bridge = remember(plugin, request.activation, policy) { WebPluginStreamBridge() }
+    val streamCapabilities = remember(plugin) { plugin.capabilities.filter { it.stream != null }.map { it.capability }.toSet() }
     val session = remember(plugin, context, request.activation, policy) {
         val identity = PluginCapabilityIdentity(plugin.id, plugin.version, request.activation?.generation ?: 0,
             policy.origin, "android:local")
         PluginCapabilitySession(
             identity,
-            plugin.capabilities.associate { capability -> capability.capability to suspend { call: PluginCapabilityCall -> capability.execute(context, identity, call) } },
+            plugin.capabilities.associate { capability ->
+                capability.capability to suspend { call: PluginCapabilityCall ->
+                    // A stream is still one ordinary single-shot call: chunks go back over the same
+                    // request id and the final envelope marks the end, so the session keeps one
+                    // in-flight call per document and revocation cancels the producer.
+                    val stream = capability.stream
+                    if (stream == null) capability.execute!!.invoke(context, identity, call) else {
+                        stream.invoke(context, identity, call) { chunk ->
+                            withContext(Dispatchers.Main) { bridge.push(chunk) }
+                        }
+                        ""
+                    }
+                }
+            },
             isAvailable = { plugin.isAvailable() && source.get()?.isAvailable == true && request.activation?.let { it.pluginId == plugin.id && it.isAccepting } == true },
             oneShotCapabilities = plugin.capabilities.filter { !it.allowSession }.map { it.capability }.toSet(),
+            longLivedCapabilities = plugin.capabilities.filter { it.allowSession }.map { it.capability }.toSet(),
         )
     }
     val prompt by session.prompt.collectAsState()
@@ -62,7 +78,7 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
                 val lease = owner!!.open { plugin.openSource?.invoke(context) ?: WebPluginAssetLease(plugin.loadAssets(context)) }
                 source.set(lease)
                 val assets = lease.loadAssets() + ("theme.css" to themeCss.toByteArray(Charsets.UTF_8))
-                value = Result.success(WebPluginResources(policy, assets))
+                value = Result.success(WebPluginResources(policy, assets, lease::resolveAsset))
             }
             while (plugin.isAvailable() && source.get()?.isAvailable == true && activation.isAccepting) delay(250)
             session.close()
@@ -81,7 +97,7 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
     }
     var view by remember(session) { mutableStateOf<WebPluginView?>(null) }
     DisposableEffect(session) {
-        onDispose { session.close(); view?.dispose(); view = null }
+        onDispose { bridge.close(); session.close(); view?.dispose(); view = null }
     }
     Scaffold(topBar = { RuntimeTopBar(plugin.title(), request.onBack) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -102,7 +118,8 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
                 AndroidView(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     factory = { androidContext ->
-                        WebPluginView(androidContext, policy, session, scope, resources!!.getOrThrow()).also { view = it }
+                        WebPluginView(androidContext, policy, session, scope, resources!!.getOrThrow(), bridge, streamCapabilities)
+                            .also { view = it }
                     },
                     onRelease = { it.dispose() },
                 )
@@ -117,7 +134,12 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(capability.description())
-                    pending.call.text?.let { text -> Text(stringResource(R.string.ui_web_plugin_text_preview, PluginCapabilityInput.preview(text))) }
+                    pending.call.text?.let { text ->
+                        val preview = if (pending.call.capability.action in PluginCapabilityInput.SERVICE_ACTIONS) {
+                            R.string.ui_web_plugin_service_preview
+                        } else R.string.ui_web_plugin_text_preview
+                        Text(stringResource(preview, PluginCapabilityInput.preview(text)))
+                    }
                     Text("${pending.identity.pluginId} · ${pending.identity.version}\n${pending.call.capability.action}\n${pending.call.capability.target}\n${pending.identity.environment}")
                 }
             },

@@ -82,11 +82,11 @@ v2 使用严格 SemVer，含预发布优先级，build metadata 不影响排序�
 
 使用同一 ZIP 格式、严格 v2 字段、API/SemVer、身份冲突和 SHA-256 规则，`plugin.execution` 为 `WEB`，扩展必须恰好为 `[{"id":"main","point":"PAGE"}]`。固定入口是 `payload/index.html`；最多 63 个普通文件，合计 2 MiB，每个路径最多 256 字符、16 段，只接受普通 ASCII 文件名与目录，不允许查询串、百分号编码或宿主保留的根 `theme.css`。归档本身最多 129 个条目、解压合计最多 3 MiB（含 1 MiB 清单）；流式预览同样有界。声明与实际 payload 文件集合及哈希必须完全一致。
 
-WEB 不接受安装/卸载步骤、启动/验证命令、命令入口、环境变量、运行时依赖、进程服务、旧 `permissions`、插件依赖和全局资源。当前能力白名单为 `{"name":"APP_INFO","target":"application"}` 与 `{"name":"CLIPBOARD_WRITE","target":"clipboard"}`，可为空或各声明一次；分别映射到 `host.app-info` 与 `host.clipboard-write`。读取需原生授权；剪贴板写入每次展示并确认具体文本，不能持续授权或读取原剪贴板。NETWORK、Shell、工作区/文件权限以及任意回调声明均拒绝。
+WEB 不接受安装/卸载步骤、启动/验证命令、命令入口、环境变量、运行时依赖、进程服务、旧 `permissions`、插件依赖和全局资源。当前能力白名单为 `{"name":"APP_INFO","target":"application"}`、`{"name":"CLIPBOARD_WRITE","target":"clipboard"}`、`{"name":"INSTALL_APK","target":"apk"}` 与 `{"name":"LOGCAT","target":"logcat"}`，可为空或各声明一次；分别映射到 `host.app-info`、`host.clipboard-write`、`host.install-apk`（安装包内/沙箱根下的 APK）与 `host.logcat`（有界日志）。读取需原生授权；剪贴板写入与安装 APK 每次展示并逐次确认，不能持续授权；`install-apk` 的路径只做形状校验，由原生再核对沙箱根并自行解析真实文件。NETWORK、Shell、工作区/文件权限以及任意回调声明均拒绝。
 
 导入只提交静态文件与原子当前版本指针，不执行页面、安装脚本或模型请求，不授予能力。打开时检查路由中的工具 ID、插件身份、版本与当前版本一致，再读取并重验全部文件；WebView 只接收有界字节快照。升级必须递增 SemVer，只有 build metadata 不同的同优先级版本不能代替升级；同版本不覆盖。升级或移除关闭旧版本准入，原页面不能继承新版本授权；失败导入保留原版本。移除删除确认时的该包全部导入版本，不跟随符号链接，不影响其它插件和全局路径。
 
-完整示例、消息协议和权限边界见 [`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md)。共享 HostBridge 的旧 key 不因此迁移；PRoot 与同 uid 的风险保持原有边界。
+完整示例、消息协议和权限边界见 [`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md)。共享 HostBridge 的旧 key 已迁移到宿主签发凭据（见 [`PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md) 第 26 节）；PRoot 与同 uid 的风险保持原有边界。
 
 ### 可选 PRoot 静态来源
 
@@ -94,4 +94,8 @@ WEB 的 `plugin.webSource` 省略时为 `PACKAGE`，直接打开已验证资源�
 
 `PROOT_STATIC` 不开放启动命令、端口、URL、环境变量或包提供的 Python 程序，原 WEB 白名单与静态 CSP 不变。导入不要求 Linux、不运行进程，也不生成 PROCESS 收据；打开时重新验证选中版本的全部字节，准备资源租约，再在当时已就绪的本地发行版启动独立实例。需要 `/usr/bin/python3`，不自动安装。PRoot 包预览会完整验证文件集合、哈希与 4 KiB 启动容量，导入提交前复核，超限包不会切换当前版本。缺失依赖、切换环境或打开时哈希错误会拒绝加载；页面退出、升级及移除回收其实际实例，失败保留清理记录。
 
-生成示例：`tools/package-web-example.ps1 -Proot`（应用信息）或同时指定 `-Clipboard -Proot`（逐次确认复制）。该模式仍仅用于小型静态资源快照，不支持外部 PROCESS 服务、动态 API 或 WebSocket。完整边界见 [Web 契约](PLUGIN_WEB_EXTENSIONS.md)。
+生成示例：`tools/package-web-example.ps1 -Proot`（应用信息）或同时指定 `-Clipboard -Proot`（逐次确认复制）。该模式仍仅用于小型静态资源快照，不支持动态 API 或 WebSocket。完整边界见 [Web 契约](PLUGIN_WEB_EXTENSIONS.md)。
+
+### 可选工具服务来源（TOOL_SERVICE / PROOT_SERVICE）
+
+WEB 的 `plugin.webSource` 还可声明 `TOOL_SERVICE` 或 `PROOT_SERVICE`，并必须同时给出 `serviceToolId`（一个已安装 PROCESS 工具的小写 ID，形状 `[a-z0-9][a-z0-9-]{1,63}`）；其它来源携带该字段一律拒绝，PROCESS 也不能声明服务来源或引用。两类服务来源都要求 `integrity` 为空——页面内容全部由被引用工具自述的本地服务提供，包内不接受地址、凭据、端口、命令或环境，端口、基础路径、启动命令与 Provider 环境在打开时由原生解析（`ToolManager.serviceSpec/serviceLaunch`）。`TOOL_SERVICE` 只读引用已运行的服务（绝不自启），`PROOT_SERVICE` 允许页面在打开时启动该工具自述的服务并在关闭时只回收本实例。来源声明纳入预览确认与不可变版本比较；引用工具必须已安装且声明服务，否则打开时拒绝，不进入 Linux 安装、配方或收据。

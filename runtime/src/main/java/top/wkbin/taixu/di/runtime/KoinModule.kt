@@ -19,7 +19,10 @@ import top.wkbin.taixu.runtime.StorageManager
 import top.wkbin.taixu.runtime.WorkspaceFileService
 import top.wkbin.taixu.runtime.WorkspaceManager
 import top.wkbin.taixu.runtime.apps.AndroidAppManager
+import top.wkbin.taixu.runtime.bridge.FullAccessGrant
 import top.wkbin.taixu.runtime.bridge.HostBridge
+import top.wkbin.taixu.runtime.bridge.HostCredentialAuthority
+import top.wkbin.taixu.runtime.bridge.SandboxCredentialStore
 import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
 import top.wkbin.taixu.runtime.build.WorkshopSigningManager
 import top.wkbin.taixu.runtime.build.WorkspaceBuildRunner
@@ -67,10 +70,22 @@ val runtimeModule = module {
     single<DistroConfigurator> {
         DistroConfigurator(
             pathManager = get(),
-            hostBridge = get(),
             assetSynchronizer = get(),
             logger = get(),
         )
+    }
+
+    /** 宿主凭据权威：插件宿主调用与沙箱凭据共用同一签发/校验路径，禁用旧共享密钥。 */
+    single<HostCredentialAuthority> { HostCredentialAuthority() }
+
+    /** 开发者全权授权：把持久的开发者模式偏好映射为沙箱凭据动作集（默认不含 host.shell）。 */
+    single<FullAccessGrant> {
+        FullAccessGrant(developerMode = get<top.wkbin.taixu.core.datastore.AppearancePreferences>().developerMode)
+    }
+
+    single<SandboxCredentialStore> {
+        val grant = get<FullAccessGrant>()
+        SandboxCredentialStore(authority = get(), grantedActions = grant::actions)
     }
 
     single<ElfInspector> { ElfInspector() }
@@ -101,6 +116,7 @@ val runtimeModule = module {
             settingsDataStore = get(),
             storageMountBindingRepository = get(),
             hostBridge = get(),
+            sandboxCredentials = get(),
             distroConfigurator = get(),
             logger = get(),
         )
@@ -172,6 +188,7 @@ val runtimeModule = module {
             privilegeManager = get(),
             embeddedAdbManager = get(),
             pathManager = get(),
+            credentialAuthority = get(),
         )
     }
 
@@ -301,7 +318,9 @@ val runtimeModule = module {
 
     single<LocalServiceLauncherImpl> { LocalServiceLauncherImpl(linuxRuntime = get()) }
 
-    single<ProcessRegistryImpl> { ProcessRegistryImpl(pathManager = get(), prootCommandBuilder = get()) }
+    single<ProcessRegistryImpl> {
+        ProcessRegistryImpl(pathManager = get(), prootCommandBuilder = get(), sandboxCredentials = get())
+    }
 
     single<ProcessShellExecutor> { ProcessShellExecutor(pathManager = get()) }
 

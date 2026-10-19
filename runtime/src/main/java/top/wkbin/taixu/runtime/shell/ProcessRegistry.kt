@@ -2,6 +2,7 @@ package top.wkbin.taixu.runtime.shell
 
 import top.wkbin.taixu.core.model.StorageMountBinding
 import top.wkbin.taixu.runtime.RuntimePathManager
+import top.wkbin.taixu.runtime.bridge.SandboxCredentialStore
 import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
@@ -69,7 +70,11 @@ class ProcessRegistryImpl internal constructor(
     private val sessionFactory: RegistrySessionFactory,
     private val scope: CoroutineScope,
 ) : ProcessRegistry {
-    constructor(pathManager: RuntimePathManager, prootCommandBuilder: ProotCommandBuilder) : this(
+    constructor(
+        pathManager: RuntimePathManager,
+        prootCommandBuilder: ProotCommandBuilder,
+        sandboxCredentials: SandboxCredentialStore? = null,
+    ) : this(
         RegistrySessionFactory { command, distroId, mounts ->
             val safeDistro = distroId?.lowercase()?.trim()?.takeIf { it.isNotBlank() }
                 ?: pathManager.listInstalledDistroIds().firstOrNull() ?: "ubuntu"
@@ -84,6 +89,7 @@ class ProcessRegistryImpl internal constructor(
                     attachmentsDir = pathManager.attachmentsDir,
                     command = command,
                     mounts = mounts,
+                    hostCredential = sandboxCredentials?.environment(safeDistro).orEmpty(),
                 ),
                 hostEnvironment = pathManager.hostProcessEnvironment(safeDistro),
             )

@@ -49,4 +49,12 @@ internal object WebPluginMessages {
         put("success", result.success)
         put("text", result.text)
     }.toString()
+
+    /** Incremental chunk of a live-service stream; the final envelope keeps `more` absent/false. */
+    fun encodeChunk(id: String, text: String): String = buildJsonObject {
+        put("id", id)
+        put("success", true)
+        put("text", text)
+        put("more", true)
+    }.toString()
 }

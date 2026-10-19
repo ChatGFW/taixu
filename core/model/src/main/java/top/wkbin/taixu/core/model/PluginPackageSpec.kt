@@ -16,6 +16,12 @@ data class PluginPackageSpec(
     val integrity: Map<String, String> = emptyMap(),
     /** WEB assets are read directly by default; PROOT_STATIC selects a fixed host-owned server. */
     val webSource: String = "PACKAGE",
+    /**
+     * Service page sources name one installed PROCESS tool whose own local service serves the page.
+     * Only the tool id is accepted; port, path, command and environment are resolved natively at open
+     * time and never travel in the package. Required for a service source, absent for every other.
+     */
+    val serviceToolId: String? = null,
 )
 
 @Serializable data class PackageApiRange(val minimum: Int, val maximum: Int)

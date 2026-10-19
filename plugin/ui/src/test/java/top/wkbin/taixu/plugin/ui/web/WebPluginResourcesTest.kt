@@ -35,6 +35,20 @@ class WebPluginResourcesTest {
         }
     }
 
+    @Test fun aLiveIndexedSourceOnlyAnswersThroughItsHostResolver() {
+        val requested = mutableListOf<String>()
+        val resources = WebPluginResources(policy, mapOf("index.html" to "entry".toByteArray())) { path ->
+            requested += path
+            if (path == "plugin.js") "live".toByteArray() else null
+        }
+        assertEquals(200, resources.response("${policy.origin}/plugin.js", "GET").statusCode)
+        assertEquals(200, resources.response("${policy.origin}/index.html", "GET").statusCode)
+        assertEquals(403, resources.response("${policy.origin}/missing.png", "GET").statusCode)
+        assertEquals(403, resources.response("${policy.origin}/plugin.js", "POST").statusCode)
+        assertEquals(403, resources.response("http://127.0.0.1:7980/api/health", "GET").statusCode)
+        assertEquals(listOf("plugin.js", "missing.png"), requested)
+    }
+
     @Test fun hostThemeHasItsOwnBoundedAllowanceAtThePayloadLimit() {
         val resources = WebPluginResources(policy, mapOf("index.html" to ByteArray(2 * 1024 * 1024), "theme.css" to ByteArray(4096)))
         assertEquals(200, resources.response("${policy.origin}/index.html", "GET").statusCode)

@@ -22,7 +22,7 @@ import top.wkbin.taixu.ui.settings.LocalBackupViewModel
 
 /** Dependency registrations owned by the feature:settings module. */
 val featureSettingsModule = module {
-    single { top.wkbin.taixu.ui.settings.PackagedWebPluginSources(get(), get(), get()) }
+    single { top.wkbin.taixu.ui.settings.PackagedWebPluginSources(get(), get(), get(), get()) }
     viewModel { top.wkbin.taixu.ui.settings.WebPluginsViewModel(repository = get()) }
     viewModel { top.wkbin.taixu.ui.settings.ThemePaletteViewModel(get()) }
     viewModel { top.wkbin.taixu.ui.settings.ChatBackgroundSettingsViewModel(get(), get()) }

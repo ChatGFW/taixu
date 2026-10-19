@@ -76,7 +76,7 @@
 | tmp 目录 | `/tmp` | App 私有 |
 | workspace 目录 | `/workspace` | Agent 工作区 |
 | home 目录 | `/root` | guest HOME |
-| opt 目录（含 `.bridge-key`、`bin/taixu-host`、`bin/taixu-android-exec`） | `/opt/taixu` | 桥接脚本与 API 密钥 |
+| opt 目录（含 `bin/taixu-host`、`bin/taixu-android-exec`） | `/opt/taixu` | 桥接脚本；**不含任何密钥文件**，凭据由宿主经环境注入 |
 | attachments 目录 | `/attachments` | 会话附件 |
 | link2symlink 后备存储 | 同名绝对路径 | `rootfs/.l2s` 硬链接代理 |
 | 用户配置存储挂载 | `/sdcard/*` 等自定义 guest 路径 | `StorageMountBinding.validationError` 校验 + `require` 硬门槛，DB 被篡改也不放行越界绑定（`ProotCommandBuilder.kt:236-255`） |
@@ -88,17 +88,19 @@
 
 ## 4. HostBridge（127.0.0.1:7980）
 
-| 端点 | 认证 | 动作 | 暴露面 |
-| --- | --- | --- | --- |
-| `GET /api/health` | **免认证** | 特权模式、Shizuku/Root/ADB 可用性、ADB 端口 | localhost 内信息泄露（低危）：沙箱内任意进程可探测权限状态 |
-| `POST /api/install-apk` | Bearer | 解析路径 → 无线 ADB 静默安装 / 系统安装器 | 持 key 即可安装任意可达的 APK |
-| `POST /api/shell` | Bearer | Shizuku/Root 优先，否则无线 ADB | **持 key = 在宿主执行任意 shell（shell uid 或 root）** |
-| `POST /api/logcat` | Bearer | 抓取 / 清除日志 | 日志可能含其他应用的敏感信息 |
+| 端点 | 认证 | 绑定动作 | 动作 | 暴露面 |
+| --- | --- | --- | --- | --- |
+| `GET /api/health` | **免认证** | — | 特权模式、Shizuku/Root/ADB 可用性、ADB 端口 | localhost 内信息泄露（低危）：沙箱内任意进程可探测权限状态 |
+| `POST /api/install-apk` | 宿主凭据 | `host.install-apk` | 解析路径 → 无线 ADB 静默安装 / 系统安装器 | 持有该动作绑定的凭据即可安装任意可达的 APK |
+| `POST /api/shell` | 宿主凭据 | `host.shell` | Shizuku/Root 优先，否则无线 ADB | **持 `host.shell` 绑定 = 在宿主执行任意 shell（shell uid 或 root）**；该动作默认不下发，仅开发者全权模式签发 |
+| `POST /api/logcat` | 宿主凭据 | `host.logcat` | 抓取 / 清除日志 | 日志可能含其他应用的敏感信息 |
 
-- 密钥：`HostBridge` 构造时生成 UUID，写入沙箱 `/opt/taixu/.bridge-key`（`DistroConfigurator.installHostBridgeScripts`），每次配置刷新以保证与 App 重启后同步。
-- **信任模型必须写明**：key 放在沙箱可读位置，等于设计上把「沙箱内代码」视为可触发宿主特权动作的半信任方。被攻陷的沙箱内容物拿到 key 后即可在宿主侧执行 shell（受当时生效的 Shizuku/Root/ADB 状态限制）。这是功能需要而非疏漏；**「在沙箱内运行不受信代码」的场景必须先切换到 PRoot 模式或收紧桥接授权**。
-- `resolveSandboxPath` 兜底分支（`HostBridge.kt:398-425`）：路径非 `/sdcard`、`/workspace`、`/attachments` 前缀时先在工作区试一次，否则**原样返回宿主绝对路径**——`install-apk` 因此可读取任意宿主路径下的 `.apk`（有后缀校验，无目录白名单）；另有工作区全树按文件名的模糊兜底扫描（maxDepth 8）。
-- 日志只记录路径与结果，不记录 key（`HostBridge.kt` 各 `logger.i`）。
+- 凭据：由 `HostCredentialAuthority` 统一签发，唯一校验路径为 `authorize(token, 所需动作)`；HTTP 面**没有**签发/续期端点，磁盘上**不再有** `.bridge-key`。
+- 沙箱注入：`SandboxCredentialStore` 按发行版签发一枚 8 小时、可复用、可撤销的凭据，经 `ProotCommandBuilder.build()/buildInteractive()` 的 `hostCredential` 参数在 Provider 环境**之后**叠加导出（`TAIXU_BRIDGE_TOKEN` / `TAIXU_BRIDGE_ACTIONS`，凭据覆盖 Provider 同名键）。发行版卸载/重置调 `revoke(distroId)`，`HostBridge.stop()` 调 `revokeAll()` 推进代次，缓存层随后自愈。默认动作集 `SANDBOX_ACTIONS` 仅含 `host.install-apk` / `host.logcat`；开发者全权模式开启时由 `FullAccessGrant` 升为加上 `host.shell` 的 `FULL_ACCESS_ACTIONS`，关闭后动作集变化触发下次签发自动降权。
+- 端点按绑定动作放行：未知路径也先要求"持有有效凭据"再返回 404；写入端点不再接受沙箱传入的自由 `port`，端口固定由内置无线 ADB 管理器持有。旧版无凭据的 `taixu-host` / 硬编码 `.bridge-key` 的脚本一律 401，需重启终端会话刷新凭据（无兼容窗口）。
+- **信任模型必须写明**：PRoot guest 仍以 App uid 运行，凭据可被沙箱内任意进程读取，所以沙箱内容物依旧是「可触发宿主特权动作的半信任方」。本机制是**应用层代理门控**（短寿命、收敛动作、可撤销、跨进程共用同一权威），**不是**对同 uid 恶意代码的强隔离；`host.shell` 已收紧为开发者全权授权：默认不下发，仅持久开发者模式开启时经 `FullAccessGrant` 升权，关闭后下次签发即降权（见 §7 待办 #8）。
+- `resolveSandboxPath` 兜底分支（`HostBridgeApkInstall.kt:110-138`）：路径非 `/sdcard`、`/workspace`、`/attachments` 前缀时先在工作区试一次，否则**原样返回宿主绝对路径**——`install-apk` 因此可读取任意宿主路径下的 `.apk`（有后缀校验，无目录白名单）；另有工作区全树按文件名的模糊兜底扫描（maxDepth 8）。该逻辑已从 `HostBridge.kt` 抽出到 `HostBridgeApkInstall`（guest 端点与插件网关共用同一实例）。
+- 日志只记录路径与结果，不记录凭据（`HostBridge.kt` 各 `logger.i`）。
 
 ## 5. 工具审批与特权执行链
 
@@ -147,9 +149,10 @@
 | 2 | `/api/health` 免认证返回特权状态 | 低 | localhost 限制下可接受；如需收紧可复用 Bearer |
 | 3 | `resolveSandboxPath` 兜底允许任意宿主绝对路径（限 `.apk`） | 低-中 | 记录在案；如需收紧可加目录白名单 |
 | 4 | Root / Shizuku 通道未清空子进程环境 | 低 | App env 无用户密钥；若未来注入敏感 env 需先补 clear |
-| 5 | `.bridge-key` 文件权限依赖默认 umask | 已修复 | 写入后显式 `Os.chmod(…, 0600)`（`DistroConfigurator.installHostBridgeScripts`，与脚本 0755 同一处理点） |
+| 5 | ~~`.bridge-key` 文件权限依赖默认 umask~~ 共享密钥已移除 | 已修复 | `DistroConfigurator.installHostBridgeScripts` 不再写 `.bridge-key`（并清理历史残留文件）；凭据改由宿主签发、经 PRoot 环境注入，见 §4 |
 | 6 | SecretRedactor 启发式局限 | 提示 | 见 2.3；高危场景叠加人工检查 |
 | 7 | 用户配置的 MCP / 环境变量明文进沙箱 | 提示 | 配置页宜加风险提示文案 |
+| 8 | `host.shell` 仍随沙箱凭据下发，仅动作目录单列 | 已修复 | 收紧为"开发者全权模式"的应用层授权：默认动作集移除 `host.shell`，仅在持久开发者模式开启时经 `FullAccessGrant` 升权，关闭即下次签发降权（Phase C2） |
 
 ## 8. 原生页面插件（P2）
 
@@ -165,7 +168,7 @@
 
 `PluginCapabilitySession` 固定插件、版本、代次、文档来源及 `android:local` 环境，JS 不能指定这些身份字段。仅允许宿主登记的精确动作和目标，经原生令牌弹窗确认后执行；单次或最多 5 分钟的授权不落盘。关闭页面、刷新、换代或停用后旧授权失效；撤销取消协作式在途任务，不保证回滚已经发生的副作用。消息、返回值、静态资源和请求数量均有上限，重复请求 ID 拒绝执行。执行器需自行遵守业务权限、脱敏和可取消 IO 约定。
 
-内置示例与外部包的 APP_INFO 操作仅返回包名、Android API 与插件 API 版本，不读取凭证、不使用 Shell/PRoot。外部包现通过 `HostBridge` 的独立 `PluginHostGateway` 执行，原生确认之后才签发最多 10 秒、一次性凭据，绑定插件、版本、代次、随机页面来源、环境、动作和目标；凭据只在宿主内存使用，不交给 JS、清单或沙箱。`POST /api/plugin/call` 在旧共享密钥检查前独立鉴权，旧 key 无法调用此入口，也没有 HTTP 签发/续期入口。原生页面撤销会取消调用 Job，包升级/移除会关闭准入；执行前后均检查准入和期限，停止桥接清空凭据并使在途结果失效。未迁移旧 HostBridge 的进程访问路径，因此不能称为全局插件隔离。其它宿主动作、任意 PROCESS 工具服务来源、长期授权和开发者全权模式尚未接入。详见 [`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md)。
+内置示例与外部包的 APP_INFO 操作仅返回包名、Android API 与插件 API 版本，不读取凭证、不使用 Shell/PRoot。外部包现通过 `HostBridge` 的独立 `PluginHostGateway` 执行，原生确认之后才签发最多 10 秒、一次性凭据，绑定插件、版本、代次、随机页面来源、环境、动作和目标；凭据只在宿主内存使用，不交给 JS、清单或沙箱。`POST /api/plugin/call` 与沙箱写端点**共用同一 `HostCredentialAuthority`**（唯一校验路径 `authorize`），旧共享密钥与该入口无关，也没有 HTTP 签发/续期入口。`host.install-apk` / `host.logcat` / `host.shell` 已登记为独立动作；沙箱凭据只拿 `SandboxCredentialStore.SANDBOX_ACTIONS`，插件凭据只拿单次动作。原生页面撤销会取消调用 Job，包升级/移除会关闭准入；执行前后均检查准入和期限，停止桥接推进代次并使在途结果失效。沙箱访问路径已迁移到同一权威，但两者仍以同 uid 运行为前提，因此不能称为全局插件隔离或恶意代码强隔离。其它宿主动作、任意 PROCESS 工具服务来源、长期授权和开发者全权模式尚未接入。详见 [`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md)。
 
 外部 WEB 包使用 SAF 显式选择源 URI，预览确认绑定清单；导入再次验证完整文件集合、SHA-256 和容量，不运行页面或授予权限。源文档提供者可能联网下载。包与 PROCESS 共用身份和不可覆盖目录，不能互换执行形态；WEB 从进程工具目录过滤，不能生成进程安装收据。每次打开重新验证文件并生成字节快照；升级和移除关闭旧包准入及页面，失败升级保留旧版本。移除只删除本包目录且不跟随符号链接；失败可能部分删除，不承诺磁盘故障事务恢复。哈希不认证发布者；同 uid 代码能改动文件，不能据此宣称恶意代码强隔离。
 
@@ -175,9 +178,15 @@ CLIPBOARD_WRITE 仅写入最多 1024 UTF-16 代码单元的非空纯文本，拒
 
 宿主注册的受管理 Web 静态来源只连接固定 `127.0.0.1` 端口和文件集合，以内存认证头及预期 SHA-256 验证资源。代理、重定向、压缩响应和 Cookie 复用关闭；流式响应总量最多 2 MiB，读取/总时间有界，取消撤销在途 HTTP。WebView 不获得服务地址或认证头，仍使用独立来源和静态 CSP。示例服务在宿主进程内按页面实例创建，关闭页面只回收该实例；不启动 PRoot 或使用 Provider 凭证。资源取得前登记清理，来源退出关闭调用准入，清理失败保留代次记录。租约回调是宿主合作契约，不能证明端口背后的强进程身份；已有 CLI/工具服务及同 UID 边界未迁移。
 
-PRoot Web 示例先登记惰性资源租约再启动独立后台实例，固定打开时的本地发行版，不自动安装依赖。固定 Python 程序经 `env -i`、`-I -S` 启动，认证信息和资源仅通过最多 4 KiB 的初始管道写入传递，命令和环境中没有该凭据或 Provider Key。服务只绑定 loopback 的系统分配端口，原生按随机实例启动标记、认证及内容哈希检查资源；页面不获得 URL/认证信息。注册表按原 ManagedProcess 引用在锁内停止，旧句柄不会停止同名新实例。清理失败保留句柄供重试；后端没有精确实例清理能力时在分配前拒绝。此环境控制不阻断 guest 自行访问 App UID 可读文件、挂载及共享 `.bridge-key`；不构成进程或凭证强隔离。
+PRoot Web 示例先登记惰性资源租约再启动独立后台实例，固定打开时的本地发行版，不自动安装依赖。固定 Python 程序经 `env -i`、`-I -S` 启动，认证信息和资源仅通过最多 4 KiB 的初始管道写入传递，命令和环境中没有该凭据或 Provider Key。服务只绑定 loopback 的系统分配端口，原生按随机实例启动标记、认证及内容哈希检查资源；页面不获得 URL/认证信息。注册表按原 ManagedProcess 引用在锁内停止，旧句柄不会停止同名新实例。清理失败保留句柄供重试；后端没有精确实例清理能力时在分配前拒绝。此环境控制不阻断 guest 自行访问 App UID 可读文件、挂载及宿主签发的桥接凭据（`TAIXU_BRIDGE_TOKEN` 经环境注入 guest，同 uid 进程可读）；不构成进程或凭证强隔离。
 
 外部 WEB 可显式选择 `webSource: PROOT_STATIC`，只使用上述宿主固定程序；默认 PACKAGE 保持直接静态资源。来源声明纳入预览确认与不可变版本检查，导入不启动进程。打开时重验所选版本全部字节；包升级/移除及系统切换关闭来源和调用准入，再按本页面的原句柄清理。实际进程归属记录为外部插件 ID。该声明不接收 URL、端口、命令、环境或 Python 代码，不进入 PROCESS 收据；预览完整验证文件与启动容量，导入提交前再次检查，超出 4 KiB 的包不会激活。配置使用定长身份/认证头与独立压缩的有序资源，检查结果不随随机凭据变化；认证仍只存在宿主内存和子进程管道，不进入页面或日志。
+
+已安装的工具服务可作为只读页面来源（B1，2026-10-19）：端口与资源路径只来自原生清单 `ToolManager.serviceSpec`，页面不接收 JS/包/偏好提供的地址、凭据或命令，也不启动或停止该服务。资源集在创建时未知，故采用活来源按需代理：每个路径**首次响应即钉住 SHA-256**，同路径后续字节变化、路径数超 64 或合计超 2 MiB 即整条来源关闭，不支持静默替换。读取只连接数字 `127.0.0.1`，代理/重定向/压缩/Cookie 复用关闭，仅接受 HTTP 200 且总量有界；探活失败返回固定错误而非发布文档。WebView 仍使用独立随机 HTTPS 来源与静态 CSP，不获得 loopback 地址或凭据，资源请求绝不回退真实网络。远程后端在分配前拒绝。归类为应用层代理门控，不隔离同 UID 的沙箱代码；动态读取见下段（B3），开发者全权模式未接入。详见 [`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md)。
+
+工具服务未运行时可作为 PRoot 自启页面来源（B2，2026-10-19）：`ProotToolServiceSource` 由页面持有并启动**工具自持的本地服务**，关闭页面只回收本次实例。命令、环境、端口与路径全部来自原生解析——端口/路径由 `ToolManager.serviceSpec` 取自已安装清单，`launchCommand` 与 Provider 环境由 `ToolRuntimeAdapter.serviceLaunch()` 取自**已安装版本清单**（`packageOperations.runtimeManifest`），页面不接受命令/端口/URL/环境/脚本。不复用 PRoot 静态来源的固定程序与 4 KiB 管道，改就绪探测（`127.0.0.1:port` 有界 `Socket.connect` 轮询，进程退出或环境变更即失败，最多 15 秒）；启动走 `LinuxRuntime.startBackground(..., type=SERVICE, distroId)`，停止只用 `stopBackgroundInstance(owned)` 精确回收本实例，绝不停工具中心既有服务或其它进程。资源读取复用 B1 的 `IndexedManagedWebAssets`（首响应钉 SHA-256、漂移即整源关闭、漂移同时置来源不可用）。远程、运行时未就绪或不支持 `supportsBackgroundInstanceStop` 的后端在**构造（分配进程前）**直接拒绝。`WebPluginPackagePolicy` 新增常量 `PROOT_SERVICE_SOURCE`，但 `validate()` 仍不放行——外部分包引用服务留待 Phase C 的显式 `serviceToolId` 决策；归类同为应用层代理门控，不隔离同 UID 沙箱代码。
+
+工具服务页面还可有界**动态读取**同一服务（B3，2026-10-19）：新增 `host.service-request` / `host.service-stream`，`target` 固定为 `service`、相对子路径放在消息 `text`，因此授权仍按 (动作, 目标) 维度缓存，页面对多个路径只需一次会话授权；子路径经 `PluginCapabilityInput.validServicePath` 轻量校验（非绝对、无 `..`/`.` 段、无 scheme/host/query/空白），原生侧再以 `ManagedWebAssets.safePath` 复核，两次校验都不过则不发出任何请求。动态数据**仍不直连** loopback：CSP 保持 `connect-src 'none'`，一律走消息 → `PluginCapabilitySession` → `ManagedWebServiceClient`（数字 `127.0.0.1`、固定基础路径、可选原生认证头，代理/重定向/压缩/Cookie 复用关闭，仅 HTTP/1.1、仅接受 200 与 identity 编码）。单次读固定 UTF-8 解码且最多 32768 字符（与 session `result_too_large` 同口径），分块流单块 ≤4096、单流 ≤65536 字符；超限、来源漂移、关闭页面或撤销授权即停止生产者（`WebPluginStreamBridge` 关闭或未绑定使 `push` 返回 false）。流只是一次普通单发能力调用：分块与收尾共用同一请求 id 与 `{id,success,text}` 通道，因而天然继承「单页一个在途」（`busy`）、5 分钟/单次授权、撤销取消在途 Job 与 10 秒执行超时。真 WebSocket 未接入——`connect-src` 仍为 `none`，端口、基础路径与凭据始终留在原生侧；归类同样是应用层代理门控，不隔离同 UID 沙箱代码。详见 [`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md)。
 
 ## 维护约定
 

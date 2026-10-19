@@ -15,6 +15,32 @@ class PluginCapabilitySessionTest {
     private val capability = PluginCapability("host.app-info", "application")
     private fun call(id: String = "request-1") = PluginCapabilityCall(id, capability)
 
+    @Test fun readOnlyCapabilitiesCacheLongerThoughEveryGrantStillExpires() = runTest {
+        var now = 0L
+        val service = PluginCapability("host.service-request", "service")
+        val session = PluginCapabilitySession(identity, mapOf(capability to { "ok" }, service to { "ok" }),
+            nowMillis = { now }, grantLifetimeMillis = 100, longLivedGrantMillis = 1_000,
+            longLivedCapabilities = setOf(capability, PluginCapabilityInput.CLIPBOARD_WRITE))
+        val first = async { session.call(call(), identity.origin, true) }
+        runCurrent()
+        session.decide(session.prompt.value!!.token, PluginGrantChoice.SESSION)
+        assertTrue(first.await().success)
+        now = 999
+        assertTrue(session.call(call("read-only-later"), identity.origin, true).success)
+        now = 1_000
+        val expired = async { session.call(call("read-only-expired"), identity.origin, true) }
+        runCurrent()
+        assertNotNull(session.prompt.value)
+        session.decide(session.prompt.value!!.token, PluginGrantChoice.DENY)
+        assertFalse(expired.await().success)
+        val svc = async { session.call(PluginCapabilityCall("svc", service, "index.html"), identity.origin, true) }
+        runCurrent()
+        session.decide(session.prompt.value!!.token, PluginGrantChoice.SESSION)
+        assertTrue(svc.await().success)
+        now = 1_099
+        assertTrue(session.call(PluginCapabilityCall("svc-later", service, "index.html"), identity.origin, true).success)
+    }
+
     @Test fun executorWaitsForNativeConfirmationAndOnceDoesNotAuthorizeNextCall() = runTest {
         var executions = 0
         val session = PluginCapabilitySession(identity, mapOf(capability to { executions++; "ok" }))

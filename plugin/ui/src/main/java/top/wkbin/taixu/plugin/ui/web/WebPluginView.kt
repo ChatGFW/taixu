@@ -10,6 +10,7 @@ import androidx.webkit.WebViewFeature
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import top.wkbin.taixu.plugin.runtime.PluginCapability
 import top.wkbin.taixu.plugin.runtime.PluginCapabilityResult
 import top.wkbin.taixu.plugin.runtime.PluginCapabilitySession
 
@@ -21,6 +22,8 @@ internal class WebPluginView(
     private val session: PluginCapabilitySession,
     private val scope: CoroutineScope,
     private val pluginResources: WebPluginResources,
+    private val bridge: WebPluginStreamBridge,
+    private val streamCapabilities: Set<PluginCapability>,
 ) : WebView(context) {
     private var disposed = false
     private var initialNavigation = true
@@ -92,10 +95,21 @@ internal class WebPluginView(
             if (call == null) {
                 reply.postMessage(WebPluginMessages.encode(PluginCapabilityResult("", false, "invalid_request")))
             } else scope.launch {
+                val streaming = call.capability in streamCapabilities
+                // A stream pushes chunks under the same request id; the reply must be bound before the
+                // executor runs, and a document that already streams cannot bind a second sender.
+                if (streaming && !bridge.attach(call.id) { envelope ->
+                        if (disposed || !ready) false else runCatching { reply.postMessage(envelope) }.isSuccess
+                    }) {
+                    reply.postMessage(WebPluginMessages.encode(PluginCapabilityResult(call.id, false, "busy")))
+                    return@launch
+                }
                 val result = try {
                     session.call(call, origin.toString(), mainFrame)
                 } catch (_: CancellationException) {
                     PluginCapabilityResult(call.id, false, "revoked")
+                } finally {
+                    if (streaming) bridge.detach()
                 }
                 if (!disposed && ready) reply.postMessage(WebPluginMessages.encode(result))
             }
@@ -107,6 +121,7 @@ internal class WebPluginView(
         if (disposed) return
         disposed = true
         ready = false
+        bridge.close()
         session.close()
         WebViewCompat.removeWebMessageListener(this, "taixuPlugin")
         stopLoading()

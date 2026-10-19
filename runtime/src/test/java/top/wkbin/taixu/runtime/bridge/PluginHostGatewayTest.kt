@@ -6,6 +6,8 @@ import java.net.Socket
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.*
@@ -217,5 +219,85 @@ class PluginHostGatewayTest {
             }
             handled.get(3, TimeUnit.SECONDS)
         } finally { server.close(); pool.shutdownNow() }
+    }
+
+    @Test fun privilegedActionsAreIssuedOnlyWithTheirExactTargetAndSandboxRootedApkPath() {
+        val gateway = PluginHostGateway({ "info" })
+        val install = PluginHostRequest(scope, "host.install-apk", "apk", "/sdcard/Download/app.apk")
+        listOf(
+            install.copy(target = "application"), install.copy(target = "logcat"), install.copy(target = "clipboard"),
+            install.copy(text = null), install.copy(text = ""), install.copy(text = "app.apk"),
+            install.copy(text = "/sdcard/Download/app.apk.txt"), install.copy(text = "/etc/app.apk"),
+            install.copy(text = "/sdcard/../etc/app.apk"), install.copy(text = "/sdcard/./app.apk"),
+            install.copy(text = "/sdcard//app.apk"), install.copy(text = "/sdcard/Download/" + "a".repeat(240) + ".apk"),
+            PluginHostRequest(scope, "host.logcat", "logcat", "200"),
+            PluginHostRequest(scope, "host.logcat", "clipboard"),
+            PluginHostRequest(scope, "host.logcat", "application"),
+        ).forEach { assertTrue(runCatching { gateway.issue(it) { true } }.isFailure) }
+        gateway.issue(install) { true }
+        gateway.issue(PluginHostRequest(scope, "host.logcat", "logcat")) { true }
+    }
+
+    @Test fun privilegedActionsNeverRunOverHttpAndExecuteAtMostOnceThroughTheNativeChannel() = runBlocking {
+        var installs = 0
+        val gateway = PluginHostGateway({ error("app info executed") }, clipboardWrite = { error("clipboard executed") },
+            installApkFile = { installs++; "{\"installed\":true}" }, captureLogcat = { "{\"output\":\"line\"}" })
+        val install = PluginHostRequest(scope, "host.install-apk", "apk", "/sdcard/Download/app.apk")
+        val overHttp = gateway.issue(install) { true }
+        assertEquals(500, gateway.handle(overHttp, body(install)).status)
+        assertEquals(0, installs)
+        assertEquals(401, gateway.handle(overHttp, body(install)).status)
+        val log = PluginHostRequest(scope, "host.logcat", "logcat")
+        assertEquals(500, gateway.handle(gateway.issue(log) { true }, body(log)).status)
+
+        assertEquals(200, gateway.handlePrivileged(gateway.issue(install) { true }, body(install)).status)
+        assertEquals("{\"installed\":true}", gateway.installApk(scope, "/sdcard/Download/app.apk") { true })
+        assertEquals("{\"output\":\"line\"}", gateway.readLogcat(scope) { true })
+        assertEquals(2, installs)
+    }
+
+    @Test fun eachChannelServesOnlyItsOwnActionsAndConsumesTheTicketEitherWay() = runBlocking {
+        val gateway = PluginHostGateway({ "info" }, installApkFile = { "{}" }, captureLogcat = { "{}" })
+        val install = PluginHostRequest(scope, "host.install-apk", "apk", "/sdcard/Download/app.apk")
+        assertEquals(500, gateway.handle(gateway.issue(install) { true }, body(install)).status)
+        val info = gateway.issue(request) { true }
+        assertEquals(500, gateway.handlePrivileged(info, body()).status)
+        assertEquals(401, gateway.handlePrivileged(info, body()).status)
+        assertEquals("info", gateway.readAppInfo(scope) { true })
+        val bare = PluginHostGateway({ "info" })
+        val log = PluginHostRequest(scope, "host.logcat", "logcat")
+        assertEquals(500, bare.handlePrivileged(bare.issue(log) { true }, body(log)).status)
+    }
+
+    @Test fun privilegedFailuresExpiryAndRevocationStayBoundedAndRedacted() = runBlocking {
+        var time = 0L
+        var active = true
+        val gateway = PluginHostGateway({ "info" }, { time }, installApkFile = { error("secret adb token") },
+            captureLogcat = { "a".repeat(32769) })
+        val install = PluginHostRequest(scope, "host.install-apk", "apk", "/sdcard/Download/app.apk")
+        val failed = gateway.handlePrivileged(gateway.issue(install) { active }, body(install))
+        assertEquals(500, failed.status)
+        assertFalse(failed.body.contains("secret"))
+        val log = PluginHostRequest(scope, "host.logcat", "logcat")
+        assertEquals(500, gateway.handlePrivileged(gateway.issue(log) { active }, body(log)).status)
+        val expired = gateway.issue(install) { active }
+        time = 10_000
+        assertEquals(401, gateway.handlePrivileged(expired, body(install)).status)
+        val stopped = gateway.issue(install) { active }
+        active = false
+        assertEquals(401, gateway.handlePrivileged(stopped, body(install)).status)
+        active = true
+        val revoked = gateway.issue(install) { active }
+        gateway.revoke(revoked)
+        assertEquals(401, gateway.handlePrivileged(revoked, body(install)).status)
+    }
+
+    @Test fun privilegedCancellationPropagatesInsteadOfBecomingAFailedExecution() = runBlocking {
+        val gateway = PluginHostGateway({ "info" }, installApkFile = { throw CancellationException("stopped") })
+        val install = PluginHostRequest(scope, "host.install-apk", "apk", "/sdcard/Download/app.apk")
+        val thrown = runCatching {
+            gateway.handlePrivileged(gateway.issue(install) { true }, body(install))
+        }.exceptionOrNull()
+        assertTrue(thrown is CancellationException)
     }
 }

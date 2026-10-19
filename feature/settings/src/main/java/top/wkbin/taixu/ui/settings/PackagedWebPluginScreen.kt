@@ -39,38 +39,72 @@ fun PackagedWebPluginScreen(toolId: String, version: String, pluginId: String, o
         }
     } else {
         val plugin = remember(expected, model.repository, bridge, sources) {
-            val proot = expected.plugin!!.webSource == "PROOT_STATIC"
+            val spec = expected.plugin!!
+            val proot = spec.webSource == "PROOT_STATIC"
+            val service = spec.serviceToolId
             WebPagePlugin(
-                id = expected.plugin!!.id, version = expected.version,
+                id = spec.id, version = expected.version,
                 title = { expected.name }, description = {
-                    if (proot) expected.description + "\n" + stringResource(R.string.web_packages_proot_source)
-                    else expected.description
+                    when {
+                        proot -> expected.description + "\n" + stringResource(R.string.web_packages_proot_source)
+                        service != null -> expected.description + "\n" +
+                            stringResource(R.string.web_packages_service_source, service)
+                        else -> expected.description
+                    }
                 },
-                capabilities = expected.plugin!!.capabilities.map {
-                    val clipboard = it.name == "CLIPBOARD_WRITE" && it.target == "clipboard"
-                    require(clipboard || it.name == "APP_INFO" && it.target == "application")
-                    WebPluginCapability(PluginCapability(if (clipboard) "host.clipboard-write" else "host.app-info", it.target),
-                        title = { stringResource(if (clipboard) R.string.web_packages_clipboard_title else R.string.web_packages_permission_title) },
-                        description = { stringResource(if (clipboard) R.string.web_packages_clipboard_write else R.string.web_packages_app_info) },
-                        allowSession = !clipboard,
+                capabilities = spec.capabilities.map { declared ->
+                    val host = requireNotNull(PACKAGE_HOST_ACTIONS.find { it.capability == declared.name && it.target == declared.target }) {
+                        "不支持的 Web 插件能力"
+                    }
+                    WebPluginCapability(PluginCapability(host.action, host.target),
+                        title = { stringResource(host.title) },
+                        description = { stringResource(host.detail) },
                     ) { _, identity, call ->
                         val caller = currentCoroutineContext()
                         val scope = PluginHostScope(identity.pluginId, identity.version, identity.generation,
                             identity.origin, identity.environment)
                         val available = { caller.isActive && model.repository.isCurrent(expected) }
-                        if (clipboard) bridge.writePluginClipboard(scope, requireNotNull(call.text), available)
-                        else {
-                            val info = bridge.readPluginAppInfo(scope, available)
-                            JsonObject(Json.parseToJsonElement(info).jsonObject +
-                                ("pluginApi" to JsonPrimitive(PluginApiRange.CURRENT))).toString()
+                        when (host.action) {
+                            "host.app-info" -> {
+                                val info = bridge.readPluginAppInfo(scope, available)
+                                JsonObject(Json.parseToJsonElement(info).jsonObject +
+                                    ("pluginApi" to JsonPrimitive(PluginApiRange.CURRENT))).toString()
+                            }
+                            "host.clipboard-write" -> bridge.writePluginClipboard(scope, requireNotNull(call.text), available)
+                            "host.install-apk" -> bridge.installPluginApk(scope, requireNotNull(call.text), available)
+                            else -> bridge.readPluginLogcat(scope, available)
                         }
                     }
                 },
                 isAvailable = { model.repository.isCurrent(expected) },
-                openSource = if (proot) { { _ -> sources.openProot(expected) } } else null,
+                openSource = when {
+                    proot -> { { _ -> sources.openProot(expected) } }
+                    service != null -> { { _ -> sources.openService(service, allowStart = spec.webSource == "PROOT_SERVICE") } }
+                    else -> null
+                },
                 loadAssets = { model.repository.snapshot(expected) },
             )
         }
         WebPluginHost(plugin, onBack)
     }
 }
+
+/**
+ * Declared package capability → page action, the target it must name, and its confirmation copy.
+ * Whether a grant may be cached is decided centrally by `PluginCapabilityInput.ONE_SHOT`, so the
+ * write actions never silently gain a 5-minute grant by being listed here.
+ */
+private data class PackageHostAction(
+    val capability: String, val action: String, val target: String, val title: Int, val detail: Int,
+)
+
+private val PACKAGE_HOST_ACTIONS = listOf(
+    PackageHostAction("APP_INFO", "host.app-info", "application",
+        R.string.web_packages_permission_title, R.string.web_packages_app_info),
+    PackageHostAction("CLIPBOARD_WRITE", "host.clipboard-write", "clipboard",
+        R.string.web_packages_clipboard_title, R.string.web_packages_clipboard_write),
+    PackageHostAction("INSTALL_APK", "host.install-apk", "apk",
+        R.string.web_packages_install_apk_title, R.string.web_packages_install_apk_detail),
+    PackageHostAction("LOGCAT", "host.logcat", "logcat",
+        R.string.web_packages_logcat_title, R.string.web_packages_logcat_detail),
+)

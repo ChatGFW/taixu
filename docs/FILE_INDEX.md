@@ -177,6 +177,7 @@ P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.
 - `runtime/src/main/java/top/wkbin/taixu/runtime/bridge/HostBridgeHttp.kt`：有界 HTTP 字节分帧与响应写入。
 
 - `runtime/src/main/java/top/wkbin/taixu/runtime/bridge/PluginHostClipboard.kt`：原生确认后的纯文本剪贴板写入，不读取旧值。
+- `runtime/src/main/java/top/wkbin/taixu/runtime/bridge/FullAccessGrant.kt`：开发者全权模式的应用层门控，缺省 fail-safe；仅持久开发者模式开启时把沙箱凭据动作集（默认 `host.install-apk,host.logcat`）升到含 `host.shell`，关闭即下次签发降权。
 - `plugin/runtime/src/main/kotlin/top/wkbin/taixu/plugin/runtime/PluginCapabilityInput.kt`：能力输入类型与文本容量校验。
 - `tools/examples/web-clipboard/`：逐次授权复制文本的离线 Web 示例源文件。
 
@@ -190,3 +191,16 @@ P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.
 - `feature/settings/src/main/java/top/wkbin/taixu/ui/settings/PackagedWebPluginSources.kt`：按外部 WEB 选中版本校验静态资源，创建页面自有的惰性 PRoot 来源租约。
 - `runtime/src/main/java/top/wkbin/taixu/runtime/service/ProotWebBootstrap.kt`：预览与启动共用的确定容量编码，定长认证头及有序资源压缩。
 - `tools/src/main/java/top/wkbin/taixu/core/tools/ProotWebPackagePreflight.kt`：PRoot 包完整预览、容量复核和临时文件清理，不分配进程。
+
+- `runtime/src/main/java/top/wkbin/taixu/runtime/service/IndexedManagedWebAssets.kt`：已运行工具服务的按需资源代理，首次响应钉住 SHA-256，漂移/超限即整源关闭。
+- `runtime/src/main/java/top/wkbin/taixu/runtime/service/ToolServiceWebSource.kt`：`ToolServiceDescriptor` 原生描述 + 本地后端门控 + 有界探活的工具服务页面来源。
+- `feature/settings/src/main/java/top/wkbin/taixu/ui/settings/ToolServicePluginScreen.kt`：宿主注册的只读工具服务页面（`taixu.tool-service`），登记单次读与分块读两个只读能力。
+- `feature/navigation/src/main/java/top/wkbin/taixu/ui/navigation/ToolDetailRoute.kt`：工具详情导航条目装配，含插件页打开回调。
+- `feature/settings/src/main/java/top/wkbin/taixu/ui/settings/ToolDetailAvatar.kt`：工具详情头像组件，为守尺寸棘轮自 `ToolDetailScreen.kt` 抽出。
+- `runtime/src/main/java/top/wkbin/taixu/runtime/service/ProotToolServiceSource.kt`：`ProotServiceDescriptor`/`ServiceLaunch` 原生描述、就绪探测与精确实例回收，页面自启工具服务的 PRoot 来源。
+- `tools/src/main/java/top/wkbin/taixu/core/tools/ToolInstallEventMapping.kt`：安装事件脱敏、日志映射与卸载结果归一，为守尺寸棘轮自 `ToolManager.kt` 抽出（951 → 923）。
+
+- `runtime/src/main/java/top/wkbin/taixu/runtime/service/ManagedWebServiceClient.kt`：页面自持服务的原生有界动态读取/分块流，路径与预算受限，端口与凭据留在原生侧。
+- `plugin/ui/src/main/java/top/wkbin/taixu/plugin/ui/web/WebPluginStreamBridge.kt`：同一请求 id 下的分块推送桥，单块与单流预算受限，关闭即停止生产者。
+- `plugin/ui/src/main/java/top/wkbin/taixu/plugin/ui/web/WebPluginServiceCapabilities.kt`：宿主登记的 `host.service-request` / `host.service-stream` 只读能力工厂。
+- `plugin/runtime/src/main/kotlin/top/wkbin/taixu/plugin/runtime/PluginCapabilityInput.kt`：能力入站校验与相对子路径白名单（含 `SERVICE_ACTIONS`）。

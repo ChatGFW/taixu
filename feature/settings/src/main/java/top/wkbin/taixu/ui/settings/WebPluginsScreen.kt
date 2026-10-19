@@ -44,6 +44,7 @@ fun WebPluginsScreen(onOpen: (String, String, String) -> Unit, onBack: () -> Uni
                 Text("${manifest.plugin!!.id} · ${manifest.version}", style = MaterialTheme.typography.bodySmall)
                 Text(manifest.description, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 if (manifest.plugin!!.webSource == "PROOT_STATIC") Text(stringResource(R.string.web_packages_proot_label), style = MaterialTheme.typography.labelMedium)
+                manifest.plugin!!.serviceToolId?.let { Text(stringResource(R.string.web_packages_service_label, it), style = MaterialTheme.typography.labelMedium) }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     RuntimeTextButton(onClick = { onOpen(manifest.id, manifest.version, manifest.plugin!!.id) }, enabled = !state.busy) { Text(stringResource(R.string.web_packages_open)) }
                     RuntimeTextButton(onClick = { removal = manifest }, enabled = !state.busy) { Text(stringResource(R.string.web_packages_remove)) }
@@ -62,9 +63,17 @@ fun WebPluginsScreen(onOpen: (String, String, String) -> Unit, onBack: () -> Uni
                     Text(manifest.description)
                     Text(stringResource(R.string.web_packages_confirmation))
                     if (manifest.plugin!!.webSource == "PROOT_STATIC") Text(stringResource(R.string.web_packages_proot_source))
+                    manifest.plugin!!.serviceToolId?.let { Text(stringResource(R.string.web_packages_service_source, it)) }
                     if (manifest.plugin!!.capabilities.isEmpty()) Text(stringResource(R.string.web_packages_no_capabilities))
                     manifest.plugin!!.capabilities.forEach { capability ->
-                        Text(stringResource(if (capability.name == "CLIPBOARD_WRITE") R.string.web_packages_clipboard_write else R.string.web_packages_app_info))
+                        Text(stringResource(
+                            when (capability.name) {
+                                "CLIPBOARD_WRITE" -> R.string.web_packages_clipboard_write
+                                "INSTALL_APK" -> R.string.web_packages_install_apk_detail
+                                "LOGCAT" -> R.string.web_packages_logcat_detail
+                                else -> R.string.web_packages_app_info
+                            },
+                        ))
                     }
                 }
             },

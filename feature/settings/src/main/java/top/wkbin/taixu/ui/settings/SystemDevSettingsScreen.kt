@@ -208,7 +208,7 @@ fun SystemDevSettingsScreen(
                 ToggleRow(
                     icon = RuntimeIconName.Bug,
                     title = "开发者诊断模式",
-                    subtitle = "开启底层健康监控与调试控制台",
+                    subtitle = "开启底层健康监控与调试控制台；同时允许沙箱内 Agent 通过 host.shell 请求宿主执行命令（应用层门控，非强隔离边界）",
                     checked = developer,
                     change = { arg0 -> viewModel?.setDeveloperMode(arg0) },
                 )

@@ -4,7 +4,11 @@ import android.webkit.WebResourceResponse
 import java.io.ByteArrayInputStream
 
 /** Immutable, bounded asset snapshot. Every request gets a response, including forbidden URLs. */
-internal class WebPluginResources(private val policy: WebPluginPolicy, assets: Map<String, ByteArray>) {
+internal class WebPluginResources(
+    private val policy: WebPluginPolicy,
+    assets: Map<String, ByteArray>,
+    private val resolve: ((String) -> ByteArray?)? = null,
+) {
     init {
         require(assets.containsKey("index.html") && assets.size <= 64)
         val themeBytes = assets["theme.css"]?.size ?: 0
@@ -16,7 +20,9 @@ internal class WebPluginResources(private val policy: WebPluginPolicy, assets: M
 
     fun response(url: String, method: String): WebResourceResponse {
         val path = policy.assetPath(url)
-        val bytes = if (method == "GET") assets[path] else null
+        // A live indexed source answers only via its host-owned resolver; it never falls back to
+        // the network, so a drifting or closed source simply yields the fixed forbidden response.
+        val bytes = if (method == "GET") assets[path] ?: path?.let { resolve?.invoke(it) } else null
         val mime = when (path?.substringAfterLast('.')) {
             "html" -> "text/html"
             "js" -> "application/javascript"

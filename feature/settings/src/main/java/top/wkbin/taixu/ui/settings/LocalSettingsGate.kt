@@ -35,8 +35,9 @@ fun LocalLlmScreen(onBack: () -> Unit, onOpenEngine: () -> Unit, viewModel: Loca
 
 @Composable
 fun ToolDetailScreen(toolId: String, onBack: () -> Unit, onLaunchTerminal: (String) -> Unit,
-    onStartAiHealing: (String, String, List<String>) -> Unit = { _, _, _ -> }, viewModel: ToolDetailViewModel? = null) =
-    LocalSettingsGate("本机插件", onBack) { LocalToolDetailContent(toolId, onBack, onLaunchTerminal, onStartAiHealing, viewModel ?: koinViewModel()) }
+    onStartAiHealing: (String, String, List<String>) -> Unit = { _, _, _ -> },
+    onOpenPluginPage: (String) -> Unit = {}, viewModel: ToolDetailViewModel? = null) =
+    LocalSettingsGate("本机插件", onBack) { LocalToolDetailContent(toolId, onBack, onLaunchTerminal, onStartAiHealing, onOpenPluginPage, viewModel ?: koinViewModel()) }
 
 @Composable
 fun CcSwitchScreen(onBack: () -> Unit, onLaunchTerminal: (String) -> Unit, onOpenBrowser: (String) -> Unit, viewModel: CcSwitchViewModel? = null) =

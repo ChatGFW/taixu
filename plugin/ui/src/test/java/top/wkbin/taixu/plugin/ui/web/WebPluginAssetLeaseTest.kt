@@ -60,6 +60,37 @@ class WebPluginAssetLeaseTest {
         assertFalse(lease.isAvailable)
     }
 
+    @Test fun aFixedSnapshotLeaseOffersNoDynamicPathAndAClosedLeaseOffersNothing() = runTest {
+        val fixed = WebPluginAssetLease(mapOf("index.html" to byteArrayOf(1)))
+        assertNull(fixed.requestPath("api/status"))
+        assertFalse(fixed.streamPath("events") { true })
+        val live = WebPluginAssetLease(emptyMap(),
+            request = { path -> if (path == "api/status") "ok" else null },
+            stream = { path, emit -> emit("chunk") && path == "events" })
+        assertEquals("ok", live.requestPath("api/status"))
+        assertNull(live.requestPath("api/other"))
+        assertTrue(live.streamPath("events") { true })
+        assertFalse(live.streamPath("events") { false })
+        assertTrue(live.close())
+        assertNull(live.requestPath("api/status"))
+        assertFalse(live.streamPath("events") { true })
+    }
+
+    @Test fun aDriftedLiveLeaseAnswersNoDynamicPath() = runTest {
+        var alive = true
+        val lease = WebPluginAssetLease(emptyMap(), available = { alive },
+            request = { "ok" }, stream = { _, emit -> emit("chunk") })
+        assertEquals("ok", lease.requestPath("api/status"))
+        alive = false
+        assertNull(lease.requestPath("api/status"))
+        assertFalse(lease.streamPath("events") { true })
+    }
+
+    @Test fun aStreamLeaseRethrowsCancellationInsteadOfSwallowingIt() = runTest {
+        val lease = WebPluginAssetLease(emptyMap(), stream = { _, _ -> throw kotlinx.coroutines.CancellationException("revoked") })
+        assertTrue(runCatching { lease.streamPath("events") { true } }.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+    }
+
     @Test fun deadSourceCannotApprovePendingRequestsOrAdmitNewCalls() = runTest {
         var alive = true
         val lease = WebPluginAssetLease(emptyMap(), available = { alive })

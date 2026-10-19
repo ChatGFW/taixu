@@ -17,6 +17,7 @@ import top.wkbin.taixu.runtime.shell.ManagedProcess
 import top.wkbin.taixu.runtime.shell.ProcessType
 import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.shell.ShellCommand
+import top.wkbin.taixu.runtime.service.ServiceLaunch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -244,6 +245,11 @@ class GenericRecipeInstaller(
         toolId = toolId,
         type = ProcessType.SERVICE,
     )
+
+    override suspend fun serviceLaunch(): ServiceLaunch? {
+        val commandLine = manifest.launchCommand ?: return null
+        return ServiceLaunch(commandLine, runtimeEnvironment())
+    }
 
     override suspend fun uninstall(deleteData: Boolean): ToolActionResult {
         val toolDir = ToolLayout.toolDirectory(toolId)
