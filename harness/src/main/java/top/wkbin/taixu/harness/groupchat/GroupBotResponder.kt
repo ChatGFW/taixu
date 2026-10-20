@@ -1,0 +1,165 @@
+package top.wkbin.taixu.harness.groupchat
+
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
+import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.database.repository.GroupChatRepository
+import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.GroupDelivery
+import top.wkbin.taixu.core.model.bot.GroupChat
+import top.wkbin.taixu.core.model.bot.GroupMessage
+import top.wkbin.taixu.core.model.bot.GroupSenderType
+import top.wkbin.taixu.harness.session.PromptSubmission
+import top.wkbin.taixu.harness.session.SessionControl
+
+/** Projects a single native turn into the group timeline; admission is recorded before observing output. */
+internal class GroupBotResponder(
+    private val groupRepository: GroupChatRepository,
+    private val prepareSession: suspend (Bot, String) -> String,
+    private val sessionControl: SessionControl,
+    private val logger: AppLogger,
+    private val liveReplies: MutableStateFlow<Map<String, GroupReplyProgress>>,
+    private val freshness: GroupReplyFreshness? = null,
+) {
+    private val observer = GroupReplyObserver(sessionControl, logger)
+    suspend fun respond(
+        group: GroupChat,
+        bot: Bot,
+        trigger: String,
+        history: String,
+        members: List<Bot>,
+        imageUrls: List<String>,
+        admission: CompletableDeferred<Boolean>?,
+        delegatedTaskId: String? = null,
+        deliveryId: String? = null,
+        sessionOverride: String? = null,
+        onAdmitted: suspend (String?) -> Unit = {},
+    ): GroupTurnOutcome {
+        var activeSessionId: String? = null
+        var submissionAttempted = false
+        var contextBinding: GroupReplyFreshness.Binding? = null
+        val placeholderId = deliveryId?.let { "delivery-reply:$it" } ?: UUID.randomUUID().toString()
+        val startedAt = System.currentTimeMillis()
+        try {
+            groupRepository.postMessage(
+                GroupMessage(
+                    id = placeholderId,
+                    groupId = group.id,
+                    senderId = bot.id,
+                    senderName = bot.name,
+                    senderType = GroupSenderType.BOT,
+                    content = "",
+                    timestamp = startedAt,
+                    isStreaming = true,
+                    delegatedTaskId = delegatedTaskId,
+                ),
+            )
+            val sessionReady = runCatching { sessionOverride ?: prepareSession(bot, group.id) }
+            if (sessionReady.isFailure) {
+                val error = sessionReady.exceptionOrNull()
+                logger.e("[GroupChatDispatcher] Bot ${bot.name} 群维度会话准备失败", error)
+                val text = "❌ 无法准备会话：${error?.message}"
+                groupRepository.updateStreamingMessage(placeholderId, text, false)
+                if (deliveryId != null) groupRepository.finishDelivery(deliveryId, GroupDelivery.REJECTED, text)
+                return GroupTurnOutcome(text, failed = true)
+            }
+            val sessionId = sessionReady.getOrThrow()
+            activeSessionId = sessionId
+            currentCoroutineContext().ensureActive()
+            val baseline = sessionControl.messagesForSession(sessionId).value.map { it.id }.toSet()
+            contextBinding = freshness?.begin(sessionId, group, bot.id, placeholderId)
+            val prompt = buildGroupPrompt(group, bot, trigger, contextBinding?.history ?: history, members)
+            if (deliveryId != null) {
+                check(groupRepository.prepareDelivery(deliveryId, sessionId)) { "收件已停止、成员已移出或来源已清除" }
+            }
+            if (sessionOverride != null) require(groupRepository.getMembers(group.id).any { it.id == bot.id }) {
+                "执行成员已移出来源群聊，未提交任务"
+            }
+            submissionAttempted = true
+            val submission = sessionControl.submit(sessionId, prompt, imageUrls)
+            if (deliveryId != null && submission is PromptSubmission.Accepted) {
+                check(groupRepository.admitDelivery(deliveryId, sessionId, submission.taskId)) { "群消息受理回执未保存" }
+            }
+            if (submission is PromptSubmission.Accepted) onAdmitted(submission.taskId)
+            currentCoroutineContext().ensureActive()
+            admission?.complete(submission is PromptSubmission.Accepted)
+            if (submission !is PromptSubmission.Accepted) {
+                val reason = (submission as? PromptSubmission.Rejected)?.reason?.name ?: "提交异常"
+                val text = "❌ 无法开始回复：$reason"
+                groupRepository.updateStreamingMessage(placeholderId, text, false)
+                if (deliveryId != null) groupRepository.finishDelivery(deliveryId, GroupDelivery.REJECTED, text)
+                return GroupTurnOutcome(text, failed = true)
+            }
+
+            var lastCheckpoint = startedAt
+            val outcome = observer.awaitReply(sessionId, bot, baseline, startedAt) { progress ->
+                liveReplies.update { it + (placeholderId to progress) }
+                // Smooth UI updates stay in memory; persist only periodic crash-recovery checkpoints.
+                val now = System.currentTimeMillis()
+                if (now - lastCheckpoint >= 2_000) {
+                    groupRepository.updateStreamingMessage(placeholderId, progress.content, true, progress.steps, progress.reasoning)
+                    lastCheckpoint = now
+                }
+            }
+            val latest = outcome.candidate
+            val content = latest?.text?.trim().orEmpty()
+            val finalText = when {
+                outcome.replyTimedOut -> "❌ 回复超时，已停止，请核对已执行的工具结果"
+                outcome.firstTokenTimedOut ->
+                    "❌ 模型无响应，已停止（${FIRST_TOKEN_TIMEOUT_MS / 1000} 秒未收到首 token）"
+                content.isNotBlank() -> content
+                latest == null -> "❌ 本轮未产生回复，请稍后重试"
+                else -> "（无文本回复）"
+            }
+            groupRepository.updateStreamingMessage(placeholderId, finalText, false, outcome.steps, outcome.reasoning)
+            awaitSettledPlaceholder(group.id, placeholderId)
+            return GroupTurnOutcome(
+                text = finalText,
+                failed = outcome.replyTimedOut || outcome.firstTokenTimedOut || latest == null,
+                uncertain = outcome.replyTimedOut || outcome.firstTokenTimedOut,
+            )
+        } catch (cancelled: CancellationException) {
+            if (submissionAttempted) activeSessionId?.let { sessionControl.cancel(it) }
+            withContext(NonCancellable) {
+                val progress = liveReplies.value[placeholderId]
+                groupRepository.updateStreamingMessage(placeholderId, STOPPED_MARKER, false, progress?.steps.orEmpty(), progress?.reasoning)
+                awaitSettledPlaceholder(group.id, placeholderId)
+            }
+            throw cancelled
+        } catch (failure: Exception) {
+            if (submissionAttempted) activeSessionId?.let { sessionControl.cancel(it) }
+            admission?.completeExceptionally(failure)
+            if (deliveryId != null) groupRepository.finishDelivery(deliveryId,
+                if (submissionAttempted) GroupDelivery.UNKNOWN else GroupDelivery.REJECTED,
+                if (submissionAttempted) "群消息处理结果待核对，请检查会话记录" else "群消息准备失败，未提交执行")
+            logger.e("[GroupChatDispatcher] 群聊回复失败", failure)
+            val text = "❌ 回复失败：${failure.message}"
+            groupRepository.updateStreamingMessage(placeholderId, text, false)
+            awaitSettledPlaceholder(group.id, placeholderId)
+            return GroupTurnOutcome(text, failed = true, uncertain = submissionAttempted)
+        } finally {
+            val binding = contextBinding
+            if (binding != null && activeSessionId != null) freshness?.end(activeSessionId, binding)
+            liveReplies.update { it - placeholderId }
+            admission?.complete(false)
+        }
+    }
+
+    private suspend fun awaitSettledPlaceholder(groupId: String, messageId: String) {
+        // Keep the live projection until Room emits a settled row, avoiding a blank-frame flash.
+        groupRepository.observeMessages(groupId).first { rows -> rows.none { it.id == messageId && it.isStreaming } }
+    }
+
+    private companion object {
+        const val STOPPED_MARKER = "⏹ 已停止"
+        const val FIRST_TOKEN_TIMEOUT_MS = 120_000L
+    }
+}

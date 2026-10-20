@@ -3,6 +3,7 @@
     <string name="components_nav_home">太墟</string>
     <string name="components_nav_agent">智枢</string>
     <string name="components_nav_workspace">工坊</string>
+    <string name="components_nav_bots">群英</string>
     <string name="components_nav_settings">乾坤</string>
     <string name="components_back">返回</string>
     <string name="components_taixu_logo">太墟 Logo</string>
@@ -12,6 +13,7 @@
     <string name="components_nav_subtitle_home">创世</string>
     <string name="components_nav_subtitle_agent">智能体</string>
     <string name="components_nav_subtitle_workspace">工作区</string>
+    <string name="components_nav_subtitle_bots">Bot 团队</string>
     <string name="components_nav_subtitle_settings">设置</string>
     <!-- Markdown 渲染组件 -->
     <string name="components_md_web_content">网络图片</string>

@@ -9,7 +9,7 @@ data class AskUserRequest(
     val sessionId: String,
     val workspace: String,
     val operationId: String?,
-    /** 子智能体 Lane 没有可暂停的审批 UI，为 false 时走 approvalDeferred 中性结果。 */
+    /** 子智能体 Lane 没有可暂停的问题 UI，为 false 时直接采用推荐项继续。 */
     val allowApprovalRequest: Boolean,
     val now: Long,
 )
@@ -22,8 +22,7 @@ data class AskUserRequest(
  * awaitingApproval 让整轮暂停；UI 渲染问题卡，答案由 HarnessLoop.resolveQuestion
  * 直接作为工具结果落库并续跑，无需重执行。
  *
- * 后台子智能体 Lane 不支持暂停：返回 approvalDeferred 的中性结果、不创建问题请求，
- * 由 Lane 收集成待办上交父智能体。
+ * 后台子智能体 Lane 不支持暂停：直接采用推荐答案，不创建悬挂请求。
  */
 class AskUserToolBackend(
     private val approvalPolicyEngine: ApprovalPolicyEngine,
@@ -31,16 +30,6 @@ class AskUserToolBackend(
 ) : ToolBackend<AskUserRequest, ToolResult> {
 
     override suspend fun execute(request: AskUserRequest): ToolResult {
-        if (!request.allowApprovalRequest) {
-            return ToolResult(
-                id = UUID.randomUUID().toString(),
-                createdAt = request.now,
-                toolCallId = request.toolCall.id,
-                success = false,
-                output = "该工具需要用户回答，但当前子智能体 Lane 不支持暂停等待用户输入，本次没有创建问题请求。请将问题交接给主智能体，由主会话重新发起 ask_user。",
-                approvalDeferred = true,
-            )
-        }
         fun failure(output: String) = ToolResult(
             id = UUID.randomUUID().toString(),
             createdAt = request.now,
@@ -52,6 +41,10 @@ class AskUserToolBackend(
         val questions = runCatching { AskUserQuestions.parse(request.toolCall.args) }.getOrElse { error ->
             return failure("ask_user 参数校验未通过：${error.message}。请修正参数后重新调用。")
         }
+        if (!request.allowApprovalRequest) return ToolResult(
+            id = UUID.randomUUID().toString(), createdAt = request.now, toolCallId = request.toolCall.id,
+            success = true, output = AskUserQuestions.timeoutOutput(request.toolCall.args.toString(), waited = false),
+        )
         val repository = approvalRepository ?: return failure("审批仓储未初始化，无法向用户提问")
         val approvalRequest = approvalPolicyEngine.createRequest(
             sessionId = request.sessionId,
@@ -71,7 +64,7 @@ class AskUserToolBackend(
             ),
             operationId = request.operationId,
         )
-        // 问题等待的是用户的思考与决策，TTL 比操作类审批（10 分钟）宽裕
+        // 用户可能离开界面；到期采用推荐答案并继续同一任务。
         runCatching { repository.create(approvalRequest.copy(expiresAt = request.now + QUESTION_TTL_MS)) }
             .getOrElse { throwable ->
                 return failure("问题请求落库失败：${throwable.message ?: throwable::class.simpleName}")
@@ -81,14 +74,13 @@ class AskUserToolBackend(
             createdAt = request.now,
             toolCallId = request.toolCall.id,
             success = true,
-            output = "已向用户提出 ${questions.size} 个问题，等待回答。",
+            output = "已向用户提出 ${questions.size} 个问题，最多等待 60 秒；未回复将采用推荐答案继续。",
             awaitingApproval = true,
             approvalRequestId = approvalRequest.id,
         )
     }
 
     companion object {
-        /** ask_user 问题请求的有效期：等待用户思考与决策，比操作类审批的 10 分钟宽裕。 */
-        const val QUESTION_TTL_MS: Long = 30 * 60 * 1000L
+        const val QUESTION_TTL_MS: Long = 60_000L
     }
 }

@@ -13,6 +13,23 @@ import org.junit.Test
 /** ask_user 参数解析与答案格式化：ToolExecutor 校验入参与 UI 问题卡共用同一解析口径。 */
 class AskUserQuestionsTest {
 
+    @Test fun `timeout selects explicit recommendation and never claims a human answered`() {
+        val output = AskUserQuestions.timeoutOutput("""{"questions":[{"question":"方式？","options":[
+            {"label":"A"},{"label":"B","recommended":true}]}]}""")
+        assertTrue(output.contains("→ B"))
+        assertTrue(output.contains("非用户确认"))
+        assertTrue(output.contains("60 秒"))
+    }
+
+    @Test fun `timeout supports first option and free text default without inventing missing facts`() {
+        val output = AskUserQuestions.timeoutOutput("""{"questions":[
+            {"question":"方式？","options":[{"label":"A"},{"label":"B"}]},
+            {"question":"版本？","default_answer":"Debug"},{"question":"缺失信息？"}]}""")
+        assertTrue(output.contains("→ A"))
+        assertTrue(output.contains("→ Debug"))
+        assertTrue(output.contains("不得编造凭据"))
+    }
+
     @Test
     fun `parses options with header and default allowCustom`() {
         val args = buildJsonObject {

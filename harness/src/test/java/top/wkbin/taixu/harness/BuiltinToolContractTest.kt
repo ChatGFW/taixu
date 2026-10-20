@@ -13,6 +13,15 @@ import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 
 class BuiltinToolContractTest {
     @Test
+    fun `load rule accepts every registered rule including image delivery`() {
+        val tool = ProviderClient.buildDynamicTools().single { it.function.name == "load_rule" }
+        val properties = tool.function.parameters["properties"] as kotlinx.serialization.json.JsonObject
+        val rule = properties["rule"] as kotlinx.serialization.json.JsonObject
+        val names = (rule["enum"] as kotlinx.serialization.json.JsonArray)
+            .map { (it as kotlinx.serialization.json.JsonPrimitive).content }.toSet()
+        assertEquals(top.wkbin.taixu.harness.prompt.PromptRouter.RuleBlock.entries.map { it.loadName }.toSet(), names)
+    }
+    @Test
     fun `build script tool exposes lifecycle and binding actions`() {
         val tool = ProviderClient.TOOLS.single { it.function.name == "build_script" }
         val action = tool.function.parameters["properties"]!!.jsonObject["action"]!!.jsonObject

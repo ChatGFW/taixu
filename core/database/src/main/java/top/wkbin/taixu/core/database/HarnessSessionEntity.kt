@@ -27,7 +27,7 @@ data class HarnessSessionEntity(
     /** Explicit type selected for empty/imported workspaces; blank means auto-detect. */
     val projectType: String = "",
     /** Tool approval authority for this session; new sessions inherit the global default. */
-    val approvalMode: String = ApprovalMode.ASSISTED.id,
+    val approvalMode: String = ApprovalMode.FULL_ACCESS.id,
     /** 运行意图（BUILD/PLAN），与 [approvalMode] 正交；新会话继承全局默认。 */
     @ColumnInfo(defaultValue = "build") val runMode: String = RunMode.BUILD.id,
     /** Pre-SSH history binds to the local distro on first use; portable imports require a new session. */
@@ -79,7 +79,20 @@ interface HarnessSessionDao {
     suspend fun setModelSelection(id: String, modelId: String?, modelVariant: String?, updatedAt: Long)
 
     @Query("DELETE FROM harness_sessions WHERE id = :id")
-    suspend fun deleteSession(id: String)
+    suspend fun deleteSessionRow(id: String)
+
+    @Query("DELETE FROM bot_group_sessions WHERE sessionId = :id")
+    suspend fun deleteBotGroupSession(id: String)
+
+    @Query("DELETE FROM bot_assignments WHERE sessionId = :id")
+    suspend fun deleteBotAssignments(id: String)
+
+    @androidx.room.Transaction
+    suspend fun deleteSession(id: String) {
+        deleteBotAssignments(id)
+        deleteBotGroupSession(id)
+        deleteSessionRow(id)
+    }
 
     @Query("SELECT COUNT(*) FROM harness_sessions WHERE (:start IS NULL OR createdAt >= :start) AND (:end IS NULL OR createdAt < :end)")
     suspend fun countInRange(start: Long?, end: Long?): Int

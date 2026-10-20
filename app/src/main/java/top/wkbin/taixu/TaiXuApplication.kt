@@ -21,7 +21,10 @@ import top.wkbin.taixu.service.AgentForegroundService
 import top.wkbin.taixu.service.WorkflowForegroundService
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.harness.browser.BrowserMcpBootstrap
+import top.wkbin.taixu.bot.BotSchedulePlanner
 import top.wkbin.taixu.harness.agent.AgentMcpBootstrap
+import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
+import top.wkbin.taixu.harness.bot.BotAssignmentTracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -67,6 +70,10 @@ class TaiXuApplication : Application(), Configuration.Provider {
     val privilegeManager: PrivilegeManager by inject()
     val browserMcpBootstrap: BrowserMcpBootstrap by inject()
     val agentMcpBootstrap: AgentMcpBootstrap by inject()
+    val botSchedulePlannerLazy: Lazy<BotSchedulePlanner> = inject()
+    private val botAssignmentRuntimeLazy: Lazy<top.wkbin.taixu.harness.bot.BotAssignmentRuntime> = inject()
+    private val groupChatDispatcherLazy: Lazy<GroupChatDispatcher> = inject()
+    private val botAssignmentTrackerLazy: Lazy<BotAssignmentTracker> = inject()
 
     private val appLoggerLazy: Lazy<AppLogger> = inject()
     private val virtualDisplayCoordinatorLazy: Lazy<VirtualDisplayCoordinator> = inject()
@@ -122,8 +129,12 @@ class TaiXuApplication : Application(), Configuration.Provider {
                     }
                 }
                 launch { runCatching { mcpServerRepositoryLazy.value.ensureInitialized() } }
+                // 上次进程被杀时仍在 RUNNING 的委派无法恢复执行，收敛为失败以免工作面板永久转圈。
+                launch { runCatching { botAssignmentTrackerLazy.value.recoverOrphaned() } }
             }
             appStatsPreferences.incrementLaunchCount()
+            // Bot 定时排期：进程重启后收敛旧唤醒链，只保留最近一次触发。
+            launch { runCatching { botSchedulePlannerLazy.value.start() } }
             // 时序门：上面的任务全部就绪后才构造 HarnessLoop——
             //  1) MCP 预设已入库：McpManager 预热（构造时触发）能读到完整 server 列表，
             //     否则首启预热读到空表，第一轮对话缺工具；
@@ -152,6 +163,10 @@ class TaiXuApplication : Application(), Configuration.Provider {
             }.onFailure {
                 Log.w(TAG, "恢复中断会话失败", it)
             }
+            runCatching { botAssignmentRuntimeLazy.value.start() }
+                .onFailure { Log.w(TAG, "恢复独立委派失败", it) }
+            runCatching { groupChatDispatcherLazy.value.startDeliveryProcessing() }
+                .onFailure { Log.w(TAG, "恢复群消息分发失败", it) }
             // 工作流后台化：启动对账（把进程死亡遗留的非终态运行标为已中断）+ 通知/HUD
             // 控制器 + FGS 联动。工作流 agent 会话由工作流体系自管，已在恢复中排除。
             val workflowRunManager = workflowRunManagerLazy.value

@@ -44,8 +44,18 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         WorkflowExecutionLogEntity::class,
         WorkflowScheduleEntity::class,
         BackupRestoreReceipt::class,
+        BotEntity::class,
+        GroupChatEntity::class,
+        GroupMemberEntity::class,
+        GroupMessageEntity::class,
+        BotScheduleEntity::class,
+        BotAssignmentEntity::class,
+        BotGroupSessionEntity::class,
+        BotScheduleDeliveryEntity::class,
+        GroupDeliveryEntity::class,
+        BotAssignmentRequestEntity::class,
     ],
-    version = 56,
+    version = 63,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -73,5 +83,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun agentTaskDao(): AgentTaskDao
     abstract fun workflowDao(): WorkflowDao
     abstract fun workflowScheduleDao(): WorkflowScheduleDao
+    abstract fun personaBotDao(): PersonaBotDao
+    abstract fun groupChatDao(): GroupChatDao
+    abstract fun botScheduleDao(): BotScheduleDao
+    abstract fun botScheduleDeliveryDao(): BotScheduleDeliveryDao
+    abstract fun botAssignmentDao(): BotAssignmentDao
+    abstract fun botGroupSessionDao(): BotGroupSessionDao
 }
 

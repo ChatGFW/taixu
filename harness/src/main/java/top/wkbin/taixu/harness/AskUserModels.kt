@@ -8,6 +8,9 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * ask_user 工具的参数模型（对齐 opencode question 工具）：
@@ -21,18 +24,29 @@ data class AskUserQuestion(
     val options: List<AskUserOption> = emptyList(),
     /** 有候选项时默认允许自定义输入；纯自由文本问题恒为 true。 */
     val allowCustom: Boolean = true,
+    val defaultAnswer: String? = null,
 )
 
 @Serializable
 data class AskUserOption(
     val label: String,
     val description: String? = null,
+    val recommended: Boolean = false,
 )
 
 object AskUserQuestions {
     const val MAX_QUESTIONS = 4
     const val MAX_OPTIONS = 6
     const val TOOL_NAME = "ask_user"
+
+    fun parseJson(arguments: String): List<AskUserQuestion> = parse(Json.parseToJsonElement(arguments).jsonObject)
+
+    fun answersJson(answers: List<String>): String = buildJsonArray {
+        answers.forEachIndexed { index, answer -> add(buildJsonObject {
+            put("index", index)
+            put("answer", answer)
+        }) }
+    }.toString()
 
     /** 解析并校验 ask_user 入参；不合法时抛 [IllegalArgumentException]（文案可直接回写模型）。 */
     fun parse(args: JsonObject): List<AskUserQuestion> {
@@ -58,6 +72,7 @@ object AskUserQuestions {
                 AskUserOption(
                     label = label,
                     description = option["description"]?.jsonPrimitive?.contentOrNull?.trim()?.ifEmpty { null },
+                    recommended = option["recommended"]?.jsonPrimitive?.booleanOrNull ?: false,
                 )
             }.orEmpty()
             if (options.size > MAX_OPTIONS) {
@@ -73,8 +88,23 @@ object AskUserQuestions {
                 header = item["header"]?.jsonPrimitive?.contentOrNull?.trim()?.ifEmpty { null },
                 options = options,
                 allowCustom = allowCustom || options.isEmpty(),
+                defaultAnswer = item["default_answer"]?.jsonPrimitive?.contentOrNull?.trim()?.ifEmpty { null },
             )
         }
+    }
+
+    /** An automatic assumption is explicitly distinct from a Human answer. */
+    fun timeoutOutput(argumentsJson: String, waited: Boolean = true): String {
+        val questions = parseJson(argumentsJson)
+        val reason = if (waited) "用户在 60 秒内未回复。" else "后台任务不暂停等待用户。"
+        return reason + "以下为预设推荐答案（非用户确认），请据此继续完成原任务，不再等待：\n" +
+            questions.mapIndexed { index, question ->
+                val answer = question.options.firstOrNull { it.recommended }?.label
+                    ?: question.options.firstOrNull { it.label.contains("推荐") || it.label.contains("recommended", true) }?.label
+                    ?: question.options.firstOrNull()?.label ?: question.defaultAnswer
+                    ?: "根据已有上下文自行采用合理默认值继续；不得编造凭据或其他缺失事实。"
+                "${index + 1}. ${question.question}\n   → $answer"
+            }.joinToString("\n")
     }
 
     /** 把 UI 提交的答案（`[{"index":0,"answer":"..."}]`）格式化为回写给模型的工具结果。 */

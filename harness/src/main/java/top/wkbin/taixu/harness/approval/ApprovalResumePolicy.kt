@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness.approval
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.harness.ApprovalPolicyEngine
+import top.wkbin.taixu.harness.AskUserQuestions
 import top.wkbin.taixu.harness.operation.OperationCoordinator
 
 /**
@@ -46,8 +47,9 @@ class ApprovalResumePolicy(
     suspend fun invalidationOf(
         request: AgentApprovalRequestEntity,
         nowMs: Long = System.currentTimeMillis(),
+        automaticQuestionTimeout: Boolean = false,
     ): String? {
-        if (request.expiresAt <= nowMs) {
+        if (request.expiresAt <= nowMs && !(automaticQuestionTimeout && request.toolName == AskUserQuestions.TOOL_NAME)) {
             val ttlMinutes = ApprovalPolicyEngine.APPROVAL_TTL_MS / 60_000L
             return "该审批已过期（等待超过 $ttlMinutes 分钟）"
         }

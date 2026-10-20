@@ -5,9 +5,9 @@
         "\u4e0d\u5728\u57fa\u7ebf\u4e2d\u7684\u65b0\u6587\u4ef6\u5fc5\u987b <= architecture-policy.json \u7684 global.maxFileLines\u3002",
         "\u7ef4\u62a4\uff1a\u8fd0\u884c .\\gradlew.bat architectureBaselineSync \u81ea\u52a8\u540c\u6b65\u3002"
     ],
-    "generatedAt": "2026-10-19",
+    "generatedAt": "2026-10-20",
     "maxFileLines": 400,
-    "fileCount": 98,
+    "fileCount": 97,
     "files": {
         "core/database/src/main/java/top/wkbin/taixu/core/database/PersistenceRepositories.kt": 426,
         "core/datastore/src/main/java/top/wkbin/taixu/core/datastore/SettingsDataStore.kt": 980,
@@ -24,7 +24,6 @@
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatToolCards.kt": 620,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatViewModel.kt": 1555,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatWorkbenchPanels.kt": 1490,
-        "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/SessionsSideDrawer.kt": 562,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ToolDiffView.kt": 478,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/artifact/ArtifactPreviewSheet.kt": 525,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/floating/FloatingChatView.kt": 656,
@@ -76,7 +75,7 @@
         "harness/src/main/java/top/wkbin/taixu/harness/AnthropicApi.kt": 643,
         "harness/src/main/java/top/wkbin/taixu/harness/ApprovalPolicyEngine.kt": 461,
         "harness/src/main/java/top/wkbin/taixu/harness/ContextWindowPolicy.kt": 1070,
-        "harness/src/main/java/top/wkbin/taixu/harness/HarnessLoop.kt": 1699,
+        "harness/src/main/java/top/wkbin/taixu/harness/HarnessLoop.kt": 1680,
         "harness/src/main/java/top/wkbin/taixu/harness/HarnessProviderRunner.kt": 650,
         "harness/src/main/java/top/wkbin/taixu/harness/ProviderClient.kt": 1398,
         "harness/src/main/java/top/wkbin/taixu/harness/SubagentOrchestrator.kt": 788,

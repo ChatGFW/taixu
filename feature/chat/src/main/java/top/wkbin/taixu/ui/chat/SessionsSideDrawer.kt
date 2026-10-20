@@ -56,56 +56,6 @@ import java.util.Locale
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
-/** 按项目划分的会话组数据结构。 */
-data class ProjectSessionGroup(
-    val projectName: String,
-    val workspacePath: String,
-    val projectType: ProjectType,
-    val sessions: List<HarnessSessionEntity>,
-)
-
-/** 会话分区结果：项目分组与未关联的最近会话。 */
-data class SessionPartitionResult(
-    val projectGroups: List<ProjectSessionGroup>,
-    val recentSessions: List<HarnessSessionEntity>,
-)
-
-/**
- * 将全部会话与工作区进行归集与分区：
- * 1. 关联了工作区/项目的会话归类入对应项目分组（按 updatedAt 倒序）。
- * 2. 未关联工作区的纯沙箱会话归入「最近」（按 updatedAt 倒序）。
- */
-fun partitionSessions(
-    sessions: List<HarnessSessionEntity>,
-    workspaces: List<WorkspaceProject>,
-): SessionPartitionResult {
-    val (withWs, withoutWs) = sessions.partition { it.workspace.isNotBlank() }
-    val recentSessions = withoutWs.sortedByDescending { it.updatedAt }
-    val sessionsByWs = withWs.groupBy { it.workspace.trimEnd('/') }
-    val handledWsPaths = mutableSetOf<String>()
-    val projectGroups = mutableListOf<ProjectSessionGroup>()
-
-    for (ws in workspaces) {
-        val normPath = ws.linuxPath.trimEnd('/')
-        handledWsPaths.add(normPath)
-        val projSessions = sessionsByWs[normPath].orEmpty().sortedByDescending { it.updatedAt }
-        projectGroups.add(ProjectSessionGroup(ws.name, ws.linuxPath, ws.projectType, projSessions))
-    }
-
-    for ((wsPath, orphanSessions) in sessionsByWs) {
-        if (!handledWsPaths.contains(wsPath)) {
-            val extractedName = wsPath.substringAfterLast('/').ifBlank { wsPath }
-            projectGroups.add(ProjectSessionGroup(extractedName, wsPath, ProjectType.GENERAL, orphanSessions.sortedByDescending { it.updatedAt }))
-        }
-    }
-
-    val sortedProjectGroups = projectGroups.sortedWith(
-        compareByDescending<ProjectSessionGroup> { it.sessions.firstOrNull()?.updatedAt ?: 0L }
-            .thenBy { it.projectName.lowercase() },
-    )
-    return SessionPartitionResult(sortedProjectGroups, recentSessions)
-}
-
 @Composable
 private fun formatSessionTime(timestamp: Long): String {
     if (timestamp <= 0L) return ""
@@ -132,6 +82,7 @@ private fun formatSessionTime(timestamp: Long): String {
 internal fun SessionsSideDrawer(
     visible: Boolean,
     sessions: List<HarnessSessionEntity>,
+    botSessions: List<HarnessSessionEntity> = emptyList(),
     currentSessionId: String,
     workspaces: List<WorkspaceProject>,
     sessionRunStates: Map<String, SessionRunState>,
@@ -150,13 +101,17 @@ internal fun SessionsSideDrawer(
     var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
-    val partition = remember(sessions, workspaces, query) {
+    var projectsExpanded by rememberSaveable { mutableStateOf(true) }
+    // Search reveals matching projects without overwriting the user's normal collapsed state.
+    var searchProjectsExpanded by rememberSaveable(query.isNotBlank()) { mutableStateOf(true) }
+    val (partition, botMatches) = remember(sessions, botSessions, workspaces, query) {
         val term = query.trim()
-        val filtered = if (term.isEmpty()) sessions else sessions.filter {
-            it.title.contains(term, ignoreCase = true) || it.workspace.contains(term, ignoreCase = true)
-        }
+        fun HarnessSessionEntity.matches() = term.isEmpty() ||
+            title.contains(term, ignoreCase = true) || workspace.contains(term, ignoreCase = true)
+        val filtered = sessions.filter { it.matches() }
         val result = partitionSessions(filtered, workspaces)
-        if (term.isEmpty()) result else result.copy(projectGroups = result.projectGroups.filter { it.sessions.isNotEmpty() })
+        val bots = botSessions.filter { it.matches() }.sortedByDescending { it.updatedAt }
+        (if (term.isEmpty()) result else result.copy(projectGroups = result.projectGroups.filter { it.sessions.isNotEmpty() })) to bots
     }
     var expandedProjects by rememberSaveable {
         val initialExpanded = partition.projectGroups
@@ -184,7 +139,7 @@ internal fun SessionsSideDrawer(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                if (query.isNotBlank() && partition.projectGroups.isEmpty() && partition.recentSessions.isEmpty()) {
+                if (query.isNotBlank() && partition.projectGroups.isEmpty() && partition.recentSessions.isEmpty() && botMatches.isEmpty()) {
                     Text(stringResource(R.string.chat_drawer_no_matches),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
                         style = MaterialTheme.typography.bodySmall,
@@ -193,6 +148,11 @@ internal fun SessionsSideDrawer(
                 if (query.isBlank() || partition.projectGroups.isNotEmpty()) {
                     ProjectSection(
                         projectGroups = partition.projectGroups,
+                        sectionExpanded = if (query.isBlank()) projectsExpanded else searchProjectsExpanded,
+                        onToggleSection = {
+                            if (query.isBlank()) projectsExpanded = !projectsExpanded
+                            else searchProjectsExpanded = !searchProjectsExpanded
+                        },
                         currentSessionId = currentSessionId,
                         sessionRunStates = sessionRunStates,
                         expandedProjects = if (query.isBlank()) expandedProjects
@@ -228,6 +188,18 @@ internal fun SessionsSideDrawer(
                     )
                 }
 
+                if (botMatches.isNotEmpty()) {
+                    BotSessionsSection(
+                        botSessions = botMatches,
+                        currentSessionId = currentSessionId,
+                        sessionRunStates = sessionRunStates,
+                        forceExpanded = query.isNotBlank(),
+                        onSwitch = onSwitch,
+                        onRename = { id -> renameTargetId = id },
+                        onDelete = { id -> deleteTargetId = id },
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
             }
             SessionDrawerFooter(sessions.size, onSettings, navigationContent)
@@ -235,7 +207,7 @@ internal fun SessionsSideDrawer(
     }
 
     // 重命名会话弹窗
-    val renameTarget = renameTargetId?.let { id -> sessions.firstOrNull { it.id == id } }
+    val renameTarget = renameTargetId?.let { id -> (sessions + botSessions).firstOrNull { it.id == id } }
     renameTarget?.let { target ->
         RenameSessionDialog(
             currentTitle = target.title,
@@ -277,145 +249,6 @@ internal fun SessionsSideDrawer(
                 }
             },
         )
-    }
-}
-
-/** 项目分区。 */
-@Composable
-private fun ProjectSection(
-    projectGroups: List<ProjectSessionGroup>,
-    currentSessionId: String,
-    sessionRunStates: Map<String, SessionRunState>,
-    expandedProjects: Set<String>,
-    onToggleExpand: (String) -> Unit,
-    onSwitch: (String) -> Unit,
-    onCreateInProject: (ProjectSessionGroup) -> Unit,
-    onRename: (String) -> Unit,
-    onDelete: (String) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = stringResource(R.string.chat_drawer_projects),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = "${projectGroups.size}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
-            )
-        }
-
-        if (projectGroups.isEmpty()) {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = MaterialTheme.shapes.large,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = stringResource(R.string.chat_drawer_no_projects),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(10.dp),
-                )
-            }
-        } else {
-            projectGroups.forEach { group ->
-                val isExpanded = expandedProjects.contains(group.workspacePath)
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                ) {
-                    // 项目文件夹行
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(MaterialTheme.shapes.large)
-                            .clickable { onToggleExpand(group.workspacePath) }
-                            .padding(start = 8.dp, end = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        RuntimeIcon(
-                            name = if (isExpanded) RuntimeIconName.FolderOpen
-                            else RuntimeIconName.Folder,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            text = group.projectName,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (group.sessions.isNotEmpty()) {
-                            Text(
-                                text = "${group.sessions.size}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.outline,
-                            )
-                        }
-
-                        // 单项目快捷新建会话入口
-                        RuntimeIconButton(
-                            onClick = { onCreateInProject(group) },
-                            modifier = Modifier.size(48.dp), contentDescription = stringResource(R.string.chat_drawer_new_task),
-                        ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Plus,
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-
-                        RuntimeIcon(
-                            name = if (isExpanded) RuntimeIconName.ChevronDown
-                            else RuntimeIconName.ChevronRight,
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-
-                    // 展开的会话子项
-                    if (isExpanded) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 12.dp, end = 4.dp, bottom = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            if (group.sessions.isEmpty()) {
-                                Text(
-                                    text = stringResource(R.string.chat_drawer_no_sessions_in_project),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                )
-                            } else {
-                                group.sessions.forEach { session ->
-                                    SessionDrawerItem(
-                                        session = session,
-                                        isCurrent = session.id == currentSessionId,
-                                        runState = sessionRunStates[session.id] ?: SessionRunState.IDLE,
-                                        onSwitch = { onSwitch(session.id) },
-                                        onRename = { onRename(session.id) },
-                                        onDelete = { onDelete(session.id) },
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -481,7 +314,7 @@ private fun RecentSection(
 
 /** 单条会话项：选择会话与管理操作分开，避免重复动作淹没标题。 */
 @Composable
-private fun SessionDrawerItem(
+internal fun SessionDrawerItem(
     session: HarnessSessionEntity, isCurrent: Boolean, runState: SessionRunState,
     onSwitch: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit,
 ) {

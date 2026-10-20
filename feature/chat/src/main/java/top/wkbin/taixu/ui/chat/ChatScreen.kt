@@ -359,7 +359,7 @@ fun ChatScreen(
                 currentBranch = currentBranch,
                 runtimeEvents = runtimeEvents,
                 running = running,
-                onOpenSessions = onOpenNavigation, onOpenWorkshop = { onNavigate(MainDestination.Workspace) },
+                onOpenSessions = onOpenNavigation, onOpenBots = { onNavigate(MainDestination.Bots) }, onOpenWorkshop = { onNavigate(MainDestination.Workspace) },
                 onOpenRunModes = { showRunModes = true },
                 onOpenBranches = { showBranches = true },
                 onOpenRuntime = { showRuntimeTimeline = true },

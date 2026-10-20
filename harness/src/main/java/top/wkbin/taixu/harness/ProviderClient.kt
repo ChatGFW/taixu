@@ -787,7 +787,7 @@ class ProviderClient internal constructor(
         const val MAX_STREAM_CHARS = 4 * 1024 * 1024
 
         /** 流式增量上屏的发布间隔：SSE chunk 频率远高于帧率，逐 chunk 全量发布是 O(n²) 分配。 */
-        const val STREAM_PUBLISH_INTERVAL_MS = 100L
+        const val STREAM_PUBLISH_INTERVAL_MS = 16L // Snapshot allocation only; SSE reception is never throttled.
 
         /**
          * 空响应的用户可见文案（唯一来源：流式层报错与 turn 层兜底共用同一句）。
@@ -1143,18 +1143,18 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "load_rule",
-                    description = "按需加载系统提示词的详细规则块（workflow / code-navigation / security / memory / environment-proot / tools）。当当前任务需要某块规则但系统提示词中未注入时调用；只读，无副作用。",
+                    description = "按需加载系统提示词的详细规则块（含 image-delivery / browser-reverse）。当当前任务需要某块规则但系统提示词中未注入时调用；只读，无副作用。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"rule":{"type":"string","enum":["workflow","code-navigation","security","memory","environment-proot","tools"],"description":"要加载的规则块名称"}},"required":["rule"]}""",
+                        """{"type":"object","properties":{"rule":{"type":"string","enum":[${top.wkbin.taixu.harness.prompt.PromptRouter.RuleBlock.entries.joinToString(",") { "\"${it.loadName}\"" }}],"description":"要加载的规则块名称"}},"required":["rule"]}""",
                     ).jsonObject,
                 ),
             ),
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "ask_user",
-                    description = "在关键决策点向用户提出结构化问题（选择题或自由输入）。当多个合理方案难以自行取舍、或缺失会显著影响结果的关键信息时使用；不要用它确认显而易见的步骤，也不要频繁调用打断用户。",
+                    description = "在关键决策点向用户提出结构化问题（选择题或自由输入）。当多个合理方案难以自行取舍、或缺失会显著影响结果的关键信息时使用；不要用它确认显而易见的步骤，也不要频繁调用打断用户。最多等待60秒，未回复自动采用推荐答案继续；将推荐选项放第一项并标记 recommended=true，自由输入问题提供 default_answer。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"questions":{"type":"array","minItems":1,"maxItems":4,"items":{"type":"object","properties":{"question":{"type":"string","description":"问题正文，具体、可直接回答"},"header":{"type":"string","description":"短标签（≤12 字），用于卡片分组"},"options":{"type":"array","minItems":0,"maxItems":6,"items":{"type":"object","properties":{"label":{"type":"string","description":"选项短文本"},"description":{"type":"string","description":"选项补充说明，可省略"}},"required":["label"]},"description":"候选项；省略或为空表示自由文本问题"},"allow_custom":{"type":"boolean","description":"除候选项外是否允许用户自定义输入；有 options 时默认 true"}},"required":["question"]}}},"required":["questions"]}""",
+                        """{"type":"object","properties":{"questions":{"type":"array","minItems":1,"maxItems":4,"items":{"type":"object","properties":{"question":{"type":"string","description":"问题正文，具体、可直接回答"},"default_answer":{"type":"string","description":"自由输入问题的推荐答案，60秒未回复时采用"},"header":{"type":"string","description":"短标签（≤12 字），用于卡片分组"},"options":{"type":"array","minItems":0,"maxItems":6,"items":{"type":"object","properties":{"label":{"type":"string","description":"选项短文本"},"description":{"type":"string","description":"选项补充说明，可省略"},"recommended":{"type":"boolean","description":"是否为推荐答案；超时优先采用"}},"required":["label"]},"description":"候选项；省略或为空表示自由文本问题"},"allow_custom":{"type":"boolean","description":"除候选项外是否允许用户自定义输入；有 options 时默认 true"}},"required":["question"]}}},"required":["questions"]}""",
                     ).jsonObject,
                 ),
             ),

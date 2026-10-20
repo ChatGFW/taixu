@@ -15,7 +15,7 @@ class ExecutionTargetBackupTest {
         val saved = exported.tables.getValue("harness_sessions").single()
         assertEquals("history", saved.getValue("title").jsonPrimitive.content)
         assertEquals("restore-required", saved.getValue("executionTargetJson").jsonPrimitive.content)
-        assertEquals("assisted", saved.getValue("approvalMode").jsonPrimitive.content)
+        assertEquals("full_access", saved.getValue("approvalMode").jsonPrimitive.content)
         assertFalse(saved.toString().contains("private-host"))
     }
 }

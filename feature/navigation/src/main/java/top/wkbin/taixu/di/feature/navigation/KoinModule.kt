@@ -5,6 +5,7 @@ import top.wkbin.taixu.plugin.ui.PluginPages
 import top.wkbin.taixu.plugin.runtime.PluginController
 import top.wkbin.taixu.ui.navigation.NativePluginPlatform
 import top.wkbin.taixu.di.feature.browser.featureBrowserModule
+import top.wkbin.taixu.di.feature.bot.featureBotModule
 import top.wkbin.taixu.di.feature.chat.featureChatModule
 import top.wkbin.taixu.di.feature.custom.iteration.featureCustomIterationModule
 import top.wkbin.taixu.di.feature.developer.featureDeveloperModule
@@ -29,6 +30,7 @@ val navigationModule = module {
     single<PluginController> { get<NativePluginPlatform>().controller(get()) }
     includes(
         featureBrowserModule,
+        featureBotModule,
         featureChatModule,
         featureCustomIterationModule,
         featureDeveloperModule,

@@ -16,7 +16,7 @@ class BackupRecordPolicyTest {
         ))
         val portable = BackupRecordPolicy.portable(BackupRecords(mapOf("harness_sessions" to listOf(row))))
         val r = portable.tables.getValue("harness_sessions").single()
-        assertEquals(JsonPrimitive("assisted"), r["approvalMode"])
+        assertEquals(JsonPrimitive("full_access"), r["approvalMode"])
         assertEquals(JsonPrimitive("s1"), r["id"])
         assertEquals(JsonPrimitive("test"), r["name"])
     }
