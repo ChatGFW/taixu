@@ -4,7 +4,7 @@ import top.wkbin.taixu.core.model.bot.BotAvatarState
 import top.wkbin.taixu.core.model.bot.PixelAvatarRecipe
 
 /**
- * 16×24 world-unit chibi drawn on a 3× canvas, matching the room's art density.
+ * 16Ã—24 world-unit chibi drawn on a 3Ã— canvas, matching the room's art density.
  * Layout, hit targets and camera math keep using [WORLD_WIDTH] / [WORLD_HEIGHT].
  */
 internal object PixelOfficeSprite {
