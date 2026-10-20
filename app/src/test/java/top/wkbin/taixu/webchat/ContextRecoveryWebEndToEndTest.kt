@@ -12,7 +12,6 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.*
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.android.ext.koin.androidContext
@@ -39,7 +38,6 @@ import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 @RunWith(Aarch64AwareRobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, manifest = Config.NONE)
 class ContextRecoveryWebEndToEndTest {
-
     @Test fun recoveredFactWaitsForApprovalAndCompletesOnWebExactlyOnce() = scenario(true)
     @Test fun deniedActionIsNeverExecutedAndTheAnswerStillReachesWeb() = scenario(false)
     @Test fun expiredArtifactCompletesWithMissingEvidenceWithoutReplayingTheOldAction() = scenario(false, "expired")

@@ -39,7 +39,6 @@ import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 @RunWith(Aarch64AwareRobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, manifest = Config.NONE)
 class KoinAndroidIntegrationTest {
-
     @After
     fun tearDown() = stopKoin()
 

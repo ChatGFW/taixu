@@ -34,7 +34,6 @@ import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 @RunWith(Aarch64AwareRobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, manifest = Config.NONE)
 class ExternalPackageEndToEndTest {
-
     @Test fun installedExternalProviderCallsVersionBoundToolOnlyAfterApproval() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Application>()
         context.applicationInfo.nativeLibraryDir = context.filesDir.path

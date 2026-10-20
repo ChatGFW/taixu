@@ -21,7 +21,6 @@ import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 @RunWith(Aarch64AwareRobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, manifest = Config.NONE)
 class WebChatTaskObservationTest {
-
     private inline fun <reified T> unused(): T = Proxy.newProxyInstance(T::class.java.classLoader,
         arrayOf(T::class.java)) { _, method, _ -> error("Unexpected operation: ${method.name}") } as T
     private fun contract(block: suspend (TaiXuWebChatAgentGateway, AgentTaskRepository, AgentStateMachine) -> Unit) = runBlocking {
