@@ -75,6 +75,8 @@ class CapabilityScriptRunner(
         if (code.length > MAX_CODE_CHARS) {
             return false to "脚本过长（${code.length} 字符，上限 $MAX_CODE_CHARS）。请精简逻辑或拆分为多次 script 调用。"
         }
+        // 引擎探针放在最前：R8 裁剪/改名导致的求值器缺失必须在编译脚本前就变成可读错误。
+        engineUnavailableReason()?.let { return false to it }
         deadlineNanos = System.nanoTime() + timeoutMs.coerceAtLeast(0) * 1_000_000
         terminalFailure = null
         val startedAt = System.currentTimeMillis()
@@ -242,6 +244,24 @@ class CapabilityScriptRunner(
     }
 
     /**
+     * 引擎可用性探针。Rhino 在解释模式下用 `Class.forName("org.mozilla.javascript.Interpreter")`
+     * 拿求值器类，再对该 Class 直接调 `getDeclaredConstructor().newInstance()`（Kit.newInstanceOrNull，
+     * 其 catch 列表不含 NPE）。release 构建若没有 keep 该类，R8 会改名/剥离它 →
+     * `Class.forName` 返回 null → 编译阶段抛一句不可读的 NPE。这里提前把失败翻译成可操作的原因。
+     */
+    private fun engineUnavailableReason(): String? {
+        val evaluator = runCatching { Class.forName(INTERPRETER_CLASS, false, javaClass.classLoader) }
+            .getOrNull()
+            ?: return "脚本引擎不可用：Rhino 求值器类 $INTERPRETER_CLASS 未随本构建保留（R8 keep 规则缺失）。" +
+                "请在 harness/consumer-rules.pro 保留该类后重新构建；当前可改用 use_capability(action=\"call\") 逐条调用。"
+        return if (runCatching { evaluator.getDeclaredConstructor() }.isSuccess) {
+            null
+        } else {
+            "脚本引擎不可用：Rhino 求值器 $INTERPRETER_CLASS 缺少无参构造器（R8 成员裁剪）。请检查 consumer-rules.pro 的 keep 规则。"
+        }
+    }
+
+    /**
      * 组装可诊断的失败原因。绝不交给 argRedactor：
      * 脱敏是针对**调用参数**的，对**错误文本**做脱敏会把根因嚼成无法辨认的碎片。
      */
@@ -257,6 +277,12 @@ class CapabilityScriptRunner(
         }
         if (t.findCause<LinkageError>() != null) {
             append("\n提示：这是类初始化/类缺失错误（LinkageError）；Rhino 所依赖的 java.beans 在 Android 上不可用，脚本后端可能无法启动。")
+        }
+        if (contains("getDeclaredConstructor")) {
+            append(
+                "\n提示：Rhino 求值器实例化拿到 null Class（Class.forName 失败）。" +
+                    "release 构建必须在 harness/consumer-rules.pro keep $INTERPRETER_CLASS。",
+            )
         }
     }.take(1_000)
 
@@ -335,6 +361,9 @@ class CapabilityScriptRunner(
         const val MAX_TIMEOUT_SECONDS = 300L
         const val MAX_CODE_CHARS = 32_768
         const val MAX_OUTPUT_CHARS = 64_000
+
+        /** Rhino 求值器类名：既是 classOrNull 的加载目标，也是 release 构建必须 keep 的名字。 */
+        private const val INTERPRETER_CLASS = "org.mozilla.javascript.Interpreter"
 
         /** 纯 Kotlin JSON 序列化的递归深度上限，防止自引用对象把栈打爆。 */
         private const val MAX_JSON_DEPTH = 32

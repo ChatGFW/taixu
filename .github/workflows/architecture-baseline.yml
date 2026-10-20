@@ -53,6 +53,7 @@ jobs:
             --tests 'top.wkbin.taixu.harness.WorkspaceTextSearchTest' \
             --tests 'top.wkbin.taixu.harness.WorkspaceToolBackendTest' \
             --tests 'top.wkbin.taixu.harness.mcp.*' \
+            --tests 'top.wkbin.taixu.harness.CapabilityScriptRunnerTest' \
             --tests 'top.wkbin.taixu.harness.approval.TrustedToolRiskPolicyTest' \
             --tests 'top.wkbin.taixu.harness.environment.McpMetadataLifecycleTest'
           ./gradlew :core:datastore:testDebugUnitTest --no-daemon --console=plain \
