@@ -19,6 +19,9 @@ sealed interface AppNavigationTarget {
 
     /** 系统分享入口：外部 ACTION_SEND 分享的文本，进入聊天页预填（不自动发送） */
     data class SharedText(val text: String) : AppNavigationTarget
+
+    /** 打开 Agent 会话（通知点入；按 sessionId 定位群聊或独立会话） */
+    data class AgentSession(val sessionId: String? = null, val groupId: String? = null) : AppNavigationTarget
 }
 
 /**

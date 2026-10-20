@@ -23,6 +23,7 @@ import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentRequest
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
+import top.wkbin.taixu.harness.HarnessPathResolver
 import top.wkbin.taixu.harness.session.SessionControl
 
 fun interface BotAssignmentExecutor {
@@ -40,17 +41,29 @@ class BotAssignmentRuntime(
     private val executor: BotAssignmentExecutor,
     private val logger: AppLogger,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    private val modelManager: BotModelManager? = null,
 ) {
     private val pump = AssignmentRequestPump(repository, scope, logger, ::execute)
     suspend fun start() = pump.start()
 
     suspend fun create(botId: String, groupId: String, requesterId: String, sourceSessionId: String, instruction: String,
         writePaths: List<String> = emptyList()): BotAssignment {
+        val create = suspend { createTask(botId, groupId, requesterId, sourceSessionId, instruction, writePaths) }
+        return modelManager?.withBotLock(botId, create) ?: create()
+    }
+
+    private suspend fun createTask(botId: String, groupId: String, requesterId: String, sourceSessionId: String, instruction: String,
+        writePaths: List<String>): BotAssignment {
         start()
         require(instruction.isNotBlank()) { "任务内容不能为空" }
         val bot = requireNotNull(bots.getBot(botId)) { "执行成员不存在" }
         val source = requireNotNull(sessions.findById(sourceSessionId)) { "来源会话不存在" }
         require(groups.getMembers(groupId).any { it.id == requesterId }) { "请求者不在群内" }
+        require(groups.getMembers(groupId).any { it.id == botId }) { "执行成员不在群内" }
+        val workspace = source.workspace.ifBlank { "/workspace" }
+        require(writePaths.all { HarnessPathResolver().isWithinWorkspace(it, workspace) }) {
+            "写入路径必须在来源工作区 $workspace 内；请使用工作区相对路径或该工作区的绝对路径，不能使用 /root"
+        }
         val now = System.currentTimeMillis()
         val id = UUID.randomUUID().toString()
         val task = BotAssignment(id, groupId, botId, bot.name, instruction.lineSequence().first().take(60), instruction,
@@ -59,7 +72,8 @@ class BotAssignmentRuntime(
         val session = HarnessSessionEntity(
             id = requireNotNull(task.sessionId), title = "${bot.name} · ${task.title}", createdAt = now, updatedAt = now,
             modelId = bot.modelId ?: source.modelId,
-            modelVariant = if (bot.modelId == null || bot.modelId == source.modelId) source.modelVariant else null,
+            modelVariant = if (bot.modelId == null) source.modelVariant else bot.modelVariant,
+            // Empty is a persisted workspace identity too; the environment maps it to /workspace.
             workspace = source.workspace, projectType = source.projectType,
             approvalMode = ApprovalMode.FULL_ACCESS.id, executionTargetJson = source.executionTargetJson,
         )

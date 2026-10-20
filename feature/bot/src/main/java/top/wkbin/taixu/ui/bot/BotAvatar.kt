@@ -1,6 +1,7 @@
 package top.wkbin.taixu.ui.bot
 
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -35,10 +36,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotAvatarState
 import top.wkbin.taixu.core.model.bot.PixelAvatarRecipe
 import top.wkbin.taixu.core.model.bot.PixelAvatarArt
 
-/** 由名称种子生成的对称像素头像：同一 Bot 在任何设备上都得到同一张脸。 */
+/** 由名称种子生成的对称像素头像：同一 Bot 在任何设备上都得到同一张脸，并随运行态切换动作与微动效。 */
 @Composable
 fun BotAvatar(
     seed: String,
@@ -46,12 +48,31 @@ fun BotAvatar(
     size: Dp,
     modifier: Modifier = Modifier,
     active: Boolean = false,
+    state: BotAvatarState = if (active) BotAvatarState.ACTIVE else BotAvatarState.IDLE,
 ) {
     val fallback = MaterialTheme.colorScheme.primary
     val base = remember(colorHex) { parseHexColor(colorHex) ?: fallback }
     val pattern = remember(seed) { pixelPattern(seed) }
     val recipe = remember(seed) { PixelAvatarRecipe.decode(seed) }
-    val pixels = remember(recipe) { recipe?.let(PixelAvatarArt::cells) }
+
+    val isDynamic = state != BotAvatarState.IDLE
+    val frame = if (isDynamic) {
+        val transition = rememberInfiniteTransition(label = "bot_avatar_frame")
+        val frameFloat by transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 2f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(700, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+            label = "bot_avatar_frame_float",
+        )
+        frameFloat.toInt().coerceIn(0, 1)
+    } else {
+        0
+    }
+
+    val pixels = remember(recipe, state, frame) { recipe?.let { PixelAvatarArt.cells(it, state, frame) } }
     val image by produceState<android.graphics.Bitmap?>(null, seed) {
         value = null
         value = withContext(Dispatchers.Default) { BotAvatarImage.decode(seed) }
@@ -90,7 +111,15 @@ fun BotAvatar(
                 )
             }
         }
-        if (active) {
+        if (active || state != BotAvatarState.IDLE) {
+            val pulseColor = when (state) {
+                BotAvatarState.THINKING -> Color(0xFFFFB74D)
+                BotAvatarState.EXECUTING -> MaterialTheme.colorScheme.primary
+                BotAvatarState.BLOCKED -> MaterialTheme.colorScheme.error
+                BotAvatarState.SUCCESS -> Color(0xFF4CAF50)
+                BotAvatarState.FAILED -> MaterialTheme.colorScheme.error
+                else -> base
+            }
             val transition = rememberInfiniteTransition(label = "bot_avatar_pulse")
             val alpha by transition.animateFloat(
                 initialValue = 1f,
@@ -104,15 +133,27 @@ fun BotAvatar(
             Box(
                 Modifier
                     .matchParentSize()
-                    .border(2.dp, base.copy(alpha = alpha), RoundedCornerShape(size * 0.30f)),
+                    .border(2.dp, pulseColor.copy(alpha = alpha), RoundedCornerShape(size * 0.30f)),
             )
         }
     }
 }
 
 @Composable
-fun BotAvatar(bot: Bot, size: Dp, modifier: Modifier = Modifier, active: Boolean = false) =
-    BotAvatar(seed = bot.avatarSeed, colorHex = bot.colorHex, size = size, modifier = modifier, active = active)
+fun BotAvatar(
+    bot: Bot,
+    size: Dp,
+    modifier: Modifier = Modifier,
+    active: Boolean = false,
+    state: BotAvatarState = if (active) BotAvatarState.ACTIVE else BotAvatarState.IDLE,
+) = BotAvatar(
+    seed = bot.avatarSeed,
+    colorHex = bot.colorHex,
+    size = size,
+    modifier = modifier,
+    active = active,
+    state = state,
+)
 
 private fun parseHexColor(hex: String): Color? =
     runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull()

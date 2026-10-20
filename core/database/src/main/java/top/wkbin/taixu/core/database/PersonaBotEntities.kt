@@ -33,6 +33,7 @@ data class BotEntity(
     val colorHex: String,
     val createdAt: Long,
     val updatedAt: Long,
+    val modelVariant: String? = null,
 )
 
 @Entity(

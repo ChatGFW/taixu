@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -17,6 +19,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -31,6 +34,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -38,7 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.model.bot.Bot
-import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
+import androidx.compose.ui.text.input.TextFieldValue
 import top.wkbin.taixu.core.model.bot.GroupAttachment
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.EmptyPanel
@@ -50,6 +54,11 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+
+enum class GroupChatViewMode {
+    CHAT,
+    STUDIO,
+}
 
 @Composable
 fun GroupChatScreen(
@@ -64,6 +73,7 @@ fun GroupChatScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val activeAssignments by viewModel.activeAssignments.collectAsStateWithLifecycle()
     val workAssignments by viewModel.groupAssignments.collectAsStateWithLifecycle()
+    val pendingApprovals by viewModel.pendingApprovals.collectAsStateWithLifecycle()
     val exportFile by viewModel.exportFile.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -72,10 +82,13 @@ fun GroupChatScreen(
     var following by remember { mutableStateOf(true) }
     var anchorId by remember { mutableStateOf<String?>(null) }
     val unseen = if (following) 0 else countUnseen(messages, anchorId)
-    var input by rememberSaveable { mutableStateOf("") }
+    var input by rememberSaveable(groupId, stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
     var pendingAttachments by remember { mutableStateOf<List<GroupAttachment>>(emptyList()) }
     var showMembers by rememberSaveable { mutableStateOf(false) }
-    var showWork by rememberSaveable { mutableStateOf(false) }
+    var viewMode by rememberSaveable(groupId) { mutableStateOf(GroupChatViewMode.CHAT) }
+    BackHandler(enabled = viewMode == GroupChatViewMode.STUDIO) {
+        viewMode = GroupChatViewMode.CHAT
+    }
     var showInfo by rememberSaveable { mutableStateOf(false) }
     var confirmClear by rememberSaveable { mutableStateOf(false) }
     val attachmentPicker = rememberLauncherForActivityResult(
@@ -93,10 +106,8 @@ fun GroupChatScreen(
     }
     val memberById = remember(members) { members.associateBy(Bot::id) }
     val chatEntries = remember(messages) { buildChatEntries(messages) }
-    val streamingCount = messages.filter { it.isStreaming }.map { it.senderId }.distinct().size
-    val workingCount = streamingCount + activeAssignments.size
-    val busy = workingCount > 0
-    val runningAssignments = workAssignments.count { it.status.isActive }
+    val workSummary = remember(workAssignments, activeAssignments, messages) { summarizeGroupWork(workAssignments, activeAssignments, messages) }
+    val busy = workSummary.active > 0
     val yesterdayLabel = stringResource(R.string.fbot_yesterday)
     val admin = remember(members, state.group?.adminBotId) {
         members.firstOrNull { it.id == state.group?.adminBotId }
@@ -128,61 +139,76 @@ fun GroupChatScreen(
         onAnchorChange = { anchorId = it },
     )
 
+    val studio = viewMode == GroupChatViewMode.STUDIO
     Scaffold(
+        contentWindowInsets = if (studio) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
         topBar = {
-            RuntimeTopBar(
-                title = state.group?.name ?: stringResource(R.string.fbot_loading),
-                onBack = onBack,
-                statusText = statusText,
-                actions = {
-                    RuntimeIconButton(
-                        onClick = { showWork = true },
-                        contentDescription = stringResource(R.string.fbot_work_title),
-                    ) {
-                        Box {
-                            RuntimeIcon(RuntimeIconName.Checklist, Modifier.size(20.dp))
-                            if (runningAssignments > 0) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .size(7.dp)
-                                        .background(MaterialTheme.colorScheme.primary, CircleShape),
-                                )
-                            }
-                        }
-                    }
-                    RuntimeIconButton(
-                        onClick = viewModel::exportDiagnostics,
-                        enabled = !state.exporting,
-                        contentDescription = stringResource(R.string.fbot_export_diagnostics),
-                    ) {
-                        if (state.exporting) {
-                            RuntimeCircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        } else {
-                            RuntimeIcon(RuntimeIconName.FolderDownload, Modifier.size(20.dp))
-                        }
-                    }
-                    RuntimeIconButton(
-                        onClick = { showInfo = true },
-                        contentDescription = stringResource(R.string.fbot_group_info),
-                    ) {
-                        RuntimeIcon(RuntimeIconName.Info, Modifier.size(21.dp))
-                    }
-                },
-            )
+            if (!studio) {
+                GroupChatTopBar(
+                    viewMode = viewMode,
+                    groupName = state.group?.name.orEmpty(),
+                    statusText = statusText,
+                    busy = busy,
+                    workSummary = workSummary,
+                    exporting = state.exporting,
+                    onBack = onBack,
+                    onSwitchMode = { viewMode = it },
+                    onExportDiagnostics = viewModel::exportDiagnostics,
+                    onShowInfo = { showInfo = true },
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = if (studio) Color(PixelOfficeRoom.FLOOR) else MaterialTheme.colorScheme.surface,
     ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .background(groupBackgroundBrush(state.group?.background)),
+                .then(
+                    if (studio) Modifier
+                    else Modifier.padding(padding).background(groupBackgroundBrush(state.group?.background)),
+                ),
         ) {
-            if (messages.isEmpty()) {
+            Box(Modifier.fillMaxWidth().weight(1f)) {
+                if (studio) {
+                    GroupCyberStudio(
+                        members = members,
+                        messages = messages,
+                        assignments = workAssignments,
+                        onSelectBot = { bot -> input = insertGroupMention(input, bot.name) },
+                        onOpenBot = onOpenBot,
+                        onCancelAssignment = viewModel::cancelAssignment,
+                        onContinueAssignment = viewModel::continueAssignment,
+                        onBackToChat = { viewMode = GroupChatViewMode.CHAT },
+                        waitingSessions = pendingApprovals.map { OfficeWait(it.sessionId, it.createdAt, it.expiresAt) },
+                        modifier = Modifier.fillMaxSize(),
+                        footer = {
+                            GroupPendingActions(viewModel)
+                            PixelOfficeComposer(
+                                members = members,
+                                value = input,
+                                attachments = pendingAttachments,
+                                sending = state.sending,
+                                busy = busy,
+                                stopping = state.stopping,
+                                onValueChange = { input = it },
+                                onMention = { name -> input = insertGroupMention(input, name) },
+                                onAttach = { attachmentPicker.launch(arrayOf("*/*")) },
+                                onRemoveAttachment = { pendingAttachments = pendingAttachments - it },
+                                onSend = {
+                                    following = true
+                                    anchorId = null
+                                    viewModel.send(input.text, pendingAttachments)
+                                    input = TextFieldValue()
+                                    pendingAttachments = emptyList()
+                                },
+                                onStop = viewModel::stop,
+                            )
+                        },
+                    )
+                } else if (messages.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 20.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     EmptyPanel(
@@ -192,7 +218,7 @@ fun GroupChatScreen(
                     )
                 }
             } else {
-                Box(Modifier.fillMaxWidth().weight(1f)) {
+                Box(Modifier.fillMaxSize()) {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
@@ -218,7 +244,6 @@ fun GroupChatScreen(
                                     firstInGroup = entry.firstInGroup,
                                     lastInGroup = entry.lastInGroup,
                                     onOpenBot = onOpenBot,
-                                    onToggleReaction = viewModel::toggleReaction,
                                 )
                             }
                         }
@@ -265,6 +290,8 @@ fun GroupChatScreen(
                     }
                 }
             }
+            }
+            if (!studio) {
             GroupPendingActions(viewModel)
             GroupChatComposer(
                 members = members,
@@ -272,11 +299,10 @@ fun GroupChatScreen(
                 attachments = pendingAttachments,
                 sending = state.sending,
                 busy = busy,
-                workingCount = workingCount,
                 stopping = state.stopping,
                 onValueChange = { input = it },
                 onMention = { name ->
-                    input = (if (input.isBlank() || input.endsWith(" ")) input else "$input ") + "@$name "
+                    input = insertGroupMention(input, name)
                 },
                 onAttach = { attachmentPicker.launch(arrayOf("*/*")) },
                 onRemoveAttachment = { attachment ->
@@ -285,12 +311,13 @@ fun GroupChatScreen(
                 onSend = {
                     following = true
                     anchorId = null
-                    viewModel.send(input, pendingAttachments)
-                    input = ""
+                    viewModel.send(input.text, pendingAttachments)
+                    input = TextFieldValue()
                     pendingAttachments = emptyList()
                 },
                 onStop = viewModel::stop,
             )
+            }
         }
     }
 
@@ -318,16 +345,6 @@ fun GroupChatScreen(
                 },
             )
         }
-    }
-    if (showWork) {
-        GroupWorkDialog(
-            assignments = workAssignments,
-            members = members,
-            messages = messages,
-            onDismiss = { showWork = false },
-            onCancel = viewModel::cancelAssignment,
-            onContinue = viewModel::continueAssignment,
-        )
     }
     if (showMembers) {
         GroupMembersDialog(

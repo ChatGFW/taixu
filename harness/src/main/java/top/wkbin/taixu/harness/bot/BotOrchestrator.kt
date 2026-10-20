@@ -9,7 +9,6 @@ import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.ApprovalMode
-import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.harness.bot.memory.BotMemoryManager
 import top.wkbin.taixu.harness.session.PromptSubmission
@@ -24,7 +23,7 @@ import kotlinx.coroutines.sync.withLock
 /**
  * PersonaBot 生命周期编排：独占会话、模型选择、人格记忆与后台 Lane 委派。
  *
- * 新建会话采用 ASSISTED；群聊通过审批面板恢复等待的操作。
+ * 新建会话采用 FULL_ACCESS；已有会话保留执行目标，群聊通过审批面板恢复等待的操作。
  * Bot 生命周期操作另有主控 Bot 身份校验（见 BotManagementPlugin）。
  */
 class BotOrchestrator(
@@ -36,6 +35,7 @@ class BotOrchestrator(
     private val laneRunner: SubagentLaneRunner,
     private val memoryManager: BotMemoryManager,
     private val logger: AppLogger,
+    private val modelManager: BotModelManager,
     private val assignmentRepository: top.wkbin.taixu.core.database.repository.BotAssignmentRepository? = null,
 ) {
     private val groupSessionLocks = ConcurrentHashMap<String, Mutex>()
@@ -49,12 +49,14 @@ class BotOrchestrator(
         colorHex: String = "#3D5AFE",
         groupId: String? = null,
         avatarSeed: String? = null,
+        modelVariant: String? = null,
     ): Bot {
         val cleanName = name.trim().take(40)
         val cleanRole = role.trim().take(40)
         require(cleanName.isNotBlank()) { "Bot 名称不能为空" }
         require(cleanRole.isNotBlank()) { "Bot 职责不能为空" }
         require(systemPrompt.isNotBlank()) { "Bot 人格设定不能为空" }
+        val selection = modelManager.validate(modelId, modelVariant)
 
         val existing = botRepository.listBots()
         val main = isMainBot || existing.none { it.isMainBot }
@@ -67,7 +69,8 @@ class BotOrchestrator(
             role = cleanRole,
             systemPrompt = systemPrompt.trim(),
             avatarSeed = avatarSeed?.takeIf { it.isNotBlank() } ?: cleanName,
-            modelId = modelId?.takeIf { it.isNotBlank() },
+            modelId = selection.first,
+            modelVariant = selection.second,
             providerId = null,
             sessionId = sessionId,
             isMainBot = main,
@@ -103,8 +106,10 @@ class BotOrchestrator(
         modelId: String?,
         isMainBot: Boolean,
         avatarSeed: String? = null,
-    ): Bot {
+        modelVariant: String? = null,
+    ): Bot = modelManager.withBotLock(botId) {
         val current = requireNotNull(botRepository.getBot(botId)) { "Bot 不存在" }
+        val selection = modelManager.validate(modelId, modelVariant)
         val cleanName = name.trim().take(40).ifBlank { current.name }
         val cleanRole = role.trim().take(40).ifBlank { current.role }
         val keepMain = if (!isMainBot && current.isMainBot) {
@@ -116,22 +121,19 @@ class BotOrchestrator(
             name = cleanName,
             role = cleanRole,
             systemPrompt = systemPrompt.trim().ifBlank { current.systemPrompt },
-            modelId = modelId?.takeIf { it.isNotBlank() },
+            modelId = selection.first,
+            modelVariant = selection.second,
             isMainBot = keepMain,
             avatarSeed = avatarSeed?.takeIf { it.isNotBlank() } ?: current.avatarSeed,
             updatedAt = System.currentTimeMillis(),
         )
         botRepository.saveBot(updated)
         sessionRepository.rename(updated.sessionId, sessionTitle(updated), updated.updatedAt)
-        sessionRepository.setModelSelection(updated.sessionId, updated.modelId, null, updated.updatedAt)
-        groupSessionRepository.listSessionIdsForBot(botId).forEach { sessionId ->
-            // 与主会话一致：第三参是 modelVariant，而非 providerId；providerId 未作会话模型变体使用。
-            sessionRepository.setModelSelection(sessionId, updated.modelId, null, updated.updatedAt)
-        }
+        modelManager.syncSessions(updated)
         if (updated.systemPrompt != current.systemPrompt) {
             memoryManager.writeMemory(botId, BotMemoryManager.PERSONA, updated.systemPrompt, "feat: 更新 Persona 设定")
         }
-        return updated
+        updated
     }
 
     suspend fun deleteBot(botId: String) {
@@ -160,14 +162,20 @@ class BotOrchestrator(
     }
 
     /** 独占会话可能被用户在会话列表里删除；发言前自愈，避免 SESSION_NOT_FOUND。 */
-    suspend fun ensureSession(bot: Bot) =
-        ensureSessionRow(bot, bot.sessionId, sessionTitle(bot))
+    suspend fun ensureSession(bot: Bot) = modelManager.withBotLock(bot.id) {
+        val current = requireNotNull(botRepository.getBot(bot.id)) { "Bot 不存在" }
+        ensureSessionRow(current, current.sessionId, sessionTitle(current))
+    }
 
     /**
      * 群维度会话：同一 Bot 在不同群使用独立 Harness 会话，历史、上下文与 Lane 互不污染。
      * 映射缺失时按需创建；同一 (bot, group) 只会创建一次。
      */
-    suspend fun ensureGroupSession(bot: Bot, groupId: String): String =
+    suspend fun ensureGroupSession(bot: Bot, groupId: String): String = modelManager.withBotLock(bot.id) {
+        ensureGroupSessionLocked(requireNotNull(botRepository.getBot(bot.id)) { "Bot 不存在" }, groupId)
+    }
+
+    private suspend fun ensureGroupSessionLocked(bot: Bot, groupId: String): String =
         groupSessionLocks.computeIfAbsent("${bot.id}:$groupId") { Mutex() }.withLock {
         val existing = groupSessionRepository.sessionIdFor(bot.id, groupId)
         val title = groupSessionTitle(bot, groupRepository.getGroup(groupId)?.name)
@@ -186,6 +194,9 @@ class BotOrchestrator(
 
     suspend fun groupSessionId(botId: String, groupId: String): String? =
         groupSessionRepository.sessionIdFor(botId, groupId)
+
+    suspend fun groupIdForSession(sessionId: String): String? =
+        groupSessionRepository.groupIdForSession(sessionId)
 
     /** 解散群聊前移除各 Bot 的群维度会话，避免留下无主会话。 */
     suspend fun deleteGroupSessions(groupId: String) {
@@ -208,31 +219,15 @@ class BotOrchestrator(
         val now = System.currentTimeMillis()
         // 群聊自动执行没有审批 UI；旧会话可能仍是 ASSISTED，发言前统一升级为完全访问。
         val needsFullAccess = existing.approvalMode != ApprovalMode.FULL_ACCESS.id
-        // Bot 会话会切换群聊与工作区，不能沿用用户项目的 workspace 绑定；否则换群后会报
-        // “会话已绑定其他工作区”。空闲时归零，下一次运行按统一工作区重新绑定。
-        val idle = sessionControl.sessionRunStates.value[sessionId] !in
-            setOf(SessionRunState.RUNNING, SessionRunState.WAITING_APPROVAL)
-        val needsWorkspaceReset = idle &&
-            (existing.workspace.isNotBlank() || existing.executionTargetJson != "unbound")
-        if (needsFullAccess || needsWorkspaceReset) {
+        // Existing sessions own their execution target. Never silently move resumed work to another environment.
+        if (needsFullAccess) {
             sessionRepository.upsert(
                 existing.copy(
                     approvalMode = ApprovalMode.FULL_ACCESS.id,
-                    workspace = if (needsWorkspaceReset) "" else existing.workspace,
-                    executionTargetJson = if (needsWorkspaceReset) {
-                        "unbound"
-                    } else {
-                        existing.executionTargetJson
-                    },
                     updatedAt = now,
                 ),
             )
-            if (needsFullAccess) {
-                logger.i("[BotOrchestrator] Bot 会话已启用完全访问（免审批）: ${bot.name} ($sessionId)")
-            }
-            if (needsWorkspaceReset) {
-                logger.w("[BotOrchestrator] 已重置 Bot 会话工作区绑定: ${bot.name} ($sessionId)")
-            }
+            logger.i("[BotOrchestrator] Bot 会话已启用完全访问（免审批）: ${bot.name} ($sessionId)")
         }
     }
 
@@ -273,6 +268,7 @@ class BotOrchestrator(
             prompt = prompt,
             workspace = workspace,
             modelId = bot.modelId,
+            modelVariant = bot.modelVariant,
             writePaths = writePaths,
         )
     }
@@ -295,6 +291,7 @@ class BotOrchestrator(
         createdAt = now,
         updatedAt = now,
         modelId = bot.modelId,
+        modelVariant = bot.modelVariant,
         workspace = "",
         projectType = "",
         approvalMode = ApprovalMode.FULL_ACCESS.id,

@@ -22,7 +22,7 @@ import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
 /**
  * 主控 Bot 的团队管理工具：孵化新 Bot、向指定 Bot 派发后台子任务、查看名册。
  *
- * 只有主控 Bot（isMainBot）可以调用；身份由当前会话反查，模型无法通过参数伪造。
+ * 团队生命周期与派单仅主控可用；模型目录与自身模型选择向所有成员开放。身份由会话反查。
  */
 fun botManagementPlugin(
     botRepository: PersonaBotRepository,
@@ -32,6 +32,7 @@ fun botManagementPlugin(
     assignments: BotAssignmentTracker,
     logger: AppLogger,
     runtime: (() -> top.wkbin.taixu.harness.bot.BotAssignmentRuntime)? = null,
+    modelManager: top.wkbin.taixu.harness.bot.BotModelManager? = null,
 ): HarnessPlugin {
     val descriptor = botManagementDescriptor()
     val createSchema = pluginObjectSchema(
@@ -41,6 +42,7 @@ fun botManagementPlugin(
             "role" to pluginStringProperty("一句话职责，如「后端工程师」"),
             "system_prompt" to pluginStringProperty("完整人格与工作约束，会写入 persona.md"),
             "model_id" to pluginStringProperty("可选模型 ID；省略则使用默认模型"),
+            "model" to pluginStringProperty("该供应商档案下已添加的具体模型名；省略使用档案默认"),
             "color_hex" to pluginStringProperty("可选主题色，如 #3D5AFE"),
             "group_id" to pluginStringProperty("可选群聊 ID；省略时加入你所在的第一个群聊"),
         ),
@@ -102,6 +104,7 @@ fun botManagementPlugin(
                         role = role,
                         systemPrompt = prompt,
                         modelId = modelId,
+                        modelVariant = request.arguments["model"]?.jsonPrimitive?.content,
                         colorHex = normalizeColor(color),
                         groupId = group?.id,
                     )
@@ -200,7 +203,7 @@ fun botManagementPlugin(
                 } else {
                     val text = bots.joinToString("\n") { bot ->
                         val mark = if (bot.isMainBot) "👑 主控" else "成员"
-                        "- ${bot.name}（${bot.role}）· $mark · 模型 ${bot.modelId ?: "默认"}"
+                        "- bot_name=\"${bot.name}\" · 职责=${bot.role} · $mark · 模型 ${bot.modelId ?: "默认"} / ${bot.modelVariant ?: "档案默认"}"
                     }
                     PluginToolOutput(true, text.take(BOT_TOOL_MAX_CHARS))
                 }
@@ -209,7 +212,7 @@ fun botManagementPlugin(
             botRepository = botRepository,
             groupRepository = groupRepository,
             assignments = assignments,
-        ) + independentAssignmentTools(botRepository, groupRepository, runtime),
+        ) + independentAssignmentTools(botRepository, groupRepository, runtime) + botModelTools(botRepository, modelManager),
     )
 }
 

@@ -53,6 +53,7 @@ fun BotDetailScreen(
     viewModel: BotDetailViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val profiles by viewModel.modelProfiles.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
@@ -127,7 +128,7 @@ fun BotDetailScreen(
                 }
             }
             when (tab) {
-                TAB_PERSONA -> BotPersonaPanel(bot, state.busy, viewModel::save)
+                TAB_PERSONA -> BotPersonaPanel(bot, state.busy, profiles, viewModel::save)
                 TAB_MEMORY -> BotMemoryPanel(
                     files = state.memoryFiles,
                     commits = state.commits,
@@ -184,12 +185,18 @@ fun BotDetailScreen(
 private fun BotPersonaPanel(
     bot: Bot,
     busy: Boolean,
-    onSave: (name: String, role: String, persona: String, modelId: String, isMainBot: Boolean, avatarSeed: String) -> Unit,
+    profiles: List<top.wkbin.taixu.core.database.AiModelEntity>,
+    onSave: (name: String, role: String, persona: String, modelId: String, modelVariant: String?, isMainBot: Boolean, avatarSeed: String) -> Unit,
 ) {
     var name by rememberSaveable(bot.id) { mutableStateOf(bot.name) }
     var role by rememberSaveable(bot.id) { mutableStateOf(bot.role) }
     var persona by rememberSaveable(bot.id) { mutableStateOf(bot.systemPrompt) }
     var modelId by rememberSaveable(bot.id) { mutableStateOf(bot.modelId.orEmpty()) }
+    var modelVariant by rememberSaveable(bot.id) { mutableStateOf(bot.modelVariant) }
+    LaunchedEffect(bot.modelId, bot.modelVariant) {
+        modelId = bot.modelId.orEmpty()
+        modelVariant = bot.modelVariant
+    }
     var isMain by rememberSaveable(bot.id) { mutableStateOf(bot.isMainBot) }
     var avatarSeed by rememberSaveable(bot.id) { mutableStateOf(bot.avatarSeed) }
     var avatarLoading by remember { mutableStateOf(false) }
@@ -220,7 +227,8 @@ private fun BotPersonaPanel(
                     if (bot.isMainBot) StatusBadge(stringResource(R.string.fbot_main_bot))
                 }
                 Text(
-                    bot.modelId ?: stringResource(R.string.fbot_model_default),
+                    profiles.firstOrNull { it.id == bot.modelId }?.let { "${it.name} / ${bot.modelVariant ?: it.model.substringBefore(',')}" }
+                        ?: bot.modelId ?: stringResource(R.string.fbot_model_default),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -253,13 +261,10 @@ private fun BotPersonaPanel(
             maxLines = 14,
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
-            value = modelId,
-            onValueChange = { modelId = it },
-            label = { Text(stringResource(R.string.fbot_model_id)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        BotModelPicker(profiles, modelId.takeIf(String::isNotBlank), modelVariant, !busy) { id, concrete ->
+            modelId = id.orEmpty()
+            modelVariant = concrete
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -276,7 +281,7 @@ private fun BotPersonaPanel(
             RuntimeSwitch(checked = isMain, onCheckedChange = { isMain = it }, enabled = !busy)
         }
         RuntimeButton(
-            onClick = { onSave(name, role, persona, modelId, isMain, avatarSeed) },
+            onClick = { onSave(name, role, persona, modelId, modelVariant, isMain, avatarSeed) },
             enabled = !busy && !avatarLoading && name.isNotBlank() && role.isNotBlank() && persona.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         ) { Text(stringResource(R.string.fbot_save)) }

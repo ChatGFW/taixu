@@ -396,15 +396,15 @@ case-study-card:
 function my_theme_preprocess_node__case_study(array &$variables): void {
   $node = $variables['node'];
 
-  // Attach component library only when this template renders.
+  // 仅在此模板渲染时附加组件库。
   $variables['#attached']['library'][] = 'my_theme/case-study-card';
 
-  // Expose a clean variable for the client name field.
+  // 为客户端名称字段暴露一个干净的变量。
   if ($node->hasField('field_client_name') && !$node->get('field_client_name')->isEmpty()) {
     $variables['client_name'] = $node->get('field_client_name')->value;
   }
 
-  // Add structured data for SEO.
+  // 为 SEO 添加结构化数据。
   $variables['#attached']['html_head'][] = [
     [
       '#type'       => 'html_tag',

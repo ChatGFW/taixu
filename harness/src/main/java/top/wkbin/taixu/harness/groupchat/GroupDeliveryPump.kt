@@ -60,7 +60,11 @@ internal class GroupDeliveryPump(
             try {
                 if (!repository.claimDelivery(receipt.id)) return@launch
                 val result = deliver(receipt)
-                repository.finishDelivery(receipt.id, if (result.failed) GroupDelivery.FAILED else GroupDelivery.COMPLETED)
+                repository.finishDelivery(receipt.id, when {
+                    result.uncertain -> GroupDelivery.UNKNOWN
+                    result.failed -> GroupDelivery.FAILED
+                    else -> GroupDelivery.COMPLETED
+                }, result.text.takeIf { result.failed || result.uncertain })
             } catch (cancelled: CancellationException) {
                 withContext(NonCancellable) {
                     markUnknown(receipt.id, "群消息处理被中断，请核对会话记录")

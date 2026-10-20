@@ -138,6 +138,38 @@ class BotAssignmentRuntimeTest {
         assertEquals(1, control.count)
     }
 
+    @Test fun `out of workspace write hints reject before creating or submitting a task`() = runBlocking {
+        seed()
+        val engine = runtime { _, _, _ -> error("must not dispatch") }
+        listOf("/root/game", "../escape", "/workspace/other", "docs/../../escape").forEach { path ->
+            assertTrue(runCatching { engine.create("member", "group", "chief", "parent", "work", listOf(path)) }.isFailure)
+        }
+        assertTrue(tasks.assignmentsForBot("member").isEmpty())
+        assertEquals(0, control.count)
+    }
+
+    @Test fun `member model default never borrows the source variant even on the same profile`() = runBlocking {
+        seed()
+        sessions.upsert(sessions.findById("parent")!!.copy(modelId = "member-model", modelVariant = "chief-variant"))
+        val engine = runtime { _, _, _ -> GroupTurnOutcome("done", false) }
+        val task = engine.create("member", "group", "chief", "parent", "work", listOf("docs"))
+        assertNull(sessions.findById(task.sessionId!!)!!.modelVariant)
+        val member = bots.getBot("member")!!
+        bots.saveBot(member.copy(modelVariant = "own-model"))
+        val second = engine.create("member", "group", "chief", "parent", "other", listOf("/workspace/project/code"))
+        assertEquals("own-model", sessions.findById(second.sessionId!!)!!.modelVariant)
+    }
+
+    @Test fun `empty source workspace retains the frozen identity while file hints resolve under workspace`() = runBlocking {
+        seed()
+        sessions.upsert(HarnessSessionEntity("empty-parent", "Empty", 1, 1, null,
+            workspace = "", executionTargetJson = "frozen-empty-workspace"))
+        val engine = runtime { _, _, _ -> GroupTurnOutcome("done", false) }
+        val task = engine.create("member", "group", "chief", "empty-parent", "work", listOf("/workspace/game"))
+        assertEquals("", sessions.findById(task.sessionId!!)!!.workspace)
+        assertEquals("frozen-empty-workspace", sessions.findById(task.sessionId!!)!!.executionTargetJson)
+    }
+
     private class FakeControl : SessionControl {
         override val currentSessionId = MutableStateFlow("parent")
         override val sessionRunStates = MutableStateFlow<Map<String, SessionRunState>>(emptyMap())

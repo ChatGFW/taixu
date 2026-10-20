@@ -13,37 +13,83 @@
     <string name="fbot_pixel_hair_color">发色 / 机械面板色</string>
     <string name="fbot_pixel_outfit_color">服装颜色</string>
     <string name="fbot_pixel_backdrop">头像背景</string>
+    <string name="fbot_pixel_state_idle">待机</string>
+    <string name="fbot_pixel_state_thinking">思考</string>
+    <string name="fbot_pixel_state_executing">编程</string>
+    <string name="fbot_pixel_state_blocked">受阻</string>
+    <string name="fbot_desk_title">工位看板</string>
+    <string name="fbot_desk_expand">展开工位</string>
+    <string name="fbot_desk_collapse">收起工位</string>
+    <string name="fbot_desk_members_count">%1$d 人在岗</string>
+    <string name="fbot_desk_busy_count"> · %1$d 人忙碌</string>
+    <string name="fbot_desk_status_thinking">思考中</string>
+    <string name="fbot_desk_status_executing">编程中</string>
+    <string name="fbot_desk_status_active">回复中</string>
+    <string name="fbot_desk_status_blocked">受阻</string>
+    <string name="fbot_desk_status_success">已完成</string>
+    <string name="fbot_desk_status_failed">失败</string>
+    <string name="fbot_desk_status_idle">待命中</string>
+    <string name="fbot_desk_mention_hint">点击提及</string>
+    <string name="fbot_cyber_studio">办公室</string>
+    <string name="fbot_cyber_studio_desc">全屏像素办公室，看大家在忙什么，点角色就能安排事情</string>
+    <string name="fbot_pixel_office_status_idle">[待命中]</string>
+    <string name="fbot_pixel_office_status_busy">[%1$d 人在忙]</string>
+    <string name="fbot_pixel_office_empty">办公室还空着。邀请同事进群后，就能在这里看到他们走动。</string>
+    <string name="fbot_pixel_office_idle_line">待命中，随时可以开工</string>
+    <string name="fbot_pixel_office_say">跟办公室说一句…</string>
+    <string name="fbot_pixel_office_waiting">等你一下</string>
+    <string name="fbot_pixel_office_banner">协同办公</string>
+    <string name="fbot_pixel_zone_think">思考区</string>
+    <string name="fbot_pixel_zone_meet">会议区</string>
+    <string name="fbot_pixel_zone_work">工作区</string>
+    <string name="fbot_pixel_zone_coffee">咖啡区</string>
+    <string name="fbot_pixel_zone_rest">休息区</string>
+    <string name="fbot_cyber_studio_back_chat">返回群聊</string>
+    <string name="fbot_cyber_studio_desks_section">智能体工位</string>
+    <string name="fbot_cyber_studio_pipeline_section">任务流水看板</string>
+    <string name="fbot_cyber_studio_mention_action">呼叫沟通</string>
+    <string name="fbot_cyber_studio_profile_action">档案</string>
+    <string name="fbot_cyber_studio_no_assignments">暂无任务流水，在群聊中 @智能体 即可下发任务</string>
+    <string name="fbot_cyber_studio_summary">%1$d 位成员在席 · %2$d 项工单</string>
     <string-array name="fbot_pixel_kinds">
         <item>人形</item>
         <item>猫耳</item>
         <item>机器人</item>
+        <item>赛博半机械</item>
     </string-array>
     <string-array name="fbot_pixel_hairs">
         <item>短发</item>
         <item>波波头</item>
         <item>长发</item>
         <item>刺猬头</item>
+        <item>束发马尾</item>
     </string-array>
     <string-array name="fbot_pixel_eye_styles">
         <item>明亮</item>
         <item>笑眼</item>
         <item>专注</item>
+        <item>灵动眨眼</item>
     </string-array>
     <string-array name="fbot_pixel_mouth_styles">
         <item>微笑</item>
         <item>平静</item>
         <item>开口</item>
+        <item>酷</item>
     </string-array>
     <string-array name="fbot_pixel_outfits">
         <item>T 恤</item>
         <item>连帽衫</item>
         <item>西装</item>
+        <item>汉服长袍</item>
     </string-array>
     <string-array name="fbot_pixel_accessories">
         <item>无</item>
         <item>眼镜</item>
         <item>耳机</item>
         <item>帽子</item>
+        <item>官帽</item>
+        <item>护目镜</item>
+        <item>工牌</item>
     </string-array>
     <string-array name="fbot_pixel_skins">
         <item>浅色</item>

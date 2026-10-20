@@ -46,4 +46,31 @@ class PixelAvatarDesignerTest {
         compose.onNodeWithText(context.getString(R.string.fbot_cancel)).performClick()
         compose.runOnIdle { assertEquals(saved, seed.value) }
     }
+
+    @Test fun `expanded options and preview states can be selected`() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val seed = mutableStateOf("阿策")
+        compose.setContent {
+            TaiXuTheme {
+                BotAvatarEditor(seed.value, "阿策", "#3D5AFE", true,
+                    onChange = { seed.value = it }, onLoading = {})
+            }
+        }
+        val edit = context.getString(R.string.fbot_pixel_edit)
+        compose.onNodeWithText(edit).performClick()
+        // Select Cyborg (kind = 3)
+        compose.onNodeWithTag("pixel-choice-${R.string.fbot_pixel_kind}-3").performClick()
+        // Preview thinking state
+        compose.onNodeWithText(context.getString(R.string.fbot_pixel_state_thinking)).performClick()
+        compose.onNodeWithTag("pixel-avatar-preview").assertExists()
+        // Preview executing state
+        compose.onNodeWithText(context.getString(R.string.fbot_pixel_state_executing)).performClick()
+        compose.onNodeWithTag("pixel-avatar-preview").assertExists()
+        // Apply
+        compose.onNodeWithText(context.getString(R.string.fbot_pixel_apply)).performClick()
+        compose.runOnIdle {
+            val recipe = requireNotNull(PixelAvatarRecipe.decode(seed.value))
+            assertEquals(3, recipe.kind)
+        }
+    }
 }

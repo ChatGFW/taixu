@@ -112,7 +112,7 @@ Per-tenant identity config, stored and validated per organization:
 ### Passkey/WebAuthn 注册（抗钓鱼、只用标准）
 
 ```typescript
-// Server issues options; browser does the cryptography; server verifies.
+// 服务器下发 options；浏览器做密码学；服务器核验。
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
 
 const options = await generateRegistrationOptions({
@@ -138,7 +138,7 @@ ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON documents
   USING (tenant_id = current_setting('app.tenant_id')::uuid);
 
--- Set from the AUTHENTICATED session at connection checkout — never from request input:
+-- 在连接签出时从已认证会话设置 —— 绝不取自请求输入：
 -- SET app.tenant_id = '<tenant uuid from the verified session>';
 ```
 

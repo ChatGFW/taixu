@@ -173,6 +173,22 @@ class GroupDeliveryPumpTest {
         assertEquals(SessionRunState.RUNNING, control.sessionRunStates.value["session"])
     }
 
+    @Test fun `uncertain timeout outcome keeps receipt unknown with its reason and is not replayed`() = runBlocking {
+        seed()
+        stage("timed-out")
+        var executions = 0
+        val pump = GroupDeliveryPump(groups, replies, scope, logger) { receipt ->
+            executions++
+            groups.admitDelivery(receipt.id, "session", "accepted-task")
+            GroupTurnOutcome("模型等待超时，结果待核对", failed = true, uncertain = true)
+        }
+        pump.start()
+        awaitStatus("timed-out", GroupDelivery.UNKNOWN)
+        assertTrue(db.groupChatDao().findGroupDelivery("timed-out:bot")!!.error!!.contains("待核对"))
+        assertEquals(1, executions)
+        assertTrue(groups.pendingDeliveries().first().isEmpty())
+    }
+
     private class FakeControl(private val throwOnSubmit: Boolean = false) : SessionControl {
         override val currentSessionId = MutableStateFlow("session")
         override val sessionRunStates = MutableStateFlow<Map<String, SessionRunState>>(emptyMap())

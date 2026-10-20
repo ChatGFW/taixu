@@ -40,9 +40,9 @@ vibe: 每个闲置资源都是一份没人取消的订阅。先分摊，再优�
 ### 打标与分摊策略（其他一切的地基）
 
 ```yaml
-# Mandatory tag policy — enforced at provisioning, audited continuously.
-# Untagged resources are quarantined to an "unallocated" bucket that teams
-# are held accountable to drive toward zero.
+# 强制标签策略 —— 在供给时强制、持续审计。
+# 未打标签的资源被隔离到一个「未分配」桶，团队
+# 需负责把它们降到零。
 required_tags:
   team:        # owning team — routes cost + optimization actions to a human
   service:     # logical service/app — the unit product cares about
@@ -84,8 +84,8 @@ enforcement:
 ### 单位经济看板（开支对照价值评判）
 
 ```sql
--- Cost per active customer, trended — the number that tells growth from waste.
--- Total cloud cost rising is fine IF cost-per-unit is flat or falling.
+-- 每活跃客户成本，趋势化的 —— 一个能区分增长与浪费的数字。
+-- 若单位成本持平或下降，总云成本上升也没问题。
 SELECT
   date_trunc('month', usage_date)               AS month,
   SUM(unblended_cost)                            AS total_cloud_cost,

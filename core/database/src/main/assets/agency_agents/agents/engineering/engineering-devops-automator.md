@@ -57,7 +57,7 @@ vibe: 自动化基础设施，让你的团队发布更快、睡得更香。
 
 ### CI/CD 流水线架构
 ```yaml
-# Example GitHub Actions Pipeline
+# 示例 GitHub Actions 流水线
 name: Production Deployment
 
 on:
@@ -71,9 +71,9 @@ jobs:
       - uses: actions/checkout@v3
       - name: Security Scan
         run: |
-          # Dependency vulnerability scanning
+          # 依赖漏洞扫描
           npm audit --audit-level high
-          # Static security analysis
+          # 静态安全分析
           docker run --rm -v $(pwd):/src securecodewarrior/docker-security-scan
           
   test:
@@ -101,7 +101,7 @@ jobs:
     steps:
       - name: Blue-Green Deploy
         run: |
-          # Deploy to green environment
+          # 部署到绿色环境
           kubectl set image deployment/app app=registry/app:${{ github.sha }}
           # Health check
           kubectl rollout status deployment/app
@@ -235,9 +235,9 @@ groups:
 
 ### 第一步：基础设施评估
 ```bash
-# Analyze current infrastructure and deployment needs
-# Review application architecture and scaling requirements
-# Assess security and compliance requirements
+# 分析当前基础设施与部署需求
+# 评审应用架构与扩缩需求
+# 评估安全与合规要求
 ```
 
 ### 第二步：流水线设计

@@ -75,6 +75,7 @@ internal class GroupBotResponder(
             activeSessionId = sessionId
             currentCoroutineContext().ensureActive()
             val baseline = sessionControl.messagesForSession(sessionId).value.map { it.id }.toSet()
+            val baselineOutputRevision = sessionControl.modelOutputRevisions.value[sessionId] ?: 0L
             contextBinding = freshness?.begin(sessionId, group, bot.id, placeholderId)
             val prompt = buildGroupPrompt(group, bot, trigger, contextBinding?.history ?: history, members)
             if (deliveryId != null) {
@@ -100,7 +101,7 @@ internal class GroupBotResponder(
             }
 
             var lastCheckpoint = startedAt
-            val outcome = observer.awaitReply(sessionId, bot, baseline, startedAt) { progress ->
+            val outcome = observer.awaitReply(sessionId, bot, baseline, startedAt, baselineOutputRevision) { progress ->
                 liveReplies.update { it + (placeholderId to progress) }
                 // Smooth UI updates stay in memory; persist only periodic crash-recovery checkpoints.
                 val now = System.currentTimeMillis()
@@ -112,9 +113,12 @@ internal class GroupBotResponder(
             val latest = outcome.candidate
             val content = latest?.text?.trim().orEmpty()
             val finalText = when {
-                outcome.replyTimedOut -> "❌ 回复超时，已停止，请核对已执行的工具结果"
+                outcome.replyTimedOut -> "❌ 本轮超过 ${GroupReplyTimeoutPolicy.REPLY_TIMEOUT_MS / 60_000} 分钟，已请求停止；执行结果待核对，请检查已有工具结果"
                 outcome.firstTokenTimedOut ->
-                    "❌ 模型无响应，已停止（${FIRST_TOKEN_TIMEOUT_MS / 1000} 秒未收到首 token）"
+                    "❌ ${FIRST_TOKEN_TIMEOUT_MS / 1000} 秒未收到模型正文、推理或工具调用，已请求停止；执行结果待核对"
+                outcome.stalled -> "❌ 连续 ${FIRST_TOKEN_TIMEOUT_MS / 1000} 秒无新输出，已请求停止；执行结果待核对，请先检查已有产物"
+                outcome.failed -> "❌ 本轮执行失败，请核对会话错误与已有产物" + content.takeIf { it.isNotBlank() }?.let { "\n最后输出：$it" }.orEmpty()
+                outcome.interrupted -> "⏹ 本轮已中断，执行结果待核对" + content.takeIf { it.isNotBlank() }?.let { "\n最后输出：$it" }.orEmpty()
                 content.isNotBlank() -> content
                 latest == null -> "❌ 本轮未产生回复，请稍后重试"
                 else -> "（无文本回复）"
@@ -123,8 +127,8 @@ internal class GroupBotResponder(
             awaitSettledPlaceholder(group.id, placeholderId)
             return GroupTurnOutcome(
                 text = finalText,
-                failed = outcome.replyTimedOut || outcome.firstTokenTimedOut || latest == null,
-                uncertain = outcome.replyTimedOut || outcome.firstTokenTimedOut,
+                failed = outcome.replyTimedOut || outcome.firstTokenTimedOut || outcome.stalled || outcome.failed || outcome.interrupted || content.isBlank(),
+                uncertain = outcome.replyTimedOut || outcome.firstTokenTimedOut || outcome.stalled || outcome.interrupted,
             )
         } catch (cancelled: CancellationException) {
             if (submissionAttempted) activeSessionId?.let { sessionControl.cancel(it) }
@@ -160,6 +164,6 @@ internal class GroupBotResponder(
 
     private companion object {
         const val STOPPED_MARKER = "⏹ 已停止"
-        const val FIRST_TOKEN_TIMEOUT_MS = 120_000L
+        const val FIRST_TOKEN_TIMEOUT_MS = GroupReplyTimeoutPolicy.OUTPUT_WAIT_MS
     }
 }

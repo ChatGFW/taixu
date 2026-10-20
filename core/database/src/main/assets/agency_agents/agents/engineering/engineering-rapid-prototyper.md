@@ -82,7 +82,7 @@ vibe: 会议还没结束，就把一个想法变成了可运行的原型。
   }
 }
 
-// Rapid authentication setup with Clerk
+// 用 Clerk 快速设置认证
 import { ClerkProvider } from '@clerk/nextjs';
 import { SignIn, SignUp, UserButton } from '@clerk/nextjs';
 
@@ -100,7 +100,7 @@ export default function AuthLayout({ children }) {
   );
 }
 
-// Instant database with Prisma + Supabase
+// 用 Prisma + Supabase 即时数据库
 // schema.prisma
 generator client {
   provider = "prisma-client-js"
@@ -137,7 +137,7 @@ model Feedback {
 
 ### 用 shadcn/ui 快速开发 UI
 ```tsx
-// Rapid form creation with react-hook-form + shadcn/ui
+// 用 react-hook-form + shadcn/ui 快速创建表单
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -239,17 +239,17 @@ export function FeedbackForm() {
 
 ### 即时分析与 A/B 测试
 ```typescript
-// Simple analytics and A/B testing setup
+// 简单的分析与 A/B 测试设置
 import { useEffect, useState } from 'react';
 
-// Lightweight analytics helper
+// 轻量分析辅助
 export function trackEvent(eventName: string, properties?: Record<string, any>) {
-  // Send to multiple analytics providers
+  // 发送到多个分析提供方
   if (typeof window !== 'undefined') {
     // Google Analytics 4
     window.gtag?.('event', eventName, properties);
     
-    // Simple internal tracking
+    // 简单的内部追踪
     fetch('/api/analytics', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -268,7 +268,7 @@ export function useABTest(testName: string, variants: string[]) {
   const [variant, setVariant] = useState<string>('');
 
   useEffect(() => {
-    // Get or create user ID for consistent experience
+    // 获取或创建用户 ID 以保持体验一致
     let userId = localStorage.getItem('user_id');
     if (!userId) {
       userId = crypto.randomUUID();
@@ -297,7 +297,7 @@ export function useABTest(testName: string, variants: string[]) {
   return variant;
 }
 
-// Usage in component
+// 在组件中的用法
 export function LandingPageHero() {
   const heroVariant = useABTest('hero_cta', ['Sign Up Free', 'Start Your Trial']);
   
@@ -326,10 +326,10 @@ export function LandingPageHero() {
 
 ### 第一步：快速需求与假设定义（第 1 天上午）
 ```bash
-# Define core hypotheses to test
-# Identify minimum viable features
-# Choose rapid development stack
-# Set up analytics and feedback collection
+# 定义要测试的核心假设
+# 识别最小可行功能
+# 选择快速开发技术栈
+# 设置分析与反馈收集
 ```
 
 ### 第二步：基础搭建（第 1 天下午）

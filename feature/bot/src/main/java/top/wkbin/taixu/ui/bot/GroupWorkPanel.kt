@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotAvatarState
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.core.model.bot.GroupMessage
@@ -164,7 +165,16 @@ private fun MemberStatusRow(
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BotAvatar(bot, 30.dp, active = active)
+        val avatarState = when {
+            assignment?.status == BotAssignmentStatus.BLOCKED -> BotAvatarState.BLOCKED
+            assignment?.status == BotAssignmentStatus.FAILED -> BotAvatarState.FAILED
+            assignment?.status == BotAssignmentStatus.COMPLETED -> BotAvatarState.SUCCESS
+            streaming != null && streaming.steps.any { it.success == null } -> BotAvatarState.EXECUTING
+            streaming != null && streaming.reasoning.isNotBlank() && streaming.content.isBlank() -> BotAvatarState.THINKING
+            active -> BotAvatarState.ACTIVE
+            else -> BotAvatarState.IDLE
+        }
+        BotAvatar(bot, 30.dp, active = active, state = avatarState)
         Column(Modifier.weight(1f).padding(start = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -213,7 +223,7 @@ private fun MemberStatusRow(
 }
 
 @Composable
-private fun WorkCard(
+internal fun WorkCard(
     assignment: BotAssignment,
     liveText: String?,
     now: Long,
@@ -336,7 +346,7 @@ private fun WorkCard(
 }
 
 @Composable
-private fun liveStatusText(message: GroupMessage?, assignment: BotAssignment?): String? {
+internal fun liveStatusText(message: GroupMessage?, assignment: BotAssignment?): String? {
     if (message == null) {
         return assignment?.let { stringResource(R.string.fbot_member_waiting_start) }
     }
@@ -350,7 +360,7 @@ private fun liveStatusText(message: GroupMessage?, assignment: BotAssignment?): 
 }
 
 @Composable
-private fun statusLabel(status: BotAssignmentStatus): String = when (status) {
+internal fun statusLabel(status: BotAssignmentStatus): String = when (status) {
     BotAssignmentStatus.QUEUED -> stringResource(R.string.fbot_assignment_queued)
     BotAssignmentStatus.BLOCKED -> stringResource(R.string.fbot_assignment_blocked)
     BotAssignmentStatus.INTERRUPTED -> stringResource(R.string.fbot_assignment_interrupted)

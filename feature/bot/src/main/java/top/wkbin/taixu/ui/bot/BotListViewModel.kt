@@ -41,8 +41,12 @@ class BotListViewModel(
     private val orchestrator: BotOrchestrator,
     private val marketRepository: BotMarketRepository,
     private val packageService: BotPackageService,
+    private val models: top.wkbin.taixu.core.database.AiModelRepository,
     private val wakeup: BotScheduleWakeup? = null,
 ) : ViewModel() {
+    val modelProfiles: StateFlow<List<top.wkbin.taixu.core.database.AiModelEntity>?> = models.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     val bots: StateFlow<List<Bot>> = botRepository.observeBots()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

@@ -13,37 +13,83 @@
     <string name="fbot_pixel_hair_color">Hair / panel color</string>
     <string name="fbot_pixel_outfit_color">Outfit color</string>
     <string name="fbot_pixel_backdrop">Backdrop</string>
+    <string name="fbot_pixel_state_idle">Idle</string>
+    <string name="fbot_pixel_state_thinking">Thinking</string>
+    <string name="fbot_pixel_state_executing">Coding</string>
+    <string name="fbot_pixel_state_blocked">Blocked</string>
+    <string name="fbot_desk_title">Coworking Desks</string>
+    <string name="fbot_desk_expand">Expand desks</string>
+    <string name="fbot_desk_collapse">Collapse desks</string>
+    <string name="fbot_desk_members_count">%1$d desks</string>
+    <string name="fbot_desk_busy_count"> · %1$d busy</string>
+    <string name="fbot_desk_status_thinking">Thinking</string>
+    <string name="fbot_desk_status_executing">Coding</string>
+    <string name="fbot_desk_status_active">Responding</string>
+    <string name="fbot_desk_status_blocked">Blocked</string>
+    <string name="fbot_desk_status_success">Done</string>
+    <string name="fbot_desk_status_failed">Failed</string>
+    <string name="fbot_desk_status_idle">Ready</string>
+    <string name="fbot_desk_mention_hint">Tap to @mention</string>
+    <string name="fbot_cyber_studio">Pixel Office</string>
+    <string name="fbot_cyber_studio_desc">A full-screen pixel office. Watch the team work, then tap someone to give them a job</string>
+    <string name="fbot_pixel_office_status_idle">[Standing by]</string>
+    <string name="fbot_pixel_office_status_busy">[%1$d busy]</string>
+    <string name="fbot_pixel_office_empty">The office is empty. Invite teammates into the group and they will show up here.</string>
+    <string name="fbot_pixel_office_idle_line">Standing by, ready when you are</string>
+    <string name="fbot_pixel_office_say">Say something to the office…</string>
+    <string name="fbot_pixel_office_waiting">Waiting on you</string>
+    <string name="fbot_pixel_office_banner">Together</string>
+    <string name="fbot_pixel_zone_think">Think</string>
+    <string name="fbot_pixel_zone_meet">Meet</string>
+    <string name="fbot_pixel_zone_work">Work</string>
+    <string name="fbot_pixel_zone_coffee">Coffee</string>
+    <string name="fbot_pixel_zone_rest">Rest</string>
+    <string name="fbot_cyber_studio_back_chat">Back to Chat</string>
+    <string name="fbot_cyber_studio_desks_section">Workstations</string>
+    <string name="fbot_cyber_studio_pipeline_section">Task Pipeline</string>
+    <string name="fbot_cyber_studio_mention_action">Mention</string>
+    <string name="fbot_cyber_studio_profile_action">Profile</string>
+    <string name="fbot_cyber_studio_no_assignments">No active tasks. Mention @Bot in chat to assign tasks</string>
+    <string name="fbot_cyber_studio_summary">%1$d members on duty · %2$d assignments</string>
     <string-array name="fbot_pixel_kinds">
         <item>Human</item>
         <item>Cat ears</item>
         <item>Robot</item>
+        <item>Cyborg</item>
     </string-array>
     <string-array name="fbot_pixel_hairs">
         <item>Short</item>
         <item>Bob</item>
         <item>Long</item>
         <item>Spiky</item>
+        <item>Topknot</item>
     </string-array>
     <string-array name="fbot_pixel_eye_styles">
         <item>Bright</item>
         <item>Happy</item>
         <item>Focused</item>
+        <item>Wink</item>
     </string-array>
     <string-array name="fbot_pixel_mouth_styles">
         <item>Smile</item>
         <item>Calm</item>
         <item>Open</item>
+        <item>Cool</item>
     </string-array>
     <string-array name="fbot_pixel_outfits">
         <item>T-shirt</item>
         <item>Hoodie</item>
         <item>Suit</item>
+        <item>Robe</item>
     </string-array>
     <string-array name="fbot_pixel_accessories">
         <item>None</item>
         <item>Glasses</item>
         <item>Headphones</item>
         <item>Cap</item>
+        <item>Official hat</item>
+        <item>Cyber goggles</item>
+        <item>ID badge</item>
     </string-array>
     <string-array name="fbot_pixel_skins">
         <item>Light</item>

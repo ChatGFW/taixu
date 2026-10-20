@@ -136,7 +136,7 @@ FOR (e:Entity) REQUIRE e.entity_id IS UNIQUE;
 CREATE CONSTRAINT source_unique IF NOT EXISTS
 FOR (s:Source) REQUIRE s.sha256 IS UNIQUE;
 
-// Filter indexes for common query patterns
+// 为常见查询模式建过滤索引
 CREATE INDEX entity_type       IF NOT EXISTS FOR (e:Entity) ON (e.type);
 CREATE INDEX entity_confidence IF NOT EXISTS FOR (e:Entity) ON (e.confidence);
 CREATE INDEX source_date       IF NOT EXISTS FOR (s:Source) ON (s.date);
@@ -222,7 +222,7 @@ async def ingest(extraction: Extraction, source: dict, driver):
 ### 矛盾检测（Cypher）
 
 ```cypher
-    // Same entity pair, same relationship type, conflicting claim, different source → flag
+    // 同一实体对、同一关系类型、相互冲突的声称、不同来源 → 标记
     MATCH (a:Entity)-[r1:RELATES {type: $rel_type}]->(b:Entity)
     MATCH (a)-[r2:RELATES {type: $rel_type}]->(b)
     WHERE r1.source_sha <> r2.source_sha
@@ -278,7 +278,7 @@ def build_ingest_graph(driver):
 
 ```cypher
 // Depth 0 = source only (no traversal); depth N = N hops; unbounded = *.
-// Parameterized bounded depth in production uses apoc.path.expandConfig.
+// 生产中的参数化有界深度使用 apoc.path.expandConfig。
 MATCH (s:Source {sha256: $sha256})-[:MENTIONS]->(e:Entity)
 MATCH path = (e)-[:RELATES|:SUPPORTS|:CONTRADICTS*0..2]-(affected)
 SET affected.needs_review = true

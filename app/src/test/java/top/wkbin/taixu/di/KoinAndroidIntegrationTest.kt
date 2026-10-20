@@ -134,4 +134,29 @@ class KoinAndroidIntegrationTest {
             koin.get<AppDatabase>().close()
         }
     }
+
+    @Test
+    fun idleBotResumptionKeepsTheOriginalWorkspaceAndExecutionTarget() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        context.applicationInfo.nativeLibraryDir = context.filesDir.absolutePath
+        val application = startKoin { androidContext(context); modules(taiXuModule) }
+        val koin = application.koin
+        try {
+            val bots = koin.get<top.wkbin.taixu.core.database.repository.PersonaBotRepository>()
+            val sessions = koin.get<top.wkbin.taixu.core.database.HarnessSessionRepository>()
+            val bot = top.wkbin.taixu.core.model.bot.Bot("resumed-bot", "Worker", "coder", "persona", "seed",
+                sessionId = "resumed-session", createdAt = 1, updatedAt = 1)
+            bots.saveBot(bot)
+            val target = """{"distribution":"debian","workspace":"/workspace/project"}"""
+            sessions.upsert(top.wkbin.taixu.core.database.HarnessSessionEntity(bot.sessionId, "Worker", 1, 1, null,
+                workspace = "/workspace/project", executionTargetJson = target, approvalMode = "assisted"))
+            koin.get<top.wkbin.taixu.harness.bot.BotOrchestrator>().ensureSession(bot)
+            val resumed = sessions.findById(bot.sessionId)!!
+            assertEquals("/workspace/project", resumed.workspace)
+            assertEquals(target, resumed.executionTargetJson)
+            assertEquals("full_access", resumed.approvalMode)
+        } finally {
+            koin.get<AppDatabase>().close()
+        }
+    }
 }

@@ -18,6 +18,7 @@ import top.wkbin.taixu.core.datastore.AppStatsPreferences
 import top.wkbin.taixu.core.database.AgentSkillRepository
 import top.wkbin.taixu.core.database.McpServerRepository
 import top.wkbin.taixu.service.AgentForegroundService
+import top.wkbin.taixu.service.NOTIFIABLE_AGENT_STATES
 import top.wkbin.taixu.service.WorkflowForegroundService
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.harness.browser.BrowserMcpBootstrap
@@ -31,6 +32,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.harness.workflow.WorkflowRunManager
 import top.wkbin.taixu.runtime.RuntimePathManager
@@ -146,8 +149,10 @@ class TaiXuApplication : Application(), Configuration.Provider {
             // Agent 开始执行时拉起前台服务，保证后台存活 + 通知进度；结束后由服务发带回复框的通知。
             // 并入本协程：构造完成后才开始监听，不再单独开协程抢构造。
             launch {
-                harnessLoop.running.collectLatest { running ->
-                    if (running) {
+                harnessLoop.sessionRunStates.map { states ->
+                    states.filterValues { it in NOTIFIABLE_AGENT_STATES }.keys
+                }.distinctUntilChanged().collectLatest { active ->
+                    if (active.isNotEmpty()) {
                         runCatching { AgentForegroundService.start(this@TaiXuApplication) }
                     }
                 }
@@ -189,6 +194,13 @@ class TaiXuApplication : Application(), Configuration.Provider {
         memoryWatchdog.stop()
         appScope.cancel()
         super.onTerminate()
+    }
+
+    /** Retry after notification permission is granted, without forcing early Harness construction. */
+    fun refreshAgentNotifications() {
+        if (harnessLoopLazy.isInitialized() && harnessLoopLazy.value.sessionRunStates.value.values.any {
+                it in NOTIFIABLE_AGENT_STATES
+            }) AgentForegroundService.start(this)
     }
 
     /**

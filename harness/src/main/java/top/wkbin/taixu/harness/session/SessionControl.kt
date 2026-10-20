@@ -1,6 +1,8 @@
 package top.wkbin.taixu.harness.session
 
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.queue.PromptQueue
@@ -10,6 +12,8 @@ interface SessionControl {
     val currentSessionId: StateFlow<String>
     val sessionRunStates: StateFlow<Map<String, SessionRunState>>
     val sessionStatuses: StateFlow<Map<String, String>>
+    /** Host-observed model output, including incomplete tool arguments; not status text or SSE heartbeats. */
+    val modelOutputRevisions: StateFlow<Map<String, Long>> get() = NO_MODEL_OUTPUT
     fun messagesForSession(sessionId: String): StateFlow<List<HarnessMessage>>
     suspend fun prepareRemoteSession(sessionId: String): List<HarnessMessage>
     /** Read-only durable history; propagates storage failure instead of returning a fallback. */
@@ -32,6 +36,8 @@ interface SessionControl {
     fun resolveApproval(requestId: String, approved: Boolean, rememberForSession: Boolean = false)
     fun resolveQuestion(requestId: String, answersJson: String)
 }
+
+private val NO_MODEL_OUTPUT = MutableStateFlow<Map<String, Long>>(emptyMap()).asStateFlow()
 
 sealed interface PromptSubmission {
     data class Accepted(

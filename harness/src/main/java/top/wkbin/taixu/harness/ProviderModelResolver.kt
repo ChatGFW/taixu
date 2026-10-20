@@ -35,10 +35,16 @@ internal class ProviderModelResolver(
     /**
      * 同 [resolveModel]，但额外做最小配置校验。[modelId] 非空且存在时优先使用该会话绑定档案，
      * [modelVariant] 用于覆盖档案里的默认模型名，实现同一供应商档案下的会话级模型隔离。
-     * 否则回退到当前激活模型。无可用模型且未设置 API Key 时直接抛出明确异常。
+     * 未绑定档案时使用当前激活模型；已绑定但被删除的档案或具体模型明确报错，不静默换供应商。
      */
     suspend fun resolveConfigured(modelId: String? = null, modelVariant: String? = null): ModelConfig = withContext(Dispatchers.IO) {
         val requested = modelId?.takeIf { it.isNotBlank() }?.let { modelDao.findById(it) }
+        require(modelId.isNullOrBlank() || requested != null) { "绑定的供应商档案已不存在，请重新选择模型" }
+        val concrete = modelVariant?.trim()?.takeIf(String::isNotBlank)?.let { variant ->
+            requireNotNull(requested?.model?.split(',')?.map(String::trim)?.firstOrNull { it.equals(variant, true) }) {
+                "绑定的具体模型已不在供应商档案中，请重新选择模型"
+            }
+        }
         val active = requested ?: modelDao.activeModel()
         val providerKey = providerRepository.readApiKey().orEmpty()
         if (active == null && providerKey.isBlank()) {
@@ -58,8 +64,8 @@ internal class ProviderModelResolver(
                 protocol = inferProtocol(baseUrl, provider),
             )
         }
-        val sessionConfig = if (requested != null && !modelVariant.isNullOrBlank()) {
-            baseConfig.copy(model = modelVariant.trim())
+        val sessionConfig = if (requested != null && concrete != null) {
+            baseConfig.copy(model = concrete)
         } else {
             baseConfig
         }

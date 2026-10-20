@@ -21,6 +21,7 @@ val featureBotModule = module {
             orchestrator = get(),
             marketRepository = get(),
             packageService = get(),
+            models = get(),
             wakeup = getOrNull<BotScheduleWakeup>(),
         )
     }
@@ -32,6 +33,7 @@ val featureBotModule = module {
             scheduleRepository = get<BotScheduleRepository>(),
             orchestrator = get(),
             memoryManager = get(),
+            models = get(),
             packageService = get(),
             wakeup = getOrNull<BotScheduleWakeup>(),
         )

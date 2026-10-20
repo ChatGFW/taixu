@@ -18,6 +18,8 @@ data class Bot(
     val colorHex: String = "#3D5AFE",
     val createdAt: Long,
     val updatedAt: Long,
+    /** 已保存供应商档案内的具体模型；null 使用该档案默认模型。 */
+    val modelVariant: String? = null,
 )
 
 @Serializable
@@ -106,6 +108,7 @@ data class BotManifest(
     val modelId: String? = null,
     val avatarSeed: String? = null,
     val colorHex: String = "#3D5AFE",
+    val modelVariant: String? = null,
 )
 
 /** 离线精选市场条目；本期不依赖远端服务。 */

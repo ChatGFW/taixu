@@ -60,8 +60,8 @@ import { createIntl } from '@formatjs/intl';
 
 const intl = createIntl({ locale: 'ar', messages: arMessages });
 intl.formatMessage({ id: 'cart.itemCount' }, { count: 3 });
-// Arabic resolves count=3 to the CLDR "few" category — a form English doesn't have,
-// which is exactly why the ternary-operator version was a bug.
+// 阿拉伯语把 count=3 解析到 CLDR 的「few」类别 —— 一种英语没有的形式，
+// 这正是三元运算符版本是个 bug 的原因。
 ```
 
 ### 按区域设置的格式化：删掉手搓的辅助函数
@@ -85,7 +85,7 @@ new Intl.ListFormat(locale, { type: 'conjunction' }).format(['Ana', 'Luis', 'Mei
 ### 用逻辑属性做 RTL 安全布局
 
 ```css
-/* One stylesheet serves LTR and RTL — no .rtl fork, no flipped-margin patches */
+/* 一份样式表同时服务 LTR 与 RTL —— 无 .rtl 分支、无翻转 margin 补丁 */
 .card {
   margin-inline-start: 16px;   /* left in English, right in Arabic — automatically */
   padding-inline: 12px 20px;   /* start, end */
@@ -93,7 +93,7 @@ new Intl.ListFormat(locale, { type: 'conjunction' }).format(['Ana', 'Luis', 'Mei
   text-align: start;
 }
 
-/* Icons that imply direction (arrows, "next") flip; logos and media do not */
+/* 暗示方向的图标（箭头、「next」）会翻转；logo 与媒体不会 */
 [dir='rtl'] .icon-directional { transform: scaleX(-1); }
 ```
 

@@ -14,6 +14,9 @@ import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.repository.*
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.model.SessionRunState
+import top.wkbin.taixu.core.model.bot.BotAssignment
+import top.wkbin.taixu.core.model.bot.BotAssignmentRequest
+import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.queue.PromptQueue
@@ -40,11 +43,18 @@ class BotDiagnosticsExporterTest {
             control.sessionStatuses.value = mapOf("group-chief" to "正在委派")
             control.messages.value = listOf(AssistantText("reply", 1, "group answer"))
             val runtime = RoomHarnessRuntimeRepository(db.harnessRuntimeDao())
+            val assignments = RoomBotAssignmentRepository(db.botAssignmentDao(), Json)
+            assignments.createIndependent(BotAssignment("task", "group", "member", "小前", "Task", "Task",
+                BotAssignmentStatus.QUEUED, emptyList(), 1, 1, sessionId = "task-session", reportToBotId = "chief", independent = true),
+                HarnessSessionEntity("task-session", "Task", 1, 1, null),
+                BotAssignmentRequest("initial:task", "task", "Task", 1))
+            runtime.saveOperation(HarnessOperationEntity("task-active", "task-session", "main",
+                "task-run", "running", "provider", 1, 2, null, "{}", "provider_request"))
             runtime.saveOperation(HarnessOperationEntity("active", "group-chief", "subagent:frontend",
                 "run", "running", "provider", 1, 2, null, "{}", "provider_request"))
             val exporter = BotDiagnosticsExporter(
                 RoomGroupChatRepository(db.groupChatDao(), Json),
-                RoomBotAssignmentRepository(db.botAssignmentDao(), Json),
+                assignments,
                 RoomBotGroupSessionRepository(db.botGroupSessionDao()),
                 control, runtime, Json,
                 AppLogger(context) { it },
@@ -56,6 +66,10 @@ class BotDiagnosticsExporterTest {
             assertTrue(report.contains("尚未建立群会话"))
             assertTrue(report.contains("group answer"))
             assertTrue(report.contains("subagent:frontend · running/provider"))
+            assertTrue(report.contains("独立任务会话：`task-session`"))
+            assertTrue(report.contains("independent answer"))
+            assertTrue(report.contains("任务活动执行：main · running/provider"))
+            assertTrue(report.contains("不能将气泡时间当作完成时间"))
             assertFalse(report.contains("dm-chief"))
             assertFalse(report.contains("dm-member"))
 
@@ -89,6 +103,7 @@ class BotDiagnosticsExporterTest {
         override fun messagesForSession(sessionId: String) = messages
         override suspend fun prepareRemoteSession(sessionId: String) = messages.value
         override suspend fun persistedMessages(sessionId: String): List<HarnessMessage> {
+            if (sessionId == "task-session") return listOf(AssistantText("task-reply", 1, "independent answer"))
             check(sessionId in setOf("group-chief", "fresh-chief")) { "Must not read private history: $sessionId" }
             return messages.value
         }

@@ -23,6 +23,7 @@ internal fun buildGroupPrompt(
         appendLine("【最近群聊记录】")
         appendLine(history)
     }
+    appendLine("所有团队成员均可调用 bot-management 的 list-models 查看已添加供应商及模型，select-model 为自己切换模型；不可改动其他成员或全局激活模型。")
     if (bot.isMainBot) appendMainBotRules(group.id, members.filter { it.id != bot.id })
     appendLine()
     appendLine("【本次受理的来源消息／任务】（较新的用户纠正以群记录及后续更新为准）")
@@ -30,8 +31,7 @@ internal fun buildGroupPrompt(
 }
 
 /**
- * 主控 Bot 的行为约束：先派发再兜底。成员写任务必须显式声明 write_paths，
- * 否则后台 Lane 的写闸门会拦截落盘。
+ * 主控 Bot 的行为约束：先派发再兜底，明确来源工作区与建议产物范围。
  */
 private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>) {
     appendLine()
@@ -52,32 +52,41 @@ private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>
         return
     }
     appendLine("可派发成员：")
-    members.forEach { appendLine("- ${it.name}（${it.role}）") }
+    members.forEach { appendLine("- bot_name=\"${it.name}\"；职责：${it.role}") }
     appendLine("派发步骤：")
     appendLine("1. 先调用 use_capability(action=\"inspect\", server=\"plugin.taixu.bot-management\") 查看 assign-task 参数；")
-    appendLine("2. 再调用 use_capability(action=\"call\", server=\"plugin.taixu.bot-management\", tool=\"assign-task\", arguments={\"bot_name\":\"成员名\",\"task\":\"完整任务\",\"write_paths\":[\"/root/目标目录\"],\"group_id\":\"$groupId\",\"wait\":false})。")
+    appendLine("2. 再调用 use_capability(action=\"call\", server=\"plugin.taixu.bot-management\", tool=\"assign-task\", arguments={\"bot_name\":\"成员名\",\"task\":\"完整任务\",\"write_paths\":[\"/workspace/目标目录\"],\"group_id\":\"$groupId\",\"wait\":false})。")
     appendLine("任务描述必须自包含：目标、输入、验收标准、需要写入的路径。")
     appendLine("wait=false 会立即返回，成员在群里前台执行；完成后系统会通知并自动唤醒你验收。")
-    appendLine("需要本轮就拿到结果并验收时用 wait=true；成员结果不满足要求时再次派发补充，不要直接宣称完成。")
-    appendLine("需要补充要求、修正或继续受阻任务时，用 continue-assignment(assignment_id, instruction) 继续原任务；不要反复新建相同任务。执行中补充只排队，当前轮次结束后处理。")
-    appendLine("涉及写文件时必须传 write_paths，路径需在沙箱工作区内；否则成员的写入会被拦截。")
-    appendLine("收到系统回传后，可用 inspect-assignment 查看完整摘要和错误；成员报告失败或结果未知时先只读核验产物。")
+    appendLine("需要本轮就拿到结果并验收时用 wait=true；成员结果不满足要求时用 continue-assignment 继续原任务，不要直接宣称完成。")
+    appendLine("异步派单后结束本轮，等待完成通知；不要连续查询任务状态或反复检查尚未产出的文件。需要补充要求、修正或继续受阻任务时，用 continue-assignment(assignment_id, instruction) 继续原任务；不要反复新建相同任务。执行中补充只排队，当前轮次结束后处理。")
+    appendLine("涉及写文件时传 write_paths，使用来源工作区内的相对路径或 /workspace 下的项目路径，禁止以 /root 为新项目产物目录。群聊任务的 write_paths 是建议范围，文件工具仍执行工作区边界；不要把 Shell 可写当作文件工具授权。")
+    appendLine("收到系统回传后，可用 inspect-assignment 查看摘要和错误；失败或结果未知时先只读核验产物，并用 continue-assignment 在原任务接续，不要盲目重做。验收应读取正文和实际运行，存在文件、行数和标题齐全只证明结构，不能证明内容正确。")
+    appendLine("按群说明及成员职责组织必要的方案审议与执行调度；尚未执行的审议不得宣称准奏。简单任务可明确说明简化流程。")
     appendLine("只依据工具返回和群聊记录汇报，不要虚构成员进度或已完成的委派。")
 }
 
-internal fun formatGroupHistory(group: GroupChat, messages: List<GroupMessage>): String = messages
-    // 委派结果是系统消息，但主控需要它来验收；普通系统噪音不入历史。
-    .filter { it.senderType != GroupSenderType.SYSTEM || it.delegatedTaskId != null }
-    .takeLast(HISTORY_MESSAGES)
-    .joinToString("\n") { message ->
+internal fun formatGroupHistory(group: GroupChat, messages: List<GroupMessage>): String {
+    // A task report replaces its already visible peer answer; keep the authoritative status once.
+    val reported = messages.filter { it.senderType == GroupSenderType.SYSTEM && it.delegatedTaskId != null }
+        .groupBy { it.delegatedTaskId }.mapValues { (_, rows) -> rows.maxOf { it.timestamp } }
+    val rows = messages.filter {
+        !it.isStreaming && (it.senderType != GroupSenderType.SYSTEM || it.delegatedTaskId != null) &&
+            !(it.senderType == GroupSenderType.BOT && (reported[it.delegatedTaskId] ?: Long.MIN_VALUE) >= it.timestamp)
+    }.takeLast(HISTORY_MESSAGES)
+    val selected = mutableListOf<String>()
+    var remaining = HISTORY_TOTAL_CHARS
+    for (message in rows.asReversed()) {
         val limit = if (message.delegatedTaskId != null) HISTORY_REPORT_CHARS else HISTORY_MESSAGE_CHARS
-        val attachmentNote = message.attachments
-            .takeIf { it.isNotEmpty() }
-            ?.joinToString(prefix = " [附件: ", postfix = "]", separator = "、") { it.name }
-            .orEmpty()
-        "${message.senderName}: ${message.content.replace('\n', ' ').take(limit)}$attachmentNote"
+        val attachmentNote = message.attachments.takeIf { it.isNotEmpty() }
+            ?.joinToString(prefix = " [附件: ", postfix = "]", separator = "、") { it.name }.orEmpty()
+        val line = "${message.senderName}: ${message.content.replace('\n', ' ').take(limit)}$attachmentNote"
+        if (line.length + 1 > remaining) break
+        selected += line
+        remaining -= line.length + 1
     }
-    .take(HISTORY_TOTAL_CHARS)
+    return selected.asReversed().joinToString("\n")
+}
 
 private const val HISTORY_MESSAGES = 12
 private const val HISTORY_MESSAGE_CHARS = 300
