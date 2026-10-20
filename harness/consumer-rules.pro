@@ -31,3 +31,18 @@
 -dontwarn java.beans.IntrospectionException
 -dontwarn java.beans.Introspector
 -dontwarn java.beans.PropertyDescriptor
+
+# Rhino resolves its evaluator implementations by *string name* (Kit.classOrNull →
+# Class.forName), never through a static type reference:
+#   Context.interpreterClass = classOrNull("org.mozilla.javascript.Interpreter")   // interpreted mode
+#   Context.codegenClass     = classOrNull("org.mozilla.javascript.optimizer.Codegen")
+# Release builds run R8 with proguard-android-optimize.txt (allowaccessmodification +
+# repackage/obfuscate), so without a keep rule those classes lose their real names and
+# Class.forName() returns null. Context.createInterpreter() then calls
+# Kit.newInstanceOrNull(null) → null.getDeclaredConstructor() → NullPointerException
+# (Kit's catch list has no NPE), and because this happens while *compiling* the script,
+# every script fails before its first statement runs — including `1 + 1`.
+# Verified on the v1.3.0 release dex: no `Lorg/mozilla/javascript/*` descriptor survives
+# while the literal "org.mozilla.javascript.Interpreter" is still passed to forName.
+-keep class org.mozilla.javascript.Interpreter { *; }
+-keep class org.mozilla.javascript.optimizer.Codegen { *; }
