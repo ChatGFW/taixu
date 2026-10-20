@@ -13,7 +13,6 @@ import org.junit.runner.RunWith
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
-import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.task.AgentTaskRepository
@@ -27,10 +26,12 @@ import top.wkbin.taixu.plugin.api.*
 import top.wkbin.taixu.runtime.FakeLinuxRuntime
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.webchat.WebChatTaskState
+import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(Aarch64AwareRobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, manifest = Config.NONE)
 class PluginHarnessEndToEndTest {
+
     @Test fun webInputFakeProviderPluginToolApprovalResumeAndWebCompletion() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Application>()
         context.applicationInfo.nativeLibraryDir = context.filesDir.path

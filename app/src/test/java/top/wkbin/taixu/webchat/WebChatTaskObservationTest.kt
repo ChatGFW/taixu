@@ -10,17 +10,18 @@ import kotlinx.coroutines.flow.*
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.task.*
 import top.wkbin.taixu.harness.session.SessionControl
 import top.wkbin.taixu.harness.task.AgentStateMachine
 import top.wkbin.taixu.runtime.webchat.WebChatTaskState
+import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(Aarch64AwareRobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, manifest = Config.NONE)
 class WebChatTaskObservationTest {
+
     private inline fun <reified T> unused(): T = Proxy.newProxyInstance(T::class.java.classLoader,
         arrayOf(T::class.java)) { _, method, _ -> error("Unexpected operation: ${method.name}") } as T
     private fun contract(block: suspend (TaiXuWebChatAgentGateway, AgentTaskRepository, AgentStateMachine) -> Unit) = runBlocking {
