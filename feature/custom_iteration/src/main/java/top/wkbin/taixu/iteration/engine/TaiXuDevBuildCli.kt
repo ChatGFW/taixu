@@ -66,11 +66,25 @@ internal object TaiXuDevBuildCli {
     fun repoRejection(repo: String): String? =
         if (REPO_PATTERN.matches(repo)) null else "仓库标识必须是 owner/name"
 
+    /**
+     * 组装 `gh workflow run`。
+     *
+     * [releaseTag] 为空白时不传 `-f release_tag`（工作流视为不创建 Release）。
+     * 非空时必须已通过 [ReleaseTagValidator]；非法值在这里再次失败关闭，避免把脏 tag 拼进命令。
+     */
     fun triggerWorkflow(
         workflowName: String = WORKFLOW,
         branch: String = "main",
         repo: String = DEFAULT_REPO,
-    ): String = "gh workflow run ${q(workflowName)} --ref ${q(branch)} -R ${q(repo)}"
+        releaseTag: String? = null,
+    ): String {
+        val tag = releaseTag?.trim().orEmpty()
+        if (tag.isNotEmpty()) {
+            ReleaseTagValidator.validate(tag)?.let { error(it) }
+        }
+        val releaseArg = if (tag.isEmpty()) "" else " -f release_tag=${q(tag)}"
+        return "gh workflow run ${q(workflowName)} --ref ${q(branch)} -R ${q(repo)}$releaseArg"
+    }
 
     fun watchWorkflow(runId: Long, repo: String = DEFAULT_REPO): String =
         "gh run watch $runId --exit-status -R ${q(repo)}"
