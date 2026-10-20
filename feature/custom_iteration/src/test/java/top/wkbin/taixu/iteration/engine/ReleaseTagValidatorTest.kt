@@ -27,6 +27,8 @@ class ReleaseTagValidatorTest {
         assertNotNull(ReleaseTagValidator.validate("0.2.1-dev"))
         assertNotNull(ReleaseTagValidator.validate("v0.2"))
         assertNotNull(ReleaseTagValidator.validate("v0.2.1-"))
+        // 下划线后缀故意拒绝，与工作流 bash 守卫同一形状。
+        assertNotNull(ReleaseTagValidator.validate("v1.0.0_rc1"))
     }
 
     @Test

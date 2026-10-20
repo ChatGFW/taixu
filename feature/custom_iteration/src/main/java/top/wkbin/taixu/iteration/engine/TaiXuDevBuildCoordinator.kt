@@ -50,6 +50,7 @@ class TaiXuDevBuildCoordinator(
      * @param maxPollAttempts 构建轮询上限（超过即超时失败）
      * @param maxRunWaitCycles 触发后等待新 run 注册的轮询次数
      * @param runRegisterDelayMs 新 run 注册轮询间隔
+     * @param releaseTag 可选 Release 标签。空白表示不创建 Release；非法值在触发工作流之前失败关闭
      */
     suspend fun runPipeline(
         branch: String,
@@ -58,11 +59,13 @@ class TaiXuDevBuildCoordinator(
         maxPollAttempts: Int = 120,
         maxRunWaitCycles: Int = 12,
         runRegisterDelayMs: Long = 5_000L,
+        releaseTag: String? = null,
         onStatus: (BuildStatus) -> Unit,
     ): BuildStatus {
         TaiXuDevBuildCli.branchRejection(branch)?.let { return BuildStatus.Failed(it) }
         TaiXuDevBuildCli.outputDirRejection(outputDir)?.let { return BuildStatus.Failed(it) }
         TaiXuDevBuildCli.repoRejection(fallbackRepo)?.let { return BuildStatus.Failed(it) }
+        ReleaseTagValidator.validate(releaseTag)?.let { return BuildStatus.Failed(it) }
         val normalizedBranch = branch.trim()
         val normalizedDir = outputDir.trim()
 
@@ -90,7 +93,11 @@ class TaiXuDevBuildCoordinator(
         val triggerAtMs = clock()
 
         val trigger = execute(
-            commandLine = TaiXuDevBuildCli.triggerWorkflow(branch = normalizedBranch, repo = repo),
+            commandLine = TaiXuDevBuildCli.triggerWorkflow(
+                branch = normalizedBranch,
+                repo = repo,
+                releaseTag = releaseTag,
+            ),
             timeoutMs = 60_000L,
         )
         if (!trigger.isSuccess) {

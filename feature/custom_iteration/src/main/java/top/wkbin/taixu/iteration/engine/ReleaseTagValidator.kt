@@ -3,9 +3,9 @@ package top.wkbin.taixu.iteration.engine
 /**
  * taixudev-build.yml 的 workflow_dispatch 输入 release_tag 校验器。
  *
- * 该值会被工作流原样传给 softprops/action-gh-release 的 tag_name/name 字段，
- * 为避免脏输入被下游 Action 展开，这里只接受保守形状
- * `v<主>.<次>.<补丁>[-后缀]`（后缀段允许字母/数字/点/连字符）。
+ * 该值会被工作流传给 softprops/action-gh-release 的 tag_name/name 字段。
+ * 这里只接受保守形状 `v<主>.<次>.<补丁>[-后缀]`（后缀段允许字母/数字/点/连字符）。
+ * 下划线故意拒绝，例如 `v1.0.0_rc1`。工作流 bash 步骤使用同一形状，并在创建 Release 之前执行。
  *
  * 空输入视为「不创建 Release」（对应工作流输入的默认空值），返回有效。
  */
