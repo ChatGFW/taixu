@@ -122,6 +122,7 @@ class TaiXuDevBuildCoordinatorTest {
         outputDir: String = TaiXuDevBuildCli.DEFAULT_OUTPUT_DIR,
         maxRunWaitCycles: Int = 3,
         runRegisterDelayMs: Long = 0L,
+        releaseTag: String? = null,
         onStatus: (BuildStatus) -> Unit = {},
     ): BuildStatus = runPipeline(
         branch = branch,
@@ -130,6 +131,7 @@ class TaiXuDevBuildCoordinatorTest {
         maxPollAttempts = 5,
         maxRunWaitCycles = maxRunWaitCycles,
         runRegisterDelayMs = runRegisterDelayMs,
+        releaseTag = releaseTag,
         onStatus = onStatus,
     )
 
@@ -139,6 +141,18 @@ class TaiXuDevBuildCoordinatorTest {
         assertTrue(trigger.contains("gh workflow run 'taixudev-build.yml'"))
         assertTrue(trigger.contains("--ref 'feature/ci-build-coordinator'"))
         assertTrue(trigger.contains("-R 'wkbin/taixu'"))
+        assertFalse(trigger.contains("release_tag"))
+        assertFalse(TaiXuDevBuildCli.triggerWorkflow(releaseTag = "   ").contains("release_tag"))
+        assertTrue(
+            TaiXuDevBuildCli.triggerWorkflow(releaseTag = " v0.2.1-dev ")
+                .contains("-f release_tag='v0.2.1-dev'"),
+        )
+        val rejected = runCatching { TaiXuDevBuildCli.triggerWorkflow(releaseTag = "v0.2.1-dev; rm -rf /") }
+        assertTrue(rejected.exceptionOrNull() is IllegalStateException)
+        assertEquals(
+            ReleaseTagValidator.validate("v0.2.1-dev; rm -rf /"),
+            rejected.exceptionOrNull()?.message,
+        )
 
         val latest = TaiXuDevBuildCli.listRuns(branch = "feature/x")
         assertTrue(latest.contains("--workflow 'taixudev-build.yml'"))
@@ -185,8 +199,39 @@ class TaiXuDevBuildCoordinatorTest {
         assertTrue(states.any { it is BuildStatus.Running && it.runId == NEW_RUN_ID })
         assertTrue(states.any { it is BuildStatus.Downloading })
         assertTrue(states.last() is BuildStatus.Success)
-        assertTrue(fake.commands.first { it.commandLine.startsWith("gh workflow run") }
-            .commandLine.contains("--ref 'feature/x'"))
+        val triggerLine = fake.commands.first { it.commandLine.startsWith("gh workflow run") }.commandLine
+        assertTrue(triggerLine.contains("--ref 'feature/x'"))
+        assertFalse(triggerLine.contains("release_tag"))
+    }
+
+    @Test
+    fun `invalid release tag is rejected before gh workflow run`() = runTest {
+        listOf(
+            "v0.2.1-dev; rm -rf /",
+            "v0.2.1-dev\$(whoami)",
+            "v1.0.0_rc1",
+            "v0.2.1-",
+            "0.2.1-dev",
+        ).forEach { tag ->
+            val fake = FakeShellRunner()
+            val result = coordinator(fake).runFast(releaseTag = tag)
+            assertTrue("expected rejection for [$tag]", result is BuildStatus.Failed)
+            assertEquals(ReleaseTagValidator.validate(tag), (result as BuildStatus.Failed).error)
+            assertTrue("commands ran for [$tag]", fake.commands.isEmpty())
+        }
+    }
+
+    @Test
+    fun `valid release tag is forwarded only after validation`() = runTest {
+        val fake = FakeShellRunner().apply {
+            seedNewRun("feature/x")
+            runStatusResults += okJson("""{"status":"completed","conclusion":"success"}""")
+        }
+        val result = coordinator(fake).runFast(releaseTag = " v0.2.1-dev ")
+        assertTrue(result is BuildStatus.Success)
+        val trigger = fake.commands.first { it.commandLine.startsWith("gh workflow run") }.commandLine
+        assertTrue(trigger.contains("-f release_tag='v0.2.1-dev'"))
+        assertFalse(trigger.contains("-f release_tag=' v0.2.1-dev '"))
     }
 
     @Test
