@@ -18,7 +18,7 @@ internal object PixelOfficeDetail {
         return pixels
     }
 
-    private class Painter(val pixels: IntArray) {
+    internal class Painter(val pixels: IntArray) {
         val ink = 0x493C39
         val wood = 0xB47B46
         val light = 0xE6B674
@@ -47,11 +47,14 @@ internal object PixelOfficeDetail {
             for (y in listOf(214, 262)) for (x in listOf(18, 62)) desk(x, y)
             meeting()
             coffee()
+            workWall()
+            serverRack(174, 274)
             lounge()
-            for ((x, y) in listOf(36 to 28, 90 to 118, 174 to 124,
-                96 to 236, 168 to 360, 4 to 122, 4 to 270, 178 to 278, 172 to 412)) plant(x, y)
+            for ((x, y) in listOf(36 to 28, 174 to 124,
+                96 to 236, 168 to 360, 4 to 122, 4 to 270, 172 to 412)) plant(x, y)
             shelf(8, 16, 24, 36)
             shelf(8, 340, 17, 10)
+            lobbyArt()
             lamp(157, 68, 20)
             lamp(100, 182, 16)
             lamp(92, 316, 20)
@@ -59,6 +62,8 @@ internal object PixelOfficeDetail {
             r(57, 17, 50, 0.7, wood)
             r(58, 50, 46, 0.5, wood)
             r(62, 49, 3, 0.5, paper)
+            clock(94, 88)
+            hallway()
             accessories()
         }
 
@@ -72,8 +77,12 @@ internal object PixelOfficeDetail {
                     r(x, top, 1.3, bottom - top, 0x98785B)
                     r(x + 1.3, top, 0.7, bottom - top, 0xF7EACD)
                 }
+                r(0, top + 9, 192, 0.5, 0xDCC6A2)
+                r(0, top + 9.5, 192, 0.5, 0xF8EED8)
+                for (x in listOf(52, 148)) r(x, top + 10, 0.4, bottom - top - 12, 0xD9C3A0)
                 r(0, bottom - 3, 192, 3, 0x9A724E)
                 r(0, bottom - 3, 192, 0.7, light)
+                r(0, bottom - 2.5, 192, 0.5, 0xC9A87E)
             }
             for ((top, bottom) in listOf(126 to 176, 220 to 310, 372 to 442)) {
                 for (y in top until bottom step 6) {
@@ -154,6 +163,35 @@ internal object PixelOfficeDetail {
             cup(x + 31, y - 4)
         }
 
+        fun lobbyArt() {
+            r(35, 9, 18, 17, ink)
+            r(36, 10, 16, 15, 0x8D6849)
+            r(37, 11, 14, 13, 0xEAF1E4)
+            r(37, 12, 14, 5, 0x8EC8F0)
+            r(38, 18, 12, 5, 0x9FC6A0)
+            r(40, 16, 4, 3, 0x6F8FA8)
+            r(44, 15, 2, 2, 0xF6F0E4)
+            r(46, 13, 3, 3, 0xF3D36B)
+            r(37, 11, 14, 0.4, 0xFFF8EE)
+            r(36, 10, 0.5, 15, 0xC4A47C)
+        }
+
+        fun clock(x: Int, y: Int) {
+            r(x, y, 14, 14, ink)
+            r(x + 1, y + 1, 12, 12, 0x604637)
+            r(x + 2, y + 2, 10, 10, 0xF6EFD8)
+            r(x + 2, y + 2, 10, 0.5, 0xFDF6E6)
+            r(x + 3, y + 7, 1, 0.4, ink)
+            r(x + 7, y + 3, 0.4, 1, ink)
+            r(x + 11, y + 7, 1, 0.4, ink)
+            r(x + 7, y + 10, 0.4, 1, ink)
+            r(x + 5, y + 8, 4, 0.4, 0x9E8A70)
+            r(x + 1, y + 1, 0.5, 0.5, 0xD8C7A6)
+            r(x + 12.5, y + 1, 0.5, 0.5, 0xD8C7A6)
+            r(x + 1, y + 12.5, 0.5, 0.5, 0xD8C7A6)
+            r(x + 12.5, y + 12.5, 0.5, 0.5, 0xD8C7A6)
+        }
+
         fun plant(x: Int, y: Int) {
             r(x + 2, y + 16, 9, 1, 0xB69970)
             r(x + 3, y + 12, 6, 5, 0xA9673E); r(x + 4, y + 12, 2, 4, 0xD69754)
@@ -214,46 +252,86 @@ internal object PixelOfficeDetail {
         fun coffee() {
             shelf(116, 252, 68, 17)
             r(116, 214, 68, 2, light)
+            r(117, 215, 66, 0.7, 0xFFE0B0)
             for (x in listOf(120, 140, 160)) {
                 r(x, 219, 18, 15, 0xA3764E); r(x + 1, 220, 16, 13, 0xB88B5E)
+                r(x + 0.7, 221, 0.5, 11, 0xC99A6C)
                 r(x + 13, 222, 3, 0.7, ink)
+                r(x + 14, 225.5, 2, 1, 0x4E3B2F)
+                r(x + 15, 226.5, 0.7, 1, 0x4E3B2F)
+                r(x + 2, 231.5, 14, 0.5, 0x94653F)
             }
-            r(120, 194, 16, 20, 0x67717A); r(121, 195, 14, 3, 0xADB2AA)
-            r(122, 199, 12, 12, ink); r(124, 199, 8, 3, 0x8FA5A6)
-            r(125, 202, 1, 3, 0xCCD0BC); r(130, 202, 1, 3, 0xCCD0BC)
-            cup(126, 206); r(122, 212, 12, 1, 0xADB2AA)
+            // Espresso machine: group head, drip tray, steam wand and water glass.
+            r(119, 193, 18, 21, ink)
+            r(120, 194, 16, 19, 0x9AA4AE)
+            r(121, 195, 14, 3, 0xC7D0D6)
+            r(121, 198, 14, 9, 0x5A6672)
+            r(122, 199, 5, 6, 0x3A4652)
+            r(123, 200, 3, 4, 0x7EC8E3)
+            r(128, 199, 6, 6, 0x2E3A46)
+            r(129, 200, 4, 0.5, 0x8FA5A6)
+            r(124, 205, 6, 4, ink); r(125, 205, 4, 3, 0xB0BEC5)
+            r(122, 209, 3, 1, ink); r(123, 209, 2, 0.7, 0xC7D0D6)
+            r(121, 211, 14, 2, 0xADB2AA); r(122, 212, 12, 1, 0x7A8790)
+            r(136, 203, 1, 8, 0xB0BEC5); r(135, 210, 2, 1, 0x8A959E)
+            cup(126, 207)
+            r(133, 197, 1, 1, 0xE85D4C); r(131, 197, 1, 1, 0x8FD18A)
+            // Chalk menu board above the counter.
+            r(142, 196, 42, 12, ink)
+            r(143, 197, 40, 10, 0x243B33)
+            r(145, 199, 24, 0.7, 0xE8DCC0)
+            r(145, 202, 30, 0.7, 0xCFE3D2)
+            r(145, 205, 18, 0.7, 0xE8DCC0)
+            r(170, 199, 8, 6, 0xE8DCC0); r(171, 200, 6, 4, 0x8B5A2B)
+            r(175, 201, 1, 2, 0x8B5A2B)
             for (x in listOf(145, 153, 161)) cup(x, 210)
-            plant(171, 197)
             for (x in listOf(137, 160)) {
                 r(x, 239, 12, 2, ink); r(x + 1, 241, 1, 9, ink); r(x + 10, 241, 1, 9, ink)
                 r(x + 1, 246, 10, 0.7, ink)
             }
         }
 
-        fun lounge() {
-            r(30, 337, 33, 13, ink); r(31, 338, 31, 11, 0x87BCD0)
-            r(32, 345, 29, 3, 0x779565); r(42, 341, 8, 2, paper)
-            r(16, 353, 48, 1, 0xFFD18B)
-            for (x in listOf(22, 42)) {
-                r(x, 355, 18, 7, 0xF1B15C); r(x, 355, 18, 0.7, 0xFFD18B)
+        fun workWall() {
+            val notes = listOf(0xF3D36B, 0xF0A3B5, 0x9FD0E8, 0xBFE3A8)
+            notes.forEachIndexed { i, color ->
+                val x = 48 + i * 12
+                val y = 184 + (i % 2)
+                r(x + 0.6, y + 0.8, 8, 8, 0xB99B76)
+                r(x, y, 8, 8, color)
+                r(x + 1, y + 1, 5, 0.5, 0xFFFFFF)
+                r(x + 1, y + 3.5, 4, 0.5, 0x5C4030)
+                r(x + 1, y + 5, 5, 0.5, 0x5C4030)
+                r(x + 3.5, y + 0.3, 1, 1, 0xC94F4F)
             }
-            r(110, 367, 16, 1, 0x97C879)
-            r(74, 368, 26, 1, light); cup(78, 364)
-            r(87, 365, 9, 3, 0x608B8D); r(88, 366, 7, 0.7, paper)
-            plant(129, 356)
-            shelf(146, 386, 35, 22)
-            for (i in 0..6) {
-                r(6 + i * 5, 398 + i * 5, 26, 2, 0x7A6C60)
-                r(6 + i * 5, 400 + i * 5, 26, 3, 0xC0AC8E)
-                r(7 + i * 5, 388 + i * 5, 0.7, 12, ink)
-                r(7 + i * 5, 387 + i * 5, 6, 1, ink)
+            r(100, 185, 8, 7, 0xD8C7A6)
+            r(100, 185, 8, 0.5, 0xF6EBD2)
+            r(101.5, 187, 5, 0.5, 0x8A7A64)
+            r(101.5, 188.5, 4, 0.5, 0x8A7A64)
+        }
+
+        fun serverRack(x: Int, y: Int) {
+            r(x, y, 14, 32, ink)
+            r(x + 1, y + 1, 12, 29, 0x2C3440)
+            r(x + 2, y + 2, 10, 3, 0x101820)
+            r(x + 3, y + 3, 8, 1, 0x7EC8E3)
+            for (i in 0..4) {
+                val row = y + 7 + i * 4
+                r(x + 2, row, 10, 2, 0x1E2630)
+                r(x + 3, row + 0.5, 5, 1, 0x4E5B66)
+                r(x + 9, row + 0.5, 2, 1, 0x5C6B80)
             }
+            r(x + 2, y + 28, 2, 2, 0x1A2028)
+            r(x + 10, y + 28, 2, 2, 0x1A2028)
+            r(x + 13, y + 14, 1, 16, 0x1A2028)
+            r(x + 13, y + 25, 2, 0.5, 0x1A2028)
         }
 
         fun accessories() {
             // Contact shadows follow the feet, not the desktop: every object sits on the floor.
             for ((x, y, w) in listOf(Triple(109, 138, 66), Triple(15, 377, 50),
-                Triple(75, 384, 25), Triple(108, 378, 21))) {
+                Triple(75, 384, 25), Triple(108, 378, 21),
+                Triple(17, 232, 38), Triple(61, 232, 38), Triple(17, 280, 38), Triple(61, 280, 38),
+                Triple(118, 235, 64), Triple(173, 306, 15), Triple(116, 441, 12))) {
                 r(x, y, w, 0.7, 0xAD845B)
             }
             // Wainscot panels, drawer joints and bevels give the large furniture volume.
@@ -286,7 +364,10 @@ internal object PixelOfficeDetail {
             r(82, 391, 1, 6, ink); r(106, 391, 1, 6, ink)
             r(81, 397, 27, 1, ink)
             books(85, 389, 8)
-            // A small sleeping cat on the entry sill.
+            // A small sleeping cat on a cushion by the entry sill.
+            r(73, 56, 17, 3, 0xB9564A)
+            r(74, 56, 15, 1, 0xE07A62)
+            r(73, 58, 17, 1, 0x8F3E36)
             r(78, 57, 12, 3, 0xB97642)
             r(80, 55, 8, 3, 0xD69E5A)
             r(77, 55, 5, 4, paper)

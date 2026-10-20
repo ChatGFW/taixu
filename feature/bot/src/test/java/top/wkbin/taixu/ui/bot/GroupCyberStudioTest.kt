@@ -3,6 +3,7 @@ package top.wkbin.taixu.ui.bot
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.*
 import org.junit.Rule
@@ -55,6 +56,7 @@ class GroupCyberStudioTest {
         status = BotAssignmentStatus.RUNNING,
         startedAt = System.currentTimeMillis() - 5000L,
         finishedAt = null,
+        reportToBotId = "bot-b",
         independent = true,
         createdAt = 1000L,
     )
@@ -83,7 +85,19 @@ class GroupCyberStudioTest {
 
         compose.onNodeWithTag("group-cyber-studio").assertIsDisplayed()
         compose.onNodeWithTag("pixel-office-scene").assertIsDisplayed()
-        compose.onNodeWithTag("office-objective-board").assertIsDisplayed()
+        compose.onNodeWithTag("office-objective-board").assertExists()
+        compose.onNodeWithTag("office-zone-think").assertExists()
+        compose.onNodeWithTag("office-zone-meet").assertExists()
+        compose.onNodeWithTag("office-zone-work").assertExists()
+        compose.onNodeWithTag("office-zone-coffee").assertExists()
+        compose.onNodeWithTag("office-zone-rest").assertExists()
+        compose.onNodeWithTag("office-cat-lobby").assertExists()
+        compose.onNodeWithTag("office-cat-sofa").assertExists()
+        compose.onNodeWithTag("office-coffee-machine").assertExists()
+        compose.onNodeWithTag("office-task-board").assertExists()
+        compose.onNodeWithTag("office-task-board-doing", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("office-task-card-task-1", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("office-report-links").assertExists()
         compose.onNodeWithTag("studio-actor-bot-a").assertIsDisplayed()
         compose.onNodeWithTag("studio-actor-bot-b").assertExists()
         compose.onNodeWithTag("studio-bubble-bot-a").assertIsDisplayed()
@@ -95,6 +109,104 @@ class GroupCyberStudioTest {
         compose.onNodeWithTag("studio-select-card").assertIsDisplayed()
         compose.onNodeWithTag("studio-actor-mention").assertIsDisplayed().performClick()
         assertEquals("bot-a", selectedBot?.id)
+    }
+
+    @Test
+    fun `task board opens full screen and a card selects and focuses its owner`() {
+        compose.setContent {
+            TaiXuTheme {
+                GroupCyberStudio(
+                    members = listOf(botA, botB),
+                    messages = emptyList(),
+                    assignments = listOf(assignment1),
+                    onSelectBot = {},
+                    onOpenBot = {},
+                    onCancelAssignment = {},
+                    onContinueAssignment = { _, _, _ -> },
+                    onBackToChat = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("office-task-board").performClick()
+        compose.onNodeWithTag("office-board-overlay").assertExists()
+        compose.onNodeWithTag("office-board-overlay-doing").assertExists()
+        compose.onNodeWithTag("office-board-overlay-card-task-1").performClick()
+        compose.onNodeWithTag("office-board-overlay").assertDoesNotExist()
+        compose.onNodeWithTag("studio-select-card").assertExists()
+    }
+
+    @Test
+    fun `cyber studio projects live reasoning into the office bubble`() {
+        compose.setContent {
+            TaiXuTheme {
+                GroupCyberStudio(
+                    members = listOf(botA, botB),
+                    messages = listOf(
+                        GroupMessage(
+                            id = "live-think",
+                            groupId = "grp-1",
+                            senderId = botB.id,
+                            senderName = botB.name,
+                            senderType = GroupSenderType.BOT,
+                            content = "",
+                            timestamp = System.currentTimeMillis(),
+                            isStreaming = true,
+                            reasoning = "正在核对 PRoot 挂载路径",
+                        ),
+                    ),
+                    assignments = emptyList(),
+                    onSelectBot = {},
+                    onOpenBot = {},
+                    onCancelAssignment = {},
+                    onContinueAssignment = { _, _, _ -> },
+                    onBackToChat = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("office-task-board-thought", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("正在核对 PRoot 挂载路径", substring = true).assertExists()
+    }
+
+    @Test
+    fun `cyber studio projects tool detail into the office bubble`() {
+        compose.setContent {
+            TaiXuTheme {
+                GroupCyberStudio(
+                    members = listOf(botA, botB),
+                    messages = listOf(
+                        GroupMessage(
+                            id = "live-tool",
+                            groupId = "grp-1",
+                            senderId = botB.id,
+                            senderName = botB.name,
+                            senderType = GroupSenderType.BOT,
+                            content = "",
+                            timestamp = System.currentTimeMillis(),
+                            isStreaming = true,
+                            steps = listOf(
+                                GroupToolStep(
+                                    id = "step-1",
+                                    name = "write_file",
+                                    success = null,
+                                    detail = "PixelOfficeSprite.kt",
+                                ),
+                            ),
+                        ),
+                    ),
+                    assignments = emptyList(),
+                    onSelectBot = {},
+                    onOpenBot = {},
+                    onCancelAssignment = {},
+                    onContinueAssignment = { _, _, _ -> },
+                    onBackToChat = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("studio-bubble-bot-b").assertExists()
+        compose.onNodeWithText("PixelOfficeSprite.kt", substring = true).assertExists()
     }
 
     @Test
@@ -116,6 +228,7 @@ class GroupCyberStudioTest {
 
         compose.onNodeWithTag("pixel-office-scene").assertIsDisplayed()
         compose.onNodeWithTag("studio-actor-bot-a").assertIsDisplayed()
+        compose.onNodeWithTag("studio-bubble-bot-a").assertExists()
         compose.onNodeWithTag("pixel-office-status").assertDoesNotExist()
         compose.onNodeWithTag("pipeline-empty-placeholder").assertDoesNotExist()
     }

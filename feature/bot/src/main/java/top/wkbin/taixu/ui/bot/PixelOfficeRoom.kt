@@ -80,7 +80,6 @@ internal object PixelOfficeRoom {
 
         fun thinkFloor() {
             whiteboard(8, 84)
-            plant(90, 118)
             meetingTable(108, 108)
             plant(174, 124)
         }
