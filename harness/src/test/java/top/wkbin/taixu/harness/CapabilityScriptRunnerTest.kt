@@ -239,4 +239,36 @@ class CapabilityScriptRunnerTest {
         withTimeout(5_000) { running.cancelAndJoin() }
         assertTrue(running.isCancelled)
     }
+
+    @Test
+    fun `rhino evaluator stays loadable by its reflective string name`() {
+        // Rhino 在 Context.interpreterClass 里用 Class.forName 按字符串名加载求值器，且
+        // Kit.newInstanceOrNull 对 null Class 直接抛 NPE（catch 列表不含 NPE）。
+        // 该断言把「类名常量与 rhino 版本一致」锁进单测，rhino 升级改名会立刻失败。
+        val evaluator = Class.forName("org.mozilla.javascript.Interpreter", false, javaClass.classLoader)
+        assertEquals(0, evaluator.getDeclaredConstructor().parameterCount)
+    }
+
+    @Test
+    fun `consumer rules keep rhino reflective evaluator classes`() {
+        // JVM 单测永远不经过 R8，所以这里守的是「release 构建的 keep 规则本身」：
+        // 一旦被删，真机上 every script 会在编译阶段抛裸 NPE（v1.3.0 现场）。
+        val rules = listOf("consumer-rules.pro", "harness/consumer-rules.pro")
+            .map { java.io.File(it) }
+            .firstOrNull { it.isFile }
+        assertTrue("未找到 harness/consumer-rules.pro（cwd=${java.io.File(".").absolutePath}）", rules != null)
+        val text = rules!!.readText()
+        listOf(
+            "org.mozilla.javascript.Interpreter",
+            "org.mozilla.javascript.optimizer.Codegen",
+        ).forEach { className ->
+            val kept = text.lineSequence().any { line ->
+                line.trimStart().startsWith("-keep") && line.contains(className)
+            }
+            assertTrue(
+                "consumer-rules.pro 必须 keep $className：R8 会把这类仅按字符串名加载的类改名/剥离",
+                kept,
+            )
+        }
+    }
 }
