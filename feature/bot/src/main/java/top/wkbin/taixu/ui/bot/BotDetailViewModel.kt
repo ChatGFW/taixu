@@ -8,6 +8,8 @@ import java.util.UUID
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -47,7 +49,9 @@ class BotDetailViewModel(
     private val memoryManager: BotMemoryManager,
     private val packageService: BotPackageService,
     private val wakeup: BotScheduleWakeup? = null,
+    private val models: top.wkbin.taixu.core.database.AiModelRepository,
 ) : ViewModel() {
+    val modelProfiles = models.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private val _uiState = MutableStateFlow(BotDetailUiState())
     val uiState: StateFlow<BotDetailUiState> = _uiState.asStateFlow()
 
@@ -85,7 +89,7 @@ class BotDetailViewModel(
         }
     }
 
-    fun save(name: String, role: String, persona: String, modelId: String, isMainBot: Boolean, avatarSeed: String) {
+    fun save(name: String, role: String, persona: String, modelId: String, modelVariant: String?, isMainBot: Boolean, avatarSeed: String) {
         val bot = _uiState.value.bot ?: return
         if (name.isBlank() || role.isBlank() || persona.isBlank()) {
             emit("请填写名称、职责与人格设定")
@@ -98,6 +102,7 @@ class BotDetailViewModel(
                 role = role,
                 systemPrompt = persona,
                 modelId = modelId.trim().takeIf { it.isNotBlank() },
+                modelVariant = modelVariant,
                 isMainBot = isMainBot,
                 avatarSeed = avatarSeed,
             )

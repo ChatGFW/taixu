@@ -81,7 +81,7 @@ const magnitude = scaleSequential(interpolateViridis).domain([0, maxValue]);
 const deviation = scaleDiverging(interpolateRdBu).domain([-max, 0, max]);
 
 // RULE: never encode a category by hue ALONE — pair with shape, label, or direct labeling,
-// and run the final chart through a CVD simulator (deuteranopia/protanopia) before shipping.
+// 并在发布前把最终图表过一遍色觉障碍模拟器（绿色盲/红色盲）。
 ```
 
 ### 性能：知道 SVG → Canvas → WebGL 的跨界点

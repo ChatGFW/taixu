@@ -23,6 +23,8 @@ internal fun botManagementDescriptor() = PluginDescriptor(
         PluginExtension("cancel-assignment", PluginExtensionPoint.TOOL),
         PluginExtension("continue-assignment", PluginExtensionPoint.TOOL),
         PluginExtension("report-assignment", PluginExtensionPoint.TOOL),
+        PluginExtension("list-models", PluginExtensionPoint.TOOL),
+        PluginExtension("select-model", PluginExtensionPoint.TOOL),
     ),
 )
 

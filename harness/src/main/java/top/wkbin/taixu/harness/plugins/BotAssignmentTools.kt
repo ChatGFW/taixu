@@ -181,7 +181,7 @@ private fun assignmentDetail(assignment: BotAssignment): String = buildString {
     appendLine("会话：${assignment.sessionId ?: "未知"}")
     assignment.laneName?.let { appendLine("Lane：$it") }
     if (assignment.writePaths.isNotEmpty()) {
-        appendLine("写入租约：${assignment.writePaths.joinToString(", ")}")
+        appendLine("${if (assignment.independent) "建议写入范围" else "写入租约"}：${assignment.writePaths.joinToString(", ")}")
     }
     appendLine()
     appendLine("【任务内容】")

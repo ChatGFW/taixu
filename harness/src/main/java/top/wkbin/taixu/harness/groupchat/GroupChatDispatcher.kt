@@ -232,6 +232,19 @@ class GroupChatDispatcher(
         streaming.forEach { groupRepository.updateStreamingMessage(it.id, STOPPED_MARKER, false, it.steps) }
     }
 
+    /** 按底层会话定位并取消所属群聊的持久收件与排队任务。 */
+    suspend fun cancelForSession(sessionId: String): Boolean {
+        val groupId = orchestrator.groupIdForSession(sessionId) ?: return false
+        cancelGroup(groupId)
+        return true
+    }
+
+    /** 停止全部群聊的任务执行与排队收件。 */
+    suspend fun cancelAll() {
+        val groups = groupRepository.observeGroups().first()
+        groups.forEach { cancelGroup(it.id) }
+    }
+
     private fun dispatchToBot(
         group: GroupChat,
         bot: Bot,

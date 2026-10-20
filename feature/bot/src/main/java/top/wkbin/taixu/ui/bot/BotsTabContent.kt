@@ -42,6 +42,7 @@ import top.wkbin.taixu.ui.components.StatusBadge
 @Composable
 internal fun BotList(
     bots: List<Bot>,
+    modelProfiles: List<top.wkbin.taixu.core.database.AiModelEntity>?,
     onOpenBot: (String) -> Unit,
 ) {
     LazyColumn(
@@ -85,13 +86,7 @@ internal fun BotList(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Text(
-                            bot.modelId ?: stringResource(R.string.fbot_model_default),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        BotModelSummary(bot, modelProfiles)
                     }
                     RuntimeIcon(
                         RuntimeIconName.ChevronRight,

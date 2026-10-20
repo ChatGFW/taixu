@@ -25,6 +25,7 @@ import top.wkbin.taixu.harness.plugins.botSchedulePlugin
 
 /** PersonaBot：独立会话、Git 记忆、群聊调度与定时唤醒。 */
 val botHarnessModule = module {
+    single { top.wkbin.taixu.harness.bot.BotModelManager(get(), get(), get(), get(), get()) }
     single { top.wkbin.taixu.harness.groupchat.GroupReplyFreshness(groups = get(), messages = get()) }
     single { BotMemoryManager(pathManager = get(), logger = get()) }
     single { BotAttachmentPreparer(context = get(), paths = get()) }
@@ -39,6 +40,7 @@ val botHarnessModule = module {
             laneRunner = get(),
             memoryManager = get(),
             logger = get(), assignmentRepository = get(),
+            modelManager = get(),
         )
     }
     single {
@@ -62,6 +64,7 @@ val botHarnessModule = module {
             tracker = get(),
             logger = get(),
             executor = get(),
+            modelManager = get(),
         )
     }
     single<BotAssignmentExecutor> {
@@ -106,6 +109,7 @@ val botHarnessModule = module {
             assignments = get(),
             logger = get(),
             runtime = { get() },
+            modelManager = get(),
         )
     }
     single<HarnessPlugin>(named("taixu.bot-schedule")) {

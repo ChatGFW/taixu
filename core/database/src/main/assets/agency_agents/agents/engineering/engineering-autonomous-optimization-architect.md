@@ -41,7 +41,7 @@ export async function optimizeAndRoute(
   providers: Provider[],
   securityLimits: { maxRetries: 3, maxCostPerRun: 0.05 }
 ) {
-  // Sort providers by historical 'Optimization Score' (Speed + Cost + Accuracy)
+  // 按历史「优化评分」（速度 + 成本 + 准确度）对提供方排序
   const rankedProviders = rankByHistoricalPerformance(providers);
 
   for (const provider of rankedProviders) {
@@ -57,7 +57,7 @@ export async function optimizeAndRoute(
       }
       
       // Background Self-Learning: Asynchronously test the output 
-      // against a cheaper model to see if we can optimize later.
+      // 对照更便宜的模型，看我们之后能否优化。
       shadowTestAgainstAlternative(serviceTask, result, getCheapestProvider(providers));
       
       return result;

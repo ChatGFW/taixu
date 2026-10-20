@@ -129,7 +129,7 @@ class HarnessLoop(
     override val sessionRunStates: StateFlow<Map<String, SessionRunState>> get() = stateMirrors.sessionRunStates
     /** 全局各会话当前的动作描述状态。 */
     override val sessionStatuses: StateFlow<Map<String, String>> get() = stateMirrors.sessionStatuses
-
+    override val modelOutputRevisions: StateFlow<Map<String, Long>> get() = stateMirrors.modelOutputRevisions
     // ---- 当前前台聚焦会话的响应式镜像（全部委托给投影协作类） ----
     override val messages: StateFlow<List<HarnessMessage>> get() = messageProjector.foregroundMessages
 

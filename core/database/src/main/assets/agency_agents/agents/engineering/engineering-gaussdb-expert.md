@@ -123,13 +123,13 @@ CREATE TABLE posts (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 ) DISTRIBUTE BY HASH(user_id);
 
--- Index foreign key for distributed JOINs
+-- 为分布式 JOIN 索引外键
 CREATE INDEX idx_posts_user_id ON posts(user_id);
 
--- Composite index for filtering + sorting
+-- 用于过滤 + 排序的复合索引
 CREATE INDEX idx_posts_status_created ON posts(status, created_at DESC);
 
--- Small dimension table → REPLICATION avoids Broadcast streaming on JOINs
+-- 小维度表 → REPLICATION 避免 JOIN 时的 Broadcast 流式传输
 CREATE TABLE categories (
     id INT PRIMARY KEY,
     name VARCHAR(100) NOT NULL
@@ -163,7 +163,7 @@ CREATE TABLE audit_logs (
 
 ```sql
 -- ✅ Best practice: align partition key with distribution key
--- Enables partition pruning AND local execution simultaneously
+-- 同时启用分区裁剪与本地执行
 CREATE TABLE events (
     id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
@@ -221,7 +221,7 @@ WHERE p.user_id = 123 AND p.status = 'published';
 ```sql
 -- ❌ Bad: N+1 query pattern (application issues N+1 round-trips to CN)
 SELECT * FROM posts WHERE user_id = 123;
--- Then for each post:
+-- 然后对每篇帖子：
 SELECT * FROM comments WHERE post_id = ?;
 
 -- ✅ Good: Single query with JOIN and aggregation (one round-trip to CN)
@@ -250,13 +250,13 @@ ALTER TABLE posts ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0;
 -- ⚠️ Distributed mode: DDL coordinates across all DNs automatically
 -- Large table DDL may take longer — plan during maintenance windows
 
--- ✅ Create index without blocking reads/writes (centralized mode)
+-- ✅ 创建索引而不阻塞读写（集中式模式）
 CREATE INDEX CONCURRENTLY idx_posts_view_count ON posts(view_count DESC);
 
--- ⚠️ In distributed mode, CONCURRENTLY has limitations
--- Consider creating indexes during low-traffic periods
+-- ⚠️ 在分布式模式下，CONCURRENTLY 有局限
+-- 考虑在低流量时段创建索引
 
--- ✅ Always write reversible DOWN migrations
+-- ✅ 始终编写可回滚的 DOWN 迁移
 -- DROP INDEX IF EXISTS idx_posts_view_count;
 -- ALTER TABLE posts DROP COLUMN IF EXISTS view_count;
 ```
@@ -270,7 +270,7 @@ gsql -d gaussdb -p 8000 -h  -U dbadmin -W
 # JDBC connection string (GaussDB driver)
 jdbc:gaussdb://:8000/?currentSchema=public&sslmode=require
 
-# Connection pooling best practices:
+# 连接池最佳实践：
 # - Use HikariCP / Druid with GaussDB JDBC driver
 # - Connect to CN (Coordinator Node), not DN directly
 # - Set reasonable pool size: max_connections per CN / number_of_app_instances

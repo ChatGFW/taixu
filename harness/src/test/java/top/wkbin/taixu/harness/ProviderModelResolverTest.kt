@@ -114,5 +114,18 @@ class ProviderModelResolverTest {
         assertTrue(runCatching { resolver.resolveSavedModelProfile("missing", null) }.exceptionOrNull() is IllegalArgumentException)
         assertTrue(runCatching { resolver.resolveSavedModelProfile(profile.id, "removed-model") }.exceptionOrNull() is IllegalArgumentException)
         assertTrue(runCatching { resolver.resolveRequestedModel("removed-model") }.exceptionOrNull() is IllegalArgumentException)
+        assertTrue(runCatching { resolver.resolveConfigured("missing", null) }.exceptionOrNull() is IllegalArgumentException)
+        assertTrue(runCatching { resolver.resolveConfigured(profile.id, "removed-model") }.exceptionOrNull() is IllegalArgumentException)
+    }
+
+    @Test fun `explicit supplier and model variant determine the request instead of global activation`() = runBlocking {
+        models.upsert(profile)
+        models.upsert(profile.copy(id = "other", name = "Other supplier", provider = "Other", model = "small,large",
+            baseUrl = "https://other.example/v1", isActive = false))
+        val resolved = resolver.resolveConfigured("other", "LARGE")
+        assertEquals("large", resolved.model)
+        assertEquals("Other", resolved.provider)
+        assertEquals("https://other.example/v1", resolved.baseUrl)
+        assertEquals(profile.id, models.activeModel()!!.id)
     }
 }

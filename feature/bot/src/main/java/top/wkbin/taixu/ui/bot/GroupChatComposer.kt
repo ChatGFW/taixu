@@ -22,6 +22,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.GroupAttachment
@@ -35,19 +37,22 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 @Composable
 internal fun GroupChatComposer(
     members: List<Bot>,
-    value: String,
+    value: TextFieldValue,
     attachments: List<GroupAttachment>,
     sending: Boolean,
     busy: Boolean,
-    workingCount: Int,
     stopping: Boolean,
-    onValueChange: (String) -> Unit,
+    onValueChange: (TextFieldValue) -> Unit,
     onMention: (String) -> Unit,
     onAttach: () -> Unit,
     onRemoveAttachment: (GroupAttachment) -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
 ) {
+    val mention = activeGroupMention(value)
+    val candidates = if (mention == null) emptyList() else members.filter {
+        it.name.contains(mention.query, ignoreCase = true) || it.role.contains(mention.query, ignoreCase = true)
+    }
     Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = 3.dp) {
         Column(
             modifier = Modifier
@@ -57,16 +62,17 @@ internal fun GroupChatComposer(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (members.isNotEmpty()) {
+            if (mention != null && candidates.isNotEmpty()) {
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    members.forEach { bot ->
+                    candidates.forEach { bot ->
                         RuntimeFilterChip(
                             selected = false,
                             onClick = { onMention(bot.name) },
-                            label = { Text("@${bot.name}", style = MaterialTheme.typography.labelMedium) },
+                            label = { Text("@${bot.name}", style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             leadingIcon = { BotAvatar(bot, 18.dp) },
                         )
                     }
@@ -98,19 +104,6 @@ internal fun GroupChatComposer(
                     }
                 }
             }
-            if (busy) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    RuntimeCircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 2.dp)
-                    Text(
-                        text = stringResource(R.string.fbot_group_running, workingCount.coerceAtLeast(1)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = value,
@@ -139,7 +132,7 @@ internal fun GroupChatComposer(
                     ),
                     modifier = Modifier.weight(1f),
                 )
-                val hasContent = value.isNotBlank() || attachments.isNotEmpty()
+                val hasContent = value.text.isNotBlank() || attachments.isNotEmpty()
                 val canSend = hasContent && !sending && !stopping
                 // 有输入时优先显示发送，允许在 Bot 执行期间追加消息；只有输入为空才显示停止。
                 val showStop = busy && !hasContent

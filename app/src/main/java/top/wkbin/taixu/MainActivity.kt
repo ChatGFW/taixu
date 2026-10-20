@@ -79,6 +79,9 @@ import top.wkbin.taixu.service.adb.AdbNotificationManager
 import top.wkbin.taixu.navigation.ShareIntentExtractor
 import top.wkbin.taixu.service.WorkflowForegroundService
 import top.wkbin.taixu.ui.chat.floating.FloatingChatService
+import org.koin.android.ext.android.getKoin
+import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
+import top.wkbin.taixu.navigation.AgentNotificationIntentExtractor
 class MainActivity : AppCompatActivity() {
     val settingsDataStore: AppearancePreferences by inject()
     val appUpdateManager: AppUpdateManager by inject()
@@ -87,6 +90,7 @@ class MainActivity : AppCompatActivity() {
     val adbNotificationManager: AdbNotificationManager by inject()
     val mcpOAuthCoordinator: McpOAuthCoordinator by inject()
     val mcpManager: McpManager by inject()
+    private val botGroupSessions: BotGroupSessionRepository? get() = runCatching { getKoin().getOrNull<BotGroupSessionRepository>() }.getOrNull()
 
     /** 控制 SplashScreen 持续显示，直到 onboarding 偏好从 DataStore 加载完成，避免白屏空窗。 */
     private val keepSplashOnScreen: MutableState<Boolean> = mutableStateOf(true)
@@ -361,6 +365,10 @@ class MainActivity : AppCompatActivity() {
         if (action == WorkflowForegroundService.ACTION_OPEN_RUN) {
             globalNavigationBus.navigateTo(AppNavigationTarget.WorkflowRun(intentToHandle.getStringExtra(WorkflowForegroundService.EXTRA_EXECUTION_ID)))
         }
+        // 任务/会话通知点入：打开对应群聊或独立对话
+        if (intentToHandle.data?.scheme == "taixu" && intentToHandle.data?.authority == "agent-notification") {
+            lifecycleScope.launch { AgentNotificationIntentExtractor.extractTarget(intentToHandle, botGroupSessions)?.let(globalNavigationBus::navigateTo) }
+        }
     }
 
     override fun onPostResume() {
@@ -382,6 +390,7 @@ class MainActivity : AppCompatActivity() {
             PackageManager.PERMISSION_GRANTED
         ) {
             runtimeServiceController.start()
+            (application as? TaiXuApplication)?.refreshAgentNotifications()
         }
     }
 }

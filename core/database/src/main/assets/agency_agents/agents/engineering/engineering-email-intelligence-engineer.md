@@ -90,7 +90,7 @@ vibe: 把混乱的 MIME 变成可推理的上下文，因为原始邮件是噪�
 ### 第一步：邮件摄取与规范化
 
 ```python
-# Connect to email source and fetch raw messages
+# 连接邮件源并拉取原始消息
 import imaplib
 import email
 from email import policy
@@ -124,11 +124,11 @@ def reconstruct_thread(messages):
     """Build conversation topology from message headers.
     
     Key challenges:
-    - Forwarded chains collapse multiple conversations into one message body
+    - 转发链把多段对话折叠进一个消息体
     - Quoted replies duplicate content (20-msg thread = ~4-5x token bloat)
-    - Thread forks when people reply to different messages in the chain
+    - 当人们回复链中不同消息时线程会分叉
     """
-    # Build reply graph from In-Reply-To and References headers
+    # 从 In-Reply-To 与 References 头部构建回复图
     graph = {}
     for msg in messages:
         parent_id = msg["in_reply_to"]
@@ -138,12 +138,12 @@ def reconstruct_thread(messages):
             "message": msg
         }
     
-    # Link children to parents
+    # 把子节点链接到父节点
     for msg_id, node in graph.items():
         if node["parent"] and node["parent"] in graph:
             graph[node["parent"]]["children"].append(msg_id)
     
-    # Deduplicate quoted content
+    # 去重引用内容
     for msg_id, node in graph.items():
         node["message"]["unique_body"] = strip_quoted_content(
             node["message"]["body"],
@@ -184,10 +184,10 @@ def extract_structured_context(thread_graph):
     """Extract structured data from reconstructed thread.
     
     Produces:
-    - Participant map with roles and activity patterns
+    - 带角色与活动模式的参与者映射
     - Decision timeline (explicit commitments + implicit agreements)
-    - Action items with correct participant attribution
-    - Attachment references linked to discussion context
+    - 带正确参与者归属的行动项
+    - 与讨论上下文关联的附件引用
     """
     participants = build_participant_map(thread_graph)
     decisions = extract_decisions(thread_graph, participants)
@@ -240,12 +240,12 @@ def build_agent_context(thread_graph, query, token_budget=4000):
     Returns structured JSON with source citations so the agent
     can ground its reasoning in specific messages.
     """
-    # Retrieve relevant segments using hybrid search
+    # 用混合检索找回相关片段
     semantic_hits = semantic_search(query, thread_graph, top_k=20)
     keyword_hits = fulltext_search(query, thread_graph)
     merged = reciprocal_rank_fusion(semantic_hits, keyword_hits)
     
-    # Assemble context within token budget
+    # 在 token 预算内组装上下文
     context_blocks = []
     token_count = 0
     for hit in merged:
@@ -276,7 +276,7 @@ def build_agent_context(thread_graph, query, token_budget=4000):
         ]
     }
 
-# Example: LangChain tool wrapper
+# 示例：LangChain 工具封装
 from langchain.tools import tool
 
 @tool

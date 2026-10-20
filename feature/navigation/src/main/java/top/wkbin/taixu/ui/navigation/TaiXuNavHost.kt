@@ -132,27 +132,25 @@ fun TaiXuNavHost(
     LaunchedEffect(globalNavigationBus) {
         globalNavigationBus?.events?.collect { target ->
             when (target) {
-                AppNavigationTarget.AdbLogcat -> {
-                    activeStack.openSettingsPath(SystemDevSettingsDestination, AdbLogcatDestination)
-                    globalNavigationBus.clearLatest(target)
-                }
+                AppNavigationTarget.AdbLogcat -> activeStack.openSettingsPath(SystemDevSettingsDestination, AdbLogcatDestination)
                 is AppNavigationTarget.WorkflowRun -> {
-                    // 工作流通知点入：切到智枢栈并打开运行页
                     navigateMain(MainDestination.Agent)
                     activeStack.pushRaw(WorkflowDestination(executionId = target.executionId))
-                    globalNavigationBus.clearLatest(target)
                 }
-                AppNavigationTarget.AgentSettings -> {
-                    activeStack.openSettingsPath(AgentSettingsDestination)
-                    globalNavigationBus.clearLatest(target)
-                }
+                AppNavigationTarget.AgentSettings -> activeStack.openSettingsPath(AgentSettingsDestination)
                 is AppNavigationTarget.SharedText -> {
-                    // 系统分享入口：切到智枢并预填输入框（不自动发送，由用户选择快捷指令或直接发送）
                     navigateMain(MainDestination.Agent)
                     chatViewModel.onSharedTextReceived(target.text)
-                    globalNavigationBus.clearLatest(target)
+                }
+                is AppNavigationTarget.AgentSession -> {
+                    navigateMain(MainDestination.Agent)
+                    val groupId = target.groupId
+                    val sessionId = target.sessionId
+                    if (groupId != null) activeStack.pushRaw(GroupChatDestination(groupId))
+                    else if (!sessionId.isNullOrBlank() && sessionId != "all") chatViewModel.switchSession(sessionId)
                 }
             }
+            globalNavigationBus.clearLatest(target)
         }
     }
 

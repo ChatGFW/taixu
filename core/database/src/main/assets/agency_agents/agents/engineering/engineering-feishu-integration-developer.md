@@ -140,7 +140,7 @@ const client = new lark.Client({
 
 export { client };
 
-// Manual token management scenario (when not using the SDK)
+// 手动 token 管理场景（不使用 SDK 时）
 class TokenManager {
   private token: string = '';
   private expireAt: number = 0;
@@ -188,7 +188,7 @@ interface CardAction {
   value: Record<string, string>;
 }
 
-// Build an approval notification card
+// 构建审批通知卡片
 function buildApprovalCard(params: {
   title: string;
   applicant: string;
@@ -248,7 +248,7 @@ function buildApprovalCard(params: {
   };
 }
 
-// Send a message card
+// 发送消息卡片
 async function sendCardMessage(
   client: any,
   receiveId: string,
@@ -285,14 +285,14 @@ const eventDispatcher = new lark.EventDispatcher({
   verificationToken: process.env.FEISHU_VERIFICATION_TOKEN || '',
 });
 
-// Listen for bot message received events
+// 监听机器人接收消息事件
 eventDispatcher.register({
   'im.message.receive_v1': async (data) => {
     const message = data.message;
     const chatId = message.chat_id;
     const content = JSON.parse(message.content);
 
-    // Handle plain text messages
+    // 处理纯文本消息
     if (message.message_type === 'text') {
       const text = content.text as string;
       await handleBotCommand(chatId, text);
@@ -300,7 +300,7 @@ eventDispatcher.register({
   },
 });
 
-// Listen for approval status changes
+// 监听审批状态变更
 eventDispatcher.register({
   'approval.approval.updated_v4': async (data) => {
     const instanceId = data.approval_code;
@@ -314,7 +314,7 @@ eventDispatcher.register({
   },
 });
 
-// Card action callback handler
+// 卡片动作回调处理器
 const cardActionHandler = new lark.CardActionHandler({
   encryptKey: process.env.FEISHU_ENCRYPT_KEY || '',
   verificationToken: process.env.FEISHU_VERIFICATION_TOKEN || '',
@@ -323,7 +323,7 @@ const cardActionHandler = new lark.CardActionHandler({
 
   if (action.action === 'approve') {
     await processApproval(action.instance_id, true);
-    // Return the updated card
+    // 返回更新后的卡片
     return {
       toast: { type: 'success', content: 'Approval granted' },
     };
@@ -344,7 +344,7 @@ app.listen(3000, () => console.log('Feishu event service started'));
 class BitableClient {
   constructor(private client: any) {}
 
-  // Query table records (with filtering and pagination)
+  // 查询表记录（带过滤与分页）
   async listRecords(
     appToken: string,
     tableId: string,
@@ -371,7 +371,7 @@ class BitableClient {
     return resp.data;
   }
 
-  // Batch create records
+  // 批量创建记录
   async batchCreateRecords(
     appToken: string,
     tableId: string,
@@ -388,7 +388,7 @@ class BitableClient {
     return resp.data;
   }
 
-  // Update a single record
+  // 更新单条记录
   async updateRecord(
     appToken: string,
     tableId: string,
@@ -411,7 +411,7 @@ class BitableClient {
   }
 }
 
-// Example: Sync external order data to a Bitable spreadsheet
+// 示例：把外部订单数据同步到多维表格
 async function syncOrdersToBitable(orders: any[]) {
   const bitable = new BitableClient(client);
   const appToken = process.env.BITABLE_APP_TOKEN!;
@@ -440,7 +440,7 @@ async function syncOrdersToBitable(orders: any[]) {
 ```typescript
 // src/approval/approval-instance.ts
 
-// Create an approval instance via API
+// 经 API 创建审批实例
 async function createApprovalInstance(params: {
   approvalCode: string;
   userId: string;
@@ -470,7 +470,7 @@ async function createApprovalInstance(params: {
   return resp.data!.instance_code;
 }
 
-// Query approval instance details
+// 查询审批实例详情
 async function getApprovalInstance(instanceCode: string) {
   const resp = await client.approval.instance.get({
     params: { instance_id: instanceCode },
@@ -534,7 +534,7 @@ router.get('/callback/feishu', async (req, res) => {
   });
 
   const feishuUser = userResp.data;
-  // Bind or create a local user linked to the Feishu user
+  // 绑定或创建与飞书用户关联的本地用户
   const localUser = await bindOrCreateUser({
     openId: feishuUser!.open_id!,
     unionId: feishuUser!.union_id!,

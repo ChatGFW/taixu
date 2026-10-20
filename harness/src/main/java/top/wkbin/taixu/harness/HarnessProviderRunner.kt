@@ -161,6 +161,7 @@ class HarnessProviderRunner(
                     },
                     onReasoning = { chunk ->
                         withinStreamHandling {
+                            if (chunk.isNotEmpty()) stateMirrors.recordModelOutput(sessId)
                             streamReasoning.append(chunk)
                             stateMirrors.setThinkingLive(sessId, true)
                             stateMirrors.recordThinkingObserved(sessId)
@@ -171,20 +172,15 @@ class HarnessProviderRunner(
                     },
                     onToolProgress = { progress ->
                         withinStreamHandling {
+                            stateMirrors.recordModelOutput(sessId)
                             stateMirrors.setThinkingLive(sessId, false)
-                            stateMirrors.setStatus(
-                                sessId,
-                                if (progress.name == "write") {
-                                    "正在生成 write · +${progress.addedLines}"
-                                } else {
-                                    "正在生成 edit · +${progress.addedLines} -${progress.deletedLines}"
-                                },
-                            )
+                            stateMirrors.setStatus(sessId, progress.statusText())
                         }
                     },
                     sessionKey = sessId,
                 ) { chunk ->
                     withinStreamHandling {
+                        if (chunk.isNotEmpty()) stateMirrors.recordModelOutput(sessId)
                         stateMirrors.setStatus(sessId, "回复中")
                         streamText.append(chunk)
                         streamText.publishIfDue(now(), ProviderClient.STREAM_PUBLISH_INTERVAL_MS)?.let {

@@ -39,6 +39,7 @@ class BotPackageService(
                 role = bot.role,
                 systemPrompt = bot.systemPrompt,
                 modelId = bot.modelId,
+                modelVariant = bot.modelVariant,
                 avatarSeed = bot.avatarSeed,
                 colorHex = bot.colorHex,
             )
@@ -96,6 +97,7 @@ class BotPackageService(
                 role = manifest.role,
                 systemPrompt = manifest.systemPrompt,
                 modelId = manifest.modelId,
+                modelVariant = manifest.modelVariant,
                 colorHex = manifest.colorHex,
                 groupId = groupId,
                 avatarSeed = manifest.avatarSeed,

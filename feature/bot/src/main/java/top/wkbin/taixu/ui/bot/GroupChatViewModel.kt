@@ -128,13 +128,6 @@ class GroupChatViewModel(
         }
     }
 
-    fun toggleReaction(messageId: String, emoji: String) {
-        viewModelScope.launch {
-            runCatching { groupRepository.toggleReaction(messageId, emoji, USER_ID, USER_NAME) }
-                .onFailure { _notices.tryEmit("回应失败：${it.message}") }
-        }
-    }
-
     fun updateGroup(name: String, description: String, background: String) {
         val groupId = groupId.value ?: return
         val current = _uiState.value.group ?: return

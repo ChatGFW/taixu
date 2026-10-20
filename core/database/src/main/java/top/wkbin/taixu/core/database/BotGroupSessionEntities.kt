@@ -47,6 +47,9 @@ interface BotGroupSessionDao {
     @Query("SELECT botId FROM bot_group_sessions WHERE sessionId = :sessionId LIMIT 1")
     suspend fun findBotIdBySession(sessionId: String): String?
 
+    @Query("SELECT groupId FROM bot_group_sessions WHERE sessionId = :sessionId LIMIT 1")
+    suspend fun findGroupIdBySession(sessionId: String): String?
+
     @Query("SELECT sessionId FROM bot_group_sessions WHERE groupId = :groupId")
     suspend fun listSessionIdsForGroup(groupId: String): List<String>
 
@@ -59,6 +62,12 @@ class RoomBotGroupSessionRepository(
 ) : BotGroupSessionRepository {
     override suspend fun sessionIdFor(botId: String, groupId: String): String? =
         dao.findSessionId(botId, groupId)
+
+    override suspend fun groupIdForSession(sessionId: String): String? =
+        dao.findGroupIdBySession(sessionId)
+
+    override suspend fun botIdForSession(sessionId: String): String? =
+        dao.findBotIdBySession(sessionId)
 
     override suspend fun listSessionIdsForBot(botId: String): List<String> = dao.listSessionIds(botId)
 

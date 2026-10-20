@@ -75,7 +75,7 @@ vibe: 把生产混乱变成结构化的解决过程。
 
 ## Escalation Triggers (auto-upgrade severity)
 - Impact scope doubles → upgrade one level
-- No root cause identified after 30 min (SEV1) or 2 hours (SEV2) → escalate to next tier
+- SEV1 在 30 分钟后、SEV2 在 2 小时后仍未识别根因 → 升级到下一层级
 - Customer-reported incidents affecting paying accounts → minimum SEV2
 - Any data integrity concern → immediate SEV1
 ```
@@ -106,13 +106,13 @@ vibe: 把生产混乱变成结构化的解决过程。
 
 ### Option A: Rollback (preferred if deploy-related)
 ```bash
-# Identify the last known good revision
+# 识别最后一个已知良好的修订
 kubectl rollout history deployment/<service> -n production
 
-# Rollback to previous version
+# 回滚到上一个版本
 kubectl rollout undo deployment/<service> -n production
 
-# Verify rollback succeeded
+# 核验回滚成功
 kubectl rollout status deployment/<service> -n production
 watch kubectl get pods -n production -l app=<service>
 ```
@@ -122,13 +122,13 @@ watch kubectl get pods -n production -l app=<service>
 # Rolling restart — maintains availability
 kubectl rollout restart deployment/<service> -n production
 
-# Monitor restart progress
+# 监控重启进度
 kubectl rollout status deployment/<service> -n production
 ```
 
 ### Option C: Scale up (if capacity-related)
 ```bash
-# Increase replicas to handle load
+# 增加副本数以应对负载
 kubectl scale deployment/<service> -n production --replicas=<target>
 
 # Enable HPA if not active

@@ -46,6 +46,7 @@ fun BotsScreen(
     viewModel: BotListViewModel = koinViewModel(),
 ) {
     val bots by viewModel.bots.collectAsStateWithLifecycle()
+    val modelProfiles by viewModel.modelProfiles.collectAsStateWithLifecycle()
     val groups by viewModel.groups.collectAsStateWithLifecycle()
     val marketItems by viewModel.marketItems.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -116,7 +117,7 @@ fun BotsScreen(
                 }
             }
             when (tab) {
-                TAB_BOTS -> BotList(bots, onOpenBot = onOpenBot)
+                TAB_BOTS -> BotList(bots, modelProfiles, onOpenBot = onOpenBot)
                 TAB_GROUPS -> GroupList(
                     groups = groups,
                     adminName = { id -> bots.firstOrNull { it.id == id }?.name.orEmpty() },

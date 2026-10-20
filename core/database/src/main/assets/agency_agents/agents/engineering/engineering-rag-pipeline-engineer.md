@@ -99,7 +99,7 @@ def chunk_document(text: str, doc_type: str) -> list[dict]:
         return chunks
 
     else:
-        # Semantic chunking for unstructured text
+        # 对非结构化文本做语义分块
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=600,
             chunk_overlap=80,
@@ -111,10 +111,10 @@ def chunk_document(text: str, doc_type: str) -> list[dict]:
 ### pgvector Schema 与 HNSW 索引
 
 ```sql
--- Enable pgvector extension
+-- 启用 pgvector 扩展
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Document chunks table with rich metadata for filtering
+-- 带丰富元数据以便过滤的文档块表
 CREATE TABLE document_chunks (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
@@ -132,7 +132,7 @@ CREATE INDEX ON document_chunks
 USING hnsw (embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 128);
 
--- Index metadata for fast pre-filtering
+-- 为快速预过滤索引元数据
 CREATE INDEX ON document_chunks USING GIN (metadata);
 CREATE INDEX ON document_chunks (document_id);
 ```
@@ -161,15 +161,15 @@ async def embed_batch(texts: list[str], batch_size: int = 100) -> list[list[floa
 
 async def ingest_document(document_id: str, chunks: list[dict], pool: asyncpg.Pool):
     """
-    Async ingest: embed all chunks in parallel batches, then bulk-insert.
-    Never ingest one chunk at a time — it's 100x slower.
+    异步摄取：并行分批嵌入所有块，然后批量插入。
+    绝不一次只摄取一个块 —— 那会慢 100 倍。
     """
     texts = [c["content"] for c in chunks]
     embeddings = await embed_batch(texts)
 
     async with pool.acquire() as conn:
         await register_vector(conn)
-        # Bulk insert with executemany for efficiency
+        # 用 executemany 批量插入以提高效率
         await conn.executemany(
             """
             INSERT INTO document_chunks

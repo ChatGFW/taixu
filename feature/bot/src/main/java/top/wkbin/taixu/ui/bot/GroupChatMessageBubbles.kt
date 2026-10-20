@@ -1,16 +1,8 @@
 package top.wkbin.taixu.ui.bot
 
 import android.content.ClipData
-import android.content.Intent
 import android.widget.Toast
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -26,21 +18,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ClipEntry
@@ -52,12 +36,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotAvatarState
 import top.wkbin.taixu.core.model.bot.GroupMessage
 import top.wkbin.taixu.core.model.bot.GroupSenderType
 import top.wkbin.taixu.feature.bot.R
-import top.wkbin.taixu.ui.components.MarkdownText
 import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 
 private val AvatarSize = 32.dp
@@ -70,12 +53,11 @@ internal fun GroupMessageRow(
     firstInGroup: Boolean,
     lastInGroup: Boolean,
     onOpenBot: (String) -> Unit,
-    onToggleReaction: (messageId: String, emoji: String) -> Unit,
 ) {
     when (message.senderType) {
-        GroupSenderType.USER -> UserMessageBubble(message, firstInGroup, lastInGroup, onToggleReaction)
+        GroupSenderType.USER -> UserMessageBubble(message, firstInGroup, lastInGroup)
         GroupSenderType.BOT ->
-            BotMessageBubble(message, bot, firstInGroup, lastInGroup, onOpenBot, onToggleReaction)
+            BotMessageBubble(message, bot, firstInGroup, lastInGroup, onOpenBot)
         GroupSenderType.SYSTEM -> SystemNotice(message)
     }
 }
@@ -101,7 +83,6 @@ private fun BotMessageBubble(
     firstInGroup: Boolean,
     lastInGroup: Boolean,
     onOpenBot: (String) -> Unit,
-    onToggleReaction: (messageId: String, emoji: String) -> Unit,
 ) {
     val role = bot?.role.orEmpty()
     val botId = bot?.id
@@ -113,6 +94,12 @@ private fun BotMessageBubble(
                 colorHex = bot?.colorHex ?: "#3D5AFE",
                 size = AvatarSize,
                 active = message.isStreaming,
+                state = when {
+                    message.isStreaming && message.steps.any { it.success == null } -> BotAvatarState.EXECUTING
+                    message.isStreaming && message.reasoning.isNotBlank() && message.content.isBlank() -> BotAvatarState.THINKING
+                    message.isStreaming -> BotAvatarState.ACTIVE
+                    else -> BotAvatarState.IDLE
+                },
                 modifier = if (botId != null) Modifier.clickable { onOpenBot(botId) } else Modifier,
             )
         } else {
@@ -153,18 +140,9 @@ private fun BotMessageBubble(
             if (message.reasoning.isNotBlank() || (message.isStreaming && message.content.isBlank())) {
                 GroupReasoningPanel(message.id, message.reasoning, message.isStreaming)
             }
-            if (message.content.isNotBlank() || message.steps.isNotEmpty() || !message.isStreaming) {
+            GroupToolCallPanel(message.id, message.steps, message.isStreaming)
+            if (message.content.isNotBlank() || (!message.isStreaming && message.steps.isEmpty())) {
                 MessageBubble(message, botShape(firstInGroup, lastInGroup))
-            }
-            if (!message.isStreaming) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ReactionBar(message, onToggleReaction, Modifier.weight(1f, fill = false))
-                    Spacer(Modifier.weight(1f))
-                    if (message.content.isNotBlank()) MessageMenuButton(message.content)
-                }
             }
         }
     }
@@ -186,29 +164,6 @@ private fun MainBadge() {
 private fun MessageBubble(message: GroupMessage, shape: Shape) {
     val content = message.content
     when {
-        message.isStreaming && content.isBlank() -> Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = shape,
-            modifier = Modifier.widthIn(max = 600.dp),
-        ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
-                StepTimeline(message.steps)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    TypingDots(MaterialTheme.colorScheme.primary)
-                    Text(
-                        text = stringResource(R.string.fbot_thinking),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
         content.startsWith("❌") -> Surface(
             color = MaterialTheme.colorScheme.errorContainer,
             shape = shape,
@@ -218,10 +173,8 @@ private fun MessageBubble(message: GroupMessage, shape: Shape) {
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                StepTimeline(message.steps)
-                Text(
-                    text = content,
-                    style = MaterialTheme.typography.bodyMedium,
+                ExpandableGroupText(
+                    messageId = message.id, text = content, streaming = message.isStreaming, markdown = false,
                     color = MaterialTheme.colorScheme.onErrorContainer,
                 )
             }
@@ -247,8 +200,7 @@ private fun MessageBubble(message: GroupMessage, shape: Shape) {
             modifier = Modifier.widthIn(max = 600.dp),
         ) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 9.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                StepTimeline(message.steps)
-                MarkdownText(content)
+                ExpandableGroupText(message.id, content, message.isStreaming)
                 if (message.isStreaming) TypingDots(MaterialTheme.colorScheme.primary)
             }
         }
@@ -260,7 +212,6 @@ private fun UserMessageBubble(
     message: GroupMessage,
     firstInGroup: Boolean,
     lastInGroup: Boolean,
-    onToggleReaction: (messageId: String, emoji: String) -> Unit,
 ) {
     val clipboard = LocalClipboard.current
     val context = LocalContext.current
@@ -307,7 +258,6 @@ private fun UserMessageBubble(
                 }
             }
         }
-        ReactionBar(message, onToggleReaction)
     }
 }
 
@@ -328,8 +278,10 @@ private fun SystemNotice(message: GroupMessage) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             RuntimeIcon(icon, Modifier.size(16.dp), tint)
-            MarkdownText(
-                markdown = content.removePrefix("⚠️").removePrefix("❌").trimStart(),
+            ExpandableGroupText(
+                messageId = message.id,
+                text = content.removePrefix("⚠️").removePrefix("❌").trimStart(),
+                streaming = message.isStreaming,
                 modifier = Modifier.weight(1f),
             )
         }

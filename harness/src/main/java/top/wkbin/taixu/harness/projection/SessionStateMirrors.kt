@@ -29,6 +29,12 @@ class SessionStateMirrors(
     /** 全局各会话当前的动作描述状态 */
     val sessionStatuses: StateFlow<Map<String, String>> = _sessionStatuses.asStateFlow()
 
+    private val _modelOutputRevisions = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val modelOutputRevisions: StateFlow<Map<String, Long>> = _modelOutputRevisions.asStateFlow()
+    fun recordModelOutput(sessionId: String) {
+        _modelOutputRevisions.update { it + (sessionId to ((it[sessionId] ?: 0L) + 1)) }
+    }
+
     private val sessionErrors = ConcurrentHashMap<String, MutableStateFlow<String?>>()
     private val sessionThinkingLives = ConcurrentHashMap<String, MutableStateFlow<Boolean>>()
 
@@ -60,6 +66,7 @@ class SessionStateMirrors(
         thinkingModes.remove(sessionId)
         _sessionRunStates.update { it - sessionId }
         _sessionStatuses.update { it - sessionId }
+        _modelOutputRevisions.update { it - sessionId }
     }
 
     fun setStatus(sessionId: String, statusText: String?) {

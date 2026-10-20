@@ -16,8 +16,8 @@ data class PixelAvatarRecipe(
     val backdrop: Int = 0,
 ) {
     init {
-        require(kind in 0..2 && hair in 0..3 && eyes in 0..2 && mouth in 0..2)
-        require(outfit in 0..2 && accessory in 0..3)
+        require(kind in 0..3 && hair in 0..4 && eyes in 0..3 && mouth in 0..3)
+        require(outfit in 0..3 && accessory in 0..6)
         require(skinColor in 0..4 && hairColor in 0..7 && outfitColor in 0..7 && backdrop in 0..5)
     }
 
@@ -38,8 +38,8 @@ data class PixelAvatarRecipe(
         }
 
         fun random(random: Random = Random.Default): PixelAvatarRecipe = PixelAvatarRecipe(
-            random.nextInt(3), random.nextInt(4), random.nextInt(3), random.nextInt(3),
-            random.nextInt(3), random.nextInt(4), random.nextInt(5), random.nextInt(8),
+            random.nextInt(4), random.nextInt(5), random.nextInt(4), random.nextInt(4),
+            random.nextInt(4), random.nextInt(7), random.nextInt(5), random.nextInt(8),
             random.nextInt(8), random.nextInt(6),
         )
 

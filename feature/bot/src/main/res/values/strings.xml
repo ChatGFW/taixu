@@ -186,4 +186,24 @@
     <string name="fbot_assignment_continue_hint">在原任务会话中继续。执行中的补充要求按顺序排队；结果待核对时，请先要求核验已有产物。</string>
     <string name="fbot_assignment_instruction">补充要求</string>
     <string name="fbot_assignment_submit">提交并继续</string>
+    <string name="fbot_provider_profile">供应商档案</string>
+    <string name="fbot_concrete_model">具体模型</string>
+    <string name="fbot_profile_default">档案默认模型</string>
+    <string name="fbot_model_scope_hint">可选择任何已添加供应商的模型；仅应用于当前成员。成员也可通过工具查看和切换自己的模型。</string>
+    <string name="fbot_summary_running">%1$d 个执行中</string>
+    <string name="fbot_summary_queued">%1$d 个排队中</string>
+    <string name="fbot_summary_attention">%1$d 个待处理</string>
+    <string name="fbot_model_loading">正在读取模型配置…</string>
+    <string name="fbot_model_invalid">模型配置已失效</string>
+    <string name="fbot_model_unavailable">模型已移除或尚未配置</string>
+    <string name="fbot_message_expand">展开全文</string>
+    <string name="fbot_message_collapse">收起全文</string>
+    <string name="fbot_tool_calls_title">工具调用 %1$d</string>
+    <string name="fbot_tool_success">成功</string>
+    <string name="fbot_tool_failure">失败</string>
+    <string name="fbot_tool_unknown">待核对</string>
+    <string name="fbot_tool_running_count">%1$d 项执行中</string>
+    <string name="fbot_tool_unknown_count">%1$d 项待核对</string>
+    <string name="fbot_tool_success_count">%1$d 项成功</string>
+    <string name="fbot_tool_failure_count">%1$d 项失败</string>
 </resources>

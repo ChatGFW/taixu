@@ -89,9 +89,12 @@ class BotDiagnosticsExporter(
                 appendLine("- botId：`${bot.id}`")
                 val sessionId = sessionIds[bot.id]
                 appendLine("- sessionId：${sessionId?.let { "`$it`（群维度会话）" } ?: "尚未建立群会话"}")
-                appendLine("- modelId：${bot.modelId ?: "默认"}")
-                appendLine("- runState：${runStates[sessionId] ?: "IDLE"}")
+                appendLine("- modelId：${bot.modelId ?: "默认"} · modelVariant：${bot.modelVariant ?: "档案默认"}")
+                appendLine("- runState：${runStates[sessionId] ?: "未加载（不代表任务空闲）"}")
                 appendLine("- status：${statuses[sessionId] ?: "—"}")
+                assignments.filter { it.botId == bot.id && it.independent }.forEach { task ->
+                    appendLine("- 独立任务会话：`${task.sessionId ?: "缺失"}` · task=${task.id} · status=${task.status} · runState=${runStates[task.sessionId] ?: "未加载"}")
+                }
                 operationsByBot[bot.id].orEmpty().forEach { operation ->
                     appendLine("- 活动执行：${operation.laneName} · ${operation.status}/${operation.phase} · " +
                         "updated=${stamp(operation.updatedAt)} · effect=${operation.pendingEffectKind ?: "—"}")
@@ -100,6 +103,7 @@ class BotDiagnosticsExporter(
             }
             appendLine()
             appendLine("## 群聊消息（${messages.size}）")
+            appendLine("> 群消息时间是消息创建／开始输出时间；任务结束时间见委派记录，不能将气泡时间当作完成时间。")
             messages.forEach { message -> appendLine(renderGroupMessage(message)) }
             appendLine()
             appendLine("## 群消息收件回执（最近 ${deliveries.size} 条）")
@@ -124,9 +128,18 @@ class BotDiagnosticsExporter(
                 }
                 val sessionId = task.sessionId
                 if (sessionId != null && assignmentRepository.assignmentForSession(sessionId)?.id == task.id) {
+                    val knownIds = mutableSetOf<String>()
                     runCatching { sessionControl.persistedMessages(sessionId) }
-                        .onSuccess { rows -> rows.takeLast(SESSION_MESSAGE_LIMIT).forEach { appendLine(renderSessionMessage(it)) } }
+                        .onSuccess { rows ->
+                            knownIds.addAll(rows.map { it.id })
+                            rows.takeLast(SESSION_MESSAGE_LIMIT).forEach { appendLine(renderSessionMessage(it)) }
+                        }
                         .onFailure { appendLine("原会话读取失败：${it.message}") }
+                    appendLaneSection(runtimeRepository.observeLanes(sessionId).first(), runtimeRepository.listEntries(sessionId)
+                        .filterNot { it.id in knownIds }.takeLast(RUNTIME_ENTRY_LIMIT))
+                    runtimeRepository.listActiveOperations(sessionId).forEach { operation ->
+                        appendLine("- 任务活动执行：${operation.laneName} · ${operation.status}/${operation.phase} · updated=${stamp(operation.updatedAt)}")
+                    }
                 }
             }
             appendLine()
@@ -148,10 +161,10 @@ class BotDiagnosticsExporter(
             appendLine()
             appendLogSection(
                 "Bot / 群聊运行日志",
-                scopedLogs(logger.readGeneralLogs(MAX_LOG_CHARS), sessionIds.values.toSet() + assignments.map { it.id }),
+                scopedLogs(logger.readGeneralLogs(MAX_LOG_CHARS), sessionIds.values.toSet() + assignments.map { it.id } + assignments.mapNotNull { it.sessionId }),
             )
             appendLine()
-            appendLogSection("Bot Agent 日志", scopedLogs(logger.readAgentLogs(MAX_LOG_CHARS), sessionIds.values.toSet()))
+            appendLogSection("Bot Agent 日志", scopedLogs(logger.readAgentLogs(MAX_LOG_CHARS), sessionIds.values.toSet() + assignments.mapNotNull { it.sessionId }))
         }
 
         destination.parentFile?.mkdirs()
