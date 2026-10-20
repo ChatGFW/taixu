@@ -43,7 +43,15 @@ class BotScheduleRunner(
                 scheduleRepository.setScheduleEnabled(schedule.id, false)
                 return@forEach
             }
-            scheduleRepository.stageDelivery(schedule, now, parsed.getOrThrow() ?: schedule.nextRunAt)
+            val next = parsed.getOrThrow()
+            if (next == null) {
+                // 解析成功但两年窗口内没有下一拍（如闰日 cron）。当前 occurrence 仍要投递，
+                // nextRunAt 必须用 MAX 离开 listDue；禁用要等 claim 之后，pending/claim 都要求 enabled = 1。
+                logger.e("[BotScheduleRunner] 排期 ${schedule.id} 的 cron（${schedule.cron}）在扫描窗口内没有下一次触发，已投递当前 occurrence 并禁用后续调度")
+                scheduleRepository.stageDelivery(schedule, now, Long.MAX_VALUE)
+                return@forEach
+            }
+            scheduleRepository.stageDelivery(schedule, now, next)
         }
         var admitted = 0
         scheduleRepository.pendingDeliveries(MAX_DUE_PER_RUN).forEach { delivery ->
@@ -56,19 +64,29 @@ class BotScheduleRunner(
                     if (accepted) BotScheduleDelivery.ADMITTED else BotScheduleDelivery.REJECTED,
                     if (accepted) null else "会话未受理，请检查 Bot、群成员和目标会话",
                 )
+                disableWhenNoNextOccurrence(delivery.scheduleId)
                 if (accepted) admitted++
             } catch (cancelled: CancellationException) {
                 withContext(NonCancellable) {
                     scheduleRepository.finishDelivery(delivery.id, BotScheduleDelivery.UNKNOWN, "投递被中断，请核对会话记录")
+                    disableWhenNoNextOccurrence(delivery.scheduleId)
                 }
                 throw cancelled
             } catch (failure: Exception) {
                 // Submission can throw after committing admission. Retrying would risk duplicate effects.
                 scheduleRepository.finishDelivery(delivery.id, BotScheduleDelivery.UNKNOWN, "投递结果待核对")
+                disableWhenNoNextOccurrence(delivery.scheduleId)
                 logger.e("[BotScheduleRunner] 排期 ${delivery.scheduleId} 投递结果未知", failure)
             }
         }
         admitted
+    }
+
+    /** 当前 occurrence 已经落库后，把没有下一拍的排期关掉，避免它以 enabled 停在哨兵时刻。 */
+    private suspend fun disableWhenNoNextOccurrence(scheduleId: String) {
+        if (scheduleRepository.getSchedule(scheduleId)?.nextRunAt == Long.MAX_VALUE) {
+            scheduleRepository.setScheduleEnabled(scheduleId, false)
+        }
     }
 
     suspend fun nextRunAt(): Long? = scheduleRepository.nextWakeAt()

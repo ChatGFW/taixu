@@ -2,6 +2,9 @@ package top.wkbin.taixu.harness.bot.schedule
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.util.TimeZone
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -10,6 +13,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLog
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.BotEntity
@@ -76,5 +80,31 @@ class BotScheduleRunnerTest {
         seed()
         assertEquals(0, runner { _, _, _ -> error("lost receipt") }.runDue(101))
         assertEquals("unknown", status())
+    }
+
+    @Test fun `null nextAfter delivers once then parks at max and disables`() = runBlocking {
+        val previous = TimeZone.getDefault()
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Shanghai"))
+        try {
+            val dueAt = LocalDateTime.parse("2028-02-29T00:00:00").atZone(ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
+            assertNull(CronSchedule.parse("0 0 29 2 *").nextAfter(dueAt))
+            db.personaBotDao().upsert(BotEntity("bot", "name", "role", "persona", "seed", null, null, "dm", true, "#123456", 1, 1))
+            db.botScheduleDao().upsert(BotScheduleEntity("leap", "bot", null, "0 0 29 2 *", "leap-day", true, dueAt, null, 1))
+            ShadowLog.clear()
+            var submissions = 0
+            val runner = runner { _, text, _ -> assertEquals("leap-day", text); submissions++; true }
+            assertEquals(1, runner.runDue(dueAt))
+            assertEquals(1, submissions)
+            val row = db.botScheduleDao().findById("leap")!!
+            assertEquals(Long.MAX_VALUE, row.nextRunAt)
+            assertFalse(row.enabled)
+            assertTrue(schedules.listDue(dueAt).isEmpty())
+            assertEquals("admitted", status())
+            assertTrue(ShadowLog.getLogsForTag("TaiXu").any { it.msg.contains("leap") && it.msg.contains("0 0 29 2 *") })
+            assertEquals(0, runner.runDue(dueAt + 60_000))
+            assertEquals(1, submissions)
+        } finally {
+            TimeZone.setDefault(previous)
+        }
     }
 }
