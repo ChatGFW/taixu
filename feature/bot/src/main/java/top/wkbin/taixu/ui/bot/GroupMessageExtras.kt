@@ -133,7 +133,7 @@ internal fun StepTimeline(steps: List<GroupToolStep>, streaming: Boolean) {
                     )
                 }
                 Text(
-                    text = step.name,
+                    text = if (step.detail.isNullOrBlank()) step.name else "${step.name} · ${step.detail}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

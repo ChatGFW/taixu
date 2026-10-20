@@ -348,15 +348,29 @@ internal fun WorkCard(
 @Composable
 internal fun liveStatusText(message: GroupMessage?, assignment: BotAssignment?): String? {
     if (message == null) {
-        return assignment?.let { stringResource(R.string.fbot_member_waiting_start) }
+        val task = assignment ?: return null
+        return when (task.status) {
+            BotAssignmentStatus.COMPLETED ->
+                task.summary?.takeIf { it.isNotBlank() } ?: stringResource(R.string.fbot_work_status_completed)
+            BotAssignmentStatus.FAILED ->
+                task.error?.takeIf { it.isNotBlank() }
+                    ?: task.summary?.takeIf { it.isNotBlank() }
+                    ?: stringResource(R.string.fbot_work_status_failed)
+            BotAssignmentStatus.BLOCKED ->
+                task.error?.takeIf { it.isNotBlank() }
+                    ?: task.summary?.takeIf { it.isNotBlank() }
+                    ?: stringResource(R.string.fbot_assignment_blocked)
+            BotAssignmentStatus.CANCELLED -> stringResource(R.string.fbot_work_status_cancelled)
+            BotAssignmentStatus.INTERRUPTED -> stringResource(R.string.fbot_assignment_interrupted)
+            BotAssignmentStatus.QUEUED -> stringResource(R.string.fbot_assignment_queued)
+            BotAssignmentStatus.RUNNING -> stringResource(R.string.fbot_member_waiting_start)
+        }
     }
-    val step = message.steps.lastOrNull()
-    return when {
-        step != null && step.success == null -> stringResource(R.string.fbot_member_step, step.name)
-        message.content.isNotBlank() -> stringResource(R.string.fbot_member_outputting)
-        message.reasoning.isNotBlank() -> stringResource(R.string.fbot_member_thinking)
-        else -> stringResource(R.string.fbot_member_working)
-    }
+    val runningStep = message.steps.lastOrNull { it.success == null }
+    if (runningStep != null) return officeStepAction(runningStep)
+    outputSnippet(message.content)?.let { return it }
+    reasoningSnippet(message.reasoning)?.let { return it }
+    return stringResource(R.string.fbot_office_thinking_fallback)
 }
 
 @Composable

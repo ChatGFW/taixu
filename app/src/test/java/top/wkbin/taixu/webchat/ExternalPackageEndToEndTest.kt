@@ -16,7 +16,6 @@ import org.junit.runner.RunWith
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
-import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.task.AgentTaskRepository
@@ -29,9 +28,10 @@ import top.wkbin.taixu.harness.plugins.HarnessPluginRegistry
 import top.wkbin.taixu.harness.session.SessionControl
 import top.wkbin.taixu.runtime.*
 import top.wkbin.taixu.runtime.webchat.WebChatTaskState
+import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 
 /** Actual package import/installation + JSON-RPC transport + Web approval/resume; no model API. */
-@RunWith(RobolectricTestRunner::class)
+@RunWith(Aarch64AwareRobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, manifest = Config.NONE)
 class ExternalPackageEndToEndTest {
     @Test fun installedExternalProviderCallsVersionBoundToolOnlyAfterApproval() = runBlocking {

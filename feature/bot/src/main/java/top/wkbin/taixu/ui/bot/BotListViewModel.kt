@@ -17,10 +17,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.wkbin.taixu.core.database.repository.BotMemberGroupRepository
 import top.wkbin.taixu.core.database.repository.BotScheduleRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotMemberGroup
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.MarketBotItem
 import top.wkbin.taixu.harness.bot.BotOrchestrator
@@ -37,6 +39,7 @@ class BotListViewModel(
     private val context: Context,
     private val botRepository: PersonaBotRepository,
     private val groupRepository: GroupChatRepository,
+    private val memberGroupRepository: BotMemberGroupRepository,
     private val scheduleRepository: BotScheduleRepository,
     private val orchestrator: BotOrchestrator,
     private val marketRepository: BotMarketRepository,
@@ -51,6 +54,9 @@ class BotListViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val groups: StateFlow<List<GroupChat>> = groupRepository.observeGroups()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val memberGroups: StateFlow<List<BotMemberGroup>> = memberGroupRepository.observeGroups()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _uiState = MutableStateFlow(BotListUiState())
@@ -91,12 +97,15 @@ class BotListViewModel(
         }
     }
 
-    fun createGroup(name: String, description: String, adminBotId: String) {
+    fun createGroup(name: String, description: String, adminBotId: String, memberIds: Set<String>) {
         if (name.isBlank() || adminBotId.isBlank()) {
             emit("请填写群聊名称并选择管理员")
             return
         }
         launchBusy {
+            val allBots = botRepository.listBots()
+            val ordered = listOf(adminBotId) + allBots.map { it.id }
+                .filter { it != adminBotId && it in memberIds }
             val groupId = UUID.randomUUID().toString()
             groupRepository.saveGroup(
                 GroupChat(
@@ -107,10 +116,29 @@ class BotListViewModel(
                     createdAt = System.currentTimeMillis(),
                 ),
             )
-            botRepository.listBots().forEachIndexed { index, bot ->
-                runCatching { groupRepository.addMember(groupId, bot.id, index) }
+            ordered.forEachIndexed { index, botId ->
+                groupRepository.addMember(groupId, botId, index)
             }
             "已创建群聊「${name.trim()}」"
+        }
+    }
+
+    fun saveMemberGroup(group: BotMemberGroup) {
+        if (group.name.isBlank()) {
+            emit("请填写分组名称")
+            return
+        }
+        launchBusy {
+            val trimmed = group.copy(name = group.name.trim().take(40))
+            memberGroupRepository.saveGroup(trimmed)
+            "已保存分组「${trimmed.name}」"
+        }
+    }
+
+    fun deleteMemberGroup(group: BotMemberGroup) {
+        launchBusy {
+            memberGroupRepository.deleteGroup(group.id)
+            "已删除分组「${group.name}」"
         }
     }
 

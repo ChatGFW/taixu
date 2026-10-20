@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -77,6 +78,9 @@ internal fun GroupCyberStudio(
         GroupAssignmentContinueDialog(task, { continueTarget = null }, onContinueAssignment)
     }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    var boardOpen by rememberSaveable { mutableStateOf(false) }
+    var focusRequest by remember { mutableStateOf<OfficeFocusRequest?>(null) }
+    BackHandler(enabled = boardOpen) { boardOpen = false }
     LaunchedEffect(selectedId, members) {
         if (selectedId != null && members.none { it.id == selectedId }) selectedId = null
     }
@@ -113,8 +117,16 @@ internal fun GroupCyberStudio(
         actors.filter { it.waitSeconds != null }.forEach { add(it.botId) }
         PixelOfficeLayout.speakerIds(actors, selectedId).forEach { if (it !in this) add(it) }
     }.take(2)
-    val idleLine = stringResource(R.string.fbot_pixel_office_idle_line)
+    val idleChatterId = if (speakers.size < 2) {
+        val idle = actors.filter { states[it.botId] == BotAvatarState.IDLE && it.waitSeconds == null }
+            .sortedBy { it.botId }
+        if (idle.isEmpty()) null else idle[((now / 12_000L) % idle.size).toInt()].botId
+    } else {
+        null
+    }
+    val speechIds = (speakers + listOfNotNull(idleChatterId)).distinct().take(2)
     val waitingLine = stringResource(R.string.fbot_pixel_office_waiting)
+    val idleTick = now / 9_000L
     val spoken = members.associate { bot ->
         val state = states[bot.id] ?: BotAvatarState.IDLE
         val waiting = actors.any { it.botId == bot.id && it.waitSeconds != null }
@@ -123,33 +135,65 @@ internal fun GroupCyberStudio(
             state == BotAvatarState.BLOCKED -> assignmentByBot[bot.id]?.error?.takeIf { it.isNotBlank() }
                 ?: assignmentByBot[bot.id]?.summary?.takeIf { it.isNotBlank() }
                 ?: officeStatus(state)
-            state == BotAvatarState.IDLE -> idleLine
+            state == BotAvatarState.IDLE -> officeIdleLine(bot, idleTick)
             else -> liveStatusText(streamingBySender[bot.id], assignmentByBot[bot.id]) ?: officeStatus(state)
         }
     }
+    val boardThought = actors.firstOrNull { it.pose == OfficePose.THINK && it.waitSeconds == null }
+        ?.let { spoken[it.botId] }
 
     val selected = members.firstOrNull { it.id == selectedId }
     val selectedTask = selected?.let { bot ->
         assignments.firstOrNull { it.botId == bot.id && it.status.isActive }
             ?: assignments.firstOrNull { it.botId == bot.id }
     }
+    val celebrating = remember(assignments, now) {
+        assignments.filter { task ->
+            task.status == BotAssignmentStatus.COMPLETED &&
+                now - (task.finishedAt ?: task.startedAt) in 0..8_000L
+        }.map { it.botId }.toSet()
+    }
+    val boardTasks = remember(assignments, now) {
+        assignments.map { task ->
+            val end = task.finishedAt ?: if (task.status.isActive) now else task.startedAt
+            OfficeBoardTask(
+                id = task.id,
+                botId = task.botId,
+                title = task.title,
+                owner = task.botName,
+                column = officeBoardColumn(task.status),
+                elapsedSeconds = ((end - task.startedAt).coerceAtLeast(0L)) / 1000L,
+                failed = task.status == BotAssignmentStatus.FAILED,
+            )
+        }
+    }
+    val reportLinks = remember(assignments, members, now) {
+        officeReportLinks(assignments, members, now)
+    }
 
     Box(modifier.fillMaxSize().testTag("group-cyber-studio")) {
         GroupPixelOffice(
             actors = actors,
             recipes = recipes,
-            bubbles = speakers.filter { states[it] != BotAvatarState.IDLE || it == selectedId }
-                .associateWith { spoken[it].orEmpty() },
+            bubbles = speechIds.filter {
+                states[it] != BotAvatarState.IDLE || it == selectedId || it == idleChatterId
+            }.associateWith { spoken[it].orEmpty() },
             objective = assignments.filter { it.status.isActive }.maxByOrNull { it.startedAt }?.title
                 ?: messages.filter { it.senderType == GroupSenderType.USER && it.content.isNotBlank() }
                     .maxByOrNull { it.timestamp }?.content,
             screens = members.associate { bot ->
                 val step = streamingBySender[bot.id]?.steps?.lastOrNull { it.success == null }
-                bot.id to step?.name.orEmpty()
+                bot.id to if (step != null) officeScreenAction(step) else ""
             }.filterValues { it.isNotBlank() },
             selectedId = selectedId,
             emptyHint = if (members.isEmpty()) stringResource(R.string.fbot_pixel_office_empty) else null,
             onSelect = { id -> selectedId = if (selectedId == id) null else id },
+            tasks = boardTasks,
+            boardThought = boardThought,
+            links = reportLinks,
+            focus = focusRequest,
+            onOpenBoard = { boardOpen = true },
+            celebrating = celebrating,
             modifier = Modifier.fillMaxSize(),
         )
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
@@ -170,6 +214,17 @@ internal fun GroupCyberStudio(
             footer()
         }
         PixelBackSign(onBackToChat)
+        if (boardOpen) {
+            OfficeTaskBoardOverlay(
+                tasks = boardTasks,
+                onClose = { boardOpen = false },
+                onFocusOwner = { task ->
+                    boardOpen = false
+                    selectedId = task.botId
+                    focusRequest = OfficeFocusRequest(task.botId, (focusRequest?.nonce ?: 0L) + 1L)
+                },
+            )
+        }
     }
 }
 
@@ -251,7 +306,7 @@ private fun OfficeActorCard(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (!liveText.isNullOrBlank() && state != BotAvatarState.IDLE) {
+        if (!liveText.isNullOrBlank()) {
             Text(
                 text = liveText,
                 style = MaterialTheme.typography.labelMedium,

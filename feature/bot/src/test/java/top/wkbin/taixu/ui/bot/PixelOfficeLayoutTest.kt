@@ -23,7 +23,7 @@ class PixelOfficeLayoutTest {
                     .contentEquals(scene.copyOfRange(sceneRow * width, (sceneRow + 1) * width)),
             )
         }
-        assertEquals(0f, openingOfficeCamera(384, 640, 2f).second)
+        assertEquals(-84f, openingOfficeCamera(384, 640, 2f).second, 0.001f)
     }
 
     @Test
@@ -52,7 +52,7 @@ class PixelOfficeLayoutTest {
         val thinker = actors.first { it.botId == "think" }
         val coder = actors.first { it.botId == "code" }
         assertEquals(OfficePose.THINK, thinker.pose)
-        assertEquals(48, thinker.x)
+        assertEquals(92, thinker.x)
         assertEquals(OfficePose.TYPE, coder.pose)
         assertEquals(28, coder.x)
         assertEquals(listOf("code", "think"), PixelOfficeLayout.speakerIds(actors, "code"))

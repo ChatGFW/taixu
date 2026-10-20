@@ -1,8 +1,11 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -11,14 +14,17 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.theme.semanticColors
 
 /** Roomy search and compose actions above the conversation list. */
 @Composable
@@ -110,5 +116,58 @@ internal fun SessionDrawerFooter(
                 RuntimeIcon(RuntimeIconName.Settings, Modifier.size(24.dp))
             }
         }
+    }
+}
+
+/** 统一分区头：名称 + 待处理提示点 + 数量 + 展开/收起箭头，整行可点。 */
+@Composable
+internal fun SessionSectionHeader(
+    title: String,
+    count: Int,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    alert: Boolean = false,
+) {
+    val toggleLabel = stringResource(
+        if (expanded) R.string.chat_drawer_section_collapse else R.string.chat_drawer_section_expand,
+        title,
+    )
+    val stateLabel = stringResource(
+        if (expanded) R.string.chat_drawer_section_expanded else R.string.chat_drawer_section_collapsed,
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onToggle)
+            .semantics {
+                contentDescription = toggleLabel
+                stateDescription = stateLabel
+            }
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (alert) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(semanticColors().warning))
+        }
+        Text(
+            text = "$count",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outline,
+        )
+        RuntimeIcon(
+            name = if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

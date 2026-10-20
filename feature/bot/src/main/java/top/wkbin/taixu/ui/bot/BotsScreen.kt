@@ -48,12 +48,15 @@ fun BotsScreen(
     val bots by viewModel.bots.collectAsStateWithLifecycle()
     val modelProfiles by viewModel.modelProfiles.collectAsStateWithLifecycle()
     val groups by viewModel.groups.collectAsStateWithLifecycle()
+    val memberGroups by viewModel.memberGroups.collectAsStateWithLifecycle()
     val marketItems by viewModel.marketItems.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var showCreateBot by rememberSaveable { mutableStateOf(false) }
     var showCreateGroup by rememberSaveable { mutableStateOf(false) }
+    var showManageGroups by rememberSaveable { mutableStateOf(false) }
+    var selectedMemberGroupId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingDeleteGroup by remember { mutableStateOf<GroupChat?>(null) }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(viewModel::importPackage)
@@ -64,6 +67,11 @@ fun BotsScreen(
     }
     LaunchedEffect(tab) {
         if (tab == TAB_MARKET) viewModel.refreshMarket()
+    }
+    LaunchedEffect(memberGroups) {
+        if (selectedMemberGroupId != null && memberGroups.none { it.id == selectedMemberGroupId }) {
+            selectedMemberGroupId = null
+        }
     }
 
     Scaffold(
@@ -117,7 +125,15 @@ fun BotsScreen(
                 }
             }
             when (tab) {
-                TAB_BOTS -> BotList(bots, modelProfiles, onOpenBot = onOpenBot)
+                TAB_BOTS -> BotList(
+                    bots = bots,
+                    modelProfiles = modelProfiles,
+                    memberGroups = memberGroups,
+                    selectedGroupId = selectedMemberGroupId,
+                    onSelectGroup = { selectedMemberGroupId = it },
+                    onManageGroups = { showManageGroups = true },
+                    onOpenBot = onOpenBot,
+                )
                 TAB_GROUPS -> GroupList(
                     groups = groups,
                     adminName = { id -> bots.firstOrNull { it.id == id }?.name.orEmpty() },
@@ -148,12 +164,22 @@ fun BotsScreen(
     if (showCreateGroup) {
         CreateGroupDialog(
             bots = bots,
+            memberGroups = memberGroups,
             busy = uiState.busy,
             onDismiss = { showCreateGroup = false },
-            onCreate = { name, description, adminBotId ->
-                viewModel.createGroup(name, description, adminBotId)
+            onCreate = { name, description, adminBotId, memberIds ->
+                viewModel.createGroup(name, description, adminBotId, memberIds)
                 showCreateGroup = false
             },
+        )
+    }
+    if (showManageGroups) {
+        MemberGroupsDialog(
+            groups = memberGroups,
+            bots = bots,
+            onDismiss = { showManageGroups = false },
+            onSave = viewModel::saveMemberGroup,
+            onDelete = viewModel::deleteMemberGroup,
         )
     }
     pendingDeleteGroup?.let { group ->

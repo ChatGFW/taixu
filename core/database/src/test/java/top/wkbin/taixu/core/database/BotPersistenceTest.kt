@@ -87,6 +87,15 @@ class BotPersistenceTest {
         assertNull(bots.findBySessionId("another-session"))
     }
 
+    @Test fun `bot session ids cover private group and independent assignment sessions`() = runBlocking {
+        seed()
+        db.botAssignmentDao().upsert(assignment("solo-task", "solo-session").copy(independent = true))
+        db.botAssignmentDao().upsert(assignment("shared-task", "shared-session"))
+        val ids = bots.observeSessionIds().first()
+        assertTrue(ids.containsAll(setOf("dm", "group-session", "solo-session")))
+        assertFalse("shared-session" in ids)
+    }
+
     @Test fun `staging an occurrence advances atomically and cannot duplicate it`() = runBlocking {
         seed()
         deliveries.stage("schedule", 100, 101, 200)

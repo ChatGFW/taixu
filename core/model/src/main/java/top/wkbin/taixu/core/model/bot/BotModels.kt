@@ -34,6 +34,15 @@ data class GroupChat(
     val background: String = "default",
 )
 
+/** 可复用的 Bot 成员分组；建群时可按组批量选人。 */
+@Serializable
+data class BotMemberGroup(
+    val id: String,
+    val name: String,
+    val createdAt: Long,
+    val memberIds: List<String> = emptyList(),
+)
+
 @Serializable
 enum class GroupSenderType {
     USER,
@@ -63,6 +72,8 @@ data class GroupToolStep(
     val name: String,
     val success: Boolean? = null,
     val durationMs: Long? = null,
+    /** 工具动作对象：文件名、命令首行或查询词，用于办公室实时投影。 */
+    val detail: String? = null,
 )
 
 @Serializable

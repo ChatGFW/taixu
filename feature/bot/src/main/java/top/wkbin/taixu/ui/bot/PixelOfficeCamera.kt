@@ -1,7 +1,11 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableFloatState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -13,6 +17,9 @@ import kotlin.math.hypot
 
 internal const val OFFICE_MIN_ZOOM = 1f
 internal const val OFFICE_MAX_ZOOM = 3f
+
+/** A request to smoothly bring one office actor into view. */
+internal data class OfficeFocusRequest(val botId: String, val nonce: Long)
 
 /** Screen camera for the pixel office: one finger pans, two fingers pinch around the midpoint. */
 internal class OfficeMetrics {
@@ -74,6 +81,38 @@ internal fun clampOfficeCamera(x: Float, y: Float, scale: Float, viewW: Int, vie
     val clampedX = if (mapW <= viewW) (viewW - mapW) / 2f else x.coerceIn(viewW - mapW, 0f)
     val clampedY = if (mapH <= viewH) (viewH - mapH) / 2f else y.coerceIn(viewH - mapH, 0f)
     return clampedX to clampedY
+}
+
+@Composable
+internal fun OfficeCameraFocusEffect(
+    focus: OfficeFocusRequest?,
+    actors: List<OfficeActor>,
+    metrics: OfficeMetrics,
+    viewW: Int,
+    viewH: Int,
+) {
+    LaunchedEffect(focus?.nonce) {
+        val request = focus ?: return@LaunchedEffect
+        if (viewW <= 0 || viewH <= 0 || metrics.baseScale <= 0f) return@LaunchedEffect
+        val actor = actors.firstOrNull { it.botId == request.botId } ?: return@LaunchedEffect
+        val targetZoom = 1.7f.coerceIn(OFFICE_MIN_ZOOM, OFFICE_MAX_ZOOM)
+        val targetScale = metrics.baseScale * targetZoom
+        val (targetX, targetY) = clampOfficeCamera(
+            viewW / 2f - actor.x * targetScale,
+            viewH / 2f - (actor.y - 10f) * targetScale,
+            targetScale,
+            viewW,
+            viewH,
+        )
+        val startX = metrics.panX.floatValue
+        val startY = metrics.panY.floatValue
+        val startZoom = metrics.zoom.floatValue
+        animate(0f, 1f, animationSpec = tween(380)) { value, _ ->
+            metrics.zoom.floatValue = startZoom + (targetZoom - startZoom) * value
+            metrics.panX.floatValue = startX + (targetX - startX) * value
+            metrics.panY.floatValue = startY + (targetY - startY) * value
+        }
+    }
 }
 
 internal fun Modifier.officeGestures(metrics: OfficeMetrics): Modifier = pointerInput(metrics) {

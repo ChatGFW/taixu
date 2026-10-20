@@ -14,7 +14,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.AppDatabase
@@ -25,8 +24,9 @@ import top.wkbin.taixu.harness.TaskDelivery
 import top.wkbin.taixu.harness.session.SessionControl
 import top.wkbin.taixu.harness.task.*
 import top.wkbin.taixu.runtime.webchat.WebChatMessage
+import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(Aarch64AwareRobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, manifest = Config.NONE)
 class WebChatTaskDeliveryTest {
     private inline fun <reified T> unused(): T = Proxy.newProxyInstance(T::class.java.classLoader,

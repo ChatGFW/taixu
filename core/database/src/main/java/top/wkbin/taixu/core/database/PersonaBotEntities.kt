@@ -154,6 +154,14 @@ interface PersonaBotDao {
     @Query("SELECT * FROM persona_bots WHERE isMainBot = 1 LIMIT 1")
     suspend fun findMainBot(): BotEntity?
 
+    /** Bot 名下全部会话：私有会话、群维度会话与独立委派会话。 */
+    @Query(
+        "SELECT sessionId FROM persona_bots " +
+            "UNION SELECT sessionId FROM bot_group_sessions " +
+            "UNION SELECT sessionId FROM bot_assignments WHERE independent = 1 AND sessionId IS NOT NULL",
+    )
+    fun observeSessionIds(): Flow<List<String>>
+
     @Query("SELECT * FROM persona_bots ORDER BY isMainBot DESC, updatedAt DESC")
     suspend fun listAll(): List<BotEntity>
 

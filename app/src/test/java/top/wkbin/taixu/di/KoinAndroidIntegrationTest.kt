@@ -21,7 +21,6 @@ import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.dsl.module
 import org.koin.viewmodel.factory.KoinViewModelFactory
-import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.WorkflowRepository
@@ -35,8 +34,9 @@ import top.wkbin.taixu.harness.workflow.WorkflowScheduler
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.ui.iteration.CustomIterationViewModel
 import top.wkbin.taixu.workflow.WorkflowScheduleWorker
+import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(Aarch64AwareRobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, manifest = Config.NONE)
 class KoinAndroidIntegrationTest {
     @After

@@ -155,7 +155,14 @@ internal class GroupReplyObserver(
             .filter { it.id !in baseline && it.createdAt >= startedAt - CLOCK_SKEW_MS }
             .map { call ->
                 val settled = results[call.id]?.lastOrNull { !it.awaitingApproval }
-                GroupToolStep(call.id, call.rawToolName ?: call.tool.name, settled?.success, settled?.durationMs)
+                val name = call.rawToolName ?: call.tool.name
+                GroupToolStep(
+                    call.id,
+                    name,
+                    settled?.success,
+                    settled?.durationMs,
+                    toolStepDetail(name, call.args),
+                )
             }
     }
 

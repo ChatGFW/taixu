@@ -122,10 +122,17 @@ internal fun OfficeObjectiveBoard(objective: String?, panX: Float, panY: Float, 
             .testTag("office-objective-board"),
     ) {
         Text(
-            stringResource(R.string.fbot_office_objective),
+            stringResource(R.string.fbot_pixel_office_banner),
             color = Color(0xFFE6B674),
-            fontSize = roomSp(3f, scale, density),
-            lineHeight = roomSp(4.5f, scale, density),
+            fontSize = roomSp(4.2f, scale, density),
+            lineHeight = roomSp(5f, scale, density),
+            maxLines = 1,
+        )
+        Text(
+            stringResource(R.string.fbot_office_objective),
+            color = Color(0xFFF8F0DC).copy(alpha = 0.62f),
+            fontSize = roomSp(2.8f, scale, density),
+            lineHeight = roomSp(3.4f, scale, density),
             maxLines = 1,
         )
         if (!objective.isNullOrBlank()) {

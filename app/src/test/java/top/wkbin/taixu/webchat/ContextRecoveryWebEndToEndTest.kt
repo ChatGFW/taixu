@@ -18,7 +18,6 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import org.koin.core.qualifier.named
-import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.model.ApprovalMode
@@ -33,9 +32,10 @@ import top.wkbin.taixu.plugin.api.*
 import top.wkbin.taixu.runtime.FakeLinuxRuntime
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.webchat.WebChatBridgeServer
+import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 
 /** Real REST/SSE, shared HarnessLoop, persistence, compaction, tools and approvals; no model network. */
-@RunWith(RobolectricTestRunner::class)
+@RunWith(Aarch64AwareRobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, manifest = Config.NONE)
 class ContextRecoveryWebEndToEndTest {
     @Test fun recoveredFactWaitsForApprovalAndCompletesOnWebExactlyOnce() = scenario(true)

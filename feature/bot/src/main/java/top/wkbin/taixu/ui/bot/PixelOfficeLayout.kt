@@ -35,7 +35,7 @@ internal object PixelOfficeLayout {
         OfficeSeat("desk-c", 28, 272, OfficePose.TYPE),
         OfficeSeat("desk-d", 72, 272, OfficePose.TYPE),
     )
-    private val board = listOf(OfficeSeat("board", 48, 140, OfficePose.THINK))
+    private val board = listOf(OfficeSeat("board", 92, 164, OfficePose.THINK))
     private val sofas = listOf(
         OfficeSeat("sofa-l", 40, 376, OfficePose.SIT),
         OfficeSeat("sofa-r", 116, 378, OfficePose.SIT),
