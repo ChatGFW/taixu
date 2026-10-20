@@ -258,17 +258,21 @@ class CapabilityScriptRunnerTest {
             .firstOrNull { it.isFile }
         assertTrue("未找到 harness/consumer-rules.pro（cwd=${java.io.File(".").absolutePath}）", rules != null)
         val text = rules!!.readText()
-        listOf(
-            "org.mozilla.javascript.Interpreter",
-            "org.mozilla.javascript.optimizer.Codegen",
-        ).forEach { className ->
-            val kept = text.lineSequence().any { line ->
-                line.trimStart().startsWith("-keep") && line.contains(className)
-            }
-            assertTrue(
-                "consumer-rules.pro 必须 keep $className：R8 会把这类仅按字符串名加载的类改名/剥离",
-                kept,
-            )
+        val kept = text.lineSequence().any { line ->
+            line.trimStart().startsWith("-keep") && line.contains("org.mozilla.javascript.Interpreter")
         }
+        assertTrue(
+            "consumer-rules.pro 必须 keep org.mozilla.javascript.Interpreter：R8 会把这类仅按字符串名加载的类改名/剥离",
+            kept,
+        )
+        // 反向守卫：keep Codegen 会把 Nashorn 的 Bootstrapper → jdk.dynalink.* 拖进引用图，
+        // 直接炸掉 :app:minifyReleaseWithR8（release CI run 39412202648 实证）。
+        val codegenKept = text.lineSequence().any { line ->
+            line.trimStart().startsWith("-keep") && line.contains("optimizer.Codegen")
+        }
+        assertFalse(
+            "不要 keep org.mozilla.javascript.optimizer.Codegen：Android 上 codegenClass 恒为 null，keep 它会引入 jdk.dynalink 缺类错误",
+            codegenKept,
+        )
     }
 }
