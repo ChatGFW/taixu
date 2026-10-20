@@ -2,6 +2,7 @@ package top.wkbin.taixu.di.feature.bot
 
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
+import top.wkbin.taixu.core.database.repository.BotMemberGroupRepository
 import top.wkbin.taixu.core.database.repository.BotScheduleRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
@@ -17,6 +18,7 @@ val featureBotModule = module {
             context = get(),
             botRepository = get<PersonaBotRepository>(),
             groupRepository = get<GroupChatRepository>(),
+            memberGroupRepository = get<BotMemberGroupRepository>(),
             scheduleRepository = get<BotScheduleRepository>(),
             orchestrator = get(),
             marketRepository = get(),

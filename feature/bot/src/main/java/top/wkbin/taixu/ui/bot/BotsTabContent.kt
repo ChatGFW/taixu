@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotMemberGroup
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.MarketBotItem
 import top.wkbin.taixu.feature.bot.R
@@ -43,22 +44,66 @@ import top.wkbin.taixu.ui.components.StatusBadge
 internal fun BotList(
     bots: List<Bot>,
     modelProfiles: List<top.wkbin.taixu.core.database.AiModelEntity>?,
+    memberGroups: List<BotMemberGroup>,
+    selectedGroupId: String?,
+    onSelectGroup: (String?) -> Unit,
+    onManageGroups: () -> Unit,
     onOpenBot: (String) -> Unit,
 ) {
+    val visibleBots = remember(bots, memberGroups, selectedGroupId) {
+        val memberIds = selectedGroupId?.let { id -> memberGroups.firstOrNull { it.id == id } }
+            ?.memberIds
+            ?.toSet()
+        if (memberIds == null) bots else bots.filter { it.id in memberIds }
+    }
     LazyColumn(
         contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (bots.isEmpty()) {
+        item(key = "member-group-filter") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    RuntimeFilterChip(
+                        selected = selectedGroupId == null,
+                        onClick = { onSelectGroup(null) },
+                        label = { Text(stringResource(R.string.fbot_market_all)) },
+                    )
+                    memberGroups.forEach { group ->
+                        RuntimeFilterChip(
+                            selected = selectedGroupId == group.id,
+                            onClick = { onSelectGroup(group.id) },
+                            label = { Text(group.name) },
+                        )
+                    }
+                }
+                RuntimeIconButton(
+                    onClick = onManageGroups,
+                    contentDescription = stringResource(R.string.fbot_manage_member_groups),
+                ) {
+                    RuntimeIcon(RuntimeIconName.Tune, Modifier.size(20.dp))
+                }
+            }
+        }
+        if (visibleBots.isEmpty()) {
             item {
                 EmptyPanel(
                     icon = RuntimeIconName.Bot,
-                    title = stringResource(R.string.fbot_empty_bots_title),
-                    description = stringResource(R.string.fbot_empty_bots_hint),
+                    title = stringResource(
+                        if (bots.isEmpty()) R.string.fbot_empty_bots_title else R.string.fbot_member_group_filter_empty,
+                    ),
+                    description = stringResource(
+                        if (bots.isEmpty()) R.string.fbot_empty_bots_hint else R.string.fbot_member_group_filter_hint,
+                    ),
                 )
             }
         }
-        items(bots, key = { it.id }) { bot ->
+        items(visibleBots, key = { it.id }) { bot ->
             RuntimeCard(onClick = { onOpenBot(bot.id) }, modifier = Modifier.fillMaxWidth()) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

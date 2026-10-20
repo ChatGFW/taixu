@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotMemberGroup
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
@@ -119,13 +120,17 @@ fun CreateBotDialog(
 @Composable
 fun CreateGroupDialog(
     bots: List<Bot>,
+    memberGroups: List<BotMemberGroup>,
     busy: Boolean,
     onDismiss: () -> Unit,
-    onCreate: (name: String, description: String, adminBotId: String) -> Unit,
+    onCreate: (name: String, description: String, adminBotId: String, memberIds: Set<String>) -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
     var adminBotId by rememberSaveable { mutableStateOf(bots.firstOrNull()?.id.orEmpty()) }
+    var selectedIds by remember {
+        mutableStateOf(bots.firstOrNull()?.id?.let { setOf(it) } ?: emptySet<String>())
+    }
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.fbot_create_group)) },
@@ -168,17 +173,27 @@ fun CreateGroupDialog(
                         bots.forEach { bot ->
                             RuntimeFilterChip(
                                 selected = adminBotId == bot.id,
-                                onClick = { adminBotId = bot.id },
+                                onClick = {
+                                    adminBotId = bot.id
+                                    selectedIds = selectedIds + bot.id
+                                },
                                 label = { Text(bot.name) },
                             )
                         }
                     }
+                    MemberSelection(
+                        bots = bots,
+                        selectedIds = selectedIds,
+                        onSelectionChange = { selectedIds = it },
+                        memberGroups = memberGroups,
+                        lockedBotId = adminBotId,
+                    )
                 }
             }
         },
         confirmButton = {
             RuntimeButton(
-                onClick = { onCreate(name, description, adminBotId) },
+                onClick = { onCreate(name, description, adminBotId, selectedIds + adminBotId) },
                 enabled = !busy && bots.isNotEmpty() && name.isNotBlank() && adminBotId.isNotBlank(),
             ) { Text(stringResource(R.string.fbot_create)) }
         },
