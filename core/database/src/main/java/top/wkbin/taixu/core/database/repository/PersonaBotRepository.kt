@@ -71,6 +71,7 @@ interface BotScheduleRepository {
     suspend fun deleteSchedule(id: String)
     suspend fun deleteForBot(botId: String)
     suspend fun markRun(id: String, lastRunAt: Long, nextRunAt: Long)
+    suspend fun setScheduleEnabled(id: String, enabled: Boolean)
     suspend fun stageDelivery(schedule: BotSchedule, now: Long, next: Long)
     suspend fun pendingDeliveries(limit: Int): List<BotScheduleDelivery>
     suspend fun claimDelivery(id: String): Boolean
@@ -207,6 +208,7 @@ class RoomBotScheduleRepository(private val dao: BotScheduleDao, private val del
     override suspend fun deleteForBot(botId: String) = dao.deleteForBot(botId)
 
     override suspend fun markRun(id: String, lastRunAt: Long, nextRunAt: Long) = dao.markRun(id, lastRunAt, nextRunAt)
+    override suspend fun setScheduleEnabled(id: String, enabled: Boolean) = dao.setEnabled(id, enabled)
     override suspend fun stageDelivery(schedule: BotSchedule, now: Long, next: Long) =
         deliveries.stage(schedule.id, schedule.nextRunAt, now, next)
     override suspend fun pendingDeliveries(limit: Int) = deliveries.pending(limit).map { it.toModel() }
