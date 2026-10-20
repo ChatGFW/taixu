@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -82,7 +81,6 @@ internal fun GroupPixelOffice(
     BoxWithConstraints(
         modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .clipToBounds()
             .officeGestures(metrics)
             .testTag("pixel-office-scene"),
@@ -94,7 +92,7 @@ internal fun GroupPixelOffice(
         metrics.panX = panXState
         metrics.panY = panYState
         metrics.zoom = zoomState
-        metrics.baseScale = if (widthPx > 0 && heightPx > 0) minOf(
+        metrics.baseScale = if (widthPx > 0 && heightPx > 0) maxOf(
             widthPx / PixelOfficeRoom.WIDTH.toFloat(),
             heightPx / PixelOfficeScene.HEIGHT.toFloat(),
         ) else 1f

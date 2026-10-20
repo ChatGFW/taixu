@@ -30,7 +30,7 @@
     <string name="fbot_desk_status_failed">失败</string>
     <string name="fbot_desk_status_idle">待命中</string>
     <string name="fbot_desk_mention_hint">点击提及</string>
-    <string name="fbot_cyber_studio">像素办公室</string>
+    <string name="fbot_cyber_studio">办公室</string>
     <string name="fbot_cyber_studio_desc">全屏像素办公室，看大家在忙什么，点角色就能安排事情</string>
     <string name="fbot_pixel_office_status_idle">[待命中]</string>
     <string name="fbot_pixel_office_status_busy">[%1$d 人在忙]</string>

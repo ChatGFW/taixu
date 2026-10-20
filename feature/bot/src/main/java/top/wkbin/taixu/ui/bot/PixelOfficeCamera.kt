@@ -13,7 +13,6 @@ import kotlin.math.hypot
 
 internal const val OFFICE_MIN_ZOOM = 1f
 internal const val OFFICE_MAX_ZOOM = 3f
-internal const val OFFICE_HOME_Y = 0
 
 /** Screen camera for the pixel office: one finger pans, two fingers pinch around the midpoint. */
 internal class OfficeMetrics {
@@ -63,8 +62,11 @@ internal class OfficeMetrics {
     }
 }
 
-internal fun openingOfficeCamera(viewW: Int, viewH: Int, scale: Float): Pair<Float, Float> =
-    clampOfficeCamera(0f, -OFFICE_HOME_Y * scale, scale, viewW, viewH)
+internal fun openingOfficeCamera(viewW: Int, viewH: Int, scale: Float): Pair<Float, Float> {
+    val mapW = PixelOfficeRoom.WIDTH * scale
+    val mapH = PixelOfficeScene.HEIGHT * scale
+    return clampOfficeCamera((viewW - mapW) / 2f, (viewH - mapH) / 2f, scale, viewW, viewH)
+}
 
 internal fun clampOfficeCamera(x: Float, y: Float, scale: Float, viewW: Int, viewH: Int): Pair<Float, Float> {
     val mapW = PixelOfficeRoom.WIDTH * scale

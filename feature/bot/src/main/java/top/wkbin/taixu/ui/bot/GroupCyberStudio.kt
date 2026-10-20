@@ -135,24 +135,24 @@ internal fun GroupCyberStudio(
     }
 
     Box(modifier.fillMaxSize().testTag("group-cyber-studio")) {
-        Column(Modifier.fillMaxSize()) {
-            GroupPixelOffice(
-                actors = actors,
-                recipes = recipes,
-                bubbles = speakers.filter { states[it] != BotAvatarState.IDLE || it == selectedId }
-                    .associateWith { spoken[it].orEmpty() },
-                objective = assignments.filter { it.status.isActive }.maxByOrNull { it.startedAt }?.title
-                    ?: messages.filter { it.senderType == GroupSenderType.USER && it.content.isNotBlank() }
-                        .maxByOrNull { it.timestamp }?.content,
-                screens = members.associate { bot ->
-                    val step = streamingBySender[bot.id]?.steps?.lastOrNull { it.success == null }
-                    bot.id to step?.name.orEmpty()
-                }.filterValues { it.isNotBlank() },
-                selectedId = selectedId,
-                emptyHint = if (members.isEmpty()) stringResource(R.string.fbot_pixel_office_empty) else null,
-                onSelect = { id -> selectedId = if (selectedId == id) null else id },
-                modifier = Modifier.fillMaxWidth().weight(1f),
-            )
+        GroupPixelOffice(
+            actors = actors,
+            recipes = recipes,
+            bubbles = speakers.filter { states[it] != BotAvatarState.IDLE || it == selectedId }
+                .associateWith { spoken[it].orEmpty() },
+            objective = assignments.filter { it.status.isActive }.maxByOrNull { it.startedAt }?.title
+                ?: messages.filter { it.senderType == GroupSenderType.USER && it.content.isNotBlank() }
+                    .maxByOrNull { it.timestamp }?.content,
+            screens = members.associate { bot ->
+                val step = streamingBySender[bot.id]?.steps?.lastOrNull { it.success == null }
+                bot.id to step?.name.orEmpty()
+            }.filterValues { it.isNotBlank() },
+            selectedId = selectedId,
+            emptyHint = if (members.isEmpty()) stringResource(R.string.fbot_pixel_office_empty) else null,
+            onSelect = { id -> selectedId = if (selectedId == id) null else id },
+            modifier = Modifier.fillMaxSize(),
+        )
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
             if (selected != null) {
                 OfficeActorCard(
                     bot = selected,
@@ -164,8 +164,7 @@ internal fun GroupCyberStudio(
                     onCancel = { selectedTask?.let { onCancelAssignment(it.id) } },
                     onContinue = { selectedTask?.let { continueTarget = it.id } },
                     onDismiss = { selectedId = null },
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                 )
             }
             footer()
