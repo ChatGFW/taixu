@@ -114,6 +114,8 @@
     <string name="chat_drawer_new_task">New Task</string>
     <string name="chat_drawer_projects">Projects</string>
     <string name="chat_drawer_bot_sessions">Bot sessions</string>
+    <string name="chat_drawer_bot_sessions_expand">Show all %1$d</string>
+    <string name="chat_drawer_bot_sessions_collapse">Show recent only</string>
     <string name="chat_drawer_recent">Recent</string>
     <string name="chat_drawer_no_projects">No linked projects</string>
     <string name="chat_drawer_no_sessions_in_project">No sessions yet; tap + to create</string>
@@ -121,11 +123,6 @@
     <string name="chat_drawer_create_in_project">Create new session in this project</string>
     <string name="chat_drawer_quick_skills">Extensions &amp; Skills</string>
     <string name="chat_drawer_quick_runtime">Runtime Activity</string>
-    <string name="chat_time_just_now">Just now</string>
-    <string name="chat_time_minutes_ago">%1$dm ago</string>
-    <string name="chat_time_hours_ago">%1$dh ago</string>
-    <string name="chat_time_yesterday">Yesterday</string>
-    <string name="chat_time_days_ago">%1$dd ago</string>
     <string name="chat_title_label">Title</string>
     <string name="chat_save">Save</string>
     <string name="chat_select_model">Select provider</string>

@@ -5,7 +5,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.feature.components.R as ComponentsR
@@ -37,9 +36,8 @@ fun ChatNavigationDrawer(
 ) {
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
     val botRepository = koinInject<PersonaBotRepository>()
-    val botSessionIds by remember(botRepository) {
-        botRepository.observeBots().map { bots -> bots.mapTo(mutableSetOf()) { it.sessionId } }
-    }.collectAsStateWithLifecycle(emptySet())
+    val botSessionIds by remember(botRepository) { botRepository.observeBotSessionIds() }
+        .collectAsStateWithLifecycle(emptySet())
     val (botSessions, normalSessions) = remember(sessions, botSessionIds) {
         sessions.partition { it.id in botSessionIds }
     }

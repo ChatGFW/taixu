@@ -50,6 +50,7 @@ import top.wkbin.taixu.ui.components.StatusBadge
 fun BotDetailScreen(
     botId: String,
     onBack: () -> Unit,
+    onOpenSession: (String) -> Unit = {},
     viewModel: BotDetailViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -72,6 +73,13 @@ fun BotDetailScreen(
                 onBack = onBack,
                 statusText = bot?.role,
                 actions = {
+                    RuntimeIconButton(
+                        onClick = { bot?.let { onOpenSession(it.sessionId) } },
+                        enabled = bot != null,
+                        contentDescription = stringResource(R.string.fbot_open_session),
+                    ) {
+                        RuntimeIcon(RuntimeIconName.Chat, Modifier.size(20.dp))
+                    }
                     RuntimeIconButton(
                         onClick = viewModel::exportBot,
                         enabled = bot != null && !state.busy,

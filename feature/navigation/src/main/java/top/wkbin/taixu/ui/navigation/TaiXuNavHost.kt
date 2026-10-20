@@ -683,7 +683,7 @@ fun TaiXuNavHost(
                     GitScreen(projectName = destination.projectName, onBack = ::popBack)
                 }
             }
-            entry<BotDetailDestination> { destination -> GuardedEntry(destination) { top.wkbin.taixu.ui.bot.BotDetailScreen(botId = destination.botId, onBack = ::popBack) } }
+            entry<BotDetailDestination> { destination -> GuardedEntry(destination) { top.wkbin.taixu.ui.bot.BotDetailScreen(botId = destination.botId, onBack = ::popBack, onOpenSession = { sessionId -> chatViewModel.switchSession(sessionId); navigateMain(MainDestination.Agent) }) } }
             entry<GroupChatDestination> { destination -> GuardedEntry(destination) { top.wkbin.taixu.ui.bot.GroupChatScreen(groupId = destination.groupId, onBack = ::popBack, onOpenBot = { activeStack.pushRaw(BotDetailDestination(it)) }) } }
     }
 

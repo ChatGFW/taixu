@@ -29,6 +29,7 @@ import top.wkbin.taixu.core.model.bot.GroupToolStep
 interface PersonaBotRepository {
     fun observeBots(): Flow<List<Bot>>
     fun observeBot(id: String): Flow<Bot?>
+    fun observeBotSessionIds(): Flow<Set<String>>
     suspend fun getBot(id: String): Bot?
     suspend fun getBotBySessionId(sessionId: String): Bot?
     suspend fun getMainBot(): Bot?
@@ -88,6 +89,9 @@ class RoomPersonaBotRepository(
     override fun observeBots(): Flow<List<Bot>> = dao.observeAll().map { rows -> rows.map { it.toModel() } }
 
     override fun observeBot(id: String): Flow<Bot?> = observeBots().map { bots -> bots.firstOrNull { it.id == id } }
+
+    override fun observeBotSessionIds(): Flow<Set<String>> =
+        dao.observeSessionIds().map { ids -> ids.filter { it.isNotBlank() }.toSet() }
 
     override suspend fun getBot(id: String): Bot? = dao.findById(id)?.toModel()
 

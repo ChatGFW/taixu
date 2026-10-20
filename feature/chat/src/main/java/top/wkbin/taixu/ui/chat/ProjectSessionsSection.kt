@@ -1,12 +1,14 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -15,14 +17,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 
 /** 项目分区。 */
@@ -40,41 +41,19 @@ internal fun ProjectSection(
     onRename: (String) -> Unit,
     onDelete: (String) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = stringResource(R.string.chat_drawer_projects),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = "${projectGroups.size}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
-            )
-            val stateLabel = stringResource(if (sectionExpanded) R.string.chat_drawer_projects_expanded else R.string.chat_drawer_projects_collapsed)
-            RuntimeIconButton(
-                onClick = onToggleSection,
-                contentDescription = stringResource(if (sectionExpanded) R.string.chat_drawer_collapse_projects else R.string.chat_drawer_expand_projects),
-                modifier = Modifier.semantics { stateDescription = stateLabel },
-            ) {
-                RuntimeIcon(if (sectionExpanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                    Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        SessionSectionHeader(
+            title = stringResource(R.string.chat_drawer_projects),
+            count = projectGroups.size,
+            expanded = sectionExpanded,
+            onToggle = onToggleSection,
+        )
         if (!sectionExpanded) return@Column
 
         if (projectGroups.isEmpty()) {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = MaterialTheme.shapes.large,
+                shape = MaterialTheme.shapes.small,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
@@ -87,6 +66,7 @@ internal fun ProjectSection(
         } else {
             projectGroups.forEach { group ->
                 val isExpanded = expandedProjects.contains(group.workspacePath)
+                val newTaskLabel = stringResource(R.string.chat_drawer_new_task)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth(),
@@ -95,16 +75,16 @@ internal fun ProjectSection(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MaterialTheme.shapes.large)
+                            .clip(MaterialTheme.shapes.small)
                             .clickable { onToggleExpand(group.workspacePath) }
-                            .padding(start = 8.dp, end = 4.dp),
+                            .padding(start = 8.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         RuntimeIcon(
                             name = if (isExpanded) RuntimeIconName.FolderOpen
                             else RuntimeIconName.Folder,
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(20.dp),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                         Text(
@@ -123,13 +103,17 @@ internal fun ProjectSection(
                         }
 
                         // 单项目快捷新建会话入口
-                        RuntimeIconButton(
-                            onClick = { onCreateInProject(group) },
-                            modifier = Modifier.size(48.dp), contentDescription = stringResource(R.string.chat_drawer_new_task),
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .clickable { onCreateInProject(group) }
+                                .semantics { contentDescription = newTaskLabel },
+                            contentAlignment = Alignment.Center,
                         ) {
                             RuntimeIcon(
                                 name = RuntimeIconName.Plus,
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                         }
@@ -137,7 +121,7 @@ internal fun ProjectSection(
                         RuntimeIcon(
                             name = if (isExpanded) RuntimeIconName.ChevronDown
                             else RuntimeIconName.ChevronRight,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -147,15 +131,15 @@ internal fun ProjectSection(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(start = 12.dp, end = 4.dp, bottom = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                .padding(start = 12.dp, end = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             if (group.sessions.isEmpty()) {
                                 Text(
                                     text = stringResource(R.string.chat_drawer_no_sessions_in_project),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 )
                             } else {
                                 group.sessions.forEach { session ->
