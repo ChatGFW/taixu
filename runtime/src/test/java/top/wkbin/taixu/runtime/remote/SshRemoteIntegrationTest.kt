@@ -199,6 +199,61 @@ class SshRemoteIntegrationTest {
         catch (e: IllegalStateException) { assertTrue(e.message!!.contains("档案")) }
         assertEquals("external edit", file.readText())
     }
+    @Test fun `restarted remote is reconnected instead of leaving base unusable`() = runBlocking {
+        val credentials = SshCredentials("test-password")
+        val trusted = pin(server(), credentials)
+        val initial = connector.connect(trusted, credentials)
+        val reconnects = AtomicInteger()
+        var replacement: RemoteServer? = null
+        // The peer is gone, so the transport must be rebuilt against wherever the server lives now.
+        val world = SshExecutionEnvironment(trusted, initial, ExecutionEnvironmentId("ssh", trusted.distributionId, "/workspace", "reconnect"),
+            credentials, reconnect = { _, secret -> reconnects.incrementAndGet(); connector.connect(checkNotNull(replacement), secret) })
+        try {
+            assertEquals(7, world.execute(ShellCommand("fixture", world.workingDirectory())).exitCode)
+            assertEquals(0, reconnects.get())
+            ssh.stop(true)
+            val restarted = SshServer.setUpDefaultServer().apply {
+                host = "127.0.0.1"
+                port = 0
+                keyPairProvider = SimpleGeneratorHostKeyProvider(folder.root.toPath().resolve("host-key"))
+                setPasswordAuthenticator { username, password, _ -> username == "agent" && password == "test-password" }
+                // Same layout as [start]: the fixture workspace lives under the "server" folder.
+                fileSystemFactory = VirtualFileSystemFactory(folder.root.toPath().resolve("server"))
+                subsystemFactories = listOf(SftpSubsystemFactory.Builder().build())
+                setCommandFactory { _, command -> lastCommand = command; FixtureCommand(command.contains("hold-open")) }
+                start()
+            }
+            ssh = restarted
+            replacement = trusted.copy(port = restarted.port)
+            assertEquals(7, world.execute(ShellCommand("fixture", world.workingDirectory())).exitCode)
+            assertEquals(1, reconnects.get())
+            assertTrue(world.files.write("reconnected.txt", "after restart").isSuccess)
+            assertEquals("after restart", world.files.read("/workspace/reconnected.txt", null, null).getOrNull())
+            // An unreachable peer surfaces instead of retrying forever.
+            ssh.stop(true)
+            try { world.execute(ShellCommand("fixture", world.workingDirectory())); fail("dead peer reported success") }
+            catch (_: Exception) { }
+            assertEquals(2, reconnects.get())
+        } finally { world.close() }
+    }
+    @Test fun `closed environment does not open a new session`() = runBlocking {
+        val credentials = SshCredentials("test-password")
+        val trusted = pin(server(), credentials)
+        val initial = connector.connect(trusted, credentials)
+        val reconnects = AtomicInteger()
+        val world = SshExecutionEnvironment(trusted, initial, ExecutionEnvironmentId("ssh", trusted.distributionId, "/workspace", "closed"),
+            credentials, reconnect = { target, secret -> reconnects.incrementAndGet(); connector.connect(target, secret) })
+        try {
+            assertEquals(7, world.execute(ShellCommand("fixture", world.workingDirectory())).exitCode)
+            assertEquals(0, reconnects.get())
+            world.close()
+            try { world.execute(ShellCommand("fixture", world.workingDirectory())); fail("closed environment executed") }
+            catch (e: IllegalStateException) { assertTrue(e.message!!.contains("远程执行环境已关闭")) }
+            assertTrue(world.files.write("after-close.txt", "no").isFailure)
+            assertTrue(world.files.read("/workspace/after-close.txt", null, null).isFailure)
+            assertEquals(0, reconnects.get())
+        } finally { world.close() }
+    }
     private inner class FixtureCommand(private val hold: Boolean, private val metrics: Boolean = false, private val terminalBytes: Boolean = false) : Command {
         private lateinit var stdout: OutputStream
         private lateinit var stderr: OutputStream
