@@ -11,7 +11,11 @@
     <string name="package_install">安装</string>
     <string name="package_confirm_scope">确认后解压并执行安装脚本。这些能力与资源是声明，不构成进程沙箱；脚本沿用 PRoot 环境权限。共享资源卸载时保留。</string>
     <string name="packaged_plugins_title">插件与工具</string>
-    <string name="packaged_plugins_scope">当前系统的本地工具，点击查看与管理</string>
+    <string name="packaged_plugins_scope">当前系统的本地工具；点击进入详情，长按查看诊断信息</string>
+    <string name="packaged_plugins_diagnostics_title">插件诊断</string>
+    <string name="packaged_plugins_diagnostics_copy">复制诊断</string>
+    <string name="packaged_plugins_diagnostics_copied">诊断信息已复制</string>
+    <string name="packaged_plugins_close">关闭</string>
     <string name="packaged_plugins_filter_installed">已安装</string>
     <string name="packaged_plugins_filter_all">全部</string>
     <string name="packaged_plugins_empty">暂无符合条件的插件，可在工具中心安装。</string>

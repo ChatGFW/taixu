@@ -11,7 +11,11 @@
     <string name="package_install">Install</string>
     <string name="package_confirm_scope">Confirmation extracts the package and runs its install scripts. Capabilities and resources are declarations, not a process sandbox; scripts retain PRoot permissions. Shared resources are retained on removal.</string>
     <string name="packaged_plugins_title">Plugins and tools</string>
-    <string name="packaged_plugins_scope">Local tools for the current system. Select one to manage it.</string>
+    <string name="packaged_plugins_scope">Local tools for the current system. Select for details; long-press for diagnostics.</string>
+    <string name="packaged_plugins_diagnostics_title">Plugin diagnostics</string>
+    <string name="packaged_plugins_diagnostics_copy">Copy diagnostics</string>
+    <string name="packaged_plugins_diagnostics_copied">Diagnostics copied</string>
+    <string name="packaged_plugins_close">Close</string>
     <string name="packaged_plugins_filter_installed">Installed</string>
     <string name="packaged_plugins_filter_all">All</string>
     <string name="packaged_plugins_empty">No matching plugins. Install tools from the tool center.</string>
