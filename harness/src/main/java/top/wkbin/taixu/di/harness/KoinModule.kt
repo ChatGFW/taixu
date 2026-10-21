@@ -164,7 +164,7 @@ val harnessModule = module {
             toolMountResolver = get(),
             agentEventLogger = get(),
             contextAssembler = get(),
-            compactionManager = get(),
+            compactionManager = get(), context = get(),
         )
     }
     single { top.wkbin.taixu.harness.McpToolMountResolver(mcpManager = get(), repository = get(), policies = get(), capabilityWriter = get()) }

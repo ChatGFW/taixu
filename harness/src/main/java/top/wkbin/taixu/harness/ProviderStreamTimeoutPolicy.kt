@@ -22,9 +22,10 @@ internal fun streamFailure(
     firstWaitMs: Long,
     readWaitMs: Long,
 ): IOException {
+    if (firstEventState == ProviderClient.FIRST_EVENT_TIMED_OUT) {
+        return FirstResponseTimeoutException(firstWaitMs).apply { initCause(error) }
+    }
     val detail = when {
-        firstEventState == ProviderClient.FIRST_EVENT_TIMED_OUT ->
-            "客户端等待首个模型事件或心跳超过 ${firstWaitMs / 1_000}s，已超时关闭连接"
         error is SocketTimeoutException && firstEventState == ProviderClient.FIRST_EVENT_RECEIVED ->
             "客户端连续 ${readWaitMs / 1_000}s 未收到流数据或心跳，已因读取超时关闭连接"
         error is SocketTimeoutException ->

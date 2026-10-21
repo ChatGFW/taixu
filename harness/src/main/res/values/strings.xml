@@ -7,4 +7,5 @@
     <string name="harness_prompt_privilege_unavailable">## Android 宿主权限\n权限状态暂不可读取；不要调用 host exec，可先调用 host(status)。</string>
     <string name="harness_prompt_privilege_proot">## Android 宿主权限\n当前实际生效模式为 PRoot/普通应用权限。host exec 不可用；系统设置、pm、input 等宿主操作不要用 base 冒充执行，可提示用户先到设置授权 Shizuku 或 Root。抓取日志（logcat）直接使用无线 ADB（host logcat 或 logcat-grabber），无需 Shizuku/Root。</string>
     <string name="harness_prompt_privilege_render_failed">## Android 宿主权限\n特权能力章节加载失败，实际可用性未知：先调用 host(status) 实测；返回错误则告知用户到设置页重新授权 Shizuku 或 Root。不要用 base 执行宿主命令。</string>
+    <string name="harness_first_response_timeout">⏱ 等待模型首个响应已超过 %1$d 秒。这是本机等待上限，上游没有返回错误。可在「Agent 执行与上下文」中调高或关闭「等待模型首个响应」后重试。</string>
 </resources>

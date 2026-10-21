@@ -177,6 +177,8 @@ class AgentPreferences(private val store: SettingsDataStore) {
     val autoWorkspaceCwd get() = store.autoWorkspaceCwd
     val commandOutputCompressionEnabled get() = store.commandOutputCompressionEnabled
     val baseCommandTimeoutSeconds get() = store.baseCommandTimeoutSeconds
+    val firstResponseTimeoutSeconds get() = store.firstResponseTimeoutSeconds
+    suspend fun setFirstResponseTimeoutSeconds(value: Int) = store.setFirstResponseTimeoutSeconds(value)
     val contextBudgetTokens get() = store.contextBudgetTokens
     val contextFoldingRatioPercent get() = store.contextFoldingRatioPercent
     val maxToolsPerRound get() = store.maxToolsPerRound

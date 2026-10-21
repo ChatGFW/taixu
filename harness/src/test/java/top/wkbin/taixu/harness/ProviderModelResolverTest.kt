@@ -73,6 +73,17 @@ class ProviderModelResolverTest {
         assertNotNull(resolved.contextTokens)
     }
 
+    @Test fun `first response timeout follows the global setting`() = runBlocking {
+        models.upsert(profile)
+        assertEquals(90_000L, resolver.resolveConfigured().firstResponseTimeoutMs)
+        preferences.setFirstResponseTimeoutSeconds(180)
+        assertEquals(180_000L, resolver.resolveModel().firstResponseTimeoutMs)
+        preferences.setFirstResponseTimeoutSeconds(0)
+        assertEquals(0L, resolver.resolveConfigured().firstResponseTimeoutMs)
+        preferences.setFirstResponseTimeoutSeconds(30)
+        assertEquals(90_000L, resolver.resolveConfigured().firstResponseTimeoutMs)
+    }
+
     @Test fun `explicit limits and protocol flags survive profile resolution`() = runBlocking {
         models.upsert(profile.copy(
             provider = "Claude", responseApiEnabled = true, contextTokens = 12345, maxTokens = 2345,

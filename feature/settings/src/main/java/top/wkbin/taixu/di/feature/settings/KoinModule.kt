@@ -5,6 +5,7 @@ import top.wkbin.taixu.ui.settings.AppManagementViewModel
 import top.wkbin.taixu.ui.settings.CcSwitchViewModel
 import top.wkbin.taixu.ui.settings.FtpSettingsViewModel
 import top.wkbin.taixu.ui.settings.FeatureHubViewModel
+import top.wkbin.taixu.ui.settings.FirstResponseTimeoutViewModel
 import top.wkbin.taixu.ui.settings.LocalLlmViewModel
 import top.wkbin.taixu.ui.settings.PhoneAgentSettingsViewModel
 import top.wkbin.taixu.ui.settings.SettingsViewModel
@@ -33,6 +34,7 @@ val featureSettingsModule = module {
     viewModel { LocalBackupViewModel(context = get(), service = get()) }
     viewModel<AppManagementViewModel> { AppManagementViewModel(repository = get(), appManager = get()) }
     viewModel { PhoneAgentSettingsViewModel(preferences = get(), connectionTester = get()) }
+    viewModel { FirstResponseTimeoutViewModel(preferences = get()) }
 
     viewModel<CcSwitchViewModel> {
         CcSwitchViewModel(
