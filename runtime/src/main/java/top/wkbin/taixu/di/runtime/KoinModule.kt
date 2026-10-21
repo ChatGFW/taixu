@@ -2,6 +2,7 @@ package top.wkbin.taixu.di.runtime
 
 import org.koin.dsl.module
 import org.koin.dsl.onClose
+import top.wkbin.taixu.runtime.backend.BackendRoutingCommandBuilder
 import top.wkbin.taixu.runtime.backend.GuestCommandBuilder
 import top.wkbin.taixu.runtime.droidspaces.DroidspacesCommandBuilder
 import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
