@@ -3,10 +3,30 @@ import groovy.json.JsonSlurper
 
 // Gradle 9 的 Kotlin DSL 默认编译类路径不再暴露 Groovy JSON 模块，
 // architectureCheck 解析 architecture-policy.json 需要显式引入（仅构建期，不进入产物）。
+// 本块是独立于 settings.gradle.kts 的 buildscript 解析域：settings 里的
+// useOfficialRepos 不作用于这里，因此必须自带同样的 CI 判断，否则 CI 仍会
+// 命中阿里云镜像。注意 AGP 的 classpath 传递依赖 com.android.tools:repository
+// 等 Google 专有产物在 aliyun central 上并不存在（实测该 pom 在 repository/central
+// 恒为 404，在 repository/google 为 200）。平时靠更靠后的 google() 兜底才没炸；
+// 一旦 aliyun central 返回 5xx，Gradle 会把该仓库标记为 disabled 并直接中止配置
+// 阶段（"Repository maven is disabled due to earlier error"），故 google() 必须
+// 显式列出。
+// 注意：buildscript {} 是独立的脚本编译单元，引用不到本文件的顶层 val，
+// 因此这里的判断必须在块内内联展开，不能提取成共享变量。
 buildscript {
     repositories {
-        mavenCentral()
-        maven { url = uri("https://maven.aliyun.com/repository/central") }
+        val ciOfficial = System.getenv("CI") == "true" ||
+            providers.gradleProperty("useOfficialRepos").orNull == "true" ||
+            System.getenv("USE_OFFICIAL_REPOS") == "true"
+        if (ciOfficial) {
+            google()
+            mavenCentral()
+        } else {
+            maven { url = uri("https://maven.aliyun.com/repository/google") }
+            maven { url = uri("https://maven.aliyun.com/repository/central") }
+            google()
+            mavenCentral()
+        }
     }
     dependencies {
         classpath("org.apache.groovy:groovy-json:4.0.27")
