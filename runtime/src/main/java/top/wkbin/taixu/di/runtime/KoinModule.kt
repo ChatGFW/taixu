@@ -1,5 +1,8 @@
 package top.wkbin.taixu.di.runtime
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.koin.dsl.module
 import org.koin.dsl.onClose
 import top.wkbin.taixu.runtime.backend.BackendRoutingCommandBuilder
@@ -76,10 +79,14 @@ val runtimeModule = module {
         DroidspacesCommandBuilder(environmentResolver = get(), logger = get())
     }
     single<GuestCommandBuilder> {
+        // modeFlow 与 scope 都在 lambda 内直接构造，不走容器查找：
+        // 容器里没有 CoroutineScope / Flow<ExecutionMode> 的绑定，用 get() 会让
+        // taiXuModule.verify() 抛 MissingKoinDefinitionException。
         BackendRoutingCommandBuilder(
             proot = get<ProotCommandBuilder>(),
             droidspaces = get<DroidspacesCommandBuilder>(),
             modeFlow = get<top.wkbin.taixu.core.datastore.RuntimePreferences>().effectiveExecutionMode,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
         )
     }
 

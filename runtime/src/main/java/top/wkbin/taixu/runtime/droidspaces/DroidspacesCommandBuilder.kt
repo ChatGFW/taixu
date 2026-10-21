@@ -20,23 +20,21 @@ import java.io.File
  * 因此本类不写 Python/Kotlin 侧的容器管理状态机，而是把「确保容器在跑」下沉到
  * 宿主编排脚本（见 [lifecyclePrelude]），保证 builder 仍是纯函数：同样入参必得同样 argv。
  */
-class DroidspacesCommandBuilder(
+class DroidspacesCommandBuilder private constructor(
     private val environmentResolver: EnvironmentResolver,
     private val logWarning: (String) -> Unit,
-    private val config: DroidspacesConfig = DroidspacesConfig(),
+    private val config: DroidspacesConfig,
 ) : GuestCommandBuilder {
 
     constructor(
         environmentResolver: EnvironmentResolver,
         logger: AppLogger,
-        config: DroidspacesConfig = DroidspacesConfig(),
-    ) : this(environmentResolver, { message -> logger.w(message) }, config)
+    ) : this(environmentResolver, { message -> logger.w(message) }, DroidspacesConfig())
 
     /** JVM 单测无需 Android 日志与真实设备，仅校验纯参数构造。 */
     internal constructor(
         environmentResolver: EnvironmentResolver,
-        config: DroidspacesConfig = DroidspacesConfig(),
-    ) : this(environmentResolver, {}, config)
+    ) : this(environmentResolver, {}, DroidspacesConfig())
 
     override fun build(
         prootBinary: File,
