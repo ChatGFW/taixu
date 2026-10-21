@@ -178,11 +178,18 @@ class DroidspacesCommandBuilder private constructor(
         val script = lifecyclePrelude(
             container = container,
             rootfsDir = rootfsDir,
-            binds = bindArguments(workspaceDir, optDir, tmpDir, attachmentsDir, mounts),
+            binds = bindArguments(workspaceDir, homeDir, optDir, tmpDir, attachmentsDir, mounts),
         ) +
             "exec " + ShellQuote.of(config.cliPath) +
             " --name=" + ShellQuote.of(container) +
-            " run -u root -- " + inner
+            // 不要加 `-u root`：droidspaces 的 `-u` 只在 main 的 discovery pass 里被解析，
+            // 而该 pass 遇到 `run` 就 break（main.c:940-948），写在 `run` 之后既不会被解析，
+            // 还会污染 `run_argv`（run_argv = argv + optind + 1），使容器命令变成以 `-u` 开头。
+            // as_user 为空时 run_in_rootfs 直接 execvp（container.c:1650-1657），
+            // 即在外层 `su -c` 已是 UID 0 的前提下以 root 在容器内执行——等价于 PRoot 的
+            // `--change-id=0:0`；反之若传 `-u root`，droidspaces 会改走 `su - root -c`，
+            // 要求客态存在 /bin/su 并重置登录环境，反而更脆。
+            " run -- " + inner
         return listOf("su", "-c", script)
     }
 
