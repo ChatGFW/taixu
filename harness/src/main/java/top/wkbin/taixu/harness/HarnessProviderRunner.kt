@@ -1,5 +1,6 @@
 package top.wkbin.taixu.harness
 
+import android.content.Context
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
@@ -20,9 +21,6 @@ import top.wkbin.taixu.harness.projection.SessionMessageProjector
 import top.wkbin.taixu.harness.projection.SessionStateMirrors
 import top.wkbin.taixu.harness.session.ApiContextAssembler
 import kotlin.time.Duration.Companion.milliseconds
-import java.io.EOFException
-import java.io.InterruptedIOException
-import java.net.SocketException
 import top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore
 
 /**
@@ -54,6 +52,7 @@ class HarnessProviderRunner(
     private val agentEventLogger: AgentEventLogger,
     private val contextAssembler: ApiContextAssembler,
     private val compactionManager: CompactionManager,
+    private val context: Context,
 ) {
     suspend fun clearDiagnostics(sessionId: String) = requestDiagnostics.removeSessionDurably(sessionId)
 
@@ -394,6 +393,7 @@ class HarnessProviderRunner(
                     }
                 }
                 currentCoroutineContext().ensureActive()
+                io.firstResponseTimeoutOrNull()?.let { return failFirstResponseTimeout(sessId, assistantId, it) }
                 netRetry++
                 // 瞬态故障（断线 / 超时 / TLS 中断 / 上游 5xx）与请求体大小、上下文规模无关，
                 // 至少保留 TRANSIENT_MAX_RETRIES 次重试，不被大上下文降级压到 1 次——
@@ -574,71 +574,32 @@ class HarnessProviderRunner(
     private fun friendly(throwable: Throwable): String =
         throwable.message?.take(200) ?: throwable::class.simpleName.orEmpty()
 
-    companion object {
-        private const val LARGE_REQUEST_TOKEN_THRESHOLD = 64_000
-        private const val LARGE_REQUEST_MAX_RETRIES = 1
-        private const val OUTPUT_LIMIT_MAX_RECOVERIES = 2
-        /** 瞬态故障（断线 / 5xx 等）的保底重试次数，不受大上下文降级影响。 */
-        private const val TRANSIENT_MAX_RETRIES = 3
+    /** 首个响应看门狗到点：不按网络中断重试，直接给出与上游错误区分开的说明。 */
+    private suspend fun failFirstResponseTimeout(
+        sessId: String,
+        assistantId: String,
+        error: FirstResponseTimeoutException,
+    ): TurnProviderOutcome.Failed {
+        stateMirrors.setThinkingLive(sessId, false)
+        messageProjector.remove(sessId, assistantId)
+        val seconds = (error.waitedMs / 1_000L).toInt().coerceAtLeast(1)
+        val text = context.getString(R.string.harness_first_response_timeout, seconds)
+        agentEventLogger.log(sessId, "FirstResponseTimeout", text, error)
+        return TurnProviderOutcome.Failed(text)
+    }
 
-        /**
-         * 空响应（HTTP 200 但无正文/推理/工具调用）的重发上限。
-         * 瞬时空响应重发，连续空响应明确失败并附上响应首部。
-         */
+    companion object {
+        private const val OUTPUT_LIMIT_MAX_RECOVERIES = 2
         private const val EMPTY_RESPONSE_MAX_RETRIES = 2
 
-        private const val EMERGENCY_FOLD_RATIO_PERCENT = 25
-        private const val EMERGENCY_FOLD_MIN_BUDGET = 8_000
-        private const val DEFAULT_CONTEXT_BUDGET_TOKENS = 128_000
-
-        internal fun emergencyFoldBudget(model: ModelConfig): Int =
-            (ContextWindowPolicy.clampedBudget(
-                model.contextTokens,
-                DEFAULT_CONTEXT_BUDGET_TOKENS,
-                modelId = model.model,
-                providerId = model.provider,
-            ) * EMERGENCY_FOLD_RATIO_PERCENT / 100)
-                .coerceAtLeast(EMERGENCY_FOLD_MIN_BUDGET)
-
+        internal fun emergencyFoldBudget(model: ModelConfig): Int = providerEmergencyFoldBudget(model)
         internal fun maxNetworkRetriesFor(estimatedRequestTokens: Int, configuredRetries: Int): Int =
-            if (estimatedRequestTokens >= LARGE_REQUEST_TOKEN_THRESHOLD) {
-                minOf(configuredRetries, LARGE_REQUEST_MAX_RETRIES)
-            } else {
-                configuredRetries
-            }
-
-        /**
-         * 实际重试预算 = 大上下文降级后的预算，但瞬态故障（断线 / 超时 / TLS 中断 / 上游 5xx）
-         * 至少保留 [TRANSIENT_MAX_RETRIES] 次，不被降级到 1 次。
-         */
+            providerMaxNetworkRetriesFor(estimatedRequestTokens, configuredRetries)
         internal fun effectiveRetryBudget(largeContextRetries: Int, throwable: Throwable): Int =
-            if (isTransientFailure(throwable)) {
-                maxOf(largeContextRetries, TRANSIENT_MAX_RETRIES)
-            } else {
-                largeContextRetries
-            }
-
-        /** 可原样重发的瞬态故障；不受大上下文重试降级影响。沿 cause 链最多检查 10 层。 */
-        internal fun isTransientFailure(throwable: Throwable): Boolean {
-            var cause: Throwable? = throwable
-            var depth = 0
-            while (cause != null && depth < 10) {
-                if (cause is SocketException ||
-                    cause is InterruptedIOException ||
-                    cause is javax.net.ssl.SSLException ||
-                    cause is EOFException ||
-                    cause is TransientHttpException
-                ) {
-                    return true
-                }
-                cause = cause.cause
-                depth++
-            }
-            return false
-        }
+            providerEffectiveRetryBudget(largeContextRetries, throwable)
+        internal fun isTransientFailure(throwable: Throwable): Boolean = providerIsTransientFailure(throwable)
 
         const val RETRY_BACKOFF_MS = 1_000L
         const val RETRY_BACKOFF_SEC = 2L
-
     }
 }
