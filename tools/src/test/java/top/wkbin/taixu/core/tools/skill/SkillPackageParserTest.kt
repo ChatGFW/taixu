@@ -180,6 +180,53 @@ class SkillPackageParserTest {
         assertEquals("系统运维", meta["category"])
     }
 
+    @Test
+    fun parseFrontmatter_foldsPlainMultilineValueWithoutIndicator() {
+        val markdown = """
+            ---
+            name: edge-to-edge
+            description: Instructions to make an app edge-to-edge. The
+              system bars draw behind the app content and
+              inset handling is delegated to Compose.
+            license: Complete terms in LICENSE.txt
+            metadata:
+              author: Google LLC
+            ---
+            正文内容
+        """.trimIndent()
+
+        val meta = parser.parseFrontmatter(markdown)
+        assertEquals("edge-to-edge", meta["name"])
+        assertEquals(
+            "Instructions to make an app edge-to-edge. The system bars draw behind the app " +
+                "content and inset handling is delegated to Compose.",
+            meta["description"],
+        )
+        assertEquals("Complete terms in LICENSE.txt", meta["license"])
+        assertEquals("Google LLC", meta["author"])
+    }
+
+    @Test
+    fun parseFromZip_keepsFoldedDescriptionInManifest() {
+        val zipBytes = createTestZip(
+            "SKILL.md" to """
+                ---
+                name: r8-analyzer
+                description: Analyzes Android build files and R8 keep rules to identify redundancies,
+                  broad package-wide rules, and rules that subsume library consumer keep rules.
+                ---
+                # R8
+            """.trimIndent(),
+        )
+
+        val pkg = parser.parseFromZip(zipBytes)
+        assertEquals(
+            "Analyzes Android build files and R8 keep rules to identify redundancies, " +
+                "broad package-wide rules, and rules that subsume library consumer keep rules.",
+            pkg.manifest.description,
+        )
+    }
+
     private fun createTestZip(vararg entries: Pair<String, String>): ByteArray {
         val bos = ByteArrayOutputStream()
         ZipOutputStream(bos).use { zos ->

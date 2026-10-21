@@ -281,6 +281,25 @@ class SkillPackageParser {
                     val comment = value.indexOf(" #")
                     if (comment >= 0) value = value.substring(0, comment).trim()
                     value = value.trim('"', '\'')
+                    // 普通多行标量（官方 Android skills 的 `description:` 常见写法）：
+                    // 首行非空时，继续吸收随后的缩进续行，直到空行、未缩进行，
+                    // 或下一级映射键（如 metadata 下的 author / keywords）。
+                    if (value.isNotEmpty()) {
+                        val folded = StringBuilder(value)
+                        while (index < lines.size) {
+                            val continuation = lines[index]
+                            val trimmedContinuation = continuation.trim()
+                            if (continuation.isBlank() ||
+                                !(continuation.startsWith(" ") || continuation.startsWith("\t")) ||
+                                NESTED_KEY_BOUNDARY.matches(trimmedContinuation)
+                            ) {
+                                break
+                            }
+                            folded.append(' ').append(trimmedContinuation)
+                            index++
+                        }
+                        value = folded.toString()
+                    }
                 }
             }
             if (key.isNotEmpty() && value.isNotEmpty()) {
@@ -323,5 +342,11 @@ class SkillPackageParser {
     companion object {
         const val MAX_SINGLE_ENTRY_BYTES = 10L * 1024 * 1024 // 10MB
         const val MAX_ZIP_TOTAL_BYTES = 50L * 1024 * 1024 // 50MB
+
+        /**
+         * 形如 `key:` / `key: value` 的映射键（YAML 中普通标量不能以该形态续行）。
+         * 用于终止普通多行标量的折叠，避免把 metadata 下的子键并进上一条描述。
+         */
+        private val NESTED_KEY_BOUNDARY = Regex("""[A-Za-z0-9_.\-]+\s*:(\s|$)""")
     }
 }
