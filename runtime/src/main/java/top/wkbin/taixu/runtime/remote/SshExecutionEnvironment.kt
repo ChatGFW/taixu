@@ -26,7 +26,7 @@ internal class SshExecutionEnvironment(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutex = Mutex()
     private val transportMutex = Mutex()
-    private var closed = false
+    @Volatile private var closed = false
     @Volatile private var connection: Session = initialConnection
     private val sessions = mutableSetOf<SshLinuxSession>()
     private data class Background(val process: ManagedProcess, val job: Job, val logs: ArrayDeque<String>)
@@ -51,16 +51,23 @@ internal class SshExecutionEnvironment(
      */
     private suspend fun transport(): Session {
         val current = connection
-        if (current.isUsable()) return current
+        if (!closed && current.isUsable()) return current
         return transportMutex.withLock {
+            check(!closed) { "远程执行环境已关闭" }
             val latest = connection
             if (latest.isUsable()) latest else fresh(latest)
         }
     }
 
-    /** Installs a new transport and drops [stale]; callers still holding it fail fast. */
+    /** Installs a new transport and drops [stale]; callers still holding it fail fast. Caller holds [transportMutex]. */
     private suspend fun fresh(stale: Session): Session {
-        connection = reconnect(server, credentials)
+        check(!closed) { "远程执行环境已关闭" }
+        val next = reconnect(server, credentials)
+        // close() sets the flag before taking this mutex, so it can flip while reconnect is in flight.
+        val closedDuringReconnect = closed
+        if (closedDuringReconnect) runCatching { next.disconnect() }
+        check(!closedDuringReconnect) { "远程执行环境已关闭" }
+        connection = next
         runCatching { stale.disconnect() }
         return connection
     }
@@ -73,6 +80,7 @@ internal class SshExecutionEnvironment(
     /**
      * Opens a channel on a live transport, retrying once on a fresh one when the peer had already
      * gone away. Exactly one retry: an unreachable peer surfaces instead of looping.
+     * [open] and [startBackground] hold the environment mutex across this reconnect.
      */
     private suspend fun <T> onTransport(open: suspend (Session) -> T): T {
         val current = transport()
@@ -163,7 +171,9 @@ internal class SshExecutionEnvironment(
             }
             // Keep failed channels reachable for a later stop retry; only confirmed disposal releases transport.
             if (collected.isEmpty()) {
-                connection.disconnect()
+                // Same lock as fresh(): a reconnect either observes closed and aborts, or publishes
+                // its session before this disconnect so the session released here is the live one.
+                transportMutex.withLock { connection.disconnect() }
                 scope.coroutineContext[Job]?.cancelAndJoin()
                 background.clear()
             }

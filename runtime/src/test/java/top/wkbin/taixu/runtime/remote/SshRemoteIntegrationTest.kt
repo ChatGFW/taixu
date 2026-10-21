@@ -236,6 +236,24 @@ class SshRemoteIntegrationTest {
             assertEquals(2, reconnects.get())
         } finally { world.close() }
     }
+    @Test fun `closed environment does not open a new session`() = runBlocking {
+        val credentials = SshCredentials("test-password")
+        val trusted = pin(server(), credentials)
+        val initial = connector.connect(trusted, credentials)
+        val reconnects = AtomicInteger()
+        val world = SshExecutionEnvironment(trusted, initial, ExecutionEnvironmentId("ssh", trusted.distributionId, "/workspace", "closed"),
+            credentials, reconnect = { target, secret -> reconnects.incrementAndGet(); connector.connect(target, secret) })
+        try {
+            assertEquals(7, world.execute(ShellCommand("fixture", world.workingDirectory())).exitCode)
+            assertEquals(0, reconnects.get())
+            world.close()
+            try { world.execute(ShellCommand("fixture", world.workingDirectory())); fail("closed environment executed") }
+            catch (e: IllegalStateException) { assertTrue(e.message!!.contains("远程执行环境已关闭")) }
+            assertTrue(world.files.write("after-close.txt", "no").isFailure)
+            assertTrue(world.files.read("/workspace/after-close.txt", null, null).isFailure)
+            assertEquals(0, reconnects.get())
+        } finally { world.close() }
+    }
     private inner class FixtureCommand(private val hold: Boolean, private val metrics: Boolean = false, private val terminalBytes: Boolean = false) : Command {
         private lateinit var stdout: OutputStream
         private lateinit var stderr: OutputStream
