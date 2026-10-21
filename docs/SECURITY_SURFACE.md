@@ -107,7 +107,7 @@
 
 ## 5. 工具审批与特权执行链
 
-Bot 模型自助工具 `bot-management.list-models` / `select-model` 允许所有已映射的团队成员查看已保存的供应商/模型目录并切换自身选择。身份由私聊、群会话或独立任务的持久映射判定，工具不接受目标 Bot ID；目录不返回密钥、密钥引用、自定义请求头或端点。切换只同步该成员的会话绑定，后续请求仍经 Provider 仓储取凭据，不改全局激活模型或其他成员。群聊委派在创建前校验建议文件路径位于来源工作区；这不把 `write_paths` 或 PRoot 宣称为 Shell 安全隔离。已有会话接续保留执行目标，不因空闲重置绑定。
+Bot 模型自助工具 `bot-management.list-models` 允许所有已映射的团队成员查看已保存的供应商/模型目录；`select-model` 仅在用户开启该成员的 `allowModelSelection` 后允许切换，权限在成员锁内校验，默认关闭，工具不能修改该权限。身份由私聊、群会话或独立任务的持久映射判定，工具不接受目标 Bot ID；目录不返回密钥、密钥引用、自定义请求头或端点。切换同步该成员的私聊、所有群聊与独立任务绑定，后续请求仍经 Provider 仓储取凭据，不改全局激活模型或其他成员。未指定档案的成员始终跟随全局默认，不继承派单者模型。群聊委派在创建前校验建议文件路径位于来源工作区；这不把 `write_paths` 或 PRoot 宣称为 Shell 安全隔离。已有会话接续保留执行目标，不因空闲重置绑定。
 
 - `ApprovalPolicyEngine`：风险矩阵决定审批；`use_capability` 的 list / inspect / decline 为只读元操作免审；`use_capability(call)` 从 arguments 合成 `(server, tool)` 后套同一矩阵（`ApprovalPolicyEngine.kt:82-89, 305-331`）。
 - 宿主动作与内置浏览器的风险级别、审批原因集中于编译进应用的 `TrustedToolRiskPolicy`，宿主能力目录的只读/ASSISTED 放行集合由它派生；浏览器工具必须匹配完整编码标识（含服务/工具摘要）或内置服务的完整 legacy 名称，不能仅凭截短服务前缀放行。外部同名工具及前缀碰撞服务不能借用规则。此次统一保持 `FULL_ACCESS` 的显式全权授权语义，PLAN 硬门禁继续独立生效；不把工具风险目录扩展为 HostBridge 的直接 HTTP 审批，也不把 Shell 启发式宣称为完整语法树检查。

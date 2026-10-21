@@ -10,6 +10,7 @@ import java.lang.reflect.Proxy
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -149,12 +150,15 @@ class KoinAndroidIntegrationTest {
             bots.saveBot(bot)
             val target = """{"distribution":"debian","workspace":"/workspace/project"}"""
             sessions.upsert(top.wkbin.taixu.core.database.HarnessSessionEntity(bot.sessionId, "Worker", 1, 1, null,
-                workspace = "/workspace/project", executionTargetJson = target, approvalMode = "assisted"))
+                workspace = "/workspace/project", executionTargetJson = target, approvalMode = "assisted",
+                modelVariant = "stale-variant"))
             koin.get<top.wkbin.taixu.harness.bot.BotOrchestrator>().ensureSession(bot)
             val resumed = sessions.findById(bot.sessionId)!!
             assertEquals("/workspace/project", resumed.workspace)
             assertEquals(target, resumed.executionTargetJson)
             assertEquals("full_access", resumed.approvalMode)
+            assertNull(resumed.modelId)
+            assertNull(resumed.modelVariant)
         } finally {
             koin.get<AppDatabase>().close()
         }

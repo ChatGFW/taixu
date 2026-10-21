@@ -30,10 +30,11 @@ class BotModelManagerTest {
     private val manager = BotModelManager(models, bots, sessions, RoomBotGroupSessionRepository(db.botGroupSessionDao()), tasks)
     @After fun close() = db.close()
 
-    private suspend fun seed() {
+    private suspend fun seed(allowModelSelection: Boolean = true) {
         models.upsert(AiModelEntity("one", "First", "Provider A", "a,b", secretRef = "private-key-ref", isActive = true, createdAt = 1))
         models.upsert(AiModelEntity("two", "Second", "Provider B", "x,y", createdAt = 2))
-        val bot = BotEntity("member", "Member", "coder", "persona", "seed", "one", null, "dm", false, "#123456", 1, 1)
+        val bot = BotEntity("member", "Member", "coder", "persona", "seed", "one", null, "dm", false, "#123456", 1, 1,
+            allowModelSelection = allowModelSelection)
         db.personaBotDao().upsert(bot)
         db.personaBotDao().upsert(bot.copy(id = "other", name = "Other", sessionId = "other-dm"))
         db.groupChatDao().upsertGroup(GroupChatEntity("group", "Team", "member", "", 1))
@@ -72,6 +73,33 @@ class BotModelManagerTest {
         assertTrue(runCatching { manager.select("member", null, "y") }.isFailure)
         assertEquals("one", bots.getBot("member")!!.modelId)
         assertEquals("one", sessions.findById("dm")!!.modelId)
+    }
+
+    @Test fun `locked members can inspect models but cannot change any owned session until user opts in`() = runBlocking {
+        seed(allowModelSelection = false)
+        val tools = botModelTools(bots, manager)
+        val select = tools.single { it.id == "select-model" }
+        val arguments = JsonObject(mapOf("profile_id" to JsonPrimitive("two"), "model" to JsonPrimitive("y")))
+        for (session in listOf("dm", "group-session", "task-session")) {
+            val result = select.execute(PluginToolRequest(arguments, session, "/workspace", null))
+            assertFalse(result.success)
+            assertTrue(result.text.contains("模型已锁定"))
+            assertFalse(select.execute(PluginToolRequest(JsonObject(emptyMap()), session, "/workspace", null)).success)
+            assertEquals("one", sessions.findById(session)!!.modelId)
+        }
+        assertTrue(runCatching { manager.select("member", "two", "y") }.isFailure)
+        assertEquals("one", bots.getBot("member")!!.modelId)
+        val catalog = tools.single { it.id == "list-models" }
+            .execute(PluginToolRequest(JsonObject(emptyMap()), "group-session", "/workspace", null))
+        assertTrue(catalog.success)
+        assertTrue(catalog.text.contains("模型已锁定"))
+        bots.saveBot(bots.getBot("member")!!.copy(allowModelSelection = true))
+        assertTrue(select.execute(PluginToolRequest(arguments, "task-session", "/workspace", null)).success)
+        bots.saveBot(bots.getBot("member")!!.copy(allowModelSelection = false))
+        assertFalse(select.execute(PluginToolRequest(JsonObject(emptyMap()), "dm", "/workspace", null)).success)
+        listOf("dm", "group-session", "task-session").forEach { assertEquals("two", sessions.findById(it)!!.modelId) }
+        assertEquals("one", bots.getBot("other")!!.modelId)
+        assertEquals("one", models.activeModel()!!.id)
     }
 
     @Test fun `self service identifies members in task sessions and exposes no credential metadata`() = runBlocking {

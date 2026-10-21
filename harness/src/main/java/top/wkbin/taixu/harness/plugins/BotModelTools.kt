@@ -35,6 +35,7 @@ internal fun botModelTools(bots: PersonaBotRepository, manager: BotModelManager?
         }
         PluginToolOutput(true, buildString {
             appendLine("当前成员：${bot.name}；profile_id=${bot.modelId ?: "默认"}；model=${bot.modelVariant ?: "档案默认"}")
+            appendLine(if (bot.allowModelSelection) "允许自行切换模型；修改影响自己的私聊、所有群聊与独立任务。" else "模型已锁定；仅用户可在成员详情中允许自行切换。")
             if (profile != null) appendLine("供应商档案：${profile.id} · ${profile.name} · ${profile.provider}")
             var consumed = 0
             for (line in lines.drop(offset).take(limit)) {
@@ -51,7 +52,7 @@ internal fun botModelTools(bots: PersonaBotRepository, manager: BotModelManager?
     },
     PluginTool(
         id = "select-model",
-        description = "为自己选择已添加供应商档案内的模型，下一次模型请求生效；不改变全局激活模型或其他成员。省略 profile_id 恢复默认。",
+        description = "仅在用户开启允许自行切换后，为自己选择模型，下一次请求生效；影响自己的私聊、所有群聊和独立任务。省略 profile_id 跟随全局默认。不改变其他成员或全局激活模型。",
         schema = pluginObjectSchema(emptyList(), mapOf(
             "profile_id" to pluginStringProperty("list-models 返回的供应商档案 ID；省略恢复默认"),
             "model" to pluginStringProperty("该档案下已添加的具体模型名；省略使用档案默认模型"),

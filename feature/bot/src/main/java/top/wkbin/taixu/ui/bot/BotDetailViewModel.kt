@@ -89,7 +89,7 @@ class BotDetailViewModel(
         }
     }
 
-    fun save(name: String, role: String, persona: String, modelId: String, modelVariant: String?, isMainBot: Boolean, avatarSeed: String) {
+    fun save(name: String, role: String, persona: String, modelId: String, modelVariant: String?, isMainBot: Boolean, avatarSeed: String, allowModelSelection: Boolean) {
         val bot = _uiState.value.bot ?: return
         if (name.isBlank() || role.isBlank() || persona.isBlank()) {
             emit("请填写名称、职责与人格设定")
@@ -103,6 +103,7 @@ class BotDetailViewModel(
                 systemPrompt = persona,
                 modelId = modelId.trim().takeIf { it.isNotBlank() },
                 modelVariant = modelVariant,
+                allowModelSelection = allowModelSelection,
                 isMainBot = isMainBot,
                 avatarSeed = avatarSeed,
             )

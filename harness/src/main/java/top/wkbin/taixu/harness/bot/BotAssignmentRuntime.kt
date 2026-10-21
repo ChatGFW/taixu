@@ -114,8 +114,8 @@ class BotAssignmentRuntime(
             reportToBotId = requesterId, independent = true, dependsOn = dependsOn, batchId = workId)
         val session = HarnessSessionEntity(
             id = requireNotNull(task.sessionId), title = "${bot.name} · ${task.title}", createdAt = now, updatedAt = now,
-            modelId = bot.modelId ?: source.modelId,
-            modelVariant = if (bot.modelId == null) source.modelVariant else bot.modelVariant,
+            modelId = bot.modelId,
+            modelVariant = bot.modelVariant,
             // Empty is a persisted workspace identity too; the environment maps it to /workspace.
             workspace = source.workspace, projectType = source.projectType,
             approvalMode = ApprovalMode.FULL_ACCESS.id, executionTargetJson = source.executionTargetJson,
@@ -166,6 +166,12 @@ class BotAssignmentRuntime(
             requireNotNull(sessions.findById(sessionId)) { "独立任务会话已删除" }
             control.prepareRemoteSession(sessionId)
             check(control.sessionRunStates.value[sessionId] !in BUSY_STATES) { "原任务会话仍在运行，未重复提交" }
+            // Repair legacy source-model inheritance and interrupted selection synchronizations before resuming.
+            val syncModel: suspend () -> Unit = {
+                val bot = requireNotNull(bots.getBot(task.botId)) { "执行成员不存在" }
+                sessions.setModelSelection(sessionId, bot.modelId, bot.modelVariant, System.currentTimeMillis())
+            }
+            if (modelManager != null) modelManager.withBotLock(task.botId, syncModel) else syncModel()
             val result = executor.execute(task, request) { nativeId ->
                 check(repository.admitRequest(request.id, nativeId)) { "任务已停止或受理回执未保存" }
             }
