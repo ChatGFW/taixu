@@ -88,19 +88,19 @@ internal object PixelOfficeAmbient {
     private fun steam(d: Dots, t: Float, nowMs: Long, brewAt: Long) {
         for (i in 0 until 3) {
             val p = phase(t, 1.7f, i / 3f)
-            val x = 129f + sin(p * TAU + i * 2.1f) * 2.2f
-            val y = 205f - p * 11f
+            val x = 158f + sin(p * TAU + i * 2.1f) * 2.2f
+            val y = 343f - p * 9f
             d.add(x, y, 0.7f, 0.7f, 0.5f * (1f - p), WHITE)
             d.add(x + 0.6f, y + 0.4f, 0.4f, 0.4f, 0.32f * (1f - p), CREAM)
         }
         val wand = phase(t, 2.2f, 0.4f)
-        d.add(136f + sin(wand * TAU) * 1.1f, 203f - wand * 9f, 0.5f, 0.5f, 0.32f * (1f - wand), WHITE)
+        d.add(166f + sin(wand * TAU) * 1.1f, 346f - wand * 8f, 0.5f, 0.5f, 0.32f * (1f - wand), WHITE)
         val age = nowMs - brewAt
         if (brewAt > 0L && age in 0L..1600L) {
             val p = age / 1600f
             for (i in 0 until 5) {
-                val x = 121f + i * 3.4f + sin(p * 6f + i) * 1.1f
-                val y = 204f - p * 14f - i * 0.8f
+                val x = 150f + i * 3.2f + sin(p * 6f + i) * 1.1f
+                val y = 343f - p * 12f - i * 0.8f
                 d.add(x, y, 0.8f, 0.8f, (1f - p) * 0.75f, WHITE)
             }
         }
@@ -114,7 +114,10 @@ internal object PixelOfficeAmbient {
     }
 
     private fun monitors(d: Dots, t: Float, nowMs: Long) {
-        val screens = listOf(37f to 196f, 81f to 196f, 37f to 244f, 81f to 244f)
+        val screens = listOf(
+            37f to 196f, 81f to 196f, 135f to 196f, 175f to 196f,
+            37f to 244f, 81f to 244f, 135f to 244f, 175f to 244f,
+        )
         screens.forEachIndexed { i, (sx, sy) ->
             val p = phase(t, 2.8f, i * 0.27f)
             val glow = 0.24f + 0.12f * ((sin(t * 3f + i) + 1f) / 2f)
@@ -135,9 +138,9 @@ internal object PixelOfficeAmbient {
         val colors = intArrayOf(0x8FD18A, 0x7EC8E3, 0xF3D36B, 0xE85D4C)
         for (i in 0 until 5) {
             if ((nowMs / 380L + i) % 3L != 0L) continue
-            d.add(184f, 282f + i * 4f, 0.6f, 0.6f, 0.9f, colors[i % colors.size])
+            d.add(146f, 418f + i * 4f, 0.6f, 0.6f, 0.9f, colors[i % colors.size])
         }
-        if ((nowMs / 700L) % 2L == 0L) d.add(133.5f, 197f, 0.5f, 0.5f, 0.9f, 0xE85D4C)
+        if ((nowMs / 700L) % 2L == 0L) d.add(167f, 332f, 0.5f, 0.5f, 0.9f, 0xE85D4C)
     }
 
     private fun window(d: Dots, t: Float) {

@@ -44,6 +44,7 @@ data class BotAssignmentEntity(
     @ColumnInfo(defaultValue = "0") val independent: Boolean = false,
     @ColumnInfo(defaultValue = "0") val revision: Int = 0,
     @ColumnInfo(defaultValue = "NULL") val activeRequestId: String? = null,
+    @ColumnInfo(defaultValue = "'[]'") val dependsOnJson: String = "[]",
 )
 
 @Dao

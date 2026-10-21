@@ -78,6 +78,8 @@
     <string name="fbot_office_kanban_locate">定位</string>
     <string name="fbot_office_kanban_failed">失败</string>
     <string name="fbot_office_kanban_summary">%1$d 项任务 · %2$d 项进行中</string>
+    <string name="fbot_office_kanban_depends">依赖：%1$s</string>
+    <string name="fbot_office_standup_host">先对齐一下分工</string>
     <string-array name="fbot_office_idle_general">
         <item>整理一下桌面</item>
         <item>看看下一步做什么</item>

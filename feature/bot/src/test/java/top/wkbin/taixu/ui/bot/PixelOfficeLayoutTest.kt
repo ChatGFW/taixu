@@ -27,10 +27,47 @@ class PixelOfficeLayoutTest {
     }
 
     @Test
-    fun `overflow members use walkways instead of occupied desk coordinates`() {
-        val actors = PixelOfficeLayout.place((0..15).map { bot("member-$it") }, emptyMap())
+    fun `overflow members use walkways instead of occupied seats`() {
+        val actors = PixelOfficeLayout.place((0..23).map { bot("member-$it") }, emptyMap())
         assertEquals(actors.size, actors.map { it.x to it.y }.distinct().size)
-        assertTrue(actors.drop(7).all { it.y in listOf(148, 288, 408) })
+        assertTrue(actors.drop(12).all { it.y in listOf(148, 288, 408) })
+    }
+
+    @Test
+    fun `twelve active members fill eight desks and four meeting hot desks`() {
+        val actors = PixelOfficeLayout.place(
+            (0..11).map { bot("active-$it") },
+            (0..11).associate { "active-$it" to BotAvatarState.EXECUTING },
+        )
+        assertEquals(12, actors.size)
+        assertTrue(actors.all { it.pose == OfficePose.TYPE })
+        assertEquals(8, actors.count { it.y in listOf(224, 272) })
+        assertEquals(4, actors.count { it.x in listOf(96, 114, 136, 158) && it.y == 138 })
+        assertTrue(actors.none { it.y in listOf(148, 288, 408) })
+    }
+
+    @Test
+    fun `blocked members take the coffee bar`() {
+        val actors = PixelOfficeLayout.place(
+            listOf(bot("blocked-a"), bot("blocked-b")),
+            mapOf("blocked-a" to BotAvatarState.BLOCKED, "blocked-b" to BotAvatarState.FAILED),
+        )
+        assertEquals(listOf(156, 178), actors.map { it.x })
+        assertTrue(actors.all { it.pose == OfficePose.STAND })
+    }
+
+    @Test
+    fun `idle actions rotate and roaming leaves the sofa`() {
+        val actions = (0..5).map { slot ->
+            PixelOfficeLayout.place(listOf(bot("idle")), emptyMap(), now = slot * 9_000L).single().idleAction
+        }
+        assertTrue(actions.any { it != OfficeIdleAction.NONE })
+        val home = PixelOfficeLayout.place(listOf(bot("idle")), emptyMap(), now = 0L).single()
+        val roamed = (1..48).any { second ->
+            val actor = PixelOfficeLayout.place(listOf(bot("idle")), emptyMap(), now = second * 1_000L).single()
+            actor.x != home.x || actor.y != home.y
+        }
+        assertTrue(roamed)
     }
 
     @Test
@@ -83,6 +120,22 @@ class PixelOfficeLayoutTest {
         val side = PixelOfficeSprite.cells(PixelAvatarRecipe(), OfficePose.TYPE, BotAvatarState.EXECUTING, 0)
         assertEquals(0, side[0])
         assertTrue(side.copyOfRange(15 * PixelOfficeSprite.WIDTH, side.size).any { it != 0 })
+        val rest = PixelOfficeSprite.cells(PixelAvatarRecipe(), OfficePose.SIT, BotAvatarState.IDLE, 0)
+        val sip = PixelOfficeSprite.cells(
+            PixelAvatarRecipe(), OfficePose.SIT, BotAvatarState.IDLE, 0,
+            idleAction = OfficeIdleAction.SIP,
+        )
+        val read = PixelOfficeSprite.cells(
+            PixelAvatarRecipe(), OfficePose.SIT, BotAvatarState.IDLE, 0,
+            idleAction = OfficeIdleAction.READ,
+        )
+        val stretch = PixelOfficeSprite.cells(
+            PixelAvatarRecipe(), OfficePose.SIT, BotAvatarState.IDLE, 0,
+            idleAction = OfficeIdleAction.STRETCH,
+        )
+        assertFalse(rest.contentEquals(sip))
+        assertFalse(rest.contentEquals(read))
+        assertFalse(rest.contentEquals(stretch))
     }
 
     private fun bot(id: String) = Bot(

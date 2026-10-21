@@ -31,4 +31,6 @@ data class BotAssignment(
     val independent: Boolean = false,
     val revision: Int = 0,
     val activeRequestId: String? = null,
+    /** assign-task 的 depends_on 快照；前置任务 ID 列表。 */
+    val dependsOn: List<String> = emptyList(),
 )

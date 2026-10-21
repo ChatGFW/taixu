@@ -44,14 +44,13 @@ internal object PixelOfficeDetail {
             }
             skyline()
             board()
-            for (y in listOf(214, 262)) for (x in listOf(18, 62)) desk(x, y)
+            for (y in listOf(214, 262)) for (x in listOf(18, 62, 116, 156)) desk(x, y)
             meeting()
-            coffee()
+            restCoffee()
             workWall()
-            serverRack(174, 274)
             lounge()
             for ((x, y) in listOf(36 to 28, 174 to 124,
-                96 to 236, 168 to 360, 4 to 122, 4 to 270, 172 to 412)) plant(x, y)
+                96 to 236, 134 to 356, 4 to 122, 4 to 270, 172 to 412)) plant(x, y)
             shelf(8, 16, 24, 36)
             shelf(8, 340, 17, 10)
             lobbyArt()
@@ -64,6 +63,7 @@ internal object PixelOfficeDetail {
             r(62, 49, 3, 0.5, paper)
             clock(94, 88)
             hallway()
+            serverRack(136, 410)
             accessories()
         }
 
@@ -246,48 +246,50 @@ internal object PixelOfficeDetail {
                 r(x, 105, 11, 7, ink); r(x + 1, 106, 9, 5, 0x8EACB5)
                 r(x - 1, 112, 13, 1, 0xCCC8B7)
             }
-            cup(136, 108); r(145, 110, 7, 3, paper)
+            // Hot-desk laptops on the meeting table's near edge.
+            for ((x, screen) in listOf(112 to 0x7EC8E3, 134 to 0x8FD18A, 156 to 0xC9A6E8)) {
+                r(x, 111, 11, 2, ink)
+                r(x + 1, 107, 9, 4, ink)
+                r(x + 2, 107.7, 7, 2.6, screen)
+                r(x + 3, 108.2, 3, 0.4, 0xE6F7FF)
+            }
+            cup(105, 110); r(147, 110, 6, 3, paper)
         }
 
-        fun coffee() {
-            shelf(116, 252, 68, 17)
-            r(116, 214, 68, 2, light)
-            r(117, 215, 66, 0.7, 0xFFE0B0)
-            for (x in listOf(120, 140, 160)) {
-                r(x, 219, 18, 15, 0xA3764E); r(x + 1, 220, 16, 13, 0xB88B5E)
-                r(x + 0.7, 221, 0.5, 11, 0xC99A6C)
-                r(x + 13, 222, 3, 0.7, ink)
-                r(x + 14, 225.5, 2, 1, 0x4E3B2F)
-                r(x + 15, 226.5, 0.7, 1, 0x4E3B2F)
-                r(x + 2, 231.5, 14, 0.5, 0x94653F)
+        fun restCoffee() {
+            // Lounge coffee bar on the right wall.
+            r(146, 348, 42, 18, ink)
+            r(147, 349, 40, 16, wood)
+            r(147, 349, 40, 1, light)
+            for (x in listOf(150, 164, 178)) {
+                r(x, 352, 12, 12, 0xA3764E); r(x + 1, 353, 10, 10, 0xB88B5E)
+                r(x + 6, 357, 2, 1, ink)
             }
-            // Espresso machine: group head, drip tray, steam wand and water glass.
-            r(119, 193, 18, 21, ink)
-            r(120, 194, 16, 19, 0x9AA4AE)
-            r(121, 195, 14, 3, 0xC7D0D6)
-            r(121, 198, 14, 9, 0x5A6672)
-            r(122, 199, 5, 6, 0x3A4652)
-            r(123, 200, 3, 4, 0x7EC8E3)
-            r(128, 199, 6, 6, 0x2E3A46)
-            r(129, 200, 4, 0.5, 0x8FA5A6)
-            r(124, 205, 6, 4, ink); r(125, 205, 4, 3, 0xB0BEC5)
-            r(122, 209, 3, 1, ink); r(123, 209, 2, 0.7, 0xC7D0D6)
-            r(121, 211, 14, 2, 0xADB2AA); r(122, 212, 12, 1, 0x7A8790)
-            r(136, 203, 1, 8, 0xB0BEC5); r(135, 210, 2, 1, 0x8A959E)
-            cup(126, 207)
-            r(133, 197, 1, 1, 0xE85D4C); r(131, 197, 1, 1, 0x8FD18A)
-            // Chalk menu board above the counter.
-            r(142, 196, 42, 12, ink)
-            r(143, 197, 40, 10, 0x243B33)
-            r(145, 199, 24, 0.7, 0xE8DCC0)
-            r(145, 202, 30, 0.7, 0xCFE3D2)
-            r(145, 205, 18, 0.7, 0xE8DCC0)
-            r(170, 199, 8, 6, 0xE8DCC0); r(171, 200, 6, 4, 0x8B5A2B)
-            r(175, 201, 1, 2, 0x8B5A2B)
-            for (x in listOf(145, 153, 161)) cup(x, 210)
-            for (x in listOf(137, 160)) {
-                r(x, 239, 12, 2, ink); r(x + 1, 241, 1, 9, ink); r(x + 10, 241, 1, 9, ink)
-                r(x + 1, 246, 10, 0.7, ink)
+            r(146, 346, 42, 2, light)
+            // Espresso machine.
+            r(150, 330, 18, 18, ink)
+            r(151, 331, 16, 16, 0x9AA4AE)
+            r(152, 332, 14, 2, 0xC7D0D6)
+            r(152, 335, 14, 8, 0x5A6672)
+            r(153, 336, 5, 5, 0x3A4652)
+            r(154, 337, 3, 3, 0x7EC8E3)
+            r(159, 336, 5, 5, 0x2E3A46)
+            r(155, 342, 7, 3, ink); r(156, 342, 5, 2, 0xB0BEC5)
+            r(152, 345, 14, 2, 0xADB2AA); r(153, 346, 12, 1, 0x7A8790)
+            r(166, 339, 1, 7, 0xB0BEC5); r(165, 346, 2, 1, 0x8A959E)
+            cup(156, 343)
+            r(167, 332, 1, 1, 0xE85D4C)
+            // Chalk menu board.
+            r(170, 330, 20, 14, ink)
+            r(171, 331, 18, 12, 0x243B33)
+            r(172, 333, 14, 0.7, 0xE8DCC0)
+            r(172, 336, 16, 0.7, 0xCFE3D2)
+            r(172, 339, 10, 0.7, 0xE8DCC0)
+            r(180, 333, 6, 5, 0xE8DCC0); r(181, 334, 4, 3, 0x8B5A2B)
+            for (x in listOf(148, 158, 168)) cup(x, 344)
+            for (x in listOf(154, 176)) {
+                r(x, 370, 12, 2, ink); r(x + 1, 372, 1, 9, ink); r(x + 10, 372, 1, 9, ink)
+                r(x + 1, 378, 10, 0.7, ink)
             }
         }
 

@@ -78,6 +78,8 @@
     <string name="fbot_office_kanban_locate">Locate</string>
     <string name="fbot_office_kanban_failed">Failed</string>
     <string name="fbot_office_kanban_summary">%1$d tasks · %2$d doing</string>
+    <string name="fbot_office_kanban_depends">Depends on: %1$s</string>
+    <string name="fbot_office_standup_host">Align the split first</string>
     <string-array name="fbot_office_idle_general">
         <item>Tidying the desk</item>
         <item>Looking at what is next</item>

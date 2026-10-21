@@ -29,6 +29,7 @@ internal fun newAssignment(
     writePaths: List<String>,
     sessionId: String? = null,
     now: Long = System.currentTimeMillis(),
+    dependsOn: List<String> = emptyList(),
 ): BotAssignment {
     val taskId = UUID.randomUUID().toString()
     return BotAssignment(
@@ -46,6 +47,7 @@ internal fun newAssignment(
         startedAt = now,
         sessionId = sessionId ?: target.sessionId,
         laneName = null,
+        dependsOn = dependsOn,
     )
 }
 

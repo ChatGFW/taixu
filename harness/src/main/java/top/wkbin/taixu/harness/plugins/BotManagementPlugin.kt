@@ -133,7 +133,8 @@ fun botManagementPlugin(
                 if (target.id == caller.id) {
                     return@PluginTool PluginToolOutput(false, "不能把任务派发给自己；请直接执行")
                 }
-                val unmet = unmetDependencies(assignments, request.stringArray("depends_on"))
+                val dependsOn = request.stringArray("depends_on")
+                val unmet = unmetDependencies(assignments, dependsOn)
                 if (unmet.isNotEmpty()) {
                     return@PluginTool PluginToolOutput(
                         false,
@@ -157,7 +158,10 @@ fun botManagementPlugin(
                 }
                 if (group != null) {
                     val engine = runtime?.invoke() ?: return@PluginTool PluginToolOutput(false, "独立任务执行器尚未初始化")
-                    val created = engine.create(target.id, group.id, caller.id, request.sessionId, task, writePaths)
+                    val created = engine.create(
+                        target.id, group.id, caller.id, request.sessionId, task, writePaths,
+                        dependsOn = dependsOn,
+                    )
                     val wait = request.arguments["wait"]?.jsonPrimitive?.booleanOrNull ?: false
                     if (wait) {
                         val result = engine.awaitRequest("initial:${created.id}")
@@ -169,7 +173,7 @@ fun botManagementPlugin(
                 if (request.arguments["wait"]?.jsonPrimitive?.booleanOrNull == false) {
                     return@PluginTool PluginToolOutput(false, "独立后台委派需要群聊来源；请加入群聊或使用 wait=true 同步执行")
                 }
-                val assignment = newAssignment(target, null, task, writePaths)
+                val assignment = newAssignment(target, null, task, writePaths, dependsOn = dependsOn)
                 assignments.start(assignment, currentCoroutineContext()[Job])
                 var status = BotAssignmentStatus.FAILED
                 var summary: String? = null

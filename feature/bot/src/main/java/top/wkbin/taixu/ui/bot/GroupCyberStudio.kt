@@ -100,9 +100,10 @@ internal fun GroupCyberStudio(
             bot.id to computeMemberAvatarState(bot, streamingBySender[bot.id], assignmentByBot[bot.id])
         }
     }
-    val actors = remember(members, states, waitingSessions, now) {
+    val standup = remember(assignments, members, now) { officeStandup(assignments, members, now) }
+    val actors = remember(members, states, waitingSessions, now, standup) {
         PixelOfficeLayout.applyWaiting(
-            PixelOfficeLayout.place(members, states),
+            PixelOfficeLayout.place(members, states, now, standup.ids.toSet()),
             members.associate { it.id to it.sessionId },
             waitingSessions,
             now,
@@ -124,8 +125,10 @@ internal fun GroupCyberStudio(
     } else {
         null
     }
-    val speechIds = (speakers + listOfNotNull(idleChatterId)).distinct().take(2)
+    val speechIds = if (standup.speakerId != null) listOfNotNull(standup.speakerId)
+    else (speakers + listOfNotNull(idleChatterId)).distinct().take(2)
     val waitingLine = stringResource(R.string.fbot_pixel_office_waiting)
+    val standupHostLine = stringResource(R.string.fbot_office_standup_host)
     val idleTick = now / 9_000L
     val spoken = members.associate { bot ->
         val state = states[bot.id] ?: BotAvatarState.IDLE
@@ -164,11 +167,17 @@ internal fun GroupCyberStudio(
                 column = officeBoardColumn(task.status),
                 elapsedSeconds = ((end - task.startedAt).coerceAtLeast(0L)) / 1000L,
                 failed = task.status == BotAssignmentStatus.FAILED,
+                dependsOn = task.dependsOn.mapNotNull { id ->
+                    assignments.firstOrNull { it.id == id }?.title
+                }.take(2),
             )
         }
     }
     val reportLinks = remember(assignments, members, now) {
-        officeReportLinks(assignments, members, now)
+        officeCollaborationLinks(assignments, members, now)
+    }
+    val walkHandoffs = remember(assignments, members, now) {
+        officeWalkHandoffs(assignments, members, now)
     }
 
     Box(modifier.fillMaxSize().testTag("group-cyber-studio")) {
@@ -176,8 +185,10 @@ internal fun GroupCyberStudio(
             actors = actors,
             recipes = recipes,
             bubbles = speechIds.filter {
-                states[it] != BotAvatarState.IDLE || it == selectedId || it == idleChatterId
-            }.associateWith { spoken[it].orEmpty() },
+                it in standup.ids || states[it] != BotAvatarState.IDLE || it == selectedId || it == idleChatterId
+            }.associateWith { id ->
+                if (id == standup.hostId) standupHostLine else standup.titles[id] ?: spoken[id].orEmpty()
+            },
             objective = assignments.filter { it.status.isActive }.maxByOrNull { it.startedAt }?.title
                 ?: messages.filter { it.senderType == GroupSenderType.USER && it.content.isNotBlank() }
                     .maxByOrNull { it.timestamp }?.content,
@@ -191,6 +202,7 @@ internal fun GroupCyberStudio(
             tasks = boardTasks,
             boardThought = boardThought,
             links = reportLinks,
+            handoffs = walkHandoffs,
             focus = focusRequest,
             onOpenBoard = { boardOpen = true },
             celebrating = celebrating,

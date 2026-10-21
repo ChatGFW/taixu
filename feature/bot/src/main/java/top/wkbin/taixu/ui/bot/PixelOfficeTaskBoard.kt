@@ -46,6 +46,7 @@ internal data class OfficeBoardTask(
     val column: OfficeBoardColumn,
     val elapsedSeconds: Long,
     val failed: Boolean = false,
+    val dependsOn: List<String> = emptyList(),
 )
 
 internal fun officeBoardColumn(status: BotAssignmentStatus): OfficeBoardColumn = when (status) {

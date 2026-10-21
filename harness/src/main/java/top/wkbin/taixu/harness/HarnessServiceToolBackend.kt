@@ -26,6 +26,8 @@ class HarnessServiceToolBackend(
     private val subagentOrchestrator: SubagentOrchestrator? = null,
     private val dualAgentCoordinator: DualAgentCoordinator? = null,
     private val buildScriptToolExecutor: BuildScriptToolExecutor? = null,
+    /** Returns a user-facing rejection when this session must use member dispatch instead of subagents. */
+    private val blockSubagentInGroupMain: (suspend (sessionId: String, rawToolName: String?) -> String?)? = null,
 ) : ToolBackend<HarnessServiceRequest, Pair<Boolean, String>> {
 
     override suspend fun execute(request: HarnessServiceRequest): Pair<Boolean, String> =
@@ -36,12 +38,17 @@ class HarnessServiceToolBackend(
                 ?: (false to "未初始化计划执行器")
             HarnessTool.SCRATCHPAD -> contextExecutor?.executeScratchpad(request.args, request.sessionId)
                 ?: (false to "未初始化草稿执行器")
-            HarnessTool.SUBAGENT -> if (request.rawToolName.equals("invoke_dual_agent", ignoreCase = true)) {
-                dualAgentCoordinator?.executeFromTool(request.args, request.sessionId, request.workspace)
-                    ?: (false to "未初始化双智能体编排器")
-            } else {
-                subagentOrchestrator?.executeSubagents(request.args, request.sessionId)
-                    ?: (false to "未初始化子智能体编排器")
+            HarnessTool.SUBAGENT -> {
+                val blocked = blockSubagentInGroupMain?.invoke(request.sessionId, request.rawToolName)
+                if (blocked != null) {
+                    false to blocked
+                } else if (request.rawToolName.equals("invoke_dual_agent", ignoreCase = true)) {
+                    dualAgentCoordinator?.executeFromTool(request.args, request.sessionId, request.workspace)
+                        ?: (false to "未初始化双智能体编排器")
+                } else {
+                    subagentOrchestrator?.executeSubagents(request.args, request.sessionId)
+                        ?: (false to "未初始化子智能体编排器")
+                }
             }
             HarnessTool.BUILD_SCRIPT -> buildScriptToolExecutor?.execute(request.args, request.workspace, request.sessionId)
                 ?: (false to "未初始化构建脚本管理器")

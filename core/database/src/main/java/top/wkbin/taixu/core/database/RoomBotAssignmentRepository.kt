@@ -60,6 +60,9 @@ internal fun BotAssignmentEntity.toModel(json: Json) = BotAssignment(
     laneName = laneName,
     reportToBotId = reportToBotId,
     independent = independent, revision = revision, activeRequestId = activeRequestId,
+    dependsOn = runCatching {
+        json.decodeFromString(ListSerializer(String.serializer()), dependsOnJson)
+    }.getOrDefault(emptyList()),
 )
 
 internal fun BotAssignment.toEntity(json: Json) = BotAssignmentEntity(
@@ -80,4 +83,5 @@ internal fun BotAssignment.toEntity(json: Json) = BotAssignmentEntity(
     laneName = laneName,
     reportToBotId = reportToBotId,
     independent = independent, revision = revision, activeRequestId = activeRequestId,
+    dependsOnJson = json.encodeToString(ListSerializer(String.serializer()), dependsOn),
 )

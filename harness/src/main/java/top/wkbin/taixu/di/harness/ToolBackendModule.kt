@@ -1,6 +1,8 @@
 package top.wkbin.taixu.di.harness
 
 import org.koin.dsl.module
+import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
+import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.AskUserToolBackend
 import top.wkbin.taixu.harness.ContextMemoryToolBackend
@@ -105,6 +107,16 @@ internal val toolBackendModule = module {
             subagentOrchestrator = get(),
             dualAgentCoordinator = get(),
             buildScriptToolExecutor = get(),
+            blockSubagentInGroupMain = { sessionId, rawToolName ->
+                val bot = get<PersonaBotRepository>().getBotBySessionId(sessionId)
+                val groupId = get<BotGroupSessionRepository>().groupIdForSession(sessionId)
+                if (bot?.isMainBot == true && groupId != null) {
+                    "群聊主控不能用 ${rawToolName ?: "invoke_subagent"} 替代成员派单；" +
+                        "请使用 bot-management 的 assign-task，将任务分别派给不同群成员（同一轮可多次调用，wait=false）。"
+                } else {
+                    null
+                }
+            },
         )
     }
     // 能力统一网关：use_capability 分发 + codemode 脚本装配 + legacy mcp__ 直连回退。

@@ -33,12 +33,12 @@ class PixelOfficeAmbientTest {
     @Test
     fun `steam window lamps and screens are always alive`() {
         val dots = PixelOfficeAmbient.dots(42_000L, emptyList())
-        assertTrue(dots.any { it.y in 193f..206f && it.x in 126f..132f })
+        assertTrue(dots.any { it.y in 333f..345f && it.x in 155f..162f })
         assertTrue(dots.any { it.x in 121f..184f && it.y in 14f..32f })
         assertTrue(dots.any { it.x in 87f..162f && it.y in 90f..344f })
-        assertTrue(dots.any { it.x in 36f..96f && it.y in 196f..256f })
-        assertTrue(dots.any { it.x in 183f..185f && it.y in 281f..300f })
-        assertTrue(dots.any { it.x in 133f..134f && it.y in 196f..198f })
+        assertTrue(dots.any { it.x in 36f..188f && it.y in 196f..256f })
+        assertTrue(dots.any { it.x in 145f..147f && it.y in 417f..435f })
+        assertTrue(dots.any { it.x in 166f..168f && it.y in 331f..333f })
     }
 
     @Test

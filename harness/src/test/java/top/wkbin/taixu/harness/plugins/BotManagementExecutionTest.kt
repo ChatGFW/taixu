@@ -79,6 +79,20 @@ class BotManagementExecutionTest {
         assertTrue(tracker.listRecent().isEmpty())
     }
 
+    @Test fun `assignment dependencies survive repository round trip`() = runBlocking {
+        seed()
+        val repo = RoomBotAssignmentRepository(db.botAssignmentDao(), Json)
+        val assignment = newAssignment(
+            bots.getBot("member")!!,
+            groups.getGroup("group"),
+            "implement",
+            emptyList(),
+            dependsOn = listOf("pre-task"),
+        )
+        repo.save(assignment)
+        assertEquals(listOf("pre-task"), repo.get(assignment.id)?.dependsOn)
+    }
+
     @Test fun `background task is durable on acceptance and terminal before report`() = runTest {
         seed()
         val assignment = newAssignment(bots.getBot("member")!!, groups.getGroup("group"), "implement", emptyList())

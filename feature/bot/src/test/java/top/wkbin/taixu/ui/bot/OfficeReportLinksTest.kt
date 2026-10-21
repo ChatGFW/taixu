@@ -43,6 +43,27 @@ class OfficeReportLinksTest {
     }
 
     @Test
+    fun `completed prerequisites create dependency edges to dependents`() {
+        val prerequisite = assignment("pre", "designer", BotAssignmentStatus.COMPLETED, reportTo = null, finishedAt = now - 1_000)
+        val dependent = assignment(
+            "next", "coder", BotAssignmentStatus.RUNNING, reportTo = "chief",
+        ).copy(dependsOn = listOf("pre"), startedAt = now - 500)
+        val assignments = listOf(prerequisite, dependent)
+        val members = listOf(chief, bot("designer"), bot("coder"))
+
+        val dependency = officeDependencyLinks(assignments, members, now).single()
+        assertEquals("next", dependency.taskId)
+        assertEquals("designer", dependency.fromBotId)
+        assertEquals("coder", dependency.toBotId)
+        assertTrue(dependency.active)
+        assertTrue(dependency.dependency)
+
+        val combined = officeCollaborationLinks(assignments, members, now)
+        assertEquals("next", combined.first().taskId)
+        assertTrue(combined.first().dependency)
+    }
+
+    @Test
     fun `failed handoffs keep the failure flag`() {
         val link = officeReportLinks(
             listOf(assignment("fail", "worker", BotAssignmentStatus.FAILED, reportTo = "chief", finishedAt = now - 500)),

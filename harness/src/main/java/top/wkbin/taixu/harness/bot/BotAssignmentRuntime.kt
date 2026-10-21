@@ -47,13 +47,13 @@ class BotAssignmentRuntime(
     suspend fun start() = pump.start()
 
     suspend fun create(botId: String, groupId: String, requesterId: String, sourceSessionId: String, instruction: String,
-        writePaths: List<String> = emptyList()): BotAssignment {
-        val create = suspend { createTask(botId, groupId, requesterId, sourceSessionId, instruction, writePaths) }
+        writePaths: List<String> = emptyList(), dependsOn: List<String> = emptyList()): BotAssignment {
+        val create = suspend { createTask(botId, groupId, requesterId, sourceSessionId, instruction, writePaths, dependsOn) }
         return modelManager?.withBotLock(botId, create) ?: create()
     }
 
     private suspend fun createTask(botId: String, groupId: String, requesterId: String, sourceSessionId: String, instruction: String,
-        writePaths: List<String>): BotAssignment {
+        writePaths: List<String>, dependsOn: List<String>): BotAssignment {
         start()
         require(instruction.isNotBlank()) { "任务内容不能为空" }
         val bot = requireNotNull(bots.getBot(botId)) { "执行成员不存在" }
@@ -68,7 +68,7 @@ class BotAssignmentRuntime(
         val id = UUID.randomUUID().toString()
         val task = BotAssignment(id, groupId, botId, bot.name, instruction.lineSequence().first().take(60), instruction,
             BotAssignmentStatus.QUEUED, writePaths, now, now, sessionId = UUID.randomUUID().toString(),
-            reportToBotId = requesterId, independent = true)
+            reportToBotId = requesterId, independent = true, dependsOn = dependsOn)
         val session = HarnessSessionEntity(
             id = requireNotNull(task.sessionId), title = "${bot.name} · ${task.title}", createdAt = now, updatedAt = now,
             modelId = bot.modelId ?: source.modelId,
