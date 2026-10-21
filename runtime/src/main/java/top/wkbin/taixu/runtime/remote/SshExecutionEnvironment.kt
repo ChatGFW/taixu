@@ -1,10 +1,12 @@
 package top.wkbin.taixu.runtime.remote
 
+import com.jcraft.jsch.JSchException
 import com.jcraft.jsch.Session
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import top.wkbin.taixu.core.model.RemoteServer
 import top.wkbin.taixu.core.model.SshCredentials
 import top.wkbin.taixu.runtime.environment.*
 import top.wkbin.taixu.runtime.shell.*
@@ -12,20 +14,26 @@ import java.util.concurrent.ConcurrentHashMap
 
 /** One SSH connection per immutable Harness owner, including independently owned children. */
 internal class SshExecutionEnvironment(
-    private val connection: Session,
+    private val server: RemoteServer,
+    initialConnection: Session,
     override val id: ExecutionEnvironmentId,
     private val credentials: SshCredentials,
     override val logicalWorkspace: String = "/workspace",
+    private val reconnect: suspend (RemoteServer, SshCredentials) -> Session = { target, secret ->
+        SshConnector().connect(target, secret)
+    },
 ) : ExecutionEnvironment {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutex = Mutex()
-    private var closed = false
+    private val transportMutex = Mutex()
+    @Volatile private var closed = false
+    @Volatile private var connection: Session = initialConnection
     private val sessions = mutableSetOf<SshLinuxSession>()
     private data class Background(val process: ManagedProcess, val job: Job, val logs: ArrayDeque<String>)
     private val background = ConcurrentHashMap<String, Background>()
-    override val label: String get() = connection.host
-    override val files: ExecutionFiles = SshExecutionFiles(connection, id.workspace, logicalWorkspace,
-        fileLocks.computeIfAbsent("${connection.host}:${connection.port}:${connection.userName}:${id.workspace}") { Mutex() })
+    override val label: String get() = server.host
+    override val files: ExecutionFiles = SshExecutionFiles({ transport() }, id.workspace, logicalWorkspace,
+        fileLocks.computeIfAbsent("${server.host}:${server.port}:${server.username}:${id.workspace}") { Mutex() })
     override suspend fun outputSecrets() = listOf(credentials.secret, credentials.passphrase).filter { it.isNotEmpty() }
     override fun workingDirectory(explicit: String?): String {
         val path = explicit?.takeIf { it.isNotBlank() } ?: return id.workspace
@@ -33,9 +41,64 @@ internal class SshExecutionEnvironment(
         else if (!path.startsWith('/')) "${id.workspace}/$path" else path
     }
 
+    /**
+     * Returns a transport that can open channels right now.
+     *
+     * JSch never resurrects a dropped [Session]: once the peer disappears the object stays dead and
+     * every later channel fails with "session is down". Caching that object forever is why a
+     * restarted remote kept `base` unusable until the whole chat was recreated, so a stale transport
+     * is replaced on demand instead.
+     */
+    private suspend fun transport(): Session {
+        val current = connection
+        if (!closed && current.isUsable()) return current
+        return transportMutex.withLock {
+            check(!closed) { "远程执行环境已关闭" }
+            val latest = connection
+            if (latest.isUsable()) latest else fresh(latest)
+        }
+    }
+
+    /** Installs a new transport and drops [stale]; callers still holding it fail fast. Caller holds [transportMutex]. */
+    private suspend fun fresh(stale: Session): Session {
+        check(!closed) { "远程执行环境已关闭" }
+        val next = reconnect(server, credentials)
+        // close() sets the flag before taking this mutex, so it can flip while reconnect is in flight.
+        val closedDuringReconnect = closed
+        if (closedDuringReconnect) runCatching { next.disconnect() }
+        check(!closedDuringReconnect) { "远程执行环境已关闭" }
+        connection = next
+        runCatching { stale.disconnect() }
+        return connection
+    }
+
+    /** Replaces [stale] only if nobody beat us to it, so concurrent callers reconnect once. */
+    private suspend fun renew(stale: Session) = transportMutex.withLock {
+        if (connection === stale) fresh(stale)
+    }
+
+    /**
+     * Opens a channel on a live transport, retrying once on a fresh one when the peer had already
+     * gone away. Exactly one retry: an unreachable peer surfaces instead of looping.
+     * [open] and [startBackground] hold the environment mutex across this reconnect.
+     */
+    private suspend fun <T> onTransport(open: suspend (Session) -> T): T {
+        val current = transport()
+        return try {
+            open(current)
+        } catch (t: Throwable) {
+            if (!isTransportFailure(t, current)) throw t
+            renew(current)
+            open(transport())
+        }
+    }
+
+    private fun isTransportFailure(cause: Throwable, session: Session) = !session.isUsable() &&
+        generateSequence(cause) { it.cause }.take(4).any { it is JSchException }
+
     private suspend fun open(config: SessionConfig, pty: Boolean): SshLinuxSession = mutex.withLock {
         check(!closed) { "远程执行环境已关闭" }
-        val session = SshLinuxSession.open(connection, config, pty)
+        val session = onTransport { SshLinuxSession.open(it, config, pty) }
         sessions.add(session)
         session
     }
@@ -69,8 +132,9 @@ internal class SshExecutionEnvironment(
         check(!closed)
         check(background[id] == null) { "远程进程名称已存在，请先停止" }
         require(!command.useQemuCompatibility)
-        val session = SshLinuxSession.open(connection, SessionConfig(commandLine = command.commandLine,
-            workingDirectory = command.workingDirectory, environment = command.environment), command.forcePty)
+        val session = onTransport { transport -> SshLinuxSession.open(transport,
+            SessionConfig(commandLine = command.commandLine, workingDirectory = command.workingDirectory,
+                environment = command.environment), command.forcePty) }
         try {
             sessions.add(session)
             val logs = ArrayDeque<String>()
@@ -107,7 +171,9 @@ internal class SshExecutionEnvironment(
             }
             // Keep failed channels reachable for a later stop retry; only confirmed disposal releases transport.
             if (collected.isEmpty()) {
-                connection.disconnect()
+                // Same lock as fresh(): a reconnect either observes closed and aborts, or publishes
+                // its session before this disconnect so the session released here is the live one.
+                transportMutex.withLock { connection.disconnect() }
                 scope.coroutineContext[Job]?.cancelAndJoin()
                 background.clear()
             }
@@ -120,3 +186,6 @@ internal class SshExecutionEnvironment(
         private val fileLocks = ConcurrentHashMap<String, Mutex>()
     }
 }
+
+/** A JSch session object is dead forever once its transport is gone; it can never be revived. */
+internal fun Session.isUsable(): Boolean = isConnected

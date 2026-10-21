@@ -14,8 +14,9 @@ import java.util.UUID
 import java.security.MessageDigest
 import kotlinx.coroutines.Job
 
-internal class SshExecutionFiles(private val session: Session, private val workspace: String, private val logicalWorkspace: String, private val mutex: Mutex) : ExecutionFiles {
+internal class SshExecutionFiles(private val transport: suspend () -> Session, private val workspace: String, private val logicalWorkspace: String, private val mutex: Mutex) : ExecutionFiles {
     private suspend fun <T> access(operation: (ChannelSftp, String) -> T): T = mutex.withLock {
+        val session = transport()
         runInterruptible(Dispatchers.IO) {
             val channel = session.openChannel("sftp") as ChannelSftp
             try {
