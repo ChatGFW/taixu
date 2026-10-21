@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.core.model.StorageMountBinding
+import top.wkbin.taixu.runtime.droidspaces.DroidspacesCommandBuilder
+import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
 import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import java.io.File
@@ -28,8 +30,8 @@ import java.io.File
  * - 其余模式：仍走 PRoot。`SHIZUKU` 只提权宿主自动化，不改变 Linux 运行方式。
  */
 class BackendRoutingCommandBuilder(
-    private val proot: GuestCommandBuilder,
-    private val droidspaces: GuestCommandBuilder,
+    private val proot: ProotCommandBuilder,
+    private val droidspaces: DroidspacesCommandBuilder,
     modeFlow: Flow<ExecutionMode>,
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) : GuestCommandBuilder {
