@@ -6,17 +6,19 @@ import groovy.json.JsonSlurper
 // 本块是独立于 settings.gradle.kts 的 buildscript 解析域：settings 里的
 // useOfficialRepos 不作用于这里，因此必须自带同样的 CI 判断，否则 CI 仍会
 // 命中阿里云镜像。注意 AGP 的 classpath 传递依赖 com.android.tools:repository
-// 等 Google 专有产物在 aliyun central 上并不存在（实测 404），只有 google()
-// 或 aliyun google 镜像才有；一旦 central 镜像返回 5xx，Gradle 会把该仓库
-// 标记为 disabled 并直接中止配置阶段（"Repository maven is disabled due to
-// earlier error"），故 google() 必须显式列出。
-val useOfficialRepos = System.getenv("CI") == "true" ||
-    providers.gradleProperty("useOfficialRepos").orNull == "true" ||
-    System.getenv("USE_OFFICIAL_REPOS") == "true"
-
+// 等 Google 专有产物在 aliyun central 上并不存在（实测该 pom 在 repository/central
+// 恒为 404，在 repository/google 为 200）。平时靠更靠后的 google() 兜底才没炸；
+// 一旦 aliyun central 返回 5xx，Gradle 会把该仓库标记为 disabled 并直接中止配置
+// 阶段（"Repository maven is disabled due to earlier error"），故 google() 必须
+// 显式列出。
+// 注意：buildscript {} 是独立的脚本编译单元，引用不到本文件的顶层 val，
+// 因此这里的判断必须在块内内联展开，不能提取成共享变量。
 buildscript {
     repositories {
-        if (useOfficialRepos) {
+        val ciOfficial = System.getenv("CI") == "true" ||
+            providers.gradleProperty("useOfficialRepos").orNull == "true" ||
+            System.getenv("USE_OFFICIAL_REPOS") == "true"
+        if (ciOfficial) {
             google()
             mavenCentral()
         } else {
