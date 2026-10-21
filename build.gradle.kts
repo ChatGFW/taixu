@@ -3,10 +3,28 @@ import groovy.json.JsonSlurper
 
 // Gradle 9 的 Kotlin DSL 默认编译类路径不再暴露 Groovy JSON 模块，
 // architectureCheck 解析 architecture-policy.json 需要显式引入（仅构建期，不进入产物）。
+// 本块是独立于 settings.gradle.kts 的 buildscript 解析域：settings 里的
+// useOfficialRepos 不作用于这里，因此必须自带同样的 CI 判断，否则 CI 仍会
+// 命中阿里云镜像。注意 AGP 的 classpath 传递依赖 com.android.tools:repository
+// 等 Google 专有产物在 aliyun central 上并不存在（实测 404），只有 google()
+// 或 aliyun google 镜像才有；一旦 central 镜像返回 5xx，Gradle 会把该仓库
+// 标记为 disabled 并直接中止配置阶段（"Repository maven is disabled due to
+// earlier error"），故 google() 必须显式列出。
+val useOfficialRepos = System.getenv("CI") == "true" ||
+    providers.gradleProperty("useOfficialRepos").orNull == "true" ||
+    System.getenv("USE_OFFICIAL_REPOS") == "true"
+
 buildscript {
     repositories {
-        mavenCentral()
-        maven { url = uri("https://maven.aliyun.com/repository/central") }
+        if (useOfficialRepos) {
+            google()
+            mavenCentral()
+        } else {
+            maven { url = uri("https://maven.aliyun.com/repository/google") }
+            maven { url = uri("https://maven.aliyun.com/repository/central") }
+            google()
+            mavenCentral()
+        }
     }
     dependencies {
         classpath("org.apache.groovy:groovy-json:4.0.27")
