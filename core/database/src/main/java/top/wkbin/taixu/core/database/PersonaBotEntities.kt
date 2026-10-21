@@ -96,7 +96,7 @@ data class GroupMemberEntity(
     ],
     indices = [
         Index(value = ["groupId", "timestamp"]),
-        Index(value = ["groupId", "seq"]),
+        Index(value = ["groupId", "seq"], unique = true),
         Index(value = ["delegatedTaskId"]),
     ],
 )
@@ -275,6 +275,59 @@ interface GroupChatDao : GroupDeliveryDao {
     @Query("DELETE FROM group_seen WHERE groupId = :groupId")
     suspend fun deleteSeen(groupId: String)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertRound(round: GroupRoundEntity)
+
+    @Transaction
+    suspend fun stageUserMessageWithRound(message: GroupMessageEntity, round: GroupRoundEntity) {
+        stageGroupDelivery(message, emptyList())
+        upsertRound(round)
+    }
+
+    @Query("SELECT * FROM group_rounds WHERE id = :id LIMIT 1")
+    suspend fun findRound(id: String): GroupRoundEntity?
+
+    @Query("SELECT * FROM group_rounds WHERE status = 'RUNNING' ORDER BY createdAt ASC")
+    suspend fun runningRounds(): List<GroupRoundEntity>
+
+    @Query("UPDATE group_rounds SET slotsJson = :slotsJson, status = :status, updatedAt = :now WHERE id = :id AND status = 'RUNNING'")
+    suspend fun updateRoundProgress(id: String, slotsJson: String, status: String, now: Long): Int
+
+    @Query(
+        "UPDATE group_rounds SET trigger = :trigger, imageUrlsJson = :imageUrlsJson, updatedAt = :now WHERE id = :id",
+    )
+    suspend fun updateRoundAttachments(id: String, trigger: String, imageUrlsJson: String, now: Long)
+
+    @Query(
+        "UPDATE group_rounds SET slotsJson = :slotsJson, status = :status, " +
+            "imageUrlsJson = '[]', updatedAt = :now WHERE id = :id AND status = 'RUNNING'",
+    )
+    suspend fun finishRound(id: String, slotsJson: String, status: String, now: Long): Int
+
+    @Query(
+        "UPDATE group_rounds SET status = 'CANCELLED', imageUrlsJson = '[]', updatedAt = :now " +
+            "WHERE groupId = :groupId AND status = 'RUNNING'",
+    )
+    suspend fun cancelRounds(groupId: String, now: Long)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertLateReply(reply: GroupLateReplyEntity)
+
+    @Query("SELECT * FROM group_late_replies WHERE status = 'WATCHING' ORDER BY createdAt ASC")
+    suspend fun watchingLateReplies(): List<GroupLateReplyEntity>
+
+    @Query("UPDATE group_late_replies SET status = :status, error = :error WHERE id = :id")
+    suspend fun updateLateReplyStatus(id: String, status: String, error: String?)
+
+    @Query("SELECT * FROM group_late_replies WHERE id = :id LIMIT 1")
+    suspend fun findLateReply(id: String): GroupLateReplyEntity?
+
+    @Query("DELETE FROM group_rounds WHERE status != 'RUNNING' AND updatedAt < :before")
+    suspend fun pruneFinishedRounds(before: Long)
+
+    @Query("DELETE FROM group_late_replies WHERE status != 'WATCHING' AND createdAt < :before")
+    suspend fun pruneFinishedLateReplies(before: Long)
+
     @Query("SELECT * FROM group_messages WHERE id = :id LIMIT 1")
     suspend fun findMessage(id: String): GroupMessageEntity?
 
@@ -301,7 +354,16 @@ interface GroupChatDao : GroupDeliveryDao {
         deleteAssignments(groupId)
         deleteMessages(groupId)
         deleteSeen(groupId)
+        deleteRounds(groupId)
+        deleteLateReplies(groupId)
+        deleteSeqRow(groupId)
     }
+
+    @Query("DELETE FROM group_rounds WHERE groupId = :groupId")
+    suspend fun deleteRounds(groupId: String)
+
+    @Query("DELETE FROM group_late_replies WHERE groupId = :groupId")
+    suspend fun deleteLateReplies(groupId: String)
 }
 
 @Dao

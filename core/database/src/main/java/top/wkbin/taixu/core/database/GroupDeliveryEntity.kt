@@ -48,8 +48,27 @@ interface GroupDeliveryDao {
     @Query("SELECT EXISTS(SELECT 1 FROM group_members WHERE groupId = :groupId AND botId = :botId)")
     suspend fun deliveryMember(groupId: String, botId: String): Boolean
 
-    @Query("SELECT COALESCE(MAX(seq), 0) + 1 FROM group_messages WHERE groupId = :groupId")
-    suspend fun nextMessageSeq(groupId: String): Long
+    @Query(
+        "INSERT OR IGNORE INTO group_message_seq(groupId, nextSeq) " +
+            "SELECT :groupId, COALESCE(MAX(seq), 0) FROM group_messages WHERE groupId = :groupId",
+    )
+    suspend fun ensureSeqRow(groupId: String)
+
+    @Query("UPDATE group_message_seq SET nextSeq = nextSeq + 1 WHERE groupId = :groupId")
+    suspend fun bumpSeq(groupId: String)
+
+    @Query("SELECT nextSeq FROM group_message_seq WHERE groupId = :groupId")
+    suspend fun currentSeq(groupId: String): Long?
+
+    @Query("DELETE FROM group_message_seq WHERE groupId = :groupId")
+    suspend fun deleteSeqRow(groupId: String)
+
+    @Transaction
+    suspend fun nextMessageSeq(groupId: String): Long {
+        ensureSeqRow(groupId)
+        bumpSeq(groupId)
+        return currentSeq(groupId) ?: 1L
+    }
 
     @Transaction
     suspend fun stageGroupDelivery(message: GroupMessageEntity, botIds: List<String>) {
@@ -123,7 +142,8 @@ interface GroupDeliveryDao {
     @Query(
         "UPDATE group_messages SET isStreaming = 0, " +
             "content = CASE WHEN content = '' THEN :notice ELSE content || char(10) || :notice END " +
-            "WHERE isStreaming = 1 AND id NOT LIKE 'delivery-reply:%'",
+            "WHERE isStreaming = 1 AND id NOT LIKE 'delivery-reply:%' " +
+            "AND id NOT IN (SELECT placeholderId FROM group_late_replies WHERE status = 'WATCHING')",
     )
     suspend fun settleOrphanStreams(notice: String)
 }

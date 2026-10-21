@@ -9,7 +9,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
@@ -48,19 +51,29 @@ class GroupChatDispatcher(
     private val sessionControl: SessionControl,
     private val logger: AppLogger,
     private val attachmentPreparer: BotAttachmentPreparer? = null,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    private val scope: CoroutineScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default +
+            CoroutineExceptionHandler { _, failure ->
+                logger.e("[GroupChatDispatcher] 未捕获的协程异常", failure)
+            },
+    ),
     private val freshness: GroupReplyFreshness? = null,
+    taskRepository: top.wkbin.taixu.core.database.task.AgentTaskRepository? = null,
+    runtimeRepository: top.wkbin.taixu.core.database.HarnessRuntimeRepository? = null,
 ) {
     private val replies = GroupReplyQueue(scope)
 
     private val liveReplies = MutableStateFlow<Map<String, GroupReplyProgress>>(emptyMap())
+    private val taskTracker = if (taskRepository != null && runtimeRepository != null)
+        GroupReplyTaskTracker(taskRepository, runtimeRepository, sessionControl) else null
     private val responder = GroupBotResponder(
         groupRepository, orchestrator::ensureGroupSession, sessionControl, logger, liveReplies, freshness, scope,
+        taskTracker = taskTracker,
     )
     private val roundCoordinator = GroupRoundCoordinator(
         groups = groupRepository,
         queue = replies,
-        responder = { group, bot, trigger, history, members, imageUrls, onLateReply ->
+        responder = { group, bot, trigger, history, members, imageUrls, lateReplyCallerId, onSubmitted, onLateReply ->
             responder.respond(
                 group = group,
                 bot = bot,
@@ -71,15 +84,41 @@ class GroupChatDispatcher(
                 admission = null,
                 silentPass = true,
                 promptHistory = history,
+                lateReplyCallerId = lateReplyCallerId,
+                onSubmitted = onSubmitted,
                 onLateReply = onLateReply,
             )
         },
         scope = scope,
         logger = logger,
     )
+    private val userAdmission = GroupRoundAdmission(
+        groupRepository, roundCoordinator,
+        prepare = { requireNotNull(attachmentPreparer) { "附件读取服务尚未就绪" }.prepare(it) },
+        notify = { id, text -> postSystemNotification(id, text) },
+    )
     private val deliveryPump = GroupDeliveryPump(groupRepository, replies, scope, logger, ::deliver)
 
-    suspend fun startDeliveryProcessing() = deliveryPump.start()
+    private val recoveryLock = Mutex()
+    private var recovered = false
+
+    suspend fun startDeliveryProcessing() = recoveryLock.withLock {
+        deliveryPump.start()
+        if (recovered) return@withLock
+        recovered = true
+        try {
+            roundCoordinator.recover()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            logger.w("[GroupChatDispatcher] 轮次恢复失败: ${failure.message}")
+        }
+        responder.recoverLateReplies { reply, text ->
+            roundCoordinator.lateReplyRecovered(
+                reply.groupId, reply.workerId, reply.workerName, reply.callerBotId, text,
+            )
+        }
+    }
 
     private suspend fun deliver(delivery: GroupDelivery): GroupTurnOutcome {
         val source = groupRepository.deliverySource(delivery.sourceMessageId)
@@ -122,30 +161,8 @@ class GroupChatDispatcher(
     ) {
         val text = rawText.trim()
         if (text.isEmpty() && attachments.isEmpty()) return
-        val group = groupRepository.getGroup(groupId) ?: return
-        val members = groupRepository.getMembers(groupId)
         startDeliveryProcessing()
-        val mentions = MentionExtractor.parse(text, members.map { it.name })
-        val responders = openingResponders(members, mentions, group.adminBotId, group.replyMode)
-        val prepared = if (members.isEmpty() || attachments.isEmpty()) PreparedGroupAttachments() else
-            requireNotNull(attachmentPreparer) { "附件读取服务尚未就绪" }.prepare(attachments)
-        groupRepository.stageMessage(
-            GroupMessage(
-                id = UUID.randomUUID().toString(), groupId = groupId, senderId = USER_SENDER_ID,
-                senderName = "我", senderType = GroupSenderType.USER, content = text,
-                timestamp = System.currentTimeMillis(), attachments = attachments,
-            ), emptyList(),
-        )
-        if (members.isEmpty()) {
-            postSystemNotification(groupId, "⚠️ 当前群聊暂无可响应的 Bot 成员")
-        } else {
-            val trigger = buildString {
-                if (text.isNotBlank()) appendLine(text)
-                if (prepared.description.isNotBlank()) appendLine("【附件】\n${prepared.description}")
-            }.ifBlank { "（用户发送了附件，请查看并处理）" }
-            roundCoordinator.resetLateRounds(groupId)
-            roundCoordinator.start(group, responders, trigger.trimEnd(), prepared.imageUrls)
-        }
+        userAdmission.send(groupId, text, attachments.toList())
     }
 
     /**
@@ -324,6 +341,7 @@ internal fun openingResponders(
     val admin = members.firstOrNull { it.id == adminBotId }
     return when (mode) {
         GroupReplyMode.ADMIN_FIRST -> listOfNotNull(admin ?: members.firstOrNull())
-        GroupReplyMode.ALL_MEMBERS -> if (admin == null) members else listOf(admin) + members.filter { it.id != admin.id }
+        GroupReplyMode.ALL_MEMBERS -> (if (admin == null) members else listOf(admin) + members.filter { it.id != admin.id })
+            .take(ROUND_MAX_TOTAL_TURNS)
     }
 }

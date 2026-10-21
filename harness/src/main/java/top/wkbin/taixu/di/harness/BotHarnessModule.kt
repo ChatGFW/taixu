@@ -52,6 +52,8 @@ val botHarnessModule = module {
             sessionControl = get(),
             logger = get(),
             freshness = get(),
+            taskRepository = get(),
+            runtimeRepository = get(),
         )
     }
     single {

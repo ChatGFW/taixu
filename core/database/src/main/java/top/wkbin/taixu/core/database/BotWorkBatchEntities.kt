@@ -6,7 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-internal const val BATCH_OPERATION_STALE_MS = 30L * 60 * 1000
+internal const val BATCH_OPERATION_STALE_MS = 2L * 60 * 60 * 1000
 
 @Entity(
     tableName = "bot_work_batches",

@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.database.BotEntity
 import top.wkbin.taixu.core.database.BotGroupSessionDao
@@ -26,6 +27,7 @@ import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupMessage
 import top.wkbin.taixu.core.model.bot.GroupReaction
 import top.wkbin.taixu.core.model.bot.GroupReplyMode
+import top.wkbin.taixu.core.model.bot.GroupRound
 import top.wkbin.taixu.core.model.bot.GroupSenderType
 import top.wkbin.taixu.core.model.bot.GroupToolStep
 
@@ -43,7 +45,7 @@ interface PersonaBotRepository {
     suspend fun deleteBot(id: String)
 }
 
-interface GroupChatRepository : GroupDeliveryRepository {
+interface GroupChatRepository : GroupDeliveryRepository, GroupRoundRepository {
     fun observeGroups(): Flow<List<GroupChat>>
     fun observeGroupsForBot(botId: String): Flow<List<GroupChat>>
     suspend fun getGroup(id: String): GroupChat?
@@ -56,6 +58,7 @@ interface GroupChatRepository : GroupDeliveryRepository {
     suspend fun removeMember(groupId: String, botId: String)
     fun observeMessages(groupId: String): Flow<List<GroupMessage>>
     suspend fun postMessage(message: GroupMessage)
+    suspend fun stageUserMessageWithRound(message: GroupMessage, round: GroupRound)
     suspend fun deleteMessage(id: String)
     suspend fun latestSeq(groupId: String): Long
     suspend fun getSeenSeq(groupId: String, botId: String): Long
@@ -132,7 +135,8 @@ class RoomPersonaBotRepository(
 class RoomGroupChatRepository(
     private val dao: GroupChatDao,
     private val json: Json,
-) : GroupChatRepository, GroupDeliveryRepository by RoomGroupDeliveryRepository(dao, json) {
+) : GroupChatRepository, GroupDeliveryRepository by RoomGroupDeliveryRepository(dao, json),
+    GroupRoundRepository by RoomGroupRoundRepository(dao, json) {
     private val reactionMutex = Mutex()
 
     override fun observeGroups(): Flow<List<GroupChat>> = dao.observeAll().map { rows -> rows.map { it.toModel() } }
@@ -163,6 +167,9 @@ class RoomGroupChatRepository(
         dao.observeMessages(groupId).map { rows -> rows.map { it.toModel(json) } }
 
     override suspend fun postMessage(message: GroupMessage) = dao.postMessageWithSeq(message.toEntity(json))
+
+    override suspend fun stageUserMessageWithRound(message: GroupMessage, round: GroupRound) =
+        dao.stageUserMessageWithRound(message.toEntity(json), round.toEntity(json))
 
     override suspend fun deleteMessage(id: String) = dao.deleteMessage(id)
 

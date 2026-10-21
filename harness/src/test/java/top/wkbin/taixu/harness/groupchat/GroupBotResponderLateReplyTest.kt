@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -31,6 +32,7 @@ import top.wkbin.taixu.core.database.repository.RoomGroupChatRepository
 import top.wkbin.taixu.core.database.repository.RoomPersonaBotRepository
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.GroupLateReplyStatus
 import top.wkbin.taixu.core.model.bot.GroupSenderType
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.HarnessMessage
@@ -89,11 +91,99 @@ class GroupBotResponderLateReplyTest {
         assertFalse(message.isStreaming)
     }
 
+    @Test fun `waiting for approval yields and posts the result later`() = runBlocking {
+        val bot = seed()
+        val group = groups.getGroup("group")!!
+        control.approvalOnSubmit = true
+        val responder = GroupBotResponder(
+            groups, { _, _ -> "session" }, control, logger, MutableStateFlow(emptyMap()),
+            lateReplyScope = scope, workGraceMs = 50,
+        )
+        val late = CompletableDeferred<String>()
+        val result = responder.respond(
+            group, bot, "instruction", "", listOf(bot), emptyList(), null,
+            onLateReply = { late.complete(it) },
+        )
+        assertTrue(result.working)
+
+        control.finish("approved result")
+        withTimeout(5_000) { late.await() }
+
+        val message = withTimeout(5_000) {
+            groups.observeMessages("group").first { rows ->
+                rows.any { it.senderType == GroupSenderType.BOT && !it.isStreaming }
+            }
+        }.single { it.senderType == GroupSenderType.BOT }
+        assertEquals("approved result", message.content)
+    }
+
+    @Test fun `a silent pass removes the placeholder and reports passed`() = runBlocking {
+        val bot = seed()
+        val group = groups.getGroup("group")!!
+        control.replyOnSubmit = "[PASS]"
+        val responder = GroupBotResponder(
+            groups, { _, _ -> "session" }, control, logger, MutableStateFlow(emptyMap()),
+        )
+        val result = responder.respond(
+            group, bot, "instruction", "", listOf(bot), emptyList(), null, silentPass = true,
+        )
+        assertTrue(result.passed)
+        assertFalse(result.working)
+        assertTrue(groups.observeMessages("group").first().none { it.senderType == GroupSenderType.BOT })
+    }
+
+    @Test fun `a watching late reply is recovered after restart`() = runBlocking {
+        val bot = seed()
+        val group = groups.getGroup("group")!!
+        val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val first = GroupBotResponder(
+                groups, { _, _ -> "session" }, control, logger, MutableStateFlow(emptyMap()),
+                lateReplyScope = firstScope, workGraceMs = 500,
+            )
+            val result = withTimeout(5_000) {
+                first.respond(
+                    group, bot, "instruction", "", listOf(bot), emptyList(), null,
+                    lateReplyCallerId = "caller", onLateReply = {},
+                )
+            }
+            assertTrue(result.working)
+        } finally {
+            firstScope.cancel()
+        }
+        val watching = groups.watchingLateReplies()
+        assertEquals(1, watching.size)
+
+        val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val recovered = CompletableDeferred<String>()
+            val second = GroupBotResponder(
+                groups, { _, _ -> "session" }, control, logger, MutableStateFlow(emptyMap()),
+                lateReplyScope = secondScope, workGraceMs = 50,
+            )
+            second.recoverLateReplies { _, text -> recovered.complete(text) }
+            control.finish("recovered text")
+            withTimeout(5_000) { recovered.await() }
+
+            val message = withTimeout(5_000) {
+                groups.observeMessages("group").first { rows ->
+                    rows.any { it.senderType == GroupSenderType.BOT && !it.isStreaming }
+                }
+            }.single { it.senderType == GroupSenderType.BOT }
+            assertEquals("recovered text", message.content)
+            assertEquals(GroupLateReplyStatus.DONE, groups.findLateReply(watching.single().id)?.status)
+        } finally {
+            secondScope.cancel()
+        }
+    }
+
     private class FakeControl : SessionControl {
         override val currentSessionId = MutableStateFlow("session")
         override val sessionRunStates = MutableStateFlow<Map<String, SessionRunState>>(emptyMap())
         override val sessionStatuses = MutableStateFlow<Map<String, String>>(emptyMap())
         private val messages = MutableStateFlow<List<HarnessMessage>>(emptyList())
+        @Volatile var approvalOnSubmit = false
+        @Volatile var replyOnSubmit: String? = null
 
         override fun messagesForSession(sessionId: String) = messages
         override suspend fun prepareRemoteSession(sessionId: String) = messages.value
@@ -106,7 +196,17 @@ class GroupBotResponderLateReplyTest {
             imageUrls: List<String>,
             queue: PromptQueue,
         ): PromptSubmission {
-            sessionRunStates.value = mapOf(sessionId to SessionRunState.RUNNING)
+            val reply = replyOnSubmit
+            if (reply != null) {
+                messages.value = listOf(
+                    AssistantText("final", System.currentTimeMillis(), reply, totalMs = 1),
+                )
+                sessionRunStates.value = mapOf(sessionId to SessionRunState.COMPLETED)
+                return PromptSubmission.Accepted(PromptSubmission.Disposition.STARTED, "native-task")
+            }
+            sessionRunStates.value = mapOf(
+                sessionId to if (approvalOnSubmit) SessionRunState.WAITING_APPROVAL else SessionRunState.RUNNING,
+            )
             messages.value = listOf(
                 AssistantText("working", System.currentTimeMillis(), "working on it", totalMs = 1),
             )

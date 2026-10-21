@@ -7,13 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 val MIGRATION_67_68 = object : Migration(67, 68) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `group_messages` ADD COLUMN `seq` INTEGER NOT NULL DEFAULT 0")
-        db.execSQL(
-            """UPDATE `group_messages` SET `seq` = (
-                SELECT COUNT(*) FROM `group_messages` m2
-                WHERE m2.`groupId` = `group_messages`.`groupId`
-                  AND m2.`rowid` <= `group_messages`.`rowid`
-            )""",
-        )
+        renumberGroupMessages(db)
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_group_messages_groupId_seq` ON `group_messages` (`groupId`, `seq`)")
         db.execSQL(
             """CREATE TABLE IF NOT EXISTS `group_seen` (

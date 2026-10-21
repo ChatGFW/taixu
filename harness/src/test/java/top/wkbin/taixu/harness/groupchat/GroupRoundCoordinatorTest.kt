@@ -29,10 +29,15 @@ import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.BotEntity
 import top.wkbin.taixu.core.database.GroupChatEntity
 import top.wkbin.taixu.core.database.repository.RoomGroupChatRepository
+import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupMessage
+import top.wkbin.taixu.core.model.bot.GroupRound
+import top.wkbin.taixu.core.model.bot.GroupRoundSlot
+import top.wkbin.taixu.core.model.bot.GroupRoundStatus
 import top.wkbin.taixu.core.model.bot.GroupSenderType
+import top.wkbin.taixu.core.model.bot.GroupSlotStatus
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -49,11 +54,12 @@ class GroupRoundCoordinatorTest {
     private val gates = mutableMapOf<String, CompletableDeferred<Unit>>()
     private val replies = mutableMapOf<String, String>()
     private val workingBots = ConcurrentHashMap.newKeySet<String>()
+    private val skipSubmit = ConcurrentHashMap.newKeySet<String>()
     private val lateCallbacks = ConcurrentHashMap<String, suspend (String) -> Unit>()
     private val inside = AtomicInteger()
     @Volatile private var maxInside = 0
 
-    private val responder = GroupRoundResponder { group, bot, trigger, history, _, _, onLateReply ->
+    private val responder = GroupRoundResponder { group, bot, trigger, history, _, _, _, onSubmitted, onLateReply ->
         val nowInside = inside.incrementAndGet()
         synchronized(recorded) {
             recorded += bot.name
@@ -62,6 +68,7 @@ class GroupRoundCoordinatorTest {
             maxInside = maxOf(maxInside, nowInside)
         }
         try {
+            if (bot.name !in skipSubmit) onSubmitted()
             if (bot.name in workingBots) {
                 lateCallbacks[bot.name] = onLateReply
                 GroupTurnOutcome("", failed = false, working = true)
@@ -178,6 +185,61 @@ class GroupRoundCoordinatorTest {
         assertFalse(history.contains("old-0"))
     }
 
+    @Test fun `seen is not advanced when submission never starts`() = runBlocking {
+        val group = seed()
+        val all = members()
+        skipSubmit += "A"
+        coordinator().start(group, listOf(member(all, "A")), "hello")
+        withTimeout(5_000) { while (synchronized(recorded) { recorded.isEmpty() }) delay(10) }
+
+        assertEquals(0, groups.getSeenSeq("group", "a"))
+    }
+
+    @Test fun `a stale running round is cancelled instead of resumed`() = runBlocking {
+        val group = seed()
+        groups.insertRound(
+            GroupRound(
+                id = "stale",
+                groupId = group.id,
+                trigger = "old",
+                slots = listOf(GroupRoundSlot("a", "A")),
+                status = GroupRoundStatus.RUNNING,
+                createdAt = 1,
+                updatedAt = 1,
+            ),
+        )
+        coordinator().recover()
+        withTimeout(5_000) {
+            while (groups.findRound("stale")?.status != GroupRoundStatus.CANCELLED) delay(10)
+        }
+        assertTrue(synchronized(recorded) { recorded.isEmpty() })
+    }
+
+    @Test fun `a persisted running round resumes from the first waiting slot`() = runBlocking {
+        val group = seed()
+        val now = System.currentTimeMillis()
+        val round = GroupRound(
+            id = "round",
+            groupId = group.id,
+            trigger = "resume",
+            slots = listOf(
+                GroupRoundSlot("a", "A", GroupSlotStatus.POSTED),
+                GroupRoundSlot("b", "B", GroupSlotStatus.WAITING),
+            ),
+            status = GroupRoundStatus.RUNNING,
+            createdAt = now,
+            updatedAt = now,
+        )
+        groups.insertRound(round)
+
+        coordinator().recover()
+        withTimeout(5_000) { while (synchronized(recorded) { recorded.none { it == "B" } }) delay(10) }
+        assertEquals(listOf("B"), synchronized(recorded) { recorded.toList() })
+        withTimeout(5_000) {
+            while (groups.findRound("round")?.status != GroupRoundStatus.DONE) delay(10)
+        }
+    }
+
     @Test fun `late reply wakes the caller with a new round`() = runBlocking {
         val group = seed()
         val all = members()
@@ -202,5 +264,76 @@ class GroupRoundCoordinatorTest {
         listOf("pass 一下", "我 PASS 了", "请通过").forEach {
             assertFalse(it, isGroupPass(it))
         }
+    }
+
+    @Test fun `full user instruction and attachment description survive round persistence and prompt`() = runBlocking {
+        val group = seed()
+        val all = members()
+        val instruction = "x".repeat(2_000) + "\n必须保留尾部验收条件\n【附件】/attachments/last-file.txt"
+        val coordinator = coordinator()
+        val original = coordinator.newRound(group, listOf(member(all, "B")), instruction)!!
+        val prepared = coordinator.withAttachments(original, instruction, listOf("data:image/png;base64,abc"))
+        groups.insertRound(prepared)
+        assertEquals(instruction, groups.findRound(prepared.id)!!.trigger)
+        coordinator.recover()
+        withTimeout(5_000) { while (!triggers.containsKey("B")) delay(10) }
+        assertTrue(triggers["B"].orEmpty().endsWith(instruction + "\n"))
+    }
+
+    @Test fun `failed speaking checkpoint stops execution and recovery runs waiting slot once`() = runBlocking {
+        val group = seed()
+        val all = members()
+        val attempted = CompletableDeferred<Unit>()
+        val broken = object : GroupChatRepository by groups {
+            override suspend fun updateRoundProgress(round: GroupRound) {
+                attempted.complete(Unit)
+                throw java.io.IOException("database unavailable")
+            }
+        }
+        GroupRoundCoordinator(broken, queue, responder, scope, logger)
+            .start(group, listOf(member(all, "B")), "execute once")
+        withTimeout(5_000) { attempted.await() }
+        assertTrue(synchronized(recorded) { recorded.isEmpty() })
+        assertEquals(GroupSlotStatus.WAITING, groups.runningRounds().single().slots.single().status)
+        coordinator().recover()
+        withTimeout(5_000) { while (groups.runningRounds().isNotEmpty()) delay(10) }
+        assertEquals(listOf("B"), synchronized(recorded) { recorded.toList() })
+    }
+
+    @Test fun `failed round creation cannot start unpersisted work`() = runBlocking {
+        val group = seed()
+        val all = members()
+        val broken = object : GroupChatRepository by groups {
+            override suspend fun insertRound(round: GroupRound) { throw java.io.IOException("disk full") }
+        }
+        try {
+            GroupRoundCoordinator(broken, queue, responder, scope, logger)
+                .start(group, listOf(member(all, "B")), "must not run")
+            org.junit.Assert.fail("Admission must fail with storage")
+        } catch (_: java.io.IOException) { }
+        assertTrue(groups.runningRounds().isEmpty())
+        assertTrue(synchronized(recorded) { recorded.isEmpty() })
+    }
+
+    @Test fun `failed completion checkpoint never replays an already submitted slot`() = runBlocking {
+        val group = seed()
+        val all = members()
+        val attempted = CompletableDeferred<Unit>()
+        val broken = object : GroupChatRepository by groups {
+            override suspend fun updateRoundProgress(round: GroupRound) {
+                if (round.slots.any { it.status == GroupSlotStatus.PASSED }) {
+                    attempted.complete(Unit)
+                    throw java.io.IOException("disk full after execution")
+                }
+                groups.updateRoundProgress(round)
+            }
+        }
+        GroupRoundCoordinator(broken, queue, responder, scope, logger)
+            .start(group, listOf(member(all, "B")), "execute once")
+        withTimeout(5_000) { attempted.await() }
+        assertEquals(GroupSlotStatus.SPEAKING, groups.runningRounds().single().slots.single().status)
+        coordinator().recover()
+        withTimeout(5_000) { while (groups.runningRounds().isNotEmpty()) delay(10) }
+        assertEquals(listOf("B"), synchronized(recorded) { recorded.toList() })
     }
 }

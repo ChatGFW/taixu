@@ -65,4 +65,11 @@ class GroupChatRespondersTest {
             openingResponders(listOf(a, b), emptySet(), admin.id, GroupReplyMode.ALL_MEMBERS),
         )
     }
+
+    @Test fun `all members is capped to the round limit`() {
+        val many = (1..25).map { bot("m$it", "M$it") }
+        val responders = openingResponders(many, emptySet(), many.first().id, GroupReplyMode.ALL_MEMBERS)
+        assertEquals(20, responders.size)
+        assertEquals(many.first(), responders.first())
+    }
 }
