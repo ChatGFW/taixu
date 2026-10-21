@@ -748,7 +748,7 @@ class ChatViewModel(
 
     /** 各 MCP 服务的实时连通性状态（与 McpManager 共享，聊天挂载面板 / 设置页联动）。 */
     val mcpConnectionStates: StateFlow<Map<String, McpConnectionState>> = mcpManager.connectionStates
-
+    val mcpToolCounts: StateFlow<Map<String, Int>> = mcpConnectionStates.map { mcpManager.cachedToolCounts() }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
     fun refreshMcpConnections() {
         viewModelScope.launch { mcpManager.refreshConnections() }
     }

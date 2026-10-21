@@ -3,17 +3,21 @@ package top.wkbin.taixu.harness.groupchat
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
+import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.GroupDelivery
+import top.wkbin.taixu.core.model.bot.GroupLateReply
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupMessage
 import top.wkbin.taixu.core.model.bot.GroupSenderType
@@ -28,8 +32,14 @@ internal class GroupBotResponder(
     private val logger: AppLogger,
     private val liveReplies: MutableStateFlow<Map<String, GroupReplyProgress>>,
     private val freshness: GroupReplyFreshness? = null,
+    private val lateReplyScope: CoroutineScope? = null,
+    private val workGraceMs: Long = WORK_GRACE_MS,
+    private val taskTracker: GroupReplyTaskTracker? = null,
 ) {
-    private val observer = GroupReplyObserver(sessionControl, logger)
+    private val observer = GroupReplyObserver(sessionControl, logger, taskTracker)
+    private val lateReplyWatcher = GroupLateReplyWatcher(
+        groupRepository, sessionControl, logger, liveReplies, lateReplyScope, taskTracker,
+    )
     suspend fun respond(
         group: GroupChat,
         bot: Bot,
@@ -42,9 +52,15 @@ internal class GroupBotResponder(
         deliveryId: String? = null,
         sessionOverride: String? = null,
         onAdmitted: suspend (String?) -> Unit = {},
+        silentPass: Boolean = false,
+        promptHistory: String? = null,
+        lateReplyCallerId: String? = null,
+        onSubmitted: suspend () -> Unit = {},
+        onLateReply: (suspend (String) -> Unit)? = null,
     ): GroupTurnOutcome {
         var activeSessionId: String? = null
         var submissionAttempted = false
+        var admittedTaskId: String? = null
         var contextBinding: GroupReplyFreshness.Binding? = null
         val placeholderId = deliveryId?.let { "delivery-reply:$it" } ?: UUID.randomUUID().toString()
         val startedAt = System.currentTimeMillis()
@@ -74,10 +90,12 @@ internal class GroupBotResponder(
             val sessionId = sessionReady.getOrThrow()
             activeSessionId = sessionId
             currentCoroutineContext().ensureActive()
-            val baseline = sessionControl.messagesForSession(sessionId).value.map { it.id }.toSet()
+            val baseline = sessionControl.prepareRemoteSession(sessionId).map { it.id }.toSet()
             val baselineOutputRevision = sessionControl.modelOutputRevisions.value[sessionId] ?: 0L
             contextBinding = freshness?.begin(sessionId, group, bot.id, placeholderId)
-            val prompt = buildGroupPrompt(group, bot, trigger, contextBinding?.history ?: history, members)
+            // A round passes only unseen lines; other deliveries keep the binding's full view.
+            val resolvedHistory = promptHistory ?: contextBinding?.history ?: history
+            val prompt = buildGroupPrompt(group, bot, trigger, resolvedHistory, members)
             if (deliveryId != null) {
                 check(groupRepository.prepareDelivery(deliveryId, sessionId)) { "收件已停止、成员已移出或来源已清除" }
             }
@@ -86,10 +104,20 @@ internal class GroupBotResponder(
             }
             submissionAttempted = true
             val submission = sessionControl.submit(sessionId, prompt, imageUrls)
+            admittedTaskId = (submission as? PromptSubmission.Accepted)?.taskId
             if (deliveryId != null && submission is PromptSubmission.Accepted) {
                 check(groupRepository.admitDelivery(deliveryId, sessionId, submission.taskId)) { "群消息受理回执未保存" }
             }
-            if (submission is PromptSubmission.Accepted) onAdmitted(submission.taskId)
+            if (submission is PromptSubmission.Accepted) {
+                onAdmitted(submission.taskId)
+                try {
+                    onSubmitted()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    logger.w("[GroupChatDispatcher] ${bot.name} 提交后记录 seen 失败", failure)
+                }
+            }
             currentCoroutineContext().ensureActive()
             admission?.complete(submission is PromptSubmission.Accepted)
             if (submission !is PromptSubmission.Accepted) {
@@ -101,17 +129,61 @@ internal class GroupBotResponder(
             }
 
             var lastCheckpoint = startedAt
-            val outcome = observer.awaitReply(sessionId, bot, baseline, startedAt, baselineOutputRevision) { progress ->
-                liveReplies.update { it + (placeholderId to progress) }
-                // Smooth UI updates stay in memory; persist only periodic crash-recovery checkpoints.
-                val now = System.currentTimeMillis()
-                if (now - lastCheckpoint >= 2_000) {
-                    groupRepository.updateStreamingMessage(placeholderId, progress.content, true, progress.steps, progress.reasoning)
-                    lastCheckpoint = now
+            var sawWork = false
+            var lastProgress: GroupReplyProgress? = null
+            suspend fun observe(completionOnly: Boolean): GroupReplyObserver.ReplyOutcome =
+                observer.awaitReply(
+                    sessionId, bot, baseline, startedAt, baselineOutputRevision, completionOnly, admittedTaskId,
+                ) { progress ->
+                    lastProgress = progress
+                    if (progress.steps.isNotEmpty() || progress.content.isNotBlank()) sawWork = true
+                    liveReplies.update { it + (placeholderId to progress) }
+                    // Smooth UI updates stay in memory; persist only periodic crash-recovery checkpoints.
+                    val now = System.currentTimeMillis()
+                    if (now - lastCheckpoint >= 2_000) {
+                        groupRepository.updateStreamingMessage(placeholderId, progress.content, true, progress.steps, progress.reasoning)
+                        lastCheckpoint = now
+                    }
                 }
+
+            val outcome = if (lateReplyScope != null && onLateReply != null) {
+                val first = withTimeoutOrNull(workGraceMs) { observe(completionOnly = false) }
+                val runState = sessionControl.sessionRunStates.value[sessionId]
+                val waitingApproval = runState == SessionRunState.WAITING_APPROVAL
+                if (first == null && (sawWork || waitingApproval) &&
+                    (runState == SessionRunState.RUNNING || waitingApproval)) {
+                    lastProgress?.let { progress ->
+                        groupRepository.updateStreamingMessage(
+                            placeholderId, progress.content, true, progress.steps, progress.reasoning,
+                        )
+                    }
+                    lateReplyWatcher.watch(
+                        group = group,
+                        bot = bot,
+                        sessionId = sessionId,
+                        baseline = baseline,
+                        startedAt = startedAt,
+                        baselineOutputRevision = baselineOutputRevision,
+                        placeholderId = placeholderId,
+                        callerBotId = lateReplyCallerId,
+                        onLateReply = onLateReply,
+                        taskId = admittedTaskId,
+                    )
+                    return GroupTurnOutcome("", failed = false, working = true, messageId = placeholderId)
+                }
+                first ?: observe(completionOnly = false)
+            } else {
+                observe(completionOnly = false)
             }
             val latest = outcome.candidate
             val content = latest?.text?.trim().orEmpty()
+            val cleanPass = silentPass && !outcome.failed && !outcome.replyTimedOut &&
+                !outcome.firstTokenTimedOut && !outcome.stalled && !outcome.interrupted &&
+                isGroupPass(content)
+            if (cleanPass) {
+                groupRepository.deleteMessage(placeholderId)
+                return GroupTurnOutcome("", failed = false, passed = true, messageId = placeholderId)
+            }
             val finalText = when {
                 outcome.replyTimedOut -> "❌ 本轮超过 ${GroupReplyTimeoutPolicy.REPLY_TIMEOUT_MS / 60_000} 分钟，已请求停止；执行结果待核对，请检查已有工具结果"
                 outcome.firstTokenTimedOut ->
@@ -129,17 +201,18 @@ internal class GroupBotResponder(
                 text = finalText,
                 failed = outcome.replyTimedOut || outcome.firstTokenTimedOut || outcome.stalled || outcome.failed || outcome.interrupted || content.isBlank(),
                 uncertain = outcome.replyTimedOut || outcome.firstTokenTimedOut || outcome.stalled || outcome.interrupted,
+                messageId = placeholderId,
             )
         } catch (cancelled: CancellationException) {
-            if (submissionAttempted) activeSessionId?.let { sessionControl.cancel(it) }
             withContext(NonCancellable) {
+                if (submissionAttempted) activeSessionId?.let { cancelOwned(it, admittedTaskId) }
                 val progress = liveReplies.value[placeholderId]
                 groupRepository.updateStreamingMessage(placeholderId, STOPPED_MARKER, false, progress?.steps.orEmpty(), progress?.reasoning)
                 awaitSettledPlaceholder(group.id, placeholderId)
             }
             throw cancelled
         } catch (failure: Exception) {
-            if (submissionAttempted) activeSessionId?.let { sessionControl.cancel(it) }
+            if (submissionAttempted) activeSessionId?.let { cancelOwned(it, admittedTaskId) }
             admission?.completeExceptionally(failure)
             if (deliveryId != null) groupRepository.finishDelivery(deliveryId,
                 if (submissionAttempted) GroupDelivery.UNKNOWN else GroupDelivery.REJECTED,
@@ -157,6 +230,14 @@ internal class GroupBotResponder(
         }
     }
 
+    suspend fun recoverLateReplies(onLateReply: suspend (GroupLateReply, String) -> Unit) =
+        lateReplyWatcher.recover(onLateReply)
+
+    private suspend fun cancelOwned(sessionId: String, taskId: String?) {
+        if (taskId != null && taskTracker != null) taskTracker.cancelIfActive(sessionId, taskId)
+        else sessionControl.cancel(sessionId)
+    }
+
     private suspend fun awaitSettledPlaceholder(groupId: String, messageId: String) {
         // Keep the live projection until Room emits a settled row, avoiding a blank-frame flash.
         groupRepository.observeMessages(groupId).first { rows -> rows.none { it.id == messageId && it.isStreaming } }
@@ -165,5 +246,6 @@ internal class GroupBotResponder(
     private companion object {
         const val STOPPED_MARKER = "⏹ 已停止"
         const val FIRST_TOKEN_TIMEOUT_MS = GroupReplyTimeoutPolicy.OUTPUT_WAIT_MS
+        const val WORK_GRACE_MS = 15_000L
     }
 }

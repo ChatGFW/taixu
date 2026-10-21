@@ -9,6 +9,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
@@ -38,6 +39,7 @@ class McpManager(
     private val agentEventLogger: AgentEventLogger,
     private val remoteServers: top.wkbin.taixu.core.datastore.RemoteServerRepository? = null,
     private val catalogAvailability: McpCatalogAvailability = McpCatalogAvailability(linuxRuntime, remoteServers = remoteServers),
+    private val toolPolicy: top.wkbin.taixu.core.datastore.McpToolPolicyPreferences? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val standaloneScope = stdio.standaloneScope ?: remoteServers?.let { StandaloneMcpScope(it) }
@@ -54,6 +56,7 @@ class McpManager(
     }
     val connectionStates: StateFlow<Map<String, McpConnectionState>> = statuses.visible
     init { scope.expireCatalogTools(cache) { key -> lastErrors.remove(key); discoveryCooldownUntil.remove(key); discoveryFailureStreak.remove(key); if (cache[key] == null) statuses.forgetKey(key) } }
+    init { scope.launch { stdio.toolListChanged.collect { key -> cache.remove(key); lastErrors.remove(key); discoveryCooldownUntil.remove(key); discoveryFailureStreak.remove(key) } } }
 
     /** 最近发现错误附退避剩余时间，避免把冷却误判为永久离线。 */
     fun getLastError(serverId: String): String? {
@@ -177,9 +180,9 @@ class McpManager(
         // B1: 用绑定后的配置计算 fingerprint 并发现，与 executeTool 路径一致，避免指纹乒乓
         val bound = boundConfig(server)
         val fingerprint = fingerprint(bound)
-        cache[key]?.takeIf { it.fingerprint == fingerprint }?.tools
+        cache[key]?.takeIf { it.fingerprint == fingerprint && it.isFresh() }?.tools
             ?: discoveryMutexes.getOrPut(metadata.mutexKey(key)) { Mutex() }.withLock {
-                cache[key]?.takeIf { it.fingerprint == fingerprint }?.tools
+                cache[key]?.takeIf { it.fingerprint == fingerprint && it.isFresh() }?.tools
                     ?.let { return@withLock it }
                 // 退避窗口内直接跳过：持续故障的服务不该在每轮对话和每次
                 // 子智能体初始化时都重新空耗一遍发现超时。
@@ -229,27 +232,31 @@ class McpManager(
                 }.getOrDefault(emptyList())
             }
     }
-
-    /** 当前环境的可用服务摘要；不启动 MCP，工具数来自缓存。 */
+    /** 当前环境的可用服务摘要；不启动 MCP，工具数来自缓存并按用户策略过滤。 */
     suspend fun enabledServerSummaries(): List<EnabledServerSummary> = withContext(Dispatchers.IO) {
         sweepDisabledServers()
+        val policies = toolPolicy?.snapshot().orEmpty()
         effectiveServers().filter { it.isEnabled }.map { server ->
-            val cached = cache[discoveryKey(server)]?.takeIf { it.fingerprint == fingerprint(boundConfig(server)) }
+            val cached = cache[discoveryKey(server)]?.takeIf { it.fingerprint == fingerprint(boundConfig(server)) && it.isFresh() }
             EnabledServerSummary(
                 id = server.id,
                 name = server.name,
-                cachedToolCount = cached?.tools?.size ?: 0,
+                cachedToolCount = cached?.tools?.count { tool -> policies[server.id]?.get(tool.name)?.enabled != false } ?: 0,
                 connected = cached != null, processState = if (server.transportType == McpTransportType.STDIO) stdio.processStates.value[discoveryKey(server)] else null,
             )
         }
     }
 
+    /** UI 列表用：只读缓存工具数（按用户策略过滤），不启动进程、不做禁用清理。 */
+    suspend fun cachedToolCounts(): Map<String, Int> = withContext(Dispatchers.IO) {
+        val policies = toolPolicy?.snapshot().orEmpty()
+        effectiveServers().filter { it.isEnabled }.associate { server -> server.id to (cache[discoveryKey(server)]?.takeIf { it.fingerprint == fingerprint(boundConfig(server)) && it.isFresh() }?.tools?.count { tool -> policies[server.id]?.get(tool.name)?.enabled != false } ?: 0) }
+    }
     /** use_capability 的 inspect 数据源：只读缓存，绝不触发发现/连接。 */
     suspend fun cachedToolsOf(serverId: String): List<McpToolInfo> {
         val server = effectiveServers().firstOrNull { it.id == serverId && it.isEnabled } ?: return emptyList()
-        return cache[discoveryKey(server)]?.takeIf { it.fingerprint == fingerprint(boundConfig(server)) }?.tools.orEmpty()
+        return cache[discoveryKey(server)]?.takeIf { it.fingerprint == fingerprint(boundConfig(server)) && it.isFresh() }?.tools.orEmpty()
     }
-
     /** 按 (serverId, 工具名) 执行；就绪服务首次调用时发现。 */
     suspend fun executeCapabilityTool(
         serverId: String,
@@ -272,6 +279,7 @@ class McpManager(
                 }
                 append("可用 use_capability(action=\"inspect\", server=\"$serverId\") 查看工具清单与参数。")
             }
+        if (toolPolicy?.policyFor(server.id, tool.name)?.enabled == false) return@withContext false to "MCP[${server.name}] 工具 `${tool.name}` 已在设置中禁用，本次调用未执行。"
         cancellableResult { transport(bound).execute(bound, tool.name, arguments) }
             .onFailure { logger.e("MCP[${server.name}] 工具 ${tool.name} 执行异常: ${it.message}", it) }
             .onSuccess { (ok, output) ->
@@ -327,6 +335,7 @@ class McpManager(
             ?: return@withContext false to "未找到 MCP 工具：$fullToolName"
         val server = servers.firstOrNull { it.id == tool.serverId }
             ?: return@withContext false to "未找到 MCP 服务：${tool.serverId}"
+        if (toolPolicy?.policyFor(server.id, tool.name)?.enabled == false) return@withContext false to "MCP[${server.name}] 工具 `${tool.name}` 已在设置中禁用，本次调用未执行。"
         val bound = boundConfig(server, workspace)
         return@withContext cancellableResult { transport(bound).execute(bound, tool.name, arguments) }
             .onFailure { logger.e("MCP[${server.name}] 工具 ${tool.name} 执行异常: ${it.message}", it) }
@@ -353,15 +362,6 @@ class McpManager(
         val scoped = key ?: discoveryKey(McpServerConfig(id, id))
         metadata.retain(scoped) { statuses.update(state, scoped) }
     }
-
-    /** use_capability list 的单服务摘要：不启动进程，工具数为缓存命中数。 */
-    data class EnabledServerSummary(
-        val id: String,
-        val name: String,
-        val cachedToolCount: Int,
-        val connected: Boolean,
-        val processState: McpConnectionState? = null,
-    )
 
     /** 纯读退避剩余时间；过期自然失效，由下一次成功/失败更新。 */
     private fun remainingDiscoveryCooldownMs(serverId: String): Long? =

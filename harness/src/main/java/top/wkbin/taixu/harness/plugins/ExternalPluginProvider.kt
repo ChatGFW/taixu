@@ -19,10 +19,7 @@ internal class ExternalPluginProvider(
             put("messages", Json.encodeToJsonElement(messages))
             put("maxTokens", model.maxTokens?.let(::JsonPrimitive) ?: JsonNull)
             put("temperature", model.temperature?.let(::JsonPrimitive) ?: JsonNull)
-            put("tools", buildJsonArray { model.dynamicMcpTools.forEach { tool ->
-                add(buildJsonObject { put("name", tool.name); put("description", tool.description)
-                    put("parameters", Json.parseToJsonElement(tool.parametersJson)) })
-            } })
+            put("tools", buildJsonArray { })
         }
         require(arguments.toString().toByteArray(Charsets.UTF_8).size <= 240 * 1024) { "外部 Provider 请求过大" }
         val output = invoke(arguments)

@@ -48,10 +48,33 @@ interface GroupDeliveryDao {
     @Query("SELECT EXISTS(SELECT 1 FROM group_members WHERE groupId = :groupId AND botId = :botId)")
     suspend fun deliveryMember(groupId: String, botId: String): Boolean
 
+    @Query(
+        "INSERT OR IGNORE INTO group_message_seq(groupId, nextSeq) " +
+            "SELECT :groupId, COALESCE(MAX(seq), 0) FROM group_messages WHERE groupId = :groupId",
+    )
+    suspend fun ensureSeqRow(groupId: String)
+
+    @Query("UPDATE group_message_seq SET nextSeq = nextSeq + 1 WHERE groupId = :groupId")
+    suspend fun bumpSeq(groupId: String)
+
+    @Query("SELECT nextSeq FROM group_message_seq WHERE groupId = :groupId")
+    suspend fun currentSeq(groupId: String): Long?
+
+    @Query("DELETE FROM group_message_seq WHERE groupId = :groupId")
+    suspend fun deleteSeqRow(groupId: String)
+
+    @Transaction
+    suspend fun nextMessageSeq(groupId: String): Long {
+        ensureSeqRow(groupId)
+        bumpSeq(groupId)
+        return currentSeq(groupId) ?: 1L
+    }
+
     @Transaction
     suspend fun stageGroupDelivery(message: GroupMessageEntity, botIds: List<String>) {
         // A replay of a staged source must not change its recipients or recreate cleared work.
-        if (insertDeliverySource(message) == -1L) return
+        val withSeq = message.copy(seq = nextMessageSeq(message.groupId))
+        if (insertDeliverySource(withSeq) == -1L) return
         botIds.distinct().forEach { botId ->
             if (deliveryMember(message.groupId, botId)) {
                 insertGroupDelivery(GroupDeliveryEntity("${message.id}:$botId", message.id, message.groupId, botId, message.timestamp))
@@ -101,6 +124,7 @@ interface GroupDeliveryDao {
         insertDeliverySource(GroupMessageEntity(
             id = "delivery-status:$id", groupId = receipt.groupId, senderId = "system", senderName = "系统通知",
             senderType = "SYSTEM", content = notice, timestamp = System.currentTimeMillis(), isStreaming = false, delegatedTaskId = null,
+            seq = nextMessageSeq(receipt.groupId),
         ))
     }
 
@@ -114,6 +138,14 @@ interface GroupDeliveryDao {
     @Query("UPDATE group_deliveries SET status = 'cancelled', error = '用户停止或成员已移出' WHERE groupId = :groupId " +
         "AND (:botId IS NULL OR botId = :botId) AND status IN ('pending', 'submitting', 'admitted')")
     suspend fun cancelGroupDeliveries(groupId: String, botId: String? = null)
+
+    @Query(
+        "UPDATE group_messages SET isStreaming = 0, " +
+            "content = CASE WHEN content = '' THEN :notice ELSE content || char(10) || :notice END " +
+            "WHERE isStreaming = 1 AND id NOT LIKE 'delivery-reply:%' " +
+            "AND id NOT IN (SELECT placeholderId FROM group_late_replies WHERE status = 'WATCHING')",
+    )
+    suspend fun settleOrphanStreams(notice: String)
 }
 
 val MIGRATION_61_62 = object : Migration(61, 62) {

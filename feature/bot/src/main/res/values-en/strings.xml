@@ -169,6 +169,10 @@
     <string name="fbot_background_warm">Warm</string>
     <string name="fbot_background_mint">Mint</string>
     <string name="fbot_background_night">Night</string>
+    <string name="fbot_reply_mode">Response order</string>
+    <string name="fbot_reply_mode_admin">Admin first</string>
+    <string name="fbot_reply_mode_all">All members</string>
+    <string name="fbot_reply_mode_hint">Admin first: only the admin answers. All members: members speak in order.</string>
     <string name="fbot_group_disband">Disband group</string>
     <string name="fbot_group_disband_confirm">Disbanding deletes group messages and each Bot’s group-scoped session. This cannot be undone. Continue?</string>
     <string name="fbot_pending_action">%1$d actions need your response</string>

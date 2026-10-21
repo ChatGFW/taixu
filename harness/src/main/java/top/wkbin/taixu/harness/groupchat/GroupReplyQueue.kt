@@ -39,6 +39,15 @@ internal class GroupReplyQueue(private val scope: CoroutineScope) {
         job
     }
 
+    /** Round turns use the same per-(bot, group) lock as pump deliveries, so they never overlap. */
+    suspend fun <T> withLock(groupId: String, key: String, block: suspend () -> T): T {
+        val lock = synchronized(guard) { locks.getOrPut(key) { Mutex() } }
+        return lock.withLock {
+            currentCoroutineContext().ensureActive()
+            block()
+        }
+    }
+
     suspend fun cancel(groupId: String) {
         val pending = synchronized(guard) {
             stopping.add(groupId)

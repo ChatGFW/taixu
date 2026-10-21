@@ -22,6 +22,10 @@ data class Bot(
     val modelVariant: String? = null,
 )
 
+/** 群聊普通消息（无 @）由谁回应。 */
+@Serializable
+enum class GroupReplyMode { ADMIN_FIRST, ALL_MEMBERS }
+
 @Serializable
 data class GroupChat(
     val id: String,
@@ -32,6 +36,7 @@ data class GroupChat(
     val members: List<Bot> = emptyList(),
     /** 群聊聊天背景风格：default / warm / mint / night。 */
     val background: String = "default",
+    val replyMode: GroupReplyMode = GroupReplyMode.ADMIN_FIRST,
 )
 
 /** 可复用的 Bot 成员分组；建群时可按组批量选人。 */
@@ -41,6 +46,14 @@ data class BotMemberGroup(
     val name: String,
     val createdAt: Long,
     val memberIds: List<String> = emptyList(),
+)
+
+/** Bot 会话归属的群聊；用于会话抽屉按群折叠。 */
+@Serializable
+data class BotSessionGroupRef(
+    val sessionId: String,
+    val groupId: String,
+    val groupName: String,
 )
 
 @Serializable
@@ -91,6 +104,8 @@ data class GroupMessage(
     val reactions: List<GroupReaction> = emptyList(),
     val steps: List<GroupToolStep> = emptyList(),
     val reasoning: String = "",
+    /** 群内单调递增序号；用于轮次增量历史与稳定排序。 */
+    val seq: Long = 0,
 )
 
 @Serializable

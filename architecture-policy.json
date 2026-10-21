@@ -44,6 +44,12 @@
       "message": "plugin:api / plugin:runtime 保持平台无关，不依赖 UI、DI、执行后端或业务实现"
     },
     {
+      "id": "plugin-cli-purity",
+      "pattern": "^import\\s+(android|androidx|org\\.koin|okhttp3|io\\.ktor|top\\.wkbin\\.taixu\\.(runtime|harness|ui|core\\.(database|datastore|network|security|tools)))\\.",
+      "modules": ["plugin.cli"],
+      "message": "plugin:cli 只复用纯协议模型，不依赖 Android、DI、执行器或 UI"
+    },
+    {
       "id": "agent-core-purity",
       "pattern": "^import\\s+(android|androidx|okhttp3|io\\.ktor|org\\.koin|top\\.wkbin\\.taixu\\.(core|runtime|ui))\\.",
       "modules": ["harness.core"],
@@ -84,6 +90,10 @@
     { "id": "plugin.ui", "path": "plugin/ui", "requires": ["plugin.api", "plugin.runtime", "feature.components"] },
     {
       "id": "plugin.packages", "path": "plugin/packages", "requires": ["plugin.api", "core.model"],
+      "forbidBuildScript": ["android.library", "koin.android", "androidx.core"]
+    },
+    {
+      "id": "plugin.cli", "path": "plugin/cli", "requires": ["plugin.packages", "core.model"],
       "forbidBuildScript": ["android.library", "koin.android", "androidx.core"]
     },
     {

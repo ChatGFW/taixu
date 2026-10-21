@@ -17,6 +17,7 @@ interface GroupDeliveryRepository {
     suspend fun admitDelivery(id: String, sessionId: String, taskId: String?): Boolean
     suspend fun finishDelivery(id: String, status: String, error: String? = null)
     suspend fun recoverDeliveries()
+    suspend fun recoverOrphanStreams(notice: String = "⚠️ 群聊回复因进程退出中断，结果待核对")
     suspend fun cancelDeliveries(groupId: String)
 }
 
@@ -30,5 +31,6 @@ internal class RoomGroupDeliveryRepository(private val dao: GroupChatDao, privat
     override suspend fun admitDelivery(id: String, sessionId: String, taskId: String?) = dao.admitGroupDelivery(id, sessionId, taskId) == 1
     override suspend fun finishDelivery(id: String, status: String, error: String?) = dao.finishGroupDelivery(id, status, error)
     override suspend fun recoverDeliveries() = dao.recoverGroupDeliveries()
+    override suspend fun recoverOrphanStreams(notice: String) = dao.settleOrphanStreams(notice)
     override suspend fun cancelDeliveries(groupId: String) = dao.cancelGroupDeliveries(groupId)
 }

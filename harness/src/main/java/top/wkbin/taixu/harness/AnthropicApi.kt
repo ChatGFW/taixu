@@ -6,7 +6,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -25,7 +24,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Anthropic Messages API 适配层：把内部统一的 OpenAI 风格 [ApiMessage] 列表
@@ -148,17 +146,9 @@ internal class AnthropicApi(
         val call = okHttpClient.newCall(buildRequest(model, messages, stream = true))
         // 与 ChatApi 一致：取消时立即关闭 socket，保证"停止"秒级生效
         val cancelHandle = coroutineContext[Job]?.invokeOnCompletion(onCancelling = true) { call.cancel() }
-        val firstEventTimeoutMs = ProviderClient.resolveFirstEventTimeoutMs(
-            ProviderClient.estimateApiMessageTokens(messages),
-            reasoningEnabled = model.reasoningMode != ReasoningMode.DISABLED,
-        )
+        val firstEventTimeoutMs = firstEventTimeoutMs(messages, model)
         val firstEventState = AtomicInteger(ProviderClient.FIRST_EVENT_WAITING)
-        val firstEventWatchdog = launch {
-            delay(firstEventTimeoutMs.milliseconds)
-            if (firstEventState.compareAndSet(ProviderClient.FIRST_EVENT_WAITING, ProviderClient.FIRST_EVENT_TIMED_OUT)) {
-                call.cancel()
-            }
-        }
+        val firstEventWatchdog = launch { awaitFirstEventTimeout(firstEventTimeoutMs, firstEventState) { call.cancel() } }
         try {
             call.execute().use { response ->
                 if (!response.isSuccessful) {
@@ -399,7 +389,7 @@ internal class AnthropicApi(
             }
         }
 
-        val dynamicTools = if (model.pureChatMode) emptyList() else ProviderClient.buildDynamicTools()
+        val dynamicTools = if (model.pureChatMode) emptyList() else ProviderClient.buildDynamicTools(model)
         // NATIVE 模式下 tools 数组独立于 messages，输出预算必须显式扣掉 schema
         val toolSchemaTokens =
             if (model.capabilities.nativeTools) {

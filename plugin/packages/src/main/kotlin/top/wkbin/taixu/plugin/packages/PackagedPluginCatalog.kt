@@ -10,6 +10,7 @@ data class PackagedPluginEntry(
     val source: String,
     val installedVersion: String?,
     val state: String,
+    val manifest: ToolManifest,
 )
 
 /** Metadata inventory, separate from the compiled-in page activation controller. */
@@ -18,7 +19,8 @@ object PackagedPluginCatalog {
         val descriptors = manifests.map(PluginPackageProtocol::descriptor)
         require(descriptors.map { it.id }.distinct().size == descriptors.size) { "插件目录身份冲突" }
         return manifests.zip(descriptors).map { (manifest, descriptor) ->
-            PackagedPluginEntry(descriptor, manifest.id, manifest.name, manifest.source, installed[manifest.id], states[manifest.id] ?: "AVAILABLE")
+            PackagedPluginEntry(descriptor, manifest.id, manifest.name, manifest.source, installed[manifest.id],
+                states[manifest.id] ?: "AVAILABLE", manifest)
         }.sortedBy { it.descriptor.id }
     }
 }

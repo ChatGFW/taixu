@@ -327,8 +327,8 @@ fun GroupChatScreen(
                 group = group,
                 deleting = state.deleting,
                 onDismiss = { showInfo = false },
-                onSave = { name, description, background ->
-                    viewModel.updateGroup(name, description, background)
+                onSave = { name, description, background, replyMode ->
+                    viewModel.updateGroup(name, description, background, replyMode)
                     showInfo = false
                 },
                 onDelete = {

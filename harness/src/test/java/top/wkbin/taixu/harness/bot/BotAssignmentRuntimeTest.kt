@@ -170,6 +170,22 @@ class BotAssignmentRuntimeTest {
         assertEquals("frozen-empty-workspace", sessions.findById(task.sessionId!!)!!.executionTargetJson)
     }
 
+    @Test fun `work id groups tasks into one batch while plain dispatch stays single`() = runBlocking {
+        seed()
+        val engine = runtime { _, _, admitted ->
+            admitted(null)
+            GroupTurnOutcome("done", false)
+        }
+        val first = engine.create("member", "group", "chief", "parent", "first", workId = "work")
+        val second = engine.create("member", "group", "chief", "parent", "second", workId = "work")
+        assertEquals("work", first.batchId)
+        assertEquals("work", second.batchId)
+        assertEquals(2, engine.batchSize("work"))
+        assertEquals(2, tasks.getBatch("work")!!.revision)
+        val loose = engine.create("member", "group", "chief", "parent", "third")
+        assertNull(loose.batchId)
+    }
+
     private class FakeControl : SessionControl {
         override val currentSessionId = MutableStateFlow("parent")
         override val sessionRunStates = MutableStateFlow<Map<String, SessionRunState>>(emptyMap())

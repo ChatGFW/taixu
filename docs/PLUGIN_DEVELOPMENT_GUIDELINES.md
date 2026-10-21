@@ -89,7 +89,7 @@ my-plugin.txplugin
 
 | 字段 | 当前约束 |
 | --- | --- |
-| `schemaVersion` | 当前必须为 `1`。 |
+| `schemaVersion` | v1 必须为 `1`；v2 必须为 `2` 并声明 `plugin`（见 [v2 包协议](PLUGIN_PACKAGE_V2.md)）。 |
 | `id` | 正则为 `[a-z0-9][a-z0-9-]{1,63}`，长度 2～64。 |
 | `version` | 必须非空；建议使用规范 `x.y.z`。 |
 | `architectures` | 必须包含 `ARM64`，不区分大小写。 |
@@ -274,6 +274,26 @@ zip -r ../hello-arm64.txplugin manifest.json payload
 - 相同 `id` 的不同版本目前会在应用私有目录中共存，不会删除旧版本。
 - 新导入版本通过原子 `active-version` 指针选中；旧目录无指针时优先按 SemVer 选择（支持 `1.0.9` / `1.0.10`），历史非 SemVer 包保留字符串回退。指针损坏时拒绝猜测其它版本。
 - 选择新版本并确认后，当前 UI 会连续完成导入和安装，不需要再点击第二次“安装”。
+
+### v2 作者 CLI
+
+`plugin:cli` 复用宿主的 `PluginPackageProtocol`，只处理 `schemaVersion=2` 的工程目录，不执行安装脚本，也不访问模型 API。工程约定为 `manifest.json` + `payload/`。
+
+```powershell
+$env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"
+.\gradlew.bat :plugin:cli:installDist --console=plain
+
+plugin\cli\build\install\taixu-plugin\bin\taixu-plugin.bat check .\my-plugin
+plugin\cli\build\install\taixu-plugin\bin\taixu-plugin.bat pack .\my-plugin --write-manifest
+plugin\cli\build\install\taixu-plugin\bin\taixu-plugin.bat inspect .\dist\my-plugin-1.0.0.txplugin
+```
+
+Linux/macOS 使用 `./gradlew :plugin:cli:installDist`，脚本位于 `plugin/cli/build/install/taixu-plugin/bin/taixu-plugin`。
+
+- `check`：校验 v2 清单、API/SemVer、能力/资源、payload 文件集合与全部 SHA-256；PROCESS 按 1 MiB 清单、8 GiB、20,001 条目检查，WEB 额外按 63 文件、2 MiB payload、3 MiB 归档、129 条目检查。
+- `pack`：按 payload 重新计算 `plugin.integrity` 并写入归档；默认输出 `dist/<id>-<version>.txplugin`，可用 `--output` 指定。`--write-manifest` 同时把计算结果写回工程清单。条目排序与时间戳固定，同一工程可复现相同字节。
+- `inspect`：重新扫描 `.txplugin`，核对根布局、重复条目、路径穿越、大小/条目上限与全部哈希，适合作为发布前或 CI 门禁。
+- CLI 不会替代真机安装、PRoot 运行或 WebView 验收；它只保证包结构与清单在宿主导入规则下自洽。
 
 ## 10. Web/Service 插件
 

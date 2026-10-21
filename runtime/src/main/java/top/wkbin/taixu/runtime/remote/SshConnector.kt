@@ -18,10 +18,12 @@ fun interface SshConnectionTester {
     suspend fun test(server: RemoteServer, credentials: SshCredentials)
 }
 
-class SshConnector : SshConnectionTester {
+class SshConnector(
+    private val userEnvironment: suspend () -> Map<String, String> = { emptyMap() },
+) : SshConnectionTester {
     suspend fun openEnvironment(server: RemoteServer, credentials: SshCredentials, id: top.wkbin.taixu.runtime.environment.ExecutionEnvironmentId, logicalWorkspace: String = "/workspace"): top.wkbin.taixu.runtime.environment.ExecutionEnvironment {
         val session = connect(server, credentials)
-        try { return SshExecutionEnvironment(server, session, id, credentials, logicalWorkspace) }
+        try { return SshExecutionEnvironment(server, session, id, credentials, logicalWorkspace, userEnvironment = userEnvironment) }
         catch (t: Throwable) { session.disconnect(); throw t }
     }
     internal suspend fun connect(server: RemoteServer, credentials: SshCredentials): Session = withContext(Dispatchers.IO) {

@@ -10,7 +10,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,8 +39,6 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -65,6 +62,7 @@ internal fun GroupPixelOffice(
     tasks: List<OfficeBoardTask> = emptyList(),
     boardThought: String? = null,
     links: List<OfficeReportLink> = emptyList(),
+    handoffs: List<OfficeWalkHandoff> = emptyList(),
     focus: OfficeFocusRequest? = null,
     onOpenBoard: () -> Unit = {},
     celebrating: Set<String> = emptySet(),
@@ -74,6 +72,7 @@ internal fun GroupPixelOffice(
     val sceneActors = remember(actors) {
         actors.map { it.copy(y = PixelOfficeScene.y(it.y.toFloat()).roundToInt()) }
     }
+    val handoffState = remember(handoffs, sceneActors) { officeHandoffState(handoffs, sceneActors) }
     var lobbyPetAt by remember { mutableLongStateOf(0L) }
     var sofaPetAt by remember { mutableLongStateOf(0L) }
     var brewAt by remember { mutableLongStateOf(0L) }
@@ -167,6 +166,7 @@ internal fun GroupPixelOffice(
                 OfficeReportLinksLayer(
                     links = links,
                     actors = sceneActors,
+                    walkingTaskIds = handoffState.taskIds,
                     originX = panX.roundToInt(),
                     originY = panY.roundToInt(),
                     scale = scale,
@@ -174,6 +174,7 @@ internal fun GroupPixelOffice(
                 )
             }
             sceneActors.sortedBy { it.y }.forEach { actor ->
+                if (actor.botId in handoffState.courierIds) return@forEach
                 key(actor.botId) {
                     OfficeActorSprite(
                         actor = actor,
@@ -196,6 +197,17 @@ internal fun GroupPixelOffice(
                     )
                 }
             }
+            if (handoffState.handoffs.isNotEmpty()) {
+                OfficeHandoffLayer(
+                    handoffs = handoffState.handoffs,
+                    actors = sceneActors,
+                    recipes = recipes,
+                    originX = panX.roundToInt(),
+                    originY = panY.roundToInt(),
+                    scale = scale,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
             OfficeTapTarget(
                 x = 74f, y = 51f, w = 16f, h = 10f,
                 originX = panX, originY = panY, scale = scale,
@@ -209,7 +221,7 @@ internal fun GroupPixelOffice(
                 onClick = { sofaPetAt = SystemClock.uptimeMillis() },
             )
             OfficeTapTarget(
-                x = 118f, y = 191f, w = 22f, h = 24f,
+                x = 148f, y = 328f, w = 24f, h = 24f,
                 originX = panX, originY = panY, scale = scale,
                 tag = "office-coffee-machine", label = brewLabel,
                 onClick = { brewAt = SystemClock.uptimeMillis() },
@@ -235,40 +247,6 @@ internal fun GroupPixelOffice(
     }
 }
 
-/** Invisible room-space hit target for the cat and the coffee machine easter eggs. */
-@Composable
-private fun OfficeTapTarget(
-    x: Float,
-    y: Float,
-    w: Float,
-    h: Float,
-    originX: Float,
-    originY: Float,
-    scale: Float,
-    tag: String,
-    label: String,
-    onClick: () -> Unit,
-) {
-    val density = LocalDensity.current
-    Box(
-        Modifier
-            .offset {
-                IntOffset(
-                    (originX + x * scale).roundToInt(),
-                    (originY + PixelOfficeScene.y(y) * scale).roundToInt(),
-                )
-            }
-            .size(roomDp(w, scale, density), roomDp(h, scale, density))
-            .testTag(tag)
-            .semantics { contentDescription = label }
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
-    )
-}
-
 @Composable
 private fun OfficeActorSprite(
     actor: OfficeActor,
@@ -289,9 +267,12 @@ private fun OfficeActorSprite(
     val y by animateIntAsState(actor.y, tween(700), label = "office-y-${actor.botId}")
     val offset = officeFrameOffset(actor.botId)
     val localFrame = (frame + offset) % 3
-    val yawn = actor.state == BotAvatarState.IDLE && (yawnSlot + offset) % 8 == 7
+    val yawn = actor.state == BotAvatarState.IDLE &&
+        ((yawnSlot + offset) % 8 == 7 || actor.idleAction == OfficeIdleAction.DOZE)
     val waiting = actor.waitSeconds != null
-    val image = PixelOfficeFrames.bitmap(recipe, actor.pose, actor.state, localFrame, waiting, yawn)
+    val image = PixelOfficeFrames.bitmap(
+        recipe, actor.pose, actor.state, localFrame, waiting, yawn, actor.idleAction,
+    )
     val mood = PixelOfficeMood.image(actor.state, localFrame, waiting, yawn)
     val density = LocalDensity.current
     val left = originX + ((x - PixelOfficeSprite.WORLD_WIDTH / 2f) * scale).roundToInt()

@@ -290,6 +290,8 @@ fun AgentSettingsScreen(
                         onValueChange = { arg0 -> viewModel?.setBaseCommandTimeoutSeconds(arg0) },
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    FirstResponseTimeoutRow()
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     RoundsSliderRow(
                         currentValue = maxToolRounds,
                         onValueChange = { arg0 -> viewModel?.setMaxToolRounds(arg0) },
@@ -777,45 +779,6 @@ fun AgentSettingsScreen(
             dismissButton = {
                 TextButton(onClick = { deletingSubagent = null }) { Text("取消") }
             },
-        )
-    }
-}
-
-@Composable
-private fun RoundsSliderRow(
-    currentValue: Int,
-    onValueChange: (Int) -> Unit,
-) {
-    var sliderVal by remember(currentValue) { mutableFloatStateOf(currentValue.toFloat()) }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("单回合最大工具轮次上限", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-            Text(
-                "${sliderVal.toInt()} 轮",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-        Text(
-            "防止复杂任务中模型陷入死循环；达到轮次后进入下方的自动续跑检查点",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Slider(
-            value = sliderVal,
-            onValueChange = { sliderVal = it },
-            onValueChangeFinished = { onValueChange(sliderVal.toInt()) },
-            valueRange = 10f..300f,
-            steps = 28, // 10, 20, 30 ... 300
         )
     }
 }

@@ -160,6 +160,7 @@ fun ChatScreen(
     val scratchpads by viewModel?.scratchpads?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val mcpServers by viewModel?.mcpServers?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val mcpConnectionStates by viewModel?.mcpConnectionStates?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val mcpToolCounts by viewModel?.mcpToolCounts?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
     val initializing by viewModel?.initializing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val speech = rememberChatSpeech(currentSessionId, messages, running, initializing)
     val pendingApprovals by viewModel?.pendingApprovals?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
@@ -170,7 +171,6 @@ fun ChatScreen(
     val attachmentsProcessing by viewModel?.attachmentsProcessing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val notice by viewModel?.notice?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val subagentResult by viewModel?.subagentResult?.collectAsStateWithLifecycle() ?: previewStateOf(null)
-
     // 弹窗开关与编辑目标：用 rememberSaveable 保存，旋转 / 进程重建后不丢失
     var showModels by rememberSaveable { mutableStateOf(false) }; var showApprovalModes by rememberSaveable { mutableStateOf(false) }
     var showRunModes by rememberSaveable { mutableStateOf(false) }; var showSkillsMcpSheet by rememberSaveable { mutableStateOf(false) }
@@ -183,7 +183,6 @@ fun ChatScreen(
     val editTargetMessage = remember(messages, editTargetMessageId) {
         messages.filterIsInstance<UserMessage>().firstOrNull { it.id == editTargetMessageId }
     }
-
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
@@ -527,6 +526,7 @@ fun ChatScreen(
             allSkills = allSkills,
             mcpServers = mcpServers,
             mcpConnectionStates = mcpConnectionStates,
+            mcpToolCounts = mcpToolCounts,
             pinnedMentionIds = pinnedMentionIds,
             onDismiss = { showSkillsMcpSheet = false },
             onToggleSkill = { id, enabled ->

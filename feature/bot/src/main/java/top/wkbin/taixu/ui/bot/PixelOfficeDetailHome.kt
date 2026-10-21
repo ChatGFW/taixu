@@ -54,7 +54,6 @@ internal fun PixelOfficeDetail.Painter.lounge() {
     r(121, 326, 3, 3, 0xF3D36B)
     r(104, 324, 22, 0.4, 0xFFF8EE)
     r(102, 322, 0.5, 19, 0xB99B76)
-    plant(129, 356)
     shelf(146, 386, 35, 22)
     for (i in 0..6) {
         r(6 + i * 5, 398 + i * 5, 26, 2, 0x7A6C60)

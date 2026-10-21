@@ -49,7 +49,7 @@ import top.wkbin.taixu.core.model.McpAuthMode
  * - 会话按服务 id 复用，一次握手（initialize + notifications/initialized）后所有请求直接复用；
  * - 自动协商：URL 以 /sse 结尾优先尝试 legacy SSE，否则先试 Streamable HTTP，失败回落另一种；
  * - initialize/tools-list 等只读发现请求遇到传输故障时允许重建并重试一次；
- * - tools/call 永不自动重试，响应丢失时返回不确定结果，避免重复执行副作用。
+ * - tools/call 仅在 401/403（OAuth 模式）刷新令牌后重试一次；响应丢失等传输故障不重试，避免重复执行副作用。
  */
 class McpHttpTransport(
     client: OkHttpClient,
@@ -119,24 +119,43 @@ class McpHttpTransport(
         withContext(Dispatchers.IO) {
             val session = ensureSession(server)
             try {
-                val params = json.encodeToJsonElement(
-                    McpCallToolParams.serializer(),
-                    McpCallToolParams(toolName, arguments),
-                )
-                val response = exchange(session, "tools/call", params)
-                val result = response.result?.let { json.decodeFromJsonElement(McpCallToolResult.serializer(), it) }
-                    ?: error("MCP tools/call did not return a result")
-                !result.isError to result.content.joinToString("\n") { it.text.orEmpty() }
-                    .ifBlank { if (result.isError) "执行失败" else "执行成功" }
+                callTool(session, toolName, arguments)
             } catch (t: Throwable) {
                 if (t is CancellationException) throw t
-                if (isTransportFailure(t)) {
-                    dropSession(server.id, session)
+                if (!isTransportFailure(t)) throw t
+                dropSession(server.id, session)
+                if (t is McpHttpStatusException && t.statusCode in setOf(401, 403) &&
+                    server.authMode == McpAuthMode.OAUTH
+                ) {
+                    // 401/403 表示请求在执行前被拒绝，刷新令牌后重试不会重复副作用；
+                    // 其他传输故障（响应丢失）仍不重试 tools/call。
+                    logger.w("MCP[${server.name}] tools/call 认证失效（HTTP ${t.statusCode}），刷新令牌后重试一次")
+                    oauthTokens?.forceRefresh(server.id)
+                    val retrySession = ensureSession(server)
+                    try {
+                        callTool(retrySession, toolName, arguments)
+                    } catch (retry: Throwable) {
+                        if (retry is CancellationException) throw retry
+                        if (isTransportFailure(retry)) dropSession(server.id, retrySession)
+                        throw retry
+                    }
+                } else {
                     throw IOException("MCP 工具响应丢失；为避免副作用重复，未自动重试 tools/call", t)
                 }
-                throw t
             }
         }
+
+    private suspend fun callTool(session: HttpSession, toolName: String, arguments: JsonObject): Pair<Boolean, String> {
+        val params = json.encodeToJsonElement(
+            McpCallToolParams.serializer(),
+            McpCallToolParams(toolName, arguments),
+        )
+        val response = exchange(session, "tools/call", params)
+        val result = response.result?.let { json.decodeFromJsonElement(McpCallToolResult.serializer(), it) }
+            ?: error("MCP tools/call did not return a result")
+        return !result.isError to result.content.joinToString("\n") { it.text.orEmpty() }
+            .ifBlank { if (result.isError) "执行失败" else "执行成功" }
+    }
 
     // ---------- 会话管理 ----------
 
@@ -648,39 +667,4 @@ class McpHttpTransport(
         private const val FAILURE_COOLDOWN_MS = 5 * 60_000L
         private val JSON = "application/json".toMediaType()
     }
-}
-
-/**
- * 解析内置 browser server 的"实际"URL：仅当日标服务是内置 browser 且已绑定运行时端口时，
- * 用运行时端口替换静态预设 URL 里的首选端口；否则原样返回。纯函数，便于对端口顺延做回归测试。
- *
- * 这是"发现与调用分离"的分界：provider 可见工具 schema（[top.wkbin.taixu.harness.mcp.server.McpToolDispatcher.listTools]）
- * 不含任何端口，真实端口只在 tools/call 连接阶段经此解析注入，因此绑定端口变化不改变 provider 可见表面。
- */
-internal fun resolveBrowserEffectiveUrl(serverUrl: String, serverId: String, runtimePort: Int?): String {
-    if (runtimePort == null) return serverUrl
-    if (serverId != BuiltinMcpPresets.BROWSER_BUILTIN_ID) return serverUrl
-    return serverUrl.replace(Regex("^(https?://[^/:]+):\\d+"), "$1:$runtimePort")
-}
-
-internal fun isAllowedCleartextMcpHost(host: String): Boolean {
-    if (host == "localhost" || host == "127.0.0.1" || host == "::1") return true
-    val octets = host.split('.')
-    if (octets.size != 4 || octets[0] != "192" || octets[1] != "168") return false
-    return octets.all { it.toIntOrNull()?.let { value -> value in 0..255 } == true }
-}
-
-internal fun validatedMcpHttpEndpoint(baseUrl: String): HttpUrl {
-    val url = baseUrl.trim().toHttpUrl()
-    require(url.isHttps || isAllowedCleartextMcpHost(url.host)) {
-        "明文 MCP 仅允许 localhost、回环地址或 192.168.* 局域网地址"
-    }
-    return url
-}
-
-internal fun validatedDerivedMcpEndpoint(base: HttpUrl, resolved: HttpUrl): HttpUrl {
-    require(base.scheme == resolved.scheme && base.host == resolved.host && base.port == resolved.port) {
-        "MCP SSE endpoint 必须与初始服务同源"
-    }
-    return validatedMcpHttpEndpoint(resolved.toString())
 }

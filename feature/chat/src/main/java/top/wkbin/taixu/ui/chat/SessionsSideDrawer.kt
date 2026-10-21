@@ -8,11 +8,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -45,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.model.SessionRunState
+import top.wkbin.taixu.core.model.bot.BotSessionGroupRef
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.WorkspaceProject
@@ -68,6 +67,9 @@ internal fun SessionsSideDrawer(
     visible: Boolean,
     sessions: List<HarnessSessionEntity>,
     botSessions: List<HarnessSessionEntity> = emptyList(),
+    botSessionGroups: Map<String, BotSessionGroupRef> = emptyMap(),
+    hiddenBotSessionIds: Set<String> = emptySet(),
+    onHideBotSession: (String, Boolean) -> Unit = { _, _ -> },
     currentSessionId: String,
     workspaces: List<WorkspaceProject>,
     sessionRunStates: Map<String, SessionRunState>,
@@ -89,14 +91,20 @@ internal fun SessionsSideDrawer(
     var projectsExpanded by rememberSaveable { mutableStateOf(true) }
     // Search reveals matching projects without overwriting the user's normal collapsed state.
     var searchProjectsExpanded by rememberSaveable(query.isNotBlank()) { mutableStateOf(true) }
-    val (partition, botMatches) = remember(sessions, botSessions, workspaces, query) {
+    val (partition, botMatches) = remember(sessions, botSessions, botSessionGroups, hiddenBotSessionIds, workspaces, query) {
         val term = query.trim()
         fun HarnessSessionEntity.matches() = term.isEmpty() ||
             title.contains(term, ignoreCase = true) || workspace.contains(term, ignoreCase = true)
         val filtered = sessions.filter { it.matches() }
         val result = partitionSessions(filtered, workspaces)
-        val bots = botSessions.filter { it.matches() }.sortedByDescending { it.updatedAt }
+        val bots = botSessions.filter { it.matches() && it.id !in hiddenBotSessionIds }
+            // 私有/独立会话默认不进抽屉（Bot 详情页可直达），搜索时才作为历史入口出现。
+            .filter { term.isNotEmpty() || it.id in botSessionGroups }
+            .sortedByDescending { it.updatedAt }
         (if (term.isEmpty()) result else result.copy(projectGroups = result.projectGroups.filter { it.sessions.isNotEmpty() })) to bots
+    }
+    val hiddenBotSessions = remember(botSessions, hiddenBotSessionIds) {
+        botSessions.filter { it.id in hiddenBotSessionIds }.sortedByDescending { it.updatedAt }
     }
     var expandedProjects by rememberSaveable {
         val initialExpanded = partition.projectGroups
@@ -104,6 +112,18 @@ internal fun SessionsSideDrawer(
             .map { it.workspacePath }
             .toSet()
         mutableStateOf(initialExpanded)
+    }
+    val attentionSessions = remember(sessions, botSessions, sessionRunStates) {
+        (sessions + botSessions)
+            .filter {
+                sessionRunStates[it.id] == SessionRunState.WAITING_APPROVAL ||
+                    sessionRunStates[it.id] == SessionRunState.FAILED
+            }
+            .sortedWith(
+                compareByDescending<HarnessSessionEntity> {
+                    sessionRunStates[it.id] == SessionRunState.WAITING_APPROVAL
+                }.thenByDescending { it.updatedAt },
+            )
     }
 
     Surface(
@@ -129,6 +149,13 @@ internal fun SessionsSideDrawer(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (query.isBlank() && attentionSessions.isNotEmpty()) {
+                    SessionAttentionBanner(
+                        count = attentionSessions.size,
+                        firstTitle = attentionSessions.first().title,
+                        onOpen = { onSwitch(attentionSessions.first().id) },
+                    )
                 }
                 if (query.isBlank() || partition.projectGroups.isNotEmpty()) {
                     ProjectSection(
@@ -165,12 +192,14 @@ internal fun SessionsSideDrawer(
                 if (botMatches.isNotEmpty()) {
                     BotSessionsSection(
                         botSessions = botMatches,
+                        groupRefs = botSessionGroups,
                         currentSessionId = currentSessionId,
                         sessionRunStates = sessionRunStates,
-                        forceExpanded = query.isNotBlank(),
+                        searchActive = query.isNotBlank(),
                         onSwitch = onSwitch,
                         onRename = { id -> renameTargetId = id },
                         onDelete = { id -> deleteTargetId = id },
+                        onHide = onHideBotSession,
                     )
                 }
 
@@ -185,7 +214,7 @@ internal fun SessionsSideDrawer(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                if (hiddenBotSessions.isNotEmpty()) HiddenSessionsEntry(hiddenBotSessions, onRestore = onHideBotSession)
             }
             SessionDrawerFooter(sessions.size, onSettings, navigationContent)
         }
@@ -292,6 +321,7 @@ private fun RecentSection(
 internal fun SessionDrawerItem(
     session: HarnessSessionEntity, isCurrent: Boolean, runState: SessionRunState,
     onSwitch: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit,
+    onHide: (() -> Unit)? = null,
 ) {
     var showMenu by remember(session.id) { mutableStateOf(false) }
     val moreLabel = stringResource(R.string.chat_more_controls)
@@ -348,6 +378,13 @@ internal fun SessionDrawerItem(
                         leadingIcon = { RuntimeIcon(RuntimeIconName.Edit, Modifier.size(18.dp)) },
                         onClick = { showMenu = false; onRename() },
                     )
+                    if (onHide != null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_hide_session)) },
+                            leadingIcon = { RuntimeIcon(RuntimeIconName.VisibilityOff, Modifier.size(18.dp)) },
+                            onClick = { showMenu = false; onHide() },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.chat_delete_session), color = MaterialTheme.colorScheme.error) },
                         leadingIcon = { RuntimeIcon(RuntimeIconName.Trash, Modifier.size(18.dp), MaterialTheme.colorScheme.error) },

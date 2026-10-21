@@ -9,6 +9,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -212,6 +213,82 @@ class McpStdioTransportLifecycleTest {
             "迟到响应所在连接必须被丢弃，避免后续调用复用可能已产生副作用的会话",
             transport.test_connectionKeys().isEmpty(),
         )
+    }
+
+    @Test
+    fun `read-only request timeout keeps the connection and sends cancellation`() = runBlocking {
+        val channel = HangingAfterInitChannel()
+        val transport = newTransport(FakeChannelFactory(channel))
+        transport.injectConnection(echoServer, channel)
+        transport.requestTimeoutOverrideMs = 150L
+
+        val failure = withTimeoutOrNull(5_000L) {
+            runCatching { transport.discover(echoServer) }.exceptionOrNull()
+        }
+        assertNotNull("discover must fail with a timeout", failure)
+        assertTrue(
+            "read-only timeout must not discard a healthy multiplexed session",
+            transport.test_connectionKeys().contains(echoServer.id),
+        )
+        assertEquals("timed-out waiter must be removed from the pending table", 0, transport.test_pendingCount(echoServer.id))
+        val cancelled = withTimeoutOrNull(2_000L) { channel.cancelled.await() }
+        assertNotNull("client must send notifications/cancelled", cancelled)
+        assertTrue(cancelled!!.contains("notifications/cancelled"))
+    }
+
+    @Test
+    fun `tools call timeout still discards the connection`() = runBlocking {
+        val channel = HangingAfterInitChannel()
+        val transport = newTransport(FakeChannelFactory(channel))
+        transport.injectConnection(echoServer, channel)
+        transport.requestTimeoutOverrideMs = 150L
+
+        val failure = withTimeoutOrNull(5_000L) {
+            runCatching { transport.execute(echoServer, "slow", JsonObject(emptyMap())) }.exceptionOrNull()
+        }
+        assertNotNull("tools/call must fail with a timeout", failure)
+        assertTrue(
+            "side-effecting call timeout must discard the connection",
+            transport.test_connectionKeys().isEmpty(),
+        )
+    }
+
+    @Test
+    fun `tools list changed notification emits catalog change`() = runBlocking {
+        val channel = FakeMcpChannel(aliveAfterOpen = true)
+        val transport = newTransport(FakeChannelFactory(channel))
+        transport.injectConnection(echoServer, channel)
+        val received = CompletableDeferred<String>()
+        val job = launch { transport.toolListChanged.collect { received.complete(it) } }
+        delay(100) // 等收集器订阅完成，避免无订阅时发出的通知被 SharedFlow 丢弃
+
+        channel.incoming.send("""{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}""")
+        assertEquals(echoServer.id, withTimeoutOrNull(2_000L) { received.await() })
+        job.cancelAndJoin()
+    }
+
+    /** initialize 正常响应、其余请求永不响应：验证只读超时与 tools/call 超时的分流。 */
+    private class HangingAfterInitChannel : McpStdioChannel {
+        override val incoming: Channel<String> = Channel(Channel.UNLIMITED)
+        @Volatile private var alive = true
+        override val isAlive: Boolean get() = alive
+        val cancelled = CompletableDeferred<String>()
+
+        override suspend fun writeLine(line: String) {
+            if ("notifications/cancelled" in line) {
+                cancelled.complete(line)
+                return
+            }
+            val id = Regex("\\\"id\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"").find(line)?.groupValues?.get(1) ?: return
+            if ("\"method\":\"initialize\"" in line) {
+                incoming.send("{\"jsonrpc\":\"2.0\",\"id\":\"$id\",\"result\":{\"protocolVersion\":\"$MCP_PROTOCOL_VERSION\"}}")
+            }
+        }
+
+        override suspend fun close() {
+            alive = false
+            incoming.close()
+        }
     }
 
     /** tools/call 响应被门禁扣住的多路复用测试通道：其余请求即时回应。 */

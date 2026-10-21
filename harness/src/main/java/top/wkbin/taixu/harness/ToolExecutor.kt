@@ -9,9 +9,11 @@ import top.wkbin.taixu.harness.directory.CapabilityToolGateway
 import top.wkbin.taixu.harness.directory.ScriptCallInterrupted
 import top.wkbin.taixu.harness.directory.ScriptCapabilityDispatcher
 import top.wkbin.taixu.harness.directory.annotationsForCall
+import top.wkbin.taixu.harness.approval.applyMcpRiskOverride
 import top.wkbin.taixu.harness.events.HarnessEvent
 import top.wkbin.taixu.harness.events.HarnessEventBus
 import top.wkbin.taixu.harness.mcp.McpManager
+import top.wkbin.taixu.harness.mcp.McpToolCallPolicy
 import top.wkbin.taixu.harness.validation.ToolSchemaValidator
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.core.datastore.AgentPreferences
@@ -64,6 +66,7 @@ class ToolExecutor(
     private val approvalRepository: AgentApprovalRepository? = null,
     private val sessionDao: HarnessSessionRepository? = null,
     private val mcpManager: McpManager? = null,
+    private val mcpToolPolicy: McpToolCallPolicy? = null,
     private val eventBus: HarnessEventBus? = null,
     private val checkpointStore: CheckpointStore? = null,
     private val sessionApprovalGrants: SessionApprovalGrants? = null,
@@ -173,15 +176,17 @@ class ToolExecutor(
                         )
                     }
                 }
-                val decision = approvalPolicyEngine.decide(
-                    mode, toolCall.tool, toolCall.args, workspace, toolCall.rawToolName,
-                    // MCP 注解升级（escalation-only）：只采信服务端显式声明抬高审批等级，
-                    // 未缓存/非 MCP 调用为 null，行为与旧版完全一致。
-                    annotations = if (toolCall.tool == HarnessTool.MCP) {
-                        mcpManager.annotationsForCall(toolCall.args, toolCall.rawToolName)
-                    } else {
-                        null
-                    },
+                val mcpCall = if (toolCall.tool == HarnessTool.MCP) {
+                    mcpToolPolicy?.resolve(toolCall.args, toolCall.rawToolName)
+                } else null
+                if (mcpCall?.enabled == false) return mcpCall.disabledResult(toolCall, now)
+                val annotations = mcpCall?.tool?.annotations ?: if (toolCall.tool == HarnessTool.MCP) {
+                    mcpManager.annotationsForCall(toolCall.args, toolCall.rawToolName)
+                } else null
+                val decision = applyMcpRiskOverride(
+                    approvalPolicyEngine.decide(mode, toolCall.tool, toolCall.args, workspace, toolCall.rawToolName, annotations = annotations),
+                    mcpCall?.riskOverride,
+                    annotations,
                 )
                 // 「本会话内记住」授权表豁免：用户此前对该操作类别批准过并勾选了记住，
                 // 同类后续操作免审批直接执行。表只存内存、随会话销毁，无永久授权；

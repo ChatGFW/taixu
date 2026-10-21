@@ -87,18 +87,20 @@ internal object PixelOfficeRoom {
         fun workFloor() {
             workstation(18, 214, SCREEN_A)
             workstation(62, 214, SCREEN_B)
+            workstation(116, 214, SCREEN_C)
+            workstation(156, 214, SCREEN_A)
             workstation(18, 262, SCREEN_C)
             workstation(62, 262, SCREEN_A)
+            workstation(116, 262, SCREEN_B)
+            workstation(156, 262, SCREEN_C)
             plant(96, 236)
-            coffeeBar(116, 214)
         }
 
         fun restFloor() {
             sofa(14, 352)
             table(74, 368)
             bean(108, 360)
-            poster(150, 328)
-            plant(168, 360)
+            plant(134, 356)
             stairs(8, 400)
         }
 

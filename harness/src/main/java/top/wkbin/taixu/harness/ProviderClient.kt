@@ -9,7 +9,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -26,6 +25,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 import top.wkbin.taixu.harness.mcp.McpToolApiName
+import top.wkbin.taixu.harness.mcp.toApiToolDefinition
 import java.net.URI
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.buildJsonArray
@@ -110,17 +110,9 @@ internal class ChatApi(
         val cancelHandle = coroutineContext[Job]?.invokeOnCompletion(onCancelling = true) { call.cancel() }
         // source.timeout() 只有收到 HTTP 响应头后才生效。看门狗覆盖 DNS、连接、请求体上传、
         // 等待响应头以及首个 SSE 事件的完整阶段，避免大请求仍静默等满 callTimeout。
-        val firstEventTimeoutMs = ProviderClient.resolveFirstEventTimeoutMs(
-            ProviderClient.estimateApiMessageTokens(messages),
-            reasoningEnabled = model.reasoningMode != ReasoningMode.DISABLED,
-        )
+        val firstEventTimeoutMs = firstEventTimeoutMs(messages, model)
         val firstEventState = AtomicInteger(ProviderClient.FIRST_EVENT_WAITING)
-        val firstEventWatchdog = launch {
-            delay(firstEventTimeoutMs)
-            if (firstEventState.compareAndSet(ProviderClient.FIRST_EVENT_WAITING, ProviderClient.FIRST_EVENT_TIMED_OUT)) {
-                call.cancel()
-            }
-        }
+        val firstEventWatchdog = launch { awaitFirstEventTimeout(firstEventTimeoutMs, firstEventState) { call.cancel() } }
         try {
             call.execute().use { response ->
                 if (!response.isSuccessful) {
@@ -356,7 +348,7 @@ internal class ChatApi(
     }
 
     private fun buildRequest(model: ModelConfig, messages: List<ApiMessage>, stream: Boolean, includeUsage: Boolean = true): Request {
-            val tools = if (model.pureChatMode) emptyList() else ProviderClient.buildDynamicTools()
+            val tools = if (model.pureChatMode) emptyList() else ProviderClient.buildDynamicTools(model)
         // JSON_TEXT 模式：把工具 JSON 描述追加到首条 system 消息末尾，让模型在纯文本中输出工具调用。
         // 只注入首条：压缩摘要层也是 system 消息，全量注入会把数千 token 的工具 schema 复制多份，
         // 还把 JSON 定义拼在「早期历史摘要」末尾污染摘要语义（Anthropic/Responses 路径本就只注入一次）。
@@ -666,13 +658,12 @@ class ProviderClient internal constructor(
         internal const val FIRST_EVENT_RECEIVED = 1
         internal const val FIRST_EVENT_TIMED_OUT = 2
 
-        /** 隐藏推理放宽首事件等待；关闭推理时按输入规模预留 Prefill 时间。 */
-        internal fun resolveFirstEventTimeoutMs(estimatedTokens: Int, reasoningEnabled: Boolean = false): Long = when {
-            reasoningEnabled -> REASONING_STREAM_WAIT_MS
-            estimatedTokens > 80_000 -> 240_000L
-            estimatedTokens > 40_000 -> 150_000L
-            else -> FIRST_STREAM_EVENT_TIMEOUT_MS
-        }
+        /** 隐藏推理放宽首事件等待；关闭推理时按输入规模预留 Prefill 时间。配置值只抬高下限。 */
+        internal fun resolveFirstEventTimeoutMs(
+            estimatedTokens: Int,
+            reasoningEnabled: Boolean = false,
+            configuredBaseMs: Long = FIRST_STREAM_EVENT_TIMEOUT_MS,
+        ): Long = FirstResponseWait.resolve(estimatedTokens, reasoningEnabled, configuredBaseMs)
 
         internal fun estimateApiMessageTokens(messages: List<ApiMessage>): Int =
             ContextWindowPolicy.estimateApiMessages(messages)
@@ -1082,12 +1073,10 @@ class ProviderClient internal constructor(
             ),
         )
 
-        /**
-         * 组装静态基础工具（含 use_capability 统一代理）。
-         * MCP 工具 schema 不再进入 provider 可见面：模型经 use_capability 的
-         * list/inspect 发现能力、call 调用；服务器清单变化不再击穿前缀缓存。
-         */
-        fun buildDynamicTools(): List<ApiToolDefinition> = TOOLS
+        /** 静态基础工具 + 会话内 @ 挂载的 MCP 工具；挂载集合由调用方保持稳定排序。 */
+        fun buildDynamicTools(model: ModelConfig): List<ApiToolDefinition> =
+            if (model.dynamicMcpTools.isEmpty()) TOOLS
+            else TOOLS + model.dynamicMcpTools.map { it.toApiToolDefinition() }
 
         /**
          * 把工具定义转成给模型看的 JSON 文本描述（JSON_TEXT 工具调用模式使用）。

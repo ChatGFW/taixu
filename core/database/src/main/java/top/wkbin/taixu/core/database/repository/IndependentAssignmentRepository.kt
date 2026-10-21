@@ -10,9 +10,15 @@ import top.wkbin.taixu.core.database.toEntity
 import top.wkbin.taixu.core.database.toModel
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentRequest
+import top.wkbin.taixu.core.model.bot.BotWorkBatch
 
 interface IndependentAssignmentRepository {
-    suspend fun createIndependent(task: BotAssignment, session: HarnessSessionEntity, request: BotAssignmentRequest)
+    suspend fun createIndependent(
+        task: BotAssignment,
+        session: HarnessSessionEntity,
+        request: BotAssignmentRequest,
+        batch: BotWorkBatch? = null,
+    )
     suspend fun enqueueRequest(request: BotAssignmentRequest)
     fun pendingRequests(): Flow<List<BotAssignmentRequest>>
     fun observeRequest(id: String): Flow<BotAssignmentRequest?>
@@ -29,8 +35,12 @@ interface IndependentAssignmentRepository {
 }
 
 internal class RoomIndependentAssignmentRepository(private val dao: BotAssignmentDao, private val json: Json) : IndependentAssignmentRepository {
-    override suspend fun createIndependent(task: BotAssignment, session: HarnessSessionEntity, request: BotAssignmentRequest) =
-        dao.createIndependent(task.toEntity(json), session, request.toEntity())
+    override suspend fun createIndependent(
+        task: BotAssignment,
+        session: HarnessSessionEntity,
+        request: BotAssignmentRequest,
+        batch: BotWorkBatch?,
+    ) = dao.createIndependent(task.toEntity(json), session, request.toEntity(), batch?.toEntity())
     override suspend fun enqueueRequest(request: BotAssignmentRequest) = dao.enqueueRequest(request.toEntity())
     override fun pendingRequests() = dao.pendingAssignmentRequests().map { rows -> rows.map { it.model() } }
     override fun observeRequest(id: String) = dao.observeAssignmentRequest(id).map { it?.model() }

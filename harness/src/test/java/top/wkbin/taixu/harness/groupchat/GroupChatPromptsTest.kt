@@ -30,6 +30,10 @@ class GroupChatPromptsTest {
         assertTrue(prompt.contains("/workspace/目标目录"))
         assertFalse(prompt.contains("/root/目标目录"))
         assertTrue(prompt.contains("select-model"))
+        assertTrue(prompt.contains("同一轮多次 assign-task"))
+        assertTrue(prompt.contains("禁止用 invoke_subagent"))
+        assertTrue(prompt.contains("立会结论"))
+        assertTrue(prompt.contains("assign-task(wait=false)"))
     }
 
     @Test fun `report from an earlier revision does not hide newer task output`() {

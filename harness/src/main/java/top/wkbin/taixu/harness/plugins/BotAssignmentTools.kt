@@ -12,6 +12,8 @@ import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
+import top.wkbin.taixu.core.model.bot.BotWorkBatch
+import top.wkbin.taixu.core.model.bot.BotWorkBatchStatus
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
 import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
@@ -29,6 +31,7 @@ internal fun newAssignment(
     writePaths: List<String>,
     sessionId: String? = null,
     now: Long = System.currentTimeMillis(),
+    dependsOn: List<String> = emptyList(),
 ): BotAssignment {
     val taskId = UUID.randomUUID().toString()
     return BotAssignment(
@@ -46,6 +49,7 @@ internal fun newAssignment(
         startedAt = now,
         sessionId = sessionId ?: target.sessionId,
         laneName = null,
+        dependsOn = dependsOn,
     )
 }
 
@@ -89,7 +93,7 @@ internal fun botAssignmentTools(
     return listOf(
         PluginTool(
             id = "list-assignments",
-            description = "列出群聊中的委派任务（执行中与历史），用于查看进度、验收结果和确认依赖前置状态。仅主控 Bot 可用。",
+            description = "列出群聊中的委派任务（按工作批次分组，含执行中与历史），用于查看进度、验收结果和确认依赖前置状态。仅主控 Bot 可用。",
             schema = listSchema,
         ) { request ->
             val caller = requireMainBot(request.sessionId, botRepository)
@@ -105,7 +109,10 @@ internal fun botAssignmentTools(
             if (rows.isEmpty()) {
                 PluginToolOutput(true, "（暂无委派任务）")
             } else {
-                PluginToolOutput(true, rows.joinToString("\n", transform = ::assignmentLine).take(BOT_TOOL_MAX_CHARS))
+                val batches = rows.mapNotNull { it.batchId }.distinct()
+                    .mapNotNull { assignments.getBatch(it) }
+                    .associateBy { it.id }
+                PluginToolOutput(true, formatAssignmentRows(rows, batches).take(BOT_TOOL_MAX_CHARS))
             }
         },
         PluginTool(
@@ -121,7 +128,27 @@ internal fun botAssignmentTools(
             val history = runtime?.invoke()?.history(id).orEmpty().joinToString("\n\n") {
                 "补充要求 ${it.id} · ${it.status}\n${it.instruction.take(800)}\n${it.blockedReason ?: it.summary ?: it.error ?: ""}\n报告产物：${it.artifacts.joinToString()}"
             }
-            PluginToolOutput(true, (assignmentDetail(assignment) + "\n\n【轮次记录】\n" + history).take(BOT_TOOL_MAX_CHARS))
+            val batchInfo = assignment.batchId?.let { batchId ->
+                val batch = assignments.getBatch(batchId)
+                val siblings = assignments.batchAssignments(batchId)
+                buildString {
+                    appendLine()
+                    appendLine("【工作批次】")
+                    appendLine("ID：$batchId")
+                    appendLine(
+                        "状态：${batch?.let { batchStatusLabel(it.status) } ?: "未知"} · 累计 ${batch?.revision ?: "-"} 次派发" +
+                            (batch?.reportRevision?.let { " · 已汇总 revision $it" } ?: ""),
+                    )
+                    appendLine(
+                        "同批：${siblings.size} 个任务；" +
+                            "${siblings.count { it.status == BotAssignmentStatus.COMPLETED }} 完成 / " +
+                            "${siblings.count { it.status.isActive }} 进行中 / " +
+                            "${siblings.count { it.status in ATTENTION_STATUSES }} 需关注",
+                    )
+                    siblings.forEach { appendLine("  ${assignmentLine(it)}") }
+                }
+            }.orEmpty()
+            PluginToolOutput(true, (assignmentDetail(assignment) + batchInfo + "\n\n【轮次记录】\n" + history).take(BOT_TOOL_MAX_CHARS))
         },
         PluginTool(
             id = "cancel-assignment",
@@ -156,6 +183,40 @@ internal fun statusLabel(status: BotAssignmentStatus): String = when (status) {
     BotAssignmentStatus.COMPLETED -> "已完成"
     BotAssignmentStatus.FAILED -> "失败"
     BotAssignmentStatus.CANCELLED -> "已取消"
+}
+
+private fun formatAssignmentRows(rows: List<BotAssignment>, batches: Map<String, BotWorkBatch>): String {
+    val batched = rows.filter { it.batchId != null }.groupBy { it.batchId!! }
+    val loose = rows.filter { it.batchId == null }
+    val out = mutableListOf<String>()
+    batched.forEach { (batchId, tasks) ->
+        val batch = batches[batchId]
+        val done = tasks.count { it.status == BotAssignmentStatus.COMPLETED }
+        val running = tasks.count { it.status.isActive }
+        val attention = tasks.count { it.status in ATTENTION_STATUSES }
+        out += "工作批次 ${batchId.take(8)} · ${batch?.let { batchStatusLabel(it.status) } ?: "未知"} · " +
+            "累计 ${batch?.revision ?: 1} 次派发（$done 完成 / $running 进行中 / $attention 需关注）"
+        tasks.forEach { out += "  ${assignmentLine(it)}" }
+    }
+    if (loose.isNotEmpty()) {
+        if (out.isNotEmpty()) out += ""
+        out += "未归批任务"
+        loose.forEach { out += "  ${assignmentLine(it)}" }
+    }
+    return out.joinToString("\n")
+}
+
+private val ATTENTION_STATUSES = setOf(
+    BotAssignmentStatus.BLOCKED,
+    BotAssignmentStatus.INTERRUPTED,
+    BotAssignmentStatus.FAILED,
+)
+
+private fun batchStatusLabel(status: BotWorkBatchStatus): String = when (status) {
+    BotWorkBatchStatus.WAITING_CHILDREN -> "等待成员"
+    BotWorkBatchStatus.WAITING_TURN -> "等待主控本轮结束"
+    BotWorkBatchStatus.SETTLED -> "已汇总"
+    BotWorkBatchStatus.CANCELLED -> "已取消"
 }
 
 private fun assignmentLine(assignment: BotAssignment): String {

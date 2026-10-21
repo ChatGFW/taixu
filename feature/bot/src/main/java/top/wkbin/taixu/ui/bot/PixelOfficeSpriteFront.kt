@@ -14,6 +14,7 @@ internal object PixelOfficeSpriteFront {
         frame: Int,
         waiting: Boolean,
         yawn: Boolean,
+        idleAction: OfficeIdleAction,
     ) {
         val skin = PixelAvatarArt.skinColors[recipe.skinColor]
         val skinShade = spriteShade(skin, 0.86f)
@@ -81,7 +82,7 @@ internal object PixelOfficeSpriteFront {
         p.r(17, 40, 14, 1, spriteShade(shirt, 0.88f))
         neckAndCollar(p, recipe, skin, skinShade, shirt, shirtLight, shirtShade)
 
-        armsFront(p, recipe, pose, state, waiting, frame, skin, skinShade, shirt, shirtShade, shirtLight)
+        armsFront(p, recipe, pose, state, waiting, frame, skin, skinShade, shirt, shirtShade, shirtLight, idleAction)
 
         if (recipe.accessory == 6) {
             p.r(19, 38, 1, 9, RED)
@@ -179,10 +180,12 @@ internal object PixelOfficeSpriteFront {
         shirt: Int,
         shirtShade: Int,
         shirtLight: Int,
+        idleAction: OfficeIdleAction,
     ) {
         val sway = if (frame == 2) 1 else 0
         val success = state == BotAvatarState.SUCCESS
         val upset = state == BotAvatarState.BLOCKED || waiting
+        val idle = state == BotAvatarState.IDLE
         when {
             upset -> {
                 p.r(3, 35, 8, 8, INK)
@@ -229,7 +232,50 @@ internal object PixelOfficeSpriteFront {
                 p.r(34, 21, 2, 5, RED)
                 p.r(35, 20, 1, 2, WHITE)
             }
-            pose == OfficePose.SIT && state == BotAvatarState.IDLE -> {
+            idle && idleAction == OfficeIdleAction.SIP -> {
+                p.r(6, 38, 7, 12, INK)
+                p.r(7, 39, 5, 10, shirt)
+                p.r(7, 48, 5, 2, shirtShade)
+                p.r(7, 50, 5, 5, INK)
+                p.r(8, 51, 3, 3, skin)
+                p.r(35, 38, 7, 11, INK)
+                p.r(36, 39, 5, 9, shirt)
+                p.r(36, 47, 5, 2, shirtShade)
+                p.r(34, 46, 8, 6, INK)
+                p.r(35, 47, 6, 4, skin)
+                p.r(36, 41, 4, 6, INK)
+                p.r(37, 42, 3, 4, 0xFFF6F0E4.toInt())
+                p.r(37, 43, 3, 1, 0xFF8B5A2B.toInt())
+                p.r(38, 39, 1, 2, WHITE)
+            }
+            idle && idleAction == OfficeIdleAction.READ -> {
+                p.r(6, 38, 7, 11, INK)
+                p.r(7, 39, 5, 9, shirt)
+                p.r(7, 47, 5, 4, INK)
+                p.r(8, 48, 3, 2, skin)
+                p.r(35, 38, 7, 11, INK)
+                p.r(36, 39, 5, 9, shirt)
+                p.r(34, 47, 7, 4, INK)
+                p.r(35, 48, 5, 2, skin)
+                p.r(15, 45, 18, 7, INK)
+                p.r(16, 46, 16, 5, 0xFFE8DCC0.toInt())
+                p.r(23, 46, 1, 5, 0xFFCDBFA0.toInt())
+                p.r(17, 47, 5, 1, 0xFF8AA0A8.toInt())
+                p.r(25, 47, 5, 1, 0xFF8AA0A8.toInt())
+            }
+            idle && idleAction == OfficeIdleAction.STRETCH -> {
+                p.r(5, 32, 6, 10, INK)
+                p.r(6, 33, 4, 8, shirt)
+                p.r(4, 27, 6, 6, INK)
+                p.r(5, 28, 4, 4, skin)
+                p.r(37, 32, 6, 10, INK)
+                p.r(38, 33, 4, 8, shirt)
+                p.r(38, 27, 6, 6, INK)
+                p.r(39, 28, 4, 4, skin)
+                p.r(2, 25, 1, 2, WHITE)
+                p.r(45, 25, 1, 2, WHITE)
+            }
+            idle && idleAction == OfficeIdleAction.PHONE -> {
                 p.r(6, 38, 7, 12, INK)
                 p.r(7, 39, 5, 10, shirt)
                 p.r(7, 48, 5, 2, shirtShade)
@@ -244,6 +290,18 @@ internal object PixelOfficeSpriteFront {
                 p.r(36, 43, 5, 6, KEYBOARD)
                 p.r(37, 44, 3, 4, 0xFF4FC3F7.toInt())
                 p.r(38, 45, 1, 1, WHITE)
+            }
+            pose == OfficePose.SIT && idle -> {
+                p.r(6, 38, 7, 12, INK)
+                p.r(7, 39, 5, 10, shirt)
+                p.r(7, 48, 5, 2, shirtShade)
+                p.r(7, 50, 5, 5, INK)
+                p.r(8, 51, 3, 3, skin)
+                p.r(35, 38, 7, 12, INK)
+                p.r(36, 39, 5, 10, shirt)
+                p.r(36, 48, 5, 2, shirtShade)
+                p.r(35, 50, 7, 5, INK)
+                p.r(36, 51, 5, 3, skin)
             }
             else -> {
                 p.r(7, 38 + sway, 7, 13, INK)

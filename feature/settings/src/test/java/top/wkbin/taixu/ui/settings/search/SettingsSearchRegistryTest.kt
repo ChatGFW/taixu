@@ -103,6 +103,16 @@ class SettingsSearchRegistryTest {
     }
 
     @Test
+    fun testFirstResponseTimeoutIsSearchable() {
+        assertTrue(SettingsSearchRegistry.search("首个响应").any { it.id == "agent_first_response_timeout" })
+        assertTrue(SettingsSearchRegistry.search("first response").any { it.id == "agent_first_response_timeout" })
+        assertEquals(
+            SettingsSearchTarget.AGENT_EXECUTION,
+            SettingsSearchRegistry.allItems.first { it.id == "agent_first_response_timeout" }.target,
+        )
+    }
+
+    @Test
     fun testRunningSendModeKeywordsReachApprovalEntry() {
         for (query in listOf("steer", "引导", "排队", "运行中发送")) {
             assertTrue(query, SettingsSearchRegistry.search(query).any { it.id == "agent_approval_mode" })

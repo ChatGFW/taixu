@@ -32,6 +32,7 @@ import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.GroupAttachment
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupMessage
+import top.wkbin.taixu.core.model.bot.GroupReplyMode
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.harness.bot.ActiveBotAssignment
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
@@ -128,7 +129,7 @@ class GroupChatViewModel(
         }
     }
 
-    fun updateGroup(name: String, description: String, background: String) {
+    fun updateGroup(name: String, description: String, background: String, replyMode: GroupReplyMode) {
         val groupId = groupId.value ?: return
         val current = _uiState.value.group ?: return
         viewModelScope.launch {
@@ -137,6 +138,7 @@ class GroupChatViewModel(
                     name = name.trim().take(40).ifBlank { current.name },
                     description = description.trim().take(200),
                     background = background,
+                    replyMode = replyMode,
                 )
                 groupRepository.saveGroup(updated)
                 updated

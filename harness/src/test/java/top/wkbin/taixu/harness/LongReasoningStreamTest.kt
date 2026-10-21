@@ -110,7 +110,11 @@ class ProviderStreamTimeoutPolicyTest {
     @Test fun `timeout errors distinguish client first wait and read inactivity from EOF`() {
         val error = SocketTimeoutException("timeout")
         val first = streamFailure(error, ProviderClient.FIRST_EVENT_TIMED_OUT, 600_000, 600_000)
-        assertTrue(first.message.orEmpty().contains("首个模型事件"))
+        assertTrue(first is FirstResponseTimeoutException)
+        assertEquals(600_000L, (first as FirstResponseTimeoutException).waitedMs)
+        assertTrue(first.message.orEmpty().startsWith(FIRST_RESPONSE_TIMEOUT_MARK))
+        assertFalse(first.message.orEmpty().contains("执行异常"))
+        assertFalse(HarnessProviderRunner.isTransientFailure(first))
         val idle = streamFailure(error, ProviderClient.FIRST_EVENT_RECEIVED, 600_000, 600_000)
         assertTrue(idle.message.orEmpty().contains("读取超时"))
         assertSame(error, idle.cause)

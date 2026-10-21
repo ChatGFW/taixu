@@ -39,6 +39,7 @@ import top.wkbin.taixu.core.model.McpAuthMode
 import top.wkbin.taixu.core.model.McpAuthState
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpToolInfo
+import top.wkbin.taixu.core.model.McpToolPolicy
 import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
@@ -60,6 +61,11 @@ internal fun McpServerDetailDialog(
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
     onTest: suspend () -> Result<List<McpToolInfo>>,
+    onEdit: (() -> Unit)? = null,
+    cachedTools: List<McpToolInfo> = emptyList(),
+    toolPolicies: Map<String, McpToolPolicy> = emptyMap(),
+    onSetToolEnabled: (String, Boolean) -> Unit = { _, _ -> },
+    onSetToolRisk: (String, String?) -> Unit = { _, _ -> },
     authState: McpAuthState = McpAuthState.Unsupported,
     onAuthorize: () -> Unit = {},
     onLogout: () -> Unit = {},
@@ -280,48 +286,38 @@ internal fun McpServerDetailDialog(
                         )
                     }
 
-                    discoveredTools?.let { tools ->
-                        if (tools.isEmpty()) {
+                    val tools = discoveredTools ?: cachedTools
+                    if (tools.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                "该服务已连通，但未返回任何工具定义",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                "工具 (${tools.size}) · 开关影响模型可见面；风险覆盖影响审批等级（服务端注解仍只升不降）",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary,
                             )
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    "已注册工具 (${tools.size}):",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.primary,
+                            tools.forEach { tool ->
+                                McpToolPolicyRow(
+                                    tool = tool,
+                                    policy = toolPolicies[tool.name] ?: McpToolPolicy(),
+                                    onEnabledChange = { onSetToolEnabled(tool.name, it) },
+                                    onRiskChange = { onSetToolRisk(tool.name, it) },
                                 )
-                                tools.forEach { tool ->
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) {
-                                        Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Text(
-                                                tool.name,
-                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace),
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                            )
-                                            Text(
-                                                tool.description,
-                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                    }
-                                }
                             }
                         }
+                    } else if (discoveredTools != null) {
+                        Text(
+                            "该服务已连通，但未返回任何工具定义",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
         },
         confirmButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                onEdit?.let {
+                    OutlinedButton(onClick = it) { Text("编辑") }
+                }
                 if (!server.isBuiltin) {
                     TextButton(onClick = onDelete) {
                         Text("删除服务", color = MaterialTheme.colorScheme.error)

@@ -1049,7 +1049,7 @@ class HarnessLoop(
                             AssistantText(
                                 id = newId(),
                                 createdAt = now(),
-                                text = "❌ 执行失败：${result.message}",
+                                text = presentRunFailure(result.message),
                             ),
                         )
                     }
@@ -1102,7 +1102,7 @@ class HarnessLoop(
                 AssistantText(
                     id = newId(),
                     createdAt = now(),
-                    text = "❌ 执行异常：$msg",
+                    text = presentExecutionFault(msg),
                 ),
             )
         } finally {

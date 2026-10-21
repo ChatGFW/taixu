@@ -8,6 +8,8 @@ import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
+import top.wkbin.taixu.core.model.bot.BotWorkBatch
+import top.wkbin.taixu.core.model.bot.BotWorkBatchStatus
 
 class RoomBotAssignmentRepository(
     private val dao: BotAssignmentDao,
@@ -37,6 +39,17 @@ class RoomBotAssignmentRepository(
 
     override suspend fun failRunning(now: Long, error: String) = dao.failRunning(now, error)
 
+    override suspend fun getBatch(id: String): BotWorkBatch? = dao.findBatch(id)?.toModel()
+
+    override suspend fun listBatches(groupId: String, limit: Int): List<BotWorkBatch> =
+        dao.listBatches(groupId, limit).map { it.toModel() }
+
+    override suspend fun batchAssignments(batchId: String): List<BotAssignment> =
+        dao.batchAssignments(batchId).map { it.toModel(json) }
+
+    override suspend fun batchTaskCount(batchId: String): Int = dao.batchTaskCount(batchId)
+
+    override suspend fun reconcileWaitingBatches(now: Long) = dao.reconcileWaitingBatches(now)
 }
 
 internal fun BotAssignmentEntity.toModel(json: Json) = BotAssignment(
@@ -60,6 +73,10 @@ internal fun BotAssignmentEntity.toModel(json: Json) = BotAssignment(
     laneName = laneName,
     reportToBotId = reportToBotId,
     independent = independent, revision = revision, activeRequestId = activeRequestId,
+    dependsOn = runCatching {
+        json.decodeFromString(ListSerializer(String.serializer()), dependsOnJson)
+    }.getOrDefault(emptyList()),
+    batchId = batchId,
 )
 
 internal fun BotAssignment.toEntity(json: Json) = BotAssignmentEntity(
@@ -80,4 +97,35 @@ internal fun BotAssignment.toEntity(json: Json) = BotAssignmentEntity(
     laneName = laneName,
     reportToBotId = reportToBotId,
     independent = independent, revision = revision, activeRequestId = activeRequestId,
+    dependsOnJson = json.encodeToString(ListSerializer(String.serializer()), dependsOn),
+    batchId = batchId,
+)
+
+internal fun BotWorkBatchEntity.toModel() = BotWorkBatch(
+    id = id,
+    groupId = groupId,
+    requesterBotId = requesterBotId,
+    requesterSessionId = requesterSessionId,
+    originOperationId = originOperationId,
+    revision = revision,
+    reportRevision = reportRevision,
+    status = runCatching { BotWorkBatchStatus.valueOf(status) }
+        .getOrDefault(BotWorkBatchStatus.SETTLED),
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    settledAt = settledAt,
+)
+
+internal fun BotWorkBatch.toEntity() = BotWorkBatchEntity(
+    id = id,
+    groupId = groupId,
+    requesterBotId = requesterBotId,
+    requesterSessionId = requesterSessionId,
+    originOperationId = originOperationId,
+    revision = revision,
+    reportRevision = reportRevision,
+    status = status.name,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    settledAt = settledAt,
 )

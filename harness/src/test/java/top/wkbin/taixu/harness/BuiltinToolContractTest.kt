@@ -12,9 +12,11 @@ import top.wkbin.taixu.core.model.McpToolInfo
 import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 
 class BuiltinToolContractTest {
+    private val model = ModelConfig(name = "test", provider = "test", model = "test", baseUrl = "http://localhost", apiKey = null)
+
     @Test
     fun `load rule accepts every registered rule including image delivery`() {
-        val tool = ProviderClient.buildDynamicTools().single { it.function.name == "load_rule" }
+        val tool = ProviderClient.buildDynamicTools(model).single { it.function.name == "load_rule" }
         val properties = tool.function.parameters["properties"] as kotlinx.serialization.json.JsonObject
         val rule = properties["rule"] as kotlinx.serialization.json.JsonObject
         val names = (rule["enum"] as kotlinx.serialization.json.JsonArray)
@@ -132,7 +134,7 @@ class BuiltinToolContractTest {
 
     @Test
     fun allProviderFunctionNamesUsePortableCharacters() {
-        val names = ProviderClient.buildDynamicTools().map { it.function.name }
+        val names = ProviderClient.buildDynamicTools(model).map { it.function.name }
 
         names.forEach { name ->
             assertTrue("invalid provider function name: $name", name.matches(Regex("^[a-zA-Z0-9_-]+$")))
@@ -142,7 +144,7 @@ class BuiltinToolContractTest {
 
     @Test
     fun `provider surface exposes use_capability proxy and never leaks mcp schemas`() {
-        val tools = ProviderClient.buildDynamicTools()
+        val tools = ProviderClient.buildDynamicTools(model)
         val names = tools.map { it.function.name }
 
         // 统一代理必须在场：MCP 能力的唯一入口
@@ -153,6 +155,13 @@ class BuiltinToolContractTest {
             names.none { it.startsWith("mcp__") },
         )
         // 工具数组必须逐字节稳定（重复构建完全一致）
-        assertEquals(tools, ProviderClient.buildDynamicTools())
+        assertEquals(tools, ProviderClient.buildDynamicTools(model))
+    }
+
+    @Test
+    fun `explicitly mounted mcp tools appear with encoded names`() {
+        val mounted = McpToolInfo(serverId = "srv", serverName = "Server", name = "read_file", description = "")
+        val tools = ProviderClient.buildDynamicTools(model.copy(dynamicMcpTools = listOf(mounted)))
+        assertTrue(tools.any { it.function.name.startsWith("mcp__srv__read_file__") })
     }
 }

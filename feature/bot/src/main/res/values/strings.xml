@@ -169,6 +169,10 @@
     <string name="fbot_background_warm">暖阳</string>
     <string name="fbot_background_mint">薄荷</string>
     <string name="fbot_background_night">夜幕</string>
+    <string name="fbot_reply_mode">发言方式</string>
+    <string name="fbot_reply_mode_admin">管理员先答</string>
+    <string name="fbot_reply_mode_all">全员轮流</string>
+    <string name="fbot_reply_mode_hint">管理员先答：普通消息只由管理员回复；全员轮流：成员按顺序依次发言。</string>
     <string name="fbot_group_disband">解散群聊</string>
     <string name="fbot_group_disband_confirm">解散后群消息与各 Bot 的群维度会话都会被删除，且不可恢复。确定继续？</string>
     <string name="fbot_pending_action">有 %1$d 项操作等待你处理</string>

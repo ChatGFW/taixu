@@ -17,12 +17,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.plugin.api.PluginExtensionPoint
+import top.wkbin.taixu.plugin.packages.PackagedPluginEntry
 import top.wkbin.taixu.ui.components.*
 
 @Composable
 fun PackagedPluginInventorySection(onOpenTool: (String) -> Unit, viewModel: PackagedPluginsViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var installedOnly by rememberSaveable { mutableStateOf(false) }
+    var diagnostics by remember { mutableStateOf<PackagedPluginEntry?>(null) }
     val entries = if (installedOnly) state.entries.filter { it.installedVersion != null } else state.entries
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionHeader(stringResource(R.string.harness_plugins_title), stringResource(R.string.harness_plugins_scope),
@@ -61,8 +63,14 @@ fun PackagedPluginInventorySection(onOpenTool: (String) -> Unit, viewModel: Pack
                 }
                 RuntimePluginListRow(title = entry.name, icon = RuntimeIconName.Package,
                     subtitle = stringResource(R.string.packaged_plugins_display_version, entry.installedVersion ?: entry.descriptor.version),
-                    status = stringResource(status), onClick = { onOpenTool(entry.toolId) })
+                    status = stringResource(status), onClick = { onOpenTool(entry.toolId) },
+                    onLongClick = { diagnostics = entry })
             }
+        }
+        val diagnostic = diagnostics
+        if (diagnostic != null) {
+            val logs = remember(diagnostic.toolId) { viewModel.installLogs(diagnostic.toolId) }
+            PackagedPluginDiagnosticsDialog(diagnostic, logs, onDismiss = { diagnostics = null })
         }
     }
 }

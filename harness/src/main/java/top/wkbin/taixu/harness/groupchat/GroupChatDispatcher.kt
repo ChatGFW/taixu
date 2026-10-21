@@ -9,7 +9,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
@@ -19,6 +22,7 @@ import top.wkbin.taixu.core.model.bot.GroupAttachment
 import top.wkbin.taixu.core.model.bot.GroupDelivery
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupMessage
+import top.wkbin.taixu.core.model.bot.GroupReplyMode
 import top.wkbin.taixu.core.model.bot.GroupSenderType
 import top.wkbin.taixu.harness.MentionExtractor
 import top.wkbin.taixu.harness.bot.BotOrchestrator
@@ -26,7 +30,15 @@ import top.wkbin.taixu.harness.session.PromptSubmission
 import top.wkbin.taixu.harness.session.SessionControl
 
 /** 一轮群聊成员回复的结果；主控委派据此判断成员是否真正完成。 */
-data class GroupTurnOutcome(val text: String, val failed: Boolean, val uncertain: Boolean = false)
+data class GroupTurnOutcome(
+    val text: String,
+    val failed: Boolean,
+    val uncertain: Boolean = false,
+    val passed: Boolean = false,
+    val messageId: String? = null,
+    /** 成员已开始干活但本轮先让出，最终结果稍后作为迟到回复发出。 */
+    val working: Boolean = false,
+)
 
 /**
  * 群聊消息分流：精确 @ 路由优先，否则交给 Admin Bot；Bot 独占会话的助手文本
@@ -39,16 +51,74 @@ class GroupChatDispatcher(
     private val sessionControl: SessionControl,
     private val logger: AppLogger,
     private val attachmentPreparer: BotAttachmentPreparer? = null,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    private val scope: CoroutineScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default +
+            CoroutineExceptionHandler { _, failure ->
+                logger.e("[GroupChatDispatcher] 未捕获的协程异常", failure)
+            },
+    ),
     private val freshness: GroupReplyFreshness? = null,
+    taskRepository: top.wkbin.taixu.core.database.task.AgentTaskRepository? = null,
+    runtimeRepository: top.wkbin.taixu.core.database.HarnessRuntimeRepository? = null,
 ) {
     private val replies = GroupReplyQueue(scope)
 
     private val liveReplies = MutableStateFlow<Map<String, GroupReplyProgress>>(emptyMap())
-    private val responder = GroupBotResponder(groupRepository, orchestrator::ensureGroupSession, sessionControl, logger, liveReplies, freshness)
+    private val taskTracker = if (taskRepository != null && runtimeRepository != null)
+        GroupReplyTaskTracker(taskRepository, runtimeRepository, sessionControl) else null
+    private val responder = GroupBotResponder(
+        groupRepository, orchestrator::ensureGroupSession, sessionControl, logger, liveReplies, freshness, scope,
+        taskTracker = taskTracker,
+    )
+    private val roundCoordinator = GroupRoundCoordinator(
+        groups = groupRepository,
+        queue = replies,
+        responder = { group, bot, trigger, history, members, imageUrls, lateReplyCallerId, onSubmitted, onLateReply ->
+            responder.respond(
+                group = group,
+                bot = bot,
+                trigger = trigger,
+                history = history,
+                members = members,
+                imageUrls = imageUrls,
+                admission = null,
+                silentPass = true,
+                promptHistory = history,
+                lateReplyCallerId = lateReplyCallerId,
+                onSubmitted = onSubmitted,
+                onLateReply = onLateReply,
+            )
+        },
+        scope = scope,
+        logger = logger,
+    )
+    private val userAdmission = GroupRoundAdmission(
+        groupRepository, roundCoordinator,
+        prepare = { requireNotNull(attachmentPreparer) { "附件读取服务尚未就绪" }.prepare(it) },
+        notify = { id, text -> postSystemNotification(id, text) },
+    )
     private val deliveryPump = GroupDeliveryPump(groupRepository, replies, scope, logger, ::deliver)
 
-    suspend fun startDeliveryProcessing() = deliveryPump.start()
+    private val recoveryLock = Mutex()
+    private var recovered = false
+
+    suspend fun startDeliveryProcessing() = recoveryLock.withLock {
+        deliveryPump.start()
+        if (recovered) return@withLock
+        recovered = true
+        try {
+            roundCoordinator.recover()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            logger.w("[GroupChatDispatcher] 轮次恢复失败: ${failure.message}")
+        }
+        responder.recoverLateReplies { reply, text ->
+            roundCoordinator.lateReplyRecovered(
+                reply.groupId, reply.workerId, reply.workerName, reply.callerBotId, text,
+            )
+        }
+    }
 
     private suspend fun deliver(delivery: GroupDelivery): GroupTurnOutcome {
         val source = groupRepository.deliverySource(delivery.sourceMessageId)
@@ -91,22 +161,8 @@ class GroupChatDispatcher(
     ) {
         val text = rawText.trim()
         if (text.isEmpty() && attachments.isEmpty()) return
-        val group = groupRepository.getGroup(groupId) ?: return
-        val members = groupRepository.getMembers(groupId)
         startDeliveryProcessing()
-        val mentions = MentionExtractor.parse(text, members.map { it.name })
-        val targeted = members.filter { bot -> mentions.any { it.equals(bot.name, ignoreCase = true) } }
-        val responders = targeted.ifEmpty {
-            listOfNotNull(members.firstOrNull { it.id == group.adminBotId } ?: members.firstOrNull())
-        }
-        groupRepository.stageMessage(
-            GroupMessage(
-                id = UUID.randomUUID().toString(), groupId = groupId, senderId = USER_SENDER_ID,
-                senderName = "我", senderType = GroupSenderType.USER, content = text,
-                timestamp = System.currentTimeMillis(), attachments = attachments,
-            ), responders.map { it.id },
-        )
-        if (members.isEmpty()) postSystemNotification(groupId, "⚠️ 当前群聊暂无可响应的 Bot 成员")
+        userAdmission.send(groupId, text, attachments.toList())
     }
 
     /**
@@ -210,6 +266,7 @@ class GroupChatDispatcher(
      * 后台委派由 [top.wkbin.taixu.harness.bot.BotAssignmentTracker] 单独取消。
      */
     suspend fun cancelGroup(groupId: String) {
+        roundCoordinator.cancel(groupId)
         groupRepository.cancelDeliveries(groupId)
         replies.cancel(groupId)
         val states = sessionControl.sessionRunStates.value
@@ -267,5 +324,24 @@ class GroupChatDispatcher(
         const val USER_SENDER_ID = "user_me"
         const val SYSTEM_SENDER_ID = "system"
         const val STOPPED_MARKER = "⏹ 已停止"
+    }
+}
+
+/** Explicit mentions always win; otherwise the group's reply mode decides. */
+internal fun openingResponders(
+    members: List<Bot>,
+    mentions: Set<String>,
+    adminBotId: String,
+    mode: GroupReplyMode,
+): List<Bot> {
+    if (mentions.isNotEmpty()) {
+        val targeted = members.filter { bot -> mentions.any { it.equals(bot.name, ignoreCase = true) } }
+        if (targeted.isNotEmpty()) return targeted
+    }
+    val admin = members.firstOrNull { it.id == adminBotId }
+    return when (mode) {
+        GroupReplyMode.ADMIN_FIRST -> listOfNotNull(admin ?: members.firstOrNull())
+        GroupReplyMode.ALL_MEMBERS -> (if (admin == null) members else listOf(admin) + members.filter { it.id != admin.id })
+            .take(ROUND_MAX_TOTAL_TURNS)
     }
 }

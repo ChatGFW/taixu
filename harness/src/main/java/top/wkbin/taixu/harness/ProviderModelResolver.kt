@@ -29,7 +29,7 @@ internal class ProviderModelResolver(
             )
         // 主流模型自动适配：provider 的 /models 通常不返回 context window，
         // 这里在最终模型名（含 variant）确定后统一补全；显式 contextTokens 仍优先。
-        baseConfig.withResolvedContextWindow().applyGlobalReasoningDepth()
+        baseConfig.withResolvedContextWindow().applyGlobalReasoningDepth().withFirstResponseTimeout()
     }
 
     /**
@@ -70,7 +70,7 @@ internal class ProviderModelResolver(
             baseConfig
         }
         // 同 resolveModel：请求路径零 MCP 发现；按最终 variant 自动适配 context window。
-        sessionConfig.withResolvedContextWindow().applyGlobalReasoningDepth()
+        sessionConfig.withResolvedContextWindow().applyGlobalReasoningDepth().withFirstResponseTimeout()
     }
 
     /**
@@ -142,6 +142,12 @@ internal class ProviderModelResolver(
             }
             else -> this
         }
+    }
+
+    /** 全局「等待模型首个响应」写入本次请求。未配置时保持默认 90 秒。 */
+    private suspend fun ModelConfig.withFirstResponseTimeout(): ModelConfig {
+        val seconds = settingsDataStore.firstResponseTimeoutSeconds.first()
+        return copy(firstResponseTimeoutMs = top.wkbin.taixu.core.model.FirstResponseTimeoutPolicy.timeoutMs(seconds))
     }
 
     /**

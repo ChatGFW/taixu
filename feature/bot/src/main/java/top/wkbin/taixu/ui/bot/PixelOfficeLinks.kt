@@ -36,7 +36,54 @@ internal data class OfficeReportLink(
     val active: Boolean,
     val completedAt: Long?,
     val failed: Boolean = false,
+    val dependency: Boolean = false,
 )
+
+/** Prefer true depends_on edges; keep reportToBotId edges only where no dependency edge exists. */
+internal fun officeCollaborationLinks(
+    assignments: List<BotAssignment>,
+    members: List<Bot>,
+    now: Long,
+): List<OfficeReportLink> {
+    val dependencyLinks = officeDependencyLinks(assignments, members, now)
+    val reportLinks = officeReportLinks(assignments, members, now)
+    val dependencyPairs = dependencyLinks.map { it.fromBotId to it.toBotId }.toSet()
+    return (dependencyLinks + reportLinks.filter { (it.fromBotId to it.toBotId) !in dependencyPairs })
+        .take(5)
+}
+
+/** Completed prerequisite → dependent task edge; the link id belongs to the dependent task. */
+internal fun officeDependencyLinks(
+    assignments: List<BotAssignment>,
+    members: List<Bot>,
+    now: Long,
+): List<OfficeReportLink> {
+    val memberIds = members.map { it.id }.toSet()
+    val byId = assignments.associateBy { it.id }
+    return assignments.asSequence()
+        .sortedByDescending { it.startedAt }
+        .mapNotNull { task ->
+            val fromTask = task.dependsOn.firstNotNullOfOrNull { byId[it] } ?: return@mapNotNull null
+            val from = fromTask.botId
+            val to = task.botId
+            if (from == to || from !in memberIds || to !in memberIds) return@mapNotNull null
+            val active = task.status == BotAssignmentStatus.RUNNING || task.status == BotAssignmentStatus.QUEUED
+            val recent = fromTask.status == BotAssignmentStatus.COMPLETED &&
+                fromTask.finishedAt?.let { now - it in 0..8_000L } == true
+            if (!active && !recent) return@mapNotNull null
+            OfficeReportLink(
+                taskId = task.id,
+                fromBotId = from,
+                toBotId = to,
+                active = active,
+                completedAt = fromTask.finishedAt,
+                failed = fromTask.status == BotAssignmentStatus.FAILED,
+                dependency = true,
+            )
+        }
+        .take(5)
+        .toList()
+}
 
 internal fun officeReportLinks(
     assignments: List<BotAssignment>,
@@ -78,6 +125,7 @@ internal fun officeReportLinks(
 internal fun OfficeReportLinksLayer(
     links: List<OfficeReportLink>,
     actors: List<OfficeActor>,
+    walkingTaskIds: Set<String> = emptySet(),
     originX: Int,
     originY: Int,
     scale: Float,
@@ -98,7 +146,7 @@ internal fun OfficeReportLinksLayer(
             val from = byId[link.fromBotId] ?: return@forEach
             val to = byId[link.toBotId] ?: return@forEach
             if (link.fromBotId == link.toBotId) return@forEach
-            drawReportLink(link, from, to, now, originX, originY, scale)
+            drawReportLink(link, from, to, now, originX, originY, scale, walkingTaskIds)
         }
     }
 }
@@ -111,6 +159,7 @@ private fun DrawScope.drawReportLink(
     originX: Int,
     originY: Int,
     scale: Float,
+    walkingTaskIds: Set<String>,
 ) {
     val sx = originX + from.x * scale
     val sy = originY + (from.y - 14f) * scale
@@ -122,6 +171,7 @@ private fun DrawScope.drawReportLink(
     if (!link.active && (age < 0L || age > 8_000L)) return
     val accent = when {
         link.failed -> Color(0xFFE85D4C)
+        link.dependency -> Color(0xFFC9A6E8)
         link.active -> Color(0xFF7EC8E3)
         else -> Color(0xFF8FD18A)
     }
@@ -158,11 +208,11 @@ private fun DrawScope.drawReportLink(
             Size(4.4f * scale, 4.4f * scale),
         )
         drawRect(accent, Offset(point.x - 1f * scale, point.y - 1f * scale), Size(2f * scale, 2f * scale))
-    } else if (age <= 1_400L) {
+    } else if (link.taskId !in walkingTaskIds && age <= 1_400L) {
         val t = (age / 1_400f).coerceIn(0f, 1f)
         val point = quadratic(sx, sy, ctrlX, ctrlY, tx, ty, t)
         drawFolder(point.x, point.y, scale, accent)
-    } else if (age <= 2_600L) {
+    } else if (link.taskId !in walkingTaskIds && age <= 2_600L) {
         val alpha = (1f - (age - 1_400f) / 1_200f).coerceIn(0f, 1f)
         drawSparkle(tx, ty - 3f * scale, scale, accent.copy(alpha = alpha))
     }

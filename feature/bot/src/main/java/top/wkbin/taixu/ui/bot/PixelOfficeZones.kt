@@ -41,7 +41,7 @@ private val officeZones = listOf(
     OfficeZoneSpec("think", R.string.fbot_pixel_zone_think, OfficeZoneIcon.THINK, 8, 69),
     OfficeZoneSpec("meet", R.string.fbot_pixel_zone_meet, OfficeZoneIcon.MEET, 112, 69),
     OfficeZoneSpec("work", R.string.fbot_pixel_zone_work, OfficeZoneIcon.WORK, 104, 183),
-    OfficeZoneSpec("coffee", R.string.fbot_pixel_zone_coffee, OfficeZoneIcon.COFFEE, 146, 183),
+    OfficeZoneSpec("coffee", R.string.fbot_pixel_zone_coffee, OfficeZoneIcon.COFFEE, 146, 318),
     OfficeZoneSpec("rest", R.string.fbot_pixel_zone_rest, OfficeZoneIcon.REST, 6, 318),
 )
 

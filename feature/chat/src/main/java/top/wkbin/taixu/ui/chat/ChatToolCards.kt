@@ -132,7 +132,7 @@ internal fun ToolCard(
                         ToolStatusIndicator(toolIcon(call.tool), dotColor, dotDesc)
                     }
                     Text(
-                        toolName(call.tool, call.rawToolName),
+                        toolDisplayName(call),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -509,30 +509,6 @@ internal fun toolIcon(tool: HarnessTool): RuntimeIconName = when (tool) {
     HarnessTool.ASK_USER -> RuntimeIconName.Chat
     HarnessTool.RENDER_SURFACE -> RuntimeIconName.Palette
 }
-
-internal fun toolName(tool: HarnessTool, rawToolName: String? = null): String =
-    rawToolName?.takeIf { it.isNotBlank() } ?: when (tool) {
-        HarnessTool.READ -> "read"
-        HarnessTool.WRITE -> "write"
-        HarnessTool.EDIT -> "edit"
-        HarnessTool.BASE -> "base"
-        HarnessTool.PROCESS -> "process"
-        HarnessTool.HOST -> "host"
-        HarnessTool.DOWNLOAD -> "download"
-        HarnessTool.MEMORY -> "memory"
-        HarnessTool.PLAN -> "plan"
-        HarnessTool.SCRATCHPAD -> "scratchpad"
-        HarnessTool.HISTORY_SEARCH -> "history.search"
-        HarnessTool.HISTORY_READ -> "history.read"
-        HarnessTool.BUILD_SCRIPT -> "build_script"
-        HarnessTool.SUBAGENT -> "invoke_subagent"
-        HarnessTool.MCP -> "mcp"
-        HarnessTool.LOAD_RULE -> "load_rule"
-        HarnessTool.LOAD_SKILL -> "load_skill"
-        HarnessTool.COMPRESS -> "compress"
-        HarnessTool.ASK_USER -> "ask_user"
-        HarnessTool.RENDER_SURFACE -> "render_surface"
-    }
 
 internal fun toolArgsSummary(call: ToolCall): String {
     val entries = call.args.toMap().entries.take(3)

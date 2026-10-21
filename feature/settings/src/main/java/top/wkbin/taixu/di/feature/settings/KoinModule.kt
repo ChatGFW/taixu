@@ -5,6 +5,7 @@ import top.wkbin.taixu.ui.settings.AppManagementViewModel
 import top.wkbin.taixu.ui.settings.CcSwitchViewModel
 import top.wkbin.taixu.ui.settings.FtpSettingsViewModel
 import top.wkbin.taixu.ui.settings.FeatureHubViewModel
+import top.wkbin.taixu.ui.settings.FirstResponseTimeoutViewModel
 import top.wkbin.taixu.ui.settings.LocalLlmViewModel
 import top.wkbin.taixu.ui.settings.PhoneAgentSettingsViewModel
 import top.wkbin.taixu.ui.settings.SettingsViewModel
@@ -26,12 +27,14 @@ val featureSettingsModule = module {
     viewModel { top.wkbin.taixu.ui.settings.WebPluginsViewModel(repository = get()) }
     viewModel { top.wkbin.taixu.ui.settings.ThemePaletteViewModel(get()) }
     viewModel { top.wkbin.taixu.ui.settings.ChatBackgroundSettingsViewModel(get(), get()) }
-    viewModel { top.wkbin.taixu.ui.settings.PackagedPluginsViewModel(get(), get()) }
+    viewModel { top.wkbin.taixu.ui.settings.PackagedPluginsViewModel(get(), get(), get()) }
     viewModel { top.wkbin.taixu.ui.settings.McpClientSettingsViewModel(get()) }
+    viewModel { top.wkbin.taixu.ui.settings.McpToolPolicyViewModel(get(), get()) }
     viewModel { top.wkbin.taixu.ui.settings.RemoteServerViewModel(get(), get()) }
     viewModel { LocalBackupViewModel(context = get(), service = get()) }
     viewModel<AppManagementViewModel> { AppManagementViewModel(repository = get(), appManager = get()) }
     viewModel { PhoneAgentSettingsViewModel(preferences = get(), connectionTester = get()) }
+    viewModel { FirstResponseTimeoutViewModel(preferences = get()) }
 
     viewModel<CcSwitchViewModel> {
         CcSwitchViewModel(

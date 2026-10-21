@@ -137,6 +137,36 @@ class GroupCyberStudioTest {
     }
 
     @Test
+    fun `recent completion walks a courier toward the report recipient`() {
+        val completed = assignment1.copy(
+            id = "task-done",
+            botId = botB.id,
+            botName = botB.name,
+            title = "完成像素看板",
+            status = BotAssignmentStatus.COMPLETED,
+            finishedAt = System.currentTimeMillis() - 500L,
+            reportToBotId = botA.id,
+        )
+        compose.setContent {
+            TaiXuTheme {
+                GroupCyberStudio(
+                    members = listOf(botA, botB),
+                    messages = emptyList(),
+                    assignments = listOf(completed),
+                    onSelectBot = {},
+                    onOpenBot = {},
+                    onCancelAssignment = {},
+                    onContinueAssignment = { _, _, _ -> },
+                    onBackToChat = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("office-handoff-layer").assertExists()
+        compose.onNodeWithTag("studio-actor-bot-b").assertDoesNotExist()
+    }
+
+    @Test
     fun `cyber studio projects live reasoning into the office bubble`() {
         compose.setContent {
             TaiXuTheme {

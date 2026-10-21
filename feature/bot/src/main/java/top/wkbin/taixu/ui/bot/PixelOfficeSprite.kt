@@ -21,11 +21,12 @@ internal object PixelOfficeSprite {
         frame: Int,
         waiting: Boolean = false,
         yawn: Boolean = false,
+        idleAction: OfficeIdleAction = OfficeIdleAction.NONE,
     ): IntArray {
         val pen = SpritePen()
         val drawn = if (waiting) OfficePose.STAND else pose
         if (drawn == OfficePose.TYPE) PixelOfficeSpriteSide.draw(pen, recipe, state, frame, yawn)
-        else PixelOfficeSpriteFront.draw(pen, recipe, drawn, state, frame, waiting, yawn)
+        else PixelOfficeSpriteFront.draw(pen, recipe, drawn, state, frame, waiting, yawn, idleAction)
         return pen.outlined()
     }
 }
@@ -41,11 +42,12 @@ internal object PixelOfficeFrames {
         frame: Int,
         waiting: Boolean,
         yawn: Boolean,
+        idleAction: OfficeIdleAction = OfficeIdleAction.NONE,
     ): androidx.compose.ui.graphics.ImageBitmap {
         val index = frame.coerceIn(0, 2)
-        val key = "${recipe.hashCode()}|$pose|$state|$waiting|$yawn|$index"
+        val key = "${recipe.hashCode()}|$pose|$state|$waiting|$yawn|$idleAction|$index"
         return cache.getOrPut(key) {
-            PixelOfficeSprite.cells(recipe, pose, state, index, waiting, yawn)
+            PixelOfficeSprite.cells(recipe, pose, state, index, waiting, yawn, idleAction)
                 .toPixelImage(PixelOfficeSprite.WIDTH, PixelOfficeSprite.HEIGHT)
         }
     }

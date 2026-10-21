@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -119,8 +120,7 @@ internal fun SessionDrawerFooter(
     }
 }
 
-/** 统一分区头：名称 + 待处理提示点 + 数量 + 展开/收起箭头，整行可点。 */
-@Composable
+/** 统一分区头：名称 + 待处理提示点 + 数量 + 展开/收起箭头，整行可点。 */@Composable
 internal fun SessionSectionHeader(
     title: String,
     count: Int,
@@ -169,5 +169,47 @@ internal fun SessionSectionHeader(
             modifier = Modifier.size(20.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/** 跨会话的待处理提示：审批等待或执行失败的会话置顶一条，点按直接跳过去。 */
+@Composable
+internal fun SessionAttentionBanner(
+    count: Int,
+    firstTitle: String,
+    onOpen: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).clickable(onClick = onOpen),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(semanticColors().warning))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    text = stringResource(R.string.chat_drawer_attention, count),
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = firstTitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            RuntimeIcon(
+                RuntimeIconName.ChevronRight,
+                Modifier.size(18.dp),
+                MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }

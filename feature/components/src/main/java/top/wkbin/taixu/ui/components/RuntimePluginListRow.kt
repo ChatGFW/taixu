@@ -1,6 +1,6 @@
 package top.wkbin.taixu.ui.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,9 +22,13 @@ import androidx.compose.ui.unit.dp
 /** A quiet inventory row inside a shared card; the whole row opens its details. */
 @Composable
 fun RuntimePluginListRow(title: String, subtitle: String, icon: RuntimeIconName,
-    modifier: Modifier = Modifier, detail: String = "", status: String = "", onClick: (() -> Unit)? = null) {
+    modifier: Modifier = Modifier, detail: String = "", status: String = "", onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null) {
+    val interaction = if (onClick != null || onLongClick != null) {
+        Modifier.combinedClickable(role = Role.Button, onClick = { onClick?.invoke() }, onLongClick = onLongClick)
+    } else Modifier
     Row(modifier.heightIn(min = 76.dp)
-        .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+        .then(interaction)
         .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.secondaryContainer) {

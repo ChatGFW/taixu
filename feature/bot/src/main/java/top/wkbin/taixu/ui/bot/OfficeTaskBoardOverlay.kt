@@ -188,6 +188,18 @@ private fun TaskCard(
                         )
                     }
                 }
+                if (task.dependsOn.isNotEmpty()) {
+                    Text(
+                        text = stringResource(
+                            R.string.fbot_office_kanban_depends,
+                            task.dependsOn.joinToString(" / ").take(44),
+                        ),
+                        color = OverlayDim,
+                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             Text(
                 text = stringResource(R.string.fbot_office_kanban_locate),

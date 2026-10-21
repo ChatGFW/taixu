@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.bot.GroupChat
+import top.wkbin.taixu.core.model.bot.GroupReplyMode
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
@@ -37,7 +38,7 @@ internal fun GroupInfoDialog(
     group: GroupChat,
     deleting: Boolean,
     onDismiss: () -> Unit,
-    onSave: (name: String, description: String, background: String) -> Unit,
+    onSave: (name: String, description: String, background: String, replyMode: GroupReplyMode) -> Unit,
     onDelete: () -> Unit,
     onManageMembers: () -> Unit,
     onClearMessages: () -> Unit,
@@ -47,6 +48,7 @@ internal fun GroupInfoDialog(
     var background by rememberSaveable(group.id) {
         mutableStateOf(group.background.ifBlank { "default" })
     }
+    var replyMode by rememberSaveable(group.id) { mutableStateOf(group.replyMode) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
@@ -70,6 +72,25 @@ internal fun GroupInfoDialog(
                     minLines = 2,
                     maxLines = 4,
                     modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    stringResource(R.string.fbot_reply_mode),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GroupReplyMode.entries.forEach { mode ->
+                        RuntimeFilterChip(
+                            selected = replyMode == mode,
+                            onClick = { replyMode = mode },
+                            label = { Text(replyModeLabel(mode)) },
+                        )
+                    }
+                }
+                Text(
+                    stringResource(R.string.fbot_reply_mode_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     stringResource(R.string.fbot_background),
@@ -105,7 +126,7 @@ internal fun GroupInfoDialog(
         },
         confirmButton = {
             RuntimeButton(
-                onClick = { onSave(name, description, background) },
+                onClick = { onSave(name, description, background, replyMode) },
                 enabled = name.isNotBlank() && !deleting,
             ) { Text(stringResource(R.string.fbot_save)) }
         },
@@ -134,6 +155,12 @@ internal fun GroupInfoDialog(
             },
         )
     }
+}
+
+@Composable
+private fun replyModeLabel(mode: GroupReplyMode): String = when (mode) {
+    GroupReplyMode.ADMIN_FIRST -> stringResource(R.string.fbot_reply_mode_admin)
+    GroupReplyMode.ALL_MEMBERS -> stringResource(R.string.fbot_reply_mode_all)
 }
 
 @Composable
