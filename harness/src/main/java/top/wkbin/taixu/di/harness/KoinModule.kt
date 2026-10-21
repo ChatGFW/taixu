@@ -164,7 +164,7 @@ val harnessModule = module {
             capabilityWriter = get(),
             agentEventLogger = get(),
             contextAssembler = get(),
-            compactionManager = get(),
+            compactionManager = get(), context = get(),
         )
     }
 

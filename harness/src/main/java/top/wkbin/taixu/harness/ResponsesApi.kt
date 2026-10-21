@@ -6,7 +6,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -77,17 +76,9 @@ internal class ResponsesApi(
         val call = okHttpClient.newCall(buildResponsesRequest(model, messages, stream = true))
         // 与 ChatApi 一致：取消时立即关闭 socket，保证"停止"秒级生效
         val cancelHandle = coroutineContext[Job]?.invokeOnCompletion(onCancelling = true) { call.cancel() }
-        val firstEventTimeoutMs = ProviderClient.resolveFirstEventTimeoutMs(
-            ProviderClient.estimateApiMessageTokens(messages),
-            reasoningEnabled = model.reasoningMode != ReasoningMode.DISABLED,
-        )
+        val firstEventTimeoutMs = firstEventTimeoutMs(messages, model)
         val firstEventState = AtomicInteger(ProviderClient.FIRST_EVENT_WAITING)
-        val firstEventWatchdog = launch {
-            delay(firstEventTimeoutMs)
-            if (firstEventState.compareAndSet(ProviderClient.FIRST_EVENT_WAITING, ProviderClient.FIRST_EVENT_TIMED_OUT)) {
-                call.cancel()
-            }
-        }
+        val firstEventWatchdog = launch { awaitFirstEventTimeout(firstEventTimeoutMs, firstEventState) { call.cancel() } }
         try {
             call.execute().use { response ->
                 if (!response.isSuccessful) {

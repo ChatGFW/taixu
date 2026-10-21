@@ -624,10 +624,10 @@ class SettingsDataStore(
 
     /** 全局推理深度：auto / disabled / low / medium / high（作用于未单独设置强度的模型）。 */
     val defaultReasoningDepth: Flow<String> = context.settingsDataStore.data.map { it[defaultReasoningDepthKey] ?: "auto" }
-    suspend fun setDefaultReasoningDepth(value: String) {
-        context.settingsDataStore.edit { it[defaultReasoningDepthKey] = value }
-    }
+    suspend fun setDefaultReasoningDepth(value: String) { context.settingsDataStore.edit { it[defaultReasoningDepthKey] = value } }
 
+    val firstResponseTimeoutSeconds: Flow<Int> = context.firstResponseTimeoutSecondsPreference
+    suspend fun setFirstResponseTimeoutSeconds(value: Int) { context.setFirstResponseTimeoutSecondsPreference(value) }
     // ==================== Agent 智能体核心配置 ====================
 
     private val contextCompactionEnabledKey = booleanPreferencesKey("agent_context_compaction_enabled")

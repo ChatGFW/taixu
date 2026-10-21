@@ -58,6 +58,11 @@ data class ModelConfig(
     val promptCachingEnabled: Boolean = false,
     /** 是否使用 1 小时缓存 TTL（cache_control.ttl=1h + 扩展 beta 头）；默认 5 分钟。 */
     val promptCacheTtl1h: Boolean = false,
+    /**
+     * 等待首个模型事件或心跳的毫秒数。默认 90 秒；0 表示关闭这项本机上限。
+     * 由全局设置在解析模型时写入，不是供应商接口参数。
+     */
+    val firstResponseTimeoutMs: Long = top.wkbin.taixu.core.model.FirstResponseTimeoutPolicy.DEFAULT_TIMEOUT_MS,
 ) {
     /** Legacy flags are decoded once here; Responses retains its historical precedence. */
     val api: LlmApi
