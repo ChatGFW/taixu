@@ -22,7 +22,9 @@ import kotlinx.coroutines.sync.withPermit
  *   base 保持回合内顺序，但不持有跨会话工作区锁，避免长下载阻塞其他会话的命令；
  *   已识别的重型命令由运行时资源调度器另行排队，不保证任意 Shell 写入互斥。
  *   审批恢复（resolveApproval）执行被批准的变更工具也经 [withMutationLock] 走同一把锁；
- *   自行协调写隔离的子智能体仍形成回合屏障，但可通过 [needsMutationLock] 避免整批持锁；
+ *   子智能体不取工作区锁（[needsMutationLock] 对其恒为 false），而是按声明的 write_paths
+ *   参与并发组：只有与组内已有成员两两不冲突（见 [conflicts]）才并入同一组，
+ *   写路径相交或整工作区独占（["*"]）即断组，退化为顺序屏障。
  * - 任一工具触发审批暂停（[Pause.abort]）后，尚未开始的工具不再启动，在途工具自然跑完，
  *   与原串行"中途暂停、后续调用不执行"的语义保持一致；
  * - 取消沿结构化并发传播：外层 Job 被取消时，所有在途工具被打断并向上抛出
@@ -74,6 +76,8 @@ class ToolRoundDispatcher() {
         mutationScope: String = "",
         isParallelSafe: (T) -> Boolean,
         needsMutationLock: (T) -> Boolean = { !isParallelSafe(it) },
+        /** 组内两两判定：返回 true 时后一个调用断组，形成顺序屏障。 */
+        conflicts: (T, T) -> Boolean = { _, _ -> false },
         run: suspend (T, Pause) -> Unit,
     ) {
         if (items.isEmpty()) return
@@ -94,7 +98,15 @@ class ToolRoundDispatcher() {
                 continue
             }
             val start = cursor++
-            while (cursor < items.size && isParallelSafe(items[cursor])) cursor++
+            // 并发组成员必须两两可并行：写路径相交（或任一方独占整工作区）的调用在此断组，
+            // 形成一个顺序屏障，等前面这组全部落库后再启动。
+            while (
+                cursor < items.size &&
+                isParallelSafe(items[cursor]) &&
+                (start until cursor).none { earlier -> conflicts(items[earlier], items[cursor]) }
+            ) {
+                cursor++
+            }
             val end = cursor
             // Await the entire group, including durable result publication, before the barrier.
             coroutineScope {
