@@ -54,6 +54,11 @@ assets/plugins/qemu-x86-64-compat/payload/archives/
 # Keep manifests, scripts, checksums, config and download instructions versioned.
 assets/plugins/rtk-suite-offline/payload/bin/
 assets/plugins/cc-switch/payload/lib/
+
+# Locally fetched Android CLI binaries for the android-skills plugin (~90 MiB).
+# The vendored skills (payload/skills) stay versioned for provenance; the launcher
+# and the android-cli payload are reproduced by tools/vendor-android-skills-plugin.py.
+assets/plugins/android-skills/payload/bin/
 dist/
 .workbuddy/
 .trae/

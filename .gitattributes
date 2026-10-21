@@ -9,3 +9,9 @@ project-template/src/main/assets/templates/taixu-plugin/**/*.template text eol=l
 app/src/main/assets/scripts/*.sh text eol=lf
 *.txplugin binary
 assets/plugins/**/payload/bin/* binary
+# 官方 Android Skills 原文按 LF 入库：插件打包与安装脚本的 SHA-256 校验依赖稳定字节。
+assets/plugins/android-skills/manifest.json text eol=lf
+assets/plugins/android-skills/*.md text eol=lf
+assets/plugins/android-skills/payload/skills/** text eol=lf
+assets/plugins/android-skills/payload/licenses/** text eol=lf
+assets/plugins/android-skills/payload/checksums/** text eol=lf
