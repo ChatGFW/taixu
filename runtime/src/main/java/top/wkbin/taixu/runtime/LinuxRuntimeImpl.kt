@@ -13,7 +13,7 @@ import top.wkbin.taixu.core.model.CpuArch
 import top.wkbin.taixu.core.model.InstalledDistro
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.core.model.StorageMountBinding
-import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
+import top.wkbin.taixu.runtime.backend.GuestCommandBuilder
 import top.wkbin.taixu.runtime.proot.QemuCompatibilityLayout
 import top.wkbin.taixu.runtime.proot.hostSupplementaryGroupIds
 import top.wkbin.taixu.runtime.proot.syncGuestGroups
@@ -50,7 +50,7 @@ class LinuxRuntimeImpl(
     private val pathManager: RuntimePathManager,
     private val prootInstaller: ProotInstaller,
     private val rootfsInstaller: RootfsInstaller,
-    private val prootCommandBuilder: ProotCommandBuilder,
+    private val prootCommandBuilder: GuestCommandBuilder,
     private val ptyManager: PtyManager,
     private val shellExecutor: ShellExecutor,
     private val healthChecker: RuntimeHealthChecker,

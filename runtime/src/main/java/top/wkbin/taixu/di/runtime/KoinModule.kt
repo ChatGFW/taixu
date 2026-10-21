@@ -2,6 +2,8 @@ package top.wkbin.taixu.di.runtime
 
 import org.koin.dsl.module
 import org.koin.dsl.onClose
+import top.wkbin.taixu.runtime.backend.GuestCommandBuilder
+import top.wkbin.taixu.runtime.droidspaces.DroidspacesCommandBuilder
 import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
 import top.wkbin.taixu.core.database.BuildScriptRepository
 import top.wkbin.taixu.runtime.BackgroundTaskRegistry
@@ -64,7 +66,21 @@ val runtimeModule = module {
     single { top.wkbin.taixu.runtime.remote.SshConnector() }
     single<top.wkbin.taixu.runtime.remote.SshConnectionTester> { get<top.wkbin.taixu.runtime.remote.SshConnector>() }
     single { top.wkbin.taixu.runtime.remote.RemoteSystemService(get(), get()) }
+    /**
+     * 后端选型收敛点：PRoot 与 Droidspaces 两个实现常驻，按 `effectiveExecutionMode`
+     * 在运行期路由。用户在设置页切换 ROOT 模式后即时生效，无需重启 App。
+     */
     single<ProotCommandBuilder> { ProotCommandBuilder(environmentResolver = get(), logger = get()) }
+    single<DroidspacesCommandBuilder> {
+        DroidspacesCommandBuilder(environmentResolver = get(), logger = get())
+    }
+    single<GuestCommandBuilder> {
+        BackendRoutingCommandBuilder(
+            proot = get<ProotCommandBuilder>(),
+            droidspaces = get<DroidspacesCommandBuilder>(),
+            modeFlow = get<top.wkbin.taixu.core.datastore.RuntimePreferences>().effectiveExecutionMode,
+        )
+    }
 
     single<BackgroundTaskRegistry> { BackgroundTaskRegistry() }
 
@@ -109,7 +125,7 @@ val runtimeModule = module {
             pathManager = get(),
             prootInstaller = get(),
             rootfsInstaller = get(),
-            prootCommandBuilder = get(),
+            prootCommandBuilder = get<GuestCommandBuilder>(),
             ptyManager = get(),
             shellExecutor = get(),
             healthChecker = get(),
@@ -136,7 +152,7 @@ val runtimeModule = module {
     single<RuntimeHealthChecker> {
         RuntimeHealthChecker(
             pathManager = get(),
-            prootCommandBuilder = get(),
+            prootCommandBuilder = get<GuestCommandBuilder>(),
             shellExecutor = get(),
         )
     }
@@ -320,7 +336,11 @@ val runtimeModule = module {
     single<LocalServiceLauncherImpl> { LocalServiceLauncherImpl(linuxRuntime = get()) }
 
     single<ProcessRegistryImpl> {
-        ProcessRegistryImpl(pathManager = get(), prootCommandBuilder = get(), sandboxCredentials = get())
+        ProcessRegistryImpl(
+            pathManager = get(),
+            prootCommandBuilder = get<GuestCommandBuilder>(),
+            sandboxCredentials = get(),
+        )
     }
 
     single<ProcessShellExecutor> { ProcessShellExecutor(pathManager = get()) }

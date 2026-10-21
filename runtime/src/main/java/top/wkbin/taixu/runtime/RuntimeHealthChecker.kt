@@ -1,6 +1,6 @@
 package top.wkbin.taixu.runtime
 
-import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
+import top.wkbin.taixu.runtime.backend.GuestCommandBuilder
 import top.wkbin.taixu.runtime.shell.CommandResult
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import top.wkbin.taixu.runtime.shell.ShellExecutor
@@ -8,7 +8,7 @@ import java.io.File
 
 class RuntimeHealthChecker(
     private val pathManager: RuntimePathManager,
-    private val prootCommandBuilder: ProotCommandBuilder,
+    private val prootCommandBuilder: GuestCommandBuilder,
     private val shellExecutor: ShellExecutor,
 ) {
     suspend fun check(): RuntimeHealth {

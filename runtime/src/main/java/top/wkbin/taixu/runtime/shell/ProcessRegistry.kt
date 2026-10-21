@@ -3,7 +3,7 @@ package top.wkbin.taixu.runtime.shell
 import top.wkbin.taixu.core.model.StorageMountBinding
 import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.runtime.bridge.SandboxCredentialStore
-import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
+import top.wkbin.taixu.runtime.backend.GuestCommandBuilder
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -72,7 +72,7 @@ class ProcessRegistryImpl internal constructor(
 ) : ProcessRegistry {
     constructor(
         pathManager: RuntimePathManager,
-        prootCommandBuilder: ProotCommandBuilder,
+        prootCommandBuilder: GuestCommandBuilder,
         sandboxCredentials: SandboxCredentialStore? = null,
     ) : this(
         RegistrySessionFactory { command, distroId, mounts ->
