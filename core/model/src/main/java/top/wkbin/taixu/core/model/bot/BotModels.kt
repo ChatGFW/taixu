@@ -43,6 +43,14 @@ data class BotMemberGroup(
     val memberIds: List<String> = emptyList(),
 )
 
+/** Bot 会话归属的群聊；用于会话抽屉按群折叠。 */
+@Serializable
+data class BotSessionGroupRef(
+    val sessionId: String,
+    val groupId: String,
+    val groupName: String,
+)
+
 @Serializable
 enum class GroupSenderType {
     USER,

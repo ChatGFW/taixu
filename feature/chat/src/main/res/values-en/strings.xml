@@ -114,8 +114,13 @@
     <string name="chat_drawer_new_task">New Task</string>
     <string name="chat_drawer_projects">Projects</string>
     <string name="chat_drawer_bot_sessions">Bot sessions</string>
-    <string name="chat_drawer_bot_sessions_expand">Show all %1$d</string>
-    <string name="chat_drawer_bot_sessions_collapse">Show recent only</string>
+    <string name="chat_drawer_attention">%1$d sessions need attention</string>
+    <string name="chat_hide_session">Hide session</string>
+    <string name="chat_hidden_sessions">%1$d hidden sessions</string>
+    <string name="chat_hidden_sessions_title">Hidden sessions</string>
+    <string name="chat_restore_session">Restore</string>
+    <string name="chat_restore_all_sessions">Restore all</string>
+    <string name="chat_drawer_bot_sessions_other">Other sessions</string>
     <string name="chat_drawer_recent">Recent</string>
     <string name="chat_drawer_no_projects">No linked projects</string>
     <string name="chat_drawer_no_sessions_in_project">No sessions yet; tap + to create</string>

@@ -10,6 +10,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import top.wkbin.taixu.core.database.repository.RoomPersonaBotRepository
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -94,6 +95,18 @@ class BotPersistenceTest {
         val ids = bots.observeSessionIds().first()
         assertTrue(ids.containsAll(setOf("dm", "group-session", "solo-session")))
         assertFalse("shared-session" in ids)
+    }
+
+    @Test fun `group session refs map group and independent sessions to their chat`() = runBlocking {
+        seed()
+        db.botAssignmentDao().upsert(assignment("solo-task", "solo-session").copy(independent = true))
+        db.botAssignmentDao().upsert(assignment("shared-task", "shared-session"))
+        val refs = RoomPersonaBotRepository(bots).observeGroupSessionRefs().first()
+        assertEquals("group", refs["group-session"]?.groupId)
+        assertEquals("Team", refs["group-session"]?.groupName)
+        assertEquals("group", refs["solo-session"]?.groupId)
+        assertNull(refs["shared-session"])
+        assertNull(refs["dm"])
     }
 
     @Test fun `staging an occurrence advances atomically and cannot duplicate it`() = runBlocking {

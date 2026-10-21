@@ -138,6 +138,13 @@ data class BotScheduleEntity(
     val createdAt: Long,
 )
 
+/** Bot 会话所属群聊的映射行，用于会话抽屉按群折叠。 */
+data class BotGroupSessionRefRow(
+    val sessionId: String,
+    val groupId: String,
+    val groupName: String,
+)
+
 @Dao
 interface PersonaBotDao {
     @Query("SELECT * FROM persona_bots ORDER BY isMainBot DESC, updatedAt DESC")
@@ -161,6 +168,17 @@ interface PersonaBotDao {
             "UNION SELECT sessionId FROM bot_assignments WHERE independent = 1 AND sessionId IS NOT NULL",
     )
     fun observeSessionIds(): Flow<List<String>>
+
+    /** 群维度会话与独立委派会话归属的群聊；私有会话不在结果里。 */
+    @Query(
+        "SELECT bs.sessionId AS sessionId, g.id AS groupId, g.name AS groupName " +
+            "FROM bot_group_sessions bs INNER JOIN group_chats g ON g.id = bs.groupId " +
+            "UNION " +
+            "SELECT a.sessionId AS sessionId, g.id AS groupId, g.name AS groupName " +
+            "FROM bot_assignments a INNER JOIN group_chats g ON g.id = a.groupId " +
+            "WHERE a.independent = 1 AND a.sessionId IS NOT NULL",
+    )
+    fun observeGroupSessionRefs(): Flow<List<BotGroupSessionRefRow>>
 
     @Query("SELECT * FROM persona_bots ORDER BY isMainBot DESC, updatedAt DESC")
     suspend fun listAll(): List<BotEntity>

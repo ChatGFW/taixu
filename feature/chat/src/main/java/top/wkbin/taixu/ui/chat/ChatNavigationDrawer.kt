@@ -3,10 +3,15 @@ package top.wkbin.taixu.ui.chat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.core.datastore.hiddenBotSessionIdsPreference
+import top.wkbin.taixu.core.datastore.setBotSessionHidden
 import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.ui.components.AppNavigationSection
 import top.wkbin.taixu.ui.components.LocalPluginDestinationActive
@@ -37,6 +42,12 @@ fun ChatNavigationDrawer(
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
     val botRepository = koinInject<PersonaBotRepository>()
     val botSessionIds by remember(botRepository) { botRepository.observeBotSessionIds() }
+        .collectAsStateWithLifecycle(emptySet())
+    val botSessionGroups by remember(botRepository) { botRepository.observeGroupSessionRefs() }
+        .collectAsStateWithLifecycle(emptyMap())
+    val context = LocalContext.current
+    val hiddenScope = rememberCoroutineScope()
+    val hiddenBotSessionIds by remember(context) { context.hiddenBotSessionIdsPreference }
         .collectAsStateWithLifecycle(emptySet())
     val (botSessions, normalSessions) = remember(sessions, botSessionIds) {
         sessions.partition { it.id in botSessionIds }
@@ -76,6 +87,11 @@ fun ChatNavigationDrawer(
                 visible = true,
                 sessions = normalSessions,
                 botSessions = botSessions,
+                botSessionGroups = botSessionGroups,
+                hiddenBotSessionIds = hiddenBotSessionIds,
+                onHideBotSession = { id, hidden ->
+                    hiddenScope.launch { context.setBotSessionHidden(id, hidden) }
+                },
                 currentSessionId = currentSessionId,
                 workspaces = catalog.projects,
                 sessionRunStates = runStates,

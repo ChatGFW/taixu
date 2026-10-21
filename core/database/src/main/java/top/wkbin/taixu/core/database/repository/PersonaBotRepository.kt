@@ -19,6 +19,7 @@ import top.wkbin.taixu.core.database.GroupMessageEntity
 import top.wkbin.taixu.core.database.PersonaBotDao
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotSchedule
+import top.wkbin.taixu.core.model.bot.BotSessionGroupRef
 import top.wkbin.taixu.core.model.bot.GroupAttachment
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupMessage
@@ -30,6 +31,7 @@ interface PersonaBotRepository {
     fun observeBots(): Flow<List<Bot>>
     fun observeBot(id: String): Flow<Bot?>
     fun observeBotSessionIds(): Flow<Set<String>>
+    fun observeGroupSessionRefs(): Flow<Map<String, BotSessionGroupRef>>
     suspend fun getBot(id: String): Bot?
     suspend fun getBotBySessionId(sessionId: String): Bot?
     suspend fun getMainBot(): Bot?
@@ -92,6 +94,14 @@ class RoomPersonaBotRepository(
 
     override fun observeBotSessionIds(): Flow<Set<String>> =
         dao.observeSessionIds().map { ids -> ids.filter { it.isNotBlank() }.toSet() }
+
+    override fun observeGroupSessionRefs(): Flow<Map<String, BotSessionGroupRef>> =
+        dao.observeGroupSessionRefs().map { rows ->
+            rows.associateBy(
+                keySelector = { it.sessionId },
+                valueTransform = { BotSessionGroupRef(it.sessionId, it.groupId, it.groupName) },
+            )
+        }
 
     override suspend fun getBot(id: String): Bot? = dao.findById(id)?.toModel()
 
