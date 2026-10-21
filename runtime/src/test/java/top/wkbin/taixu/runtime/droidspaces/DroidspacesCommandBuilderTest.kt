@@ -3,12 +3,13 @@ package top.wkbin.taixu.runtime.droidspaces
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.core.model.StorageMountBinding
 import top.wkbin.taixu.runtime.EnvironmentResolver
-import top.wkbin.taixu.runtime.backend.BackendRoutingCommandBuilder
+import top.wkbin.taixu.runtime.backend.ModeBackendSelector
 import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
 import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -191,30 +192,25 @@ class DroidspacesCommandBuilderTest {
     }
 
     @Test
-    fun routingPicksProotUntilRootModeIsSelected() {
-        val mode = MutableStateFlow(ExecutionMode.PROOT)
-        val routing = BackendRoutingCommandBuilder(
-            proot = ProotCommandBuilder(EnvironmentResolver()),
-            droidspaces = builder(),
-            modeFlow = mode,
-        )
-        val prootArgv = routing.build(
-            prootBinary = File("/data/app/proot"),
-            rootfsDir = rootfsDir,
-            workspaceDir = workspaceDir,
-            homeDir = File("/h"),
-            optDir = optDir,
-            tmpDir = tmpDir,
-            attachmentsDir = attachmentsDir,
-            command = ShellCommand(commandLine = "true"),
-            mounts = emptyList(),
-            emulatorBinary = null,
-            hostCredential = emptyMap(),
-        )
-        assertEquals("/data/app/proot", prootArgv.first())
+    fun selectorRoutesToProotUntilRootModeIsSelected() {
+        runBlocking {
+            val modes = MutableStateFlow(ExecutionMode.PROOT)
+            val selector = ModeBackendSelector(
+                proot = ProotCommandBuilder(EnvironmentResolver()),
+                droidspaces = builder(),
+                modes = modes,
+            )
+            // 模式取自 Flow 的当前值，不依赖任何调度器上的异步收集器，因此无竞态。
+            assertEquals("/data/app/proot", sampleArgv(selector).first())
 
-        mode.value = ExecutionMode.ROOT
-        val dsArgv = routing.build(
+            modes.value = ExecutionMode.ROOT
+            assertEquals("su", sampleArgv(selector).first())
+        }
+    }
+
+    /** 用同一组入参驱动后端，断言「同一份输入在不同模式下走不同后端」。 */
+    private fun sampleArgv(selector: ModeBackendSelector): List<String> = runBlocking {
+        selector.active().build(
             prootBinary = File("/data/app/proot"),
             rootfsDir = rootfsDir,
             workspaceDir = workspaceDir,
@@ -227,6 +223,5 @@ class DroidspacesCommandBuilderTest {
             emulatorBinary = null,
             hostCredential = emptyMap(),
         )
-        assertEquals("su", dsArgv.first())
     }
 }

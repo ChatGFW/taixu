@@ -1,12 +1,9 @@
 package top.wkbin.taixu.di.runtime
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import org.koin.dsl.module
 import org.koin.dsl.onClose
-import top.wkbin.taixu.runtime.backend.BackendRoutingCommandBuilder
-import top.wkbin.taixu.runtime.backend.GuestCommandBuilder
+import top.wkbin.taixu.runtime.backend.BackendSelector
+import top.wkbin.taixu.runtime.backend.ModeBackendSelector
 import top.wkbin.taixu.runtime.droidspaces.DroidspacesCommandBuilder
 import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
 import top.wkbin.taixu.core.database.BuildScriptRepository
@@ -71,22 +68,19 @@ val runtimeModule = module {
     single<top.wkbin.taixu.runtime.remote.SshConnectionTester> { get<top.wkbin.taixu.runtime.remote.SshConnector>() }
     single { top.wkbin.taixu.runtime.remote.RemoteSystemService(get(), get()) }
     /**
-     * 后端选型收敛点：PRoot 与 Droidspaces 两个实现常驻，按 `effectiveExecutionMode`
-     * 在运行期路由。用户在设置页切换 ROOT 模式后即时生效，无需重启 App。
+     * 后端选型收敛点：PRoot 与 Droidspaces 两个实现常驻，由调用点在**自己的挂起路径**里
+     * 解析当前模式（`effectiveExecutionMode.first()`）。因此单条命令与会话在其生命周期内
+     * 固定使用同一个后端，也不存在异步快照窗口；切换 ROOT 模式后对下一条命令即时生效。
      */
     single<ProotCommandBuilder> { ProotCommandBuilder(environmentResolver = get(), logger = get()) }
     single<DroidspacesCommandBuilder> {
         DroidspacesCommandBuilder(environmentResolver = get(), logger = get())
     }
-    single<GuestCommandBuilder> {
-        // modeFlow 与 scope 都在 lambda 内直接构造，不走容器查找：
-        // 容器里没有 CoroutineScope / Flow<ExecutionMode> 的绑定，用 get() 会让
-        // taiXuModule.verify() 抛 MissingKoinDefinitionException。
-        BackendRoutingCommandBuilder(
+    single<BackendSelector> {
+        ModeBackendSelector(
             proot = get<ProotCommandBuilder>(),
             droidspaces = get<DroidspacesCommandBuilder>(),
-            modeFlow = get<top.wkbin.taixu.core.datastore.RuntimePreferences>().effectiveExecutionMode,
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+            modes = get<top.wkbin.taixu.core.datastore.RuntimePreferences>().effectiveExecutionMode,
         )
     }
 
@@ -133,7 +127,7 @@ val runtimeModule = module {
             pathManager = get(),
             prootInstaller = get(),
             rootfsInstaller = get(),
-            prootCommandBuilder = get<GuestCommandBuilder>(),
+            backendSelector = get<BackendSelector>(),
             ptyManager = get(),
             shellExecutor = get(),
             healthChecker = get(),
@@ -160,7 +154,7 @@ val runtimeModule = module {
     single<RuntimeHealthChecker> {
         RuntimeHealthChecker(
             pathManager = get(),
-            prootCommandBuilder = get<GuestCommandBuilder>(),
+            backendSelector = get<BackendSelector>(),
             shellExecutor = get(),
         )
     }
@@ -346,7 +340,7 @@ val runtimeModule = module {
     single<ProcessRegistryImpl> {
         ProcessRegistryImpl(
             pathManager = get(),
-            prootCommandBuilder = get<GuestCommandBuilder>(),
+            backendSelector = get<BackendSelector>(),
             sandboxCredentials = get(),
         )
     }

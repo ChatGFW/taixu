@@ -66,6 +66,7 @@ class DroidspacesCommandBuilder private constructor(
             distro = distro,
             rootfsDir = rootfsDir,
             workspaceDir = workspaceDir,
+            homeDir = homeDir,
             optDir = optDir,
             tmpDir = tmpDir,
             attachmentsDir = attachmentsDir,
@@ -120,6 +121,7 @@ class DroidspacesCommandBuilder private constructor(
             distro = distro,
             rootfsDir = rootfsDir,
             workspaceDir = workspaceDir,
+            homeDir = homeDir,
             optDir = optDir,
             tmpDir = tmpDir,
             attachmentsDir = attachmentsDir,
@@ -141,7 +143,10 @@ class DroidspacesCommandBuilder private constructor(
                 require(ENVIRONMENT_KEY.matches(key)) { "Invalid environment variable name: $key" }
                 "$key=${ShellQuote.of(value)}"
             }
-        val body = "cd -- ${ShellQuote.of(workingDirectory)} && exec $commandLine"
+        // 严禁在此加 `exec` 前缀：调用方传入的是任意 shell 片段（`a; b`、`cd x && …`、
+        // `if …` 等），`exec` 只接受一条简单命令，加了会让复合命令的后续语句不执行、
+        // 内建命令直接失败。工作目录由 `cd` 设置（`run_in_rootfs` 在 pivot 后 chdir("/")）。
+        val body = "cd -- ${ShellQuote.of(workingDirectory)} && $commandLine"
         val wrapped = if (pty) wrapInPty(body) else body
         // 变量为空时不加 `env` 前缀：避免 `env  sh -lc` 这类双空格与多余的 exec 层。
         return if (exports.isBlank()) {
@@ -162,6 +167,7 @@ class DroidspacesCommandBuilder private constructor(
         distro: String,
         rootfsDir: File,
         workspaceDir: File,
+        homeDir: File,
         optDir: File,
         tmpDir: File,
         attachmentsDir: File,
@@ -196,13 +202,18 @@ class DroidspacesCommandBuilder private constructor(
      */
     private fun bindArguments(
         workspaceDir: File,
+        homeDir: File,
         optDir: File,
         tmpDir: File,
         attachmentsDir: File,
         mounts: List<StorageMountBinding>,
     ): List<String> {
+        // PRoot 后端绑定了 `${homeDir}:/root`，此处必须逐项对齐：否则客态的 HOME、
+        // 凭据、配置与 shell 历史都和 PRoot 视图隔开，插件与工具链会看到两套环境。
+        homeDir.mkdirs()
         val binds = mutableListOf(
             "${workspaceDir.absolutePath}:/workspace",
+            "${homeDir.absolutePath}:/root",
             "${optDir.absolutePath}:/opt/taixu",
             "${tmpDir.absolutePath}:/tmp",
             "${attachmentsDir.absolutePath}:/attachments",
@@ -245,12 +256,21 @@ class DroidspacesCommandBuilder private constructor(
         return buildString {
             append("BIN=").append(cli).append("; ")
             append("NAME=").append(ShellQuote.of(container)).append("; ")
+            // CLI 可用性前置检查：同时覆盖绝对路径与 PATH 中的命令名两种装配方式。
+            // 缺失时给出可诊断的报错，而不是让后续 run 报一个看不出原因的失败。
+            append("if [ ! -x \"\$BIN\" ] && ! command -v \"\$BIN\" >/dev/null 2>&1; then ")
+            append("echo \"[taixu] 未找到可执行的 Droidspaces CLI：\$BIN。")
+            append("请先安装 Droidspaces，或在设置中切回 PRoot 后端。\" >&2; exit 127; fi; ")
             // 用 `[[:space:]]` 两侧断言做词边界匹配，POSIX grep -E 与 busybox 均支持。
             append("if \$BIN --name=\"\$NAME\" show 2>/dev/null ")
             append("| grep -Eq \"(^|[^A-Za-z0-9_.-])\$NAME([^A-Za-z0-9_.-]|\$)\"; then :; ")
-            append("else \$BIN start --name=\"\$NAME\" -r ").append(rootfs)
+            // start 失败绝不吞掉：容器起不来时后续 run 只会给出难以诊断的错误。
+            // stdout 仍丢弃以免污染非交互命令的输出流，失败原因由驻留消息给出。
+            append("elif ! \$BIN start --name=\"\$NAME\" -r ").append(rootfs)
             if (bindFlags.isNotBlank()) append(' ').append(bindFlags)
-            append(" >/dev/null 2>&1 || true; fi; ")
+            append(" >/dev/null 2>&1; then ")
+            append("echo \"[taixu] Droidspaces 容器 \$NAME 启动失败：")
+            append("请确认已授予 root、rootfs 可用且内核支持容器。\" >&2; exit 125; fi; ")
         }
     }
 
