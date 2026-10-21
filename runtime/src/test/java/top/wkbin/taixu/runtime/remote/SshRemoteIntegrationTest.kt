@@ -14,6 +14,7 @@ import top.wkbin.taixu.core.model.*
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentId
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import org.apache.sshd.server.command.Command
 import org.apache.sshd.server.ExitCallback
 import org.apache.sshd.server.Environment
@@ -34,6 +35,9 @@ class SshRemoteIntegrationTest {
     private val authentications = AtomicInteger()
     private val connector = SshConnector()
     private val destroyed = AtomicInteger()
+    private val channels = AtomicInteger()
+    private val observedEnvironment = AtomicReference<Map<String, String>>(emptyMap())
+    private var echoProtocolEnvironment = true
     private var lastCommand = ""
     @Before fun start() {
         val root = folder.newFolder("server").toPath()
@@ -50,7 +54,8 @@ class SshRemoteIntegrationTest {
             subsystemFactories = listOf(SftpSubsystemFactory.Builder().build())
             setCommandFactory { _, command ->
                 lastCommand = command
-                FixtureCommand(command.contains("hold-open"), command.contains("memoryTotal"), command.contains("terminal-bytes"))
+                channels.incrementAndGet()
+                FixtureCommand(command, command.contains("hold-open"), command.contains("memoryTotal"), command.contains("terminal-bytes"))
             }
             start()
         }
@@ -133,7 +138,97 @@ class SshRemoteIntegrationTest {
             assertEquals("remote stdout", result.stdout)
             assertEquals("remote stderr", result.stderr)
             assertTrue(lastCommand.startsWith("cd -- '/workspace'"))
-            assertTrue(lastCommand.contains("export TEST='a'\"'\"'b';"))
+            assertEquals("a'b", observedEnvironment.get()["TEST"])
+            assertFalse(lastCommand.contains("export TEST="))
+            assertFalse(lastCommand.contains("/etc/profile"))
+        } finally { world.close() }
+    }
+    @Test fun `execute interactive and background receive settings variables without bridge credentials`() = runBlocking {
+        val credentials = SshCredentials("test-password")
+        val trusted = pin(server(), credentials)
+        val connector = SshConnector {
+            mapOf(
+                "FROM_SETTINGS" to "from-settings",
+                "KEEP" to "kept",
+                "TAIXU_BRIDGE_TOKEN" to "bridge-secret",
+                "TAIXU_BRIDGE_ACTIONS" to "host.shell",
+                "taixu_bridge_url" to "http://127.0.0.1:7980",
+            )
+        }
+        val world = connector.openEnvironment(trusted, credentials, ExecutionEnvironmentId("ssh", trusted.distributionId, "/workspace", "user-env"))
+        try {
+            world.execute(ShellCommand("fixture", world.workingDirectory(), mapOf("FROM_SETTINGS" to "from-command", "EXTRA" to "a'b")))
+            val executed = observedEnvironment.get()
+            assertEquals("from-command", executed["FROM_SETTINGS"])
+            assertEquals("kept", executed["KEEP"])
+            assertEquals("a'b", executed["EXTRA"])
+            assertTrue(executed.keys.none { it.startsWith("TAIXU_BRIDGE", ignoreCase = true) })
+            assertFalse(lastCommand.contains("export "))
+            assertFalse(lastCommand.contains("bridge-secret"))
+            assertFalse(lastCommand.contains("/etc/profile"))
+            val terminal = world.openTerminal(top.wkbin.taixu.runtime.shell.SessionConfig(
+                commandLine = "interactive", workingDirectory = "/workspace", environment = mapOf("KEEP" to "term")))
+            withTimeout(5_000) { terminal.output.collect { } }
+            assertEquals("term", observedEnvironment.get()["KEEP"])
+            assertEquals("from-settings", observedEnvironment.get()["FROM_SETTINGS"])
+            assertFalse(observedEnvironment.get().containsKey("TAIXU_BRIDGE_TOKEN"))
+            val protocol = world.openSession(top.wkbin.taixu.runtime.shell.SessionConfig(
+                commandLine = "protocol", workingDirectory = "/workspace", environment = mapOf("KEEP" to "session")))
+            withTimeout(5_000) { protocol.output.collect { } }
+            assertEquals("session", observedEnvironment.get()["KEEP"])
+            val started = channels.get()
+            val background = world.startBackground("bg", ShellCommand("hold-open", "/workspace", mapOf("KEEP" to "background")))
+            withTimeout(5_000) { while (observedEnvironment.get()["KEEP"] != "background") delay(10) }
+            assertEquals(started + 1, channels.get())
+            assertTrue(background.session.isAlive)
+            assertFalse(lastCommand.contains("bridge-secret"))
+            assertTrue(world.stopBackground("bg"))
+        } finally { world.close() }
+    }
+    @Test fun `rejected setEnv prefixes quoted exports and does not source the remote profile`() = runBlocking {
+        echoProtocolEnvironment = false
+        val credentials = SshCredentials("test-password")
+        val trusted = pin(server(), credentials)
+        val connector = SshConnector {
+            mapOf(
+                "FROM_SETTINGS" to "user-value",
+                "SECRET_VALUE" to "a'b\$(bad)",
+                "TAIXU_BRIDGE_TOKEN" to "bridge-secret",
+                "TAIXU_BRIDGE_ACTIONS" to "host.shell",
+            )
+        }
+        val world = connector.openEnvironment(trusted, credentials, ExecutionEnvironmentId("ssh", trusted.distributionId, "/workspace", "export-fallback"))
+        try {
+            val start = channels.get()
+            world.execute(ShellCommand("fixture", world.workingDirectory(), mapOf("FROM_SETTINGS" to "from-command", "TAIXU_BRIDGE_TOKEN" to "command-secret")))
+            val mid = channels.get()
+            assertEquals(2, mid - start)
+            assertTrue(lastCommand.contains("export FROM_SETTINGS='from-command';"))
+            assertTrue(lastCommand.contains("export SECRET_VALUE='a'\"'\"'b\$(bad)';"))
+            assertFalse(lastCommand.contains("bridge-secret"))
+            assertFalse(lastCommand.contains("command-secret"))
+            assertFalse(lastCommand.contains("/etc/profile"))
+            assertFalse(lastCommand.contains("source "))
+            assertFalse(observedEnvironment.get().containsKey("FROM_SETTINGS"))
+            assertFalse(observedEnvironment.get().containsKey("TAIXU_BRIDGE_TOKEN"))
+            world.execute(ShellCommand("fixture", world.workingDirectory(), mapOf("OTHER" to "z")))
+            assertEquals(1, channels.get() - mid)
+            assertTrue(lastCommand.contains("export FROM_SETTINGS='user-value';"))
+            assertTrue(lastCommand.contains("export OTHER='z';"))
+            assertTrue(lastCommand.contains("export SECRET_VALUE="))
+        } finally { world.close() }
+    }
+    @Test fun `multiline values are exported instead of setEnv`() = runBlocking {
+        val credentials = SshCredentials("test-password")
+        val trusted = pin(server(), credentials)
+        val world = connector.openEnvironment(trusted, credentials, ExecutionEnvironmentId("ssh", trusted.distributionId, "/workspace", "multiline"))
+        try {
+            val start = channels.get()
+            world.execute(ShellCommand("fixture", world.workingDirectory(), mapOf("MULTI" to "a'b\n\$(bad)")))
+            assertEquals(1, channels.get() - start)
+            assertTrue(lastCommand.contains("export MULTI='a'\"'\"'b\n\$(bad)';"))
+            assertFalse(observedEnvironment.get().containsKey("MULTI"))
+            assertFalse(lastCommand.contains("/etc/profile"))
         } finally { world.close() }
     }
     @Test fun `PTY byte stream preserves UTF8 and terminal control sequences`() = runBlocking {
@@ -220,7 +315,11 @@ class SshRemoteIntegrationTest {
                 // Same layout as [start]: the fixture workspace lives under the "server" folder.
                 fileSystemFactory = VirtualFileSystemFactory(folder.root.toPath().resolve("server"))
                 subsystemFactories = listOf(SftpSubsystemFactory.Builder().build())
-                setCommandFactory { _, command -> lastCommand = command; FixtureCommand(command.contains("hold-open")) }
+                setCommandFactory { _, command ->
+                    lastCommand = command
+                    channels.incrementAndGet()
+                    FixtureCommand(command, command.contains("hold-open"))
+                }
                 start()
             }
             ssh = restarted
@@ -254,7 +353,12 @@ class SshRemoteIntegrationTest {
             assertEquals(0, reconnects.get())
         } finally { world.close() }
     }
-    private inner class FixtureCommand(private val hold: Boolean, private val metrics: Boolean = false, private val terminalBytes: Boolean = false) : Command {
+    private inner class FixtureCommand(
+        private val command: String,
+        private val hold: Boolean,
+        private val metrics: Boolean = false,
+        private val terminalBytes: Boolean = false,
+    ) : Command {
         private lateinit var stdout: OutputStream
         private lateinit var stderr: OutputStream
         private lateinit var exit: ExitCallback
@@ -263,6 +367,14 @@ class SshRemoteIntegrationTest {
         override fun setErrorStream(output: OutputStream) { stderr = output }
         override fun setExitCallback(callback: ExitCallback) { exit = callback }
         override fun start(channel: ChannelSession, environment: Environment) {
+            observedEnvironment.set(environment.env.toMap())
+            if (command.contains(SSH_ENV_PROBE_KEY)) {
+                val visible = if (echoProtocolEnvironment) environment.env[SSH_ENV_PROBE_KEY].orEmpty() else ""
+                stdout.write(visible.toByteArray(Charsets.UTF_8))
+                stdout.flush()
+                exit.onExit(0)
+                return
+            }
             environment.addSignalListener({ _, _ -> exit.onExit(143) })
             if (terminalBytes) {
                 "\u001b[31m中文😀\u001b[0m".toByteArray(Charsets.UTF_8).forEach { stdout.write(it.toInt() and 255); stdout.flush() }

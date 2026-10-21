@@ -3,6 +3,7 @@ package top.wkbin.taixu.runtime
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 import java.util.UUID
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,6 +12,7 @@ import kotlinx.coroutines.sync.withLock
 import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.datastore.RuntimePreferences
 import top.wkbin.taixu.core.model.EnvironmentVariable
+import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext
 import top.wkbin.taixu.runtime.shell.ShellCommand
 
 private const val ENV_SNAPSHOT_BEGIN = "__TAIXU_ENV_SNAPSHOT_BEGIN__"
@@ -47,6 +49,18 @@ class LinuxEnvironmentManager(
         return mutex.withLock {
             if (loadedDistroId == distroId) Result.success(Unit) else refreshLocked(distroId)
         }
+    }
+
+    /**
+     * Settings variables for an SSH session. [values] is published from the same records as [variables].
+     * An SSH coroutine must not re-enter the phone runtime; a local refresh would be rejected there.
+     * Callers still have to drop `TAIXU_BRIDGE_*` before the map leaves the device.
+     */
+    suspend fun snapshotForSsh(): Map<String, String> {
+        if (currentCoroutineContext()[ExecutionEnvironmentContext]?.environment?.id?.backend != "ssh") {
+            refreshIfNeeded()
+        }
+        return values.value.toMap()
     }
 
     /** Refresh and snapshot under one lock so another world's refresh cannot replace these values. */
