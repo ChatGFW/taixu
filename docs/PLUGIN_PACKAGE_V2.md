@@ -1,6 +1,6 @@
 # `.txplugin` v2 包协议
 
-实现入口：`plugin/packages` 的 `PluginPackageProtocol`、`PackageInstallPolicy`；Android 导入与安装由 `tools` 适配。v1 保持兼容，统一目录身份为 `legacy.tool-<toolId>`，原工具详情、启动与卸载入口保留。
+实现入口：`plugin/packages` 的 `PluginPackageProtocol`、`PackageInstallPolicy`；Android 导入与安装由 `tools` 适配。作者侧可用 `plugin/cli`（`taixu-plugin check|pack|inspect`）校验工程并生成归档，用法见 [`PLUGIN_DEVELOPMENT_GUIDELINES.md`](PLUGIN_DEVELOPMENT_GUIDELINES.md#v2-作者-cli)。v1 保持兼容，统一目录身份为 `legacy.tool-<toolId>`，原工具详情、启动与卸载入口保留。
 
 ## 包与身份
 

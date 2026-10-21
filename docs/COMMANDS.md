@@ -52,6 +52,12 @@ python tools/tests/test_runtime_benchmark.py
 # 6.3 三协议 SSE 离线 fixture 回放（普通响应及 1/7 字节 HTTP 分片；无需 API Key）
 .\gradlew.bat :harness:testDebugUnitTest --tests "top.wkbin.taixu.harness.SseFixtureReplayTest" --console=plain
 
+# 6.4 v2 插件作者校验/打包（纯 JVM，无 API Key、无设备；详见 PLUGIN_DEVELOPMENT_GUIDELINES.md）
+$env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; .\gradlew.bat :plugin:cli:installDist --console=plain
+.\plugin\cli\build\install\taixu-plugin\bin\taixu-plugin.bat check .\my-plugin
+.\plugin\cli\build\install\taixu-plugin\bin\taixu-plugin.bat pack .\my-plugin --write-manifest
+.\plugin\cli\build\install\taixu-plugin\bin\taixu-plugin.bat inspect .\dist\my-plugin-1.0.0.txplugin
+
 # 7. 仅验证 Harness 内置工具契约与执行策略
 $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; .\gradlew.bat :harness:testDebugUnitTest --tests "top.wkbin.taixu.harness.*" --console=plain
 ```
