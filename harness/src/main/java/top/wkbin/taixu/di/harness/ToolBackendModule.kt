@@ -125,6 +125,7 @@ internal val toolBackendModule = module {
             mcpManager = get(),
             plugins = get(),
             argRedactor = { value: String -> get<SecretRedactor>().redact(value) },
+            toolPolicy = get(),
             hostExecutor = { args, operationId, sessionId, metadata ->
                 get<HostCapabilityToolBackend>().execute(HostToolRequest(args, operationId, sessionId, metadata))
             },
@@ -148,6 +149,7 @@ internal val toolBackendModule = module {
             approvalRepository = get(),
             sessionDao = get(),
             mcpManager = get(),
+            mcpToolPolicy = get(),
             eventBus = get(),
             checkpointStore = get(),
             sessionApprovalGrants = get(),

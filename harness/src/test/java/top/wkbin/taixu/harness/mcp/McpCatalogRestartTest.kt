@@ -127,6 +127,14 @@ class McpCatalogRestartTest {
         }
     }
 
+    @Test fun `catalog cache expires after ttl`() {
+        val now = System.currentTimeMillis()
+        val fresh = CachedMcpTools("f", emptyList(), "debian", 0, cachedAtMs = now)
+        val stale = CachedMcpTools("f", emptyList(), "debian", 0, cachedAtMs = now - MCP_CATALOG_TTL_MS - 1)
+        assertTrue(fresh.isFresh(now))
+        assertFalse(stale.isFresh(now))
+    }
+
     @Test fun `upgrade during startup cannot dispatch on a stale generation`() = runBlocking {
         withTimeout(5_000) {
             val id = "startup-${UUID.randomUUID()}"

@@ -44,7 +44,7 @@ internal suspend fun buildMcpCapabilitySection(
         val trigger = mcpUsageGuidance[preset.id]
         val triggerLine = if (!trigger.isNullOrBlank()) "使用时机：$trigger。" else ""
         val usage = when {
-            enabled -> "已授权常驻，用 use_capability(action=\"call\", server=\"${preset.id}\", tool=…) 调用。"
+            enabled -> "已授权常驻；本轮若已挂载该服务的 mcp__ 工具则直接调用，否则用 use_capability(action=\"call\", server=\"${preset.id}\", tool=…) 调用。"
             // 未安装的能力不能靠"请求授权"解决：先要做一次安装动作，提示词必须区分这两件事，
             // 否则模型会反复请求用户开启一个开关（而开关在安装前是锁死的）。
             preset.requiresInstall && ready != true ->
@@ -59,12 +59,13 @@ internal suspend fun buildMcpCapabilitySection(
     }
     // 自定义（非内置）已启用服务
     val customLines = enabledServers.filter { it.id !in builtinIds }.map { server ->
-        "- [已启用] ${server.name}（server=\"${server.id}\"）：用 use_capability(action=\"inspect\", server=\"${server.id}\") 查看其工具清单后调用。"
+        "- [已启用] ${server.name}（server=\"${server.id}\"）：本轮若已出现该服务的 mcp__ 工具则直接调用；否则用 use_capability(action=\"inspect\", server=\"${server.id}\") 查看工具清单后调用。"
     }
     if (builtinLines.isEmpty() && customLines.isEmpty()) return ""
     val protocol = buildString {
         append("\n\n## 系统核心 MCP 能力（经 use_capability 统一代理发现与调用）\n")
-        append("MCP 工具与内置低频宿主能力的名称与参数不在本轮工具列表里，发现与调用全部通过 use_capability（虚拟屏等宿主能力域用 server=\"host\"）：\n")
+        append("MCP 工具与内置低频宿主能力的名称与参数默认不在本轮工具列表里，发现与调用全部通过 use_capability（虚拟屏等宿主能力域用 server=\"host\"）：\n")
+        append("0. 若本轮 tools 中出现以 `mcp__` 开头的工具，说明用户已通过 @ 挂载对应服务：直接调用这些工具，不要重复 inspect；未挂载的服务仍走下面的代理流程。\n")
         append("1. action=\"list\"：列出已启用的服务（不启动任何进程）；\n")
         append("2. action=\"inspect\" + server=\"<id>\"：查看该服务的工具清单与参数说明；\n")
         append("3. action=\"call\" + server=\"<id>\" + tool=\"<工具名>\" + arguments={...}：调用工具（未连接的服务会自动启动，首次启动可能需要数秒）；4. action=\"script\" + code=\"<JS>\"：写一段 JS 批量/循环/条件调用能力（capability.call 返回 {ok, output}；不支持顶层 return，末条表达式的完成值即返回值），把多轮 call 合并成一次，每条内层调用照常校验、审批与留痕。\n")

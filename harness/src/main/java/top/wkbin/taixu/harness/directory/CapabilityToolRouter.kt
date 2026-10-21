@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness.directory
 import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.model.McpToolAnnotations
 import top.wkbin.taixu.harness.mcp.McpManager
+import top.wkbin.taixu.harness.mcp.McpToolCallPolicy
 import top.wkbin.taixu.harness.JsonArgs
 
 /**
@@ -22,6 +23,8 @@ class CapabilityToolRouter(
     /** 嵌套记录脱敏（调用方注入 SecretRedactor；目录层保持纯净）。 */
     private val argRedactor: (String) -> String = { it },
     private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
+    /** 按工具策略过滤模型可见面并在执行前拒绝已禁用工具。 */
+    private val toolPolicy: McpToolCallPolicy? = null,
     /** 宿主执行通道：与直接 host 调用共用同一 executeHost（含输出上限与截图 metadata 附带）。 */
     private val hostExecutor: suspend (JsonObject, String?, String, MutableMap<String, String>) -> Pair<Boolean, String>,
 ) {
@@ -118,7 +121,12 @@ class CapabilityToolRouter(
             return false to "MCP[$serverId] 工具发现失败或服务不可用${lastError?.let { "：$it" } ?: "（未启用或不存在）"}。" +
                 "可稍后重试 inspect，或检查该服务的设置与沙箱环境。"
         }
-        val rendered = tools.joinToString("\n\n") { tool ->
+        val visibleTools = toolPolicy?.filterEnabled(serverId, tools) ?: tools
+        if (visibleTools.isEmpty()) {
+            return false to "MCP[$serverId] 的工具都已在设置中禁用；模型侧不提供任何可调用工具。" +
+                "如需使用，请用户在 MCP 服务详情中重新启用。"
+        }
+        val rendered = visibleTools.joinToString("\n\n") { tool ->
             buildString {
                 appendLine("### ${tool.name}")
                 if (tool.description.isNotBlank()) appendLine(tool.description.trim().take(400))
@@ -132,7 +140,7 @@ class CapabilityToolRouter(
         } else {
             rendered
         }
-        return true to "MCP[$serverId] 工具清单（${tools.size} 个）：\n$body"
+        return true to "MCP[$serverId] 工具清单（${visibleTools.size} 个）：\n$body"
     }
 
     /**
@@ -195,6 +203,14 @@ class CapabilityToolRouter(
         } else {
             val manager = mcpManager ?: run {
                 val reason = "未初始化 MCP 管理器"
+                NestedCalls.append(
+                    metadata, parentToolCallId, logicalName, NestedCalls.STATUS_BLOCKED,
+                    System.currentTimeMillis() - startedAt, callArgs.toString(), reason, argRedactor,
+                )
+                return false to reason
+            }
+            if (toolPolicy?.policyFor(serverId, tool)?.enabled == false) {
+                val reason = "MCP[$serverId] 工具「$tool」已在设置中禁用，本次调用未执行。请改用其他能力或让用户重新启用。"
                 NestedCalls.append(
                     metadata, parentToolCallId, logicalName, NestedCalls.STATUS_BLOCKED,
                     System.currentTimeMillis() - startedAt, callArgs.toString(), reason, argRedactor,

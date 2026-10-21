@@ -15,7 +15,6 @@ import top.wkbin.taixu.harness.compaction.CompactionManager
 import top.wkbin.taixu.harness.effects.RetryPolicy
 import top.wkbin.taixu.harness.operation.OperationCoordinator
 import top.wkbin.taixu.harness.events.AgentEventLogger
-import top.wkbin.taixu.harness.events.CapabilityEventWriter
 import top.wkbin.taixu.harness.projection.SessionMessageProjector
 import top.wkbin.taixu.harness.projection.SessionStateMirrors
 import top.wkbin.taixu.harness.session.ApiContextAssembler
@@ -50,7 +49,7 @@ class HarnessProviderRunner(
     private val operationCoordinator: OperationCoordinator,
     private val stateMirrors: SessionStateMirrors,
     private val messageProjector: SessionMessageProjector,
-    private val capabilityWriter: CapabilityEventWriter,
+    private val toolMountResolver: McpToolMountResolver,
     private val agentEventLogger: AgentEventLogger,
     private val contextAssembler: ApiContextAssembler,
     private val compactionManager: CompactionManager,
@@ -58,21 +57,11 @@ class HarnessProviderRunner(
     suspend fun clearDiagnostics(sessionId: String) = requestDiagnostics.removeSessionDurably(sessionId)
 
     /**
-     * 记录本轮 @提及 的能力挂载事件（UI 展示用）。
-     *
-     * prefix-cache 稳定性（use_capability 第一步，对齐 Reasonix 的稳定 provider 面）：
-     * @提及 **不再裁剪** provider 可见的 tools 数组——原实现在有提及的轮次把数组裁到
-     * 被提及的 server、下一轮恢复全集，两次字节漂移都会击穿整个前缀缓存；而被击穿
-     * 重新计费的代价（全前缀 × 全价）远大于保留全集 schema 的增量 token。提及只产生
-     * 能力事件记录，工具可用性由 MCP server 的启用/连接状态决定。
+     * 解析本轮有效模型：用户 @ 过的 MCP 服务会把启用工具挂载进 provider tools（会话内稳定），
+     * 其余能力仍走 use_capability；挂载与能力事件逻辑在 [McpToolMountResolver]，这里保持薄委托。
      */
-    suspend fun resolveEffectiveModel(sessId: String, model: ModelConfig): ModelConfig {
-        val msgs = messageProjector.messagesFlow(sessId).value
-        val latestUserMessage = msgs.filterIsInstance<UserMessage>().lastOrNull()
-        val mentionedNames = MentionExtractor.parse(latestUserMessage?.text.orEmpty())
-        capabilityWriter.writeIfMentioned(sessId, latestUserMessage?.id.orEmpty(), mentionedNames, model)
-        return model
-    }
+    suspend fun resolveEffectiveModel(sessId: String, model: ModelConfig): ModelConfig =
+        toolMountResolver.resolve(sessId, messageProjector.messagesFlow(sessId).value, model)
 
     /** 流式调用 + 限流/网络退避重试。恢复不了的失败以 Failed 终态返回；取消与超过重试上限的原样抛出 */
     suspend fun callProviderWithRetry(
@@ -131,7 +120,7 @@ class HarnessProviderRunner(
         // 漏掉 schema 会低估真实输入规模，余量被吃光后以 400/413 溢出。
         val toolSchemaTokens =
             if (model.capabilities.nativeTools) {
-                ContextWindowPolicy.estimateToolDefinitionTokens(ProviderClient.buildDynamicTools())
+                ContextWindowPolicy.estimateToolDefinitionTokens(ProviderClient.buildDynamicTools(model))
             } else {
                 0
             }

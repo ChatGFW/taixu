@@ -26,6 +26,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 import top.wkbin.taixu.harness.mcp.McpToolApiName
+import top.wkbin.taixu.harness.mcp.toApiToolDefinition
 import java.net.URI
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.buildJsonArray
@@ -356,7 +357,7 @@ internal class ChatApi(
     }
 
     private fun buildRequest(model: ModelConfig, messages: List<ApiMessage>, stream: Boolean, includeUsage: Boolean = true): Request {
-            val tools = if (model.pureChatMode) emptyList() else ProviderClient.buildDynamicTools()
+            val tools = if (model.pureChatMode) emptyList() else ProviderClient.buildDynamicTools(model)
         // JSON_TEXT 模式：把工具 JSON 描述追加到首条 system 消息末尾，让模型在纯文本中输出工具调用。
         // 只注入首条：压缩摘要层也是 system 消息，全量注入会把数千 token 的工具 schema 复制多份，
         // 还把 JSON 定义拼在「早期历史摘要」末尾污染摘要语义（Anthropic/Responses 路径本就只注入一次）。
@@ -1082,12 +1083,10 @@ class ProviderClient internal constructor(
             ),
         )
 
-        /**
-         * 组装静态基础工具（含 use_capability 统一代理）。
-         * MCP 工具 schema 不再进入 provider 可见面：模型经 use_capability 的
-         * list/inspect 发现能力、call 调用；服务器清单变化不再击穿前缀缓存。
-         */
-        fun buildDynamicTools(): List<ApiToolDefinition> = TOOLS
+        /** 静态基础工具 + 会话内 @ 挂载的 MCP 工具；挂载集合由调用方保持稳定排序。 */
+        fun buildDynamicTools(model: ModelConfig): List<ApiToolDefinition> =
+            if (model.dynamicMcpTools.isEmpty()) TOOLS
+            else TOOLS + model.dynamicMcpTools.map { it.toApiToolDefinition() }
 
         /**
          * 把工具定义转成给模型看的 JSON 文本描述（JSON_TEXT 工具调用模式使用）。

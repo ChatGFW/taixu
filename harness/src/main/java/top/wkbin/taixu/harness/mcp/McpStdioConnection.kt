@@ -6,17 +6,26 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
 import top.wkbin.taixu.core.model.McpConnectionState
 import kotlin.time.Duration.Companion.milliseconds
+
+/** 只读请求（tools/list 等）超时：连接本身仍可用，不应按通道故障处理。 */
+internal class McpRequestTimeoutException(message: String) : IllegalStateException(message)
 
 /** Requests multiplex by ID; writes and initialization serialize without locking long calls. */
 internal class McpStdioConnection(
@@ -31,6 +40,7 @@ internal class McpStdioConnection(
     val fingerprint: String,
     val distribution: String,
     val revision: Long,
+    private val onToolsChanged: () -> Unit = {},
 ) {
     val uses = McpConnectionUses()
     var ownership: AutoCloseable? = null
@@ -58,7 +68,7 @@ internal class McpStdioConnection(
             if (!initialized) {
                 markActive()
                 val params = json.encodeToJsonElement(McpInitializeParams.serializer(), McpInitializeParams())
-                val response = requestInternal("initialize", params, McpStdioTransport.REQUEST_TIMEOUT_MS)
+                val response = requestInternal("initialize", params, McpStdioTransport.REQUEST_TIMEOUT_MS, dropConnectionOnTimeout = true)
                 val result = response.result?.let {
                     json.decodeFromJsonElement(McpInitializeResult.serializer(), it)
                 } ?: error("MCP initialize did not return a result")
@@ -71,13 +81,17 @@ internal class McpStdioConnection(
         return block()
     }
 
-    suspend fun request(method: String, params: JsonElement): JsonRpcResponse =
-        requestInternal(method, params, McpStdioTransport.CALL_REQUEST_TIMEOUT_MS)
+    suspend fun requestReadOnly(method: String, params: JsonElement): JsonRpcResponse =
+        requestInternal(method, params, McpStdioTransport.REQUEST_TIMEOUT_MS, dropConnectionOnTimeout = false)
+
+    suspend fun requestCall(method: String, params: JsonElement): JsonRpcResponse =
+        requestInternal(method, params, McpStdioTransport.CALL_REQUEST_TIMEOUT_MS, dropConnectionOnTimeout = true)
 
     private suspend fun requestInternal(
         method: String,
         params: JsonElement,
         timeoutMs: Long,
+        dropConnectionOnTimeout: Boolean,
     ): JsonRpcResponse {
         dead?.let { throw McpStdioChannelException("MCP 通道已失效：" + it) }
         markActive()
@@ -94,16 +108,26 @@ internal class McpStdioConnection(
             pending.remove(id)
             throw McpStdioChannelException("MCP 请求 " + method + " 写入失败：" + (t.message ?: t::class.simpleName))
         }
-        // 超时必须以普通异常而非 TimeoutCancellationException 暴露，且销毁连接： tools/call 可能已产生副作用，不能重放；下次调用必须从干净连接重建。
+        // 超时必须以普通异常而非 TimeoutCancellationException 暴露；是否销毁连接取决于请求是否可能已产生副作用。
         val response = try {
             withTimeoutOrNull((timeoutOverrideMs() ?: timeoutMs).milliseconds) { waiter.await() }
+        } catch (cancellation: CancellationException) {
+            pending.remove(id)
+            withContext(NonCancellable) { cancelRequest(id, "cancelled by client") }
+            throw cancellation
         } finally {
             pending.remove(id)
         } ?: run {
-            // A timed-out request may have reached the server and produced a side effect. Drop the session rather than replaying it on the next call; the next request will establish a fresh initialized connection.
-            failPending(McpStdioChannelException("MCP 请求 $method 响应超时"))
-            scope.launch { discard(this@McpStdioConnection) }
-            throw McpStdioChannelException("MCP 请求 $method 响应超时（${timeoutMs / 1000}s）")
+            val message = "MCP 请求 $method 响应超时（${timeoutMs / 1000}s）"
+            if (dropConnectionOnTimeout) {
+                // tools/call 可能已产生副作用，不能重放：丢弃整条连接，下次从干净会话重建。
+                failPending(McpStdioChannelException(message))
+                scope.launch { discard(this@McpStdioConnection) }
+                throw McpStdioChannelException(message)
+            }
+            // 只读请求超时不会污染会话：通知 server 取消该请求，连接保留给其他在途请求复用。
+            withContext(NonCancellable) { cancelRequest(id, "timeout after ${timeoutMs}ms") }
+            throw McpRequestTimeoutException(message)
         }
         // B5: server 的 JSON-RPC error 响应用专用异常承载，调用方将其作为结果返回而非传输故障
         response.error?.let { throw McpJsonRpcErrorException(it.code, it.message) }
@@ -118,7 +142,13 @@ internal class McpStdioConnection(
         }
         if (element is JsonObject && element.containsKey("method")) {
             // Valid server notifications have no id and are allowed by JSON-RPC; they must not poison a healthy stream. A request echo with an id remains suspicious.
-            if (!element.containsKey("id")) return
+            if (!element.containsKey("id")) {
+                // 工具目录变化通知必须让缓存失效，否则长连接会一直用旧清单。
+                if ((element["method"] as? JsonPrimitive)?.contentOrNull == "notifications/tools/list_changed") {
+                    onToolsChanged()
+                }
+                return
+            }
             countIgnored("MCP 输出了过多请求回显")
             return
         }
@@ -171,8 +201,21 @@ internal class McpStdioConnection(
         pending.values.forEach { it.completeExceptionally(cause) }
         pending.clear()
     }
-    private suspend fun notify(method: String) =
-        writeLine(json.encodeToString(JsonRpcNotification.serializer(), JsonRpcNotification(method = method)))
+    private suspend fun notify(method: String, params: JsonElement? = null) =
+        writeLine(json.encodeToString(JsonRpcNotification.serializer(), JsonRpcNotification(method = method, params = params)))
+
+    /** 尽力取消：server 可能已经收到请求，通知失败不能影响调用方对超时/取消的处理。 */
+    private suspend fun cancelRequest(requestId: String, reason: String) {
+        val params = buildJsonObject {
+            put("requestId", requestId)
+            put("reason", reason)
+        }
+        runCatching {
+            withTimeoutOrNull(CANCEL_NOTIFY_TIMEOUT_MS.milliseconds) {
+                notify("notifications/cancelled", params)
+            }
+        }
+    }
 
     private suspend fun writeLine(payload: String) = writeMutex.withLock { channel.writeLine(payload) }
 
@@ -184,3 +227,5 @@ internal class McpStdioConnection(
         ownership?.close()
     }
 }
+
+private const val CANCEL_NOTIFY_TIMEOUT_MS = 500L

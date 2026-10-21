@@ -4,6 +4,7 @@ import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.mcp.McpManager
+import top.wkbin.taixu.harness.mcp.McpToolCallPolicy
 
 /**
  * 能力统一网关（use_capability 与 MCP 直连的统一入口）：
@@ -19,10 +20,12 @@ class CapabilityToolGateway(
     /** 嵌套记录脱敏（调用方注入 SecretRedactor；目录层保持纯净）。 */
     private val argRedactor: (String) -> String = { it },
     private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
+    /** 按工具策略拒绝已禁用的 MCP 工具。 */
+    private val toolPolicy: McpToolCallPolicy? = null,
     /** 宿主执行通道：与直接 host 调用共用同一 host 后端（含输出上限与截图 metadata 附带）。 */
     hostExecutor: suspend (JsonObject, String?, String, MutableMap<String, String>) -> Pair<Boolean, String>,
 ) {
-    private val router = CapabilityToolRouter(mcpManager, argRedactor, plugins, hostExecutor)
+    private val router = CapabilityToolRouter(mcpManager, argRedactor, plugins, toolPolicy, hostExecutor)
 
     suspend fun execute(
         args: JsonObject,
@@ -37,6 +40,7 @@ class CapabilityToolGateway(
     ): Pair<Boolean, String> {
         if (rawToolName != "use_capability") {
             // 兼容路径：对话历史/模型习惯中仍可能出现直接 mcp__ 调用（schema 已不再宣告）
+            toolPolicy?.resolve(args, rawToolName)?.takeIf { !it.enabled }?.let { return false to it.disabledMessage() }
             return mcpManager?.executeTool(rawToolName ?: "mcp", args, workspace) ?: (false to "未初始化 MCP 管理器")
         }
         val dispatch = ScriptCapabilityDispatcher(parentToolCallId, metadata, mcpManager, argRedactor, plugins, reenter)

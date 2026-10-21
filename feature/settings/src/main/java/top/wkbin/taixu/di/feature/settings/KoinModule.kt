@@ -28,6 +28,7 @@ val featureSettingsModule = module {
     viewModel { top.wkbin.taixu.ui.settings.ChatBackgroundSettingsViewModel(get(), get()) }
     viewModel { top.wkbin.taixu.ui.settings.PackagedPluginsViewModel(get(), get()) }
     viewModel { top.wkbin.taixu.ui.settings.McpClientSettingsViewModel(get()) }
+    viewModel { top.wkbin.taixu.ui.settings.McpToolPolicyViewModel(get(), get()) }
     viewModel { top.wkbin.taixu.ui.settings.RemoteServerViewModel(get(), get()) }
     viewModel { LocalBackupViewModel(context = get(), service = get()) }
     viewModel<AppManagementViewModel> { AppManagementViewModel(repository = get(), appManager = get()) }

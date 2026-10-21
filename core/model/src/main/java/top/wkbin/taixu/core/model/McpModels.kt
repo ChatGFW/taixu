@@ -131,6 +131,27 @@ data class McpToolAnnotations(
 )
 
 /**
+ * 单个 MCP 工具的本地策略。
+ *
+ * - [enabled]：关闭后模型可见面（inspect / @ 挂载）与执行入口都会拒绝该工具；
+ * - [riskOverride]：本地用户显式覆盖审批风险等级；null = 继承基础策略。
+ *   覆盖会先替换基础等级，再应用服务端注解升级——本地可降级，但服务端
+ *   声明的破坏性特征仍会把等级抬回去。
+ */
+@Serializable
+data class McpToolPolicy(
+    val enabled: Boolean = true,
+    val riskOverride: String? = null,
+) {
+    companion object {
+        val RISK_LEVELS = setOf("low", "normal", "medium", "high", "critical")
+
+        fun normalizeRisk(value: String?): String? =
+            value?.trim()?.lowercase()?.takeIf { it in RISK_LEVELS }
+    }
+}
+
+/**
  * 动态从 MCP Server 发现并注册的工具定义
  */
 @Serializable

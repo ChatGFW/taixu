@@ -30,8 +30,8 @@ class CapabilityEventWriter(
         if (userMessageId.isBlank()) return
         val existing = port.snapshot(sessionId)
         writeSkillEvents(existing, sessionId, userMessageId, mentionedNames)
-        // use_capability 代理后请求路径不再发现 MCP 工具（dynamicMcpTools 恒空），
-        // MCP 挂载事件随之停用——@ 提及对 MCP 可用性已无影响，无需事件提示
+        // @ 提及的服务器会把启用工具挂载进本轮 provider tools；只有确有挂载时才写 MCP 事件，
+        // 未缓存/未命中的服务不产生噪音（模型仍可走 use_capability 按需发现）。
         if (model.dynamicMcpTools.isNotEmpty()) {
             writeMcpEvents(existing, sessionId, userMessageId, mentionedNames, model)
         }
@@ -85,7 +85,7 @@ class CapabilityEventWriter(
                 val desc = when {
                     isMounted -> "MCP 工具已挂载（$toolCount 个工具，模型可按需调用）"
                     lastError != null -> "⚠️ MCP 服务异常：$lastError"
-                    else -> "已选择 MCP 服务，正在尝试发现工具..."
+                    else -> "已选择 MCP 服务；工具尚未缓存，模型可通过 use_capability inspect 按需发现。"
                 }
                 appendEventOnce(
                     existing,

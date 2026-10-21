@@ -92,11 +92,16 @@ fun McpSettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
     catalogViewModel: McpCatalogViewModel? = previewOrNull { koinViewModel() },
+    toolPolicyViewModel: McpToolPolicyViewModel? = previewOrNull { koinViewModel() },
 ) {
     val servers by viewModel?.mcpServers?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val toggleOverrides by viewModel?.mcpToggleOverrides?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
     val connectionStates by viewModel?.mcpConnectionStates?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
     val mcpAuthStates by viewModel?.mcpAuthStates?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val mcpToolCounts by viewModel?.mcpToolCounts?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val mcpToolPolicies by toolPolicyViewModel?.policies?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val cachedMcpTools by toolPolicyViewModel?.cachedTools?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
+    val mcpEnabledCounts by toolPolicyViewModel?.enabledCounts?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
     val browserGates by viewModel?.browserGates?.collectAsStateWithLifecycle() ?: previewStateOf(BrowserGateState())
     // 未安装的按需能力：id → 待安装组件名。用于禁用开关并给出"先去安装"的直达提示。
     val mcpInstallBlocked by catalogViewModel?.installBlocked?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
@@ -104,6 +109,8 @@ fun McpSettingsScreen(
     val screenScope = rememberCoroutineScope()
     val screenContext = LocalContext.current
     var showAddDialog by remember { mutableStateOf(false) }
+    var showEditorDialog by remember { mutableStateOf(false) }
+    var editingServer by remember { mutableStateOf<McpServerConfig?>(null) }
     var showLocalDiscoveryDialog by remember { mutableStateOf(false) }
     var viewingDetailServer by remember { mutableStateOf<McpServerConfig?>(null) }
     // 待确认删除的服务 id（破坏性操作二次确认）；McpServerConfig 非 Parcelable，仅保存 id
@@ -114,6 +121,11 @@ fun McpSettingsScreen(
     LaunchedEffect(Unit) {
         catalogViewModel?.refresh()
         viewModel?.refreshMcpConnections(probeSleeping = false)
+    }
+
+    // 详情打开时加载缓存工具清单（不启动进程），供逐工具开关与风险覆盖。
+    LaunchedEffect(viewingDetailServer?.id) {
+        viewingDetailServer?.let { toolPolicyViewModel?.loadTools(it.id) }
     }
 
     // 未安装能力的提示只展示一次，避免每次重组都弹
@@ -200,12 +212,16 @@ fun McpSettingsScreen(
                     )
                 }
                 items(builtinServers, key = { it.id }) { server ->
+                    val authBadge = authBadgeFor(mcpAuthStates[server.id] ?: McpAuthState.Unsupported)
                     McpServerItemCard(
                         server = server,
                         connectionState = connectionStates[server.id] ?: McpConnectionState.UNKNOWN,
                         error = viewModel?.mcpLastError(server.id),
                         togglePending = server.id in toggleOverrides,
                         requiredComponentName = mcpInstallBlocked[server.id],
+                        toolCount = mcpEnabledCounts[server.id] ?: mcpToolCounts[server.id],
+                        authLabel = authBadge?.first,
+                        authOk = authBadge?.second ?: false,
                         onToggle = { enabled ->
                             if (catalogViewModel?.onToggleRequested(server.id, enabled) == true) {
                                 viewModel?.toggleMcpServer(server.id, enabled)
@@ -225,12 +241,16 @@ fun McpSettingsScreen(
                     )
                 }
                 items(customServers, key = { it.id }) { server ->
+                    val authBadge = authBadgeFor(mcpAuthStates[server.id] ?: McpAuthState.Unsupported)
                     McpServerItemCard(
                         server = server,
                         connectionState = connectionStates[server.id] ?: McpConnectionState.UNKNOWN,
                         error = viewModel?.mcpLastError(server.id),
                         togglePending = server.id in toggleOverrides,
                         requiredComponentName = null,
+                        toolCount = mcpEnabledCounts[server.id] ?: mcpToolCounts[server.id],
+                        authLabel = authBadge?.first,
+                        authOk = authBadge?.second ?: false,
                         onToggle = { enabled -> viewModel?.toggleMcpServer(server.id, enabled) },
                         onClickDetail = { viewingDetailServer = server },
                     )
@@ -255,15 +275,27 @@ fun McpSettingsScreen(
     }
 
     if (showAddDialog) {
-        AddMcpServerDialog(
+        McpServerEditorDialog(
             onDismiss = { showAddDialog = false },
-            onAdd = { newServer ->
+            onSave = { newServer ->
                 viewModel?.saveMcpServer(newServer)
                 showAddDialog = false
             },
-            onAddBatch = { serversList ->
+            onSaveBatch = { serversList ->
                 serversList.forEach { viewModel?.saveMcpServer(it) }
                 showAddDialog = false
+            },
+        )
+    }
+
+    if (showEditorDialog && editingServer != null) {
+        McpServerEditorDialog(
+            initial = editingServer,
+            onDismiss = { showEditorDialog = false; editingServer = null },
+            onSave = { updated ->
+                viewModel?.saveMcpServer(updated)
+                showEditorDialog = false
+                editingServer = null
             },
         )
     }
@@ -307,12 +339,22 @@ fun McpSettingsScreen(
         McpServerDetailDialog(
             server = server,
             onDismiss = { viewingDetailServer = null },
+            onEdit = if (server.isBuiltin) null else ({
+                editingServer = server
+                viewingDetailServer = null
+                showEditorDialog = true
+            }),
+            cachedTools = cachedMcpTools[server.id].orEmpty(),
+            toolPolicies = mcpToolPolicies[server.id].orEmpty(),
+            onSetToolEnabled = { tool, enabled -> toolPolicyViewModel?.setEnabled(server.id, tool, enabled) },
+            onSetToolRisk = { tool, risk -> toolPolicyViewModel?.setRiskOverride(server.id, tool, risk) },
             onDelete = {
                 pendingDeleteServerId = server.id
                 viewingDetailServer = null
             },
             onTest = {
                 val res = viewModel?.testMcpServer(server) ?: Result.success(emptyList())
+                if (res.isSuccess) toolPolicyViewModel?.loadTools(server.id)
                 viewModel?.refreshMcpConnections()
                 res
             },
@@ -749,382 +791,11 @@ private fun detectLanIp(): String? = try {
     null
 }
 
-/**
- * MCP 分栏标题：分组展示「系统核心 MCP（内置）」与「自定义与三方 MCP」。
- */
-/**
- * 新增自定义 MCP 服务弹窗
- */
-@Composable
-private fun AddMcpServerDialog(
-    onDismiss: () -> Unit,
-    onAdd: (McpServerConfig) -> Unit,
-    onAddBatch: (List<McpServerConfig>) -> Unit = { list -> list.forEach(onAdd) },
-) {
-    var selectedTab by remember { mutableIntStateOf(0) }
-
-    // 表单状态
-    var name by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var transport by remember { mutableStateOf(McpTransportType.STDIO) }
-    var command by remember { mutableStateOf("npx") }
-    var argsStr by remember { mutableStateOf("") }
-    var serverUrl by remember { mutableStateOf("http://127.0.0.1:8000/sse") }
-    var oauthEnabled by remember { mutableStateOf(false) }
-    var oauthClientId by remember { mutableStateOf("") }
-    var oauthAuthorizationEndpoint by remember { mutableStateOf("") }
-    var oauthTokenEndpoint by remember { mutableStateOf("") }
-    var oauthScope by remember { mutableStateOf("") }
-    var oauthResource by remember { mutableStateOf("") }
-
-    // JSON 模式状态
-    var jsonText by remember {
-        mutableStateOf(
-            """
-            {
-              "mcpServers": {
-                "sqlite": {
-                  "command": "uvx",
-                  "args": ["mcp-server-sqlite", "--db-path", "/opt/taixu/data/sqlite.db"]
-                }
-              }
-            }
-            """.trimIndent()
-        )
-    }
-
-    val parsedServers = remember(jsonText) { parseMcpJson(jsonText) }
-
-    RuntimeAlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("添加 MCP 服务", fontWeight = FontWeight.Bold)
-                SecondaryTabRow(
-                    selectedTabIndex = selectedTab,
-                    containerColor = Color.Transparent,
-                    divider = {},
-                ) {
-                    Tab(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        text = { Text("📝 表单模式", style = MaterialTheme.typography.labelMedium) },
-                    )
-                    Tab(
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                        text = { Text("📋 JSON 导入", style = MaterialTheme.typography.labelMedium) },
-                    )
-                }
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                if (selectedTab == 0) {
-                    // 📝 表单模式
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("服务名称") },
-                        placeholder = { Text("如: sqlite / github / fetch") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = description,
-                        onValueChange = { description = it },
-                        label = { Text("描述（可选）") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            "传输协议类型",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                .padding(4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            val isStdio = transport == McpTransportType.STDIO
-                            val isSse = transport == McpTransportType.SSE
-
-                            // Stdio 选项卡
-                            Surface(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { transport = McpTransportType.STDIO },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isStdio) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 6.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    Text(
-                                        "Stdio",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = if (isStdio) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isStdio) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Text(
-                                        "沙箱进程",
-                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                        color = if (isStdio) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f) else MaterialTheme.colorScheme.outline,
-                                    )
-                                }
-                            }
-
-                            // SSE 选项卡
-                            Surface(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { transport = McpTransportType.SSE },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSse) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 6.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    Text(
-                                        "SSE",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = if (isSse) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSse) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Text(
-                                        "远程 HTTP",
-                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                        color = if (isSse) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f) else MaterialTheme.colorScheme.outline,
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    if (transport == McpTransportType.STDIO) {
-                        OutlinedTextField(
-                            value = command,
-                            onValueChange = { command = it },
-                            label = { Text("执行命令（如 npx / uvx / python3）") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        OutlinedTextField(
-                            value = argsStr,
-                            onValueChange = { argsStr = it },
-                            label = { Text("参数（空格分隔）") },
-                            placeholder = { Text("-y @modelcontextprotocol/server-sqlite") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    } else {
-                        OutlinedTextField(
-                            value = serverUrl,
-                            onValueChange = { serverUrl = it },
-                            label = { Text("HTTP / SSE 端点 URL") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text("OAuth 2.0 + PKCE", style = MaterialTheme.typography.labelMedium)
-                                Text("授权码模式；token 加密保存且不会导出", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Switch(checked = oauthEnabled, onCheckedChange = { oauthEnabled = it })
-                        }
-                        if (oauthEnabled) {
-                            OutlinedTextField(oauthClientId, { oauthClientId = it }, label = { Text("OAuth client ID") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(oauthAuthorizationEndpoint, { oauthAuthorizationEndpoint = it }, label = { Text("Authorization endpoint") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(oauthTokenEndpoint, { oauthTokenEndpoint = it }, label = { Text("Token endpoint") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(oauthScope, { oauthScope = it }, label = { Text("Scope（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(oauthResource, { oauthResource = it }, label = { Text("Resource（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                        }
-                    }
-                } else {
-                    // 📋 JSON 模式
-                    Text(
-                        "直接粘贴 Claude Desktop / Cursor 标准配置：",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    OutlinedTextField(
-                        value = jsonText,
-                        onValueChange = { jsonText = it },
-                        label = { Text("MCP JSON 配置") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp),
-                        textStyle = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
-                        ),
-                    )
-
-                    if (parsedServers.isSuccess) {
-                        val list = parsedServers.getOrThrow()
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                "✅ 成功解析 ${list.size} 个服务: " + list.joinToString(", ") { it.name },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            )
-                        }
-                    } else {
-                        val errMsg = parsedServers.exceptionOrNull()?.message ?: "JSON 语法解析错误"
-                        Text(
-                            "❌ $errMsg",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            if (selectedTab == 0) {
-                Button(
-                    onClick = {
-                        val id = "custom_" + System.currentTimeMillis()
-                        val argsList = argsStr.trim().split(" ").filter { it.isNotBlank() }
-                        onAdd(
-                            McpServerConfig(
-                                id = id,
-                                name = name.trim(),
-                                description = description.trim(),
-                                transportType = transport,
-                                command = command.trim(),
-                                args = argsList,
-                                serverUrl = serverUrl.trim(),
-                                authMode = if (oauthEnabled) McpAuthMode.OAUTH else McpAuthMode.NONE,
-                                oauthClientId = oauthClientId.trim(),
-                                oauthAuthorizationEndpoint = oauthAuthorizationEndpoint.trim(),
-                                oauthTokenEndpoint = oauthTokenEndpoint.trim(),
-                                oauthScope = oauthScope.trim(),
-                                oauthResource = oauthResource.trim(),
-                                isEnabled = true,
-                                isBuiltin = false,
-                            )
-                        )
-                    },
-                    enabled = name.isNotBlank() && (transport != McpTransportType.STDIO || command.isNotBlank()) &&
-                        (!oauthEnabled || (oauthClientId.isNotBlank() && oauthAuthorizationEndpoint.isNotBlank() && oauthTokenEndpoint.isNotBlank())),
-                ) {
-                    Text("添加")
-                }
-            } else {
-                Button(
-                    onClick = {
-                        val list = parsedServers.getOrNull()
-                        if (!list.isNullOrEmpty()) {
-                            onAddBatch(list)
-                        }
-                    },
-                    enabled = parsedServers.isSuccess && parsedServers.getOrNull()?.isNotEmpty() == true,
-                ) {
-                    Text("导入 (${parsedServers.getOrNull()?.size ?: 0} 个服务)")
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
-        },
-    )
-}
-
-/** 解析用户粘贴的各类 MCP JSON 格式 */
-private fun parseMcpJson(rawJson: String): Result<List<McpServerConfig>> = runCatching {
-    val trimmed = rawJson.trim()
-    if (trimmed.isBlank()) error("请输入 JSON 内容")
-    val element = Json.parseToJsonElement(trimmed)
-    val list = mutableListOf<McpServerConfig>()
-    val rootObj = element.jsonObject
-
-    if (rootObj.containsKey("mcpServers")) {
-        val serversObj = rootObj["mcpServers"]?.jsonObject ?: error("mcpServers 不是有效的 JSON 对象")
-        for ((serverName, serverVal) in serversObj) {
-            val sObj = serverVal.jsonObject
-            val url = sObj["url"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            val command = sObj["command"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            val args = sObj["args"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty()
-            val env = sObj["env"]?.jsonObject?.mapValues { it.value.jsonPrimitive.contentOrNull.orEmpty() }.orEmpty()
-            val desc = sObj["description"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            val authMode = if (sObj["authMode"]?.jsonPrimitive?.contentOrNull.equals("OAUTH", ignoreCase = true)) McpAuthMode.OAUTH else McpAuthMode.NONE
-            val oauthClientId = sObj["oauthClientId"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            val oauthAuthorizationEndpoint = sObj["oauthAuthorizationEndpoint"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            val oauthTokenEndpoint = sObj["oauthTokenEndpoint"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            val oauthScope = sObj["oauthScope"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            val oauthResource = sObj["oauthResource"]?.jsonPrimitive?.contentOrNull.orEmpty()
-
-            val isSse = url.isNotBlank() || (command.isBlank() && sObj.containsKey("url"))
-            list.add(
-                McpServerConfig(
-                    id = "custom_${serverName.lowercase().replace(Regex("[^a-z0-9_]"), "_")}_${System.currentTimeMillis()}",
-                    name = serverName,
-                    description = desc.ifBlank { if (isSse) "远程 HTTP 服务: $url" else "本地 Stdio: $command ${args.joinToString(" ")}" },
-                    transportType = if (isSse) McpTransportType.SSE else McpTransportType.STDIO,
-                    command = command,
-                    args = args,
-                    env = env,
-                    serverUrl = url,
-                    authMode = authMode,
-                    oauthClientId = oauthClientId,
-                    oauthAuthorizationEndpoint = oauthAuthorizationEndpoint,
-                    oauthTokenEndpoint = oauthTokenEndpoint,
-                    oauthScope = oauthScope,
-                    oauthResource = oauthResource,
-                    isEnabled = true,
-                    isBuiltin = false,
-                )
-            )
-        }
-    } else {
-        // 单个对象
-        val name = rootObj["name"]?.jsonPrimitive?.contentOrNull.orEmpty().ifBlank { "custom_mcp" }
-        val url = rootObj["url"]?.jsonPrimitive?.contentOrNull.orEmpty()
-        val command = rootObj["command"]?.jsonPrimitive?.contentOrNull.orEmpty()
-        val args = rootObj["args"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty()
-        val env = rootObj["env"]?.jsonObject?.mapValues { it.value.jsonPrimitive.contentOrNull.orEmpty() }.orEmpty()
-        val desc = rootObj["description"]?.jsonPrimitive?.contentOrNull.orEmpty()
-
-        val isSse = url.isNotBlank() || (command.isBlank() && rootObj.containsKey("url"))
-        if (command.isBlank() && url.isBlank()) error("配置中必须包含 command 或 url 字段")
-        list.add(
-            McpServerConfig(
-                id = "custom_${name.lowercase().replace(Regex("[^a-z0-9_]"), "_")}_${System.currentTimeMillis()}",
-                name = name,
-                description = desc.ifBlank { if (isSse) "远程 HTTP 服务: $url" else "本地 Stdio: $command ${args.joinToString(" ")}" },
-                transportType = if (isSse) McpTransportType.SSE else McpTransportType.STDIO,
-                command = command,
-                args = args,
-                env = env,
-                serverUrl = url,
-                isEnabled = true,
-                isBuiltin = false,
-            )
-        )
-    }
-    if (list.isEmpty()) error("未找到有效的 MCP 服务配置")
-    list
+/** OAuth 列表徽章：非 OAuth 服务不展示；返回 文案 to 是否成功态。 */
+private fun authBadgeFor(state: McpAuthState): Pair<String, Boolean>? = when (state) {
+    McpAuthState.Unsupported -> null
+    McpAuthState.Unauthenticated -> "未授权" to false
+    McpAuthState.Authorizing -> null
+    is McpAuthState.Authorized -> "已授权" to true
+    is McpAuthState.Error -> "授权失败" to false
 }

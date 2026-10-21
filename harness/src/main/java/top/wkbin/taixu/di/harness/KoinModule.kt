@@ -161,12 +161,13 @@ val harnessModule = module {
             operationCoordinator = get(),
             stateMirrors = get(),
             messageProjector = get(),
-            capabilityWriter = get(),
+            toolMountResolver = get(),
             agentEventLogger = get(),
             contextAssembler = get(),
             compactionManager = get(),
         )
     }
+    single { top.wkbin.taixu.harness.McpToolMountResolver(mcpManager = get(), repository = get(), policies = get(), capabilityWriter = get()) }
 
     factory<HarnessToolRoundRunner> {
         HarnessToolRoundRunner(
@@ -309,15 +310,13 @@ val harnessModule = module {
     single<top.wkbin.taixu.harness.mcp.McpCatalogAvailability> { top.wkbin.taixu.harness.mcp.McpCatalogAvailability(get(), get(), get()) }
     single<McpManager> {
         McpManager(
-            repository = get(),
-            stdio = get(),
-            http = get(),
-            commandBuilder = get(),
-            linuxRuntime = get(),
-            logger = get(),
+            repository = get(), stdio = get(), http = get(),
+            commandBuilder = get(), linuxRuntime = get(), logger = get(),
             agentEventLogger = get(), remoteServers = get(), catalogAvailability = get(),
+            toolPolicy = get(),
         )
     }
+    single { top.wkbin.taixu.harness.mcp.McpToolCallPolicy(mcpManager = get(), repository = get(), preferences = get()) }
     single<McpStdioChannelFactory> { get<LinuxMcpStdioChannelFactory>() }
 
     single<McpStdioTransport> {

@@ -13,10 +13,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -53,6 +57,13 @@ class McpStdioTransport(
     private val downUntil = ConcurrentHashMap<String, Long>()
     private val processState = MutableStateFlow<Map<String, McpConnectionState>>(emptyMap())
     internal val processStates = processState.asStateFlow()
+
+    /** server 主动声明工具目录变更（scoped server id）：上层据此丢弃缓存、下次调用重新发现。 */
+    private val toolListChanges = MutableSharedFlow<String>(
+        extraBufferCapacity = 16,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    internal val toolListChanged: SharedFlow<String> = toolListChanges.asSharedFlow()
     internal fun forgetProcessState(key: String) { if (connections[key] == null) processState.update { it - key } }
 
     private fun publishState(connection: McpStdioConnection, state: McpConnectionState) {
@@ -103,7 +114,7 @@ class McpStdioTransport(
         val conn = connection(server)
         return try {
             conn.withInitialized {
-                val response = request("tools/list", JsonObject(emptyMap()))
+                val response = requestReadOnly("tools/list", JsonObject(emptyMap()))
                 val result = response.result?.let {
                     json.decodeFromJsonElement(McpToolsListResponse.serializer(), it)
                 } ?: error("MCP tools/list did not return a result")
@@ -121,7 +132,7 @@ class McpStdioTransport(
         return try {
             conn.withInitialized {
                 val params = json.encodeToJsonElement(McpCallToolParams.serializer(), McpCallToolParams(toolName, arguments))
-                val response = request("tools/call", params)
+                val response = requestCall("tools/call", params)
                 val result = response.result?.let {
                     json.decodeFromJsonElement(McpCallToolResult.serializer(), it)
                 } ?: error("MCP tools/call did not return a result")
@@ -247,7 +258,7 @@ class McpStdioTransport(
             throw t
         }
         downUntil.remove(server.id)
-        return McpStdioConnection(json, scope, { requestTimeoutOverrideMs }, { discardConnection(it.serverId, it) }, ::publishState, clock, server.id, channel, commandBuilder.fingerprint(server), server.catalogDistribution, server.catalogRevision).also { connection ->
+        return McpStdioConnection(json, scope, { requestTimeoutOverrideMs }, { discardConnection(it.serverId, it) }, ::publishState, clock, server.id, channel, commandBuilder.fingerprint(server), server.catalogDistribution, server.catalogRevision, { toolListChanges.tryEmit(server.id) }).also { connection ->
             connections[server.id] = connection
             startReaderLoop(connection)
             try { connection.ownership = currentCoroutineContext()[ExecutionEnvironmentContext]?.own { discardConnection(server.id, connection) } }
@@ -268,7 +279,7 @@ class McpStdioTransport(
         }
     }
     internal fun injectConnectionForTest(server: McpServerConfig, channel: McpStdioChannel) {
-        McpStdioConnection(json, scope, { requestTimeoutOverrideMs }, { discardConnection(it.serverId, it) }, ::publishState, clock, server.id, channel, commandBuilder.fingerprint(server), server.catalogDistribution, server.catalogRevision).also { connection ->
+        McpStdioConnection(json, scope, { requestTimeoutOverrideMs }, { discardConnection(it.serverId, it) }, ::publishState, clock, server.id, channel, commandBuilder.fingerprint(server), server.catalogDistribution, server.catalogRevision, { toolListChanges.tryEmit(server.id) }).also { connection ->
             connections[server.id] = connection
             startReaderLoop(connection)
         }

@@ -64,6 +64,7 @@ class TaiXuModulesTest {
                 definition<top.wkbin.taixu.harness.mcp.StandaloneMcpScope>(Function0::class, kotlinx.coroutines.flow.Flow::class),
                 definition<top.wkbin.taixu.harness.mcp.McpStdioTransport>(kotlinx.coroutines.flow.Flow::class, Function0::class),
                 definition<top.wkbin.taixu.core.datastore.McpClientPreferences>(androidx.datastore.core.DataStore::class),
+                definition<top.wkbin.taixu.core.datastore.McpToolPolicyPreferences>(androidx.datastore.core.DataStore::class),
                 definition<top.wkbin.taixu.core.datastore.ChatBackgroundPreferences>(androidx.datastore.core.DataStore::class),
                 definition<top.wkbin.taixu.core.datastore.ChatBackgroundImageStore>(File::class, Function1::class, Long::class),
                 definition<top.wkbin.taixu.core.datastore.PluginPreferences>(androidx.datastore.core.DataStore::class),

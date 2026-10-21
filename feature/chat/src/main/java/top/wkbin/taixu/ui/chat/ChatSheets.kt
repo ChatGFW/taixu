@@ -56,6 +56,7 @@ import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.McpServerRow
 import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.core.model.McpConnectionState
@@ -69,6 +70,7 @@ internal fun SkillsAndMcpSheet(
     allSkills: List<AgentSkill>,
     mcpServers: List<McpServerConfig>,
     mcpConnectionStates: Map<String, McpConnectionState>,
+    mcpToolCounts: Map<String, Int> = emptyMap(),
     pinnedMentionIds: Set<String> = emptySet(),
     onDismiss: () -> Unit,
     onToggleSkill: (String, Boolean) -> Unit,
@@ -294,115 +296,43 @@ internal fun SkillsAndMcpSheet(
                             items(mcpServers.size, key = { mcpServers[it].id }) { index ->
                                 val server = mcpServers[index]
                                 val isPinned = server.id in pinnedMentionIds || server.name.lowercase() in pinnedMentionIds
-                                val connState = mcpConnectionStates[server.id] ?: McpConnectionState.UNKNOWN
-                                RuntimeCard(
-                                    containerColor = if (server.isEnabled) MaterialTheme.colorScheme.surfaceContainerHigh
-                                    else MaterialTheme.colorScheme.surfaceContainer,
-                                    shape = MaterialTheme.shapes.large, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    FlowRow(
-                                        modifier = Modifier.padding(16.dp),
-                                        itemVerticalAlignment = Alignment.CenterVertically, verticalArrangement = Arrangement.spacedBy(12.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    ) {
-                                        Column(modifier = Modifier.widthIn(min = 160.dp).weight(1f)) {
-                                            FlowRow(
-                                                itemVerticalAlignment = Alignment.CenterVertically, verticalArrangement = Arrangement.spacedBy(8.dp),
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            ) {
-                                                Text(
-                                                    text = server.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                                    style = MaterialTheme.typography.titleMedium.copy(
-                                                        fontWeight = FontWeight.SemiBold,
-                                                    ),
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                )
-                                                // 连通状态点补充文本语义，避免 TalkBack 只感知到一块颜色
-                                                val connStateDesc = when {
-                                                    !server.isEnabled -> stringResource(R.string.chat_mcp_state_disabled)
-                                                    connState == McpConnectionState.CHECKING -> stringResource(R.string.chat_mcp_state_checking)
-                                                    connState == McpConnectionState.ONLINE -> stringResource(R.string.chat_mcp_state_online)
-                                                    connState == McpConnectionState.OFFLINE -> stringResource(R.string.chat_mcp_state_offline)
-                                                    else -> stringResource(R.string.chat_mcp_state_unknown)
-                                                }
-                                                Box(
-                                                    modifier = Modifier
-                                                        .semantics { contentDescription = connStateDesc }
-                                                        .size(9.dp)
-                                                        .clip(CircleShape)
-                                                        .background(
-                                                            when {
-                                                                !server.isEnabled -> MaterialTheme.colorScheme.outlineVariant
-                                                                connState == McpConnectionState.CHECKING -> MaterialTheme.colorScheme.tertiary
-                                                                connState == McpConnectionState.ONLINE -> Color(0xFF2E7D32)
-                                                                connState == McpConnectionState.OFFLINE -> MaterialTheme.colorScheme.error
-                                                                else -> MaterialTheme.colorScheme.outline
-                                                            }
-                                                        ),
-                                                )
-                                                Surface(
-                                                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                                                    shape = MaterialTheme.shapes.small,
-                                                ) {
-                                                    Text(
-                                                        text = server.transportType.name,
-                                                        style = MaterialTheme.typography.labelMedium.copy(
-                                                            fontWeight = FontWeight.Bold,
-                                                        ),
-                                                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                                    )
-                                                }
-                                            }
-                                            val endpointDesc = if (server.command.isNotBlank()) server.command else server.serverUrl
-                                            if (endpointDesc.isNotBlank()) {
-                                                Text(
-                                                    text = endpointDesc,
-                                                    style = MaterialTheme.typography.bodySmall.copy(
-                                                        fontFamily = FontFamily.Monospace,
-                                                        fontSize = 11.sp,
-                                                    ),
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    modifier = Modifier.padding(top = 2.dp),
-                                                )
-                                            }
-                                        }
-
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                val endpointDesc = if (server.command.isNotBlank()) server.command else server.serverUrl
+                                McpServerRow(
+                                    name = server.name,
+                                    subtitle = listOf(server.transportType.name, endpointDesc)
+                                        .filter { it.isNotBlank() }
+                                        .joinToString(" · "),
+                                    enabled = server.isEnabled,
+                                    connectionState = mcpConnectionStates[server.id] ?: McpConnectionState.UNKNOWN,
+                                    toolCount = mcpToolCounts[server.id],
+                                    trailing = {
+                                        Surface(
+                                            shape = MaterialTheme.shapes.medium,
+                                            color = if (isPinned) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                            modifier = Modifier
+                                                .minimumInteractiveComponentSize()
+                                                .clickable { onTogglePin(server.id) },
                                         ) {
-                                            Surface(
-                                                shape = MaterialTheme.shapes.medium,
-                                                color = if (isPinned) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                                modifier = Modifier
-                                                    .minimumInteractiveComponentSize()
-                                                    .clickable { onTogglePin(server.id) },
-                                            ) {
-                                                Text(
-                                                    if (isPinned) stringResource(R.string.chat_pinned_on) else stringResource(R.string.chat_pinned_off),
-                                                    style = MaterialTheme.typography.labelMedium.copy(
-                                                        fontWeight = if (isPinned) FontWeight.Bold else FontWeight.Normal,
-                                                    ),
-                                                    color = if (isPinned) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                                )
-                                            }
-
-                                            Switch(
-                                                checked = server.isEnabled,
-                                                onCheckedChange = { onToggleMcpServer(server.id, it) },
-                                                colors = SwitchDefaults.colors(
-                                                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                                                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                            Text(
+                                                if (isPinned) stringResource(R.string.chat_pinned_on) else stringResource(R.string.chat_pinned_off),
+                                                style = MaterialTheme.typography.labelMedium.copy(
+                                                    fontWeight = if (isPinned) FontWeight.Bold else FontWeight.Normal,
                                                 ),
+                                                color = if (isPinned) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                             )
                                         }
-                                    }
-                                }
+
+                                        Switch(
+                                            checked = server.isEnabled,
+                                            onCheckedChange = { onToggleMcpServer(server.id, it) },
+                                            colors = SwitchDefaults.colors(
+                                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                            ),
+                                        )
+                                    },
+                                )
                             }
                         }
                     }

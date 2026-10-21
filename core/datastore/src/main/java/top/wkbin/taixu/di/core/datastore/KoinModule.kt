@@ -59,6 +59,7 @@ val coreDatastoreModule = module {
 
     single<AgentServerPreferences> { AgentServerPreferences(store = get()) }
     single { top.wkbin.taixu.core.datastore.McpClientPreferences(context = get()) }
+    single { top.wkbin.taixu.core.datastore.McpToolPolicyPreferences(context = get()) }
 
     single<SettingsDataStore> { SettingsDataStore(context = get(), secretManager = get()) }
 }

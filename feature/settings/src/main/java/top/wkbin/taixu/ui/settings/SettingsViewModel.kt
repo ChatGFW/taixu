@@ -459,11 +459,11 @@ class SettingsViewModel(
             overrides[server.id]?.let { server.copy(isEnabled = it) } ?: server
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, BuiltinMcpPresets.presets)
-
     /** 各 MCP 服务的实时连通性状态（与 McpManager 共享，设置页与聊天页联动）。 */
     val mcpConnectionStates: StateFlow<Map<String, McpConnectionState>> = mcpManager.connectionStates
     fun mcpLastError(serverId: String): String? = mcpManager.getLastError(serverId)
-
+    /** 已启用服务的缓存工具数：随连接状态刷新，不主动触发发现。 */
+    val mcpToolCounts: StateFlow<Map<String, Int>> = mcpConnectionStates.map { mcpManager.cachedToolCounts() }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
     private val _mcpAuthOverrides = MutableStateFlow<Map<String, McpAuthState>>(emptyMap())
 
     fun markMcpAuthorizing(serverId: String) {
