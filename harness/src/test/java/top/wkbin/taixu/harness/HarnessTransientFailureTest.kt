@@ -46,6 +46,16 @@ class HarnessTransientFailureTest {
     }
 
     @Test
+    fun `first response timeout is not retried as an upstream disconnect`() {
+        val timeout = FirstResponseTimeoutException(90_000L)
+        timeout.initCause(SocketException("canceled"))
+        assertFalse(HarnessProviderRunner.isTransientFailure(timeout))
+        assertEquals(1, HarnessProviderRunner.effectiveRetryBudget(1, timeout))
+        val wrapped = IOException("stream closed", timeout)
+        assertFalse(HarnessProviderRunner.isTransientFailure(wrapped))
+    }
+
+    @Test
     fun `self referencing cause terminates`() {
         // Java 禁止自引用 cause（initCause 自引用会抛 IllegalArgumentException），
         // 这里改用一个实际可达的环形链：a.cause = b，b.cause = a。
