@@ -55,6 +55,7 @@ data class GroupChatEntity(
     val description: String,
     val createdAt: Long,
     val background: String = "default",
+    @ColumnInfo(defaultValue = "'ADMIN_FIRST'") val replyMode: String = "ADMIN_FIRST",
 )
 
 @Entity(

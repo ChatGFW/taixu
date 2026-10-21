@@ -25,6 +25,7 @@ import top.wkbin.taixu.core.model.bot.GroupAttachment
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupMessage
 import top.wkbin.taixu.core.model.bot.GroupReaction
+import top.wkbin.taixu.core.model.bot.GroupReplyMode
 import top.wkbin.taixu.core.model.bot.GroupSenderType
 import top.wkbin.taixu.core.model.bot.GroupToolStep
 
@@ -288,6 +289,7 @@ private fun GroupChatEntity.toModel() = GroupChat(
     description = description,
     createdAt = createdAt,
     background = background,
+    replyMode = runCatching { GroupReplyMode.valueOf(replyMode) }.getOrDefault(GroupReplyMode.ADMIN_FIRST),
 )
 
 private fun GroupChat.toEntity() = GroupChatEntity(
@@ -297,6 +299,7 @@ private fun GroupChat.toEntity() = GroupChatEntity(
     description = description,
     createdAt = createdAt,
     background = background,
+    replyMode = replyMode.name,
 )
 
 internal fun GroupMessageEntity.toModel(json: Json) = GroupMessage(

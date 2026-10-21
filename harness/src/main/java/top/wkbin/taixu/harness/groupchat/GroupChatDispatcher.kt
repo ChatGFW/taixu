@@ -19,6 +19,7 @@ import top.wkbin.taixu.core.model.bot.GroupAttachment
 import top.wkbin.taixu.core.model.bot.GroupDelivery
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupMessage
+import top.wkbin.taixu.core.model.bot.GroupReplyMode
 import top.wkbin.taixu.core.model.bot.GroupSenderType
 import top.wkbin.taixu.harness.MentionExtractor
 import top.wkbin.taixu.harness.bot.BotOrchestrator
@@ -125,10 +126,7 @@ class GroupChatDispatcher(
         val members = groupRepository.getMembers(groupId)
         startDeliveryProcessing()
         val mentions = MentionExtractor.parse(text, members.map { it.name })
-        val targeted = members.filter { bot -> mentions.any { it.equals(bot.name, ignoreCase = true) } }
-        val responders = targeted.ifEmpty {
-            listOfNotNull(members.firstOrNull { it.id == group.adminBotId } ?: members.firstOrNull())
-        }
+        val responders = openingResponders(members, mentions, group.adminBotId, group.replyMode)
         val prepared = if (members.isEmpty() || attachments.isEmpty()) PreparedGroupAttachments() else
             requireNotNull(attachmentPreparer) { "附件读取服务尚未就绪" }.prepare(attachments)
         groupRepository.stageMessage(
@@ -309,5 +307,23 @@ class GroupChatDispatcher(
         const val USER_SENDER_ID = "user_me"
         const val SYSTEM_SENDER_ID = "system"
         const val STOPPED_MARKER = "⏹ 已停止"
+    }
+}
+
+/** Explicit mentions always win; otherwise the group's reply mode decides. */
+internal fun openingResponders(
+    members: List<Bot>,
+    mentions: Set<String>,
+    adminBotId: String,
+    mode: GroupReplyMode,
+): List<Bot> {
+    if (mentions.isNotEmpty()) {
+        val targeted = members.filter { bot -> mentions.any { it.equals(bot.name, ignoreCase = true) } }
+        if (targeted.isNotEmpty()) return targeted
+    }
+    val admin = members.firstOrNull { it.id == adminBotId }
+    return when (mode) {
+        GroupReplyMode.ADMIN_FIRST -> listOfNotNull(admin ?: members.firstOrNull())
+        GroupReplyMode.ALL_MEMBERS -> if (admin == null) members else listOf(admin) + members.filter { it.id != admin.id }
     }
 }

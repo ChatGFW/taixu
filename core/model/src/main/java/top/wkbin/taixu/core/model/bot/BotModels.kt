@@ -22,6 +22,10 @@ data class Bot(
     val modelVariant: String? = null,
 )
 
+/** 群聊普通消息（无 @）由谁回应。 */
+@Serializable
+enum class GroupReplyMode { ADMIN_FIRST, ALL_MEMBERS }
+
 @Serializable
 data class GroupChat(
     val id: String,
@@ -32,6 +36,7 @@ data class GroupChat(
     val members: List<Bot> = emptyList(),
     /** 群聊聊天背景风格：default / warm / mint / night。 */
     val background: String = "default",
+    val replyMode: GroupReplyMode = GroupReplyMode.ADMIN_FIRST,
 )
 
 /** 可复用的 Bot 成员分组；建群时可按组批量选人。 */
