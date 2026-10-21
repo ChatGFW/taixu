@@ -61,7 +61,10 @@ val runtimeModule = module {
     single { top.wkbin.taixu.runtime.environment.LocalDistributionSelection(get<top.wkbin.taixu.core.datastore.RuntimePreferences>(), get<top.wkbin.taixu.runtime.LinuxRuntime>()) }
     single { top.wkbin.taixu.runtime.environment.LocalBackendAccess(get()) }
     single { top.wkbin.taixu.runtime.SessionWorkspaceCatalog(servers = get(), remote = get(), local = get()) }
-    single { top.wkbin.taixu.runtime.remote.SshConnector() }
+    single {
+        val manager = get<LinuxEnvironmentManager>()
+        top.wkbin.taixu.runtime.remote.SshConnector { manager.snapshotForSsh() }
+    }
     single<top.wkbin.taixu.runtime.remote.SshConnectionTester> { get<top.wkbin.taixu.runtime.remote.SshConnector>() }
     single { top.wkbin.taixu.runtime.remote.RemoteSystemService(get(), get()) }
     single<ProotCommandBuilder> { ProotCommandBuilder(environmentResolver = get(), logger = get()) }

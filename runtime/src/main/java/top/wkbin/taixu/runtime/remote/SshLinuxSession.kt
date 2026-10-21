@@ -5,6 +5,7 @@ import com.jcraft.jsch.Session
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.collect
 import top.wkbin.taixu.runtime.shell.*
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
@@ -62,17 +63,59 @@ internal class SshLinuxSession private constructor(private val channel: ChannelE
     }
 
     companion object {
-        suspend fun open(session: Session, config: SessionConfig, pty: Boolean): SshLinuxSession = withContext(Dispatchers.IO) {
+        suspend fun open(session: Session, config: SessionConfig, pty: Boolean, protocolEnvironment: Boolean = false): SshLinuxSession =
+            withContext(Dispatchers.IO) {
+                val channel = session.openChannel("exec") as ChannelExec
+                try {
+                    channel.setPty(pty)
+                    if (pty) { channel.setPtyType("xterm-256color"); channel.setPtySize(config.columns, config.rows, 0, 0) }
+                    val exported = if (protocolEnvironment) emptyMap() else config.environment
+                    if (protocolEnvironment) config.environment.forEach { (key, value) -> channel.setEnv(key, value) }
+                    channel.setCommand(remoteCommand(config.commandLine, config.workingDirectory, exported))
+                    val process = SshLinuxSession(channel)
+                    runInterruptible { channel.connect(15_000) }
+                    currentCoroutineContext().ensureActive()
+                    process
+                } catch (t: Throwable) { channel.disconnect(); throw t }
+            }
+
+        /**
+         * JSch's env request sets want_reply=false, so a server that rejects setEnv still accepts exec
+         * and simply omits the variable. Confirm the probe value is visible, with no profile sourced.
+         */
+        suspend fun protocolEnvironmentAccepted(session: Session): Boolean {
+            val opened = openProbe(session) ?: return false
+            return try {
+                val stdout = StringBuilder()
+                withTimeout(5_000) {
+                    opened.output.collect { output ->
+                        if (output.stream == TerminalStream.STDOUT && stdout.length < 16) stdout.append(output.text)
+                    }
+                }
+                stdout.toString() == SSH_ENV_PROBE_VALUE
+            } catch (_: TimeoutCancellationException) {
+                false
+            } finally {
+                withContext(NonCancellable) { runCatching { opened.close() } }
+            }
+        }
+
+        private suspend fun openProbe(session: Session): SshLinuxSession? {
+            if (!session.isUsable()) return null
             val channel = session.openChannel("exec") as ChannelExec
-            try {
-                channel.setPty(pty)
-                if (pty) { channel.setPtyType("xterm-256color"); channel.setPtySize(config.columns, config.rows, 0, 0) }
-                channel.setCommand(remoteCommand(config.commandLine, config.workingDirectory, config.environment))
-                val process = SshLinuxSession(channel)
+            return try {
+                channel.setEnv(SSH_ENV_PROBE_KEY, SSH_ENV_PROBE_VALUE)
+                channel.setCommand(SSH_ENV_PROBE_COMMAND)
+                val created = SshLinuxSession(channel)
                 runInterruptible { channel.connect(15_000) }
                 currentCoroutineContext().ensureActive()
-                process
-            } catch (t: Throwable) { channel.disconnect(); throw t }
+                created
+            } catch (t: Throwable) {
+                runCatching { channel.disconnect() }
+                if (t is CancellationException) throw t
+                if (!session.isUsable()) throw t
+                null
+            }
         }
     }
 }

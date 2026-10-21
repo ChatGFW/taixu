@@ -22,12 +22,16 @@ internal class SshExecutionEnvironment(
     private val reconnect: suspend (RemoteServer, SshCredentials) -> Session = { target, secret ->
         SshConnector().connect(target, secret)
     },
+    private val userEnvironment: suspend () -> Map<String, String> = { emptyMap() },
 ) : ExecutionEnvironment {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutex = Mutex()
     private val transportMutex = Mutex()
     @Volatile private var closed = false
     @Volatile private var connection: Session = initialConnection
+    /** setEnv result for [connection]. JSch does not wait for env replies, so this is probed. */
+    @Volatile private var protocolTransport: Session? = null
+    @Volatile private var protocolEnvironment: Boolean? = null
     private val sessions = mutableSetOf<SshLinuxSession>()
     private data class Background(val process: ManagedProcess, val job: Job, val logs: ArrayDeque<String>)
     private val background = ConcurrentHashMap<String, Background>()
@@ -68,6 +72,10 @@ internal class SshExecutionEnvironment(
         if (closedDuringReconnect) runCatching { next.disconnect() }
         check(!closedDuringReconnect) { "远程执行环境已关闭" }
         connection = next
+        if (protocolTransport !== next) {
+            protocolTransport = null
+            protocolEnvironment = null
+        }
         runCatching { stale.disconnect() }
         return connection
     }
@@ -98,9 +106,31 @@ internal class SshExecutionEnvironment(
 
     private suspend fun open(config: SessionConfig, pty: Boolean): SshLinuxSession = mutex.withLock {
         check(!closed) { "远程执行环境已关闭" }
-        val session = onTransport { SshLinuxSession.open(it, config, pty) }
+        val session = onTransport { deliver(config, pty, it) }
         sessions.add(session)
         session
+    }
+
+    /**
+     * Settings variables are underneath the command environment. setEnv is used only after a probe
+     * shows this transport kept the variable; otherwise the command is prefixed with quoted exports.
+     * Neither path sources the remote profile. Multiline values always use exports.
+     */
+    private suspend fun deliver(config: SessionConfig, pty: Boolean, transport: Session): SshLinuxSession {
+        val prepared = config.copy(environment = forwardedSshEnvironment(userEnvironment(), config.environment))
+        val shellOnly = prepared.environment.values.any { '\n' in it || '\r' in it }
+        val protocol = prepared.environment.isNotEmpty() && !shellOnly && protocolAccepted(transport)
+        return SshLinuxSession.open(transport, prepared, pty, protocol)
+    }
+
+    private suspend fun protocolAccepted(transport: Session): Boolean {
+        if (protocolTransport === transport) protocolEnvironment?.let { return it }
+        val accepted = SshLinuxSession.protocolEnvironmentAccepted(transport)
+        if (connection === transport) {
+            protocolTransport = transport
+            protocolEnvironment = accepted
+        }
+        return accepted
     }
     override suspend fun openSession(config: SessionConfig): LinuxSession = open(config, false)
     override suspend fun openTerminal(config: SessionConfig): LinuxSession = open(config, true)
@@ -132,9 +162,8 @@ internal class SshExecutionEnvironment(
         check(!closed)
         check(background[id] == null) { "远程进程名称已存在，请先停止" }
         require(!command.useQemuCompatibility)
-        val session = onTransport { transport -> SshLinuxSession.open(transport,
-            SessionConfig(commandLine = command.commandLine, workingDirectory = command.workingDirectory,
-                environment = command.environment), command.forcePty) }
+        val session = onTransport { transport -> deliver(SessionConfig(commandLine = command.commandLine,
+            workingDirectory = command.workingDirectory, environment = command.environment), command.forcePty, transport) }
         try {
             sessions.add(session)
             val logs = ArrayDeque<String>()
