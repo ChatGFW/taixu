@@ -72,6 +72,18 @@ class BotPersistenceTest {
         assertEquals("group-session", db.botGroupSessionDao().findSessionId("bot", "group"))
     }
 
+    @Test fun `model self selection policy round trips through repositories and group members`() = runBlocking {
+        seed()
+        val repository = RoomPersonaBotRepository(bots)
+        val member = repository.getBot("bot")!!
+        assertFalse(member.allowModelSelection)
+        repository.saveBot(member.copy(allowModelSelection = true))
+        assertTrue(repository.getBotBySessionId("group-session")!!.allowModelSelection)
+        assertTrue(groups.getMembers("group").single().allowModelSelection)
+        repository.saveBot(repository.getBot("bot")!!.copy(allowModelSelection = false))
+        assertFalse(repository.getBot("bot")!!.allowModelSelection)
+    }
+
     @Test fun `editing group metadata preserves messages members and sessions`() = runBlocking {
         seed()
         groups.upsertGroup(group.copy(name = "Renamed", background = "night"))

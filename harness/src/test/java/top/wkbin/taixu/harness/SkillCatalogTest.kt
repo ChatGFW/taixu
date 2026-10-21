@@ -63,9 +63,15 @@ class SkillCatalogTest {
     }
 
     @Test
-    fun `catalog is capped at 24 entries`() {
-        val skills = (1..30).map { skill("s$it", "skill-$it") }
+    fun `catalog lists every enabled skill without an entry cap`() {
+        // 技能目录不再按条数截断：随插件下发的 33 个官方 Android 技能必须全部可被
+        // 模型自主匹配，而不是静默丢弃尾部条目（旧行为：只列前 24 条 + 溢出提示）。
+        val skills = (1..60).map { skill("s$it", "skill-%02d".format(it)) }
         val text = renderSkillCatalog(skills, excludeIds = emptySet())
-        assertEquals(24, text.lineSequence().count { it.startsWith("- ") })
+
+        assertEquals(60, text.lineSequence().count { it.startsWith("- ") })
+        assertTrue(text.contains("- skill-60："))
+        assertFalse(text.contains("未列出"))
+        assertFalse(text.contains("目录条目上限"))
     }
 }

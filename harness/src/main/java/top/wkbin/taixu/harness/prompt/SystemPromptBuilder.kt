@@ -557,6 +557,11 @@ class SystemPromptBuilder(
  * 是否命中某个技能，命中后调用 load_skill 拉取完整指导规则——正文不再要求
  * 用户显式 @提及 才进入上下文。
  *
+ * 条目不设上限：技能集合可以自由增长（例如随插件下发的 33 个 Google 官方
+ * Android 技能），列表长度由「已启用技能数」决定；单条成本只由描述截断
+ * （[CATALOG_DESCRIPTION_CHARS]）约束，避免少数巨型描述撑爆预算。若需要
+ * 控制常驻成本，行为可预期的手段是停用技能，而不是静默丢弃尾部条目。
+ *
  * @param excludeIds 已通过 @提及注入正文的技能，不再进目录
  */
 internal fun renderSkillCatalog(
@@ -565,27 +570,18 @@ internal fun renderSkillCatalog(
 ): String {
     val eligible = allSkills
         .filter { it.isEnabled && it.id !in excludeIds && it.systemPrompt.isNotBlank() }
-    val candidates = eligible.take(MAX_CATALOG_ENTRIES)
-    if (candidates.isEmpty()) return ""
-    val lines = candidates.joinToString("\n") { skill ->
+    if (eligible.isEmpty()) return ""
+    val lines = eligible.joinToString("\n") { skill ->
         val desc = skill.description.replace(Regex("\\s+"), " ").trim()
         val brief = if (desc.length > CATALOG_DESCRIPTION_CHARS) desc.take(CATALOG_DESCRIPTION_CHARS - 1) + "…" else desc
         val trigger = skill.triggerCommand?.removePrefix("/")?.takeIf { it.isNotBlank() }?.let { "（/$it）" } ?: ""
         "- ${skill.name}$trigger：$brief"
     }
-    // 截断必须可见：超出的技能模型完全看不到，静默丢弃会让用户以为技能"没用"。
-    val overflow = eligible.size - candidates.size
-    val overflowNote = if (overflow > 0) {
-        "\n（另有 $overflow 个技能因目录条目上限未列出，如需使用请直接 @技能名）"
-    } else {
-        ""
-    }
     return "## 可用技能（按需加载）\n" + "以下技能的完整说明未注入。当用户请求与某条描述匹配时，先调用 load_skill 工具（参数 name=技能名）" +
         "获取完整指导规则与资源路径，再按说明执行。\n" +
-        lines + overflowNote
+        lines
 }
 
-private const val MAX_CATALOG_ENTRIES = 24
 private const val CATALOG_DESCRIPTION_CHARS = 100
 
 /** 单个技能正文注入上限（字符）：约 8K 字符 ≈ 3K tokens，足够覆盖绝大多数技能。 */

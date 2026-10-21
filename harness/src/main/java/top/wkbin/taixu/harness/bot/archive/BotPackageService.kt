@@ -40,6 +40,7 @@ class BotPackageService(
                 systemPrompt = bot.systemPrompt,
                 modelId = bot.modelId,
                 modelVariant = bot.modelVariant,
+                allowModelSelection = bot.allowModelSelection,
                 avatarSeed = bot.avatarSeed,
                 colorHex = bot.colorHex,
             )
@@ -98,6 +99,7 @@ class BotPackageService(
                 systemPrompt = manifest.systemPrompt,
                 modelId = manifest.modelId,
                 modelVariant = manifest.modelVariant,
+                allowModelSelection = manifest.allowModelSelection,
                 colorHex = manifest.colorHex,
                 groupId = groupId,
                 avatarSeed = manifest.avatarSeed,

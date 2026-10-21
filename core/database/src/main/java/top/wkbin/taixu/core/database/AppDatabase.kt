@@ -62,7 +62,7 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         GroupDeliveryEntity::class,
         BotAssignmentRequestEntity::class,
     ],
-    version = 72,
+    version = 73,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

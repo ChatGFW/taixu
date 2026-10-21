@@ -194,16 +194,18 @@ private fun BotPersonaPanel(
     bot: Bot,
     busy: Boolean,
     profiles: List<top.wkbin.taixu.core.database.AiModelEntity>,
-    onSave: (name: String, role: String, persona: String, modelId: String, modelVariant: String?, isMainBot: Boolean, avatarSeed: String) -> Unit,
+    onSave: (name: String, role: String, persona: String, modelId: String, modelVariant: String?, isMainBot: Boolean, avatarSeed: String, allowModelSelection: Boolean) -> Unit,
 ) {
     var name by rememberSaveable(bot.id) { mutableStateOf(bot.name) }
     var role by rememberSaveable(bot.id) { mutableStateOf(bot.role) }
     var persona by rememberSaveable(bot.id) { mutableStateOf(bot.systemPrompt) }
     var modelId by rememberSaveable(bot.id) { mutableStateOf(bot.modelId.orEmpty()) }
     var modelVariant by rememberSaveable(bot.id) { mutableStateOf(bot.modelVariant) }
-    LaunchedEffect(bot.modelId, bot.modelVariant) {
+    var allowModelSelection by rememberSaveable(bot.id) { mutableStateOf(bot.allowModelSelection) }
+    LaunchedEffect(bot.modelId, bot.modelVariant, bot.allowModelSelection) {
         modelId = bot.modelId.orEmpty()
         modelVariant = bot.modelVariant
+        allowModelSelection = bot.allowModelSelection
     }
     var isMain by rememberSaveable(bot.id) { mutableStateOf(bot.isMainBot) }
     var avatarSeed by rememberSaveable(bot.id) { mutableStateOf(bot.avatarSeed) }
@@ -273,6 +275,7 @@ private fun BotPersonaPanel(
             modelId = id.orEmpty()
             modelVariant = concrete
         }
+        BotModelPolicySwitch(allowModelSelection, !busy) { allowModelSelection = it }
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -289,7 +292,7 @@ private fun BotPersonaPanel(
             RuntimeSwitch(checked = isMain, onCheckedChange = { isMain = it }, enabled = !busy)
         }
         RuntimeButton(
-            onClick = { onSave(name, role, persona, modelId, modelVariant, isMain, avatarSeed) },
+            onClick = { onSave(name, role, persona, modelId, modelVariant, isMain, avatarSeed, allowModelSelection) },
             enabled = !busy && !avatarLoading && name.isNotBlank() && role.isNotBlank() && persona.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         ) { Text(stringResource(R.string.fbot_save)) }

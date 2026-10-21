@@ -196,6 +196,12 @@ class AgentSkillRepository(
             parseFrontmatter(markdown)[key.lowercase()]?.takeIf { it.isNotBlank() }
 
         /**
+         * 形如 `key:` / `key: value` 的映射键（YAML 中普通标量不能以该形态续行）。
+         * 用于终止普通多行标量的折叠，避免把 metadata 下的子键并进上一条描述。
+         */
+        private val NESTED_KEY_BOUNDARY = Regex("""[A-Za-z0-9_.\-]+\s*:(\s|$)""")
+
+        /**
          * 解析 SKILL.md 的 YAML frontmatter 为扁平 key→value 映射。
          *
          * 对齐 Claude Code / OpenMinis 生态 SKILL.md 的常见形态：
@@ -224,7 +230,7 @@ class AgentSkillRepository(
                 var value = trimmed.substringAfter(':').trim()
                 index++
                 // 折叠/字面块指示符（含 chomping 修饰：>-、|-、>+ 等）
-            if (value.startsWith(">") || value.startsWith("|")) {
+                if (value.startsWith(">") || value.startsWith("|")) {
                     // 折叠/字面块标量：取后续缩进行并折叠为单行
                     val block = StringBuilder()
                     while (index < lines.size && (lines[index].startsWith(" ") || lines[index].startsWith("\t") || lines[index].isBlank())) {
@@ -236,6 +242,25 @@ class AgentSkillRepository(
                     if (!value.startsWith("\"") && !value.startsWith("'")) {
                         val comment = value.indexOf(" #")
                         if (comment >= 0) value = value.substring(0, comment).trim()
+                        // 普通多行标量（官方 Android skills 的 `description:` 常见写法）：
+                        // 首行非空时，继续吸收随后的缩进续行，直到空行、未缩进行，
+                        // 或下一级映射键（如 metadata 下的 author / keywords）。
+                        if (value.isNotEmpty()) {
+                            val folded = StringBuilder(value)
+                            while (index < lines.size) {
+                                val continuation = lines[index]
+                                val trimmedContinuation = continuation.trim()
+                                if (continuation.isBlank() ||
+                                    !(continuation.startsWith(" ") || continuation.startsWith("\t")) ||
+                                    NESTED_KEY_BOUNDARY.matches(trimmedContinuation)
+                                ) {
+                                    break
+                                }
+                                folded.append(' ').append(trimmedContinuation)
+                                index++
+                            }
+                            value = folded.toString()
+                        }
                     }
                     value = value.trim('"', '\'')
                 }

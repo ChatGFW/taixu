@@ -22,6 +22,7 @@
 | **Web 插件与页面授权** | [`docs/PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md) | 静态 Web 宿主、外部包、结构化能力、页面级限时授权与独立宿主凭据 |
 | **项目模板制作与变量协议** | [`docs/PROJECT_TEMPLATE_SPEC.md`](PROJECT_TEMPLATE_SPEC.md) | template.json 规范、变量表单、动态模板替换与生命周期 hooks |
 | **ARM64 Android 离线构建套件** | [`docs/ANDROID_OFFLINE_PLUGIN.md`](ANDROID_OFFLINE_PLUGIN.md) | 沙箱内内置 JDK/Android SDK/NDK/Flutter 工具链与移动端 Gradle 策略 |
+| **Android CLI 与官方技能插件** | [`docs/ANDROID_SKILLS_PLUGIN.md`](ANDROID_SKILLS_PLUGIN.md) | `android` CLI（离线内置引导器 + 真身）与 33 个 Google 官方 Android Skills 的接入方式、铁律与卸载边界 |
 | **内置浏览器设计决策（含 Hook/CDP 引擎）** | [`docs/BROWSER_DESIGN.md`](BROWSER_DESIGN.md) | 模块拓扑、工具协议、风险矩阵、Hook 引擎与 CDP 调试 ADR |
 | **沙箱执行后端选型（为何不用 chroot）** | [`docs/ADR_SANDBOX_BACKEND.md`](ADR_SANDBOX_BACKEND.md) | PRoot vs chroot/namespace 决策、Android SELinux/seccomp/namespace 约束 |
 | **工作流定义、调度语义与安全边界** | [`docs/WORKFLOW.md`](WORKFLOW.md) | DAG 模型、并发调度、审批、执行器、入口与当前能力边界 |

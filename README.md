@@ -316,6 +316,7 @@ Android 应用业务层以 Kotlin 与 Jetpack Compose 为主；底层还包含 C
 - 📦 [`.txplugin` v2 包协议](docs/PLUGIN_PACKAGE_V2.md)
 - 🌐 [Web 插件扩展、能力授权与示例](docs/PLUGIN_WEB_EXTENSIONS.md)
 - 📦 [Android 离线插件说明](docs/ANDROID_OFFLINE_PLUGIN.md)
+- 🤖 [Android CLI 与官方技能插件](docs/ANDROID_SKILLS_PLUGIN.md)
 - 💾 [存储管理](docs/STORAGE_MANAGEMENT.md)
 - 🗃️ [本地数据备份与恢复](docs/LOCAL_BACKUP.md)
 - 🔑 [模型档案备份与恢复](docs/MODEL_PROFILE_TRANSFER.md)

@@ -160,6 +160,45 @@ class BotAssignmentRuntimeTest {
         assertEquals("own-model", sessions.findById(second.sessionId!!)!!.modelVariant)
     }
 
+    @Test fun `unbound member follows global default instead of inheriting the chief profile or variant`() = runBlocking {
+        seed()
+        bots.saveBot(bots.getBot("member")!!.copy(modelId = null, modelVariant = null))
+        sessions.upsert(sessions.findById("parent")!!.copy(modelId = "chief-model", modelVariant = "chief-variant"))
+        val seen = CompletableDeferred<HarnessSessionEntity>()
+        val engine = runtime { task, _, admitted ->
+            seen.complete(sessions.findById(task.sessionId!!)!!)
+            admitted("native")
+            control.setState(task.sessionId!!, SessionRunState.COMPLETED)
+            GroupTurnOutcome("done", false)
+        }
+        engine.create("member", "group", "chief", "parent", "work")
+        val binding = withTimeout(10_000) { seen.await() }
+        assertNull(binding.modelId)
+        assertNull(binding.modelVariant)
+        assertEquals("/workspace/project", binding.workspace)
+        assertEquals("frozen-target", binding.executionTargetJson)
+        assertEquals("chief-model", sessions.findById("parent")!!.modelId)
+    }
+
+    @Test fun `continued legacy task repairs its stale model binding from the member selection`() = runBlocking {
+        seed()
+        val engine = runtime { task, _, admitted ->
+            assertEquals("member-model", sessions.findById(task.sessionId!!)!!.modelId)
+            assertNull(sessions.findById(task.sessionId!!)!!.modelVariant)
+            admitted("native")
+            control.setState(task.sessionId!!, SessionRunState.COMPLETED)
+            GroupTurnOutcome("done", false)
+        }
+        val task = engine.create("member", "group", "chief", "parent", "first")
+        awaitStatus(task.id, BotAssignmentStatus.COMPLETED)
+        sessions.upsert(sessions.findById(task.sessionId!!)!!.copy(modelId = "chief-model", modelVariant = "chief-variant"))
+        val requestId = engine.continueTask(task.id, "group", "continue", "continued")
+        withTimeout(10_000) { engine.awaitRequest(requestId) }
+        awaitStatus(task.id, BotAssignmentStatus.COMPLETED)
+        assertEquals("member-model", sessions.findById(task.sessionId!!)!!.modelId)
+        assertEquals("frozen-target", sessions.findById(task.sessionId!!)!!.executionTargetJson)
+    }
+
     @Test fun `empty source workspace retains the frozen identity while file hints resolve under workspace`() = runBlocking {
         seed()
         sessions.upsert(HarnessSessionEntity("empty-parent", "Empty", 1, 1, null,

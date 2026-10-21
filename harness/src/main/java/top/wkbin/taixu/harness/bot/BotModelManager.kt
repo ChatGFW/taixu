@@ -42,8 +42,9 @@ class BotModelManager(
     }
 
     suspend fun select(botId: String, profileId: String?, variant: String?): Bot = withBotLock(botId) {
-        val (id, concrete) = validate(profileId, variant)
         val current = requireNotNull(bots.getBot(botId)) { "成员不存在" }
+        check(current.allowModelSelection) { "模型已锁定，请由用户在成员详情中开启「允许成员自行切换模型」" }
+        val (id, concrete) = validate(profileId, variant)
         val updated = current.copy(modelId = id, modelVariant = concrete, providerId = null, updatedAt = System.currentTimeMillis())
         bots.saveBot(updated)
         syncSessions(updated)

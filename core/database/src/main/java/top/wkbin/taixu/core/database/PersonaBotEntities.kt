@@ -34,6 +34,7 @@ data class BotEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val modelVariant: String? = null,
+    @ColumnInfo(defaultValue = "0") val allowModelSelection: Boolean = false,
 )
 
 @Entity(

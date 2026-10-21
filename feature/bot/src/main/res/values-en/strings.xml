@@ -12,7 +12,10 @@
     <string name="fbot_empty_groups_hint">Create a group and the admin Bot will coordinate members and answer @mentions.</string>
     <string name="fbot_main_bot">Admin</string>
     <string name="fbot_member">Member</string>
-    <string name="fbot_model_default">Default model</string>
+    <string name="fbot_model_default">Follow global default</string>
+    <string name="fbot_model_scope_hint">This selection applies to this member’s direct chat, all groups, and independent tasks. Unset selections always follow the global default.</string>
+    <string name="fbot_model_self_selection">Allow member to switch models</string>
+    <string name="fbot_model_self_selection_hint">Off by default to preserve your selection. When enabled, the member can change the model used by all of its sessions through tools.</string>
     <string name="fbot_member_count">%1$d members</string>
     <string name="fbot_install">Install</string>
     <string name="fbot_installing">Installing…</string>

@@ -50,6 +50,7 @@ class BotOrchestrator(
         groupId: String? = null,
         avatarSeed: String? = null,
         modelVariant: String? = null,
+        allowModelSelection: Boolean = false,
     ): Bot {
         val cleanName = name.trim().take(40)
         val cleanRole = role.trim().take(40)
@@ -71,6 +72,7 @@ class BotOrchestrator(
             avatarSeed = avatarSeed?.takeIf { it.isNotBlank() } ?: cleanName,
             modelId = selection.first,
             modelVariant = selection.second,
+            allowModelSelection = allowModelSelection,
             providerId = null,
             sessionId = sessionId,
             isMainBot = main,
@@ -107,6 +109,7 @@ class BotOrchestrator(
         isMainBot: Boolean,
         avatarSeed: String? = null,
         modelVariant: String? = null,
+        allowModelSelection: Boolean? = null,
     ): Bot = modelManager.withBotLock(botId) {
         val current = requireNotNull(botRepository.getBot(botId)) { "Bot 不存在" }
         val selection = modelManager.validate(modelId, modelVariant)
@@ -123,6 +126,7 @@ class BotOrchestrator(
             systemPrompt = systemPrompt.trim().ifBlank { current.systemPrompt },
             modelId = selection.first,
             modelVariant = selection.second,
+            allowModelSelection = allowModelSelection ?: current.allowModelSelection,
             isMainBot = keepMain,
             avatarSeed = avatarSeed?.takeIf { it.isNotBlank() } ?: current.avatarSeed,
             updatedAt = System.currentTimeMillis(),
@@ -228,6 +232,9 @@ class BotOrchestrator(
                 ),
             )
             logger.i("[BotOrchestrator] Bot 会话已启用完全访问（免审批）: ${bot.name} ($sessionId)")
+        }
+        if (existing.modelId != bot.modelId || existing.modelVariant != bot.modelVariant) {
+            sessionRepository.setModelSelection(sessionId, bot.modelId, bot.modelVariant, now)
         }
     }
 
