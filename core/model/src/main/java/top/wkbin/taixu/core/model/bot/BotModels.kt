@@ -99,6 +99,8 @@ data class GroupMessage(
     val reactions: List<GroupReaction> = emptyList(),
     val steps: List<GroupToolStep> = emptyList(),
     val reasoning: String = "",
+    /** 群内单调递增序号；用于轮次增量历史与稳定排序。 */
+    val seq: Long = 0,
 )
 
 @Serializable

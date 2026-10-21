@@ -8,7 +8,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.logging.AppLogger
@@ -22,6 +26,8 @@ import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentRequest
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
+import top.wkbin.taixu.core.model.bot.BotWorkBatch
+import top.wkbin.taixu.core.model.bot.BotWorkBatchStatus
 import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 import top.wkbin.taixu.harness.HarnessPathResolver
 import top.wkbin.taixu.harness.session.SessionControl
@@ -44,18 +50,42 @@ class BotAssignmentRuntime(
     private val modelManager: BotModelManager? = null,
 ) {
     private val pump = AssignmentRequestPump(repository, scope, logger, ::execute)
-    suspend fun start() = pump.start()
+    private val maintenanceLock = Mutex()
+    private var maintenanceJob: Job? = null
+
+    suspend fun start() {
+        pump.start()
+        runCatching { repository.reconcileWaitingBatches() }
+            .onFailure { logger.w("[BotAssignment] 批次收敛失败: ${it.message}") }
+        maintenanceLock.withLock {
+            if (maintenanceJob?.isActive == true) return@withLock
+            maintenanceJob = scope.launch {
+                while (true) {
+                    delay(BATCH_SWEEP_MS)
+                    runCatching { repository.reconcileWaitingBatches() }
+                        .onFailure { logger.w("[BotAssignment] 批次收敛失败: ${it.message}") }
+                }
+            }
+        }
+    }
 
     suspend fun create(botId: String, groupId: String, requesterId: String, sourceSessionId: String, instruction: String,
-        writePaths: List<String> = emptyList(), dependsOn: List<String> = emptyList()): BotAssignment {
-        val create = suspend { createTask(botId, groupId, requesterId, sourceSessionId, instruction, writePaths, dependsOn) }
+        writePaths: List<String> = emptyList(), dependsOn: List<String> = emptyList(), workId: String? = null): BotAssignment {
+        val create = suspend { createTask(botId, groupId, requesterId, sourceSessionId, instruction, writePaths, dependsOn, workId) }
         return modelManager?.withBotLock(botId, create) ?: create()
     }
 
+    suspend fun batchSize(batchId: String): Int = repository.batchTaskCount(batchId)
+
     private suspend fun createTask(botId: String, groupId: String, requesterId: String, sourceSessionId: String, instruction: String,
-        writePaths: List<String>, dependsOn: List<String>): BotAssignment {
+        writePaths: List<String>, dependsOn: List<String>, workId: String?): BotAssignment {
         start()
         require(instruction.isNotBlank()) { "任务内容不能为空" }
+        if (workId != null) {
+            require(repository.batchTaskCount(workId) < BotWorkBatch.MAX_TASKS) {
+                "本批任务已达上限（${BotWorkBatch.MAX_TASKS}），请等待已派任务结束或拆到下一轮"
+            }
+        }
         val bot = requireNotNull(bots.getBot(botId)) { "执行成员不存在" }
         val source = requireNotNull(sessions.findById(sourceSessionId)) { "来源会话不存在" }
         require(groups.getMembers(groupId).any { it.id == requesterId }) { "请求者不在群内" }
@@ -66,9 +96,22 @@ class BotAssignmentRuntime(
         }
         val now = System.currentTimeMillis()
         val id = UUID.randomUUID().toString()
+        val batch = workId?.let {
+            BotWorkBatch(
+                id = it,
+                groupId = groupId,
+                requesterBotId = requesterId,
+                requesterSessionId = sourceSessionId,
+                originOperationId = it,
+                revision = 1,
+                status = BotWorkBatchStatus.WAITING_CHILDREN,
+                createdAt = now,
+                updatedAt = now,
+            )
+        }
         val task = BotAssignment(id, groupId, botId, bot.name, instruction.lineSequence().first().take(60), instruction,
             BotAssignmentStatus.QUEUED, writePaths, now, now, sessionId = UUID.randomUUID().toString(),
-            reportToBotId = requesterId, independent = true, dependsOn = dependsOn)
+            reportToBotId = requesterId, independent = true, dependsOn = dependsOn, batchId = workId)
         val session = HarnessSessionEntity(
             id = requireNotNull(task.sessionId), title = "${bot.name} · ${task.title}", createdAt = now, updatedAt = now,
             modelId = bot.modelId ?: source.modelId,
@@ -77,7 +120,7 @@ class BotAssignmentRuntime(
             workspace = source.workspace, projectType = source.projectType,
             approvalMode = ApprovalMode.FULL_ACCESS.id, executionTargetJson = source.executionTargetJson,
         )
-        repository.createIndependent(task, session, BotAssignmentRequest("initial:$id", id, instruction, now))
+        repository.createIndependent(task, session, BotAssignmentRequest("initial:$id", id, instruction, now), batch)
         return task
     }
 
@@ -149,5 +192,6 @@ class BotAssignmentRuntime(
 
     companion object {
         private val BUSY_STATES = setOf(SessionRunState.RUNNING, SessionRunState.WAITING_APPROVAL)
+        private const val BATCH_SWEEP_MS = 2_000L
     }
 }

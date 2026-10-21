@@ -12,7 +12,7 @@ internal fun independentAssignmentTools(
 ): List<PluginTool> = listOf(
     PluginTool(
         id = "continue-assignment",
-        description = "向原任务的独立会话补充要求或继续执行；运行中只排队，不打断当前工具。保留任务 ID、执行环境和历史。仅主控 Bot 可用。",
+        description = "向原任务的独立会话补充要求或继续执行；运行中只排队，不打断当前工具。补充要求会重新打开所属工作批次，全部结束后再次统一回报。保留任务 ID、执行环境和历史。仅主控 Bot 可用。",
         schema = pluginObjectSchema(listOf("assignment_id", "instruction"), mapOf(
             "assignment_id" to pluginStringProperty("原任务 ID"),
             "instruction" to pluginStringProperty("完整补充要求；受阻时提供缺失信息，结果待核对时先要求只读核验"),
@@ -28,7 +28,8 @@ internal fun independentAssignmentTools(
         val instruction = request.arguments["instruction"]?.jsonPrimitive?.content.orEmpty()
         val key = request.arguments["request_id"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
         val receipt = if (key == null) engine.continueTask(id, groupId, instruction) else engine.continueTask(id, groupId, instruction, key)
-        PluginToolOutput(true, "补充要求已持久受理（任务 $id，要求 $receipt）；在原会话按顺序执行。")
+        val batchNote = task.batchId?.let { "；同批任务全部结束后统一回报" }.orEmpty()
+        PluginToolOutput(true, "补充要求已持久受理（任务 $id，要求 $receipt$batchNote）；在原会话按顺序执行。")
     },
     PluginTool(
         id = "report-assignment",

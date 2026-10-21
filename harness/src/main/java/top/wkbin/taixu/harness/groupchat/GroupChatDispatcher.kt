@@ -26,7 +26,15 @@ import top.wkbin.taixu.harness.session.PromptSubmission
 import top.wkbin.taixu.harness.session.SessionControl
 
 /** 一轮群聊成员回复的结果；主控委派据此判断成员是否真正完成。 */
-data class GroupTurnOutcome(val text: String, val failed: Boolean, val uncertain: Boolean = false)
+data class GroupTurnOutcome(
+    val text: String,
+    val failed: Boolean,
+    val uncertain: Boolean = false,
+    val passed: Boolean = false,
+    val messageId: String? = null,
+    /** 成员已开始干活但本轮先让出，最终结果稍后作为迟到回复发出。 */
+    val working: Boolean = false,
+)
 
 /**
  * 群聊消息分流：精确 @ 路由优先，否则交给 Admin Bot；Bot 独占会话的助手文本
@@ -45,7 +53,29 @@ class GroupChatDispatcher(
     private val replies = GroupReplyQueue(scope)
 
     private val liveReplies = MutableStateFlow<Map<String, GroupReplyProgress>>(emptyMap())
-    private val responder = GroupBotResponder(groupRepository, orchestrator::ensureGroupSession, sessionControl, logger, liveReplies, freshness)
+    private val responder = GroupBotResponder(
+        groupRepository, orchestrator::ensureGroupSession, sessionControl, logger, liveReplies, freshness, scope,
+    )
+    private val roundCoordinator = GroupRoundCoordinator(
+        groups = groupRepository,
+        queue = replies,
+        responder = { group, bot, trigger, history, members, imageUrls, onLateReply ->
+            responder.respond(
+                group = group,
+                bot = bot,
+                trigger = trigger,
+                history = history,
+                members = members,
+                imageUrls = imageUrls,
+                admission = null,
+                silentPass = true,
+                promptHistory = history,
+                onLateReply = onLateReply,
+            )
+        },
+        scope = scope,
+        logger = logger,
+    )
     private val deliveryPump = GroupDeliveryPump(groupRepository, replies, scope, logger, ::deliver)
 
     suspend fun startDeliveryProcessing() = deliveryPump.start()
@@ -99,14 +129,25 @@ class GroupChatDispatcher(
         val responders = targeted.ifEmpty {
             listOfNotNull(members.firstOrNull { it.id == group.adminBotId } ?: members.firstOrNull())
         }
+        val prepared = if (members.isEmpty() || attachments.isEmpty()) PreparedGroupAttachments() else
+            requireNotNull(attachmentPreparer) { "附件读取服务尚未就绪" }.prepare(attachments)
         groupRepository.stageMessage(
             GroupMessage(
                 id = UUID.randomUUID().toString(), groupId = groupId, senderId = USER_SENDER_ID,
                 senderName = "我", senderType = GroupSenderType.USER, content = text,
                 timestamp = System.currentTimeMillis(), attachments = attachments,
-            ), responders.map { it.id },
+            ), emptyList(),
         )
-        if (members.isEmpty()) postSystemNotification(groupId, "⚠️ 当前群聊暂无可响应的 Bot 成员")
+        if (members.isEmpty()) {
+            postSystemNotification(groupId, "⚠️ 当前群聊暂无可响应的 Bot 成员")
+        } else {
+            val trigger = buildString {
+                if (text.isNotBlank()) appendLine(text)
+                if (prepared.description.isNotBlank()) appendLine("【附件】\n${prepared.description}")
+            }.ifBlank { "（用户发送了附件，请查看并处理）" }
+            roundCoordinator.resetLateRounds(groupId)
+            roundCoordinator.start(group, responders, trigger.trimEnd(), prepared.imageUrls)
+        }
     }
 
     /**
@@ -210,6 +251,7 @@ class GroupChatDispatcher(
      * 后台委派由 [top.wkbin.taixu.harness.bot.BotAssignmentTracker] 单独取消。
      */
     suspend fun cancelGroup(groupId: String) {
+        roundCoordinator.cancel(groupId)
         groupRepository.cancelDeliveries(groupId)
         replies.cancel(groupId)
         val states = sessionControl.sessionRunStates.value

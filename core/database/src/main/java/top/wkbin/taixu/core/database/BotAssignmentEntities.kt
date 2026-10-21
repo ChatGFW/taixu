@@ -11,6 +11,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
+import top.wkbin.taixu.core.model.bot.BotWorkBatch
 
 @Entity(
     tableName = "bot_assignments",
@@ -22,7 +23,12 @@ import kotlinx.coroutines.flow.Flow
             onDelete = ForeignKey.CASCADE,
         ),
     ],
-    indices = [Index(value = ["groupId", "createdAt"]), Index(value = ["status"]), Index(value = ["sessionId"])],
+    indices = [
+        Index(value = ["groupId", "createdAt"]),
+        Index(value = ["status"]),
+        Index(value = ["sessionId"]),
+        Index(value = ["batchId", "status"]),
+    ],
 )
 data class BotAssignmentEntity(
     @PrimaryKey val id: String,
@@ -45,6 +51,7 @@ data class BotAssignmentEntity(
     @ColumnInfo(defaultValue = "0") val revision: Int = 0,
     @ColumnInfo(defaultValue = "NULL") val activeRequestId: String? = null,
     @ColumnInfo(defaultValue = "'[]'") val dependsOnJson: String = "[]",
+    @ColumnInfo(defaultValue = "NULL") val batchId: String? = null,
 )
 
 @Dao
@@ -56,11 +63,26 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao {
     suspend fun assignmentForSession(sessionId: String): BotAssignmentEntity?
 
     @Transaction
-    suspend fun createIndependent(task: BotAssignmentEntity, session: HarnessSessionEntity, request: BotAssignmentRequestEntity) {
+    suspend fun createIndependent(
+        task: BotAssignmentEntity,
+        session: HarnessSessionEntity,
+        request: BotAssignmentRequestEntity,
+        batch: BotWorkBatchEntity? = null,
+    ) {
         require(task.independent && task.sessionId == session.id && request.assignmentId == task.id)
         val group = requireNotNull(task.groupId)
         require(deliveryMember(group, task.botId)) { "执行成员已移出群聊" }
         require(task.reportToBotId != null && deliveryMember(group, task.reportToBotId)) { "请求者已移出群聊" }
+        if (batch == null) {
+            require(task.batchId == null) { "批次实体缺失" }
+        } else {
+            require(task.batchId == batch.id) { "任务与批次不一致" }
+            require(batch.revision >= 1) { "批次 revision 必须从 1 开始" }
+            require(batchTaskCount(batch.id) < BotWorkBatch.MAX_TASKS) {
+                "本批任务已达上限（${BotWorkBatch.MAX_TASKS}）"
+            }
+            if (insertBatchIfAbsent(batch) == -1L) bumpBatchRevision(batch.id, batch.updatedAt)
+        }
         insertIndependentSession(session)
         insertIndependentAssignment(task)
         insertAssignmentRequest(request)
@@ -77,6 +99,7 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao {
             return
         }
         if (task.status == "INTERRUPTED") cancelAssignmentRequests(task.id)
+        task.batchId?.let { bumpBatchRevision(it, System.currentTimeMillis()) }
         insertAssignmentRequest(request)
         queueAssignment(task.id)
     }
@@ -114,7 +137,11 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao {
         if (uncertain) settleInterruptedAssignmentMessages(task.id, "⚠️ 原执行结果待核对，未自动重跑")
         val detail = if (uncertain || !success) error else request.blockedReason
         settleAssignment(task.id, status, now, summary, detail)
-        stageAssignmentReport(task, status, now, summary, detail)
+        if (task.batchId == null) {
+            stageAssignmentReport(task, status, now, summary, detail)
+        } else if (status != "QUEUED") {
+            settleBatchIfIdle(task.batchId, now)
+        }
     }
 
     @Transaction
@@ -134,8 +161,12 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao {
         cancelAssignmentRequests(id)
         if (task.status == "CANCELLED") return
         settleAssignment(id, "CANCELLED", now, task.summary, "用户取消")
-        val lastRequest = assignmentRequests(id).firstOrNull()?.id.orEmpty()
-        stageAssignmentReport(task.copy(activeRequestId = "cancel:$lastRequest"), "CANCELLED", now, null, "用户取消")
+        if (task.batchId != null) {
+            settleBatchIfIdle(task.batchId, now)
+        } else {
+            val lastRequest = assignmentRequests(id).firstOrNull()?.id.orEmpty()
+            stageAssignmentReport(task.copy(activeRequestId = "cancel:$lastRequest"), "CANCELLED", now, null, "用户取消")
+        }
     }
 
     @Query("SELECT * FROM bot_assignments WHERE groupId = :groupId ORDER BY createdAt DESC")
@@ -204,5 +235,92 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao {
         val interrupted = allRunning()
         markRunningInterrupted(now, error)
         interrupted.forEach { stageAssignmentReport(it, "FAILED", now, null, error) }
+    }
+
+    @Query("SELECT * FROM bot_work_batches WHERE id = :id LIMIT 1")
+    suspend fun findBatch(id: String): BotWorkBatchEntity?
+
+    @Query("SELECT * FROM bot_work_batches WHERE groupId = :groupId ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun listBatches(groupId: String, limit: Int): List<BotWorkBatchEntity>
+
+    @Query("SELECT * FROM bot_work_batches WHERE status IN ('WAITING_CHILDREN','WAITING_TURN') ORDER BY updatedAt ASC LIMIT 64")
+    suspend fun waitingBatches(): List<BotWorkBatchEntity>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertBatchIfAbsent(batch: BotWorkBatchEntity): Long
+
+    @Query(
+        "UPDATE bot_work_batches SET revision = revision + 1, status = 'WAITING_CHILDREN', " +
+            "updatedAt = :now, settledAt = NULL WHERE id = :id",
+    )
+    suspend fun bumpBatchRevision(id: String, now: Long)
+
+    @Query("UPDATE bot_work_batches SET status = :status, updatedAt = :now, settledAt = :settledAt WHERE id = :id")
+    suspend fun setBatchStatus(id: String, status: String, now: Long, settledAt: Long?)
+
+    @Query(
+        "UPDATE bot_work_batches SET status = :status, reportRevision = :revision, " +
+            "updatedAt = :now, settledAt = :now WHERE id = :id",
+    )
+    suspend fun settleBatch(id: String, status: String, revision: Int, now: Long)
+
+    @Query("SELECT COUNT(*) FROM bot_assignments WHERE batchId = :batchId AND status IN ('QUEUED','RUNNING')")
+    suspend fun activeBatchTaskCount(batchId: String): Int
+
+    @Query("SELECT COUNT(*) FROM bot_assignments WHERE batchId = :batchId")
+    suspend fun batchTaskCount(batchId: String): Int
+
+    @Query("SELECT * FROM bot_assignments WHERE batchId = :batchId ORDER BY createdAt ASC, id ASC")
+    suspend fun batchAssignments(batchId: String): List<BotAssignmentEntity>
+
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM harness_lanes WHERE sessionId = :sessionId " +
+            "AND currentOperationId = :operationId AND updatedAt >= :staleBefore)",
+    )
+    suspend fun isOperationActive(sessionId: String, operationId: String, staleBefore: Long): Boolean
+
+    @Transaction
+    suspend fun reconcileWaitingBatches(now: Long) {
+        waitingBatches().forEach { settleBatchIfIdle(it.id, now) }
+    }
+
+    suspend fun settleBatchIfIdle(batchId: String, now: Long) {
+        val batch = findBatch(batchId) ?: return
+        if (batch.reportRevision == batch.revision && batch.status in setOf("SETTLED", "CANCELLED")) return
+        if (activeBatchTaskCount(batchId) > 0) {
+            setBatchStatus(batchId, "WAITING_CHILDREN", now, null)
+            return
+        }
+        val operationActive = batch.originOperationId != null &&
+            isOperationActive(batch.requesterSessionId, batch.originOperationId, now - BATCH_OPERATION_STALE_MS)
+        if (operationActive) {
+            setBatchStatus(batchId, "WAITING_TURN", now, null)
+            return
+        }
+        if (!deliveryMember(batch.groupId, batch.requesterBotId)) {
+            settleBatch(batchId, "CANCELLED", batch.revision, now)
+            return
+        }
+        val children = batchAssignments(batchId)
+        if (children.isEmpty()) {
+            settleBatch(batchId, "CANCELLED", batch.revision, now)
+            return
+        }
+        stageGroupDelivery(
+            GroupMessageEntity(
+                id = "assignment-batch-report:${batch.id}:${batch.revision}",
+                groupId = batch.groupId,
+                senderId = "system",
+                senderName = "系统通知",
+                senderType = "SYSTEM",
+                content = buildBatchReport(batch, children),
+                timestamp = now,
+                isStreaming = false,
+                delegatedTaskId = batch.id,
+            ),
+            listOf(batch.requesterBotId),
+        )
+        val status = if (children.all { it.status == "CANCELLED" }) "CANCELLED" else "SETTLED"
+        settleBatch(batchId, status, batch.revision, now)
     }
 }

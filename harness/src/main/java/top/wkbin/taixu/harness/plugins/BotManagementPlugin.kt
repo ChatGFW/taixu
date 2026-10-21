@@ -58,7 +58,7 @@ fun botManagementPlugin(
             ),
             "group_id" to pluginStringProperty("可选群聊 ID；省略时使用主控 Bot 所在的第一个群"),
             "wait" to pluginBooleanProperty(
-                "是否等待独立任务本轮结束并返回；省略时有群聊则立即返回任务 ID",
+                "是否等待独立任务本轮结束并返回；省略时有群聊则立即返回并归入本轮工作批次，全部任务结束后统一回报；wait=true 不进入批次",
             ),
             "depends_on" to pluginStringArrayProperty(
                 "可选前置任务 ID 列表；全部 COMPLETED 后才允许派发，用于串行依赖",
@@ -120,7 +120,7 @@ fun botManagementPlugin(
             },
             PluginTool(
                 id = "assign-task",
-                description = "把任务交给指定 Bot 在独立会话执行：成员仍在群聊实时输出与展示工具步骤，任务可继续。仅主控 Bot 可用。",
+                description = "把任务交给指定 Bot 在独立会话执行：成员仍在群聊实时输出与展示工具步骤，任务可继续。同一轮 wait=false 的任务归入同一工作批次，全部结束后统一回报。仅主控 Bot 可用。",
                 schema = assignSchema,
             ) { request ->
                 val caller = requireMainBot(request.sessionId, botRepository)
@@ -158,17 +158,24 @@ fun botManagementPlugin(
                 }
                 if (group != null) {
                     val engine = runtime?.invoke() ?: return@PluginTool PluginToolOutput(false, "独立任务执行器尚未初始化")
-                    val created = engine.create(
-                        target.id, group.id, caller.id, request.sessionId, task, writePaths,
-                        dependsOn = dependsOn,
-                    )
                     val wait = request.arguments["wait"]?.jsonPrimitive?.booleanOrNull ?: false
+                    val created = runCatching {
+                        engine.create(
+                            target.id, group.id, caller.id, request.sessionId, task, writePaths,
+                            dependsOn = dependsOn,
+                            workId = if (wait) null else request.operationId,
+                        )
+                    }.getOrElse { return@PluginTool PluginToolOutput(false, "派发失败：${it.message}") }
                     if (wait) {
                         val result = engine.awaitRequest("initial:${created.id}")
                         return@PluginTool PluginToolOutput(result.status == "completed" && result.blockedReason == null,
                             "任务 ${created.id}：${result.summary ?: result.error ?: result.status}")
                     }
-                    return@PluginTool PluginToolOutput(true, "已交给 ${target.name} 独立执行（任务 ${created.id}）；群内实时展示过程，完成后回报。补充要求请用 continue-assignment 继续原任务。")
+                    val batchNote = created.batchId?.let { batchId ->
+                        val size = runCatching { engine.batchSize(batchId) }.getOrDefault(1)
+                        "，已归入本轮工作批次（同批 $size 个任务，全部结束后统一回报）"
+                    }.orEmpty()
+                    return@PluginTool PluginToolOutput(true, "已交给 ${target.name} 独立执行（任务 ${created.id}$batchNote）；群内实时展示过程。补充要求请用 continue-assignment 继续原任务。")
                 }
                 if (request.arguments["wait"]?.jsonPrimitive?.booleanOrNull == false) {
                     return@PluginTool PluginToolOutput(false, "独立后台委派需要群聊来源；请加入群聊或使用 wait=true 同步执行")

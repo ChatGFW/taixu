@@ -37,6 +37,7 @@ internal class GroupDeliveryPump(
         if (collector?.isActive == true) return@withLock
         if (!recovered) {
             repository.recoverDeliveries()
+            repository.recoverOrphanStreams()
             recovered = true
         }
         collector = scope.launch {

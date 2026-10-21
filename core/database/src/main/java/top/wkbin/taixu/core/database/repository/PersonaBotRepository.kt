@@ -16,6 +16,7 @@ import top.wkbin.taixu.core.database.GroupChatDao
 import top.wkbin.taixu.core.database.GroupChatEntity
 import top.wkbin.taixu.core.database.GroupMemberEntity
 import top.wkbin.taixu.core.database.GroupMessageEntity
+import top.wkbin.taixu.core.database.GroupSeenEntity
 import top.wkbin.taixu.core.database.PersonaBotDao
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotSchedule
@@ -54,6 +55,10 @@ interface GroupChatRepository : GroupDeliveryRepository {
     suspend fun removeMember(groupId: String, botId: String)
     fun observeMessages(groupId: String): Flow<List<GroupMessage>>
     suspend fun postMessage(message: GroupMessage)
+    suspend fun deleteMessage(id: String)
+    suspend fun latestSeq(groupId: String): Long
+    suspend fun getSeenSeq(groupId: String, botId: String): Long
+    suspend fun setSeenSeq(groupId: String, botId: String, seq: Long)
     suspend fun updateStreamingMessage(
         id: String,
         content: String,
@@ -156,7 +161,17 @@ class RoomGroupChatRepository(
     override fun observeMessages(groupId: String): Flow<List<GroupMessage>> =
         dao.observeMessages(groupId).map { rows -> rows.map { it.toModel(json) } }
 
-    override suspend fun postMessage(message: GroupMessage) = dao.upsertMessage(message.toEntity(json))
+    override suspend fun postMessage(message: GroupMessage) = dao.postMessageWithSeq(message.toEntity(json))
+
+    override suspend fun deleteMessage(id: String) = dao.deleteMessage(id)
+
+    override suspend fun latestSeq(groupId: String): Long = dao.latestSeq(groupId)
+
+    override suspend fun getSeenSeq(groupId: String, botId: String): Long =
+        dao.lastSeenSeq(groupId, botId) ?: 0
+
+    override suspend fun setSeenSeq(groupId: String, botId: String, seq: Long) =
+        dao.upsertSeen(GroupSeenEntity(groupId, botId, seq, System.currentTimeMillis()))
 
     override suspend fun updateStreamingMessage(
         id: String,
@@ -298,6 +313,7 @@ internal fun GroupMessageEntity.toModel(json: Json) = GroupMessage(
     reactions = json.decodeReactions(reactionsJson),
     steps = json.decodeSteps(stepsJson),
     reasoning = reasoning,
+    seq = seq,
 )
 
 internal fun GroupMessage.toEntity(json: Json) = GroupMessageEntity(
@@ -314,6 +330,7 @@ internal fun GroupMessage.toEntity(json: Json) = GroupMessageEntity(
     reactionsJson = json.encodeToString(ListSerializer(GroupReaction.serializer()), reactions),
     stepsJson = json.encodeToString(ListSerializer(GroupToolStep.serializer()), steps),
     reasoning = reasoning,
+    seq = seq,
 )
 
 private fun BotScheduleEntity.toModel() = BotSchedule(

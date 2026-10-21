@@ -45,6 +45,7 @@ internal class GroupReplyObserver(
         baseline: Set<String>,
         startedAt: Long,
         baselineOutputRevision: Long = 0L,
+        completionOnly: Boolean = false,
         onProgress: suspend (GroupReplyProgress) -> Unit,
     ): ReplyOutcome = coroutineScope {
         var latestWithText: AssistantText? = null
@@ -112,17 +113,22 @@ internal class GroupReplyObserver(
                     return@coroutineScope ReplyOutcome(latestWithText ?: latestCandidate, steps = latestSteps, replyTimedOut = true, reasoning = reasoning)
                 }
                 // A persisted text response can still consume follow-ups and continue this run.
-                val settled = state in TERMINAL_STATES && (seenRunning || now - startedAt >= START_GRACE_MS)
+                // The background watcher may attach long after the turn started, so it waits for
+                // evidence that the turn ran or produced output before treating IDLE as settled.
+                val settled = state in TERMINAL_STATES && (
+                    if (completionOnly) seenRunning || latestCandidate != null || latestSteps.isNotEmpty()
+                    else seenRunning || now - startedAt >= START_GRACE_MS
+                    )
                 if (settled) return@coroutineScope ReplyOutcome(latestWithText ?: latestCandidate,
                     steps = latestSteps, reasoning = reasoning, failed = state == SessionRunState.FAILED,
                     interrupted = state == SessionRunState.IDLE)
-                if (state != SessionRunState.WAITING_APPROVAL && !receivedOutput && now >= firstTokenDeadline) {
+                if (!completionOnly && state != SessionRunState.WAITING_APPROVAL && !receivedOutput && now >= firstTokenDeadline) {
                     logger.w("[GroupReplyObserver] Bot ${bot.name} 等待首 token 超时，已请求取消")
                     sessionControl.cancel(sessionId)
                     return@coroutineScope ReplyOutcome(null, firstTokenTimedOut = true, steps = latestSteps, reasoning = reasoning)
                 }
                 val toolRunning = latestSteps.any { it.success == null }
-                if (state != SessionRunState.WAITING_APPROVAL && receivedOutput && !toolRunning && now >= progressDeadline) {
+                if (!completionOnly && state != SessionRunState.WAITING_APPROVAL && receivedOutput && !toolRunning && now >= progressDeadline) {
                     logger.w("[GroupReplyObserver] Bot ${bot.name} 连续 ${FIRST_TOKEN_TIMEOUT_MS / 1000} 秒无新输出，已请求取消")
                     sessionControl.cancel(sessionId)
                     return@coroutineScope ReplyOutcome(latestWithText ?: latestCandidate, steps = latestSteps,
@@ -130,6 +136,7 @@ internal class GroupReplyObserver(
                 }
                 val wakeAt = when {
                     state == SessionRunState.WAITING_APPROVAL -> Long.MAX_VALUE
+                    completionOnly -> deadline
                     state in TERMINAL_STATES && !seenRunning -> startedAt + START_GRACE_MS
                     !receivedOutput -> minOf(deadline, firstTokenDeadline)
                     !toolRunning -> minOf(deadline, progressDeadline)

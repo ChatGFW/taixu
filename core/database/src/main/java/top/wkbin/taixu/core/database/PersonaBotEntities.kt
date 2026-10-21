@@ -95,6 +95,7 @@ data class GroupMemberEntity(
     ],
     indices = [
         Index(value = ["groupId", "timestamp"]),
+        Index(value = ["groupId", "seq"]),
         Index(value = ["delegatedTaskId"]),
     ],
 )
@@ -112,6 +113,7 @@ data class GroupMessageEntity(
     val reactionsJson: String = "[]",
     val stepsJson: String = "[]",
     @ColumnInfo(defaultValue = "''") val reasoning: String = "",
+    @ColumnInfo(defaultValue = "0") val seq: Long = 0,
 )
 
 @Entity(
@@ -249,8 +251,28 @@ interface GroupChatDao : GroupDeliveryDao {
         deleteMember(groupId, botId)
     }
 
-    @Query("SELECT * FROM group_messages WHERE groupId = :groupId ORDER BY timestamp ASC")
+    @Query("SELECT * FROM group_messages WHERE groupId = :groupId ORDER BY seq ASC, rowid ASC")
     fun observeMessages(groupId: String): Flow<List<GroupMessageEntity>>
+
+    @Query("SELECT COALESCE(MAX(seq), 0) FROM group_messages WHERE groupId = :groupId")
+    suspend fun latestSeq(groupId: String): Long
+
+    @Transaction
+    suspend fun postMessageWithSeq(message: GroupMessageEntity) {
+        upsertMessage(message.copy(seq = nextMessageSeq(message.groupId)))
+    }
+
+    @Query("DELETE FROM group_messages WHERE id = :id")
+    suspend fun deleteMessage(id: String)
+
+    @Query("SELECT lastSeenSeq FROM group_seen WHERE groupId = :groupId AND botId = :botId")
+    suspend fun lastSeenSeq(groupId: String, botId: String): Long?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSeen(seen: GroupSeenEntity)
+
+    @Query("DELETE FROM group_seen WHERE groupId = :groupId")
+    suspend fun deleteSeen(groupId: String)
 
     @Query("SELECT * FROM group_messages WHERE id = :id LIMIT 1")
     suspend fun findMessage(id: String): GroupMessageEntity?
@@ -277,6 +299,7 @@ interface GroupChatDao : GroupDeliveryDao {
     suspend fun clearMessages(groupId: String) {
         deleteAssignments(groupId)
         deleteMessages(groupId)
+        deleteSeen(groupId)
     }
 }
 

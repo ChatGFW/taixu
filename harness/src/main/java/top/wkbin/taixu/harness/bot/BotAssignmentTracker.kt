@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
+import top.wkbin.taixu.core.model.bot.BotWorkBatch
 
 data class ActiveBotAssignment(
     val taskId: String,
@@ -97,6 +98,12 @@ class BotAssignmentTracker(
     suspend fun listRecent(limit: Int = 20): List<BotAssignment> = repository.listRecent(limit)
 
     suspend fun get(taskId: String): BotAssignment? = repository.get(taskId)
+
+    suspend fun getBatch(batchId: String): BotWorkBatch? = repository.getBatch(batchId)
+
+    suspend fun batchAssignments(batchId: String): List<BotAssignment> = repository.batchAssignments(batchId)
+
+    suspend fun listBatches(groupId: String, limit: Int = 20): List<BotWorkBatch> = repository.listBatches(groupId, limit)
 
     suspend fun recoverOrphaned() = recoveryLock.withLock {
         if (!recovered) {

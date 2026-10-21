@@ -33,4 +33,6 @@ data class BotAssignment(
     val activeRequestId: String? = null,
     /** assign-task 的 depends_on 快照；前置任务 ID 列表。 */
     val dependsOn: List<String> = emptyList(),
+    /** 同一主控回合的工作批次；null 表示单独回报。 */
+    val batchId: String? = null,
 )
