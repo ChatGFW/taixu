@@ -125,6 +125,8 @@ class DroidspacesCommandBuilderTest {
             command = ShellCommand(commandLine = "true"),
             mounts = listOf(
                 StorageMountBinding(
+                    id = "test-disabled",
+                    name = "已停用",
                     hostPath = "/storage/emulated/0/Download",
                     guestPath = "/mnt/download",
                     enabled = false,
@@ -149,7 +151,12 @@ class DroidspacesCommandBuilderTest {
             command = ShellCommand(commandLine = "true"),
             mounts = listOf(
                 // 容器路径不在 /mnt 或 /sdcard 内 → 必须被过滤，不能注入 argv
-                StorageMountBinding(hostPath = "/storage/emulated/0/Download", guestPath = "/etc"),
+                StorageMountBinding(
+                    id = "test-illegal",
+                    name = "非法路径",
+                    hostPath = "/storage/emulated/0/Download",
+                    guestPath = "/etc",
+                ),
             ),
             emulatorBinary = null,
             hostCredential = emptyMap(),
