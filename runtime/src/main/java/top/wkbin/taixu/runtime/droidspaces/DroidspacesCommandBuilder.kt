@@ -141,13 +141,19 @@ class DroidspacesCommandBuilder private constructor(
         // `if …` 等），`exec` 只接受一条简单命令，加了会让复合命令的后续语句不执行、
         // 内建命令直接失败。工作目录由 `cd` 设置（`run_in_rootfs` 在 pivot 后 chdir("/")）。
         //
-        // `cd` 失败必须给出可操作诊断：Droidspaces 的 `-B` 只在 `start` 时读取，运行期无法
-        // 追加（见 [lifecyclePrelude]），而容器由用户自行创建、其挂载点未必包含本产品的
-        // 目录视图。此时若放任 `cd` 静默失败，用户只会看到一句 `can't cd to /workspace`，
-        // 无从知道该去重启容器补齐挂载。
-        val body = "cd -- ${ShellQuote.of(workingDirectory)} || { " +
-            "echo \"[taixu] 容器内缺少工作目录；请用太墟所需的 -B 挂载重启该容器" +
-            "（太墟不自行创建或修改容器）\" >&2; exit 125; }; " +
+        // `cd` 失败必须给出可操作诊断，并写明目标目录。常见原因有两种：目录本身不存在，
+        // 或该路径尚未经 `-B` 绑定挂载进容器（`-B` 只在 `start` 时生效，见 [lifecyclePrelude]）。
+        // 放任 `cd` 静默失败时，用户只会看到 `can't cd to …`。诊断只写 stderr，退出码 125。
+        // `printf` 是 shell 内建，不依赖宿主上缺失的外部文本工具。
+        //
+        // 太墟并不是「从不修改用户容器」：上游 `start` 会把 CLI `-B` 按 src/dst 去重后写回
+        // Containers/<name>/container.config，之后移除或停用的存储挂载仍可能留在其中。
+        val quotedDir = ShellQuote.of(workingDirectory)
+        val body = "cd -- $quotedDir || { " +
+            "printf '%s%s%s\\n' '[taixu] 无法进入工作目录 ' $quotedDir " +
+            "'：该目录不存在，或未通过 -B 绑定挂载进容器。请确认路径；容器正在运行时需停止后重新 start 才能补上挂载。" +
+            "上游 start 会把本次 -B 按 src/dst 去重后写回容器配置，之后移除或停用的存储挂载仍可能留在其中。' " +
+            ">&2; exit 125; }; " +
             commandLine
         val wrapped = if (pty) wrapInPty(body) else body
         // 变量为空时不加 `env` 前缀：避免 `env  sh -lc` 这类双空格与多余的 exec 层。
@@ -251,8 +257,12 @@ class DroidspacesCommandBuilder private constructor(
      * - 容器未运行 → `start` 带上本次挂载清单；
      * - 容器已运行 → 不重启（会打断其它会话），本次挂载差异不生效。
      *
-     * 运行态判定不依赖 `--json`（当前主线 `show` 恒输出表格），而是按词边界匹配容器名，
-     * 避免 `taixu-ubuntu` 命中 `taixu-ubuntu2` 这类前缀重叠的容器。
+     * 存活与否看 `droidspaces --name="$NAME" pid` 的退出码，不做文本解析：
+     * 容器在跑时该命令 exit 0，未运行时 exit 1。不再读取 `show` 的表格输出，
+     * 也不按词边界匹配容器名。
+     *
+     * 上游 `start` 会把 CLI `-B` 按 src/dst 去重后写回 `Containers/<name>/container.config`，
+     * 之后移除或停用的存储挂载仍可能留在该文件里（见函数体内 TODO）。
      */
     private fun lifecyclePrelude(
         container: String,
@@ -280,6 +290,10 @@ class DroidspacesCommandBuilder private constructor(
             // 「Both rootfs directory and image specified」冲突，也会破坏用户已有容器。
             // 代价是：若该容器从未创建过，start 会因缺少 rootfs 而失败——此时报错由
             // droidspaces 原样透出，用户可据配置自行创建，而不是被我们猜一个 rootfs 塞进去。
+            //
+            // TODO: 上游 `start` 会把本次 CLI `-B` 按 src/dst 去重后追加写回
+            // Containers/<name>/container.config。之后在太墟里移除或停用的存储挂载仍可能
+            // 留在该文件中。后续应与当前挂载对齐；此处不改变 start 的参数与调用时机。
             append("elif ! \$BIN start --name=\"\$NAME\"")
             if (bindFlags.isNotBlank()) append(' ').append(bindFlags)
             // start 会打印 banner 与进度，属于人类可读输出，必须留在 stderr/丢弃，
@@ -307,10 +321,13 @@ class DroidspacesCommandBuilder private constructor(
  *
  * [cliPath] 默认指向官方安装位置；[containerName] 是**用户已创建**的 Droidspaces 容器名。
  *
- * 重要：太墟**不自行创建容器**。容器由用户通过 Droidspaces 创建并持有自己的
- * rootfs 目标（可能是 ext4 镜像），太墟只负责把命令送进去执行。用派生名
+ * 重要：太墟**不自行创建容器**，也不传 `-r` 覆盖用户已有的 rootfs。容器由用户通过
+ * Droidspaces 创建并持有自己的 rootfs 目标（可能是 ext4 镜像）。用派生名
  * （如 `taixu-<distro>`）会指向一个不存在的容器，或把 PRoot 的 rootfs 目录
  * 硬塞给一个已有镜像型容器，两者都会失败。
+ *
+ * 容器未运行时调用的上游 `start` 会把本次 CLI `-B` 按 src/dst 去重后写回
+ * `Containers/<name>/container.config`，因此后来移除或停用的存储挂载仍可能留在该文件里。
  *
  * 关于环境变量：Droidspaces 的 `-E` 环境文件必须位于其 workspace 目录下
  * （`config.c` 有显式校验），为避免每次执行落盘临时文件，本实现改用 `env` 前缀注入。
