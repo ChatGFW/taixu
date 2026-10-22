@@ -39,7 +39,9 @@ internal object ToolSchedulingPolicy {
      *   就必须断组，否则同轮先 `invoke_subagent` 写 `harness/a.kt` 再 `read` 同路径会读到
      *   半成品；空 write_paths 的只读子任务不落盘，仍可与只读工具同组；
      * - 两侧都是子智能体：任一方解析失败即冲突；`["*"]` 这类整工作区租约与任何批次（含
-     *   只声明读的批次）都冲突；其余情况只在双方写路径非空且相交时冲突。
+     *   只声明读的批次）都冲突；只声明读的批次（空 write_paths）与任何会落盘的批次都断组——
+     *   只读子任务照样会 `read`，与写批次并发同样会读到半成品，口径对齐编排层
+     *   `buildWriteCleanWaves`（只读波与任何写入波分离）；其余情况只在双方写路径相交时冲突。
      */
     fun conflicts(
         leftTool: HarnessTool,
@@ -56,7 +58,9 @@ internal object ToolSchedulingPolicy {
         if (leftPaths.isEmpty() && rightPaths.isEmpty()) return false
         // `["*"]` 是整工作区独占租约：连"只声明读"的批次也不能同组，它可能读到半成品。
         if (claimsWholeWorkspace(leftPaths) || claimsWholeWorkspace(rightPaths)) return true
-        if (leftPaths.isEmpty() || rightPaths.isEmpty()) return false
+        // 到这里已经排除"双方都只声明读"：一侧空、另一侧要落盘时必须断组。
+        // 只读子任务照样会 read，与写批次并发仍可能读到半成品（与编排层只读波/写入波分离同源）。
+        if (leftPaths.isEmpty() || rightPaths.isEmpty()) return true
         return leftPaths.any { candidate ->
             rightPaths.any { existing -> writePathsConflict(existing, candidate) }
         }

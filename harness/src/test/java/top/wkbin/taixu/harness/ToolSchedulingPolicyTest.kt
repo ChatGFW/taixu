@@ -156,6 +156,39 @@ class ToolSchedulingPolicyTest {
     }
 
     @Test
+    fun `read only batch conflicts with writing batch`() {
+        val readOnly = subagentArgs()
+        val writing = subagentArgs("harness/a.kt")
+
+        // 只读子任务照样会 read：与写批次并发可能读到半成品，两个方向都要断组。
+        assertTrue(
+            ToolSchedulingPolicy.conflicts(
+                HarnessTool.SUBAGENT,
+                readOnly,
+                HarnessTool.SUBAGENT,
+                writing,
+            ),
+        )
+        assertTrue(
+            ToolSchedulingPolicy.conflicts(
+                HarnessTool.SUBAGENT,
+                writing,
+                HarnessTool.SUBAGENT,
+                readOnly,
+            ),
+        )
+        // 只读批次之间仍可同组：双方都空必须继续短路为不冲突。
+        assertFalse(
+            ToolSchedulingPolicy.conflicts(
+                HarnessTool.SUBAGENT,
+                readOnly,
+                HarnessTool.SUBAGENT,
+                subagentArgs(),
+            ),
+        )
+    }
+
+    @Test
     fun `read only subagent batch may share a group with read only tools`() {
         val readOnlyBatch = subagentArgs()
 
