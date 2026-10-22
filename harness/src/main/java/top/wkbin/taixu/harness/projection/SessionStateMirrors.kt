@@ -78,6 +78,12 @@ class SessionStateMirrors(
         _sessionRunStates.update { it - sessionId }
         _sessionStatuses.update { it - sessionId }
         _modelOutputRevisions.update { it - sessionId }
+        // 删掉的正是点亮前台运行镜像的会话：清掉 owner 并复位，避免 _running 永久停在 true。
+        // 终态写入（setRunState / onRunFinished）走另一条路径，这里只处理会话已不存在的情况。
+        if (runningOwner == sessionId) {
+            runningOwner = null
+            _running.value = false
+        }
     }
 
     fun setStatus(sessionId: String, statusText: String?) {

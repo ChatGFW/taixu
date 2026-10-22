@@ -154,4 +154,21 @@ class SessionStateMirrorsTest {
         assertEquals(null, m.runStateOf("gone"))
         assertEquals(null, m.lastStatus("gone"))
     }
+
+    @Test
+    fun `removeSession resets running when the removed session owns the mirror`() = runBlocking {
+        val (tracker, m) = mirrors("s1")
+        m.setRunState("s1", SessionRunState.RUNNING)
+        assertTrue(m.running.value)
+
+        // 删掉非 owner 会话不得误清前台运行镜像
+        m.removeSession("other")
+        assertTrue(m.running.value)
+
+        // 删除时前台可能已经切走；复位不能依赖 isForeground
+        tracker.setCurrent("s2")
+        m.removeSession("s1")
+        assertFalse(m.running.value)
+        assertEquals(null, m.runStateOf("s1"))
+    }
 }
