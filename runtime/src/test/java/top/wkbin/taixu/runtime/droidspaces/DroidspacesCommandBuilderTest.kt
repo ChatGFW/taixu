@@ -64,15 +64,31 @@ class DroidspacesCommandBuilderTest {
         // as_user 为空时 run_in_rootfs 直接 execvp（container.c:1650-1657），即以 root 执行。
         assertTrue(script.contains("run -- "))
         assertFalse("`-u` 不得出现在 `run` 之后", script.contains("run -u"))
-        // 容器名由 distro id 派生，rootfsDir 的父目录名即 distro id
-        assertTrue(script.contains("taixu-ubuntu"))
+        // 容器名是配置里的显式值，且必须是独立词元（不能只匹配到残片）
+        assertTrue(script.contains("'taixu'"))
+        assertFalse("不得再派生 taixu-<distro> 形式的容器名", script.contains("taixu-ubuntu"))
     }
 
     @Test
-    fun containerIsStartedWithRootfsWhenNotYetRunning() {
+    fun containerLivenessIsDecidedByExitCodeNotTextParsing() {
+        val script = build()[2]
+        // 宿主执行环境是 Android /system/bin/sh，实测没有可用的 grep；
+        // 存活判定必须走 `pid` 的退出码，绝不能依赖外部文本工具。
+        assertTrue("必须用 pid 子命令判定存活", script.contains("pid"))
+        assertFalse("不得在宿主脚本里调用 grep", script.contains("grep"))
+        assertFalse("不得再依赖 show 表格输出", script.contains("show"))
+    }
+
+    @Test
+    fun containerIsStartedWithoutRootfsOverrideWhenNotYetRunning() {
         val script = build()[2]
         assertTrue("必须先确保容器在跑，否则 run 会失败", script.contains("start --name="))
-        assertTrue(script.contains(rootfsDir.absolutePath))
+        // 关键：不得把 PRoot 的 rootfs 目录当 -r 塞给已有容器。
+        // 用户自建容器在 Containers/<name>/container.config 里已持有自己的 rootfs 目标
+        // （可能是 ext4 镜像），-r 会触发「directory and image specified simultaneously」。
+        assertFalse("start 不得覆盖容器自带 rootfs", script.contains(" -r "))
+        assertFalse("PRoot rootfs 路径不得出现在宿主脚本中", script.contains(rootfsDir.absolutePath))
+        assertTrue("start 的原始报错必须透出，不得整体丢弃", script.contains(">/dev/null; then"))
     }
 
     @Test
