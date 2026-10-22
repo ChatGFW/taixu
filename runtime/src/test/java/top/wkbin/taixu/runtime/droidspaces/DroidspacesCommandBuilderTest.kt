@@ -31,7 +31,10 @@ class DroidspacesCommandBuilderTest {
 
     private fun builder() = DroidspacesCommandBuilder(EnvironmentResolver())
 
-    private fun build(commandLine: String = "true"): List<String> = builder().build(
+    private fun build(
+        commandLine: String = "true",
+        workingDirectory: String = "/root",
+    ): List<String> = builder().build(
         prootBinary = File("/data/data/app/files/linux-runtime/bin/prisma"),
         rootfsDir = rootfsDir,
         workspaceDir = workspaceDir,
@@ -39,7 +42,7 @@ class DroidspacesCommandBuilderTest {
         optDir = optDir,
         tmpDir = tmpDir,
         attachmentsDir = attachmentsDir,
-        command = ShellCommand(commandLine = commandLine),
+        command = ShellCommand(commandLine = commandLine, workingDirectory = workingDirectory),
         mounts = emptyList(),
         emulatorBinary = null,
         hostCredential = emptyMap(),
@@ -73,8 +76,11 @@ class DroidspacesCommandBuilderTest {
     fun containerLivenessIsDecidedByExitCodeNotTextParsing() {
         val script = build()[2]
         // 宿主执行环境是 Android /system/bin/sh，实测没有可用的 grep；
-        // 存活判定必须走 `pid` 的退出码，绝不能依赖外部文本工具。
-        assertTrue("必须用 pid 子命令判定存活", script.contains("pid"))
+        // 存活判定必须走 `droidspaces --name="$NAME" pid` 的退出码，绝不能依赖外部文本工具。
+        assertTrue(
+            "必须用 --name=\"\$NAME\" pid 的退出码判定存活",
+            script.contains("--name=\"\$NAME\" pid"),
+        )
         assertFalse("不得在宿主脚本里调用 grep", script.contains("grep"))
         assertFalse("不得再依赖 show 表格输出", script.contains("show"))
     }
@@ -111,6 +117,27 @@ class DroidspacesCommandBuilderTest {
         // 简单命令，会让 `a; b` 的 b 不执行、`cd` / `if` 这类内建与关键字直接失败。
         assertFalse("不得给 guest 命令加 exec 前缀", script.contains("exec ls -la"))
         assertFalse(script.contains("&& exec "))
+    }
+
+    @Test
+    fun cdFailureDiagnosticNamesTargetOnStderrAndExits125() {
+        val target = "/workspace/not-mounted"
+        val script = build(commandLine = "true", workingDirectory = target)[2]
+        // 客态命令整体再经 ShellQuote，单引号会变成 '\''，不能按未转义字面量切片。
+        val cd = script.indexOf("cd -- ")
+        assertTrue("必须先 cd 到目标目录", cd >= 0)
+        val branchStart = script.indexOf("|| { ", cd)
+        val exitAt = script.indexOf("exit 125", branchStart)
+        assertTrue(branchStart > cd && exitAt > branchStart)
+        val failure = script.substring(branchStart, exitAt + "exit 125".length)
+        assertTrue("诊断必须带上目标目录", failure.contains(target))
+        assertTrue("必须覆盖目录不存在", failure.contains("不存在"))
+        assertTrue("必须覆盖未通过 -B 绑定挂载", failure.contains("未通过 -B"))
+        assertTrue("诊断只能写到 stderr", failure.contains(">&2"))
+        assertFalse("诊断不得写到 stdout", failure.contains(">&1"))
+        assertTrue("退出码保持 125", failure.endsWith("exit 125"))
+        assertFalse("不得再声称太墟从不修改容器", failure.contains("不自行创建或修改"))
+        assertTrue("应说明 start 会把 -B 写回容器配置", failure.contains("写回容器配置"))
     }
 
     @Test(expected = IllegalArgumentException::class)
