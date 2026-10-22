@@ -38,8 +38,8 @@ internal object ToolSchedulingPolicy {
      * - 一侧是子智能体、另一侧是只读工具：子智能体声明了写路径（或参数解析失败、去向未知）
      *   就必须断组，否则同轮先 `invoke_subagent` 写 `harness/a.kt` 再 `read` 同路径会读到
      *   半成品；空 write_paths 的只读子任务不落盘，仍可与只读工具同组；
-     * - 两侧都是子智能体：任一方解析失败即冲突，双方写路径非空且相交（含任一方 `["*"]`，
-     *   由 [writePathsConflict] 兜住）即冲突。
+     * - 两侧都是子智能体：任一方解析失败即冲突；`["*"]` 这类整工作区租约与任何批次（含
+     *   只声明读的批次）都冲突；其余情况只在双方写路径非空且相交时冲突。
      */
     fun conflicts(
         leftTool: HarnessTool,
@@ -53,11 +53,18 @@ internal object ToolSchedulingPolicy {
         if (right == null) return left.blocksReadOnly()
         val leftPaths = left.paths ?: return true
         val rightPaths = right.paths ?: return true
+        if (leftPaths.isEmpty() && rightPaths.isEmpty()) return false
+        // `["*"]` 是整工作区独占租约：连"只声明读"的批次也不能同组，它可能读到半成品。
+        if (claimsWholeWorkspace(leftPaths) || claimsWholeWorkspace(rightPaths)) return true
         if (leftPaths.isEmpty() || rightPaths.isEmpty()) return false
         return leftPaths.any { candidate ->
             rightPaths.any { existing -> writePathsConflict(existing, candidate) }
         }
     }
+
+    /** 整工作区租约的口径与 [writePathsConflict] 一致，避免两处各写一套判断。 */
+    private fun claimsWholeWorkspace(paths: Set<String>): Boolean =
+        paths.any { writePathsConflict(it, "*") }
 
     /** 子智能体的写声明；`paths == null` 表示参数解析失败、实际去向未知。 */
     private class WriteScope(val paths: Set<String>?) {
