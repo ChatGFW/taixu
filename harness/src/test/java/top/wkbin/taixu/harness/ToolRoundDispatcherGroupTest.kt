@@ -4,6 +4,10 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -81,5 +85,85 @@ class ToolRoundDispatcherGroupTest {
         val recorder = runDispatch(listOf(0, 1, 2), parallelism = 1) { _, _ -> false }
 
         assertEquals(1, recorder.maxActive.get())
+    }
+
+    private data class ToolItem(val tool: HarnessTool, val args: JsonObject?)
+
+    private fun subagentArgs(vararg writePaths: String): JsonObject = buildJsonObject {
+        put(
+            "subagents",
+            buildJsonArray {
+                add(
+                    buildJsonObject {
+                        put("taskName", JsonPrimitive("task"))
+                        put("department", JsonPrimitive("engineering"))
+                        put("agentQuery", JsonPrimitive("kotlin test"))
+                        put("prompt", JsonPrimitive("do the thing"))
+                        put(
+                            "writePaths",
+                            buildJsonArray { writePaths.forEach { add(JsonPrimitive(it)) } },
+                        )
+                    },
+                )
+            },
+        )
+    }
+
+    /** 直接用真实策略驱动调度器，验证"只读工具不能读子智能体正在写的文件"在调度层成立。 */
+    private fun runToolDispatch(items: List<ToolItem>): Recorder {
+        val recorder = Recorder()
+        runBlocking {
+            ToolRoundDispatcher().dispatch(
+                items = items.withIndex().toList(),
+                isParallelSafe = {
+                    ToolSchedulingPolicy.isParallelSafe(it.value.tool, it.value.args)
+                },
+                needsMutationLock = { ToolSchedulingPolicy.needsMutationLock(it.value.tool) },
+                conflicts = { left, right ->
+                    ToolSchedulingPolicy.conflicts(
+                        left.value.tool,
+                        left.value.args,
+                        right.value.tool,
+                        right.value.args,
+                    )
+                },
+            ) { (index, _), _ ->
+                recorder.enter(index)
+                try {
+                    delay(150)
+                } finally {
+                    recorder.exit(index)
+                }
+            }
+        }
+        return recorder
+    }
+
+    @Test
+    fun `read only tool waits for writing subagent batch`() {
+        val recorder = runToolDispatch(
+            listOf(
+                ToolItem(HarnessTool.SUBAGENT, subagentArgs("harness/a.kt")),
+                ToolItem(HarnessTool.READ, null),
+            ),
+        )
+
+        assertEquals("read 不得与写子智能体同组", 1, recorder.maxActive.get())
+        assertTrue(
+            "read 必须在写子智能体落库后才启动",
+            recorder.startedAt.getValue(1) >= recorder.finishedAt.getValue(0),
+        )
+    }
+
+    @Test
+    fun `read only subagent batch shares a group with read only tools`() {
+        val recorder = runToolDispatch(
+            listOf(
+                ToolItem(HarnessTool.SUBAGENT, subagentArgs()),
+                ToolItem(HarnessTool.READ, null),
+            ),
+        )
+
+        assertEquals("空 write_paths 的子任务不落盘，可与只读工具并发", 2, recorder.maxActive.get())
     }
 }

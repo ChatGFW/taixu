@@ -32,9 +32,14 @@ internal object ToolSchedulingPolicy {
     /**
      * 同一并发组内两个调用是否必须错开。
      *
-     * 只对子智能体做判定：两条只读批次（write_paths 为空）互不冲突；
-     * 任一方解析失败，或写路径集合相交（含任一方为 `["*"]`，由 [writePathsConflict] 兜住）
-     * 都视为冲突。非子智能体的并行成员本来就是只读工具，返回 false。
+     * 子智能体会真正落盘写文件，因此与它同组的成员只有两类：写路径不相交的其他子智能体，
+     * 以及不落盘的只读工具。判定分三种情况：
+     * - 两侧都不是子智能体：组内只剩只读工具，互不冲突；
+     * - 一侧是子智能体、另一侧是只读工具：子智能体声明了写路径（或参数解析失败、去向未知）
+     *   就必须断组，否则同轮先 `invoke_subagent` 写 `harness/a.kt` 再 `read` 同路径会读到
+     *   半成品；空 write_paths 的只读子任务不落盘，仍可与只读工具同组；
+     * - 两侧都是子智能体：任一方解析失败即冲突，双方写路径非空且相交（含任一方 `["*"]`，
+     *   由 [writePathsConflict] 兜住）即冲突。
      */
     fun conflicts(
         leftTool: HarnessTool,
@@ -42,14 +47,31 @@ internal object ToolSchedulingPolicy {
         rightTool: HarnessTool,
         rightArgs: JsonObject?,
     ): Boolean {
-        if (leftTool != HarnessTool.SUBAGENT || rightTool != HarnessTool.SUBAGENT) return false
-        val left = subagentWritePaths(leftArgs) ?: return true
-        val right = subagentWritePaths(rightArgs) ?: return true
-        if (left.isEmpty() || right.isEmpty()) return false
-        return left.any { candidate ->
-            right.any { existing -> writePathsConflict(existing, candidate) }
+        val left = writeScope(leftTool, leftArgs)
+        val right = writeScope(rightTool, rightArgs)
+        if (left == null) return right != null && right.blocksReadOnly()
+        if (right == null) return left.blocksReadOnly()
+        val leftPaths = left.paths ?: return true
+        val rightPaths = right.paths ?: return true
+        if (leftPaths.isEmpty() || rightPaths.isEmpty()) return false
+        return leftPaths.any { candidate ->
+            rightPaths.any { existing -> writePathsConflict(existing, candidate) }
         }
     }
+
+    /** 子智能体的写声明；`paths == null` 表示参数解析失败、实际去向未知。 */
+    private class WriteScope(val paths: Set<String>?) {
+        /**
+         * 只读工具在它旁边并发是否可能读到半成品。
+         *
+         * 解析失败时按"会写"处理：宁可让只读工具等一组，也不要赌没解析出来的参数不落盘。
+         */
+        fun blocksReadOnly(): Boolean = paths == null || paths.isNotEmpty()
+    }
+
+    /** 非子智能体返回 null：并行组里的其余成员只可能是只读工具。 */
+    private fun writeScope(tool: HarnessTool, args: JsonObject?): WriteScope? =
+        if (tool == HarnessTool.SUBAGENT) WriteScope(subagentWritePaths(args)) else null
 
     /**
      * 一次 `invoke_subagent` 调用声明的写路径并集。

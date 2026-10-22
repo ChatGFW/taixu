@@ -55,7 +55,9 @@ jobs:
             --tests 'top.wkbin.taixu.harness.mcp.*' \
             --tests 'top.wkbin.taixu.harness.CapabilityScriptRunnerTest' \
             --tests 'top.wkbin.taixu.harness.approval.TrustedToolRiskPolicyTest' \
-            --tests 'top.wkbin.taixu.harness.environment.McpMetadataLifecycleTest'
+            --tests 'top.wkbin.taixu.harness.environment.McpMetadataLifecycleTest' \
+            --tests 'top.wkbin.taixu.harness.ToolSchedulingPolicyTest' \
+            --tests 'top.wkbin.taixu.harness.ToolRoundDispatcherGroupTest'
           ./gradlew :core:datastore:testDebugUnitTest --no-daemon --console=plain \
             --tests 'top.wkbin.taixu.core.datastore.McpClientPreferencesTest'
           ./gradlew :app:testDebugUnitTest --no-daemon --console=plain \
