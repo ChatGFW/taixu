@@ -218,6 +218,9 @@ class DroidspacesCommandBuilder private constructor(
         // PRoot 后端绑定了 `${homeDir}:/root`，此处必须逐项对齐：否则客态的 HOME、
         // 凭据、配置与 shell 历史都和 PRoot 视图隔开，插件与工具链会看到两套环境。
         homeDir.mkdirs()
+        // 与 PRoot 对齐：PRoot 在 build / buildInteractive 两条路径上都先 mkdirs 再绑定，
+        // 这里由共享的 bindArguments 统一保证。
+        attachmentsDir.mkdirs()
         val binds = mutableListOf(
             "${workspaceDir.absolutePath}:/workspace",
             "${homeDir.absolutePath}:/root",

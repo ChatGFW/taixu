@@ -27,6 +27,7 @@ class DroidspacesCommandBuilderTest {
     private val optDir = File("/data/data/app/files/linux-runtime/distros/ubuntu/opt/taixu")
     private val tmpDir = File("/data/data/app/files/linux-runtime/tmp")
     private val attachmentsDir = File("/data/data/app/files/linux-runtime/attachments")
+    private val homeDir = File("/data/data/app/files/linux-runtime/distros/ubuntu/home")
 
     private fun builder() = DroidspacesCommandBuilder(EnvironmentResolver())
 
@@ -34,7 +35,7 @@ class DroidspacesCommandBuilderTest {
         prootBinary = File("/data/data/app/files/linux-runtime/bin/prisma"),
         rootfsDir = rootfsDir,
         workspaceDir = workspaceDir,
-        homeDir = File("/data/data/app/files/linux-runtime/distros/ubuntu/home"),
+        homeDir = homeDir,
         optDir = optDir,
         tmpDir = tmpDir,
         attachmentsDir = attachmentsDir,
@@ -55,7 +56,12 @@ class DroidspacesCommandBuilderTest {
     @Test
     fun hostScriptRunsAsRootInTheDistroContainer() {
         val script = build()[1]
-        assertTrue(script.contains("run -u root --"))
+        // 外层 `su -c` 已是 UID 0，droidspaces 侧刻意不传 `-u`：它只在 main 的
+        // discovery pass 里被解析，而该 pass 遇到 `run` 就 break（main.c:938-948），
+        // 写在 `run` 之后既不会生效、还会污染 run_argv（= argv + optind + 1）。
+        // as_user 为空时 run_in_rootfs 直接 execvp（container.c:1650-1657），即以 root 执行。
+        assertTrue(script.contains("run -- "))
+        assertFalse("`-u` 不得出现在 `run` 之后", script.contains("run -u"))
         // 容器名由 distro id 派生，rootfsDir 的父目录名即 distro id
         assertTrue(script.contains("taixu-ubuntu"))
     }
@@ -70,8 +76,9 @@ class DroidspacesCommandBuilderTest {
     @Test
     fun guestDirectoryViewMatchesProotBackend() {
         val script = build()[1]
-        // 这四项若缺失，插件与工具链在容器内将完全不可见
+        // 这五项若缺失，插件与工具链在容器内将完全不可见或与 PRoot 视图隔开
         assertTrue(script.contains("${workspaceDir.absolutePath}:/workspace"))
+        assertTrue(script.contains("${homeDir.absolutePath}:/root"))
         assertTrue(script.contains("${optDir.absolutePath}:/opt/taixu"))
         assertTrue(script.contains("${tmpDir.absolutePath}:/tmp"))
         assertTrue(script.contains("${attachmentsDir.absolutePath}:/attachments"))
@@ -81,7 +88,11 @@ class DroidspacesCommandBuilderTest {
     fun commandIsExecutedInRequestedWorkingDirectory() {
         val script = build(commandLine = "ls -la")[1]
         assertTrue(script.contains("cd -- "))
-        assertTrue(script.contains("exec ls -la"))
+        assertTrue(script.contains("ls -la"))
+        // 不得给 guest 命令加 `exec`：调用方传入的是任意 shell 片段，`exec` 只接受一条
+        // 简单命令，会让 `a; b` 的 b 不执行、`cd` / `if` 这类内建与关键字直接失败。
+        assertFalse("不得给 guest 命令加 exec 前缀", script.contains("exec ls -la"))
+        assertFalse(script.contains("&& exec "))
     }
 
     @Test(expected = IllegalArgumentException::class)

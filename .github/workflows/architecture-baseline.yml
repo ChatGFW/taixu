@@ -60,3 +60,8 @@ jobs:
             --tests 'top.wkbin.taixu.core.datastore.McpClientPreferencesTest'
           ./gradlew :app:testDebugUnitTest --no-daemon --console=plain \
             --tests 'top.wkbin.taixu.di.*'
+          # 沙箱后端构造器的契约测试：droidspaces 与 proot 两侧的 argv 形态都必须进 CI。
+          # 架构棘轮与 harness 契约都不跑 :runtime，缺了这一步实现回归时不会报警。
+          ./gradlew :runtime:testDebugUnitTest --no-daemon --console=plain \
+            --tests 'top.wkbin.taixu.runtime.droidspaces.*' \
+            --tests 'top.wkbin.taixu.runtime.proot.ProotCommandBuilderTest'

@@ -605,11 +605,7 @@ class LinuxRuntimeImpl(
         val effectiveConfig = if (config.commandLine == "/bin/bash -i") {
             val rootfs = pathManager.rootfsDir(safeDistro)
             val hasBash = File(rootfs, "bin/bash").exists() || File(rootfs, "usr/bin/bash").exists()
-            if (!hasBash) {
-                config.copy(commandLine = "/bin/sh -i", allowSttyResize = true)
-            } else {
-                config
-            }
+            if (hasBash) config else config.copy(commandLine = "/bin/sh -i", allowSttyResize = true)
         } else {
             config
         }
@@ -632,7 +628,9 @@ class LinuxRuntimeImpl(
                 logger.w("写入终端横幅失败，本次会话将无横幅", it)
             }
         }
-        val command = backendSelector.active().buildInteractive(
+        // 会话在其整个生命周期内固定使用同一个后端：只解析一次，主/回退命令共用。
+        val builder = backendSelector.active()
+        val command = builder.buildInteractive(
             prootBinary = pathManager.activeProotFile(),
             rootfsDir = pathManager.rootfsDir(safeDistro),
             workspaceDir = pathManager.workspaceDir,
@@ -645,7 +643,7 @@ class LinuxRuntimeImpl(
             mounts = mounts,
             hostCredential = sandboxCredentials.environment(safeDistro, effectiveConfig.pluginIdentity?.pluginId ?: "sandbox", effectiveConfig.pluginIdentity?.version ?: "sandbox"),
         )
-        val fallbackCommand = backendSelector.active().buildInteractive(
+        val fallbackCommand = builder.buildInteractive(
             prootBinary = pathManager.activeProotFile(),
             rootfsDir = pathManager.rootfsDir(safeDistro),
             workspaceDir = pathManager.workspaceDir,
