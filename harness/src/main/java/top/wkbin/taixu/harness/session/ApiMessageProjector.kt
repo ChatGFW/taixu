@@ -137,11 +137,10 @@ object ApiMessageProjector {
                         if (tc.id in answeredIds) toolCalls.add(apiToolCall(tc))
                         j++
                     }
-                    // DeepSeek 思考模式（V3.2+/V4）：两个 user 消息之间若有工具调用，
-                    // 中间 assistant 消息的 reasoning_content 必须原样传回，否则
-                    // 400 "The reasoning_content in the thinking mode must be passed back to the API"。
-                    // 纯文本 assistant 轮仍不回传（DeepSeek-R1 规则，防推理循环）。
-                    val reasoning = if (toolCalls.isNotEmpty()) {
+                    // 携带 tools 的请求必须原样回传所有历史 assistant 的 reasoning_content，
+                    // 包括未调用工具的文字回复；仅保留 tool_calls 轮会导致 DeepSeek 400。
+                    // https://api-docs.deepseek.com/guides/thinking_mode/
+                    val reasoning = if (toolCallMode == ToolCallMode.NATIVE || toolCalls.isNotEmpty()) {
                         (message as? AssistantText)?.reasoning
                             ?: (message as? ToolCall)?.reasoning
                             ?: msgs.subList(i, j).filterIsInstance<ToolCall>().firstNotNullOfOrNull { it.reasoning }
