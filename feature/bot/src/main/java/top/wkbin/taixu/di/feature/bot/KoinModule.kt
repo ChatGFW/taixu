@@ -52,7 +52,7 @@ val featureBotModule = module {
             sessionControl = get(),
             assignments = get(), assignmentRuntime = get(),
             orchestrator = get(),
-            scheduleRepository = get<BotScheduleRepository>(),
+            scheduleRepository = get<BotScheduleRepository>(), budgets = get(),
         )
     }
 }

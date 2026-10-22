@@ -12,17 +12,18 @@ internal fun independentAssignmentTools(
 ): List<PluginTool> = listOf(
     PluginTool(
         id = "continue-assignment",
-        description = "向原任务的独立会话补充要求或继续执行；运行中只排队，不打断当前工具。补充要求会重新打开所属工作批次，全部结束后再次统一回报。保留任务 ID、执行环境和历史。仅主控 Bot 可用。",
+        description = "向原任务的独立会话补充要求或继续执行；运行中只排队，不打断当前工具。补充要求会重新打开所属工作批次，全部结束后再次统一回报。保留任务 ID、执行环境和历史。仅原派发负责人可用。",
         schema = pluginObjectSchema(listOf("assignment_id", "instruction"), mapOf(
             "assignment_id" to pluginStringProperty("原任务 ID"),
             "instruction" to pluginStringProperty("完整补充要求；受阻时提供缺失信息，结果待核对时先要求只读核验"),
             "request_id" to pluginStringProperty("可选幂等 ID；重试同一要求时复用，内容不得改变"),
         )),
     ) { request ->
-        val caller = requireMainBot(request.sessionId, bots) ?: return@PluginTool PluginToolOutput(false, MAIN_BOT_ONLY)
+        val caller = bots.getBotBySessionId(request.sessionId) ?: return@PluginTool PluginToolOutput(false, "无法确认当前 Bot 身份")
         val engine = runtime?.invoke() ?: return@PluginTool PluginToolOutput(false, "任务执行器尚未初始化")
         val id = request.arguments["assignment_id"]?.jsonPrimitive?.content.orEmpty()
         val task = engine.taskForId(id) ?: return@PluginTool PluginToolOutput(false, "任务不存在")
+        if (!assignmentInSessionGroup(request.sessionId, task, bots) || !canManageAssignment(caller, task, groups)) return@PluginTool PluginToolOutput(false, DIRECT_REPORT_ONLY)
         val groupId = task.groupId ?: return@PluginTool PluginToolOutput(false, "任务没有群聊来源")
         if (resolveGroup(caller, groupId, groups) == null) return@PluginTool PluginToolOutput(false, "你不是该群成员")
         val instruction = request.arguments["instruction"]?.jsonPrimitive?.content.orEmpty()
@@ -47,6 +48,6 @@ internal fun independentAssignmentTools(
         }
         val reason = request.arguments["blocked_reason"]?.jsonPrimitive?.content?.trim()?.takeIf { it.isNotEmpty() }?.take(4_000)
         val saved = engine.report(request.sessionId, reason, request.stringArray("artifact_paths").take(20))
-        PluginToolOutput(saved, if (saved) "已记录本轮报告；请输出真实结果，轮次结束后由主控验收。" else "本轮已结束或已取消，未修改报告")
+        PluginToolOutput(saved, if (saved) "已记录本轮报告；请输出真实结果，轮次结束后由原派发负责人验收。" else "本轮已结束或已取消，未修改报告")
     },
 )

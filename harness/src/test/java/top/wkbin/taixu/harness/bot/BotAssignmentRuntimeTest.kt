@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.*
@@ -225,6 +227,132 @@ class BotAssignmentRuntimeTest {
         assertNull(loose.batchId)
     }
 
+    @Test fun `synchronous nested dispatch returns once through the original parent execution`() = runBlocking {
+        seed()
+        val member = db.personaBotDao().findById("member")!!
+        db.personaBotDao().upsert(member.copy(id = "dev", name = "Dev", sessionId = "dev-dm"))
+        groups.addMember("group", "dev", 2)
+        groups.saveTeam("group", mapOf("dev" to "member"))
+        val parentRuns = java.util.concurrent.atomic.AtomicInteger()
+        lateinit var engine: BotAssignmentRuntime
+        engine = runtime { task, request, admitted ->
+            val sid = requireNotNull(task.sessionId)
+            val accepted = control.submit(sid, request.instruction) as PromptSubmission.Accepted
+            admitted(accepted.taskId)
+            if (task.botId == "member") {
+                parentRuns.incrementAndGet()
+                val child = engine.create("dev", "group", "member", sid, "child implementation")
+                assertNull(child.batchId)
+                val result = withTimeout(10_000) { engine.awaitSynchronousTask(child.id, sid) }
+                assertEquals(BotAssignmentStatus.COMPLETED, result.status)
+                assertEquals("child verified", result.summary)
+                assertTrue(groups.pendingDeliveries().first().isEmpty())
+                assertEquals(BotAssignmentStatus.RUNNING, tasks.get(task.id)!!.status)
+            }
+            control.setState(sid, SessionRunState.COMPLETED)
+            GroupTurnOutcome(if (task.botId == "dev") "child verified" else "accepted child", false)
+        }
+        val parent = engine.create("member", "group", "chief", "parent", "deliver", workId = "outer")
+        val result = withTimeout(10_000) { engine.awaitTask(parent.id) }
+        assertEquals(BotAssignmentStatus.COMPLETED, result.status)
+        assertEquals("accepted child", result.summary)
+        assertEquals(1, parentRuns.get())
+        assertEquals("chief", groups.pendingDeliveries().first().single().botId)
+    }
+
+    @Test fun `eight distinct members enter execution before any one is released`() = runBlocking {
+        seed()
+        val worker = db.personaBotDao().findById("member")!!
+        repeat(8) { i ->
+            db.personaBotDao().upsert(worker.copy(id = "worker-$i", name = "Worker $i", sessionId = "dm-worker-$i"))
+            groups.addMember("group", "worker-$i", i + 2)
+        }
+        val entered = MutableStateFlow<Set<String>>(emptySet())
+        val release = CompletableDeferred<Unit>()
+        val engine = runtime { task, request, admitted ->
+            val sid = task.sessionId!!
+            val accepted = control.submit(sid, request.instruction) as PromptSubmission.Accepted
+            admitted(accepted.taskId)
+            entered.update { it + task.botId }
+            release.await()
+            control.setState(sid, SessionRunState.COMPLETED)
+            GroupTurnOutcome("done ${task.botId}", false)
+        }
+        val children = (0 until 8).map { i -> async { engine.create("worker-$i", "group", "chief", "parent",
+            "implement module-$i", writePaths = listOf("module-$i"), workId = "parallel") } }.awaitAll()
+        withTimeout(10_000) { entered.first { it.size == 8 } }
+        assertEquals(8, children.map { it.sessionId }.toSet().size)
+        children.forEach { assertEquals(BotAssignmentStatus.RUNNING, tasks.get(it.id)!!.status) }
+        assertTrue(groups.pendingDeliveries().first().isEmpty())
+        release.complete(Unit)
+        children.forEach { assertEquals(BotAssignmentStatus.COMPLETED, withTimeout(10_000) { engine.awaitTask(it.id) }.status) }
+        assertEquals(1, groups.pendingDeliveries().first().size)
+    }
+
+    @Test fun `reopened prerequisite prevents executor entry until the same task is explicitly continued`() = runBlocking {
+        seed()
+        val pre = BotAssignment("pre", "group", "member", "Member", "pre", "pre", BotAssignmentStatus.COMPLETED,
+            createdAt = 1, startedAt = 1)
+        tasks.save(pre)
+        val row = BotAssignment("dependent", "group", "member", "Member", "dependent", "dependent", BotAssignmentStatus.QUEUED,
+            createdAt = 1, startedAt = 1, sessionId = "dependent-session", independent = true, reportToBotId = "chief", dependsOn = listOf("pre"))
+        tasks.createIndependent(row, HarnessSessionEntity("dependent-session", "dependent", 1, 1, null),
+            BotAssignmentRequest("initial:dependent", "dependent", "work", 1))
+        tasks.save(pre.copy(status = BotAssignmentStatus.RUNNING))
+        val entries = java.util.concurrent.atomic.AtomicInteger()
+        val engine = runtime { task, _, admitted ->
+            entries.incrementAndGet()
+            admitted("native")
+            control.setState(task.sessionId!!, SessionRunState.COMPLETED)
+            GroupTurnOutcome("verified", false)
+        }
+        engine.start()
+        awaitStatus("dependent", BotAssignmentStatus.BLOCKED)
+        assertEquals(0, entries.get())
+        tasks.save(pre)
+        engine.continueTask("dependent", "group", "verify and continue", "resume")
+        val result = withTimeout(10_000) { engine.awaitTask("dependent") }
+        assertEquals(BotAssignmentStatus.COMPLETED, result.status)
+        assertEquals("dependent-session", result.sessionId)
+        assertEquals(1, entries.get())
+    }
+
+    @Test fun `nested team waits for child then verifies in the original parent session`() = runBlocking {
+        seed()
+        val member = db.personaBotDao().findById("member")!!
+        db.personaBotDao().upsert(member.copy(id = "dev", name = "Dev", sessionId = "dev-dm"))
+        groups.addMember("group", "dev", 2)
+        groups.saveTeam("group", mapOf("dev" to "member"))
+        val release = CompletableDeferred<Unit>()
+        val parentSessions = java.util.Collections.synchronizedList(mutableListOf<String>())
+        lateinit var engine: BotAssignmentRuntime
+        engine = runtime { task, request, admitted ->
+            val sid = requireNotNull(task.sessionId)
+            val acceptance = control.submit(sid, request.instruction) as PromptSubmission.Accepted
+            admitted(acceptance.taskId)
+            if (task.botId == "member") {
+                parentSessions += sid
+                if (request.id.startsWith("initial:")) {
+                    engine.create("dev", "group", "member", sid, "child implementation", workId = "inner")
+                } else {
+                    assertTrue(request.id.startsWith("child-batch:"))
+                    assertTrue(request.instruction.contains("child artifact"))
+                }
+            } else release.await()
+            control.setState(sid, SessionRunState.COMPLETED)
+            GroupTurnOutcome(if (task.botId == "dev") "child artifact" else "parent accepted", false)
+        }
+        val parent = engine.create("member", "group", "chief", "parent", "parent goal", workId = "outer")
+        awaitStatus(parent.id, BotAssignmentStatus.WAITING_CHILDREN)
+        assertTrue(groups.pendingDeliveries().first().isEmpty())
+        release.complete(Unit)
+        val settled = withTimeout(10_000) { engine.awaitTask(parent.id) }
+        assertEquals(BotAssignmentStatus.COMPLETED, settled.status)
+        assertEquals(listOf(parent.sessionId, parent.sessionId), parentSessions.toList())
+        assertEquals("chief", groups.pendingDeliveries().first().single().botId)
+        assertEquals(parent.id, tasks.batchAssignments("inner").single().parentAssignmentId)
+    }
+
     private class FakeControl : SessionControl {
         override val currentSessionId = MutableStateFlow("parent")
         override val sessionRunStates = MutableStateFlow<Map<String, SessionRunState>>(emptyMap())
@@ -237,9 +365,9 @@ class BotAssignmentRuntimeTest {
         override suspend fun persistedMessages(sessionId: String) = messages.value
         override suspend fun deleteSession(id: String) = Unit
         override suspend fun submit(sessionId: String, text: String, imageUrls: List<String>, queue: PromptQueue): PromptSubmission {
-            count++
+            val nativeId = synchronized(this) { ++count }
             setState(sessionId, SessionRunState.RUNNING)
-            return PromptSubmission.Accepted(PromptSubmission.Disposition.STARTED, "native-$count")
+            return PromptSubmission.Accepted(PromptSubmission.Disposition.STARTED, "native-$nativeId")
         }
         override fun cancel(targetSessionId: String?) { targetSessionId?.let { setState(it, SessionRunState.IDLE) } }
         override fun send(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit

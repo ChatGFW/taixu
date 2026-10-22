@@ -12,7 +12,6 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
-
 @Entity(
     tableName = "persona_bots",
     indices = [
@@ -57,6 +56,7 @@ data class GroupChatEntity(
     val createdAt: Long,
     val background: String = "default",
     @ColumnInfo(defaultValue = "'ADMIN_FIRST'") val replyMode: String = "ADMIN_FIRST",
+    @ColumnInfo(defaultValue = "0") val taskBudgetTokens: Long = 0,
 )
 
 @Entity(
@@ -83,6 +83,7 @@ data class GroupMemberEntity(
     val botId: String,
     val displayOrder: Int,
     val joinedAt: Long,
+    @ColumnInfo(defaultValue = "NULL") val supervisorBotId: String? = null,
 )
 
 @Entity(
@@ -207,7 +208,7 @@ interface PersonaBotDao {
 }
 
 @Dao
-interface GroupChatDao : GroupDeliveryDao {
+interface GroupChatDao : GroupDeliveryDao, GroupTeamDao {
     @Query("SELECT * FROM group_chats ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<GroupChatEntity>>
 
@@ -249,8 +250,9 @@ interface GroupChatDao : GroupDeliveryDao {
 
     @Transaction
     suspend fun removeMember(groupId: String, botId: String) {
+        require(teamAdmin(groupId) != botId) { "不能移出群主控" }
         cancelGroupDeliveries(groupId, botId)
-        deleteMember(groupId, botId)
+        detachReports(groupId, botId); deleteMember(groupId, botId)
     }
 
     @Query("SELECT * FROM group_messages WHERE groupId = :groupId ORDER BY seq ASC, rowid ASC")

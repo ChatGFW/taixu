@@ -40,6 +40,7 @@ data class GroupChat(
     /** 群聊聊天背景风格：default / warm / mint / night。 */
     val background: String = "default",
     val replyMode: GroupReplyMode = GroupReplyMode.ADMIN_FIRST,
+    val taskBudgetTokens: Long = 0,
 )
 
 /** 可复用的 Bot 成员分组；建群时可按组批量选人。 */

@@ -20,7 +20,7 @@ internal val providerModule = module {
     }
     single { ProviderModelResolver(providerRepository = get(), modelDao = get(), settingsDataStore = get()) }
     single { val plugins = get<HarnessPluginRegistry>(); val json = get<kotlinx.serialization.json.Json>()
-        ProviderTransport(client = get(), json = json, adapters = { client ->
+        ProviderTransport(client = get(), json = json, budgetGuard = get(), adapters = { client ->
             LlmApiRegistry(
                 plugins.providers(
                     client,

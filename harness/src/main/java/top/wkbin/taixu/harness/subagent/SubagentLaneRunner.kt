@@ -117,7 +117,7 @@ class SubagentLaneRunner(
                     providerClient = providerClient,
                     model = model,
                     messages = providerMessages(sessionId, laneName, forceFinalAnswer, configuredModel, historyBudgetTokens),
-                    text = text,
+                    text = text, sessionKey = sessionId,
                 )
                 val rawAssistantText = text.toString().ifBlank { result.content.orEmpty() }
                 val textNormalization = TextToolCallCodec.normalize(json, rawAssistantText)

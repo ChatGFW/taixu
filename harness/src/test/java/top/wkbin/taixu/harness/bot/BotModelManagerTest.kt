@@ -37,13 +37,14 @@ class BotModelManagerTest {
             allowModelSelection = allowModelSelection)
         db.personaBotDao().upsert(bot)
         db.personaBotDao().upsert(bot.copy(id = "other", name = "Other", sessionId = "other-dm"))
-        db.groupChatDao().upsertGroup(GroupChatEntity("group", "Team", "member", "", 1))
+        db.groupChatDao().upsertGroup(GroupChatEntity("group", "Team", "other", "", 1))
         groups.addMember("group", "member", 0)
+        groups.addMember("group", "other", 1)
         sessions.upsert(HarnessSessionEntity("dm", "Direct", 1, 1, "one"))
         sessions.upsert(HarnessSessionEntity("group-session", "Group", 1, 1, "one"))
         db.botGroupSessionDao().upsert(BotGroupSessionEntity("member", "group", "group-session", 1))
         tasks.createIndependent(BotAssignment("task", "group", "member", "Member", "Work", "Work",
-            BotAssignmentStatus.QUEUED, emptyList(), 1, 1, sessionId = "task-session", independent = true, reportToBotId = "member"),
+            BotAssignmentStatus.QUEUED, emptyList(), 1, 1, sessionId = "task-session", independent = true, reportToBotId = "other"),
             HarnessSessionEntity("task-session", "Task", 1, 1, "one", workspace = "/workspace/project", executionTargetJson = "frozen"),
             BotAssignmentRequest("initial:task", "task", "Work", 1))
     }

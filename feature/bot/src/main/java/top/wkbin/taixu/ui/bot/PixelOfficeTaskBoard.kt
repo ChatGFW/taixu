@@ -51,7 +51,7 @@ internal data class OfficeBoardTask(
 
 internal fun officeBoardColumn(status: BotAssignmentStatus): OfficeBoardColumn = when (status) {
     BotAssignmentStatus.QUEUED -> OfficeBoardColumn.TODO
-    BotAssignmentStatus.RUNNING,
+    BotAssignmentStatus.RUNNING, BotAssignmentStatus.WAITING_CHILDREN,
     BotAssignmentStatus.BLOCKED,
     BotAssignmentStatus.INTERRUPTED,
     -> OfficeBoardColumn.DOING

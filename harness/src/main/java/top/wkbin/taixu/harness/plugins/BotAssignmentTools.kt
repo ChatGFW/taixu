@@ -11,6 +11,7 @@ import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotAssignment
+import top.wkbin.taixu.core.model.bot.BotAssignmentRequest
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.core.model.bot.BotWorkBatch
 import top.wkbin.taixu.core.model.bot.BotWorkBatchStatus
@@ -93,19 +94,19 @@ internal fun botAssignmentTools(
     return listOf(
         PluginTool(
             id = "list-assignments",
-            description = "列出群聊中的委派任务（按工作批次分组，含执行中与历史），用于查看进度、验收结果和确认依赖前置状态。仅主控 Bot 可用。",
+            description = "列出群聊中的委派任务（按工作批次分组，含执行中与历史），用于查看进度、验收结果和确认依赖前置状态。查看范围限当前团队；修改限原派发负责人。",
             schema = listSchema,
         ) { request ->
-            val caller = requireMainBot(request.sessionId, botRepository)
-                ?: return@PluginTool PluginToolOutput(false, MAIN_BOT_ONLY)
+            val caller = botRepository.getBotBySessionId(request.sessionId)
+                ?: return@PluginTool PluginToolOutput(false, "无法确认当前 Bot 身份")
             val requestedGroupId = request.arguments["group_id"]?.jsonPrimitive?.content
-            val rows = if (requestedGroupId.isNullOrBlank()) {
+            val rows = (if (requestedGroupId.isNullOrBlank()) {
                 assignments.listRecent(20)
             } else {
                 val group = resolveGroup(caller, requestedGroupId, groupRepository)
                     ?: return@PluginTool PluginToolOutput(false, "找不到群聊或你不是群成员")
                 assignments.listForGroup(group.id).take(30)
-            }
+            }).filter { assignmentInSessionGroup(request.sessionId, it, botRepository) && canInspectAssignment(caller, it, groupRepository) }
             if (rows.isEmpty()) {
                 PluginToolOutput(true, "（暂无委派任务）")
             } else {
@@ -117,20 +118,24 @@ internal fun botAssignmentTools(
         },
         PluginTool(
             id = "inspect-assignment",
-            description = "查看单个委派任务的完整记录：状态、耗时、写入租约、结果摘要与错误。仅主控 Bot 可用。",
+            description = "查看单个委派任务的完整记录：状态、耗时、写入租约、结果摘要与错误。查看范围限当前团队；修改限原派发负责人。",
             schema = idSchema,
         ) { request ->
-            requireMainBot(request.sessionId, botRepository)
-                ?: return@PluginTool PluginToolOutput(false, MAIN_BOT_ONLY)
+            val caller = botRepository.getBotBySessionId(request.sessionId)
+                ?: return@PluginTool PluginToolOutput(false, "无法确认当前 Bot 身份")
             val id = request.arguments["assignment_id"]?.jsonPrimitive?.content.orEmpty()
             val assignment = assignments.get(id)
                 ?: return@PluginTool PluginToolOutput(false, "找不到任务「$id」")
+            if (!assignmentInSessionGroup(request.sessionId, assignment, botRepository) || !canInspectAssignment(caller, assignment, groupRepository)) return@PluginTool PluginToolOutput(false, "只能查看自己负责的任务及下级任务")
             val history = runtime?.invoke()?.history(id).orEmpty().joinToString("\n\n") {
-                "补充要求 ${it.id} · ${it.status}\n${it.instruction.take(800)}\n${it.blockedReason ?: it.summary ?: it.error ?: ""}\n报告产物：${it.artifacts.joinToString()}"
+                val status = if (it.status == BotAssignmentRequest.RECEIVED) "已接收（待原任务验收）" else it.status
+                "补充要求 ${it.id} · $status\n${it.instruction.take(800)}\n${it.blockedReason ?: it.summary ?: it.error ?: ""}\n报告产物：${it.artifacts.joinToString()}"
             }
             val batchInfo = assignment.batchId?.let { batchId ->
                 val batch = assignments.getBatch(batchId)
-                val siblings = assignments.batchAssignments(batchId)
+                val siblings = assignments.batchAssignments(batchId).filter {
+                    assignmentInSessionGroup(request.sessionId, it, botRepository) && canInspectAssignment(caller, it, groupRepository)
+                }
                 buildString {
                     appendLine()
                     appendLine("【工作批次】")
@@ -148,18 +153,20 @@ internal fun botAssignmentTools(
                     siblings.forEach { appendLine("  ${assignmentLine(it)}") }
                 }
             }.orEmpty()
-            PluginToolOutput(true, (assignmentDetail(assignment) + batchInfo + "\n\n【轮次记录】\n" + history).take(BOT_TOOL_MAX_CHARS))
+            val usage = runtime?.invoke()?.describeUsage(id).orEmpty()
+            PluginToolOutput(true, (usage + "\n\n" + assignmentDetail(assignment) + batchInfo + "\n\n【轮次记录】\n" + history).take(BOT_TOOL_MAX_CHARS))
         },
         PluginTool(
             id = "cancel-assignment",
-            description = "取消一个仍在执行的委派任务。仅主控 Bot 可用。",
+            description = "取消一个仍在执行的委派任务。查看范围限当前团队；修改限原派发负责人。",
             schema = idSchema,
         ) { request ->
-            requireMainBot(request.sessionId, botRepository)
-                ?: return@PluginTool PluginToolOutput(false, MAIN_BOT_ONLY)
+            val caller = botRepository.getBotBySessionId(request.sessionId)
+                ?: return@PluginTool PluginToolOutput(false, "无法确认当前 Bot 身份")
             val id = request.arguments["assignment_id"]?.jsonPrimitive?.content.orEmpty()
             val assignment = assignments.get(id)
                 ?: return@PluginTool PluginToolOutput(false, "找不到任务「$id」")
+            if (!assignmentInSessionGroup(request.sessionId, assignment, botRepository) || !canManageAssignment(caller, assignment, groupRepository)) return@PluginTool PluginToolOutput(false, DIRECT_REPORT_ONLY)
             if (!assignment.status.isActive) {
                 return@PluginTool PluginToolOutput(
                     false,
@@ -177,6 +184,7 @@ internal fun botAssignmentTools(
 
 internal fun statusLabel(status: BotAssignmentStatus): String = when (status) {
     BotAssignmentStatus.QUEUED -> "排队中"
+    BotAssignmentStatus.WAITING_CHILDREN -> "等待下级交付"
     BotAssignmentStatus.BLOCKED -> "受阻"
     BotAssignmentStatus.INTERRUPTED -> "结果待核对"
     BotAssignmentStatus.RUNNING -> "执行中"

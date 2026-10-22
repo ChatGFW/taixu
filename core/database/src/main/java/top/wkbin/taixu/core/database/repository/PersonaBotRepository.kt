@@ -46,6 +46,13 @@ interface PersonaBotRepository {
 }
 
 interface GroupChatRepository : GroupDeliveryRepository, GroupRoundRepository {
+    suspend fun getTeam(groupId: String): top.wkbin.taixu.core.model.bot.GroupTeam {
+        val group = requireNotNull(getGroup(groupId)) { "群聊不存在" }
+        return top.wkbin.taixu.core.model.bot.GroupTeam(group.adminBotId, getMembers(groupId).map { it.id }.toSet())
+    }
+    fun observeTeam(groupId: String): Flow<top.wkbin.taixu.core.model.bot.GroupTeam> =
+        observeMembers(groupId).map { getTeam(groupId) }
+    suspend fun saveTeam(groupId: String, supervisors: Map<String, String>) { error("团队结构保存不可用") }
     fun observeGroups(): Flow<List<GroupChat>>
     fun observeGroupsForBot(botId: String): Flow<List<GroupChat>>
     suspend fun getGroup(id: String): GroupChat?
@@ -138,6 +145,11 @@ class RoomGroupChatRepository(
 ) : GroupChatRepository, GroupDeliveryRepository by RoomGroupDeliveryRepository(dao, json),
     GroupRoundRepository by RoomGroupRoundRepository(dao, json) {
     private val reactionMutex = Mutex()
+    override suspend fun getTeam(groupId: String): top.wkbin.taixu.core.model.bot.GroupTeam =
+        teamFromRows(requireNotNull(dao.teamAdmin(groupId)), dao.teamMembers(groupId))
+    override fun observeTeam(groupId: String): Flow<top.wkbin.taixu.core.model.bot.GroupTeam> =
+        dao.observeTeamMembers(groupId).map { teamFromRows(dao.teamAdmin(groupId).orEmpty(), it) }
+    override suspend fun saveTeam(groupId: String, supervisors: Map<String, String>) = dao.saveTeam(groupId, supervisors)
 
     override fun observeGroups(): Flow<List<GroupChat>> = dao.observeAll().map { rows -> rows.map { it.toModel() } }
 
@@ -297,7 +309,7 @@ private fun GroupChatEntity.toModel() = GroupChat(
     adminBotId = adminBotId,
     description = description,
     createdAt = createdAt,
-    background = background,
+    background = background, taskBudgetTokens = taskBudgetTokens,
     replyMode = runCatching { GroupReplyMode.valueOf(replyMode) }.getOrDefault(GroupReplyMode.ADMIN_FIRST),
 )
 
@@ -307,7 +319,7 @@ private fun GroupChat.toEntity() = GroupChatEntity(
     adminBotId = adminBotId,
     description = description,
     createdAt = createdAt,
-    background = background,
+    background = background, taskBudgetTokens = taskBudgetTokens,
     replyMode = replyMode.name,
 )
 

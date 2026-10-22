@@ -35,6 +35,7 @@ internal class GroupBotResponder(
     private val lateReplyScope: CoroutineScope? = null,
     private val workGraceMs: Long = WORK_GRACE_MS,
     private val taskTracker: GroupReplyTaskTracker? = null,
+    private val contextScope: GroupContextScope? = null,
 ) {
     private val observer = GroupReplyObserver(sessionControl, logger, taskTracker)
     private val lateReplyWatcher = GroupLateReplyWatcher(
@@ -94,8 +95,9 @@ internal class GroupBotResponder(
             val baselineOutputRevision = sessionControl.modelOutputRevisions.value[sessionId] ?: 0L
             contextBinding = freshness?.begin(sessionId, group, bot.id, placeholderId)
             // A round passes only unseen lines; other deliveries keep the binding's full view.
-            val resolvedHistory = promptHistory ?: contextBinding?.history ?: history
-            val prompt = buildGroupPrompt(group, bot, trigger, resolvedHistory, members)
+            val resolvedHistory = if (promptHistory != null) contextScope?.history(group, bot.id, sessionId, true) ?: promptHistory
+                else contextBinding?.history ?: contextScope?.history(group, bot.id, sessionId, false) ?: history
+            val prompt = buildGroupPrompt(group, bot, trigger, resolvedHistory, members, groupRepository.getTeam(group.id))
             if (deliveryId != null) {
                 check(groupRepository.prepareDelivery(deliveryId, sessionId)) { "收件已停止、成员已移出或来源已清除" }
             }

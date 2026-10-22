@@ -42,6 +42,8 @@ internal fun GroupInfoDialog(
     onDelete: () -> Unit,
     onManageMembers: () -> Unit,
     onClearMessages: () -> Unit,
+    onManageTeam: () -> Unit = {},
+    onManageBudget: () -> Unit = {},
 ) {
     var name by rememberSaveable(group.id) { mutableStateOf(group.name) }
     var description by rememberSaveable(group.id) { mutableStateOf(group.description) }
@@ -112,6 +114,12 @@ internal fun GroupInfoDialog(
                 HorizontalDivider(Modifier.padding(vertical = 4.dp))
                 RuntimeTextButton(onClick = onManageMembers, enabled = !deleting) {
                     Text(stringResource(R.string.fbot_manage_members))
+                }
+                RuntimeTextButton(onClick = onManageTeam, enabled = !deleting) {
+                    Text(stringResource(R.string.fbot_team_title))
+                }
+                RuntimeTextButton(onClick = onManageBudget, enabled = !deleting) {
+                    Text(stringResource(R.string.fbot_budget_title))
                 }
                 RuntimeTextButton(onClick = onClearMessages, enabled = !deleting) {
                     Text(stringResource(R.string.fbot_clear_messages))

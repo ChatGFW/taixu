@@ -15,7 +15,7 @@ internal suspend fun subagentChatWithRetry(
     providerClient: ProviderClient,
     model: ModelConfig,
     messages: List<ApiMessage>,
-    text: StringBuilder,
+    text: StringBuilder, sessionKey: String? = null,
 ): ChatResult {
     var requestModel = model
     var networkAttempts = 0
@@ -23,7 +23,7 @@ internal suspend fun subagentChatWithRetry(
     var lastFailure: IOException? = null
     while (true) {
         try {
-            return providerClient.chatStream(requestModel, messages, onReasoning = {}) { text.append(it) }
+            return providerClient.chatStream(requestModel, messages, onReasoning = {}, sessionKey = sessionKey) { text.append(it) }
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (limit: LlmOutputLimitException) {

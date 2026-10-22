@@ -48,6 +48,7 @@ class BotAssignmentRuntime(
     private val logger: AppLogger,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val modelManager: BotModelManager? = null,
+    private val taskUsage: GroupTaskUsage? = null,
 ) {
     private val pump = AssignmentRequestPump(repository, scope, logger, ::execute)
     private val maintenanceLock = Mutex()
@@ -94,6 +95,19 @@ class BotAssignmentRuntime(
         require(writePaths.all { HarnessPathResolver().isWithinWorkspace(it, workspace) }) {
             "写入路径必须在来源工作区 $workspace 内；请使用工作区相对路径或该工作区的绝对路径，不能使用 /root"
         }
+        require(groups.getTeam(groupId).canAssign(requesterId, botId)) { "只能向本群直属下级派发新任务" }
+        val parent = repository.assignmentForSession(sourceSessionId)
+        if (parent != null) {
+            require(parent.groupId == groupId && parent.botId == requesterId) { "不能跨群委派原任务" }
+            require(parent.status == BotAssignmentStatus.RUNNING) { "原任务已停止，不能继续派发" }
+            var ancestor: BotAssignment? = parent
+            var depth = 1
+            while (ancestor?.parentAssignmentId != null) {
+                depth++
+                require(depth < 3) { "任务委派最多三层，不能通过调整组织无限递归" }
+                ancestor = repository.get(requireNotNull(ancestor.parentAssignmentId))
+            }
+        }
         val now = System.currentTimeMillis()
         val id = UUID.randomUUID().toString()
         val batch = workId?.let {
@@ -111,7 +125,7 @@ class BotAssignmentRuntime(
         }
         val task = BotAssignment(id, groupId, botId, bot.name, instruction.lineSequence().first().take(60), instruction,
             BotAssignmentStatus.QUEUED, writePaths, now, now, sessionId = UUID.randomUUID().toString(),
-            reportToBotId = requesterId, independent = true, dependsOn = dependsOn, batchId = workId)
+            reportToBotId = requesterId, independent = true, dependsOn = dependsOn, batchId = workId, parentAssignmentId = parent?.id)
         val session = HarnessSessionEntity(
             id = requireNotNull(task.sessionId), title = "${bot.name} · ${task.title}", createdAt = now, updatedAt = now,
             modelId = bot.modelId,
@@ -121,7 +135,7 @@ class BotAssignmentRuntime(
             approvalMode = ApprovalMode.FULL_ACCESS.id, executionTargetJson = source.executionTargetJson,
         )
         repository.createIndependent(task, session, BotAssignmentRequest("initial:$id", id, instruction, now), batch)
-        return task
+        return repository.get(task.id) ?: task
     }
 
     suspend fun continueTask(id: String, groupId: String, instruction: String, requestId: String = UUID.randomUUID().toString()): String {
@@ -144,7 +158,16 @@ class BotAssignmentRuntime(
         it == null || it.status !in setOf(BotAssignmentRequest.PENDING, BotAssignmentRequest.SUBMITTING, BotAssignmentRequest.ADMITTED)
     } ?: error("补充要求已清除")
 
+    suspend fun awaitTask(id: String): BotAssignment {
+        val group = requireNotNull(repository.get(id)?.groupId)
+        return repository.observeForGroup(group).first { rows -> rows.none { it.id == id && it.status.isActive } }
+            .firstOrNull { it.id == id } ?: error("任务已清除")
+    }
+    suspend fun awaitSynchronousTask(id: String, sourceSessionId: String): BotAssignment = awaitTask(id).also { task ->
+        if (task.parentAssignmentId != null) repository.acknowledgeSynchronousResult(task.id, task.revision, task.status.name, sourceSessionId)
+    }
     suspend fun taskForId(id: String) = repository.get(id)
+    suspend fun describeUsage(id: String): String = taskUsage?.describe(id) ?: "任务用量账本尚未接入"
     suspend fun cancelGroup(groupId: String) {
         repository.observeForGroup(groupId).first().filter { it.independent }.forEach { task ->
             if (task.status.isActive || control.sessionRunStates.value[task.sessionId] in BUSY_STATES) {

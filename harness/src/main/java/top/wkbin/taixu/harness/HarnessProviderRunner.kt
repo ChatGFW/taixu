@@ -104,14 +104,14 @@ class HarnessProviderRunner(
         var outputLimitRecoveries = 0
         var netRetry = 0
         val governance = top.wkbin.taixu.harness.diagnostics.ContextGovernanceTrace()
-        suspend fun assembleFor(requestModel: ModelConfig) = contextAssembler.assemble(
+        suspend fun assembleFor(requestModel: ModelConfig) = withContext(top.wkbin.taixu.harness.bot.TaskBudgetContext(sessId)) { contextAssembler.assemble(
             sessId = sessId,
             model = requestModel,
             workspacePath = sessionWorkspace,
             projectTypeOverride = sessionEntity?.projectType.orEmpty(),
             thinkingMode = stateMirrors.requestThinkingMode(sessId),
             sessionRunMode = sessionEntity?.runMode, trace = governance,
-        )
+        ) }
         var requestMessages = assembleFor(model)
         var imageStripped = false
         var overflowRecovered = false

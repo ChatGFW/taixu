@@ -32,6 +32,7 @@ interface IndependentAssignmentRepository {
     suspend fun reportBlock(sessionId: String, reason: String?, artifacts: List<String>): Boolean
     suspend fun recoverRequests()
     suspend fun cancelAssignment(id: String)
+    suspend fun acknowledgeSynchronousResult(id: String, revision: Int, status: String, sourceSessionId: String) {}
 }
 
 internal class RoomIndependentAssignmentRepository(private val dao: BotAssignmentDao, private val json: Json) : IndependentAssignmentRepository {
@@ -58,6 +59,8 @@ internal class RoomIndependentAssignmentRepository(private val dao: BotAssignmen
     }
     override suspend fun recoverRequests() = dao.recoverRequests(System.currentTimeMillis())
     override suspend fun cancelAssignment(id: String) = dao.cancelAssignment(id, System.currentTimeMillis())
+    override suspend fun acknowledgeSynchronousResult(id: String, revision: Int, status: String, sourceSessionId: String) =
+        dao.acknowledgeSynchronousResult(id, revision, status, sourceSessionId)
     private fun BotAssignmentRequest.toEntity() = BotAssignmentRequestEntity(id, assignmentId, instruction, createdAt)
     private fun BotAssignmentRequestEntity.model() = BotAssignmentRequest(id, assignmentId, instruction, createdAt, status,
         nativeTaskId, summary, error, blockedReason, runCatching { json.decodeFromString<List<String>>(artifactsJson) }.getOrDefault(emptyList()))

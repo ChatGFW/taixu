@@ -60,6 +60,7 @@ class GroupChatDispatcher(
     private val freshness: GroupReplyFreshness? = null,
     taskRepository: top.wkbin.taixu.core.database.task.AgentTaskRepository? = null,
     runtimeRepository: top.wkbin.taixu.core.database.HarnessRuntimeRepository? = null,
+    contextScope: GroupContextScope? = null,
 ) {
     private val replies = GroupReplyQueue(scope)
 
@@ -68,7 +69,7 @@ class GroupChatDispatcher(
         GroupReplyTaskTracker(taskRepository, runtimeRepository, sessionControl) else null
     private val responder = GroupBotResponder(
         groupRepository, orchestrator::ensureGroupSession, sessionControl, logger, liveReplies, freshness, scope,
-        taskTracker = taskTracker,
+        taskTracker = taskTracker, contextScope = contextScope,
     )
     private val roundCoordinator = GroupRoundCoordinator(
         groups = groupRepository,

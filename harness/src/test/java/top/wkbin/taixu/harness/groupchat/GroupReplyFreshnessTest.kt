@@ -31,9 +31,11 @@ class GroupReplyFreshnessTest {
 
     private suspend fun seed() {
         db.personaBotDao().upsert(BotEntity("bot", "Chief", "lead", "persona", "seed", null, null, "dm", true, "#123456", 1, 1))
+        db.personaBotDao().upsert(BotEntity("admin", "Admin", "lead", "", "seed", null, null, "dm-admin", false, "#123456", 1, 1))
         for (id in listOf("group", "other")) {
-            db.groupChatDao().upsertGroup(GroupChatEntity(id, id, "bot", "", 1))
+            db.groupChatDao().upsertGroup(GroupChatEntity(id, id, "admin", "", 1))
             db.groupChatDao().addMember(GroupMemberEntity(id, "bot", 0, 1))
+            db.groupChatDao().addMember(GroupMemberEntity(id, "admin", 1, 1))
         }
     }
     private suspend fun post(id: String, text: String, type: GroupSenderType = GroupSenderType.USER,

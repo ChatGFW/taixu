@@ -72,7 +72,12 @@ class BotAssignmentTracker(
     suspend fun cancel(taskId: String) {
         val job = jobs[taskId]
         try { repository.cancelAssignment(taskId) } finally { job?.cancel() }
-        _active.update { current -> current.filterNot { it.taskId == taskId } }
+        val task = repository.get(taskId)
+        val descendants = task?.groupId?.let { listForGroup(it) }.orEmpty()
+        val ids = mutableSetOf(taskId)
+        repeat(3) { descendants.filter { it.parentAssignmentId in ids }.forEach { ids += it.id } }
+        ids.forEach { jobs[it]?.cancel() }
+        _active.update { current -> current.filterNot { it.taskId in ids } }
     }
 
     suspend fun cancelGroup(groupId: String) {
