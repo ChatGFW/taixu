@@ -54,7 +54,6 @@ class DroidspacesCommandBuilder private constructor(
         require(emulatorBinary == null) {
             "Droidspaces 后端不支持 x86_64 QEMU 兼容模式；请在设置中切回 PRoot 后端，或改用 native ARM64 发行版"
         }
-        val distro = distroIdOf(rootfsDir)
         val environment = environmentResolver.merge(provider = command.environment) + hostCredential
         val inner = guestCommand(
             commandLine = command.commandLine,
@@ -63,8 +62,6 @@ class DroidspacesCommandBuilder private constructor(
             pty = command.forcePty,
         )
         return hostArgv(
-            distro = distro,
-            rootfsDir = rootfsDir,
             workspaceDir = workspaceDir,
             homeDir = homeDir,
             optDir = optDir,
@@ -97,7 +94,6 @@ class DroidspacesCommandBuilder private constructor(
             // 协议会话（MCP STDIO）必须保持纯管道，否则 banner/提示符会污染输出流。
             logWarning("Droidspaces: 交互会话缺少原生 PTY，已退化为 run + script 伪终端")
         }
-        val distro = distroIdOf(rootfsDir)
         val columns = config.columns.coerceIn(20, 400)
         val rows = config.rows.coerceIn(5, 200)
         val environment = environmentResolver.merge(
@@ -118,8 +114,6 @@ class DroidspacesCommandBuilder private constructor(
             pty = false,
         )
         return hostArgv(
-            distro = distro,
-            rootfsDir = rootfsDir,
             workspaceDir = workspaceDir,
             homeDir = homeDir,
             optDir = optDir,
@@ -146,7 +140,21 @@ class DroidspacesCommandBuilder private constructor(
         // 严禁在此加 `exec` 前缀：调用方传入的是任意 shell 片段（`a; b`、`cd x && …`、
         // `if …` 等），`exec` 只接受一条简单命令，加了会让复合命令的后续语句不执行、
         // 内建命令直接失败。工作目录由 `cd` 设置（`run_in_rootfs` 在 pivot 后 chdir("/")）。
-        val body = "cd -- ${ShellQuote.of(workingDirectory)} && $commandLine"
+        //
+        // `cd` 失败必须给出可操作诊断，并写明目标目录。常见原因有两种：目录本身不存在，
+        // 或该路径尚未经 `-B` 绑定挂载进容器（`-B` 只在 `start` 时生效，见 [lifecyclePrelude]）。
+        // 放任 `cd` 静默失败时，用户只会看到 `can't cd to …`。诊断只写 stderr，退出码 125。
+        // `printf` 是 shell 内建，不依赖宿主上缺失的外部文本工具。
+        //
+        // 太墟并不是「从不修改用户容器」：上游 `start` 会把 CLI `-B` 按 src/dst 去重后写回
+        // Containers/<name>/container.config，之后移除或停用的存储挂载仍可能留在其中。
+        val quotedDir = ShellQuote.of(workingDirectory)
+        val body = "cd -- $quotedDir || { " +
+            "printf '%s%s%s\\n' '[taixu] 无法进入工作目录 ' $quotedDir " +
+            "'：该目录不存在，或未通过 -B 绑定挂载进容器。请确认路径；容器正在运行时需停止后重新 start 才能补上挂载。" +
+            "上游 start 会把本次 -B 按 src/dst 去重后写回容器配置，之后移除或停用的存储挂载仍可能留在其中。' " +
+            ">&2; exit 125; }; " +
+            commandLine
         val wrapped = if (pty) wrapInPty(body) else body
         // 变量为空时不加 `env` 前缀：避免 `env  sh -lc` 这类双空格与多余的 exec 层。
         return if (exports.isBlank()) {
@@ -164,8 +172,6 @@ class DroidspacesCommandBuilder private constructor(
      * 导致退出码与信号转发失真。
      */
     private fun hostArgv(
-        distro: String,
-        rootfsDir: File,
         workspaceDir: File,
         homeDir: File,
         optDir: File,
@@ -174,10 +180,9 @@ class DroidspacesCommandBuilder private constructor(
         mounts: List<StorageMountBinding>,
         inner: String,
     ): List<String> {
-        val container = containerName(distro)
+        val container = config.containerName
         val script = lifecyclePrelude(
             container = container,
-            rootfsDir = rootfsDir,
             binds = bindArguments(workspaceDir, homeDir, optDir, tmpDir, attachmentsDir, mounts),
         ) +
             "exec " + ShellQuote.of(config.cliPath) +
@@ -252,16 +257,18 @@ class DroidspacesCommandBuilder private constructor(
      * - 容器未运行 → `start` 带上本次挂载清单；
      * - 容器已运行 → 不重启（会打断其它会话），本次挂载差异不生效。
      *
-     * 运行态判定不依赖 `--json`（当前主线 `show` 恒输出表格），而是按词边界匹配容器名，
-     * 避免 `taixu-ubuntu` 命中 `taixu-ubuntu2` 这类前缀重叠的容器。
+     * 存活与否看 `droidspaces --name="$NAME" pid` 的退出码，不做文本解析：
+     * 容器在跑时该命令 exit 0，未运行时 exit 1。不再读取 `show` 的表格输出，
+     * 也不按词边界匹配容器名。
+     *
+     * 上游 `start` 会把 CLI `-B` 按 src/dst 去重后写回 `Containers/<name>/container.config`，
+     * 之后移除或停用的存储挂载仍可能留在该文件里（见函数体内 TODO）。
      */
     private fun lifecyclePrelude(
         container: String,
-        rootfsDir: File,
         binds: List<String>,
     ): String {
         val cli = ShellQuote.of(config.cliPath)
-        val rootfs = ShellQuote.of(rootfsDir.absolutePath)
         val bindFlags = binds.joinToString(" ") { "-B " + ShellQuote.of(it) }
         return buildString {
             append("BIN=").append(cli).append("; ")
@@ -271,15 +278,28 @@ class DroidspacesCommandBuilder private constructor(
             append("if [ ! -x \"\$BIN\" ] && ! command -v \"\$BIN\" >/dev/null 2>&1; then ")
             append("echo \"[taixu] 未找到可执行的 Droidspaces CLI：\$BIN。")
             append("请先安装 Droidspaces，或在设置中切回 PRoot 后端。\" >&2; exit 127; fi; ")
-            // 用 `[[:space:]]` 两侧断言做词边界匹配，POSIX grep -E 与 busybox 均支持。
-            append("if \$BIN --name=\"\$NAME\" show 2>/dev/null ")
-            append("| grep -Eq \"(^|[^A-Za-z0-9_.-])\$NAME([^A-Za-z0-9_.-]|\$)\"; then :; ")
-            // start 失败绝不吞掉：容器起不来时后续 run 只会给出难以诊断的错误。
-            // stdout 仍丢弃以免污染非交互命令的输出流，失败原因由驻留消息给出。
-            append("elif ! \$BIN start --name=\"\$NAME\" -r ").append(rootfs)
+            // 运行态判定用 `pid` 子命令的**退出码**，不做任何文本解析：
+            // 运行中 → 打印 PID 并 exit 0；未运行 → 打印 NONE 并 exit 1（main.c:1208-1218）。
+            // 这替换了此前 `show | grep -Eq` 的实现——宿主侧执行环境是 Android 的
+            // /system/bin/sh，实测**没有可用的 grep**（报 "grep: inaccessible or not found"），
+            // 依赖外部文本工具会让整条链路直接崩掉。
+            append("if \$BIN --name=\"\$NAME\" pid >/dev/null 2>&1; then :; ")
+            // 容器未运行才需要 start。**刻意不传 `-r`**：
+            // 用户自建的容器（如 `taixu`）在 Containers/<name>/container.config 里已有自己的
+            // rootfs 目标（可能是 ext4 镜像），用 PRoot 的 rootfs 目录去覆盖它既会触发
+            // 「Both rootfs directory and image specified」冲突，也会破坏用户已有容器。
+            // 代价是：若该容器从未创建过，start 会因缺少 rootfs 而失败——此时报错由
+            // droidspaces 原样透出，用户可据配置自行创建，而不是被我们猜一个 rootfs 塞进去。
+            //
+            // TODO: 上游 `start` 会把本次 CLI `-B` 按 src/dst 去重后追加写回
+            // Containers/<name>/container.config。之后在太墟里移除或停用的存储挂载仍可能
+            // 留在该文件中。后续应与当前挂载对齐；此处不改变 start 的参数与调用时机。
+            append("elif ! \$BIN start --name=\"\$NAME\"")
             if (bindFlags.isNotBlank()) append(' ').append(bindFlags)
-            append(" >/dev/null 2>&1; then ")
-            append("echo \"[taixu] Droidspaces 容器 \$NAME 启动失败：")
+            // start 会打印 banner 与进度，属于人类可读输出，必须留在 stderr/丢弃，
+            // 否则会污染非交互命令的 stdout。失败原因走 ds_error（stderr）原样透出。
+            append(" >/dev/null; then ")
+            append("echo \"[taixu] Droidspaces 容器 \$NAME 启动失败（上方为 droidspaces 原始报错）。")
             append("请确认已授予 root、rootfs 可用且内核支持容器。\" >&2; exit 125; fi; ")
         }
     }
@@ -288,14 +308,6 @@ class DroidspacesCommandBuilder private constructor(
         "if command -v script >/dev/null 2>&1; then " +
             "exec script -qfec " + ShellQuote.of(commandLine) + " /dev/null; " +
             "else $commandLine; fi"
-
-    /** 发行版标识取 rootfs 目录的父目录名（与 `RuntimePathManager.distros/` 布局一致）。 */
-    private fun distroIdOf(rootfsDir: File): String {
-        val id = rootfsDir.absoluteFile.parentFile?.name?.lowercase()?.trim().orEmpty()
-        return id.ifBlank { "ubuntu" }
-    }
-
-    private fun containerName(distro: String): String = config.containerPrefix + distro
 
     companion object {
         const val GUEST_MOTD = "/opt/taixu/motd"
@@ -307,12 +319,20 @@ class DroidspacesCommandBuilder private constructor(
 /**
  * Droidspaces 后端装配参数。
  *
- * [cliPath] 默认指向官方安装位置；[containerPrefix] 决定容器名（`taixu-<distro>`）。
+ * [cliPath] 默认指向官方安装位置；[containerName] 是**用户已创建**的 Droidspaces 容器名。
+ *
+ * 重要：太墟**不自行创建容器**，也不传 `-r` 覆盖用户已有的 rootfs。容器由用户通过
+ * Droidspaces 创建并持有自己的 rootfs 目标（可能是 ext4 镜像）。用派生名
+ * （如 `taixu-<distro>`）会指向一个不存在的容器，或把 PRoot 的 rootfs 目录
+ * 硬塞给一个已有镜像型容器，两者都会失败。
+ *
+ * 容器未运行时调用的上游 `start` 会把本次 CLI `-B` 按 src/dst 去重后写回
+ * `Containers/<name>/container.config`，因此后来移除或停用的存储挂载仍可能留在该文件里。
  *
  * 关于环境变量：Droidspaces 的 `-E` 环境文件必须位于其 workspace 目录下
  * （`config.c` 有显式校验），为避免每次执行落盘临时文件，本实现改用 `env` 前缀注入。
  */
 data class DroidspacesConfig(
     val cliPath: String = "/data/local/Droidspaces/bin/droidspaces",
-    val containerPrefix: String = "taixu-",
+    val containerName: String = "taixu",
 )
