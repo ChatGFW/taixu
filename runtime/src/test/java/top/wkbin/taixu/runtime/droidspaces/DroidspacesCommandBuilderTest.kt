@@ -47,15 +47,17 @@ class DroidspacesCommandBuilderTest {
 
     @Test
     fun buildWrapsEverythingInSuDashC() {
+        // argv 形状固定为 `su -c <script>`：脚本是第 3 个元素（下标 2），不是第 2 个。
         val argv = build()
-        assertEquals(2, argv.size)
+        assertEquals(3, argv.size)
         assertEquals("su", argv[0])
         assertEquals("-c", argv[1])
+        assertTrue(argv[2].isNotBlank())
     }
 
     @Test
     fun hostScriptRunsAsRootInTheDistroContainer() {
-        val script = build()[1]
+        val script = build()[2]
         // 外层 `su -c` 已是 UID 0，droidspaces 侧刻意不传 `-u`：它只在 main 的
         // discovery pass 里被解析，而该 pass 遇到 `run` 就 break（main.c:938-948），
         // 写在 `run` 之后既不会生效、还会污染 run_argv（= argv + optind + 1）。
@@ -68,14 +70,14 @@ class DroidspacesCommandBuilderTest {
 
     @Test
     fun containerIsStartedWithRootfsWhenNotYetRunning() {
-        val script = build()[1]
+        val script = build()[2]
         assertTrue("必须先确保容器在跑，否则 run 会失败", script.contains("start --name="))
         assertTrue(script.contains(rootfsDir.absolutePath))
     }
 
     @Test
     fun guestDirectoryViewMatchesProotBackend() {
-        val script = build()[1]
+        val script = build()[2]
         // 这五项若缺失，插件与工具链在容器内将完全不可见或与 PRoot 视图隔开
         assertTrue(script.contains("${workspaceDir.absolutePath}:/workspace"))
         assertTrue(script.contains("${homeDir.absolutePath}:/root"))
@@ -86,7 +88,7 @@ class DroidspacesCommandBuilderTest {
 
     @Test
     fun commandIsExecutedInRequestedWorkingDirectory() {
-        val script = build(commandLine = "ls -la")[1]
+        val script = build(commandLine = "ls -la")[2]
         assertTrue(script.contains("cd -- "))
         assertTrue(script.contains("ls -la"))
         // 不得给 guest 命令加 `exec`：调用方传入的是任意 shell 片段，`exec` 只接受一条
@@ -135,7 +137,7 @@ class DroidspacesCommandBuilderTest {
             emulatorBinary = null,
             hostCredential = emptyMap(),
         )
-        assertFalse(argv[1].contains("/mnt/download"))
+        assertFalse(argv[2].contains("/mnt/download"))
     }
 
     @Test
@@ -161,7 +163,7 @@ class DroidspacesCommandBuilderTest {
             emulatorBinary = null,
             hostCredential = emptyMap(),
         )
-        assertFalse(argv[1].contains("/etc"))
+        assertFalse(argv[2].contains("/etc"))
     }
 
     @Test
@@ -181,7 +183,7 @@ class DroidspacesCommandBuilderTest {
             emulatorBinary = null,
             hostCredential = emptyMap(),
         )
-        val script = argv[1]
+        val script = argv[2]
         assertTrue(script.contains(DroidspacesCommandBuilder.GUEST_MOTD))
         assertTrue(script.contains("stty cols 120 rows 40"))
     }
@@ -203,7 +205,7 @@ class DroidspacesCommandBuilderTest {
             emulatorBinary = null,
             hostCredential = emptyMap(),
         )
-        val script = argv[1]
+        val script = argv[2]
         // MCP STDIO 会话不得混入 banner 与 stty，否则污染协议输出流
         assertFalse(script.contains(DroidspacesCommandBuilder.GUEST_MOTD))
         assertFalse(script.contains("stty cols"))
