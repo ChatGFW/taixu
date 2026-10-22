@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_release_notes_unavailable">Unable to fetch release notes for the current version. Please try again later.</string>
     <string name="settings_language_title">App language</string>
     <string name="settings_language_system">Follow system language</string>
     <string name="settings_language_system_description">Use Chinese or English based on the Android system language</string>

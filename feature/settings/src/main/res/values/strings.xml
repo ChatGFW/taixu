@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_release_notes_unavailable">获取不到当前版本的更新日志，请稍后重试</string>
     <string name="settings_language_title">应用语言</string>
     <string name="settings_language_system">跟随系统语言</string>
     <string name="settings_language_system_description">根据 Android 设备语言自动选择中文或英文</string>
