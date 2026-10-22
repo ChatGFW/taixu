@@ -81,7 +81,7 @@
         "harness/src/main/java/top/wkbin/taixu/harness/SubagentOrchestrator.kt": 788,
         "harness/src/main/java/top/wkbin/taixu/harness/compaction/CompactionSummarizer.kt": 407,
         "harness/src/main/java/top/wkbin/taixu/harness/dual/DualAgentCoordinator.kt": 448,
-        "harness/src/main/java/top/wkbin/taixu/harness/mcp/McpHttpTransport.kt": 686,
+        "harness/src/main/java/top/wkbin/taixu/harness/mcp/McpHttpTransport.kt": 664,
         "harness/src/main/java/top/wkbin/taixu/harness/mcp/McpManager.kt": 419,
         "harness/src/main/java/top/wkbin/taixu/harness/prompt/SystemPromptBuilder.kt": 617,
         "harness/src/main/java/top/wkbin/taixu/harness/subagent/SubagentLaneContracts.kt": 507,
