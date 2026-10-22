@@ -68,6 +68,7 @@ class TaiXuModulesTest {
                 definition<top.wkbin.taixu.core.datastore.ChatBackgroundPreferences>(androidx.datastore.core.DataStore::class),
                 definition<top.wkbin.taixu.core.datastore.ChatBackgroundImageStore>(File::class, Function1::class, Long::class),
                 definition<top.wkbin.taixu.core.datastore.PluginPreferences>(androidx.datastore.core.DataStore::class),
+                definition<top.wkbin.taixu.core.datastore.ContainerBackendPreferences>(androidx.datastore.core.DataStore::class),
                 definition<top.wkbin.taixu.core.datastore.EncryptedRemoteServerRepository>(android.util.AtomicFile::class, Function1::class),
                 // The build coordinator's adapter and default callbacks are constructed by its lambda.
                 definition<top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator>(

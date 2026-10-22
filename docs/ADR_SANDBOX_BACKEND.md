@@ -228,3 +228,57 @@ Termux 版 PRoot 默认启用 seccomp 加速（只陷入需要翻译的 syscall�
   - `runtime/privilege/HostProcessRunner.kt` — su / Shizuku 宿主执行器
   - `runtime/pty/NativePtySession.kt` — forkpty 终端后端
   - `core/model/ExecutionMode.kt` — 模式定义
+
+---
+
+## 附录 A：容器后端（Droidspaces）的威胁模型与权限审计
+
+> 本节由 2026-10-22 的上游源码审计得出，用于支撑「实验开关默认关」这一决策。
+> 所有结论均给出上游文件与行号，可独立复算。
+
+### A.1 为什么必须存在一个「特权发起者」
+
+创建/进入 namespace 的操作（`unshare(CLONE_NEWNS)`、`mount`、`pivot_root`、`setns`）
+都需要 `CAP_SYS_ADMIN`，即宿主 uid 0。**容器内的 root 是被授予的，不是容器自生的。**
+因此必然存在一个持有宿主特权的发起者；本 PR 的 `su -c droidspaces …` 就是把它设成了
+太墟自身。
+
+### A.2 上游本来有「非特权客户端 + 特权 daemon」设计，但 App 用不了
+
+- `main.c:1001-1008`：先尝试代理给 daemon，`proxy_ret != -2` 即 `goto cleanup` 返回；
+- `main.c:1011`：`if (!is_no_root_cmd && getuid() != 0)` 这个 root 门禁**只有代理失败才走到**；
+- `daemon.c:1126` → `ds_peer_authorized(conn, "droidspaces")`；
+- `utils.c:2282-2298`：要求同 PID namespace，且（`cred.uid == 0` 或属于 `droidspaces` 组）。
+
+但 Android 侧还有 SELinux 这一层，而它**没有给普通 App 开这个口**：
+
+- `post-fs-data.sh` 以 `chcon u:object_r:droidspacesd_exec:s0` 起 daemon，运行在独立域
+  `u:r:droidspacesd:s0`（并有 `permissive droidspacesd`）；
+- `boot-module/sepolicy.rule` 中与 App 相关的授权只有
+  `allow untrusted_app droidspacesd fd use` 与
+  `allow untrusted_app su unix_stream_socket { read write }`；
+- **不存在** `allow untrusted_app droidspacesd unix_stream_socket …`。
+
+⇒ 普通 App 连不上 droidspacesd 的 socket；**App 侧唯一被放行的特权通道是 `su`**。
+「加组就能免 root」在 Android 上不成立（组校验能过，SELinux 过不去）。
+
+### A.3 容器隔离不是安全边界
+
+上游 README 的 Security 一节原文：
+
+> Root inside a container is powerful, and a hostile root process can reach the host.
+> Do not run code you do not trust in a container.
+
+即：PRoot 提供的是**假 root 沙箱**（宿主侧无真特权），Droidspaces 提供的是**真 root 容器**。
+就「沙箱内 root 是否可能逃逸到宿主」而言，**PRoot 反而比 Droidspaces 更严**。
+本 PR 的价值在于原生语义与性能，不在于更强的隔离。
+
+### A.4 因此：开关是产品开关，不是安全边界
+
+`containerBackendEnabled` 默认关，用于**避免改变现有 ROOT 用户的行为**（ADR-S001），
+并让功能以实验形态逐步验证。
+
+必须明示的局限：太墟内部具备 GUI 自动化能力，**任何位于应用内的开关都可能被自动化翻转**，
+所以它**不构成针对「应用内智能体越权」的安全边界**。若后续需要真正的安全边界，
+应把它放在应用进程之外（例如由系统/模块侧的策略决定是否授予该能力），
+而不是依赖一个可被 UI 操作翻转的偏好项。
