@@ -32,6 +32,12 @@
 
 本地重型前台命令的资源名额仅限制已识别工作负载的并发，不改变命令、环境变量、审批或宿主权限。ProcessShellExecutor 对收尾失败的资源保留 `hasUnsettled` 状态；后续重型命令在进程分配前拒绝执行，成功清理后恢复，不把超时或取消本身当作进程已退出的证据。
 
+### 2.1.1 MCP HTTP 请求头
+
+- 自定义 MCP 的 `headers` 支持 JSON 导入与表单编辑，完整对象经 `SecretManager` 加密存入 Room `headersCiphertext`；73 → 74 升级为空对象语义，既有配置不变。解密失败明确拒绝恢复配置，不静默降级匿名连接。
+- 请求头只用于对应服务的 Streamable HTTP 请求及 legacy SSE GET/同源消息 POST；禁用 HTTP 重定向，legacy 消息端点强制同源。请求头变化会重建会话；OAuth 与自定义 `Authorization` 不能并用。协议控制头、重复名称及换行被拒绝，校验错误不回显输入值。
+- 通用配置序列化和 JSON 导出不含 `headers`，便携迁移后需要重新填写；编辑器默认遮蔽请求头值，用户可以主动显示。传输不把请求头加入日志或模型上下文；这不隔离同 App uid 的内存访问。
+
 ### 2.2 进入沙箱的环境变量
 
 - 固定基座（`EnvironmentResolver.baseEnvironment`）：`HOME` / `LANG` / `TMPDIR` / `PATH` / `TAIXU_BRIDGE_URL` / `TAIXU_BRIDGE_PORT` / `ANDROID_BIN_PATH` / `ANDROID_LIB_PATH` / `TERM` 等，无敏感项。
