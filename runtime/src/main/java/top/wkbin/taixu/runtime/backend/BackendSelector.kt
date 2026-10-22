@@ -28,17 +28,24 @@ fun interface BackendSelector {
 }
 
 /**
- * 生产实现：仅 [ExecutionMode.ROOT] 走容器后端；其余模式仍走 PRoot。
+ * 生产实现：**只有 [ExecutionMode.ROOT] 与实验开关同时成立**才走容器后端，
+ * 其余一切情况（含 ROOT 但开关关闭）仍走 PRoot。
  *
- * `SHIZUKU` 只提权宿主自动化，不改变 Linux 运行方式；未知模式一律按 PRoot 处理，
- * 与 [ExecutionMode.fromId] 的回落语义保持一致。
+ * 默认关是刻意的，也是 ADR-S001「PRoot 保持唯一沙箱后端」的落地方式：
+ * 现有 ROOT 用户在开关打开前行为完全不变。`SHIZUKU` 只提权宿主自动化、
+ * 不改变 Linux 运行方式；未知模式一律按 PRoot 处理，与 [ExecutionMode.fromId]
+ * 的回落语义保持一致。
+ *
+ * 注意：该开关是**实验性、用户可见**的产品开关，用于控制功能可用性；
+ * 它不是安全边界，详见 `docs/ADR_SANDBOX_BACKEND.md` 的威胁模型一节。
  */
 class ModeBackendSelector(
     private val proot: ProotCommandBuilder,
     private val droidspaces: DroidspacesCommandBuilder,
     private val modes: Flow<ExecutionMode>,
+    private val containerBackend: Flow<Boolean>,
 ) : BackendSelector {
 
     override suspend fun active(): GuestCommandBuilder =
-        if (modes.first() == ExecutionMode.ROOT) droidspaces else proot
+        if (modes.first() == ExecutionMode.ROOT && containerBackend.first()) droidspaces else proot
 }

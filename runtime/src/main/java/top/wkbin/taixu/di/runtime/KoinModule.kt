@@ -81,6 +81,7 @@ val runtimeModule = module {
             proot = get<ProotCommandBuilder>(),
             droidspaces = get<DroidspacesCommandBuilder>(),
             modes = get<top.wkbin.taixu.core.datastore.RuntimePreferences>().effectiveExecutionMode,
+            containerBackend = get<top.wkbin.taixu.core.datastore.ContainerBackendPreferences>().enabled,
         )
     }
 

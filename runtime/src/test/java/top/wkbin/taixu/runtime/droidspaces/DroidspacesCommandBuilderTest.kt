@@ -215,15 +215,22 @@ class DroidspacesCommandBuilderTest {
     fun selectorRoutesToProotUntilRootModeIsSelected() {
         runBlocking {
             val modes = MutableStateFlow(ExecutionMode.PROOT)
+            val containerBackend = MutableStateFlow(false)
             val selector = ModeBackendSelector(
                 proot = ProotCommandBuilder(EnvironmentResolver()),
                 droidspaces = builder(),
                 modes = modes,
+                containerBackend = containerBackend,
             )
             // 模式取自 Flow 的当前值，不依赖任何调度器上的异步收集器，因此无竞态。
             assertEquals("/data/app/proot", sampleArgv(selector).first())
 
+            // ROOT 模式但实验开关仍关闭：必须继续走 PRoot（对现有 ROOT 用户零行为变化）
             modes.value = ExecutionMode.ROOT
+            assertEquals("/data/app/proot", sampleArgv(selector).first())
+
+            // 只有显式打开开关，才切换到容器后端
+            containerBackend.value = true
             assertEquals("su", sampleArgv(selector).first())
         }
     }
