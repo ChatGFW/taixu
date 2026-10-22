@@ -216,8 +216,16 @@ class HarnessToolRoundRunner(
         toolRoundDispatcher.dispatch(
             items = executable.withIndex().toList(),
             mutationScope = sessionWorkspace,
-            isParallelSafe = { ToolSchedulingPolicy.isParallelSafe(it.value.tool) },
+            isParallelSafe = { ToolSchedulingPolicy.isParallelSafe(it.value.tool, it.value.args) },
             needsMutationLock = { ToolSchedulingPolicy.needsMutationLock(it.value.tool) },
+            conflicts = { left, right ->
+                ToolSchedulingPolicy.conflicts(
+                    left.value.tool,
+                    left.value.args,
+                    right.value.tool,
+                    right.value.args,
+                )
+            },
         ) { (index, item), pause ->
             if (pause.isAborted()) return@dispatch
             val toolCall = ToolCall(
