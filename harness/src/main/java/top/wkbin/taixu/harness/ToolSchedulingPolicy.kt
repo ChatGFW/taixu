@@ -62,9 +62,9 @@ internal object ToolSchedulingPolicy {
         }
     }
 
-    /** 整工作区租约的口径与 [writePathsConflict] 一致，避免两处各写一套判断。 */
+    /** 整工作区租约（`*` / `.`）的判定与编排层同源，避免两处各写一套口径。 */
     private fun claimsWholeWorkspace(paths: Set<String>): Boolean =
-        paths.any { writePathsConflict(it, "*") }
+        paths.any(::isWholeWorkspaceWritePath)
 
     /** 子智能体的写声明；`paths == null` 表示参数解析失败、实际去向未知。 */
     private class WriteScope(val paths: Set<String>?) {
