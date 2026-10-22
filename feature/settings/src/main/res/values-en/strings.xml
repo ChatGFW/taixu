@@ -61,6 +61,12 @@
     <string name="profile_transfer_confirm">Confirm import</string>
     <string name="profile_transfer_cancel">Cancel</string>
     <string name="profile_transfer_edit">Back to edit</string>
+    <string name="local_backup_error_busy">Agent tasks are unfinished, including paused tasks or tasks awaiting approval. End them and try again.</string>
+    <string name="local_backup_error_version">The backup data version or fields are incompatible with this app. Check the app versions used to export and restore.</string>
+    <string name="local_backup_error_changed">Data changed or the preview expired. Select the backup again and preview before restoring.</string>
+    <string name="local_backup_error_archive">Backup manifest or resource verification failed. Select a complete TaiXu backup ZIP or export it again.</string>
+    <string name="local_backup_error_access">Cannot access the selected file. Use the system file picker to select the file or destination again.</string>
+    <string name="local_backup_error_io">Could not read or write the backup. Check available storage and confirm the file is downloaded and readable.</string>
     <string name="local_backup_title">Data backup and restore</string>
     <string name="local_backup_subtitle">Profiles · Conversations and attachments · Skills · Workspace index</string>
     <string name="local_backup_scope">Save model profiles, portable appearance and agent preferences, conversations, app attachments, custom skill resources and the workspace index to a local ZIP. Stop agent tasks first.</string>
