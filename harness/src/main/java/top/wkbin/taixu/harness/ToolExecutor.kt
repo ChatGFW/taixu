@@ -73,6 +73,7 @@ class ToolExecutor(
     private val settingsDataStore: AgentPreferences? = null,
     private val toolCheckpoints: ToolCheckpoints<ToolExecutionRequest, ToolResult> = ToolCheckpoints(),
     workspaceToolBackend: WorkspaceToolBackend? = null,
+    private val governanceGuard: top.wkbin.taixu.harness.bot.GroupGovernanceGuard? = null,
     private val environments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
 ) {
     private val mutationSnapshots = WorkspaceMutationSnapshots(checkpointStore, eventBus)
@@ -120,6 +121,9 @@ class ToolExecutor(
 
     private suspend fun executeBound(toolCall: ToolCall, sessionId: String, workspace: String, bypassApproval: Boolean,
         allowApprovalRequest: Boolean, progressReporter: (suspend (String) -> Unit)?, operationId: String?): ToolResult {
+        governanceGuard?.blockReason(sessionId, toolCall)?.let { reason ->
+            return ToolResult(UUID.randomUUID().toString(), System.currentTimeMillis(), toolCall.id, false, reason, errorCode = "GROUP_REVIEW_REQUIRED")
+        }
         val result = executionBoundary.execute(ToolExecutionRequest(toolCall, sessionId, workspace, operationId)) {
             executeWithPolicy(toolCall, sessionId, workspace, bypassApproval, allowApprovalRequest, progressReporter, operationId)
         }

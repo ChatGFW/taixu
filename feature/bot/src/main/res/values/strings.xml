@@ -235,7 +235,7 @@
     <string name="fbot_team_root">群主控 · 最终交付负责人</string>
     <string name="fbot_team_supervisor">直属上级：%1$s</string>
     <string name="fbot_team_select">为 %1$s 选择直属上级</string>
-    <string name="fbot_assignment_waiting_children">等待下级交付</string>
+    <string name="fbot_assignment_waiting_children">等待协作交付</string>
     <string name="fbot_budget_title">任务预算</string>
     <string name="fbot_budget_hint">同一轮委派及全部后代共享额度。0 表示不限。请求先预留、返回用量后结算；断线或缺少用量时保留预留。预算不包括任务树外的主控群会话，也不是供应商账单保证。</string>
     <string name="fbot_budget_default">新委派默认额度：%1$d tokens</string>

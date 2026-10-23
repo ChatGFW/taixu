@@ -46,6 +46,7 @@ class BotListViewModel(
     private val packageService: BotPackageService,
     private val models: top.wkbin.taixu.core.database.AiModelRepository,
     private val wakeup: BotScheduleWakeup? = null,
+    private val teamImporter: top.wkbin.taixu.harness.bot.market.GroupTeamImporter? = null,
 ) : ViewModel() {
     val modelProfiles: StateFlow<List<top.wkbin.taixu.core.database.AiModelEntity>?> = models.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -96,6 +97,9 @@ class BotListViewModel(
             "已创建 ${bot.name}"
         }
     }
+
+    suspend fun importTeam(templateId: String, name: String): String =
+        requireNotNull(teamImporter).import(templateId, name).id
 
     fun createGroup(name: String, description: String, adminBotId: String, memberIds: Set<String>) {
         if (name.isBlank() || adminBotId.isBlank()) {

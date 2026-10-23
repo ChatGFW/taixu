@@ -45,7 +45,7 @@ interface PersonaBotRepository {
     suspend fun deleteBot(id: String)
 }
 
-interface GroupChatRepository : GroupDeliveryRepository, GroupRoundRepository {
+interface GroupChatRepository : GroupDeliveryRepository, GroupRoundRepository, GroupGovernanceRepository {
     suspend fun getTeam(groupId: String): top.wkbin.taixu.core.model.bot.GroupTeam {
         val group = requireNotNull(getGroup(groupId)) { "群聊不存在" }
         return top.wkbin.taixu.core.model.bot.GroupTeam(group.adminBotId, getMembers(groupId).map { it.id }.toSet())
@@ -53,6 +53,8 @@ interface GroupChatRepository : GroupDeliveryRepository, GroupRoundRepository {
     fun observeTeam(groupId: String): Flow<top.wkbin.taixu.core.model.bot.GroupTeam> =
         observeMembers(groupId).map { getTeam(groupId) }
     suspend fun saveTeam(groupId: String, supervisors: Map<String, String>) { error("团队结构保存不可用") }
+    suspend fun installTeamTemplate(group: GroupChat, members: List<String>, supervisors: Map<String, String>,
+        policy: top.wkbin.taixu.core.model.bot.GroupGovernance, createNew: Boolean) { error("团队模板导入不可用") }
     fun observeGroups(): Flow<List<GroupChat>>
     fun observeGroupsForBot(botId: String): Flow<List<GroupChat>>
     suspend fun getGroup(id: String): GroupChat?
@@ -143,7 +145,10 @@ class RoomGroupChatRepository(
     private val dao: GroupChatDao,
     private val json: Json,
 ) : GroupChatRepository, GroupDeliveryRepository by RoomGroupDeliveryRepository(dao, json),
-    GroupRoundRepository by RoomGroupRoundRepository(dao, json) {
+    GroupRoundRepository by RoomGroupRoundRepository(dao, json),
+    GroupGovernanceRepository by RoomGroupGovernanceRepository(dao) {
+    override suspend fun installTeamTemplate(group: GroupChat, members: List<String>, supervisors: Map<String, String>,
+        policy: top.wkbin.taixu.core.model.bot.GroupGovernance, createNew: Boolean) = dao.installTeamTemplate(group.toEntity(), members, supervisors, policy, createNew)
     private val reactionMutex = Mutex()
     override suspend fun getTeam(groupId: String): top.wkbin.taixu.core.model.bot.GroupTeam =
         teamFromRows(requireNotNull(dao.teamAdmin(groupId)), dao.teamMembers(groupId))

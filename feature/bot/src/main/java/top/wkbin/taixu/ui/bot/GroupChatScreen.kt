@@ -70,6 +70,8 @@ fun GroupChatScreen(
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val members by viewModel.members.collectAsStateWithLifecycle()
     val team by viewModel.team.collectAsStateWithLifecycle()
+    val governance by viewModel.governance.collectAsStateWithLifecycle()
+    val proposals by viewModel.proposals.collectAsStateWithLifecycle()
     val taskBudgets by viewModel.taskBudgets.collectAsStateWithLifecycle()
     val allBots by viewModel.allBots.collectAsStateWithLifecycle()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -87,6 +89,8 @@ fun GroupChatScreen(
     var input by rememberSaveable(groupId, stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
     var pendingAttachments by remember { mutableStateOf<List<GroupAttachment>>(emptyList()) }
     var showMembers by rememberSaveable { mutableStateOf(false) }
+    var showGovernance by rememberSaveable { mutableStateOf(false) }
+    var showTeamTemplates by rememberSaveable { mutableStateOf(false) }
     var showTeam by rememberSaveable { mutableStateOf(false) }
     var showBudget by rememberSaveable { mutableStateOf(false) }
     var viewMode by rememberSaveable(groupId) { mutableStateOf(GroupChatViewMode.CHAT) }
@@ -343,6 +347,8 @@ fun GroupChatScreen(
                     showInfo = false
                     showMembers = true
                 },
+                onManageGovernance = { showInfo = false; showGovernance = true },
+                onImportTeam = { showInfo = false; showTeamTemplates = true },
                 onManageTeam = { showInfo = false; showTeam = true },
                 onManageBudget = { showInfo = false; showBudget = true },
                 onClearMessages = {
@@ -352,6 +358,8 @@ fun GroupChatScreen(
             )
         }
     }
+    if (showTeamTemplates) TeamTemplateDialog(state.group?.name, { showTeamTemplates = false }, viewModel::importTeam)
+    if (showGovernance) team?.let { GroupGovernanceDialog(governance, it, members, proposals, { showGovernance = false }, viewModel::saveGovernance) }
     if (showTeam) team?.let { GroupTeamDialog(it, members, { showTeam = false }, viewModel::saveTeam) }
     if (showBudget) GroupBudgetDialog(state.group?.taskBudgetTokens ?: 0, taskBudgets, { showBudget = false }, viewModel::saveBudget)
     if (showMembers) {

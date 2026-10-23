@@ -51,6 +51,7 @@ fun botManagementPlugin(
         required = listOf("bot_name", "task"),
         properties = mapOf(
             "bot_name" to pluginStringProperty("目标 Bot 名称"),
+            "proposal_id" to pluginStringProperty("审议方案ID；审核和执行须绑定方案。下级执行继承原方案"),
             "task" to pluginStringProperty("要交给它独立完成的具体任务"),
             "write_paths" to pluginStringArrayProperty(
                 "可选建议写入目录；群聊独立任务作为提示，无群聊子任务作为写入租约",
@@ -120,7 +121,7 @@ fun botManagementPlugin(
             },
             PluginTool(
                 id = "assign-task",
-                description = "把任务交给指定 Bot 在独立会话执行：成员仍在群聊实时输出与展示工具步骤，任务可继续。同一轮 wait=false 的任务归入同一工作批次，全部结束后统一回报。仅能派发给本群直属下级。",
+                description = "把任务交给指定 Bot 在独立会话执行：成员仍在群聊实时输出与展示工具步骤，任务可继续。同一轮 wait=false 的任务归入同一工作批次，全部结束后统一回报。可派给直属下级或审议规则授权的协作成员；审核与执行传 proposal_id。",
                 schema = assignSchema,
             ) { request ->
                 val caller = botRepository.getBotBySessionId(request.sessionId)
@@ -128,11 +129,6 @@ fun botManagementPlugin(
                 val targetName = request.arguments["bot_name"]?.jsonPrimitive?.content.orEmpty()
                 val task = request.arguments["task"]?.jsonPrimitive?.content.orEmpty()
                 if (task.isBlank()) return@PluginTool PluginToolOutput(false, "任务内容不能为空")
-                val target = botRepository.findBotByName(targetName)
-                    ?: return@PluginTool PluginToolOutput(false, "找不到名为「$targetName」的 Bot")
-                if (target.id == caller.id) {
-                    return@PluginTool PluginToolOutput(false, "不能把任务派发给自己；请直接执行")
-                }
                 val dependsOn = request.stringArray("depends_on")
                 val unmet = unmetDependencies(assignments, dependsOn)
                 if (unmet.isNotEmpty()) {
@@ -147,7 +143,12 @@ fun botManagementPlugin(
                 if (group == null && (!requestedGroup.isNullOrBlank() || !caller.isMainBot)) {
                     return@PluginTool PluginToolOutput(false, "找不到来源群聊或当前会话不能管理该群")
                 }
-                if (group != null && !groupRepository.getTeam(group.id).canAssign(caller.id, target.id)) {
+                val target = (if (group == null) botRepository.findBotByName(targetName) else groupRepository.getMembers(group.id).singleOrNull { it.name == targetName })
+                    ?: return@PluginTool PluginToolOutput(false, "找不到名为「$targetName」的 Bot")
+                if (target.id == caller.id) {
+                    return@PluginTool PluginToolOutput(false, "不能把任务派发给自己；请直接执行")
+                }
+                if (group != null && !groupRepository.getTeam(group.id).canAssign(caller.id, target.id) && !groupRepository.getGovernance(group.id).canRoute(caller.id, target.id)) {
                     return@PluginTool PluginToolOutput(false, DIRECT_REPORT_ONLY)
                 }
                 if (group != null && groupRepository.getMembers(group.id).none { it.id == target.id }) {
@@ -162,7 +163,7 @@ fun botManagementPlugin(
                     val created = runCatching {
                         engine.create(
                             target.id, group.id, caller.id, request.sessionId, task, writePaths,
-                            dependsOn = dependsOn,
+                            dependsOn = dependsOn, proposalId = request.arguments["proposal_id"]?.jsonPrimitive?.content,
                             workId = if (wait) null else request.operationId ?: if (engine.taskForSession(request.sessionId) != null) java.util.UUID.randomUUID().toString() else null,
                         )
                     }.getOrElse { return@PluginTool PluginToolOutput(false, "派发失败：${it.message}") }
@@ -211,7 +212,7 @@ fun botManagementPlugin(
                 val group = resolveTeamGroup(caller, request.sessionId,
                     request.arguments["group_id"]?.jsonPrimitive?.content, groupRepository, botRepository)
                 if (group == null && !request.arguments["group_id"]?.jsonPrimitive?.content.isNullOrBlank()) return@PluginTool PluginToolOutput(false, "找不到来源群聊")
-                val reports = group?.let { groupRepository.getTeam(it.id).directReports(caller.id) }.orEmpty()
+                val reports = group?.let { groupRepository.getTeam(it.id).directReports(caller.id) + groupRepository.getMembers(it.id).filter { bot -> groupRepository.getGovernance(it.id).canRoute(caller.id, bot.id) }.map { bot -> bot.id } }.orEmpty()
                 if (group == null && !caller.isMainBot || group != null && caller.id != group.adminBotId && reports.isEmpty()) return@PluginTool PluginToolOutput(false, DIRECT_REPORT_ONLY)
                 val bots = if (group != null) groupRepository.getMembers(group.id).filter { it.id in reports }
                     else botRepository.listBots()
@@ -229,7 +230,7 @@ fun botManagementPlugin(
             botRepository = botRepository,
             groupRepository = groupRepository,
             assignments = assignments, runtime = runtime,
-        ) + independentAssignmentTools(botRepository, groupRepository, runtime) + botModelTools(botRepository, modelManager),
+        ) + independentAssignmentTools(botRepository, groupRepository, runtime) + botModelTools(botRepository, modelManager) + groupReviewTools(botRepository, groupRepository),
     )
 }
 

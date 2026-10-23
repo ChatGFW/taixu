@@ -63,6 +63,7 @@ class GroupChatViewModel(
     private val approvals: AgentApprovalRepository,
     private val sessionControl: SessionControl,
     private val budgets: top.wkbin.taixu.core.database.repository.TaskBudgetRepository? = null,
+    private val teamImporter: top.wkbin.taixu.harness.bot.market.GroupTeamImporter? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(GroupChatUiState())
     val uiState: StateFlow<GroupChatUiState> = _uiState.asStateFlow()
@@ -89,6 +90,16 @@ class GroupChatViewModel(
 
     suspend fun saveTeam(supervisors: Map<String, String>) {
         groupRepository.saveTeam(requireNotNull(groupId.value), supervisors)
+    }
+
+    val governance = groupId.filterNotNull().flatMapLatest { groupRepository.observeGovernance(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), top.wkbin.taixu.core.model.bot.GroupGovernance())
+    val proposals = groupId.filterNotNull().flatMapLatest { groupRepository.observeProposals(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    suspend fun saveGovernance(policy: top.wkbin.taixu.core.model.bot.GroupGovernance) =
+        groupRepository.saveGovernance(requireNotNull(groupId.value), policy)
+    suspend fun importTeam(templateId: String, name: String) {
+        requireNotNull(teamImporter).import(templateId, name, requireNotNull(groupId.value))
     }
 
     val messages: StateFlow<List<GroupMessage>> = groupId.filterNotNull()

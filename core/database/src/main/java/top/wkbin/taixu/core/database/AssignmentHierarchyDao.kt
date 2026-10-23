@@ -26,7 +26,7 @@ internal suspend fun BotAssignmentDao.resumeParent(batch: BotWorkBatchEntity, ch
         enqueueRequest(BotAssignmentRequestEntity(
             id = "child-batch:${batch.id}:${batch.revision}", assignmentId = parent.id,
             instruction = buildBatchReport(batch, children) +
-                "\n这是原任务的直属下级交付。请核验产物与证据，处理失败与受阻；尚有子任务时继续等待，验收后向原上级简要交付，不能把成员声明直接当作完成。",
+                "\n这是原任务的受派成员交付。请核验产物与证据，处理失败与受阻；尚有子任务时继续等待，验收后向原上级简要交付，不能把成员声明直接当作完成。",
             createdAt = now,
         ))
     }

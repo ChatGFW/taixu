@@ -54,6 +54,7 @@ fun BotsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var showCreateBot by rememberSaveable { mutableStateOf(false) }
+    var showTeamTemplates by rememberSaveable { mutableStateOf(false) }
     var showCreateGroup by rememberSaveable { mutableStateOf(false) }
     var showManageGroups by rememberSaveable { mutableStateOf(false) }
     var selectedMemberGroupId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -124,6 +125,9 @@ fun BotsScreen(
                     )
                 }
             }
+            if (tab == TAB_GROUPS) RuntimeTextButton(onClick = { showTeamTemplates = true }, enabled = !uiState.busy) {
+                Text(stringResource(R.string.fbot_team_import))
+            }
             when (tab) {
                 TAB_BOTS -> BotList(
                     bots = bots,
@@ -160,6 +164,10 @@ fun BotsScreen(
                 showCreateBot = false
             },
         )
+    }
+    if (showTeamTemplates) TeamTemplateDialog(onDismiss = { showTeamTemplates = false }) { id, name ->
+        val created = viewModel.importTeam(id, name)
+        onOpenGroup(created)
     }
     if (showCreateGroup) {
         CreateGroupDialog(

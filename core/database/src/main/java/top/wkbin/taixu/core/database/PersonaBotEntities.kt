@@ -208,7 +208,7 @@ interface PersonaBotDao {
 }
 
 @Dao
-interface GroupChatDao : GroupDeliveryDao, GroupTeamDao {
+interface GroupChatDao : GroupDeliveryDao, GroupTemplateDao {
     @Query("SELECT * FROM group_chats ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<GroupChatEntity>>
 

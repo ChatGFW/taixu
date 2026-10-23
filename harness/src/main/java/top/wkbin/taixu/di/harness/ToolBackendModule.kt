@@ -155,7 +155,7 @@ internal val toolBackendModule = module {
             sessionApprovalGrants = get(),
             settingsDataStore = get(),
             toolCheckpoints = get(),
-            workspaceToolBackend = get(),
+            workspaceToolBackend = get(), governanceGuard = get(),
             environments = get(),
         )
     }

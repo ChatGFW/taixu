@@ -71,15 +71,15 @@ class BotAssignmentRuntime(
     }
 
     suspend fun create(botId: String, groupId: String, requesterId: String, sourceSessionId: String, instruction: String,
-        writePaths: List<String> = emptyList(), dependsOn: List<String> = emptyList(), workId: String? = null): BotAssignment {
-        val create = suspend { createTask(botId, groupId, requesterId, sourceSessionId, instruction, writePaths, dependsOn, workId) }
+        writePaths: List<String> = emptyList(), dependsOn: List<String> = emptyList(), workId: String? = null, proposalId: String? = null): BotAssignment {
+        val create = suspend { createTask(botId, groupId, requesterId, sourceSessionId, instruction, writePaths, dependsOn, workId, proposalId) }
         return modelManager?.withBotLock(botId, create) ?: create()
     }
 
     suspend fun batchSize(batchId: String): Int = repository.batchTaskCount(batchId)
 
     private suspend fun createTask(botId: String, groupId: String, requesterId: String, sourceSessionId: String, instruction: String,
-        writePaths: List<String>, dependsOn: List<String>, workId: String?): BotAssignment {
+        writePaths: List<String>, dependsOn: List<String>, workId: String?, proposalId: String?): BotAssignment {
         start()
         require(instruction.isNotBlank()) { "任务内容不能为空" }
         if (workId != null) {
@@ -95,7 +95,7 @@ class BotAssignmentRuntime(
         require(writePaths.all { HarnessPathResolver().isWithinWorkspace(it, workspace) }) {
             "写入路径必须在来源工作区 $workspace 内；请使用工作区相对路径或该工作区的绝对路径，不能使用 /root"
         }
-        require(groups.getTeam(groupId).canAssign(requesterId, botId)) { "只能向本群直属下级派发新任务" }
+        require(groups.getTeam(groupId).canAssign(requesterId, botId) || groups.getGovernance(groupId).canRoute(requesterId, botId)) { "只能向本群直属下级派发新任务" }
         val parent = repository.assignmentForSession(sourceSessionId)
         if (parent != null) {
             require(parent.groupId == groupId && parent.botId == requesterId) { "不能跨群委派原任务" }
@@ -104,10 +104,15 @@ class BotAssignmentRuntime(
             var depth = 1
             while (ancestor?.parentAssignmentId != null) {
                 depth++
-                require(depth < 3) { "任务委派最多三层，不能通过调整组织无限递归" }
+                require(depth < 8) { "任务协作最多八层，不能无限递归" }
                 ancestor = repository.get(requireNotNull(ancestor.parentAssignmentId))
             }
         }
+        val policy = groups.getGovernance(groupId)
+        val inherited = parent?.proposalId?.takeIf { policy.executionRules(groups.getTeam(groupId), botId).isNotEmpty() }
+        val proposal = (proposalId ?: inherited)?.let { requireNotNull(groups.getProposal(it)) { "方案不存在" } }
+        require(inherited == null || proposalId != null || parent?.proposalVersion == proposal?.version) { "父任务绑定方案已过期，请重新核验" }
+        require(proposal == null || proposal.groupId == groupId) { "方案不属于本群" }
         val now = System.currentTimeMillis()
         val id = UUID.randomUUID().toString()
         val batch = workId?.let {
@@ -125,7 +130,8 @@ class BotAssignmentRuntime(
         }
         val task = BotAssignment(id, groupId, botId, bot.name, instruction.lineSequence().first().take(60), instruction,
             BotAssignmentStatus.QUEUED, writePaths, now, now, sessionId = UUID.randomUUID().toString(),
-            reportToBotId = requesterId, independent = true, dependsOn = dependsOn, batchId = workId, parentAssignmentId = parent?.id)
+            reportToBotId = requesterId, independent = true, dependsOn = dependsOn, batchId = workId, parentAssignmentId = parent?.id,
+            proposalId = proposal?.id, proposalVersion = proposal?.version)
         val session = HarnessSessionEntity(
             id = requireNotNull(task.sessionId), title = "${bot.name} · ${task.title}", createdAt = now, updatedAt = now,
             modelId = bot.modelId,

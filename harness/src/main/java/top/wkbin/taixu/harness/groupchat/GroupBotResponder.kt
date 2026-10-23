@@ -97,7 +97,7 @@ internal class GroupBotResponder(
             // A round passes only unseen lines; other deliveries keep the binding's full view.
             val resolvedHistory = if (promptHistory != null) contextScope?.history(group, bot.id, sessionId, true) ?: promptHistory
                 else contextBinding?.history ?: contextScope?.history(group, bot.id, sessionId, false) ?: history
-            val prompt = buildGroupPrompt(group, bot, trigger, resolvedHistory, members, groupRepository.getTeam(group.id))
+            val prompt = buildGroupPrompt(group, bot, trigger, resolvedHistory, members, groupRepository.getTeam(group.id), groupRepository.getGovernance(group.id))
             if (deliveryId != null) {
                 check(groupRepository.prepareDelivery(deliveryId, sessionId)) { "收件已停止、成员已移出或来源已清除" }
             }

@@ -54,10 +54,12 @@ data class BotAssignmentEntity(
     @ColumnInfo(defaultValue = "NULL") val batchId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val parentAssignmentId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val budgetId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val proposalId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val proposalVersion: Int? = null,
 )
 
 @Dao
-interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao, AssignmentHierarchyDao, TaskBudgetDao {
+interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao, AssignmentHierarchyDao, TaskBudgetDao, GroupGovernanceDao {
     @Query("SELECT * FROM bot_assignments WHERE botId = :botId AND independent = 1")
     suspend fun assignmentsForBot(botId: String): List<BotAssignmentEntity>
 
@@ -77,7 +79,7 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao, Assignme
         require(task.reportToBotId != null && deliveryMember(group, task.reportToBotId)) { "请求者已移出群聊" }
         val team = top.wkbin.taixu.core.model.bot.GroupTeam(requireNotNull(teamAdmin(group)),
             teamMembers(group).map { it.botId }.toSet(), teamMembers(group).mapNotNull { row -> row.supervisorBotId?.let { row.botId to it } }.toMap())
-        require(team.canAssign(task.reportToBotId, task.botId)) { "只能向本群直属下级派发新任务" }
+        require(team.canAssign(task.reportToBotId, task.botId) || governance(group).canRoute(task.reportToBotId, task.botId)) { "只能向本群直属下级派发新任务" }
         task.parentAssignmentId?.let { id ->
             val parent = requireNotNull(findById(id)) { "父任务不存在" }
             require(parent.status == "RUNNING" && parent.botId == task.reportToBotId && parent.groupId == group) { "父任务已停止或不属于当前负责人" }
