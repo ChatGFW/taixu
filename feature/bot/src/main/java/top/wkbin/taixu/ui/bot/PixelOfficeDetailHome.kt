@@ -12,27 +12,7 @@ internal fun PixelOfficeDetail.Painter.lounge() {
         r(x + 2, 360, 14, 0.5, 0xC98543)
     }
     // A second, larger cat perches on the sofa back, silhouetted against the wall.
-    r(50, 344, 15, 11, ink)
-    r(51, 345, 13, 9, 0xE0A45C)
-    r(52, 345, 10, 2, 0xF2C07E)
-    r(55, 348, 4, 1, 0xC9873E)
-    r(58, 350, 3, 1, 0xC9873E)
-    r(61, 347, 3, 1, 0xC9873E)
-    r(49, 340, 9, 9, ink)
-    r(50, 341, 7, 7, 0xF0B86A)
-    r(49, 339, 2, 3, ink)
-    r(55, 339, 2, 3, ink)
-    r(49, 340, 2, 2, 0xD99A52)
-    r(55, 340, 2, 2, 0xD99A52)
-    r(51, 344, 2, 1, ink)
-    r(54, 344, 2, 1, ink)
-    r(53, 346, 1, 1, 0xC9873E)
-    r(50, 341, 3, 1, 0xF6D4A0)
-    r(52, 347, 4, 2, 0xF6E2C0)
-    r(64, 349, 3, 1, 0xD99A52)
-    r(66, 350, 2, 1, 0xC9873E)
-    r(67, 351, 2, 4, 0xC9873E)
-    r(67, 354, 2, 2, 0xD99A52)
+    scene.cats.filter { it.style == OfficeCatStyle.PERCHED }.forEach { cat(it) }
     // Slippers by the sofa.
     r(55, 375, 5, 2, 0x8A6A4F)
     r(61, 376, 5, 2, 0x8A6A4F)

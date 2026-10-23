@@ -22,9 +22,6 @@ internal object PixelOfficeRoom {
     private const val INK = 0xFF3A2A1E.toInt()
     private const val CREAM = 0xFFFFF8EE.toInt()
     private const val WOOD_DARK = 0xFF6B3E1E.toInt()
-    private const val SCREEN_A = 0xFF7EC8E3.toInt()
-    private const val SCREEN_B = 0xFF8FD18A.toInt()
-    private const val SCREEN_C = 0xFFC9A6E8.toInt()
     private const val MONITOR = 0xFF243044.toInt()
     private const val PLANT = 0xFF3E8F4A.toInt()
     private const val PLANT_DARK = 0xFF2D6B36.toInt()
@@ -47,8 +44,8 @@ internal object PixelOfficeRoom {
     private const val BOOK_P = 0xFF6B4C7A.toInt()
     private const val CHAIR = 0xFF3E4A5C.toInt()
 
-    fun pixels(includeShell: Boolean = true): IntArray {
-        val pen = PixelPen(IntArray(WIDTH * HEIGHT), WIDTH, HEIGHT)
+    fun pixels(includeShell: Boolean = true, scene: OfficeSceneSpec = OfficeSceneSpec.Default): IntArray {
+        val pen = PixelPen(IntArray(WIDTH * HEIGHT), WIDTH, HEIGHT, scene)
         if (includeShell) pen.shell()
         pen.lobby()
         pen.thinkFloor()
@@ -57,7 +54,7 @@ internal object PixelOfficeRoom {
         return pen.pixels
     }
 
-    private class PixelPen(val pixels: IntArray, val width: Int, val height: Int) {
+    private class PixelPen(val pixels: IntArray, val width: Int, val height: Int, val scene: OfficeSceneSpec) {
         fun shell() {
             rect(0, 0, width, 8, TRIM)
             rect(0, 8, width, 54, WALL)
@@ -85,14 +82,7 @@ internal object PixelOfficeRoom {
         }
 
         fun workFloor() {
-            workstation(18, 214, SCREEN_A)
-            workstation(62, 214, SCREEN_B)
-            workstation(116, 214, SCREEN_C)
-            workstation(156, 214, SCREEN_A)
-            workstation(18, 262, SCREEN_C)
-            workstation(62, 262, SCREEN_A)
-            workstation(116, 262, SCREEN_B)
-            workstation(156, 262, SCREEN_C)
+            scene.desks.forEach { workstation(it.x, it.y, it.screenColor) }
             plant(96, 236)
         }
 

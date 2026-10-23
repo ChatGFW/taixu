@@ -71,6 +71,7 @@ internal fun GroupCyberStudio(
     onBackToChat: () -> Unit,
     modifier: Modifier = Modifier,
     waitingSessions: List<OfficeWait> = emptyList(),
+    scene: OfficeSceneSpec = OfficeSceneSpec.Default,
     footer: @Composable () -> Unit = {},
 ) {
     var continueTarget by rememberSaveable { mutableStateOf<String?>(null) }
@@ -101,9 +102,9 @@ internal fun GroupCyberStudio(
         }
     }
     val standup = remember(assignments, members, now) { officeStandup(assignments, members, now) }
-    val actors = remember(members, states, waitingSessions, now, standup) {
+    val actors = remember(members, states, waitingSessions, now, standup, scene) {
         PixelOfficeLayout.applyWaiting(
-            PixelOfficeLayout.place(members, states, now, standup.ids.toSet()),
+            PixelOfficeLayout.place(members, states, now, standup.ids.toSet(), scene),
             members.associate { it.id to it.sessionId },
             waitingSessions,
             now,
@@ -182,6 +183,7 @@ internal fun GroupCyberStudio(
 
     Box(modifier.fillMaxSize().testTag("group-cyber-studio")) {
         GroupPixelOffice(
+            scene = scene,
             actors = actors,
             recipes = recipes,
             bubbles = speechIds.filter {

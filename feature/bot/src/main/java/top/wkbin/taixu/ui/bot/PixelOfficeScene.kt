@@ -8,8 +8,8 @@ internal object PixelOfficeScene {
     fun y(worldY: Float): Float =
         worldY - gaps.sumOf { (worldY - it.first).coerceIn(0f, it.count().toFloat()).toDouble() }.toFloat()
 
-    fun pixels(): IntArray {
-        val source = PixelOfficeDetail.pixels()
+    fun pixels(scene: OfficeSceneSpec = OfficeSceneSpec.Default): IntArray {
+        val source = PixelOfficeDetail.pixels(scene)
         val width = PixelOfficeDetail.WIDTH
         val scale = PixelOfficeDetail.SCALE
         val result = IntArray(width * HEIGHT * scale)

@@ -27,23 +27,13 @@ import androidx.compose.ui.unit.IntOffset
 import top.wkbin.taixu.feature.bot.R
 import kotlin.math.roundToInt
 
-private enum class OfficeZoneIcon { THINK, MEET, WORK, COFFEE, REST }
-
-private data class OfficeZoneSpec(
-    val id: String,
-    val label: Int,
-    val icon: OfficeZoneIcon,
-    val x: Int,
-    val y: Int,
-)
-
-private val officeZones = listOf(
-    OfficeZoneSpec("think", R.string.fbot_pixel_zone_think, OfficeZoneIcon.THINK, 8, 69),
-    OfficeZoneSpec("meet", R.string.fbot_pixel_zone_meet, OfficeZoneIcon.MEET, 112, 69),
-    OfficeZoneSpec("work", R.string.fbot_pixel_zone_work, OfficeZoneIcon.WORK, 104, 183),
-    OfficeZoneSpec("coffee", R.string.fbot_pixel_zone_coffee, OfficeZoneIcon.COFFEE, 146, 318),
-    OfficeZoneSpec("rest", R.string.fbot_pixel_zone_rest, OfficeZoneIcon.REST, 6, 318),
-)
+private val OfficeZoneKind.label: Int get() = when (this) {
+    OfficeZoneKind.THINK -> R.string.fbot_pixel_zone_think
+    OfficeZoneKind.MEET -> R.string.fbot_pixel_zone_meet
+    OfficeZoneKind.WORK -> R.string.fbot_pixel_zone_work
+    OfficeZoneKind.COFFEE -> R.string.fbot_pixel_zone_coffee
+    OfficeZoneKind.REST -> R.string.fbot_pixel_zone_rest
+}
 
 private const val ZONE_WIDTH = 38f
 private const val ZONE_HEIGHT = 10.5f
@@ -57,16 +47,16 @@ private val ZoneLed = Color(0xFFFFD54F)
 
 /** Wooden zone plaques mounted on the walls; they pan and scale with the room pixels. */
 @Composable
-internal fun OfficeZoneSigns(originX: Float, originY: Float, scale: Float) {
+internal fun OfficeZoneSigns(originX: Float, originY: Float, scale: Float, scene: OfficeSceneSpec = OfficeSceneSpec.Default) {
     val density = LocalDensity.current
-    officeZones.forEach { zone ->
-        val label = stringResource(zone.label)
+    scene.zones.forEach { zone ->
+        val label = stringResource(zone.kind.label)
         Box(
             modifier = Modifier
                 .offset {
                     IntOffset(
-                        (originX + zone.x * scale).roundToInt(),
-                        (originY + PixelOfficeScene.y(zone.y.toFloat()) * scale).roundToInt(),
+                        (originX + zone.anchor.x * scale).roundToInt(),
+                        (originY + PixelOfficeScene.y(zone.anchor.y.toFloat()) * scale).roundToInt(),
                     )
                 }
                 .size(roomDp(ZONE_WIDTH, scale, density), roomDp(ZONE_HEIGHT, scale, density))
@@ -79,7 +69,7 @@ internal fun OfficeZoneSigns(originX: Float, originY: Float, scale: Float) {
                     .padding(horizontal = roomDp(1.6f, scale, density)),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ZoneIcon(zone.icon, Modifier.size(roomDp(6.4f, scale, density)))
+                ZoneIcon(zone.kind, Modifier.size(roomDp(6.4f, scale, density)))
                 Spacer(Modifier.width(roomDp(1.1f, scale, density)))
                 Text(
                     text = label,
@@ -119,14 +109,14 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.plaque() {
 }
 
 @Composable
-private fun ZoneIcon(icon: OfficeZoneIcon, modifier: Modifier) {
+private fun ZoneIcon(icon: OfficeZoneKind, modifier: Modifier) {
     Canvas(modifier) {
         val cell = size.minDimension / 8f
         fun block(x: Float, y: Float, w: Float, h: Float, color: Color) {
             drawRect(color, Offset(x * cell, y * cell), Size(w * cell, h * cell))
         }
         when (icon) {
-            OfficeZoneIcon.THINK -> {
+            OfficeZoneKind.THINK -> {
                 block(3f, 1f, 3f, 3.5f, Color(0xFFFFD54F))
                 block(3.7f, 1.5f, 1.6f, 2f, Color(0xFFFFF3C4))
                 block(3.2f, 4.5f, 2.6f, 1f, Color(0xFF8D6E63))
@@ -135,20 +125,20 @@ private fun ZoneIcon(icon: OfficeZoneIcon, modifier: Modifier) {
                 block(6.2f, 2.4f, 0.7f, 0.7f, Color(0xFFFFD54F))
                 block(1.2f, 3.6f, 0.7f, 0.7f, Color(0xFFFFD54F))
             }
-            OfficeZoneIcon.MEET -> {
+            OfficeZoneKind.MEET -> {
                 block(1.6f, 1.6f, 2f, 2f, Color(0xFFFFE0B2))
                 block(4.5f, 1.2f, 2f, 2f, Color(0xFFFFCC80))
                 block(1f, 4.2f, 3.2f, 2.3f, Color(0xFF7EC8E3))
                 block(3.8f, 4.2f, 3.2f, 2.3f, Color(0xFF8FD18A))
             }
-            OfficeZoneIcon.WORK -> {
+            OfficeZoneKind.WORK -> {
                 block(1f, 1.2f, 6f, 4.8f, Color(0xFF2A2438))
                 block(1.7f, 1.8f, 4.6f, 3.2f, Color(0xFF7EC8E3))
                 block(2.2f, 2.4f, 2f, 0.5f, Color(0xFFE6F7FF))
                 block(3.4f, 6f, 1.2f, 1f, Color(0xFF2A2438))
                 block(2.4f, 7f, 3.2f, 0.6f, Color(0xFF2A2438))
             }
-            OfficeZoneIcon.COFFEE -> {
+            OfficeZoneKind.COFFEE -> {
                 block(2f, 3.2f, 4f, 3f, Color(0xFFF6F0E4))
                 block(2.6f, 3.8f, 2.8f, 1.6f, Color(0xFF8B5A2B))
                 block(6f, 3.8f, 1f, 1.5f, Color(0xFFF6F0E4))
@@ -156,7 +146,7 @@ private fun ZoneIcon(icon: OfficeZoneIcon, modifier: Modifier) {
                 block(3.2f, 1.2f, 0.6f, 1.2f, Color(0xFFE6F7FF))
                 block(4.4f, 0.8f, 0.6f, 1.4f, Color(0xFFE6F7FF))
             }
-            OfficeZoneIcon.REST -> {
+            OfficeZoneKind.REST -> {
                 block(1f, 1.2f, 6f, 2.2f, Color(0xFFC46A28))
                 block(0.8f, 3.2f, 6.4f, 2.2f, Color(0xFFE8873A))
                 block(0.8f, 2.6f, 1f, 3.2f, Color(0xFFC46A28))

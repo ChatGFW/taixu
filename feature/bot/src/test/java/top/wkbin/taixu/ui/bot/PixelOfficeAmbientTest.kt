@@ -55,8 +55,8 @@ class PixelOfficeAmbientTest {
     fun `petting a cat and brewing coffee add feedback particles`() {
         val now = 60_000L
         val plain = PixelOfficeAmbient.dots(now, emptyList())
-        val pet = PixelOfficeAmbient.dots(now, emptyList(), lobbyPetAt = now - 400L)
-        val brew = PixelOfficeAmbient.dots(now, emptyList(), brewAt = now - 400L)
+        val pet = PixelOfficeAmbient.dots(now, emptyList(), interactionAt = mapOf("office-cat-lobby" to now - 400L))
+        val brew = PixelOfficeAmbient.dots(now, emptyList(), interactionAt = mapOf("office-coffee-machine" to now - 400L))
         assertTrue(pet.size > plain.size)
         assertTrue(brew.size > plain.size)
         assertTrue(pet.any { it.x in 74f..90f && it.y in 32f..54f })
