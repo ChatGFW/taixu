@@ -25,7 +25,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,15 +66,14 @@ internal fun GroupPixelOffice(
     onOpenBoard: () -> Unit = {},
     celebrating: Set<String> = emptySet(),
     modifier: Modifier = Modifier,
+    scene: OfficeSceneSpec = OfficeSceneSpec.Default,
 ) {
-    val room = remember { PixelOfficeScene.pixels().toPixelImage(PixelOfficeDetail.WIDTH, PixelOfficeScene.HEIGHT * PixelOfficeDetail.SCALE) }
+    val room = remember(scene) { PixelOfficeScene.pixels(scene).toPixelImage(PixelOfficeDetail.WIDTH, PixelOfficeScene.HEIGHT * PixelOfficeDetail.SCALE) }
     val sceneActors = remember(actors) {
         actors.map { it.copy(y = PixelOfficeScene.y(it.y.toFloat()).roundToInt()) }
     }
     val handoffState = remember(handoffs, sceneActors) { officeHandoffState(handoffs, sceneActors) }
-    var lobbyPetAt by remember { mutableLongStateOf(0L) }
-    var sofaPetAt by remember { mutableLongStateOf(0L) }
-    var brewAt by remember { mutableLongStateOf(0L) }
+    var interactionAt by remember(scene) { mutableStateOf(emptyMap<String, Long>()) }
     val petLabel = stringResource(R.string.fbot_pixel_office_pet_cat)
     val brewLabel = stringResource(R.string.fbot_pixel_office_brew_coffee)
     val transition = rememberInfiniteTransition(label = "pixel-office")
@@ -145,15 +143,14 @@ internal fun GroupPixelOffice(
             OfficeAmbientLayer(
                 actors = sceneActors,
                 celebrating = celebrating,
-                lobbyPetAt = lobbyPetAt,
-                sofaPetAt = sofaPetAt,
-                brewAt = brewAt,
+                interactionAt = interactionAt,
+                scene = scene,
                 originX = panX.roundToInt(),
                 originY = panY.roundToInt(),
                 scale = scale,
                 modifier = Modifier.fillMaxSize(),
             )
-            OfficeZoneSigns(originX = panX, originY = panY, scale = scale)
+            OfficeZoneSigns(originX = panX, originY = panY, scale = scale, scene = scene)
             OfficeTaskBoard(
                 tasks = tasks,
                 liveNote = boardThought,
@@ -208,24 +205,18 @@ internal fun GroupPixelOffice(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
-            OfficeTapTarget(
-                x = 74f, y = 51f, w = 16f, h = 10f,
-                originX = panX, originY = panY, scale = scale,
-                tag = "office-cat-lobby", label = petLabel,
-                onClick = { lobbyPetAt = SystemClock.uptimeMillis() },
-            )
-            OfficeTapTarget(
-                x = 48f, y = 339f, w = 21f, h = 19f,
-                originX = panX, originY = panY, scale = scale,
-                tag = "office-cat-sofa", label = petLabel,
-                onClick = { sofaPetAt = SystemClock.uptimeMillis() },
-            )
-            OfficeTapTarget(
-                x = 148f, y = 328f, w = 24f, h = 24f,
-                originX = panX, originY = panY, scale = scale,
-                tag = "office-coffee-machine", label = brewLabel,
-                onClick = { brewAt = SystemClock.uptimeMillis() },
-            )
+            scene.interactions.forEach { interaction ->
+                key(interaction.id) {
+                    OfficeTapTarget(
+                        x = interaction.bounds.x.toFloat(), y = interaction.bounds.y.toFloat(),
+                        w = interaction.bounds.width.toFloat(), h = interaction.bounds.height.toFloat(),
+                        originX = panX, originY = panY, scale = scale,
+                        tag = interaction.id,
+                        label = if (interaction.action == OfficeInteractionAction.PET) petLabel else brewLabel,
+                        onClick = { interactionAt = interactionAt + (interaction.id to SystemClock.uptimeMillis()) },
+                    )
+                }
+            }
             OfficeObjectiveBoard(objective, panX, panY, scale)
             if (actors.isEmpty() && !emptyHint.isNullOrBlank()) {
                 Surface(

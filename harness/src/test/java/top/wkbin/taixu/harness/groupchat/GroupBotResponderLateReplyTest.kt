@@ -28,12 +28,16 @@ import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.BotEntity
 import top.wkbin.taixu.core.database.GroupChatEntity
 import top.wkbin.taixu.core.database.GroupMemberEntity
+import top.wkbin.taixu.core.database.RoomBotAssignmentRepository
 import top.wkbin.taixu.core.database.repository.RoomGroupChatRepository
 import top.wkbin.taixu.core.database.repository.RoomPersonaBotRepository
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.GroupLateReplyStatus
 import top.wkbin.taixu.core.model.bot.GroupSenderType
+import top.wkbin.taixu.core.model.bot.BotAssignment
+import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
+import top.wkbin.taixu.core.model.bot.GroupMessage
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.queue.PromptQueue
@@ -177,6 +181,37 @@ class GroupBotResponderLateReplyTest {
         }
     }
 
+    @Test fun `scoped responder rebuilds ordinary and round context instead of trusting unfiltered history strings`() = runBlocking {
+        val bot = seed()
+        val group = groups.getGroup("group")!!
+        listOf("lead", "dev").forEachIndexed { i, id ->
+            db.personaBotDao().upsert(BotEntity(id, id, "role", "", "seed", null, null, "dm-$id", false, "#123456", 1, 1))
+            groups.addMember("group", id, i + 1)
+        }
+        groups.saveTeam("group", mapOf("dev" to "lead"))
+        val tasks = RoomBotAssignmentRepository(db.botAssignmentDao(), Json)
+        tasks.save(BotAssignment("leader", "group", "lead", "lead", "lead", "lead", BotAssignmentStatus.COMPLETED,
+            createdAt = 1, startedAt = 1, sessionId = "lead-session", reportToBotId = "bot", independent = true))
+        tasks.save(BotAssignment("child", "group", "dev", "dev", "dev", "dev", BotAssignmentStatus.COMPLETED,
+            createdAt = 1, startedAt = 1, sessionId = "dev-session", reportToBotId = "lead", independent = true, parentAssignmentId = "leader"))
+        groups.postMessage(GroupMessage("user", "group", "user", "User", GroupSenderType.USER, "BROADCAST_CORRECTION", 1))
+        groups.postMessage(GroupMessage("direct", "group", "lead", "lead", GroupSenderType.BOT, "DIRECT_DELIVERY", 2, delegatedTaskId = "leader"))
+        groups.postMessage(GroupMessage("nested", "group", "dev", "dev", GroupSenderType.BOT, "GRANDCHILD_RAW", 3, delegatedTaskId = "child"))
+        listOf(false, true).forEach { round ->
+            val native = FakeControl().apply { replyOnSubmit = "done" }
+            val responder = GroupBotResponder(groups, { _, _ -> "session" }, native, logger, MutableStateFlow(emptyMap()),
+                lateReplyScope = scope, contextScope = GroupContextScope(groups, tasks))
+            val result = responder.respond(group, bot, "instruction", "UNFILTERED_CACHE", groups.getMembers("group"),
+                emptyList(), null, promptHistory = if (round) "UNFILTERED_ROUND" else null)
+            assertFalse(result.failed)
+            assertTrue(native.submittedPrompt.contains("BROADCAST_CORRECTION"))
+            assertTrue(native.submittedPrompt.contains("DIRECT_DELIVERY"))
+            assertFalse(native.submittedPrompt.contains("GRANDCHILD_RAW"))
+            assertFalse(native.submittedPrompt.contains("UNFILTERED_"))
+        }
+        assertTrue(groups.observeMessages("group").first().any { it.content == "GRANDCHILD_RAW" })
+    }
+
     private class FakeControl : SessionControl {
         override val currentSessionId = MutableStateFlow("session")
         override val sessionRunStates = MutableStateFlow<Map<String, SessionRunState>>(emptyMap())
@@ -184,6 +219,7 @@ class GroupBotResponderLateReplyTest {
         private val messages = MutableStateFlow<List<HarnessMessage>>(emptyList())
         @Volatile var approvalOnSubmit = false
         @Volatile var replyOnSubmit: String? = null
+        var submittedPrompt: String = ""
 
         override fun messagesForSession(sessionId: String) = messages
         override suspend fun prepareRemoteSession(sessionId: String) = messages.value
@@ -196,6 +232,7 @@ class GroupBotResponderLateReplyTest {
             imageUrls: List<String>,
             queue: PromptQueue,
         ): PromptSubmission {
+            submittedPrompt = text
             val reply = replyOnSubmit
             if (reply != null) {
                 messages.value = listOf(

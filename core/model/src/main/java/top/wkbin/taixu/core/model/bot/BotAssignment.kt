@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class BotAssignmentStatus {
-    QUEUED, RUNNING, BLOCKED, INTERRUPTED, COMPLETED, FAILED, CANCELLED;
-    val isActive: Boolean get() = this == QUEUED || this == RUNNING
+    QUEUED, RUNNING, WAITING_CHILDREN, BLOCKED, INTERRUPTED, COMPLETED, FAILED, CANCELLED;
+    val isActive: Boolean get() = this == QUEUED || this == RUNNING || this == WAITING_CHILDREN
 }
 
 /** 主控派发给某个 Bot 的一次后台任务，持久化后可供查询、验收和取消。 */
@@ -35,4 +35,7 @@ data class BotAssignment(
     val dependsOn: List<String> = emptyList(),
     /** 同一主控回合的工作批次；null 表示单独回报。 */
     val batchId: String? = null,
+    /** Original delegating task; unaffected by later team edits. */
+    val parentAssignmentId: String? = null,
+    val budgetId: String? = null,
 )

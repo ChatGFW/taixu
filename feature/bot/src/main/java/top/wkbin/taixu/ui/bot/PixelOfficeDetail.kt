@@ -9,16 +9,16 @@ internal object PixelOfficeDetail {
     const val WIDTH = PixelOfficeRoom.WIDTH * SCALE
     const val HEIGHT = PixelOfficeRoom.HEIGHT * SCALE
 
-    fun pixels(): IntArray {
-        val base = PixelOfficeRoom.pixels()
+    fun pixels(scene: OfficeSceneSpec = OfficeSceneSpec.Default): IntArray {
+        val base = PixelOfficeRoom.pixels(scene = scene)
         val pixels = IntArray(WIDTH * HEIGHT) { i ->
             base[(i / WIDTH / SCALE) * PixelOfficeRoom.WIDTH + i % WIDTH / SCALE]
         }
-        Painter(pixels).paint()
+        Painter(pixels, scene).paint()
         return pixels
     }
 
-    internal class Painter(val pixels: IntArray) {
+    internal class Painter(val pixels: IntArray, val scene: OfficeSceneSpec = OfficeSceneSpec.Default) {
         val ink = 0x493C39
         val wood = 0xB47B46
         val light = 0xE6B674
@@ -37,14 +37,14 @@ internal object PixelOfficeDetail {
 
         fun paint() {
             architecture()
-            val furniture = PixelOfficeRoom.pixels(includeShell = false)
+            val furniture = PixelOfficeRoom.pixels(includeShell = false, scene = scene)
             for (i in pixels.indices) {
                 val color = furniture[(i / WIDTH / SCALE) * PixelOfficeRoom.WIDTH + i % WIDTH / SCALE]
                 if (color != 0) pixels[i] = color
             }
             skyline()
             board()
-            for (y in listOf(214, 262)) for (x in listOf(18, 62, 116, 156)) desk(x, y)
+            scene.desks.forEach { desk(it.x, it.y) }
             meeting()
             restCoffee()
             workWall()
@@ -266,19 +266,7 @@ internal object PixelOfficeDetail {
                 r(x + 6, 357, 2, 1, ink)
             }
             r(146, 346, 42, 2, light)
-            // Espresso machine.
-            r(150, 330, 18, 18, ink)
-            r(151, 331, 16, 16, 0x9AA4AE)
-            r(152, 332, 14, 2, 0xC7D0D6)
-            r(152, 335, 14, 8, 0x5A6672)
-            r(153, 336, 5, 5, 0x3A4652)
-            r(154, 337, 3, 3, 0x7EC8E3)
-            r(159, 336, 5, 5, 0x2E3A46)
-            r(155, 342, 7, 3, ink); r(156, 342, 5, 2, 0xB0BEC5)
-            r(152, 345, 14, 2, 0xADB2AA); r(153, 346, 12, 1, 0x7A8790)
-            r(166, 339, 1, 7, 0xB0BEC5); r(165, 346, 2, 1, 0x8A959E)
-            cup(156, 343)
-            r(167, 332, 1, 1, 0xE85D4C)
+            scene.coffeeMachines.forEach { coffeeMachine(it) }
             // Chalk menu board.
             r(170, 330, 20, 14, ink)
             r(171, 331, 18, 12, 0x243B33)
@@ -332,16 +320,20 @@ internal object PixelOfficeDetail {
             // Contact shadows follow the feet, not the desktop: every object sits on the floor.
             for ((x, y, w) in listOf(Triple(109, 138, 66), Triple(15, 377, 50),
                 Triple(75, 384, 25), Triple(108, 378, 21),
-                Triple(17, 232, 38), Triple(61, 232, 38), Triple(17, 280, 38), Triple(61, 280, 38),
-                Triple(118, 235, 64), Triple(173, 306, 15), Triple(116, 441, 12))) {
+                Triple(173, 306, 15), Triple(116, 441, 12))) {
                 r(x, y, w, 0.7, 0xAD845B)
+            }
+            scene.desks.forEach { desk ->
+                desk.shadow?.let { r(desk.x + it.dx, desk.y + it.dy, it.width, 0.7, 0xAD845B) }
             }
             // Wainscot panels, drawer joints and bevels give the large furniture volume.
             for (x in listOf(111, 133, 155)) {
                 r(x, 114, 20, 6, 0x9E6E43)
                 r(x + 1, 115, 18, 0.5, 0xC99459)
             }
-            for (y in listOf(214, 262)) for (x in listOf(18, 62)) {
+            for (desk in scene.desks.filter { it.drawers }) {
+                val x = desk.x
+                val y = desk.y
                 r(x + 1, y + 2, 34, 0.7, 0x9E6E43)
                 r(x + 3, y + 4, 0.7, 13, 0xC99459)
                 r(x + 32, y + 4, 0.7, 13, 0xC99459)
@@ -367,15 +359,7 @@ internal object PixelOfficeDetail {
             r(81, 397, 27, 1, ink)
             books(85, 389, 8)
             // A small sleeping cat on a cushion by the entry sill.
-            r(73, 56, 17, 3, 0xB9564A)
-            r(74, 56, 15, 1, 0xE07A62)
-            r(73, 58, 17, 1, 0x8F3E36)
-            r(78, 57, 12, 3, 0xB97642)
-            r(80, 55, 8, 3, 0xD69E5A)
-            r(77, 55, 5, 4, paper)
-            r(77, 54, 1, 2, 0xB97642); r(81, 54, 1, 2, 0xB97642)
-            r(78, 57, 1, 0.4, ink); r(80, 57, 1, 0.4, ink)
-            r(85, 56, 1, 2, 0x8D5A36)
+            scene.cats.filter { it.style == OfficeCatStyle.SLEEPING }.forEach { cat(it) }
         }
     }
 }

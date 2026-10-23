@@ -62,6 +62,7 @@ class GroupChatViewModel(
     private val groupSessions: BotGroupSessionRepository,
     private val approvals: AgentApprovalRepository,
     private val sessionControl: SessionControl,
+    private val budgets: top.wkbin.taixu.core.database.repository.TaskBudgetRepository? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(GroupChatUiState())
     val uiState: StateFlow<GroupChatUiState> = _uiState.asStateFlow()
@@ -73,6 +74,22 @@ class GroupChatViewModel(
     val exportFile = _exportFile.asStateFlow()
 
     private val groupId = MutableStateFlow<String?>(null)
+    val taskBudgets = groupId.filterNotNull().flatMapLatest { budgets?.observe(it) ?: flowOf(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    suspend fun saveBudget(id: String?, tokens: Long) {
+        val repo = requireNotNull(budgets) { "预算设置不可用" }
+        val group = requireNotNull(groupId.value)
+        if (id == null) {
+            repo.setDefault(group, tokens)
+            _uiState.update { it.copy(group = it.group?.copy(taskBudgetTokens = tokens)) }
+        } else repo.setLimit(group, id, tokens)
+    }
+    val team = groupId.filterNotNull().flatMapLatest { groupRepository.observeTeam(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    suspend fun saveTeam(supervisors: Map<String, String>) {
+        groupRepository.saveTeam(requireNotNull(groupId.value), supervisors)
+    }
 
     val messages: StateFlow<List<GroupMessage>> = groupId.filterNotNull()
         .flatMapLatest { dispatcher.observeMessages(it) }

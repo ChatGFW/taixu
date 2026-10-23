@@ -18,6 +18,8 @@ data class BotAssignmentRequest(
         const val SUBMITTING = "submitting"
         const val ADMITTED = "admitted"
         const val COMPLETED = "completed"
+        /** Result was received by the synchronous caller; this does not mean the task was accepted. */
+        const val RECEIVED = "received"
         const val FAILED = "failed"
         const val UNKNOWN = "unknown"
         const val CANCELLED = "cancelled"

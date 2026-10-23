@@ -31,7 +31,7 @@ class TurnRunner(
         remainingRounds: Int = Int.MAX_VALUE,
         lifecycle: TurnLifecycle<NormalizedProviderResponse>? = null,
         sessionId: String? = null,
-    ): TurnOutcome = core.run(
+    ): TurnOutcome = kotlinx.coroutines.withContext(sessionId?.let { top.wkbin.taixu.harness.bot.TaskBudgetContext(it) } ?: kotlin.coroutines.EmptyCoroutineContext) { core.run(
         callProvider = {
             sessionId?.let { groupFreshness?.refresh(it) }
             when (val provider = callProvider()) {
@@ -50,5 +50,5 @@ class TurnRunner(
         executeTools = { calls, response -> executeTools(calls, response.result) },
         remainingRounds = remainingRounds,
         lifecycle = lifecycle,
-    )
+    ) }
 }

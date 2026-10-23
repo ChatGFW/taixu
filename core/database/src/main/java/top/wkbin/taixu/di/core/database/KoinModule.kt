@@ -123,6 +123,7 @@ val coreDatabaseModule = module {
 
     factory<BotScheduleRepository> { get<RoomBotScheduleRepository>() }
 
+    single<top.wkbin.taixu.core.database.repository.TaskBudgetRepository> { top.wkbin.taixu.core.database.repository.RoomTaskBudgetRepository(get<top.wkbin.taixu.core.database.BotAssignmentDao>()) }
     single<RoomBotAssignmentRepository> { RoomBotAssignmentRepository(dao = get(), json = get()) }
 
     factory<BotAssignmentRepository> { get<RoomBotAssignmentRepository>() }

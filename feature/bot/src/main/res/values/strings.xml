@@ -230,4 +230,18 @@
     <string name="fbot_tool_unknown_count">%1$d 项待核对</string>
     <string name="fbot_tool_success_count">%1$d 项成功</string>
     <string name="fbot_tool_failure_count">%1$d 项失败</string>
+    <string name="fbot_team_title">团队结构</string>
+    <string name="fbot_team_hint">默认直属主控，复杂任务可按需分组，最多三层。负责人只能向直属下级派单。调整关系后，已有任务仍由原负责人验收；移出负责人后，其下属恢复直属主控。</string>
+    <string name="fbot_team_root">群主控 · 最终交付负责人</string>
+    <string name="fbot_team_supervisor">直属上级：%1$s</string>
+    <string name="fbot_team_select">为 %1$s 选择直属上级</string>
+    <string name="fbot_assignment_waiting_children">等待下级交付</string>
+    <string name="fbot_budget_title">任务预算</string>
+    <string name="fbot_budget_hint">同一轮委派及全部后代共享额度。0 表示不限。请求先预留、返回用量后结算；断线或缺少用量时保留预留。预算不包括任务树外的主控群会话，也不是供应商账单保证。</string>
+    <string name="fbot_budget_default">新委派默认额度：%1$d tokens</string>
+    <string name="fbot_budget_state">额度 %1$d · 已结算 %2$d · 预留 %3$d</string>
+    <string name="fbot_budget_unknown">%1$d 次请求用量待核对，预留未释放</string>
+    <string name="fbot_budget_adjust">调整额度</string>
+    <string name="fbot_budget_limit">输入 + 输出 token 额度，0 表示不限</string>
+    <string name="fbot_budget_edit_hint">默认额度只作用于新预算。调整已有预算不会清零消耗或重跑任务；保存后需在工作面板继续原任务。输入按请求字节保守预留，可能早于额度用尽受阻。</string>
 </resources>

@@ -69,6 +69,8 @@ fun GroupChatScreen(
 ) {
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val members by viewModel.members.collectAsStateWithLifecycle()
+    val team by viewModel.team.collectAsStateWithLifecycle()
+    val taskBudgets by viewModel.taskBudgets.collectAsStateWithLifecycle()
     val allBots by viewModel.allBots.collectAsStateWithLifecycle()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val activeAssignments by viewModel.activeAssignments.collectAsStateWithLifecycle()
@@ -85,6 +87,8 @@ fun GroupChatScreen(
     var input by rememberSaveable(groupId, stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
     var pendingAttachments by remember { mutableStateOf<List<GroupAttachment>>(emptyList()) }
     var showMembers by rememberSaveable { mutableStateOf(false) }
+    var showTeam by rememberSaveable { mutableStateOf(false) }
+    var showBudget by rememberSaveable { mutableStateOf(false) }
     var viewMode by rememberSaveable(groupId) { mutableStateOf(GroupChatViewMode.CHAT) }
     BackHandler(enabled = viewMode == GroupChatViewMode.STUDIO) {
         viewMode = GroupChatViewMode.CHAT
@@ -339,6 +343,8 @@ fun GroupChatScreen(
                     showInfo = false
                     showMembers = true
                 },
+                onManageTeam = { showInfo = false; showTeam = true },
+                onManageBudget = { showInfo = false; showBudget = true },
                 onClearMessages = {
                     showInfo = false
                     confirmClear = true
@@ -346,6 +352,8 @@ fun GroupChatScreen(
             )
         }
     }
+    if (showTeam) team?.let { GroupTeamDialog(it, members, { showTeam = false }, viewModel::saveTeam) }
+    if (showBudget) GroupBudgetDialog(state.group?.taskBudgetTokens ?: 0, taskBudgets, { showBudget = false }, viewModel::saveBudget)
     if (showMembers) {
         GroupMembersDialog(
             allBots = allBots,

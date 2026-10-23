@@ -52,22 +52,23 @@ internal object PixelOfficeAmbient {
         nowMs: Long,
         actors: List<OfficeActor>,
         celebrating: Set<String> = emptySet(),
-        lobbyPetAt: Long = 0L,
-        sofaPetAt: Long = 0L,
-        brewAt: Long = 0L,
+        interactionAt: Map<String, Long> = emptyMap(),
+        scene: OfficeSceneSpec = OfficeSceneSpec.Default,
     ): List<OfficeAmbientDot> {
         val out = Dots()
         val t = nowMs / 1000f
-        steam(out, t, nowMs, brewAt)
+        scene.coffeeMachines.forEach { steam(out, t, nowMs, interactionAt[it.id] ?: 0L, it) }
         waterCooler(out, t)
-        monitors(out, t, nowMs)
+        monitors(out, t, nowMs, scene.desks)
         meetingScreen(out, t, nowMs)
-        serverLeds(out, nowMs)
+        serverLeds(out, nowMs, scene.coffeeMachines)
         window(out, t)
         lamps(out, t)
-        catLife(out, t)
-        if (lobbyPetAt > 0L) hearts(out, 82f, 53f, nowMs - lobbyPetAt)
-        if (sofaPetAt > 0L) hearts(out, 57f, 338f, nowMs - sofaPetAt)
+        scene.cats.forEach { catLife(out, t, it) }
+        scene.cats.forEach { cat ->
+            val at = interactionAt[cat.id] ?: 0L
+            if (at > 0L) hearts(out, cat.heart.x.toFloat(), cat.heart.y.toFloat(), nowMs - at)
+        }
         confetti(out, t, actors, celebrating)
         return out.list
     }
@@ -85,22 +86,22 @@ internal object PixelOfficeAmbient {
     private fun phase(t: Float, period: Float, offset: Float): Float =
         (((t / period + offset) % 1f) + 1f) % 1f
 
-    private fun steam(d: Dots, t: Float, nowMs: Long, brewAt: Long) {
+    private fun steam(d: Dots, t: Float, nowMs: Long, brewAt: Long, machine: OfficeCoffeeMachineSpec) {
         for (i in 0 until 3) {
             val p = phase(t, 1.7f, i / 3f)
-            val x = 158f + sin(p * TAU + i * 2.1f) * 2.2f
-            val y = 343f - p * 9f
+            val x = machine.steam.x.toFloat() + sin(p * TAU + i * 2.1f) * 2.2f
+            val y = machine.steam.y.toFloat() - p * 9f
             d.add(x, y, 0.7f, 0.7f, 0.5f * (1f - p), WHITE)
             d.add(x + 0.6f, y + 0.4f, 0.4f, 0.4f, 0.32f * (1f - p), CREAM)
         }
         val wand = phase(t, 2.2f, 0.4f)
-        d.add(166f + sin(wand * TAU) * 1.1f, 346f - wand * 8f, 0.5f, 0.5f, 0.32f * (1f - wand), WHITE)
+        d.add(machine.wand.x.toFloat() + sin(wand * TAU) * 1.1f, machine.wand.y.toFloat() - wand * 8f, 0.5f, 0.5f, 0.32f * (1f - wand), WHITE)
         val age = nowMs - brewAt
         if (brewAt > 0L && age in 0L..1600L) {
             val p = age / 1600f
             for (i in 0 until 5) {
-                val x = 150f + i * 3.2f + sin(p * 6f + i) * 1.1f
-                val y = 343f - p * 12f - i * 0.8f
+                val x = machine.x.toFloat() + i * 3.2f + sin(p * 6f + i) * 1.1f
+                val y = machine.steam.y.toFloat() - p * 12f - i * 0.8f
                 d.add(x, y, 0.8f, 0.8f, (1f - p) * 0.75f, WHITE)
             }
         }
@@ -113,12 +114,11 @@ internal object PixelOfficeAmbient {
         }
     }
 
-    private fun monitors(d: Dots, t: Float, nowMs: Long) {
-        val screens = listOf(
-            37f to 196f, 81f to 196f, 135f to 196f, 175f to 196f,
-            37f to 244f, 81f to 244f, 135f to 244f, 175f to 244f,
-        )
-        screens.forEachIndexed { i, (sx, sy) ->
+    private fun monitors(d: Dots, t: Float, nowMs: Long, desks: List<OfficeDeskSpec>) {
+        desks.sortedBy { it.animationPhase }.forEach { desk ->
+            val i = desk.animationPhase
+            val sx = desk.screen.x.toFloat()
+            val sy = desk.screen.y.toFloat()
             val p = phase(t, 2.8f, i * 0.27f)
             val glow = 0.24f + 0.12f * ((sin(t * 3f + i) + 1f) / 2f)
             d.add(sx + 2f, sy + 1.5f + p * 7f, 9f, 0.35f, glow, GREEN)
@@ -134,13 +134,15 @@ internal object PixelOfficeAmbient {
         if ((nowMs / 1000L) % 2L == 0L) d.add(172f, 89f, 0.6f, 0.6f, 0.8f, 0xE85D4C)
     }
 
-    private fun serverLeds(d: Dots, nowMs: Long) {
+    private fun serverLeds(d: Dots, nowMs: Long, machines: List<OfficeCoffeeMachineSpec>) {
         val colors = intArrayOf(0x8FD18A, 0x7EC8E3, 0xF3D36B, 0xE85D4C)
         for (i in 0 until 5) {
             if ((nowMs / 380L + i) % 3L != 0L) continue
             d.add(146f, 418f + i * 4f, 0.6f, 0.6f, 0.9f, colors[i % colors.size])
         }
-        if ((nowMs / 700L) % 2L == 0L) d.add(167f, 332f, 0.5f, 0.5f, 0.9f, 0xE85D4C)
+        if ((nowMs / 700L) % 2L == 0L) machines.forEach { machine ->
+            d.add(machine.indicator.x.toFloat(), machine.indicator.y.toFloat(), 0.5f, 0.5f, 0.9f, 0xE85D4C)
+        }
     }
 
     private fun window(d: Dots, t: Float) {
@@ -172,18 +174,26 @@ internal object PixelOfficeAmbient {
         d.add(157f + cos(t * 2.4f) * 3.2f, 93f + sin(t * 4.8f) * 1.4f, 0.6f, 0.6f, 0.85f, WHITE)
     }
 
-    private fun catLife(d: Dots, t: Float) {
-        d.add(86.5f, 56.5f + sin(t * 1.8f) * 0.5f, 0.8f, 0.8f, 0.9f, 0xD99A52)
-        d.add(87.3f, 56.5f + sin(t * 1.8f) * 0.5f, 0.5f, 0.5f, 0.8f, 0x8D5A36)
-        val lobbyZ = t % 12f
-        if (lobbyZ < 2.4f) {
-            val rise = lobbyZ / 2.4f
-            d.add(88f, 52f - rise * 3f, 2f, 0.35f, 0.7f, COOL)
-            d.add(88.6f, 50.8f - rise * 3f, 0.35f, 0.7f, 0.7f, COOL)
-            d.add(88f, 49.6f - rise * 3f, 2f, 0.35f, 0.7f, COOL)
+    private fun catLife(d: Dots, t: Float, cat: OfficeCatSpec) {
+        val x = cat.x.toFloat()
+        val y = cat.y.toFloat()
+        when (cat.style) {
+            OfficeCatStyle.SLEEPING -> {
+                d.add(x + 13.5f, y + 2.5f + sin(t * 1.8f) * 0.5f, 0.8f, 0.8f, 0.9f, 0xD99A52)
+                d.add(x + 14.3f, y + 2.5f + sin(t * 1.8f) * 0.5f, 0.5f, 0.5f, 0.8f, 0x8D5A36)
+                val z = t % 12f
+                if (z < 2.4f) {
+                    val rise = z / 2.4f
+                    d.add(x + 15f, y - 2f - rise * 3f, 2f, 0.35f, 0.7f, COOL)
+                    d.add(x + 15.6f, y - 3.2f - rise * 3f, 0.35f, 0.7f, 0.7f, COOL)
+                    d.add(x + 15f, y - 4.4f - rise * 3f, 2f, 0.35f, 0.7f, COOL)
+                }
+            }
+            OfficeCatStyle.PERCHED -> {
+                d.add(x + 18.5f, y + 14f + sin(t * 1.5f + 1f) * 0.5f, 0.8f, 0.8f, 0.9f, 0xD99A52)
+                d.add(x + 19.4f, y + 13.3f + sin(t * 1.5f + 1f) * 0.5f, 0.6f, 0.6f, 0.8f, 0xC9873E)
+            }
         }
-        d.add(66.5f, 353f + sin(t * 1.5f + 1f) * 0.5f, 0.8f, 0.8f, 0.9f, 0xD99A52)
-        d.add(67.4f, 352.3f + sin(t * 1.5f + 1f) * 0.5f, 0.6f, 0.6f, 0.8f, 0xC9873E)
     }
 
     private fun hearts(d: Dots, x: Float, y: Float, age: Long) {
@@ -224,13 +234,12 @@ internal object PixelOfficeAmbient {
 internal fun OfficeAmbientLayer(
     actors: List<OfficeActor>,
     celebrating: Set<String>,
-    lobbyPetAt: Long,
-    sofaPetAt: Long,
-    brewAt: Long,
+    interactionAt: Map<String, Long>,
     originX: Int,
     originY: Int,
     scale: Float,
     modifier: Modifier = Modifier,
+    scene: OfficeSceneSpec = OfficeSceneSpec.Default,
 ) {
     val transition = rememberInfiniteTransition(label = "office-ambient")
     val tick = transition.animateFloat(
@@ -243,7 +252,7 @@ internal fun OfficeAmbientLayer(
     val now = remember(slot) { SystemClock.uptimeMillis() }
     val wall = remember(slot) { System.currentTimeMillis() }
     Canvas(modifier) {
-        PixelOfficeAmbient.dots(now, actors, celebrating, lobbyPetAt, sofaPetAt, brewAt).forEach { dot ->
+        PixelOfficeAmbient.dots(now, actors, celebrating, interactionAt, scene).forEach { dot ->
             drawRect(
                 Color(dot.color),
                 Offset(originX + dot.x * scale, originY + PixelOfficeScene.y(dot.y) * scale),

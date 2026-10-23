@@ -11,6 +11,7 @@ internal fun buildGroupPrompt(
     trigger: String,
     history: String,
     members: List<Bot>,
+    team: top.wkbin.taixu.core.model.bot.GroupTeam = top.wkbin.taixu.core.model.bot.GroupTeam(group.adminBotId, members.map { it.id }.toSet()),
 ): String = buildString {
     appendLine("【群聊「${group.name}」】")
     appendLine("群聊 ID：${group.id}")
@@ -25,7 +26,11 @@ internal fun buildGroupPrompt(
         appendLine(history)
     }
     appendLine("所有团队成员均可调用 bot-management 的 list-models 查看已添加供应商及模型，select-model 为自己切换模型；不可改动其他成员或全局激活模型。")
-    if (bot.isMainBot) appendMainBotRules(group.id, members.filter { it.id != bot.id })
+    val reports = team.directReports(bot.id)
+    appendLine("【团队边界】只能向直属下级派新任务，不得越级或指挥同级；已有任务由原派发负责人验收。组织关系仅由用户配置。")
+    team.supervisorOf(bot.id)?.let { parent -> appendLine("直属上级：${members.firstOrNull { it.id == parent }?.name ?: parent}；交付包含结论、产物引用、验证证据和未解决问题。") }
+    if (bot.id == group.adminBotId || reports.isNotEmpty()) appendMainBotRules(group.id, members.filter { it.id in reports })
+    else appendLine("当前没有直属下级，请在任务范围内直接执行，不要另建管理层或使用通用子智能体绕过团队关系。")
     appendLine()
     appendLine("【本次受理的来源消息／任务】（较新的用户纠正以群记录及后续更新为准）")
     appendLine(trigger)
@@ -36,13 +41,13 @@ internal fun buildGroupPrompt(
  */
 private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>) {
     appendLine()
-    appendLine("【主控职责（必须遵守）】")
-    appendLine("你是本群的主控 Bot：拆解目标、分派任务、验收结果并汇总。")
+    appendLine("【负责人职责（必须遵守）】")
+    appendLine("你负责当前任务及直属团队：按需拆解目标、分派任务、验收结果并汇总；简单任务直接完成，不为分层而分层。")
     appendLine("当前主控身份由应用的群会话映射确认。历史记忆中的工具权限失败仅代表当时结果；需要委派时先用 list-bots 核验当前能力，若仍失败则如实报告，勿反复重试。")
     appendLine("向群成员派发任务只能使用 bot-management 的 assign-task。invoke_subagent 创建的是当前会话里的通用子智能体，不代表群成员接单，也不会让成员进入各自工位；群聊协作禁止用 invoke_subagent 替代 assign-task。")
     appendLine("适合委派：独立、可界定的编码/调研/测试工作。只有互不依赖的任务才并行。")
     appendLine("不适合委派：简单问答、记忆更新、群内回复，这些自己处理。")
-    appendLine("复杂目标先拆成 2–4 个独立子任务，按模块/文件/验证面划分；并行必须通过同一轮多次 assign-task 派给不同群成员，禁止用 invoke_subagent 或同会话子智能体冒充多人并行。")
+    appendLine("复杂目标按实际需要拆成独立子任务，按模块/文件/验证面划分；并行必须通过同一轮多次 assign-task 派给不同群成员，禁止用 invoke_subagent 或同会话子智能体冒充多人并行。")
     appendLine("可并行：不同模块/文件的实现、互不依赖的调研、独立文档或测试用例编写。必须串行：同一文件的连续修改、测试执行依赖开发产物、验收依赖产物。")
     appendLine("复杂任务派发前，先在群聊发 2–3 行立会结论（目标拆解/分工/依赖），再同一轮连续调用多个 assign-task(wait=false)，每个任务指定不同 bot_name；同一轮的任务会归入同一工作批次，全部结束后只回报一次。派完结束本轮，不要逐条等待，也不要退化成子智能体并行。")
     appendLine("有依赖关系的任务必须串行：测试执行依赖开发产物，先派开发并验收，再派测试执行；不要把测试执行和开发实现同时派发。测试用例编写若不依赖实现产物，可以与开发并行，也不要把只写测试计划当成验收完成。")
@@ -55,7 +60,7 @@ private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>
         appendLine("当前没有其他成员可派发，请自己完成。")
         return
     }
-    appendLine("可派发成员：")
+    appendLine("可派发成员（仅直属下级）：")
     members.forEach { appendLine("- bot_name=\"${it.name}\"；职责：${it.role}") }
     appendLine("派发步骤：")
     appendLine("1. 先调用 use_capability(action=\"inspect\", server=\"plugin.taixu.bot-management\") 查看 assign-task 参数；")
@@ -67,6 +72,8 @@ private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>
     appendLine("涉及写文件时传 write_paths，使用来源工作区内的相对路径或 /workspace 下的项目路径，禁止以 /root 为新项目产物目录。群聊任务的 write_paths 是建议范围，文件工具仍执行工作区边界；不要把 Shell 可写当作文件工具授权。")
     appendLine("收到批次回传后，可用 inspect-assignment 查看单个任务的摘要、错误和同批状态；失败或结果未知时先只读核验产物，并用 continue-assignment 在原任务接续，不要盲目重做。验收应读取正文和实际运行，存在文件、行数和标题齐全只证明结构，不能证明内容正确。")
     appendLine("按群说明及成员职责组织必要的方案审议与执行调度；尚未执行的审议不得宣称准奏。简单任务可明确说明简化流程。")
+    appendLine("派发任务只提供必要背景、目标、范围和验收条件；不要复制整个群聊。直属下级交付后先验收，再向原上级简要回报，保留产物与证据引用，失败和不确定性必须保留。")
+    appendLine("任务预算不足时向用户报告并等待调整，再继续原任务；不得换会话、另建任务或拆批次绕过预算，也不能把预算受阻当作完成。")
     appendLine("只依据工具返回和群聊记录汇报，不要虚构成员进度或已完成的委派。")
 }
 

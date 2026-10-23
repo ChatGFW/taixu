@@ -46,8 +46,10 @@ class GroupDeliveryPumpTest {
 
     private suspend fun seed() {
         db.personaBotDao().upsert(BotEntity("bot", "Chief", "lead", "persona", "seed", null, null, "dm", true, "#123456", 1, 1))
-        db.groupChatDao().upsertGroup(GroupChatEntity("group", "Team", "bot", "", 1))
+        db.personaBotDao().upsert(BotEntity("admin", "Admin", "lead", "", "seed", null, null, "dm-admin", false, "#123456", 1, 1))
+        db.groupChatDao().upsertGroup(GroupChatEntity("group", "Team", "admin", "", 1))
         db.groupChatDao().addMember(GroupMemberEntity("group", "bot", 0, 1))
+        db.groupChatDao().addMember(GroupMemberEntity("group", "admin", 1, 1))
     }
 
     private suspend fun awaitStatus(id: String, status: String) = withTimeout(10_000) {

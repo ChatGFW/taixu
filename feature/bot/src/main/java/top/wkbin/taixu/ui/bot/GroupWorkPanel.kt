@@ -232,7 +232,7 @@ internal fun WorkCard(
 ) {
     var expanded by rememberSaveable(assignment.id) { mutableStateOf(false) }
     val statusColor = when (assignment.status) {
-        BotAssignmentStatus.QUEUED, BotAssignmentStatus.RUNNING -> MaterialTheme.colorScheme.primary
+        BotAssignmentStatus.QUEUED, BotAssignmentStatus.RUNNING, BotAssignmentStatus.WAITING_CHILDREN -> MaterialTheme.colorScheme.primary
         BotAssignmentStatus.BLOCKED, BotAssignmentStatus.INTERRUPTED -> MaterialTheme.colorScheme.error
         BotAssignmentStatus.COMPLETED -> MaterialTheme.colorScheme.tertiary
         BotAssignmentStatus.FAILED -> MaterialTheme.colorScheme.error
@@ -362,6 +362,7 @@ internal fun liveStatusText(message: GroupMessage?, assignment: BotAssignment?):
                     ?: stringResource(R.string.fbot_assignment_blocked)
             BotAssignmentStatus.CANCELLED -> stringResource(R.string.fbot_work_status_cancelled)
             BotAssignmentStatus.INTERRUPTED -> stringResource(R.string.fbot_assignment_interrupted)
+            BotAssignmentStatus.WAITING_CHILDREN -> stringResource(R.string.fbot_assignment_waiting_children)
             BotAssignmentStatus.QUEUED -> stringResource(R.string.fbot_assignment_queued)
             BotAssignmentStatus.RUNNING -> stringResource(R.string.fbot_member_waiting_start)
         }
@@ -375,6 +376,7 @@ internal fun liveStatusText(message: GroupMessage?, assignment: BotAssignment?):
 
 @Composable
 internal fun statusLabel(status: BotAssignmentStatus): String = when (status) {
+    BotAssignmentStatus.WAITING_CHILDREN -> stringResource(R.string.fbot_assignment_waiting_children)
     BotAssignmentStatus.QUEUED -> stringResource(R.string.fbot_assignment_queued)
     BotAssignmentStatus.BLOCKED -> stringResource(R.string.fbot_assignment_blocked)
     BotAssignmentStatus.INTERRUPTED -> stringResource(R.string.fbot_assignment_interrupted)

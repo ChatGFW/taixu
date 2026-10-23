@@ -18,6 +18,7 @@ import top.wkbin.taixu.harness.projection.LiveMessagePort
 class GroupReplyFreshness(
     private val groups: GroupChatRepository,
     private val messages: LiveMessagePort,
+    private val contextScope: GroupContextScope? = null,
 ) {
     internal class Binding(
         val groupId: String, val botId: String, val placeholderId: String,
@@ -28,7 +29,8 @@ class GroupReplyFreshness(
 
     internal suspend fun begin(sessionId: String, group: GroupChat, botId: String, placeholderId: String): Binding {
         require(groups.getMembers(group.id).any { it.id == botId }) { "执行成员已移出来源群聊" }
-        val rows = relevant(groups.observeMessages(group.id).first(), placeholderId)
+        val raw = groups.observeMessages(group.id).first()
+        val rows = relevant(contextScope?.select(group, botId, sessionId, raw) ?: raw, placeholderId)
         val binding = Binding(group.id, botId, placeholderId, formatGroupHistory(group, rows), rows.associateBy { it.id })
         check(active.putIfAbsent(sessionId, binding) == null) { "原会话已有群回复，未覆盖其消息归属" }
         return binding
@@ -44,7 +46,9 @@ class GroupReplyFreshness(
             if (groups.getGroup(binding.groupId) == null || groups.getMembers(binding.groupId).none { it.id == binding.botId }) {
                 return@withLock 0
             }
-            val rows = relevant(groups.observeMessages(binding.groupId).first(), binding.placeholderId)
+            val group = groups.getGroup(binding.groupId) ?: return@withLock 0
+            val raw = groups.observeMessages(binding.groupId).first()
+            val rows = relevant(contextScope?.select(group, binding.botId, sessionId, raw) ?: raw, binding.placeholderId)
             val changed = rows.filter { row ->
                 val old = binding.seen[row.id]
                 old == null || old.content != row.content || old.attachments != row.attachments

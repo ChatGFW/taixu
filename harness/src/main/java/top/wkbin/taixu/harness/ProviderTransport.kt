@@ -11,6 +11,7 @@ import top.wkbin.taixu.harness.diagnostics.withRequestDiagnostics
 internal class ProviderTransport(
     client: OkHttpClient,
     json: Json,
+    private val budgetGuard: top.wkbin.taixu.harness.bot.TaskBudgetGuard? = null,
     private val adapters: (OkHttpClient) -> LlmApiRegistry = { LlmApiRegistry.builtIn(it, json) },
 ) {
     private val keys = ApiKeyScheduler()
@@ -34,8 +35,9 @@ internal class ProviderTransport(
         sessionKey: String? = null,
     ): ChatResult {
         val transcript = sanitizeApiTranscript(messages)
-        return request(model, sessionKey) { selected ->
-            ordinaryApis.forModel(selected).chat(selected, transcript)
+        return budgeted(sessionKey, model, httpClient) { capped, client ->
+            val apis = if (client === httpClient) ordinaryApis else adapters(client)
+            request(capped, sessionKey) { selected -> apis.forModel(selected).chat(selected, transcript) }
         }.also(::requireContent)
     }
 
@@ -58,9 +60,12 @@ internal class ProviderTransport(
             onDelta(chunk)
         }
         val transcript = sanitizeApiTranscript(messages)
-        val registry = if (onRequest == null) streamApis else adapters(streamClient.withRequestDiagnostics(onRequest))
-        val result = request(model, sessionKey) { selected ->
-            registry.forModel(selected).chatStream(selected, transcript, timedReasoning, onToolProgress, timedDelta)
+        val result = budgeted(sessionKey, model, streamClient) { capped, managed ->
+            val client = if (onRequest == null) managed else managed.withRequestDiagnostics(onRequest)
+            val registry = if (client === streamClient) streamApis else adapters(client)
+            request(capped, sessionKey) { selected ->
+                registry.forModel(selected).chatStream(selected, transcript, timedReasoning, onToolProgress, timedDelta)
+            }
         }
         requireContent(result)
         val reasoningMs = timing.finish()
@@ -70,6 +75,10 @@ internal class ProviderTransport(
     private fun requireContent(result: ChatResult) {
         if (result.isBlankResponse) throw LlmEmptyResponseException(ProviderClient.EMPTY_RESPONSE_MESSAGE)
     }
+
+    private suspend fun budgeted(session: String?, model: ModelConfig, client: OkHttpClient,
+        send: suspend (ModelConfig, OkHttpClient) -> ChatResult): ChatResult =
+        budgetGuard?.run(session, model, client, send) ?: send(model, client)
 
     private suspend fun request(
         model: ModelConfig,
