@@ -48,6 +48,17 @@ class GroupTeamImporterTest {
         groups = repository,
     )
 
+    @Test fun `template import creates an independent authored team without creating a chat`() = runBlocking {
+        val team = importer().importDefinition("sansheng", "三省六部团队")
+        assertEquals(10, team.memberIds.size)
+        assertNotNull(team.definition)
+        assertEquals(6, requireNotNull(team.definition).supervisors.size)
+        assertTrue(groups.observeGroups().first().isEmpty())
+        assertEquals(team, RoomBotMemberGroupRepository(db.botMemberGroupDao()).observeGroups().first().single())
+        groups.createReferencedGroup(GroupChat("chat", "引用团队", team.definition!!.adminBotId, createdAt = 1), team.id)
+        assertEquals(team.id, groups.getGroup("chat")!!.teamGroupId)
+    }
+
     @Test fun `one import publishes all members reporting lines and remapped rule`() = runBlocking {
         val group = importer().import("sansheng", "朝廷")
         val members = groups.getMembers(group.id)
@@ -68,11 +79,14 @@ class GroupTeamImporterTest {
         val firstTeam = groups.getTeam(first.id)
         val secondTeam = groups.getTeam(second.id)
         assertTrue(firstTeam.memberIds.intersect(secondTeam.memberIds).isEmpty())
-        groups.saveTeam(first.id, emptyMap())
+        val teamRepo = RoomBotMemberGroupRepository(db.botMemberGroupDao())
+        val authored = teamRepo.observeGroups().first().single { it.id == first.teamGroupId }
+        teamRepo.saveGroup(authored.copy(definition = requireNotNull(authored.definition).copy(supervisors = emptyMap())))
         assertEquals(secondTeam, groups.getTeam(second.id))
         assertEquals(6, GroupTeamTemplates.all.single { it.id == "sansheng" }.members.count { it.supervisorKey == "shangshu" })
         val rule = groups.getGovernance(first.id).rules.single()
-        groups.saveGovernance(first.id, GroupGovernance(listOf(rule.copy(maxRevisions = 5))))
+        val current = teamRepo.observeGroups().first().single { it.id == first.teamGroupId }
+        teamRepo.saveGroup(current.copy(definition = requireNotNull(current.definition).copy(governance = GroupGovernance(listOf(rule.copy(maxRevisions = 5))))))
         assertEquals(3, groups.getGovernance(second.id).rules.single().maxRevisions)
     }
 

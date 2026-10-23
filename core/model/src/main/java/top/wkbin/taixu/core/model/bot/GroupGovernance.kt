@@ -49,4 +49,5 @@ data class GroupProposal(
     val decision: ProposalDecision = ProposalDecision.PENDING,
     val reason: String = "",
     val decidedBy: String? = null,
+    val teamGroupId: String? = null,
 )

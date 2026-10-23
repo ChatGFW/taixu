@@ -70,6 +70,7 @@ fun GroupChatScreen(
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val members by viewModel.members.collectAsStateWithLifecycle()
     val team by viewModel.team.collectAsStateWithLifecycle()
+    val teamGroups by viewModel.teamGroups.collectAsStateWithLifecycle()
     val governance by viewModel.governance.collectAsStateWithLifecycle()
     val proposals by viewModel.proposals.collectAsStateWithLifecycle()
     val taskBudgets by viewModel.taskBudgets.collectAsStateWithLifecycle()
@@ -358,9 +359,9 @@ fun GroupChatScreen(
             )
         }
     }
-    if (showTeamTemplates) TeamTemplateDialog(state.group?.name, { showTeamTemplates = false }, viewModel::importTeam)
-    if (showGovernance) team?.let { GroupGovernanceDialog(governance, it, members, proposals, { showGovernance = false }, viewModel::saveGovernance) }
-    if (showTeam) team?.let { GroupTeamDialog(it, members, { showTeam = false }, viewModel::saveTeam) }
+    if (showTeamTemplates) TeamReferenceDialog(teamGroups, allBots, state.group?.teamGroupId, { showTeamTemplates = false }, viewModel::referenceTeam)
+    if (showGovernance) ProposalRecordsDialog(proposals, { showGovernance = false })
+    if (showTeam) team?.let { TeamGraphDialog(it, governance, members, { showTeam = false }) }
     if (showBudget) GroupBudgetDialog(state.group?.taskBudgetTokens ?: 0, taskBudgets, { showBudget = false }, viewModel::saveBudget)
     if (showMembers) {
         GroupMembersDialog(

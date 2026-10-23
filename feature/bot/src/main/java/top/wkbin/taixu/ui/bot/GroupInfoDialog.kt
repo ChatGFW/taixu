@@ -114,13 +114,13 @@ internal fun GroupInfoDialog(
                     }
                 }
                 HorizontalDivider(Modifier.padding(vertical = 4.dp))
-                RuntimeTextButton(onClick = onManageMembers, enabled = !deleting) {
+                RuntimeTextButton(onClick = onManageMembers, enabled = !deleting && group.teamGroupId == null) {
                     Text(stringResource(R.string.fbot_manage_members))
                 }
-                RuntimeTextButton(onClick = onImportTeam, enabled = !deleting) { Text(stringResource(R.string.fbot_team_import)) }
-                RuntimeTextButton(onClick = onManageGovernance, enabled = !deleting) { Text(stringResource(R.string.fbot_governance_title)) }
+                RuntimeTextButton(onClick = onImportTeam, enabled = !deleting) { Text("引用团队组") }
+                RuntimeTextButton(onClick = onManageGovernance, enabled = !deleting) { Text("本群审议记录") }
                 RuntimeTextButton(onClick = onManageTeam, enabled = !deleting) {
-                    Text(stringResource(R.string.fbot_team_title))
+                    Text("查看团队架构")
                 }
                 RuntimeTextButton(onClick = onManageBudget, enabled = !deleting) {
                     Text(stringResource(R.string.fbot_budget_title))

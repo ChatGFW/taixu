@@ -1,5 +1,7 @@
 package top.wkbin.taixu.core.database.repository
 
+import kotlinx.serialization.json.Json
+import top.wkbin.taixu.core.model.bot.BotTeamDefinition
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import top.wkbin.taixu.core.database.BotMemberGroupDao
@@ -24,6 +26,7 @@ class RoomBotMemberGroupRepository(
                     id = group.id,
                     name = group.name,
                     createdAt = group.createdAt,
+                    definition = group.definitionJson?.let { Json.decodeFromString<BotTeamDefinition>(it) },
                     memberIds = byGroup[group.id].orEmpty()
                         .sortedBy { it.displayOrder }
                         .map { it.botId },
@@ -34,7 +37,7 @@ class RoomBotMemberGroupRepository(
     override suspend fun saveGroup(group: BotMemberGroup) {
         val now = System.currentTimeMillis()
         dao.saveWithMembers(
-            group = BotMemberGroupEntity(group.id, group.name, group.createdAt),
+            group = BotMemberGroupEntity(group.id, group.name, group.createdAt, group.definition?.let { Json.encodeToString(it) }),
             members = group.memberIds.mapIndexed { index, botId ->
                 BotMemberGroupMemberEntity(group.id, botId, index, now)
             },

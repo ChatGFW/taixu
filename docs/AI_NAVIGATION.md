@@ -27,7 +27,7 @@
 | **内置浏览器设计决策（含 Hook/CDP 引擎）** | [`docs/BROWSER_DESIGN.md`](BROWSER_DESIGN.md) | 模块拓扑、工具协议、风险矩阵、Hook 引擎与 CDP 调试 ADR |
 | **沙箱执行后端选型（为何不用 chroot）** | [`docs/ADR_SANDBOX_BACKEND.md`](ADR_SANDBOX_BACKEND.md) | PRoot vs chroot/namespace 决策、Android SELinux/seccomp/namespace 约束 |
 | **工作流定义、调度语义与安全边界** | [`docs/WORKFLOW.md`](WORKFLOW.md) | DAG 模型、并发调度、审批、执行器、入口与当前能力边界 |
-| **团队模板与审议制衡** | [`docs/GROUP_TEAM_GOVERNANCE.md`](GROUP_TEAM_GOVERNANCE.md) | 整队导入、组织与审核分离、版本门禁、驳回与主控裁决 |
+| **团队模板与审议制衡** | [`docs/GROUP_TEAM_GOVERNANCE.md`](GROUP_TEAM_GOVERNANCE.md) | 独立团队创作、群聊引用、连线架构图、版本门禁、驳回与主控裁决 |
 | **Bot 群聊与可靠分发** | [`docs/BOT_COLLABORATION.md`](BOT_COLLABORATION.md) | 持久收件、独立任务续办、回复前复核、记忆编辑与可追溯恢复 |
 | **已知问题与避坑指南** | [`docs/KNOWN_ISSUES.md`](KNOWN_ISSUES.md) | PRoot 沙箱环境已知限制、架构设计历史考量与规避方案 |
 | **安全边界与凭证暴露面** | [`docs/SECURITY_SURFACE.md`](SECURITY_SURFACE.md) | 权限域总览、密钥流与脱敏边界、PRoot 挂载清单、HostBridge 信任模型与风险登记 |

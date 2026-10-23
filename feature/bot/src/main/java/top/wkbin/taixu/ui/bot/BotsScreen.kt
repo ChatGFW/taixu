@@ -54,6 +54,7 @@ fun BotsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var showCreateBot by rememberSaveable { mutableStateOf(false) }
+    var selectedTemplateId by rememberSaveable { mutableStateOf<String?>(null) }
     var showTeamTemplates by rememberSaveable { mutableStateOf(false) }
     var showCreateGroup by rememberSaveable { mutableStateOf(false) }
     var showManageGroups by rememberSaveable { mutableStateOf(false) }
@@ -125,7 +126,7 @@ fun BotsScreen(
                     )
                 }
             }
-            if (tab == TAB_GROUPS) RuntimeTextButton(onClick = { showTeamTemplates = true }, enabled = !uiState.busy) {
+            if (tab == TAB_GROUPS) RuntimeTextButton(onClick = { selectedTemplateId = null; showTeamTemplates = true }, enabled = !uiState.busy) {
                 Text(stringResource(R.string.fbot_team_import))
             }
             when (tab) {
@@ -149,6 +150,7 @@ fun BotsScreen(
                     installedNames = bots.map { it.name }.toSet(),
                     installingId = uiState.installingId,
                     onInstall = viewModel::installMarketBot,
+                    onImportTeam = { selectedTemplateId = it; showTeamTemplates = true },
                 )
             }
         }
@@ -165,9 +167,11 @@ fun BotsScreen(
             },
         )
     }
-    if (showTeamTemplates) TeamTemplateDialog(onDismiss = { showTeamTemplates = false }) { id, name ->
+    if (showTeamTemplates) TeamTemplateDialog(onDismiss = { showTeamTemplates = false }, initialTemplateId = selectedTemplateId) { id, name ->
         val created = viewModel.importTeam(id, name)
-        onOpenGroup(created)
+        selectedMemberGroupId = created
+        tab = TAB_BOTS
+        showManageGroups = true
     }
     if (showCreateGroup) {
         CreateGroupDialog(
@@ -175,8 +179,8 @@ fun BotsScreen(
             memberGroups = memberGroups,
             busy = uiState.busy,
             onDismiss = { showCreateGroup = false },
-            onCreate = { name, description, adminBotId, memberIds ->
-                viewModel.createGroup(name, description, adminBotId, memberIds)
+            onCreate = { name, description, adminBotId, memberIds, teamId ->
+                viewModel.createGroup(name, description, adminBotId, memberIds, teamId)
                 showCreateGroup = false
             },
         )
@@ -186,7 +190,8 @@ fun BotsScreen(
             groups = memberGroups,
             bots = bots,
             onDismiss = { showManageGroups = false },
-            onSave = viewModel::saveMemberGroup,
+            onSave = viewModel::saveTeamGroup,
+            initialGroupId = selectedMemberGroupId,
             onDelete = viewModel::deleteMemberGroup,
         )
     }

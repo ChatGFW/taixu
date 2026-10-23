@@ -21,9 +21,8 @@ interface GroupGovernanceRepository {
 
 class RoomGroupGovernanceRepository(private val dao: GroupGovernanceDao) : GroupGovernanceRepository {
     override suspend fun getGovernance(groupId: String) = dao.governance(groupId)
-    override fun observeGovernance(groupId: String) = dao.observeGovernanceRow(groupId).map {
-        it?.let { Json.decodeFromString<GroupGovernance>(it.payload) } ?: GroupGovernance()
-    }
+    override fun observeGovernance(groupId: String) = kotlinx.coroutines.flow.combine(
+        dao.observeGovernanceRow(groupId), dao.observeLinkedDefinition(groupId)) { _, _ -> dao.governance(groupId) }
     override suspend fun saveGovernance(groupId: String, policy: GroupGovernance) = dao.saveGovernance(groupId, policy)
     override fun observeProposals(groupId: String) = dao.observeProposalRows(groupId).map { rows ->
         rows.map { Json.decodeFromString<GroupProposal>(it.payload) }

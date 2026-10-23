@@ -77,8 +77,7 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao, Assignme
         val group = requireNotNull(task.groupId)
         require(deliveryMember(group, task.botId)) { "执行成员已移出群聊" }
         require(task.reportToBotId != null && deliveryMember(group, task.reportToBotId)) { "请求者已移出群聊" }
-        val team = top.wkbin.taixu.core.model.bot.GroupTeam(requireNotNull(teamAdmin(group)),
-            teamMembers(group).map { it.botId }.toSet(), teamMembers(group).mapNotNull { row -> row.supervisorBotId?.let { row.botId to it } }.toMap())
+        val team = effectiveTeam(group)
         require(team.canAssign(task.reportToBotId, task.botId) || governance(group).canRoute(task.reportToBotId, task.botId)) { "只能向本群直属下级派发新任务" }
         task.parentAssignmentId?.let { id ->
             val parent = requireNotNull(findById(id)) { "父任务不存在" }

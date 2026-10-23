@@ -23,7 +23,7 @@ class GroupGovernanceGuard(private val groups: GroupChatRepository, private val 
         val policy = groups.getGovernance(groupId)
         if (policy.rules.isEmpty()) return null
         val team = groups.getTeam(groupId)
-        if (runCatching { policy.validate(team) }.isFailure) return "审议成员或组织已变化，请在群信息中修正规则"
+        if (runCatching { policy.validate(team) }.isFailure) return "审议成员或组织已变化，请在团队组中修正规则"
         val botId = task?.botId ?: bots.getBotBySessionId(sessionId)?.id
         if (botId !in team.memberIds) return "执行成员已移出群聊"
         if (call.tool in READ_ONLY) return null
@@ -36,7 +36,7 @@ class GroupGovernanceGuard(private val groups: GroupChatRepository, private val 
         if (task != null && task.status.name == "RUNNING") {
             val proposal = task.proposalId?.let { groups.getProposal(it) }
             if (proposal != null && proposal.groupId == groupId && proposal.version == task.proposalVersion &&
-                proposal.rule in policy.rules && proposal.decision == ProposalDecision.APPROVED &&
+                proposal.teamGroupId == groups.getGroup(groupId)?.teamGroupId && proposal.rule in policy.rules && proposal.decision == ProposalDecision.APPROVED &&
                 policy.executionRules(team, task.botId).singleOrNull() == proposal.rule) return null
         }
         return "团队审议门禁：仅已批准准确方案版本的执行任务可调用此工具；请先完成起草、审核并以proposal_id派发执行。"

@@ -8,9 +8,27 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 import top.wkbin.taixu.core.model.bot.GroupTeam
 
-/** Kept in the membership table so removal and group deletion cannot leave detached organizations. */
+/** Reads the referenced team definition; old unlinked rooms retain their compatibility path. */
 @Dao
 interface GroupTeamDao {
+    @Query("SELECT teamGroupId FROM group_chats WHERE id = :groupId")
+    suspend fun linkedTeamId(groupId: String): String?
+
+    @Query("SELECT t.definitionJson FROM bot_member_groups t JOIN group_chats g ON g.teamGroupId = t.id WHERE g.id = :groupId")
+    suspend fun linkedDefinition(groupId: String): String?
+
+    @Query("SELECT t.definitionJson FROM group_chats g LEFT JOIN bot_member_groups t ON g.teamGroupId = t.id WHERE g.id = :groupId")
+    fun observeLinkedDefinition(groupId: String): Flow<String?>
+
+    suspend fun effectiveTeam(groupId: String): GroupTeam {
+        val rows = teamMembers(groupId)
+        if (linkedTeamId(groupId) != null) {
+            val definition = kotlinx.serialization.json.Json.decodeFromString<top.wkbin.taixu.core.model.bot.BotTeamDefinition>(requireNotNull(linkedDefinition(groupId)) { "团队组定义缺失" })
+            return definition.team(rows.map { it.botId })
+        }
+        return GroupTeam(requireNotNull(teamAdmin(groupId)), rows.map { it.botId }.toSet(), rows.mapNotNull { row -> row.supervisorBotId?.let { row.botId to it } }.toMap())
+    }
+
     @Query("SELECT * FROM group_members WHERE groupId = :groupId ORDER BY displayOrder")
     fun observeTeamMembers(groupId: String): Flow<List<GroupMemberEntity>>
 
@@ -28,6 +46,7 @@ interface GroupTeamDao {
 
     @Transaction
     suspend fun saveTeam(groupId: String, supervisors: Map<String, String>) {
+        require(linkedTeamId(groupId) == null) { "上下级关系请在团队组中修改" }
         val admin = requireNotNull(teamAdmin(groupId)) { "群聊不存在" }
         val rows = teamMembers(groupId)
         GroupTeam(admin, rows.map { it.botId }.toSet(), supervisors).validate()

@@ -1,0 +1,27 @@
+package top.wkbin.taixu.core.database
+
+import androidx.room.*
+
+@Entity(
+    tableName = "group_chats",
+    foreignKeys = [
+        ForeignKey(
+            entity = BotEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["adminBotId"],
+            onDelete = ForeignKey.RESTRICT,
+        ),
+    ],
+    indices = [Index(value = ["adminBotId"])],
+)
+data class GroupChatEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val adminBotId: String,
+    val description: String,
+    val createdAt: Long,
+    val background: String = "default",
+    @ColumnInfo(defaultValue = "'ADMIN_FIRST'") val replyMode: String = "ADMIN_FIRST",
+    @ColumnInfo(defaultValue = "0") val taskBudgetTokens: Long = 0,
+    @ColumnInfo(defaultValue = "NULL") val teamGroupId: String? = null,
+)

@@ -88,7 +88,7 @@ internal fun GroupGovernanceDialog(policy: GroupGovernance, team: GroupTeam, mem
     }
 }
 
-private val ReviewRulesSaver = listSaver<List<GroupReviewRule>, String>(
+internal val ReviewRulesSaver = listSaver<List<GroupReviewRule>, String>(
     save = { rules -> rules.flatMap { listOf(it.id, it.name, it.authorId, it.reviewerId, it.executorId, it.maxRevisions.toString()) } },
     restore = { rows -> rows.chunked(6).map { GroupReviewRule(it[0], it[1], it[2], it[3], it[4], it[5].toInt()) } },
 )

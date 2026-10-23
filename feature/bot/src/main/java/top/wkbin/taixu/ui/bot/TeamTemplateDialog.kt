@@ -10,15 +10,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import top.wkbin.taixu.core.model.bot.*
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.harness.bot.market.GroupTeamTemplates
 import top.wkbin.taixu.ui.components.*
 
 @Composable
-internal fun TeamTemplateDialog(existingGroupName: String? = null, onDismiss: () -> Unit,
-    onImport: suspend (String, String) -> Unit) {
-    var selected by rememberSaveable { mutableStateOf(GroupTeamTemplates.all.first().id) }
-    var name by rememberSaveable { mutableStateOf(existingGroupName ?: GroupTeamTemplates.all.first().name) }
+internal fun TeamTemplateDialog(onDismiss: () -> Unit,
+    initialTemplateId: String? = null, onImport: suspend (String, String) -> Unit) {
+    val initial = GroupTeamTemplates.all.firstOrNull { it.id == initialTemplateId } ?: GroupTeamTemplates.all.first()
+    var selected by rememberSaveable { mutableStateOf(initial.id) }
+    var name by rememberSaveable { mutableStateOf(initial.name) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -28,10 +30,10 @@ internal fun TeamTemplateDialog(existingGroupName: String? = null, onDismiss: ()
         title = { Text(stringResource(R.string.fbot_team_import)) },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(if (existingGroupName == null) R.string.fbot_template_hint else R.string.fbot_template_existing_hint))
+                Text(stringResource(R.string.fbot_template_hint))
                 GroupTeamTemplates.all.forEach { candidate ->
                     RuntimeCard(modifier = Modifier.fillMaxWidth(), onClick = {
-                        if (!saving) { selected = candidate.id; if (existingGroupName == null) name = candidate.name }
+                        if (!saving) { selected = candidate.id; name = candidate.name }
                     }) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text((if (selected == candidate.id) "✓ " else "") + candidate.name, style = MaterialTheme.typography.titleSmall)
@@ -39,18 +41,16 @@ internal fun TeamTemplateDialog(existingGroupName: String? = null, onDismiss: ()
                         }
                     }
                 }
-                if (existingGroupName == null) RuntimeFilledTextField(value = name, onValueChange = { name = it.take(40) },
-                    label = { Text(stringResource(R.string.fbot_group_name)) }, modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving)
-                Text(stringResource(R.string.fbot_template_members), style = MaterialTheme.typography.titleSmall)
-                template.members.forEach { member ->
-                    Text("${templateMemberName(member.key)} → ${templateMemberName(member.supervisorKey ?: template.adminKey)}" +
-                        if (member.key == template.adminKey) " (${stringResource(R.string.fbot_team_root)})" else "",
-                        style = MaterialTheme.typography.bodySmall)
-                }
-                template.rules.forEach { rule ->
-                    Text("${templateMemberName(rule.authorId)} → ${templateMemberName(rule.reviewerId)} → ${templateMemberName(rule.executorId)}",
-                        style = MaterialTheme.typography.bodyMedium)
-                }
+                RuntimeFilledTextField(value = name, onValueChange = { name = it.take(40) },
+                    label = { Text("团队组名称") }, modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving)
+                val previewMembers = remember(template.id) { template.members.map { member ->
+                    Bot(member.key, templateMemberName(member.key), member.role ?: "团队成员", "", member.key,
+                        sessionId = "preview:${member.key}", createdAt = 0, updatedAt = 0)
+                } }
+                val previewTeam = GroupTeam(template.adminKey, template.members.map { it.key }.toSet(),
+                    template.members.mapNotNull { member -> member.supervisorKey?.let { member.key to it } }.toMap())
+                Text("模板架构预览", style = MaterialTheme.typography.titleSmall)
+                TeamArchitectureGraph(previewTeam, GroupGovernance(template.rules), previewMembers)
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },

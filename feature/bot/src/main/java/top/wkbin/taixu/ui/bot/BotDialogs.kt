@@ -123,10 +123,11 @@ fun CreateGroupDialog(
     memberGroups: List<BotMemberGroup>,
     busy: Boolean,
     onDismiss: () -> Unit,
-    onCreate: (name: String, description: String, adminBotId: String, memberIds: Set<String>) -> Unit,
+    onCreate: (name: String, description: String, adminBotId: String, memberIds: Set<String>, teamGroupId: String?) -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
+    var selectedTeamId by rememberSaveable { mutableStateOf<String?>(null) }
     var adminBotId by rememberSaveable { mutableStateOf(bots.firstOrNull()?.id.orEmpty()) }
     var selectedIds by remember {
         mutableStateOf(bots.firstOrNull()?.id?.let { setOf(it) } ?: emptySet<String>())
@@ -154,6 +155,20 @@ fun CreateGroupDialog(
                     maxLines = 4,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Text("引用团队组", style = MaterialTheme.typography.titleSmall)
+                RuntimeTextButton(onClick = { selectedTeamId = null }) { Text(if (selectedTeamId == null) "✓ 手动选人（不带入团队规则）" else "手动选人") }
+                memberGroups.filter { it.definition != null }.forEach { team ->
+                    RuntimeTextButton(onClick = {
+                        selectedTeamId = team.id
+                        adminBotId = requireNotNull(team.definition).adminBotId
+                        selectedIds = team.memberIds.toSet()
+                    }) { Text((if (selectedTeamId == team.id) "✓ " else "") + team.name) }
+                }
+                val referencedTeam = memberGroups.firstOrNull { it.id == selectedTeamId }
+                val referencedDefinition = referencedTeam?.definition
+                if (referencedTeam != null && referencedDefinition != null) {
+                    TeamArchitectureGraph(referencedDefinition.team(referencedTeam.memberIds), referencedDefinition.governance, bots)
+                } else {
                 if (bots.isEmpty()) {
                     Text(
                         stringResource(R.string.fbot_need_bots),
@@ -189,11 +204,12 @@ fun CreateGroupDialog(
                         lockedBotId = adminBotId,
                     )
                 }
+                }
             }
         },
         confirmButton = {
             RuntimeButton(
-                onClick = { onCreate(name, description, adminBotId, selectedIds + adminBotId) },
+                onClick = { onCreate(name, description, adminBotId, selectedIds + adminBotId, selectedTeamId) },
                 enabled = !busy && bots.isNotEmpty() && name.isNotBlank() && adminBotId.isNotBlank(),
             ) { Text(stringResource(R.string.fbot_create)) }
         },

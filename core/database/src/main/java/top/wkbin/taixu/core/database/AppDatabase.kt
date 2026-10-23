@@ -66,7 +66,7 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         TaskBudgetEntity::class,
         BudgetRequestEntity::class,
     ],
-    version = 77,
+    version = 78,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

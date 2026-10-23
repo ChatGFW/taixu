@@ -32,19 +32,19 @@ interface GroupGovernanceDao : GroupTeamDao {
 
     @Upsert suspend fun putProposal(row: GroupProposalEntity)
 
-    suspend fun governance(groupId: String): GroupGovernance = governanceRow(groupId)?.let {
+    suspend fun governance(groupId: String): GroupGovernance {
+        if (linkedTeamId(groupId) != null) return Json.decodeFromString<BotTeamDefinition>(requireNotNull(linkedDefinition(groupId))).governance
+        return governanceRow(groupId)?.let {
         Json.decodeFromString<GroupGovernance>(it.payload)
     } ?: GroupGovernance()
+    }
 
     suspend fun proposal(id: String): GroupProposal? = proposalRow(id)?.let { Json.decodeFromString<GroupProposal>(it.payload) }
 
-    suspend fun governanceTeam(groupId: String): GroupTeam {
-        val rows = teamMembers(groupId)
-        return GroupTeam(requireNotNull(teamAdmin(groupId)) { "群聊不存在" }, rows.map { it.botId }.toSet(),
-            rows.mapNotNull { row -> row.supervisorBotId?.let { row.botId to it } }.toMap())
-    }
+    suspend fun governanceTeam(groupId: String): GroupTeam = effectiveTeam(groupId)
 
     @Transaction suspend fun saveGovernance(groupId: String, policy: GroupGovernance) {
+        require(linkedTeamId(groupId) == null) { "审议规则请在团队组中修改" }
         policy.validate(governanceTeam(groupId))
         putGovernance(GroupGovernanceEntity(groupId, Json.encodeToString(policy)))
     }
@@ -59,10 +59,10 @@ interface GroupGovernanceDao : GroupTeamDao {
         val old = proposal(proposalId)
         require(old?.groupId == null || old.groupId == groupId) { "方案不属于本群" }
         require((old?.version ?: 0) == expectedVersion) { "方案版本已变化，请重新读取" }
-        require(old == null || old.rule == rule) { "规则已变化，请新建方案" }
+        require(old == null || old.rule == rule && old.teamGroupId == linkedTeamId(groupId)) { "规则已变化，请新建方案" }
         require(old == null || old.decision in setOf(ProposalDecision.REJECTED, ProposalDecision.APPROVED)) { "只有已驳回或已批准的方案可以修改，新版本须重新审核" }
         val next = GroupProposal(proposalId, groupId, rule, expectedVersion + 1, content,
-            if (expectedVersion >= rule.maxRevisions) ProposalDecision.ESCALATED else ProposalDecision.PENDING)
+            if (expectedVersion >= rule.maxRevisions) ProposalDecision.ESCALATED else ProposalDecision.PENDING, teamGroupId = linkedTeamId(groupId))
         require(next.version <= rule.maxRevisions + 1) { "已达修改上限，请提交主控裁决" }
         putProposal(GroupProposalEntity(next.id, next.version, groupId, Json.encodeToString(next)))
         return next
@@ -74,7 +74,7 @@ interface GroupGovernanceDao : GroupTeamDao {
         val team = governanceTeam(groupId)
         val policy = governance(groupId).also { it.validate(team) }
         require(current.groupId == groupId && current.version == version) { "方案不属于本群或版本已变化" }
-        require(current.rule in policy.rules) { "规则已变化，请重新提交方案" }
+        require(current.rule in policy.rules && current.teamGroupId == linkedTeamId(groupId)) { "规则已变化，请重新提交方案" }
         require(callerId in team.memberIds && (callerId == current.rule.reviewerId ||
             (callerId == team.adminBotId && current.decision == ProposalDecision.ESCALATED))) { "无权审核或裁决此方案" }
         require(current.decision in setOf(ProposalDecision.PENDING, ProposalDecision.ESCALATED)) { "本版已裁决，不得覆盖" }
@@ -96,7 +96,7 @@ internal suspend fun BotAssignmentDao.governanceAllows(task: BotAssignmentEntity
     val required = policy.executionRules(team, task.botId)
     if (task.proposalId == null) return required.isEmpty()
     val proposal = proposal(task.proposalId) ?: return false
-    if (proposal.groupId != group || proposal.version != task.proposalVersion || proposal.rule !in policy.rules) return false
+    if (proposal.groupId != group || proposal.version != task.proposalVersion || proposal.rule !in policy.rules || proposal.teamGroupId != linkedTeamId(group)) return false
     if (required.isNotEmpty()) return required.all { it == proposal.rule } && proposal.decision == ProposalDecision.APPROVED
     return task.botId == proposal.rule.reviewerId && proposal.decision == ProposalDecision.PENDING
 }

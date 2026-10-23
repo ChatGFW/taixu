@@ -63,7 +63,7 @@ class GroupChatViewModel(
     private val approvals: AgentApprovalRepository,
     private val sessionControl: SessionControl,
     private val budgets: top.wkbin.taixu.core.database.repository.TaskBudgetRepository? = null,
-    private val teamImporter: top.wkbin.taixu.harness.bot.market.GroupTeamImporter? = null,
+    private val memberGroups: top.wkbin.taixu.core.database.repository.BotMemberGroupRepository? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(GroupChatUiState())
     val uiState: StateFlow<GroupChatUiState> = _uiState.asStateFlow()
@@ -75,6 +75,15 @@ class GroupChatViewModel(
     val exportFile = _exportFile.asStateFlow()
 
     private val groupId = MutableStateFlow<String?>(null)
+    val teamGroups = memberGroups?.observeGroups()?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        ?: MutableStateFlow(emptyList<top.wkbin.taixu.core.model.bot.BotMemberGroup>())
+    suspend fun referenceTeam(id: String) { groupRepository.attachTeam(requireNotNull(groupId.value), id) }
+    init {
+        viewModelScope.launch {
+            groupId.filterNotNull().flatMapLatest { id -> groupRepository.observeGroups().map { rows -> rows.firstOrNull { it.id == id } } }
+                .collect { group -> _uiState.update { it.copy(group = group) } }
+        }
+    }
     val taskBudgets = groupId.filterNotNull().flatMapLatest { budgets?.observe(it) ?: flowOf(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     suspend fun saveBudget(id: String?, tokens: Long) {
@@ -88,19 +97,10 @@ class GroupChatViewModel(
     val team = groupId.filterNotNull().flatMapLatest { groupRepository.observeTeam(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    suspend fun saveTeam(supervisors: Map<String, String>) {
-        groupRepository.saveTeam(requireNotNull(groupId.value), supervisors)
-    }
-
     val governance = groupId.filterNotNull().flatMapLatest { groupRepository.observeGovernance(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), top.wkbin.taixu.core.model.bot.GroupGovernance())
     val proposals = groupId.filterNotNull().flatMapLatest { groupRepository.observeProposals(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    suspend fun saveGovernance(policy: top.wkbin.taixu.core.model.bot.GroupGovernance) =
-        groupRepository.saveGovernance(requireNotNull(groupId.value), policy)
-    suspend fun importTeam(templateId: String, name: String) {
-        requireNotNull(teamImporter).import(templateId, name, requireNotNull(groupId.value))
-    }
 
     val messages: StateFlow<List<GroupMessage>> = groupId.filterNotNull()
         .flatMapLatest { dispatcher.observeMessages(it) }

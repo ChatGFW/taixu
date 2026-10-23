@@ -34,11 +34,11 @@
     <string name="fbot_persona">人格设定</string>
     <string name="fbot_group_name">群聊名称</string>
     <string name="fbot_group_desc">群聊说明（可选）</string>
-    <string name="fbot_member_groups">成员分组</string>
+    <string name="fbot_member_groups">团队组</string>
     <string name="fbot_manage_member_groups">管理分组</string>
-    <string name="fbot_member_groups_hint">把 Bot 划入自定义分组，新建群聊时可以按组一键选人；一个 Bot 可以属于多个分组。</string>
-    <string name="fbot_member_group_new">新建分组</string>
-    <string name="fbot_member_group_edit">编辑分组</string>
+    <string name="fbot_member_groups_hint">在团队组中创作成员、上下级和审议规则；群聊引用整套团队，团队调整会同步到引用它的群聊。</string>
+    <string name="fbot_member_group_new">创作团队组</string>
+    <string name="fbot_member_group_edit">编辑团队组</string>
     <string name="fbot_member_group_name">分组名称</string>
     <string name="fbot_member_group_empty">还没有分组</string>
     <string name="fbot_member_group_member_count">%1$d 位成员</string>
@@ -231,7 +231,7 @@
     <string name="fbot_tool_success_count">%1$d 项成功</string>
     <string name="fbot_tool_failure_count">%1$d 项失败</string>
     <string name="fbot_team_title">团队结构</string>
-    <string name="fbot_team_hint">默认直属主控，复杂任务可按需分组，最多三层。负责人只能向直属下级派单。调整关系后，已有任务仍由原负责人验收；移出负责人后，其下属恢复直属主控。</string>
+    <string name="fbot_team_hint">在团队组中调整直属上级，最多三层；审议与制衡通过独立连线表达。保存后同步到引用此团队的群聊，已有任务仍由原负责人验收。</string>
     <string name="fbot_team_root">群主控 · 最终交付负责人</string>
     <string name="fbot_team_supervisor">直属上级：%1$s</string>
     <string name="fbot_team_select">为 %1$s 选择直属上级</string>

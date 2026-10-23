@@ -99,9 +99,9 @@ class BotListViewModel(
     }
 
     suspend fun importTeam(templateId: String, name: String): String =
-        requireNotNull(teamImporter).import(templateId, name).id
+        requireNotNull(teamImporter).importDefinition(templateId, name).id
 
-    fun createGroup(name: String, description: String, adminBotId: String, memberIds: Set<String>) {
+    fun createGroup(name: String, description: String, adminBotId: String, memberIds: Set<String>, teamGroupId: String? = null) {
         if (name.isBlank() || adminBotId.isBlank()) {
             emit("请填写群聊名称并选择管理员")
             return
@@ -111,20 +111,26 @@ class BotListViewModel(
             val ordered = listOf(adminBotId) + allBots.map { it.id }
                 .filter { it != adminBotId && it in memberIds }
             val groupId = UUID.randomUUID().toString()
-            groupRepository.saveGroup(
-                GroupChat(
+            val group = GroupChat(
                     id = groupId,
                     name = name.trim().take(40),
                     adminBotId = adminBotId,
                     description = description.trim().take(200),
                     createdAt = System.currentTimeMillis(),
-                ),
-            )
-            ordered.forEachIndexed { index, botId ->
-                groupRepository.addMember(groupId, botId, index)
+                )
+            if (teamGroupId != null) groupRepository.createReferencedGroup(group, teamGroupId)
+            else {
+                groupRepository.saveGroup(group)
+                ordered.forEachIndexed { index, botId -> groupRepository.addMember(groupId, botId, index) }
             }
             "已创建群聊「${name.trim()}」"
         }
+    }
+
+    suspend fun saveTeamGroup(group: BotMemberGroup) {
+        require(group.name.isNotBlank()) { "请填写团队名称" }
+        requireNotNull(group.definition).validate(group.memberIds)
+        memberGroupRepository.saveGroup(group.copy(name = group.name.trim().take(40)))
     }
 
     fun saveMemberGroup(group: BotMemberGroup) {

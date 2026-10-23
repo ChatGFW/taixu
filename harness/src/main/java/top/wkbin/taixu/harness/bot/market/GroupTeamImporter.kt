@@ -15,15 +15,30 @@ class GroupTeamImporter internal constructor(
     private val groups: GroupChatRepository,
 ) {
     constructor(market: BotMarketRepository, orchestrator: BotOrchestrator, groups: GroupChatRepository) : this(
-        { market.catalog() },
+        { market.catalog(includeTemplateMembers = true) },
         { item, name, role, persona -> orchestrator.createBot(name, role, persona, colorHex = item.colorHex, avatarSeed = item.avatarSeed) },
         { orchestrator.deleteBot(it) }, groups,
     )
-    suspend fun import(templateId: String, name: String, existingGroupId: String? = null): GroupChat {
+    suspend fun importDefinition(templateId: String, name: String): BotMemberGroup = prepare(templateId, name, null) { team, _ ->
+        groups.saveIndependentTeam(team)
+        team
+    }
+
+    suspend fun import(templateId: String, name: String, existingGroupId: String? = null): GroupChat =
+        prepare(templateId, name, existingGroupId) { team, existing ->
+            val definition = requireNotNull(team.definition)
+            val group = existing ?: GroupChat(UUID.randomUUID().toString(), name.trim().take(40), definition.adminBotId,
+                description = GroupTeamTemplates.all.single { it.id == templateId }.description, createdAt = team.createdAt)
+            groups.installTeamTemplate(group, team.memberIds.filter { it != existing?.adminBotId }, definition.supervisors,
+                definition.governance, existing == null)
+            requireNotNull(groups.getGroup(group.id))
+        }
+
+    private suspend fun <T> prepare(templateId: String, name: String, existingGroupId: String?,
+        publish: suspend (BotMemberGroup, GroupChat?) -> T): T {
         val template = GroupTeamTemplates.all.single { it.id == templateId }.also { it.validate() }
-        require(name.isNotBlank()) { "请填写群聊名称" }
+        require(name.isNotBlank()) { "请填写团队名称" }
         val existing = existingGroupId?.let { requireNotNull(groups.getGroup(it)) { "群聊已删除" } }
-        val groupId = existing?.id ?: UUID.randomUUID().toString()
         val created = mutableListOf<Bot>()
         val ids = mutableMapOf<String, String>()
         var published = false
@@ -43,18 +58,18 @@ class GroupTeamImporter internal constructor(
                 created += bot
                 ids[seat.key] = bot.id
             }
-            val group = existing ?: GroupChat(groupId, name.trim().take(40), ids.getValue(template.adminKey),
-                description = template.description, createdAt = System.currentTimeMillis())
             val supervisors = template.members.mapNotNull { seat -> seat.supervisorKey?.let {
                 ids.getValue(seat.key) to ids.getValue(it)
             } }.toMap()
             val rules = template.rules.map { it.copy(id = UUID.randomUUID().toString(), authorId = ids.getValue(it.authorId),
                 reviewerId = ids.getValue(it.reviewerId), executorId = ids.getValue(it.executorId)) }
-            withContext(NonCancellable) {
-                groups.installTeamTemplate(group, created.map { it.id }, supervisors, GroupGovernance(rules), existing == null)
+            val team = BotMemberGroup(UUID.randomUUID().toString(), name.trim().take(40), System.currentTimeMillis(),
+                ids.values.toList(), BotTeamDefinition(ids.getValue(template.adminKey), supervisors, GroupGovernance(rules)))
+            return withContext(NonCancellable) {
+                val result = publish(team, existing)
                 published = true
+                result
             }
-            return group
         } catch (failure: Throwable) {
             if (!published) withContext(NonCancellable) {
                 created.asReversed().forEach { bot ->
