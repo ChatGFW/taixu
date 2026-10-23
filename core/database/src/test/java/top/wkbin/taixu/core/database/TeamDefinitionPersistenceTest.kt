@@ -34,7 +34,7 @@ class TeamDefinitionPersistenceTest {
     @Test fun `team exists without a chat and two chats share one authored definition`() = runBlocking {
         seed()
         assertTrue(chats.observeGroups().first().isEmpty())
-        assertEquals(team, teams.observeGroups().first().single())
+        assertEquals(team.definition, teams.observeGroups().first().single().publishedSnapshot!!.definition)
         room(); room("other")
         assertEquals("team", chats.getGroup("g")!!.teamGroupId)
         assertEquals(definition.team(team.memberIds), chats.getTeam("g"))
@@ -44,11 +44,16 @@ class TeamDefinitionPersistenceTest {
         assertNull(db.groupChatDao().governanceRow("g"))
     }
 
-    @Test fun `editing team updates member projection management and review rules in every linked chat`() = runBlocking {
+    @Test fun `draft changes leave rooms pinned until the selected room upgrades`() = runBlocking {
         seed(); room(); room("other")
         val next = definition.copy(supervisors = mapOf("worker" to "chief"), governance = GroupGovernance(listOf(rule.copy(maxRevisions = 5))))
-        teams.saveGroup(team.copy(memberIds = members, definition = next))
-        listOf("g", "other").forEach { id ->
+        teams.saveGroup(teams.observeGroups().first().single().copy(memberIds = members, definition = next))
+        assertEquals(definition.governance, chats.getGovernance("g"))
+        val draft = teams.observeGroups().first().single()
+        teams.publish(draft.id, draft.draftRevision, setOf("g"))
+        assertEquals(1, chats.getGroup("other")!!.teamVersion)
+        assertEquals(definition.governance, chats.getGovernance("other"))
+        listOf("g").forEach { id ->
             assertEquals(members.toSet(), chats.getTeam(id).memberIds)
             assertEquals("chief", chats.getTeam(id).supervisorOf("worker"))
             assertEquals(5, chats.getGovernance(id).rules.single().maxRevisions)
@@ -73,7 +78,7 @@ class TeamDefinitionPersistenceTest {
     @Test fun `invalid team edit rolls back definition and all linked room projections`() = runBlocking {
         seed(); room(); room("other")
         assertTrue(runCatching { teams.saveGroup(team.copy(memberIds = team.memberIds - "reviewer")) }.isFailure)
-        assertEquals(team, teams.observeGroups().first().single())
+        assertEquals(team.definition, teams.observeGroups().first().single().publishedSnapshot!!.definition)
         assertEquals(team.memberIds.toSet(), chats.getTeam("g").memberIds)
         assertEquals(team.memberIds.toSet(), chats.getTeam("other").memberIds)
     }
@@ -82,7 +87,7 @@ class TeamDefinitionPersistenceTest {
         seed(); room(); room("other")
         assertTrue(runCatching { teams.deleteGroup("team") }.isFailure)
         chats.deleteGroup("g")
-        assertEquals(team, teams.observeGroups().first().single())
+        assertEquals(team.definition, teams.observeGroups().first().single().publishedSnapshot!!.definition)
         chats.deleteGroup("other")
         teams.deleteGroup("team")
         assertTrue(teams.observeGroups().first().isEmpty())
@@ -97,6 +102,7 @@ class TeamDefinitionPersistenceTest {
         assertTrue(chats.observeProposals("other").first().isEmpty())
         assertTrue(runCatching { chats.decideProposal("other", "reviewer", "p", 1, ProposalDecision.APPROVED, "wrong room") }.isFailure)
         teams.saveGroup(team.copy(id = "copy", name = "copied team"))
+        teams.publish("copy", 1, emptySet())
         chats.attachTeam("g", "copy")
         val task = BotAssignment("task", "g", "executor", "executor", "work", "work", BotAssignmentStatus.QUEUED,
             createdAt = 1, startedAt = 1, reportToBotId = "author", independent = true, sessionId = "s", proposalId = "p", proposalVersion = 1)

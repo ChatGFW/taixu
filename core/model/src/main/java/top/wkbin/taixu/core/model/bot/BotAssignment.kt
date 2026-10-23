@@ -40,4 +40,5 @@ data class BotAssignment(
     val budgetId: String? = null,
     val proposalId: String? = null,
     val proposalVersion: Int? = null,
+    val teamBinding: String? = null,
 )

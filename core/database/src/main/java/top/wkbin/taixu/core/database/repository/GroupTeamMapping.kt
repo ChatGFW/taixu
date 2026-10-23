@@ -18,7 +18,7 @@ internal fun GroupChatEntity.toModel() = GroupChat(
     adminBotId = adminBotId,
     description = description,
     createdAt = createdAt,
-    background = background, taskBudgetTokens = taskBudgetTokens, teamGroupId = teamGroupId,
+    background = background, taskBudgetTokens = taskBudgetTokens, teamGroupId = teamGroupId, teamVersion = teamVersion,
     replyMode = runCatching { GroupReplyMode.valueOf(replyMode) }.getOrDefault(GroupReplyMode.ADMIN_FIRST),
 )
 
@@ -28,6 +28,6 @@ internal fun GroupChat.toEntity() = GroupChatEntity(
     adminBotId = adminBotId,
     description = description,
     createdAt = createdAt,
-    background = background, taskBudgetTokens = taskBudgetTokens, teamGroupId = teamGroupId,
+    background = background, taskBudgetTokens = taskBudgetTokens, teamGroupId = teamGroupId, teamVersion = teamVersion,
     replyMode = replyMode.name,
 )

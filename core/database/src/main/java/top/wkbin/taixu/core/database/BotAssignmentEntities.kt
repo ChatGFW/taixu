@@ -56,6 +56,7 @@ data class BotAssignmentEntity(
     @ColumnInfo(defaultValue = "NULL") val budgetId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val proposalId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val proposalVersion: Int? = null,
+    @ColumnInfo(defaultValue = "NULL") val teamBinding: String? = null,
 )
 
 @Dao
@@ -84,7 +85,7 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao, Assignme
             require(parent.status == "RUNNING" && parent.botId == task.reportToBotId && parent.groupId == group) { "父任务已停止或不属于当前负责人" }
         }
         require(hasOpenTaskAncestry(task)) { "原上级任务已取消或归属无法核对，不能继续派发" }
-        require(hasCompletedDependencies(task)) { DEPENDENCY_BLOCK_REASON }
+        require(hasCompletedDependencies(task.copy(teamBinding = linkedBinding(group)))) { DEPENDENCY_BLOCK_REASON }
         if (batch == null) {
             require(task.batchId == null) { "批次实体缺失" }
         } else {
@@ -107,7 +108,7 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao, Assignme
         val state = requireNotNull(budgetState(owner.id))
         if (state.limitTokens > 0 && state.availableTokens == 0L) throw top.wkbin.taixu.core.model.bot.TaskBudgetExceededException("任务树预算不足，不能继续分派；请由用户调整原预算。")
         insertIndependentSession(session)
-        insertIndependentAssignment(task.copy(budgetId = owner.id))
+        insertIndependentAssignment(task.copy(budgetId = owner.id, teamBinding = linkedBinding(group)))
         insertAssignmentRequest(request)
     }
 
@@ -115,6 +116,7 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao, Assignme
     suspend fun enqueueRequest(request: BotAssignmentRequestEntity) {
         val task = requireNotNull(findById(request.assignmentId)) { "任务不存在" }
         require(task.independent) { "旧版任务没有独立会话，请重新派发" }
+        require(task.teamBinding == task.groupId?.let { linkedBinding(it) }) { "团队版本已变化，请在新版下创建新任务" }
         require(deliveryMember(requireNotNull(task.groupId), task.botId)) { "执行成员已移出群聊" }
         val existing = findAssignmentRequest(request.id)
         if (existing != null) {

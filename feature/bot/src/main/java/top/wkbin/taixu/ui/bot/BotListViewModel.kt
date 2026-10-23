@@ -127,6 +127,11 @@ class BotListViewModel(
         }
     }
 
+    suspend fun teamImpact(id: String) = memberGroupRepository.publicationImpact(id)
+    suspend fun teamVersions(id: String) = memberGroupRepository.observeVersions(id).first()
+    suspend fun publishTeam(id: String, revision: Int, selected: Set<String>) = memberGroupRepository.publish(id, revision, selected)
+    suspend fun upgradeTeams(id: String, version: Int, selected: Set<String>) = memberGroupRepository.upgrade(id, version, selected)
+
     suspend fun saveTeamGroup(group: BotMemberGroup) {
         require(group.name.isNotBlank()) { "请填写团队名称" }
         requireNotNull(group.definition).validate(group.memberIds)

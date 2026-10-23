@@ -12,7 +12,7 @@ interface GroupTemplateDao : GroupGovernanceDao, TeamDefinitionDao {
 
     @Transaction suspend fun saveChatConfiguration(group: GroupChatEntity) {
         val current = templateGroup(group.id)
-        if (current?.teamGroupId != null) publishTemplateGroup(group.copy(adminBotId = current.adminBotId, teamGroupId = current.teamGroupId))
+        if (current?.teamGroupId != null) publishTemplateGroup(group.copy(adminBotId = current.adminBotId, teamGroupId = current.teamGroupId, teamVersion = current.teamVersion))
         else {
             require(group.teamGroupId == null) { "请使用团队组引用入口建群" }
             publishTemplateGroup(group)
@@ -21,7 +21,7 @@ interface GroupTemplateDao : GroupGovernanceDao, TeamDefinitionDao {
 
     @Transaction suspend fun createReferencedGroup(group: GroupChatEntity, teamId: String) {
         require(templateGroup(group.id) == null) { "群聊已存在" }
-        publishTemplateGroup(group.copy(teamGroupId = null))
+        publishTemplateGroup(group.copy(teamGroupId = null, teamVersion = null))
         syncDefinitionToChat(group.id, teamId)
     }
 
@@ -39,9 +39,10 @@ interface GroupTemplateDao : GroupGovernanceDao, TeamDefinitionDao {
         val teamId = linkedTeamId(group.id) ?: java.util.UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         saveDefinition(BotMemberGroupEntity(teamId, definitionGroup(teamId)?.name ?: group.name, now,
-            kotlinx.serialization.json.Json.encodeToString(definition)), teamMembers(group.id).map {
+            kotlinx.serialization.json.Json.encodeToString(definition), draftRevision = definitionGroup(teamId)?.draftRevision ?: 0), teamMembers(group.id).map {
                 BotMemberGroupMemberEntity(teamId, it.botId, it.displayOrder, it.joinedAt)
             })
+        publishDefinition(teamId, requireNotNull(definitionGroup(teamId)).draftRevision, emptySet())
         syncDefinitionToChat(group.id, teamId)
     }
 }

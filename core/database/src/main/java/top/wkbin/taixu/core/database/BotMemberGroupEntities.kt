@@ -19,6 +19,8 @@ data class BotMemberGroupEntity(
     val name: String,
     val createdAt: Long,
     @ColumnInfo(defaultValue = "NULL") val definitionJson: String? = null,
+    @ColumnInfo(defaultValue = "0") val publishedVersion: Int = 0,
+    @ColumnInfo(defaultValue = "0") val draftRevision: Int = 0,
 )
 
 @Entity(

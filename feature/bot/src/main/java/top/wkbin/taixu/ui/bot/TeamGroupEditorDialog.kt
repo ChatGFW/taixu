@@ -17,6 +17,7 @@ import top.wkbin.taixu.ui.components.*
 @Composable
 internal fun TeamGroupEditorDialog(group: BotMemberGroup, bots: List<Bot>, onDismiss: () -> Unit,
     onSave: suspend (BotMemberGroup) -> Unit) {
+    val baseRevision = rememberSaveable(group.id) { group.draftRevision }
     var name by rememberSaveable(group.id) { mutableStateOf(group.name) }
     var selected by rememberSaveable(group.id, stateSaver = listSaver<Set<String>, String>(save = { it.toList() }, restore = { it.toSet() })) {
         mutableStateOf(group.memberIds.toSet())
@@ -37,7 +38,7 @@ internal fun TeamGroupEditorDialog(group: BotMemberGroup, bots: List<Bot>, onDis
     RuntimeAlertDialog(onDismissRequest = { if (!saving) onDismiss() }, title = { Text("创作团队组") }, text = {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             RuntimeFilledTextField(value = name, onValueChange = { name = it.take(40) }, label = { Text("团队名称") }, enabled = !saving, modifier = Modifier.fillMaxWidth())
-            Text("成员、主控、管理关系和审议规则属于这个团队组。引用本团队的群聊会同步使用这些配置。", style = MaterialTheme.typography.bodySmall)
+            Text("修改先保存为草稿，不影响引用群。回到团队列表，通过“发布与升级”选择版本和升级范围。", style = MaterialTheme.typography.bodySmall)
             MemberSelection(bots = bots, selectedIds = selected, onSelectionChange = {
                 selected = it
                 if (root !in selected) root = bots.firstOrNull { bot -> bot.id in selected }?.id.orEmpty()
@@ -63,11 +64,11 @@ internal fun TeamGroupEditorDialog(group: BotMemberGroup, bots: List<Bot>, onDis
             scope.launch {
                 try {
                     definition.validate(selected)
-                    onSave(group.copy(name = name.trim(), memberIds = bots.filter { it.id in selected }.map { it.id }, definition = definition))
+                    onSave(group.copy(draftRevision = baseRevision, name = name.trim(), memberIds = bots.filter { it.id in selected }.map { it.id }, definition = definition))
                 } catch (failure: Exception) { error = failure.message }
                 finally { saving = false }
             }
-        }) { Text(if (saving) "保存中…" else "保存团队") }
+        }) { Text(if (saving) "保存中…" else "保存草稿") }
     }, dismissButton = { RuntimeTextButton(enabled = !saving, onClick = onDismiss) { Text("取消") } })
     if (selectingRoot) RuntimeAlertDialog(onDismissRequest = { selectingRoot = false }, title = { Text("选择团队主控") }, text = {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {

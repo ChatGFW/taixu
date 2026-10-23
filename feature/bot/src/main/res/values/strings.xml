@@ -36,7 +36,7 @@
     <string name="fbot_group_desc">群聊说明（可选）</string>
     <string name="fbot_member_groups">团队组</string>
     <string name="fbot_manage_member_groups">管理分组</string>
-    <string name="fbot_member_groups_hint">在团队组中创作成员、上下级和审议规则；群聊引用整套团队，团队调整会同步到引用它的群聊。</string>
+    <string name="fbot_member_groups_hint">在团队组中创作成员、上下级和审议规则；先保存草稿并发布版本，再选择需要升级的群聊。</string>
     <string name="fbot_member_group_new">创作团队组</string>
     <string name="fbot_member_group_edit">编辑团队组</string>
     <string name="fbot_member_group_name">分组名称</string>
@@ -231,7 +231,7 @@
     <string name="fbot_tool_success_count">%1$d 项成功</string>
     <string name="fbot_tool_failure_count">%1$d 项失败</string>
     <string name="fbot_team_title">团队结构</string>
-    <string name="fbot_team_hint">在团队组中调整直属上级，最多三层；审议与制衡通过独立连线表达。保存后同步到引用此团队的群聊，已有任务仍由原负责人验收。</string>
+    <string name="fbot_team_hint">在团队组中调整直属上级，最多三层；审议与制衡通过独立连线表达。先保存草稿，再发布并选择升级范围；有未结束工作的群保留原版本。</string>
     <string name="fbot_team_root">群主控 · 最终交付负责人</string>
     <string name="fbot_team_supervisor">直属上级：%1$s</string>
     <string name="fbot_team_select">为 %1$s 选择直属上级</string>

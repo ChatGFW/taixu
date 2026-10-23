@@ -42,7 +42,12 @@ internal fun MemberGroupsDialog(
     onSave: suspend (BotMemberGroup) -> Unit,
     onDelete: (BotMemberGroup) -> Unit,
     initialGroupId: String? = null,
+    loadImpact: suspend (String) -> List<top.wkbin.taixu.core.model.bot.TeamUpgradeImpact> = { emptyList() },
+    loadVersions: suspend (String) -> List<top.wkbin.taixu.core.model.bot.TeamPublishedVersion> = { emptyList() },
+    onPublish: suspend (String, Int, Set<String>) -> Int = { _, _, _ -> error("发布不可用") },
+    onUpgrade: suspend (String, Int, Set<String>) -> Unit = { _, _, _ -> error("升级不可用") },
 ) {
+    var publicationId by rememberSaveable { mutableStateOf<String?>(null) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var creatingId by rememberSaveable { mutableStateOf<String?>(null) }
     var createdAt by rememberSaveable { mutableStateOf(0L) }
@@ -89,6 +94,9 @@ internal fun MemberGroupsDialog(
                         ) {
                             Column(Modifier.weight(1f)) {
                                 Text(group.name, style = MaterialTheme.typography.bodyMedium)
+                                RuntimeTextButton(onClick = { publicationId = group.id }) {
+                                    Text("发布与升级 · " + if (group.publishedVersion == 0) "尚未发布" else "v${group.publishedVersion}")
+                                }
                                 Text(
                                     stringResource(R.string.fbot_member_group_member_count, group.memberIds.size),
                                     style = MaterialTheme.typography.labelSmall,
@@ -132,6 +140,9 @@ internal fun MemberGroupsDialog(
                 editingId = null; creatingId = null
             },
         )
+    }
+    groups.firstOrNull { it.id == publicationId }?.let { group ->
+        TeamPublicationDialog(group, { publicationId = null }, loadImpact, loadVersions, onPublish, onUpgrade)
     }
     pendingDelete?.let { group ->
         RuntimeAlertDialog(

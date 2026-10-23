@@ -4,7 +4,7 @@ import top.wkbin.taixu.core.model.bot.GroupGovernance
 import top.wkbin.taixu.core.model.bot.GroupTeam
 
 internal data class TeamGraphNode(val id: String, val x: Float, val y: Float)
-internal enum class TeamGraphEdgeKind { MANAGEMENT, REVIEW, APPROVED_EXECUTION, REJECTION }
+internal enum class TeamGraphEdgeKind { MANAGEMENT, REVIEW, APPROVED_EXECUTION, REJECTION, ESCALATION }
 internal data class TeamGraphEdge(val from: String, val to: String, val kind: TeamGraphEdgeKind)
 internal data class TeamGraphLayout(val nodes: List<TeamGraphNode>, val edges: List<TeamGraphEdge>, val width: Float, val height: Float)
 
@@ -27,7 +27,8 @@ internal fun layoutTeamGraph(team: GroupTeam, governance: GroupGovernance): Team
     val review = governance.rules.flatMap {
         listOf(TeamGraphEdge(it.authorId, it.reviewerId, TeamGraphEdgeKind.REVIEW),
             TeamGraphEdge(it.reviewerId, it.executorId, TeamGraphEdgeKind.APPROVED_EXECUTION),
-            TeamGraphEdge(it.reviewerId, it.authorId, TeamGraphEdgeKind.REJECTION))
+            TeamGraphEdge(it.reviewerId, it.authorId, TeamGraphEdgeKind.REJECTION),
+            TeamGraphEdge(it.reviewerId, team.adminBotId, TeamGraphEdgeKind.ESCALATION))
     }.filter { it.from in team.memberIds && it.to in team.memberIds }
     return TeamGraphLayout(nodes, (management + review).distinct(), (nodes.maxOfOrNull { it.x } ?: 0f) + 192f,
         (nodes.maxOfOrNull { it.y } ?: 0f) + 140f)

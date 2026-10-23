@@ -24,4 +24,5 @@ data class GroupChatEntity(
     @ColumnInfo(defaultValue = "'ADMIN_FIRST'") val replyMode: String = "ADMIN_FIRST",
     @ColumnInfo(defaultValue = "0") val taskBudgetTokens: Long = 0,
     @ColumnInfo(defaultValue = "NULL") val teamGroupId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val teamVersion: Int? = null,
 )

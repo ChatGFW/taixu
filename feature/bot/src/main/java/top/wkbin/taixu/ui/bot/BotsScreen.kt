@@ -191,6 +191,8 @@ fun BotsScreen(
             bots = bots,
             onDismiss = { showManageGroups = false },
             onSave = viewModel::saveTeamGroup,
+            loadImpact = viewModel::teamImpact, loadVersions = viewModel::teamVersions,
+            onPublish = viewModel::publishTeam, onUpgrade = viewModel::upgradeTeams,
             initialGroupId = selectedMemberGroupId,
             onDelete = viewModel::deleteMemberGroup,
         )

@@ -46,6 +46,7 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         BackupRestoreReceipt::class,
         BotEntity::class,
         BotMemberGroupEntity::class,
+        TeamVersionEntity::class,
         BotMemberGroupMemberEntity::class,
         GroupChatEntity::class,
         GroupGovernanceEntity::class,
@@ -66,7 +67,7 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         TaskBudgetEntity::class,
         BudgetRequestEntity::class,
     ],
-    version = 78,
+    version = 79,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

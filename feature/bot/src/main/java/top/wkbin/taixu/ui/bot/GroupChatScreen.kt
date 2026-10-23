@@ -361,7 +361,7 @@ fun GroupChatScreen(
     }
     if (showTeamTemplates) TeamReferenceDialog(teamGroups, allBots, state.group?.teamGroupId, { showTeamTemplates = false }, viewModel::referenceTeam)
     if (showGovernance) ProposalRecordsDialog(proposals, { showGovernance = false })
-    if (showTeam) team?.let { TeamGraphDialog(it, governance, members, { showTeam = false }) }
+    if (showTeam) team?.let { TeamGraphDialog(it, governance, members, { showTeam = false }, workAssignments, proposals, state.group, messages) }
     if (showBudget) GroupBudgetDialog(state.group?.taskBudgetTokens ?: 0, taskBudgets, { showBudget = false }, viewModel::saveBudget)
     if (showMembers) {
         GroupMembersDialog(

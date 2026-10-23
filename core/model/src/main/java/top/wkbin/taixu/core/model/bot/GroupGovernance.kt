@@ -50,4 +50,5 @@ data class GroupProposal(
     val reason: String = "",
     val decidedBy: String? = null,
     val teamGroupId: String? = null,
+    val teamVersion: Int? = null,
 )

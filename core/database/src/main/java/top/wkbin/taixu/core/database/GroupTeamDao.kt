@@ -14,11 +14,15 @@ interface GroupTeamDao {
     @Query("SELECT teamGroupId FROM group_chats WHERE id = :groupId")
     suspend fun linkedTeamId(groupId: String): String?
 
-    @Query("SELECT t.definitionJson FROM bot_member_groups t JOIN group_chats g ON g.teamGroupId = t.id WHERE g.id = :groupId")
+    @Query("SELECT v.definitionJson FROM team_versions v JOIN group_chats g ON g.teamGroupId = v.teamId AND g.teamVersion = v.version WHERE g.id = :groupId")
     suspend fun linkedDefinition(groupId: String): String?
 
-    @Query("SELECT t.definitionJson FROM group_chats g LEFT JOIN bot_member_groups t ON g.teamGroupId = t.id WHERE g.id = :groupId")
+    @Query("SELECT v.definitionJson FROM group_chats g LEFT JOIN team_versions v ON g.teamGroupId = v.teamId AND g.teamVersion = v.version WHERE g.id = :groupId")
     fun observeLinkedDefinition(groupId: String): Flow<String?>
+
+    @Query("SELECT teamVersion FROM group_chats WHERE id = :groupId")
+    suspend fun linkedVersion(groupId: String): Int?
+    suspend fun linkedBinding(groupId: String): String? = linkedTeamId(groupId)?.let { "$it@${linkedVersion(groupId)}" }
 
     suspend fun effectiveTeam(groupId: String): GroupTeam {
         val rows = teamMembers(groupId)

@@ -78,7 +78,7 @@ internal fun BotAssignmentEntity.toModel(json: Json) = BotAssignment(
     }.getOrDefault(emptyList()),
     batchId = batchId,
     parentAssignmentId = parentAssignmentId, budgetId = budgetId,
-    proposalId = proposalId, proposalVersion = proposalVersion,
+    proposalId = proposalId, proposalVersion = proposalVersion, teamBinding = teamBinding,
 )
 
 internal fun BotAssignment.toEntity(json: Json) = BotAssignmentEntity(
@@ -102,7 +102,7 @@ internal fun BotAssignment.toEntity(json: Json) = BotAssignmentEntity(
     dependsOnJson = json.encodeToString(ListSerializer(String.serializer()), dependsOn),
     batchId = batchId,
     parentAssignmentId = parentAssignmentId, budgetId = budgetId,
-    proposalId = proposalId, proposalVersion = proposalVersion,
+    proposalId = proposalId, proposalVersion = proposalVersion, teamBinding = teamBinding,
 )
 
 internal fun BotWorkBatchEntity.toModel() = BotWorkBatch(

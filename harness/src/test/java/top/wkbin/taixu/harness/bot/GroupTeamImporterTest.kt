@@ -54,7 +54,9 @@ class GroupTeamImporterTest {
         assertNotNull(team.definition)
         assertEquals(6, requireNotNull(team.definition).supervisors.size)
         assertTrue(groups.observeGroups().first().isEmpty())
-        assertEquals(team, RoomBotMemberGroupRepository(db.botMemberGroupDao()).observeGroups().first().single())
+        val stored = RoomBotMemberGroupRepository(db.botMemberGroupDao()).observeGroups().first().single()
+        assertEquals(team.definition, stored.publishedSnapshot!!.definition)
+        assertEquals(1, stored.publishedVersion)
         groups.createReferencedGroup(GroupChat("chat", "引用团队", team.definition!!.adminBotId, createdAt = 1), team.id)
         assertEquals(team.id, groups.getGroup("chat")!!.teamGroupId)
     }

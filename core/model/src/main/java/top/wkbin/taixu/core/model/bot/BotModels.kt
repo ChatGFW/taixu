@@ -42,6 +42,7 @@ data class GroupChat(
     val replyMode: GroupReplyMode = GroupReplyMode.ADMIN_FIRST,
     val taskBudgetTokens: Long = 0,
     val teamGroupId: String? = null,
+    val teamVersion: Int? = null,
 )
 
 /** 可复用的 Bot 成员分组；建群时可按组批量选人。 */
@@ -52,6 +53,9 @@ data class BotMemberGroup(
     val createdAt: Long,
     val memberIds: List<String> = emptyList(),
     val definition: BotTeamDefinition? = null,
+    val publishedVersion: Int = 0,
+    val draftRevision: Int = 0,
+    val publishedSnapshot: TeamPublishedVersion? = null,
 )
 
 /** Bot 会话归属的群聊；用于会话抽屉按群折叠。 */

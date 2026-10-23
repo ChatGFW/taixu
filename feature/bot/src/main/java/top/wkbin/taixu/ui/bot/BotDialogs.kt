@@ -157,17 +157,18 @@ fun CreateGroupDialog(
                 )
                 Text("引用团队组", style = MaterialTheme.typography.titleSmall)
                 RuntimeTextButton(onClick = { selectedTeamId = null }) { Text(if (selectedTeamId == null) "✓ 手动选人（不带入团队规则）" else "手动选人") }
-                memberGroups.filter { it.definition != null }.forEach { team ->
+                memberGroups.filter { it.publishedSnapshot != null }.forEach { team ->
                     RuntimeTextButton(onClick = {
                         selectedTeamId = team.id
-                        adminBotId = requireNotNull(team.definition).adminBotId
-                        selectedIds = team.memberIds.toSet()
-                    }) { Text((if (selectedTeamId == team.id) "✓ " else "") + team.name) }
+                        adminBotId = requireNotNull(team.publishedSnapshot).definition.adminBotId
+                        selectedIds = requireNotNull(team.publishedSnapshot).memberIds.toSet()
+                    }) { Text((if (selectedTeamId == team.id) "✓ " else "") + "${team.name} · v${team.publishedVersion}") }
                 }
                 val referencedTeam = memberGroups.firstOrNull { it.id == selectedTeamId }
-                val referencedDefinition = referencedTeam?.definition
+                val published = referencedTeam?.publishedSnapshot
+                val referencedDefinition = published?.definition
                 if (referencedTeam != null && referencedDefinition != null) {
-                    TeamArchitectureGraph(referencedDefinition.team(referencedTeam.memberIds), referencedDefinition.governance, bots)
+                    TeamArchitectureGraph(referencedDefinition.team(requireNotNull(published).memberIds), referencedDefinition.governance, bots)
                 } else {
                 if (bots.isEmpty()) {
                     Text(

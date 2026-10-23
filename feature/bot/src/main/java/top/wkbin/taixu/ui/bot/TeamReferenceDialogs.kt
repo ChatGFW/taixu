@@ -19,19 +19,19 @@ internal fun TeamReferenceDialog(groups: List<BotMemberGroup>, members: List<Bot
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    val available = groups.filter { it.definition != null }
+    val available = groups.filter { it.publishedSnapshot != null }
     RuntimeAlertDialog(onDismissRequest = { if (!saving) onDismiss() }, title = { Text("引用团队组") }, text = {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("群聊引用团队的成员、主控与规则。引用后，成员和架构统一在团队组中维护。", style = MaterialTheme.typography.bodySmall)
-            if (available.isEmpty()) Text("请先到成员页创作团队组，或从市场导入团队模板。")
+            Text("群聊引用已发布的团队版本。草稿和新发布不会自动改变本群；有未结束任务时暂不能切换。", style = MaterialTheme.typography.bodySmall)
+            if (available.isEmpty()) Text("请先在团队组中保存并发布，或从市场导入团队模板。")
             available.forEach { group ->
                 RuntimeCard(modifier = Modifier.fillMaxWidth(), onClick = { if (!saving) selected = group.id }) {
                     Text((if (selected == group.id) "✓ " else "") + group.name, style = MaterialTheme.typography.titleSmall)
-                    Text("${group.memberIds.size} 名成员 · ${group.definition?.governance?.rules?.size ?: 0} 条审议规则")
+                    Text("v${group.publishedVersion} · ${group.publishedSnapshot?.memberIds?.size ?: 0} 名成员")
                 }
             }
             available.firstOrNull { it.id == selected }?.let { group ->
-                group.definition?.let { TeamArchitectureGraph(it.team(group.memberIds), it.governance, members) }
+                group.publishedSnapshot?.let { TeamArchitectureGraph(it.definition.team(it.memberIds), it.definition.governance, members) }
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
@@ -46,13 +46,10 @@ internal fun TeamReferenceDialog(groups: List<BotMemberGroup>, members: List<Bot
 }
 
 @Composable
-internal fun TeamGraphDialog(team: GroupTeam, governance: GroupGovernance, members: List<Bot>, onDismiss: () -> Unit) {
-    RuntimeAlertDialog(onDismissRequest = onDismiss, title = { Text("团队架构（只读）") }, text = {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("组织关系和审议规则由引用的团队组提供，请到成员页的团队组中修改。")
-            TeamArchitectureGraph(team, governance, members)
-        }
-    }, confirmButton = { RuntimeTextButton(onClick = onDismiss) { Text("关闭") } })
+internal fun TeamGraphDialog(team: GroupTeam, governance: GroupGovernance, members: List<Bot>, onDismiss: () -> Unit,
+    tasks: List<BotAssignment> = emptyList(), proposals: List<GroupProposal> = emptyList(), group: GroupChat? = null, messages: List<GroupMessage> = emptyList()) {
+    val runtime = remember(group, team, governance, tasks, proposals, messages) { group?.let { buildTeamRuntime(it, team, governance, tasks, proposals, messages) } }
+    TeamArchitecturePage(team, governance, members, onDismiss = onDismiss, runtime = runtime)
 }
 
 @Composable

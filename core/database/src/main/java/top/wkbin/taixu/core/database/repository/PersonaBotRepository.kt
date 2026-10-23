@@ -155,7 +155,7 @@ class RoomGroupChatRepository(
     override suspend fun saveIndependentTeam(team: top.wkbin.taixu.core.model.bot.BotMemberGroup) {
         val definition = requireNotNull(team.definition) { "团队组缺少组织定义" }
         definition.validate(team.memberIds)
-        dao.saveDefinition(top.wkbin.taixu.core.database.BotMemberGroupEntity(team.id, team.name, team.createdAt,
+        dao.installIndependentDefinition(top.wkbin.taixu.core.database.BotMemberGroupEntity(team.id, team.name, team.createdAt,
             json.encodeToString(definition)), team.memberIds.mapIndexed { index, id ->
                 top.wkbin.taixu.core.database.BotMemberGroupMemberEntity(team.id, id, index, System.currentTimeMillis())
             })

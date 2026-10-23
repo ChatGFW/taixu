@@ -39,7 +39,7 @@ class BotMemberGroupPersistenceTest {
         assertEquals(listOf("b", "a"), groups.listMembers("g").map { it.botId })
         assertEquals(listOf("b", "a"), repository.observeGroups().first().single().memberIds)
 
-        repository.saveGroup(BotMemberGroup("g", "开发组", 1, listOf("a", "c")))
+        repository.saveGroup(repository.observeGroups().first().single().copy(memberIds = listOf("a", "c")))
         assertEquals(listOf("a", "c"), groups.listMembers("g").map { it.botId })
         assertEquals("开发组", repository.observeGroups().first().single().name)
     }
