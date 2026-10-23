@@ -76,4 +76,4 @@
 
 未调用真实付费模型，未进行真机视觉、供应商端到端或强杀进程验收。APK位于 `app/build/outputs/apk/debug/taixu-v1.4.1-debug.apk`。
 
-后续收尾：根据 `ProotCommandBuilder` 使用宿主 `File.absolutePath` 的既有契约，将上述路由用例的两个路径断言改为宿主格式，保留默认走 PRoot、显式启用才切换容器后端的检查，不修改生产代码。Droidspaces专项13项全部通过；再次执行 `test :app:assembleDebug architectureCheck` 成功，全库3537项零失败、7项既有跳过，38模块架构检查及Debug APK构建通过。未提交Git。
+后续收尾：根据 `ProotCommandBuilder` 使用宿主 `File.absolutePath` 的既有契约，将上述路由用例的两个路径断言改为宿主格式，保留默认走 PRoot、显式启用才切换容器后端的检查，不修改生产代码。Droidspaces专项13项全部通过；再次执行 `test :app:assembleDebug architectureCheck` 成功，全库3537项零失败、7项既有跳过，38模块架构检查及Debug APK构建通过。

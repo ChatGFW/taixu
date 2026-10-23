@@ -15,6 +15,7 @@
 | **定位特定类、文件与核心组件** | [`docs/FILE_INDEX.md`](FILE_INDEX.md) | Harness、Runtime、Tools、UI 各领域关键文件路径与职责索引 |
 | **架构红线、UX/UI 设计系统与避坑铁律** | [`docs/ARCHITECTURE_RULES.md`](ARCHITECTURE_RULES.md) | Pure Kotlin 隔离、`RuntimeCard`/`RuntimeAlertDialog` 规范、IME 防遮挡 |
 | **构建、测试、打包与调试指令** | [`docs/COMMANDS.md`](COMMANDS.md) | Gradle 单元测试、APK 打包、架构合规检查、ADB 部署与日志调试 |
+| **GitFlow 分支与发布流程** | [`docs/GIT_WORKFLOW.md`](GIT_WORKFLOW.md) | main/develop、feature/release/hotfix 起点、合并方向与本地配置 |
 | **本地工具与生态插件开发** | [`docs/PLUGIN_DEVELOPMENT_GUIDELINES.md`](PLUGIN_DEVELOPMENT_GUIDELINES.md) | 插件 Manifest 结构、Recipe 安装事务与环境变量注入规范 |
 | **一切皆插件：平台方案与迁移** | [`docs/PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md) | 内核边界、插件生命周期、页面/菜单贡献、授权设计与 P1–P6 验收路线 |
 | **v2 进程插件包** | [`docs/PLUGIN_PACKAGE_V2.md`](PLUGIN_PACKAGE_V2.md) | 严格包格式、SemVer、完整性、安装收据与资源声明边界 |
