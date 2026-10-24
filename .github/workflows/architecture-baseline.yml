@@ -64,7 +64,16 @@ jobs:
             --tests 'top.wkbin.taixu.harness.compaction.CompactionStewardTest' \
             --tests 'top.wkbin.taixu.harness.groupchat.*' \
             --tests 'top.wkbin.taixu.harness.bot.GroupGovernanceGuardTest' \
-            --tests 'top.wkbin.taixu.harness.bot.GroupGovernanceRuntimeTest'
+            --tests 'top.wkbin.taixu.harness.bot.GroupGovernanceRuntimeTest' \
+            --tests 'top.wkbin.taixu.harness.session.SessionEntryPayloadTest' \
+            --tests 'top.wkbin.taixu.harness.approval.ApprovalAuditTrailTest' \
+            --tests 'top.wkbin.taixu.harness.checkpoint.TurnChangeCardsTest' \
+            --tests 'top.wkbin.taixu.harness.ExecutionEnvironmentClassifierTest'
+          # 会话条目版本化 + 审批审计是持久化契约，迁移测试必须进 CI 守门。
+          ./gradlew :core:database:testDebugUnitTest --no-daemon --console=plain \
+            --tests 'top.wkbin.taixu.core.database.ApprovalAuditMigration80To81Test' \
+            --tests 'top.wkbin.taixu.core.database.MessageFeedbackMigration81To82Test' \
+            --tests 'top.wkbin.taixu.core.database.MessageFeedbackServiceTest'
           # 能力白名单切换语义（空集合=锁死回归）必须进 CI 守门。
           ./gradlew :feature:bot:testDebugUnitTest --no-daemon --console=plain \
             --tests 'top.wkbin.taixu.ui.bot.BotCapabilitySelectionTest'
