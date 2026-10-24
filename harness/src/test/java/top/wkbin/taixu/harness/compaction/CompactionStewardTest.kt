@@ -46,6 +46,9 @@ class CompactionStewardTest {
         assertTrue(steward.parseDone("前置说明 {\"done\": true} 后置说明"))
         assertFalse(steward.parseDone("完全不是 JSON"))
         assertFalse(steward.parseDone(""))
+        // 严格布尔解析：说明性文本不算命中；字符串 "true" 按内容宽容接受
+        assertTrue(steward.parseDone("""{"done": "true"}"""))
+        assertFalse(steward.parseDone("""{"done": 并非 true}"""))
     }
 
     @Test

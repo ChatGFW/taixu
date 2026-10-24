@@ -1,6 +1,9 @@
 package top.wkbin.taixu.harness.compaction
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import top.wkbin.taixu.harness.ApiMessage
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.HarnessMessage
@@ -46,12 +49,11 @@ class CompactionSteward(
     }
 
     internal fun parseDone(raw: String): Boolean {
-        // 剥代码围栏、截首个 {...}，宽容解析 {"done": true|false}
+        // 剥代码围栏、截首个 {...}，严格布尔解析（审阅 nit：contains("true") 会误匹配 "not true" 类文本）
         val body = raw.substringAfter("{", "").substringBeforeLast("}", "").ifBlank { return false }
         return runCatching {
-            json.parseToJsonElement("{$body}").let { element ->
-                (element as? kotlinx.serialization.json.JsonObject)?.get("done")?.toString()?.contains("true") == true
-            }
+            (json.parseToJsonElement("{$body}") as? JsonObject)
+                ?.get("done")?.let { (it as? JsonPrimitive)?.booleanOrNull } == true
         }.getOrDefault(false)
     }
 
