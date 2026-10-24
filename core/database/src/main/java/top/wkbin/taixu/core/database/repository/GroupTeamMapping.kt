@@ -20,6 +20,7 @@ internal fun GroupChatEntity.toModel() = GroupChat(
     createdAt = createdAt,
     background = background, taskBudgetTokens = taskBudgetTokens, teamGroupId = teamGroupId, teamVersion = teamVersion,
     replyMode = runCatching { GroupReplyMode.valueOf(replyMode) }.getOrDefault(GroupReplyMode.ADMIN_FIRST),
+    unifiedApprovalMode = unifiedApprovalMode,
 )
 
 internal fun GroupChat.toEntity() = GroupChatEntity(
@@ -30,4 +31,5 @@ internal fun GroupChat.toEntity() = GroupChatEntity(
     createdAt = createdAt,
     background = background, taskBudgetTokens = taskBudgetTokens, teamGroupId = teamGroupId, teamVersion = teamVersion,
     replyMode = replyMode.name,
+    unifiedApprovalMode = unifiedApprovalMode,
 )

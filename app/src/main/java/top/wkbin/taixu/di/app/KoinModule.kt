@@ -19,6 +19,7 @@ import top.wkbin.taixu.core.database.AndroidAppDao
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.BotAssignmentDao
 import top.wkbin.taixu.core.database.BotGroupSessionDao
+import top.wkbin.taixu.core.database.BtwQueryDao
 import top.wkbin.taixu.core.database.BotMemberGroupDao
 import top.wkbin.taixu.core.database.BotScheduleDao
 import top.wkbin.taixu.core.database.BotScheduleDeliveryDao
@@ -58,6 +59,7 @@ import top.wkbin.taixu.di.AppModule.provideAiModelDao
 import top.wkbin.taixu.di.AppModule.provideAndroidAppDao
 import top.wkbin.taixu.di.AppModule.provideBotAssignmentDao
 import top.wkbin.taixu.di.AppModule.provideBotGroupSessionDao
+import top.wkbin.taixu.di.AppModule.provideBtwQueryDao
 import top.wkbin.taixu.di.AppModule.provideBotScheduleDao
 import top.wkbin.taixu.di.AppModule.provideBuildScriptDao
 import top.wkbin.taixu.di.AppModule.provideGroupChatDao
@@ -161,6 +163,8 @@ val appModule = module {
     single<BotAssignmentDao> { provideBotAssignmentDao(database = get()) }
 
     single<BotGroupSessionDao> { provideBotGroupSessionDao(database = get()) }
+
+    single<BtwQueryDao> { provideBtwQueryDao(database = get()) }
 
     single<RuntimeDao> { provideRuntimeDao(database = get()) }
 

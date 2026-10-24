@@ -25,4 +25,6 @@ data class GroupChatEntity(
     @ColumnInfo(defaultValue = "0") val taskBudgetTokens: Long = 0,
     @ColumnInfo(defaultValue = "NULL") val teamGroupId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val teamVersion: Int? = null,
+    /** 群统一审批模式（null = 完全访问）；群维度成员会话创建时对齐。 */
+    @ColumnInfo(defaultValue = "NULL") val unifiedApprovalMode: String? = null,
 )

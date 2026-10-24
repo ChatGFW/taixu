@@ -63,6 +63,8 @@ interface GroupChatRepository : GroupDeliveryRepository, GroupRoundRepository, G
     suspend fun getGroup(id: String): GroupChat?
     suspend fun countGroupsAsAdmin(botId: String): Int
     suspend fun saveGroup(group: GroupChat)
+    /** 群管理员移交：新管理员必须是本群成员；团队组的管理员由团队定义，不能单独移交。 */
+    suspend fun transferAdmin(groupId: String, newAdminBotId: String)
     suspend fun deleteGroup(id: String)
     fun observeMembers(groupId: String): Flow<List<Bot>>
     suspend fun getMembers(groupId: String): List<Bot>
@@ -181,6 +183,8 @@ class RoomGroupChatRepository(
     override suspend fun countGroupsAsAdmin(botId: String): Int = dao.countAsAdmin(botId)
 
     override suspend fun saveGroup(group: GroupChat) = dao.saveChatConfiguration(group.toEntity())
+
+    override suspend fun transferAdmin(groupId: String, newAdminBotId: String) = dao.transferAdmin(groupId, newAdminBotId)
 
     override suspend fun deleteGroup(id: String) = dao.deleteById(id)
 
@@ -304,6 +308,7 @@ private fun BotEntity.toModel() = Bot(
     colorHex = colorHex,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    capabilityServerNames = decodeCapabilityServers(capabilityServerNames),
 )
 
 private fun Bot.toEntity() = BotEntity(
@@ -321,6 +326,7 @@ private fun Bot.toEntity() = BotEntity(
     colorHex = colorHex,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    capabilityServerNames = encodeCapabilityServers(capabilityServerNames),
 )
 
 internal fun GroupMessageEntity.toModel(json: Json) = GroupMessage(

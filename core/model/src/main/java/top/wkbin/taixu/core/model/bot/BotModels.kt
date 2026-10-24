@@ -23,6 +23,12 @@ data class Bot(
     val modelVariant: String? = null,
     /** 仅用户可开启；关闭时成员工具不能修改模型选择。 */
     val allowModelSelection: Boolean = false,
+    /**
+     * Bot 级 MCP 能力白名单（服务名列表，大小写不敏感）；null = 不限制（团队共享库全量可用）。
+     * 借鉴 DS Bot 能力库：能力按 Bot 挂载、下一条消息生效；MCP 配置只有用户能改，
+     * "使用中锁定"由配置入口天然满足。
+     */
+    val capabilityServerNames: List<String>? = null,
 )
 
 /** 群聊普通消息（无 @）由谁回应。 */
@@ -43,6 +49,12 @@ data class GroupChat(
     val taskBudgetTokens: Long = 0,
     val teamGroupId: String? = null,
     val teamVersion: Int? = null,
+    /**
+     * 群统一审批模式（null = 沿用现状完全访问）。借鉴 DS Bot 的"全员统一沙盒预设"：
+     * 群维度成员会话创建与自愈时对齐该模式，覆盖成员个人会话的默认权限；
+     * 只有用户可设置，成员工具没有该参数。
+     */
+    val unifiedApprovalMode: String? = null,
 )
 
 /** 可复用的 Bot 成员分组；建群时可按组批量选人。 */

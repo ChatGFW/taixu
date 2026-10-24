@@ -56,6 +56,15 @@ interface HarnessRuntimeRepository {
         provider: String?,
         sessionId: String?,
     ): List<HarnessUsageEntity>
+
+    /** 账本按 (botId, provider, model) 聚合，服务 Bot 维度报表与取值列表。 */
+    suspend fun aggregateUsageLedgerByBot(start: Long?, end: Long?, sessionId: String?): List<UsageLedgerBotRow>
+
+    /** Bot 作用域下的按日聚合（sessionIds 为空时返回空，不下发 SQL）。 */
+    suspend fun aggregateUsageLedgerForSessions(start: Long?, end: Long?, tzOffsetMs: Long, sessionIds: List<String>): List<UsageLedgerRow>
+
+    /** Bot 作用域下的最近调用明细；sessionIds 为空时返回空。 */
+    suspend fun listRecentUsageForSessions(start: Long?, end: Long?, limit: Int, sessionIds: List<String>): List<HarnessUsageEntity>
     suspend fun branch(sessionId: String, leafId: String?): List<HarnessEntryEntity>
     suspend fun branchTail(sessionId: String, leafId: String?, limit: Int): List<HarnessEntryEntity> {
         require(limit > 0) { "Branch tail limit must be positive" }
@@ -190,6 +199,15 @@ class RoomHarnessRuntimeRepository(
         sessionId: String?,
     ): List<HarnessUsageEntity> =
         dao.listRecentUsage(start, end, limit, modelId, provider, sessionId)
+
+    override suspend fun aggregateUsageLedgerByBot(start: Long?, end: Long?, sessionId: String?) =
+        dao.aggregateLedgerByBot(start, end, sessionId)
+
+    override suspend fun aggregateUsageLedgerForSessions(start: Long?, end: Long?, tzOffsetMs: Long, sessionIds: List<String>): List<UsageLedgerRow> =
+        if (sessionIds.isEmpty()) emptyList() else dao.aggregateUsageLedgerForSessions(start, end, tzOffsetMs, sessionIds)
+
+    override suspend fun listRecentUsageForSessions(start: Long?, end: Long?, limit: Int, sessionIds: List<String>): List<HarnessUsageEntity> =
+        if (sessionIds.isEmpty()) emptyList() else dao.listRecentUsageForSessions(start, end, limit, sessionIds)
 
     override suspend fun branch(sessionId: String, leafId: String?): List<HarnessEntryEntity> {
         return leafId?.let { dao.branch(sessionId, it).map(::restoreFromStorage) }.orEmpty()

@@ -19,6 +19,15 @@ interface GroupTemplateDao : GroupGovernanceDao, TeamDefinitionDao {
         }
     }
 
+    /** 群管理员移交：不允许留无管理员的群，也不允许移交给非成员。 */
+    @Transaction suspend fun transferAdmin(groupId: String, newAdminBotId: String) {
+        val current = requireNotNull(templateGroup(groupId)) { "群聊不存在" }
+        require(current.teamGroupId == null) { "团队组的管理员由团队定义，不能单独移交" }
+        require(current.adminBotId != newAdminBotId) { "该成员已是本群管理员" }
+        require(teamMembers(groupId).any { it.botId == newAdminBotId }) { "新管理员必须是本群成员" }
+        publishTemplateGroup(current.copy(adminBotId = newAdminBotId))
+    }
+
     @Transaction suspend fun createReferencedGroup(group: GroupChatEntity, teamId: String) {
         require(templateGroup(group.id) == null) { "群聊已存在" }
         publishTemplateGroup(group.copy(teamGroupId = null, teamVersion = null))

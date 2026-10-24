@@ -31,6 +31,7 @@ import top.wkbin.taixu.core.database.RoomAndroidAppRepository
 import top.wkbin.taixu.core.database.RoomBuildScriptRepository
 import top.wkbin.taixu.core.database.RoomBotAssignmentRepository
 import top.wkbin.taixu.core.database.RoomBotGroupSessionRepository
+import top.wkbin.taixu.core.database.RoomBtwQueryRepository
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
 import top.wkbin.taixu.core.database.RoomHarnessSessionRepository
 import top.wkbin.taixu.core.database.RoomQuickPhraseRepository
@@ -131,6 +132,10 @@ val coreDatabaseModule = module {
     single<RoomBotGroupSessionRepository> { RoomBotGroupSessionRepository(dao = get()) }
 
     factory<BotGroupSessionRepository> { get<RoomBotGroupSessionRepository>() }
+
+    single<RoomBtwQueryRepository> { RoomBtwQueryRepository(dao = get()) }
+
+    factory<top.wkbin.taixu.core.database.repository.BtwQueryRepository> { get<RoomBtwQueryRepository>() }
 
     factory<TerminalSessionRepository> { get<RoomTerminalSessionRepository>() }
 

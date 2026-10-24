@@ -34,6 +34,8 @@ data class BotEntity(
     val updatedAt: Long,
     val modelVariant: String? = null,
     @ColumnInfo(defaultValue = "0") val allowModelSelection: Boolean = false,
+    /** Bot 级 MCP 能力白名单（JSON 字符串数组）；null = 不限制。 */
+    @ColumnInfo(defaultValue = "NULL") val capabilityServerNames: String? = null,
 )
 
 @Entity(
