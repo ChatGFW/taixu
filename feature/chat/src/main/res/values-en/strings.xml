@@ -372,6 +372,18 @@
     <string name="chat_model_switch_window_fmt">Context window %1$s</string>
     <string name="chat_model_switch_compacted_fmt">Compacted %2$d earlier messages for the %1$s window</string>
     <string name="chat_model_switch_pending_fmt">Will compact earlier messages for the %1$s window on the next turn</string>
+    <string name="chat_message_feedback">Rate this response</string>
+    <string name="chat_message_feedback_title">Rate this response</string>
+    <string name="chat_message_feedback_up">👍 Helpful</string>
+    <string name="chat_message_feedback_down">👎 Problematic</string>
+    <string name="chat_message_feedback_note_hint">Details (optional)</string>
+    <string name="chat_message_feedback_submit">Submit</string>
+    <string name="chat_message_feedback_saved">Recorded, thanks for the feedback</string>
+    <string name="chat_message_feedback_failed">Submit failed, try again later</string>
+    <string name="chat_message_feedback_unavailable">No active session</string>
+    <string name="chat_turn_changes_created_fmt">%1$d created</string>
+    <string name="chat_turn_changes_modified_fmt">%1$d modified</string>
+    <string name="chat_turn_changes_touched_fmt">%1$d touched</string>
     <string name="chat_collapse">Collapse</string>
     <string name="chat_expand_more">Show %1$d more steps (of %2$d)%3$s</string>
     <!-- Attachment menu &amp; processing -->

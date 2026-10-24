@@ -78,10 +78,24 @@ class LinuxCommandToolBackend(
             min = MIN_BASE_TIMEOUT_SECONDS,
             max = MAX_BASE_TIMEOUT_SECONDS,
         )
-        val result = CommandOutputCapture().use { capture ->
-            val executed = commands.execute(ShellCommand(preparedCommand.commandLine, cwd, preparedCommand.environment,
-                timeoutSeconds * 1000L, outputCapture = capture, memoryHeavy = CommandResourcePolicy.isHeavy(command)))
-            capture.expand(executed)
+        val result = try {
+            CommandOutputCapture().use { capture ->
+                val executed = commands.execute(ShellCommand(preparedCommand.commandLine, cwd, preparedCommand.environment,
+                    timeoutSeconds * 1000L, outputCapture = capture, memoryHeavy = CommandResourcePolicy.isHeavy(command)))
+                capture.expand(executed)
+            }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (throwable: Throwable) {
+            // 执行器异常（运行时未就绪/PRoot 无法启动等）≠ 命令失败：归因后用环境故障文案
+            // 返回，避免模型把它当命令错误去盲目修正重试；未命中环境签名则保持原语义上抛。
+            val environmentFailure = ExecutionEnvironmentClassifier.classify(throwable)
+                ?: throw throwable
+            return false to ExecutionEnvironmentClassifier.resultText(environmentFailure)
+        }
+        // PRoot 自身拒绝（rootfs 缺失等方言）同样先于命令失败反思文案归因
+        ExecutionEnvironmentClassifier.classifyDenial(result)?.let {
+            return false to ExecutionEnvironmentClassifier.resultText(it)
         }
         val stdout = result.stdout.trim()
         val stderr = result.stderr.trim()
@@ -129,14 +143,22 @@ class LinuxCommandToolBackend(
                 val cwd = directory(args["cwd"]?.jsonPrimitive?.content)
                 val existing = commands.listBackground().firstOrNull { it.id == externalId && it.session.isAlive }
                 require(existing == null) { "后台进程 $externalId 已在运行；请先查询状态或停止它" }
-                val managed = commands.startBackground(
-                    id = externalId,
-                    command = ShellCommand(
-                        commandLine = command,
-                        workingDirectory = cwd,
-                        timeoutMs = Long.MAX_VALUE,
-                    ),
-                )
+                val managed = try {
+                    commands.startBackground(
+                        id = externalId,
+                        command = ShellCommand(
+                            commandLine = command,
+                            workingDirectory = cwd,
+                            timeoutMs = Long.MAX_VALUE,
+                        ),
+                    )
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (throwable: Throwable) {
+                    val environmentFailure = ExecutionEnvironmentClassifier.classify(throwable)
+                        ?: throw throwable
+                    return false to ExecutionEnvironmentClassifier.resultText(environmentFailure)
+                }
                 true to buildString {
                     append("后台进程已启动：").append(externalId)
                     managed.pid?.let { append("\npid: ").append(it) }

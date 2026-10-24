@@ -37,6 +37,8 @@ class WebChatRunTrackerTest {
         override suspend fun send(sessionId: String, text: String, imageUrls: List<String>, mode: WebChatInputMode):
             WebChatInputReceipt = error("unused")
         override suspend fun resolveApproval(sessionId: String, requestId: String, approved: Boolean): Boolean = error("unused")
+        override suspend fun setMessageFeedback(sessionId: String, messageId: String, rating: String, note: String?) = error("unused")
+        override suspend fun messageFeedbacks(sessionId: String) = error("unused")
     }
     private class Fixture {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)

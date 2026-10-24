@@ -431,6 +431,18 @@
     <string name="chat_model_switch_window_fmt">当前上下文窗口 %1$s</string>
     <string name="chat_model_switch_compacted_fmt">已按 %1$s 窗口压缩 %2$d 条早期消息</string>
     <string name="chat_model_switch_pending_fmt">将在下一轮按 %1$s 窗口压缩早期消息</string>
+    <string name="chat_message_feedback">反馈这条回答</string>
+    <string name="chat_message_feedback_title">反馈这条回答</string>
+    <string name="chat_message_feedback_up">👍 有帮助</string>
+    <string name="chat_message_feedback_down">👎 有问题</string>
+    <string name="chat_message_feedback_note_hint">补充说明（可选）</string>
+    <string name="chat_message_feedback_submit">提交</string>
+    <string name="chat_message_feedback_saved">已记录，感谢反馈</string>
+    <string name="chat_message_feedback_failed">提交失败，请稍后重试</string>
+    <string name="chat_message_feedback_unavailable">当前没有活动会话</string>
+    <string name="chat_turn_changes_created_fmt">新建 %1$d</string>
+    <string name="chat_turn_changes_modified_fmt">修改 %1$d</string>
+    <string name="chat_turn_changes_touched_fmt">触碰 %1$d</string>
     <string name="chat_collapse">收起</string>
     <string name="chat_expand_more">展开更多 %1$d 步（共 %2$d 步）%3$s</string>
     <!-- 附件菜单与处理 -->

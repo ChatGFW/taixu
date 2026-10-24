@@ -54,6 +54,7 @@ import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.CapabilityEvent
 import top.wkbin.taixu.harness.ModelSwitchEvent
+import top.wkbin.taixu.harness.TurnChangesEvent
 import top.wkbin.taixu.harness.SkillSuggestion
 import top.wkbin.taixu.harness.TaskDelivery
 import top.wkbin.taixu.harness.ToolCall
@@ -156,9 +157,7 @@ internal fun ChatMessageList(
     ) {
         if (initializing) {
             item {
-                ChatMessageSkeleton(
-                    modifier = Modifier.padding(vertical = 16.dp),
-                )
+                ChatMessageSkeleton(modifier = Modifier.padding(vertical = 16.dp))
             }
         } else {
             if (messages.isEmpty()) {
@@ -199,12 +198,12 @@ internal fun ChatMessageList(
                             is SkillSuggestion -> if (message.id !in hiddenSkillSuggestions) {
                                 SkillSuggestionCard(
                                     suggestion = message,
-                                    onCreate = { onApplySkillSuggestion(message, true) },
-                                    onUpdate = { onApplySkillSuggestion(message, false) },
+                                    onCreate = { onApplySkillSuggestion(message, true) }, onUpdate = { onApplySkillSuggestion(message, false) },
                                     onDismiss = { onDismissSkillSuggestion(message.id) },
                                 )
                             }
                             is ModelSwitchEvent -> ModelSwitchCard(message)
+                            is TurnChangesEvent -> TurnChangesCard(message)
                             is UserMessage -> UserBubble(
                                 message = message,
                                 knownMentionNames = knownMentionNames,

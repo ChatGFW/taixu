@@ -7,8 +7,11 @@ import top.wkbin.taixu.core.database.EncryptedRequestDiagnosticsRepository
 import top.wkbin.taixu.core.database.RequestDiagnosticsRepository
 import top.wkbin.taixu.core.security.SecretManager
 import top.wkbin.taixu.core.database.AgencyAgentCatalogLoader
+import top.wkbin.taixu.core.database.AgentApprovalAuditRepository
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.AgentContextRepository
+import top.wkbin.taixu.core.database.AgentMessageFeedbackRepository
+import top.wkbin.taixu.core.database.MessageFeedbackService
 import top.wkbin.taixu.core.database.AgentSkillRepository
 import top.wkbin.taixu.core.database.AgentSubagentRepository
 import top.wkbin.taixu.core.database.AiModelRepository
@@ -67,6 +70,12 @@ val coreDatabaseModule = module {
     single<AgencyAgentCatalogLoader> { AgencyAgentCatalogLoader(context = get(), json = get()) }
 
     single<AgentApprovalRepository> { AgentApprovalRepository(dao = get()) }
+
+    single<AgentApprovalAuditRepository> { AgentApprovalAuditRepository(dao = get()) }
+
+    single<AgentMessageFeedbackRepository> { AgentMessageFeedbackRepository(dao = get()) }
+
+    single<MessageFeedbackService> { MessageFeedbackService(feedback = get(), runtime = get()) }
 
     single<AgentSkillRepository> { AgentSkillRepository(dao = get()) }
 

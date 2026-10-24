@@ -76,6 +76,7 @@ class WebChatBridgeServer(
     private val agentGateway: WebChatAgentGateway,
     private val logger: AppLogger,
 ) {
+    private val notification = WebBridgeNotification(context)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var httpServer: AndroidHttpServer? = null
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; explicitNulls = false }
@@ -123,7 +124,7 @@ class WebChatBridgeServer(
             val localIp = resolveLocalIp()
             _status.value = WebChatServerStatus(true, port, localIp, generatedPin)
             acquireLocks()
-            showNotification("http://$localIp:$port", generatedPin)
+            notification.show("http://$localIp:$port", generatedPin)
             heartbeatJob?.cancel()
             heartbeatJob = scope.launch {
                 while (isActive) {
@@ -148,7 +149,7 @@ class WebChatBridgeServer(
             heartbeatJob?.cancel()
             heartbeatJob = null
             releaseLocks()
-            hideNotification()
+            notification.hide()
             runTracker.stop()
             sseEmitters.forEach { runCatching { it.close() } }
             sseEmitters.clear()
@@ -328,6 +329,25 @@ class WebChatBridgeServer(
                     parts.size == 2 && parts[1] == "runs" && exchange.requestMethod == "POST" -> {
                         startRun(exchange, parts[0])
                     }
+                    parts.size == 2 && parts[1] == "feedback" && exchange.requestMethod == "GET" -> {
+                        val id = parts[0]
+                        requireNotNull(sessions.findById(id)) { "会话不存在" }
+                        sendJson(exchange, 200, buildJsonObject {
+                            put("feedbacks", buildJsonArray {
+                                agentGateway.messageFeedbacks(id).forEach { add(feedbackJson(it)) }
+                            })
+                        })
+                    }
+                    parts.size == 2 && parts[1] == "feedback" && exchange.requestMethod == "POST" -> {
+                        val id = parts[0]
+                        requireNotNull(sessions.findById(id)) { "会话不存在" }
+                        val body = requestJson(exchange)
+                        val messageId = body["messageId"]?.jsonPrimitive?.content?.takeIf(String::isNotBlank) ?: throw IllegalArgumentException("缺少 messageId")
+                        val rating = body["rating"]?.jsonPrimitive?.content ?: throw IllegalArgumentException("缺少 rating")
+                        val note = body["note"]?.jsonPrimitive?.content
+                        val saved = agentGateway.setMessageFeedback(id, messageId, rating, note)
+                        sendJson(exchange, 200, buildJsonObject { put("feedback", feedbackJson(saved)) })
+                    }
                     else -> sendText(exchange, 404, "接口不存在")
                 }
             } catch (cancellation: CancellationException) {
@@ -482,6 +502,15 @@ class WebChatBridgeServer(
         messages.forEach { add(json.encodeToJsonElement(WebChatMessage.serializer(), it)) }
     }
 
+    private fun feedbackJson(entry: top.wkbin.taixu.core.database.AgentMessageFeedbackEntity) = buildJsonObject {
+        put("id", entry.id)
+        put("messageId", entry.messageId)
+        put("rating", entry.rating)
+        entry.note?.let { put("note", it) }
+        put("createdAt", entry.createdAt)
+        put("updatedAt", entry.updatedAt)
+    }
+
     private fun approvalArray(approvals: List<WebChatApproval>) = buildJsonArray {
         approvals.forEach { add(json.encodeToJsonElement(WebChatApproval.serializer(), it)) }
     }
@@ -552,33 +581,6 @@ class WebChatBridgeServer(
         wifiLock = null
     }
 
-    private fun showNotification(url: String, pin: String) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    NOTIFICATION_CHANNEL_ID,
-                    "太墟智枢 Web 协作台",
-                    NotificationManager.IMPORTANCE_LOW,
-                ).apply { description = "太墟智枢局域网协作服务"; setShowBadge(false) },
-            )
-        }
-        manager.notify(
-            NOTIFICATION_ID,
-            NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(R.drawable.stat_notify_sync)
-                .setContentTitle("太墟智枢 Web 协作台运行中")
-                .setContentText("$url（配对码：$pin）")
-                .setOngoing(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .build(),
-        )
-    }
-
-    private fun hideNotification() {
-        (context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)?.cancel(NOTIFICATION_ID)
-    }
-
     private fun getMimeType(path: String): String = when {
         path.endsWith(".html") -> "text/html; charset=utf-8"
         path.endsWith(".js") || path.endsWith(".mjs") -> "application/javascript; charset=utf-8"
@@ -613,7 +615,5 @@ class WebChatBridgeServer(
 
     companion object {
         const val DEFAULT_PORT = DEFAULT_WEBCHAT_PORT
-        const val NOTIFICATION_CHANNEL_ID = "taixu_webchat_bridge"
-        const val NOTIFICATION_ID = 8899
     }
 }

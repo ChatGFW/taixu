@@ -23,6 +23,7 @@ import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.TaskDelivery
+import top.wkbin.taixu.harness.TurnChangesEvent
 import top.wkbin.taixu.harness.task.TaskDeliveryBuilder
 
 /** Owns all durable operation transitions and their transaction boundaries. */
@@ -344,4 +345,5 @@ private fun HarnessMessage.serialType(): String = when (this) {
     is SkillSuggestion -> "skill_suggestion"
     is TaskDelivery -> "task_delivery"
     is ModelSwitchEvent -> "model_switch"
+    is TurnChangesEvent -> "turn_changes"
 }

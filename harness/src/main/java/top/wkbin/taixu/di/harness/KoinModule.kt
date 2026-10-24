@@ -17,6 +17,7 @@ import top.wkbin.taixu.harness.ToolExecutor
 import top.wkbin.taixu.harness.ToolRoundDispatcher
 import top.wkbin.taixu.harness.TurnRunner
 import top.wkbin.taixu.harness.agent.AgentMcpBootstrap
+import top.wkbin.taixu.harness.approval.ApprovalAuditRecorder
 import top.wkbin.taixu.harness.approval.ApprovalResumePolicy
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
 import top.wkbin.taixu.harness.browser.BrowserMcpBootstrap
@@ -114,6 +115,8 @@ val harnessModule = module {
         SessionTurnCoordinatorImpl(preferences = get(), logger = get())
     }
 
+    single<ApprovalAuditRecorder> { ApprovalAuditRecorder(audit = get(), logger = get()) }
+
     single<HarnessLoop> {
         HarnessLoop(
             workspaceRecommendations = get(),
@@ -146,6 +149,8 @@ val harnessModule = module {
             skillEvolutionAdvisor = get(),
             turnCoordinator = get(),
             executionEnvironments = get(),
+            approvalAuditor = get(),
+            feedbackService = get(),
         )
     }
     single<SessionControl> { get<HarnessLoop>() }
