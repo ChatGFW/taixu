@@ -125,5 +125,13 @@ internal class LocalPluginStore(private val root: File, private val cache: File)
         val stream = atomic.startWrite()
         try { stream.write(version.toByteArray(Charsets.UTF_8)); atomic.finishWrite(stream) }
         catch (failure: Throwable) { atomic.failWrite(stream); throw failure }
+        // finishWrite 依赖 renameTo 覆盖旧 base：POSIX（CI/设备）原子替换成功，Windows 上
+        // 目标存在即失败——.new 残留而 base 保持旧版本。自愈校验让指针在任何环境都收敛
+        // 到本次写入值（设备上 rename 成功时此分支不触发，不破坏 AtomicFile 的原子性）。
+        val pointer = File(idDir, "active-version")
+        if (pointer.readText(Charsets.UTF_8) != version) {
+            File(idDir, "active-version.new").delete()
+            pointer.writeText(version, Charsets.UTF_8)
+        }
     }
 }
