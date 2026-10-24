@@ -266,6 +266,42 @@ class GroupRoundCoordinatorTest {
         }
     }
 
+    @Test fun `relay overflow pauses the group until the user speaks again`() = runBlocking {
+        // 12 名成员接力环（每人口径 2 轮 → 可排 24 槽）撞上 20 轮总上限：
+        // 剩余接力槽位不再静默丢弃，而是暂停群并留一行说明；用户新消息后恢复。
+        val chief = BotEntity("chief", "Chief", "admin", "persona", "seed", null, null, "chief-dm", true, "#123456", 1, 1)
+        db.personaBotDao().upsert(chief)
+        (1..12).forEach { i ->
+            db.personaBotDao().upsert(chief.copy(id = "m$i", name = "M$i", sessionId = "m$i-dm", isMainBot = false))
+        }
+        db.groupChatDao().upsertGroup(GroupChatEntity("chain", "Chain", "chief", "", 1))
+        (listOf("chief") + (1..12).map { "m$it" }).forEachIndexed { index, id -> groups.addMember("chain", id, index) }
+        val all = groups.getMembers("chain")
+        fun named(name: String) = all.first { it.name == name }
+        (1..12).forEach { i -> replies["M$i"] = if (i == 12) "@M1 继续" else "@M${i + 1} 继续" }
+        replies["Chief"] = "[PASS]"
+        val coordinator = coordinator()
+        coordinator.start(groups.getGroup("chain")!!, listOf(named("M1")), "go")
+        withTimeout(10_000) {
+            while (groups.observeMessages("chain").first()
+                    .none { it.senderType == GroupSenderType.SYSTEM && it.content.contains("接力已达轮次上限") }
+            ) delay(10)
+        }
+
+        // 暂停期间迟到回报不再自动开新轮
+        val before = synchronized(recorded) { recorded.size }
+        coordinator.lateReplyRecovered("chain", "m5", "M5", "m4", "late")
+        delay(200)
+        assertEquals(before, synchronized(recorded) { recorded.size })
+
+        // 用户发言（resetLateRounds）后恢复，迟到回报重新可以唤醒派单者
+        coordinator.resetLateRounds("chain")
+        replies["M4"] = "ack"
+        coordinator.lateReplyRecovered("chain", "m5", "M5", "m4", "late")
+        // M4 在接力环里已经说过话，triggers 已有旧值；等"迟到回复"触发覆盖旧值
+        withTimeout(5_000) { while (!triggers["M4"].orEmpty().contains("迟到回复")) delay(10) }
+    }
+
     @Test fun `full user instruction and attachment description survive round persistence and prompt`() = runBlocking {
         val group = seed()
         val all = members()

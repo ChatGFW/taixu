@@ -167,7 +167,7 @@ val harnessModule = module {
             compactionManager = get(), context = get(),
         )
     }
-    single { top.wkbin.taixu.harness.McpToolMountResolver(mcpManager = get(), repository = get(), policies = get(), capabilityWriter = get()) }
+    single { top.wkbin.taixu.harness.McpToolMountResolver(mcpManager = get(), repository = get(), policies = get(), capabilityWriter = get(), capabilityScope = get()) }
 
     factory<HarnessToolRoundRunner> {
         HarnessToolRoundRunner(
@@ -192,6 +192,7 @@ val harnessModule = module {
     }
 
     includes(providerModule)
+    includes(harnessStewardProviders)
     single<ProviderResponseNormalizer> { ProviderResponseNormalizer(json = get()) }
 
     single { top.wkbin.taixu.harness.SubagentSummaryPublisher(get(), get(), get(), get(), get()) }
@@ -385,13 +386,7 @@ val harnessModule = module {
 
     single<MemoryRecallSelector> { MemoryRecallSelector(agentContextDao = get()) }
 
-    single<DefaultPrivilegeSectionRenderer> {
-        DefaultPrivilegeSectionRenderer(
-            context = get(),
-            privilegeManager = get(),
-            promptAssets = get(),
-        )
-    }
+    single<DefaultPrivilegeSectionRenderer> { DefaultPrivilegeSectionRenderer(context = get(), privilegeManager = get(), promptAssets = get()) }
 
     single<PromptAssetLoader> { PromptAssetLoader(context = get()) }
 
@@ -439,6 +434,7 @@ val harnessModule = module {
             sessionStore = get(),
             memoryRecallSelector = get(),
             agentApprovalRepository = get(), operationCoordinator = get(), plugins = get(), secretRedactor = get(), environments = get(),
+            compactionSteward = get(),
         )
     }
 

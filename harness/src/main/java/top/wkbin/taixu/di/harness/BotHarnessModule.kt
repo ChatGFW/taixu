@@ -121,6 +121,7 @@ val botHarnessModule = module {
             logger = get(),
             runtime = { get() },
             modelManager = get(),
+            sessionStates = { get<top.wkbin.taixu.harness.session.SessionControl>().sessionRunStates.value },
         )
     }
     single<HarnessPlugin>(named("taixu.bot-schedule")) {

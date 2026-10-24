@@ -33,6 +33,8 @@ fun botManagementPlugin(
     logger: AppLogger,
     runtime: (() -> top.wkbin.taixu.harness.bot.BotAssignmentRuntime)? = null,
     modelManager: top.wkbin.taixu.harness.bot.BotModelManager? = null,
+    /** 各会话运行态快照（list-bots 状态行用）；缺省空表时状态行退化为任务维度。 */
+    sessionStates: () -> Map<String, top.wkbin.taixu.core.model.SessionRunState> = { emptyMap() },
 ): HarnessPlugin {
     val descriptor = botManagementDescriptor()
     val createSchema = pluginObjectSchema(
@@ -219,9 +221,23 @@ fun botManagementPlugin(
                 if (bots.isEmpty()) {
                     PluginToolOutput(true, "（暂无 Bot）")
                 } else {
+                    val states = sessionStates()
+                    val activeBots = assignments.active.value.map { it.botName }.toSet()
+                    // groupSessionId 是挂起调用，先取齐再进非挂起的 joinToString；
+                    // 状态行是可选增强，映射查询失败不阻断名册输出。
+                    val groupSessionIds = group?.let { source ->
+                        bots.associate { bot ->
+                            bot.id to runCatching { orchestrator().groupSessionId(bot.id, source.id) }.getOrNull()
+                        }
+                    }.orEmpty()
                     val text = bots.joinToString("\n") { bot ->
                         val mark = if (bot.isMainBot) "👑 主控" else "成员"
-                        "- bot_name=\"${bot.name}\" · 职责=${bot.role} · $mark · 模型 ${bot.modelId ?: "默认"} / ${bot.modelVariant ?: "档案默认"}"
+                        val sessionIds = buildList {
+                            add(bot.sessionId)
+                            groupSessionIds[bot.id]?.let(::add)
+                        }
+                        "- bot_name=\"${bot.name}\" · ${botStatusLine(states, sessionIds, activeBots, bot.name)}" +
+                            " · 职责=${bot.role} · $mark · 模型 ${bot.modelId ?: "默认"} / ${bot.modelVariant ?: "档案默认"}"
                     }
                     PluginToolOutput(true, text.take(BOT_TOOL_MAX_CHARS))
                 }
@@ -238,22 +254,6 @@ internal suspend fun requireMainBot(
     sessionId: String,
     botRepository: PersonaBotRepository,
 ): Bot? = botRepository.getBotBySessionId(sessionId)?.takeIf { it.isMainBot }
-
-internal suspend fun resolveGroup(
-    caller: Bot,
-    requestedGroupId: String?,
-    groupRepository: GroupChatRepository,
-): GroupChat? {
-    if (requestedGroupId.isNullOrBlank()) {
-        return groupRepository.observeGroupsForBot(caller.id).first().firstOrNull()
-    }
-    val group = groupRepository.getGroup(requestedGroupId) ?: return null
-    val member = groupRepository.getMembers(group.id).any { it.id == caller.id }
-    return group.takeIf { member }
-}
-
-private fun normalizeColor(raw: String?): String =
-    raw?.trim()?.takeIf { it.matches(Regex("#[0-9a-fA-F]{6}")) } ?: "#3D5AFE"
 
 internal const val MAIN_BOT_ONLY = "只有主控 Bot 可以管理团队"
 internal const val BOT_TOOL_MAX_CHARS = 12_000

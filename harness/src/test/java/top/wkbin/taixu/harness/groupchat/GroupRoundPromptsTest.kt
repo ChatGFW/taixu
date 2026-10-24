@@ -41,4 +41,41 @@ class GroupRoundPromptsTest {
         assertTrue(trigger.contains("共 15 位"))
         assertFalse(trigger.contains("Bot13"))
     }
+
+    private fun member(id: String, name: String) = Bot(
+        id = id, name = name, role = "member", systemPrompt = "", avatarSeed = "seed",
+        sessionId = "session-$id", createdAt = 1, updatedAt = 1,
+    )
+
+    @Test fun `admin all keyword wakes every other member`() {
+        val members = listOf(member("admin", "主管"), member("a", "甲"), member("b", "乙"))
+        val group = GroupChat(id = "group", name = "Team", adminBotId = "admin", createdAt = 1)
+        val slots = mutableListOf(GroupRoundSlot("admin", "主管"))
+        appendRoundMentions(slots, 0, "@所有人 把方案过一遍", members, emptyMap(), group)
+        assertEquals(listOf("a", "b"), slots.drop(1).map { it.botId })
+    }
+
+    @Test fun `regular member all keyword wakes nobody`() {
+        val members = listOf(member("admin", "主管"), member("a", "甲"), member("b", "乙"))
+        val group = GroupChat(id = "group", name = "Team", adminBotId = "admin", createdAt = 1)
+        val slots = mutableListOf(GroupRoundSlot("a", "甲"))
+        appendRoundMentions(slots, 0, "@所有人 辛苦了", members, emptyMap(), group)
+        assertEquals(1, slots.size)
+    }
+
+    @Test fun `named mention still beats all keyword`() {
+        val members = listOf(member("admin", "主管"), member("a", "甲"), member("b", "乙"))
+        val group = GroupChat(id = "group", name = "Team", adminBotId = "admin", createdAt = 1)
+        val slots = mutableListOf(GroupRoundSlot("admin", "主管"))
+        appendRoundMentions(slots, 0, "@甲 你来接手", members, emptyMap(), group)
+        assertEquals(listOf("a"), slots.drop(1).map { it.botId })
+    }
+
+    @Test fun `mention inside code block does not relay`() {
+        val members = listOf(member("admin", "主管"), member("a", "甲"))
+        val group = GroupChat(id = "group", name = "Team", adminBotId = "admin", createdAt = 1)
+        val slots = mutableListOf(GroupRoundSlot("admin", "主管"))
+        appendRoundMentions(slots, 0, "命令是：\n```\ngit @甲\n```\n按这个跑", members, emptyMap(), group)
+        assertEquals(1, slots.size)
+    }
 }

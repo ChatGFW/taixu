@@ -59,6 +59,17 @@ class GroupChatRespondersTest {
         )
     }
 
+    @Test fun `user all keyword wakes every member with the admin first`() {
+        assertEquals(
+            listOf(admin, a, b),
+            openingResponders(members, setOf("所有人"), admin.id, GroupReplyMode.ADMIN_FIRST),
+        )
+        assertEquals(
+            listOf(admin, a, b),
+            openingResponders(members, setOf("all"), admin.id, GroupReplyMode.ADMIN_FIRST),
+        )
+    }
+
     @Test fun `all members still works when the admin is gone`() {
         assertEquals(
             listOf(a, b),

@@ -22,15 +22,21 @@ class McpToolMountResolver(
     private val repository: McpServerRepository,
     private val policies: McpToolPolicyPreferences,
     private val capabilityWriter: CapabilityEventWriter,
+    /** Bot 级能力白名单：null = 不限制；设置后仅白名单内服务可被该会话挂载。 */
+    private val capabilityScope: top.wkbin.taixu.harness.bot.BotCapabilityScope? = null,
 ) {
     suspend fun resolve(sessionId: String, messages: List<HarnessMessage>, model: ModelConfig): ModelConfig {
         val userMessages = messages.filterIsInstance<UserMessage>()
         val latest = userMessages.lastOrNull() ?: return model
         val servers = runCatching { repository.servers.first() }.getOrDefault(emptyList())
+        val allowed = capabilityScope?.allowedMcpServers(sessionId)
+        val scoped = if (allowed == null) servers else servers.filter {
+            it.id.lowercase() in allowed || it.name.lowercase() in allowed
+        }
         val knownNames = servers.flatMap { listOf(it.id, it.name) }
         val latestMentions = MentionExtractor.parse(latest.text, knownNames)
         val mentioned = userMessages.flatMap { MentionExtractor.parse(it.text, knownNames) }.toSet()
-        val candidates = if (mentioned.isEmpty()) emptyList() else servers
+        val candidates = if (mentioned.isEmpty()) emptyList() else scoped
             .filter { it.isEnabled && (it.id.lowercase() in mentioned || it.name.lowercase() in mentioned) }
         val toolsByServer = candidates.associate { server ->
             server.id to runCatching { mcpManager.cachedToolsOf(server.id) }.getOrDefault(emptyList())

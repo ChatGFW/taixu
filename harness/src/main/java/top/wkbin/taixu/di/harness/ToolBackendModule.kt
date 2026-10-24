@@ -120,12 +120,20 @@ internal val toolBackendModule = module {
         )
     }
     // 能力统一网关：use_capability 分发 + codemode 脚本装配 + legacy mcp__ 直连回退。
+    single<top.wkbin.taixu.harness.bot.BotCapabilityScope> {
+        // Bot 级 MCP 能力白名单（DS Bot 能力库）：Bot 未配置白名单时返回 null = 不限制。
+        top.wkbin.taixu.harness.bot.BotCapabilityScope { sessionId ->
+            get<PersonaBotRepository>().getBotBySessionId(sessionId)
+                ?.capabilityServerNames?.map { it.lowercase() }?.toSet()
+        }
+    }
     single {
         CapabilityToolGateway(
             mcpManager = get(),
             plugins = get(),
             argRedactor = { value: String -> get<SecretRedactor>().redact(value) },
             toolPolicy = get(),
+            capabilityScope = get(),
             hostExecutor = { args, operationId, sessionId, metadata ->
                 get<HostCapabilityToolBackend>().execute(HostToolRequest(args, operationId, sessionId, metadata))
             },

@@ -338,6 +338,13 @@ internal fun openingResponders(
     if (mentions.isNotEmpty()) {
         val targeted = members.filter { bot -> mentions.any { it.equals(bot.name, ignoreCase = true) } }
         if (targeted.isNotEmpty()) return targeted
+        // 用户的 @所有人 唤醒全体成员（管理员优先）；成员回复中的全体保留字
+        // 由 appendRoundMentions 单独约束为仅管理员生效，这里只处理用户入口。
+        if (mentions.any { it in MentionExtractor.ALL_KEYWORDS }) {
+            val admin = members.firstOrNull { it.id == adminBotId }
+            return (if (admin == null) members else listOf(admin) + members.filter { it.id != admin.id })
+                .take(ROUND_MAX_TOTAL_TURNS)
+        }
     }
     val admin = members.firstOrNull { it.id == adminBotId }
     return when (mode) {
