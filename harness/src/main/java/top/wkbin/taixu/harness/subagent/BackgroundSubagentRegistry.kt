@@ -12,6 +12,7 @@ import top.wkbin.taixu.harness.backgroundCompletionText
 import top.wkbin.taixu.harness.queue.PromptQueue
 import top.wkbin.taixu.harness.queue.PromptQueueManager
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * 后台子代理批次注册表（借鉴 DSH continuable subagent 的启动-收据-回传骨架）。
@@ -31,9 +32,11 @@ class BackgroundSubagentRegistry(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val jobs = ConcurrentHashMap<String, MutableSet<Job>>()
 
+    /** 活跃批次的原子计数：FGS 判定高频读取，计数器避免与完成回调的遍历竞态。 */
+    private val activeCount = AtomicInteger(0)
+
     /** 是否有正在运行的后台子代理批次（FGS 保活判定用）。 */
-    val hasActive: Boolean
-        get() = jobs.values.any { set -> set.any { it.isActive } }
+    val hasActive: Boolean get() = activeCount.get() > 0
 
     fun activeCountForSession(sessionId: String): Int =
         jobs[sessionId]?.count { it.isActive } ?: 0
@@ -43,6 +46,7 @@ class BackgroundSubagentRegistry(
      * 以 lambda 注入避免 registry ↔ orchestrator 循环依赖；完成后投递汇总。
      */
     fun launch(parentSessionId: String, taskCount: Int, block: suspend () -> Pair<Boolean, String>) {
+        activeCount.incrementAndGet()
         val job = scope.launch {
             val (allSucceeded, summary) = try {
                 block()
@@ -65,7 +69,10 @@ class BackgroundSubagentRegistry(
             )
         }
         jobs.getOrPut(parentSessionId) { ConcurrentHashMap.newKeySet() }.add(job)
-        job.invokeOnCompletion { jobs[parentSessionId]?.remove(job) }
+        job.invokeOnCompletion {
+            jobs[parentSessionId]?.remove(job)
+            activeCount.decrementAndGet()
+        }
     }
 
     /** 会话删除时取消其全部后台批次（防写已删会话）；主轮取消不影响后台批次。 */

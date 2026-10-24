@@ -69,6 +69,7 @@ jobs:
             --tests 'top.wkbin.taixu.harness.approval.ApprovalAuditTrailTest' \
             --tests 'top.wkbin.taixu.harness.checkpoint.TurnChangeCardsTest' \
             --tests 'top.wkbin.taixu.harness.ExecutionEnvironmentClassifierTest'
+            --tests 'top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistryTest'
           # 会话条目版本化 + 审批审计是持久化契约，迁移测试必须进 CI 守门。
           ./gradlew :core:database:testDebugUnitTest --no-daemon --console=plain \
             --tests 'top.wkbin.taixu.core.database.ApprovalAuditMigration80To81Test' \

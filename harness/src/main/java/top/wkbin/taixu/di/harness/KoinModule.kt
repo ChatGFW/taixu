@@ -214,6 +214,7 @@ val harnessModule = module {
             providerClient = get(),
             logger = get(),
             summaryPublisher = get(),
+            backgroundSubagents = get(),
         )
     }
     includes(toolBackendModule)
@@ -233,39 +234,31 @@ val harnessModule = module {
         )
     }
 
-    single<RewindController> {
-        RewindController(
+    single<RewindController> { RewindController(
             store = get(),
             fileAccess = get(),
             conversationRewinder = get(),
             environments = get(),
-        )
-    }
-    single<SessionForkConversationRewinder> {
-        SessionForkConversationRewinder(
+        ) }
+    single<SessionForkConversationRewinder> { SessionForkConversationRewinder(
             sessionDao = get(),
             runtimeRepo = get(),
             checkpointStore = get(),
-        )
-    }
+        ) }
 
-    single<BranchSummarizer> {
-        BranchSummarizer(
+    single<BranchSummarizer> { BranchSummarizer(
             repository = get(),
             json = get(),
             logger = get(),
             summarizer = get(),
-        )
-    }
+        ) }
 
-    single<CompactionManager> {
-        CompactionManager(
+    single<CompactionManager> { CompactionManager(
             repository = get(),
             json = get(),
             sessionStore = get(),
             summarizer = get(),
-        )
-    }
+        ) }
 
     single<CompactionSummarizer> { CompactionSummarizer(providerClient = get()) }
 

@@ -573,11 +573,11 @@ internal fun selectSubagentModel(
 /** background=true 时立即返回给模型的启动确认：明确"不要轮询"（对齐 opencode task 工具的输出约定）。 */
 internal fun backgroundStartedText(specs: List<SubagentTaskSpec>): String = buildString {
     append("已启动 ${specs.size} 个后台子任务：${specs.joinToString("、") { it.taskName }}。\n")
-    append("任务在后台执行，完成后结果会自动注入本会话并触发后续推理。")
+    append("任务在后台执行，完成后结果会作为追加消息出现在本会话，你将在下一轮看到它。")
     append("不要等待、轮询进度或重复派发相同任务；可先处理其他独立工作，或直接结束本轮回复。")
 }
 
-/** 后台批次完成后的注入文本：汇总 + 续跑指引；由 HarnessLoop.send 以用户消息触发新轮推理。 */
+/** 后台批次完成后的注入文本：汇总 + 续跑指引；由 BackgroundSubagentRegistry 以 STEER 消息入队父会话。 */
 internal fun backgroundCompletionText(allSucceeded: Boolean, summaryMarkdown: String): String = buildString {
     append("【后台子任务已完成】\n\n")
     append(summaryMarkdown.trim())

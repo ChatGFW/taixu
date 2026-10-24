@@ -52,7 +52,7 @@ internal fun MessageFeedbackAction(messageId: String) {
         modifier = Modifier.size(24.dp),
     ) {
         RuntimeIcon(
-            RuntimeIconName.More,
+            RuntimeIconName.Edit,
             Modifier.size(18.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )

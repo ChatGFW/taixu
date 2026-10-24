@@ -63,7 +63,7 @@
 - **妥协**：`invoke_subagent background=true` 的后台批次在进程级 scope 运行，进程被杀后批次协程不自动重建（DSH 的 continuation manager 支持冷恢复）。
 - **为什么让**：Lane 对话树已持久，重启后模型可用 task_id 续跑（continuable 的"数据保留"语义已达成）；自动恢复需要批次规格快照 + 启动对账 + 与 WorkflowRunManager 同级的 reconcile 体系，收益场景（重启恰逢后台批次在跑）罕见。
 - **偿还路径**：对齐 WorkflowRunManager.reconcileInterruptedRuns 模式，把后台批次规格持久化并在启动时对账重放。
-- **登记**：2026-10-25（DSH 借鉴批次，见 docs/DSH_BORROWING_ANALYSIS.md）。
+- **登记**：2026-10-24（DSH 借鉴批次，见 docs/DSH_BORROWING_ANALYSIS.md）。
 
 ### C9 · spill 保存失败时不保留全量内联
 - **妥协**：DSH 的 spill 保存失败时"尽力保留原内联结果"（宁可上下文大也不丢信息）；太墟 `.taixu-outputs/` 落盘失败时维持"截断 + grep/head/tail 分段提示"（有损，但预算可控）。
