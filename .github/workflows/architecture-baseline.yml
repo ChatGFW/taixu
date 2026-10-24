@@ -58,7 +58,16 @@ jobs:
             --tests 'top.wkbin.taixu.harness.environment.McpMetadataLifecycleTest' \
             --tests 'top.wkbin.taixu.harness.ToolSchedulingPolicyTest' \
             --tests 'top.wkbin.taixu.harness.ToolRoundDispatcherGroupTest' \
-            --tests 'top.wkbin.taixu.harness.projection.SessionStateMirrorsTest'
+            --tests 'top.wkbin.taixu.harness.projection.SessionStateMirrorsTest' \
+            --tests 'top.wkbin.taixu.harness.MentionExtractorTest' \
+            --tests 'top.wkbin.taixu.harness.btw.*' \
+            --tests 'top.wkbin.taixu.harness.compaction.CompactionStewardTest' \
+            --tests 'top.wkbin.taixu.harness.groupchat.*' \
+            --tests 'top.wkbin.taixu.harness.bot.GroupGovernanceGuardTest' \
+            --tests 'top.wkbin.taixu.harness.bot.GroupGovernanceRuntimeTest'
+          # 能力白名单切换语义（空集合=锁死回归）必须进 CI 守门。
+          ./gradlew :feature:bot:testDebugUnitTest --no-daemon --console=plain \
+            --tests 'top.wkbin.taixu.ui.bot.BotCapabilitySelectionTest'
           ./gradlew :core:datastore:testDebugUnitTest --no-daemon --console=plain \
             --tests 'top.wkbin.taixu.core.datastore.McpClientPreferencesTest'
           ./gradlew :app:testDebugUnitTest --no-daemon --console=plain \
