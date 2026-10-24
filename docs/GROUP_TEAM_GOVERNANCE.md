@@ -94,6 +94,22 @@
 - [团队创作界面](../feature/bot/src/main/java/top/wkbin/taixu/ui/bot/TeamGroupEditorDialog.kt)、[连线架构图](../feature/bot/src/main/java/top/wkbin/taixu/ui/bot/TeamArchitectureGraph.kt)、[图布局](../feature/bot/src/main/java/top/wkbin/taixu/ui/bot/TeamGraphLayout.kt)
 - [运行状态聚合](../feature/bot/src/main/java/top/wkbin/taixu/ui/bot/TeamGraphRuntime.kt)、[节点与方案证据详情](../feature/bot/src/main/java/top/wkbin/taixu/ui/bot/TeamRuntimeDetails.kt)
 
+## DS Bot 对标借鉴（2026-10-24）
+
+对标 [Fei2411/DeepSeek-Bot](https://github.com/Fei2411/DeepSeek-Bot)（DSH 多 Bot 团队插件）分两批落地的机制，设计与实现取舍登记在 [CONCESSIONS_LEDGER.md](CONCESSIONS_LEDGER.md)：
+
+- **/btw 旁路问答**：Bot 忙碌或空闲时基于当前会话快照的"顺便问一句"。同构请求（同模型/同 system/同工具声明，保前缀缓存），答案只进用户可见卡片（`btw_queries` 表），不写入模型上下文与 Bot 记忆；模型执意调工具重试一次再失败；用量以 `btw` 操作号落账。入口 `/btw 问题`（[BtwService](../harness/src/main/java/top/wkbin/taixu/harness/btw/BtwService.kt)、[BtwChatController](../feature/chat/src/main/java/top/wkbin/taixu/ui/chat/BtwChatController.kt)、[BtwPanel](../feature/chat/src/main/java/top/wkbin/taixu/ui/chat/BtwPanel.kt)）。
+- **@ 提及保留字**：`@所有人/@全体/@all/@everyone/@大家` 等全体保留字仅管理员与用户生效，普通成员说出不唤醒（防成员互相唤起风暴）；代码块/行内代码/URL 路径内的 @ 不算提及（[MentionExtractor](../harness/src/main/java/top/wkbin/taixu/harness/MentionExtractor.kt)）。
+- **接力暂停制**：@ 接力撞轮次总上限时群暂停并留一行系统说明，迟到回报不再自动开轮；用户新消息即恢复（[GroupRoundCoordinator](../harness/src/main/java/top/wkbin/taixu/harness/groupchat/GroupRoundCoordinator.kt)）。
+- **上下文管家换段**：压缩触发时轻量纯聊天判定"任务是否告一段落"——完→换段（只保留最后一轮用户消息起的原文，其余折叠为交接摘要）；没完→维持窗口压缩；判定失败一律退化为现状（[CompactionSteward](../harness/src/main/java/top/wkbin/taixu/harness/compaction/CompactionSteward.kt)，接入 [ApiContextAssembler](../harness/src/main/java/top/wkbin/taixu/harness/session/ApiContextAssembler.kt)）。
+- **权限治理**：主控 Bot 不可直接删除（须先 `setMainBot` 移交）；群管理员移交 `transferAdmin`（须成员、团队组锁定、不留无主群）；**群统一审批模式** `unifiedApprovalMode`（完全访问/询问后执行/每次审批），群维度成员会话创建与自愈时统一对齐（[BotOrchestrator](../harness/src/main/java/top/wkbin/taixu/harness/bot/BotOrchestrator.kt)、[GroupSettingsExtras](../feature/bot/src/main/java/top/wkbin/taixu/ui/bot/GroupSettingsExtras.kt)）。
+- **能力库**：Bot 级 MCP 白名单 `capabilityServerNames`（null=共享库全量），同时约束 @ 挂载、use_capability 代理与 legacy `mcp__` 直连（[BotCapabilityScope](../harness/src/main/java/top/wkbin/taixu/harness/bot/BotCapabilityScope.kt)）；Bot 详情页能力库 chips 编辑。
+- **状态优先级**：`list-bots` 每行增加 `状态=`（等用户批准 > 在干活 > 有排队任务 > 空闲，不进系统提示保字节稳定）；像素办公室气泡选取等待审批者优先（[BotPluginHelpers](../harness/src/main/java/top/wkbin/taixu/harness/plugins/BotPluginHelpers.kt)、[PixelOfficeLayout](../feature/bot/src/main/java/top/wkbin/taixu/ui/bot/PixelOfficeLayout.kt)）。
+- **用量 Bot 维度**：`aggregateLedgerByBot` 经三路 session→bot 映射（私聊/群维度/独立任务）聚合；统计面板作用域与分组新增"按 Bot"；/btw 调用在明细中单列（[HarnessUsageQueries](../core/database/src/main/java/top/wkbin/taixu/core/database/HarnessUsageQueries.kt)）。
+- **脚本化群聊回归**：按 Bot 写剧本回放假 SessionControl，驱动真实的受理→轮次→应答→@ 接力全链，零真实 API（[ScriptedGroupOrchestrationTest](../harness/src/test/java/top/wkbin/taixu/harness/groupchat/ScriptedGroupOrchestrationTest.kt)）。
+
+数据库 79 → 80：新增 `btw_queries` 表、`group_chats.unifiedApprovalMode`、`persona_bots.capabilityServerNames`，无数据回填。
+
 ## 验证记录（2026-10-23）
 
 新增24项离线测试全部通过，包含11项数据库/迁移、6项工具与审议身份、6项团队导入，以及1项假执行器完整流转。数据库185项、Harness1843项、群聊界面81项、应用层124项，合计2233项，零失败、两项既有环境跳过；38模块架构检查及差异空白检查通过，Debug APK构建完成。
@@ -107,3 +123,13 @@
 团队组独立创作与架构图调整后，再次执行 `test :app:assembleDebug architectureCheck --continue` 成功：全库3550项，零失败、7项既有跳过，38模块架构检查通过，Debug APK重新生成。专项覆盖团队定义迁移、多个群引用后的原子同步、禁止群内覆盖组织配置、跨群与跨团队批准隔离、独立导入不建群，以及管理/审议/封驳连线布局。数据库193项、Harness1845项、Bot界面84项通过。未进行真机视觉验收。
 
 团队发布版本与运行架构图完成后，执行 `test :app:assembleDebug architectureCheck --continue` 成功：全库3569项，零失败、7项既有跳过，38模块架构检查通过，Debug APK重新生成。数据库200项、Harness1845项、Bot界面96项；专项覆盖78→79迁移、不可变发布历史、草稿冲突、所选群原子升级、繁忙群与待审批操作拦截、旧批准跨版本拒绝、旧任务续办拒绝、节点状态、连线方案与只读证据详情。未调用真实付费模型，未进行真机视觉验收。
+
+## 验证记录（2026-10-24 · DS Bot 对标借鉴两批）
+
+两批借鉴新增与修改的测试全部通过：BtwServiceTest 6 项、CompactionStewardTest 7 项、ScriptedGroupOrchestrationTest 2 项、GroupRoundCoordinatorTest 13 项（含接力暂停/恢复）、MentionExtractorTest / GroupRoundPromptsTest / GroupChatRespondersTest 扩充用例、BtwQueryMigration79To80Test；数据库 79→80 迁移随 Room schema 80.json 重新导出。受影响六模块（harness、core:database、core:model、feature:bot、feature:settings、feature:chat）与 app 模块全部单测通过，runtime 等其余模块在全量 `test` 中通过，38 模块架构检查通过（棘轮基线零上涨）。
+
+app 层 Koin 图校验（TaiXuModulesTest）先后抓出两处装配缺口并已修复：BtwQueryDao 未注册（运行时 /btw 会被 getOrNull 静默禁用）、BtwService/CompactionSteward 的端口类型缺少 Koin 定义（校验器要求 factory 返回类型的全部构造参数有定义）——端口现已作为 single 注册于 harnessStewardProviders。
+
+与本次改动无关的既有失败已定性：`tools` 8 项（LocalPluginStore/PluginRecovery/WebPluginRepository/PluginDebugPackager）与 `core:datastore` 曾现的 8 项 `Unable to rename *.preferences_pb.tmp` 同根因——本 Windows 宿主 %TEMP% 内文件重命名被系统性干扰（杀软/索引器占用）。datastore 的原子写在 rename 失败时显式抛错；`AtomicFile.finishWrite` 对重命名失败只记日志并删除备份，旧指针内容被静默保留，于是插件选择/升级指针停留在旧版本，测试表现为版本断言失败（3/3 复现，非抖动）。两模块本地零改动，Linux CI 与 2026-10-23 记录均绿，属宿主环境问题而非代码回归；如需在本机稳定回归，可将测试临时目录指到非 %TEMP% 盘或为该目录加杀软排除项。未调用真实付费模型，未进行真机视觉验收。
+
+打包验证：`:app:assembleDebug` 通过，产物 `app/build/outputs/apk/debug/taixu-v1.4.1-debug.apk`（含全部借鉴改动的 79→80 数据库迁移与新表）。
