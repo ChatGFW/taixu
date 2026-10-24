@@ -124,18 +124,20 @@ fun LedgerGroupControls(
     }
 }
 
-/** 工具维度**故意不做**：账本没落工具名，无法归属，硬造一个空维度只会误导。 */
+/** Bot 维度经 sessionId→botId 三路映射聚合；工具维度**故意不做**（账本没落工具名）。 */
 private val LEDGER_SCOPE_DIMS = listOf(
     StatsLedgerScopeDim.ALL,
     StatsLedgerScopeDim.MODEL,
     StatsLedgerScopeDim.PROVIDER,
     StatsLedgerScopeDim.SESSION,
+    StatsLedgerScopeDim.BOT,
 )
 
 private val LEDGER_GROUP_DIMS = listOf(
     StatsLedgerGroupDim.MODEL,
     StatsLedgerGroupDim.PROVIDER,
     StatsLedgerGroupDim.SESSION,
+    StatsLedgerGroupDim.BOT,
 )
 
 private fun ledgerScopeDimLabel(dim: StatsLedgerScopeDim): String = when (dim) {
@@ -143,12 +145,14 @@ private fun ledgerScopeDimLabel(dim: StatsLedgerScopeDim): String = when (dim) {
     StatsLedgerScopeDim.MODEL -> "按模型"
     StatsLedgerScopeDim.PROVIDER -> "按供应商"
     StatsLedgerScopeDim.SESSION -> "按会话"
+    StatsLedgerScopeDim.BOT -> "按 Bot"
 }
 
 internal fun ledgerGroupDimLabel(dim: StatsLedgerGroupDim): String = when (dim) {
     StatsLedgerGroupDim.MODEL -> "模型"
     StatsLedgerGroupDim.PROVIDER -> "供应商"
     StatsLedgerGroupDim.SESSION -> "会话"
+    StatsLedgerGroupDim.BOT -> "Bot"
 }
 
 internal fun ledgerScopeValuesOf(
@@ -159,4 +163,5 @@ internal fun ledgerScopeValuesOf(
     StatsLedgerScopeDim.MODEL -> options.models
     StatsLedgerScopeDim.PROVIDER -> options.providers
     StatsLedgerScopeDim.SESSION -> options.sessions
+    StatsLedgerScopeDim.BOT -> options.bots
 }

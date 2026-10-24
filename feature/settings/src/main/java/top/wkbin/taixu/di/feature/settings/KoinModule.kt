@@ -174,6 +174,9 @@ val featureSettingsModule = module {
             sessionRepository = get(),
             aiModelRepository = get(),
             appStatsPreferences = get(),
+            botRepository = getOrNull(),
+            groupSessions = getOrNull(),
+            assignments = getOrNull(),
         )
     }
 
