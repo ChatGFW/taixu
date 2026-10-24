@@ -3,6 +3,7 @@ package top.wkbin.taixu.core.datastore
 import android.util.AtomicFile
 import java.io.File
 import kotlinx.coroutines.runBlocking
+import top.wkbin.taixu.core.datastore.RequiresAtomicRenameOverwrite
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -15,6 +16,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class RemoteServerRecoveryTest {
     @get:Rule val folder = TemporaryFolder()
+    @get:Rule val renameGuard = RequiresAtomicRenameOverwrite()
     @Test fun `corrupt archive blocks execution until explicit local recovery preserves original`() = runBlocking {
         val original = File(folder.root, "remote-servers.enc").apply { writeText("invalid ciphertext") }
         fun repository() = EncryptedRemoteServerRepository(AtomicFile(original), { "test:$it" }, { it.removePrefix("test:").takeIf { _ -> it.startsWith("test:") } })

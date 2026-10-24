@@ -4,13 +4,16 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import java.io.File
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
+import top.wkbin.taixu.core.datastore.RequiresAtomicRenameOverwrite
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
+
 class McpClientPreferencesTest {
     @get:Rule val temporary = TemporaryFolder()
+    @get:Rule val renameGuard = RequiresAtomicRenameOverwrite()
     @Test fun idlePolicyPersistsAndBoundsImportedValues() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {

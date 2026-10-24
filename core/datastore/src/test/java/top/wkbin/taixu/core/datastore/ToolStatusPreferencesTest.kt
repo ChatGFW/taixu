@@ -8,6 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import top.wkbin.taixu.core.datastore.RequiresAtomicRenameOverwrite
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -16,6 +17,7 @@ import org.junit.rules.TemporaryFolder
 
 class ToolStatusPreferencesTest {
     @get:Rule val temporary = TemporaryFolder()
+    @get:Rule val renameGuard = RequiresAtomicRenameOverwrite()
 
     @Test fun defaultsToIconsAndRetainsTheChoiceAfterReopeningStorage() = runBlocking {
         val file = File(temporary.root, "appearance.preferences_pb")
