@@ -157,7 +157,13 @@ class GroupChatViewModel(
         }
     }
 
-    fun updateGroup(name: String, description: String, background: String, replyMode: GroupReplyMode) {
+    fun updateGroup(
+        name: String,
+        description: String,
+        background: String,
+        replyMode: GroupReplyMode,
+        unifiedApprovalMode: String? = currentUnifiedApprovalMode(),
+    ) {
         val groupId = groupId.value ?: return
         val current = _uiState.value.group ?: return
         viewModelScope.launch {
@@ -167,6 +173,7 @@ class GroupChatViewModel(
                     description = description.trim().take(200),
                     background = background,
                     replyMode = replyMode,
+                    unifiedApprovalMode = unifiedApprovalMode,
                 )
                 groupRepository.saveGroup(updated)
                 updated
@@ -176,6 +183,19 @@ class GroupChatViewModel(
             }.onFailure {
                 _notices.tryEmit(context.getString(R.string.fbot_error, it.message.orEmpty()))
             }
+        }
+    }
+
+    private fun currentUnifiedApprovalMode(): String? =
+        _uiState.value.group?.unifiedApprovalMode
+
+    /** 群管理员移交（仅用户操作；新管理员须为本群成员，团队组不可单独移交）。 */
+    fun transferAdmin(newAdminBotId: String) {
+        val groupId = groupId.value ?: return
+        viewModelScope.launch {
+            runCatching { groupRepository.transferAdmin(groupId, newAdminBotId) }
+                .onSuccess { _uiState.update { state -> state.copy(group = groupRepository.getGroup(groupId)) } }
+                .onFailure { _notices.tryEmit("移交失败：${it.message}") }
         }
     }
 

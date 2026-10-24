@@ -334,12 +334,14 @@ fun GroupChatScreen(
         state.group?.let { group ->
             GroupInfoDialog(
                 group = group,
+                members = members,
                 deleting = state.deleting,
                 onDismiss = { showInfo = false },
-                onSave = { name, description, background, replyMode ->
-                    viewModel.updateGroup(name, description, background, replyMode)
+                onSave = { name, description, background, replyMode, unifiedApprovalMode ->
+                    viewModel.updateGroup(name, description, background, replyMode, unifiedApprovalMode)
                     showInfo = false
                 },
+                onTransferAdmin = { viewModel.transferAdmin(it) },
                 onDelete = {
                     showInfo = false
                     viewModel.deleteGroup(onBack)

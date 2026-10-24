@@ -50,8 +50,13 @@ class BotDetailViewModel(
     private val packageService: BotPackageService,
     private val wakeup: BotScheduleWakeup? = null,
     private val models: top.wkbin.taixu.core.database.AiModelRepository,
+    private val mcpServerRepository: top.wkbin.taixu.core.database.McpServerRepository? = null,
 ) : ViewModel() {
     val modelProfiles = models.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** 团队共享 MCP 服务清单（能力库白名单的可选项）。 */
+    val mcpServers = (mcpServerRepository?.servers ?: kotlinx.coroutines.flow.flowOf())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private val _uiState = MutableStateFlow(BotDetailUiState())
     val uiState: StateFlow<BotDetailUiState> = _uiState.asStateFlow()
 
@@ -89,7 +94,17 @@ class BotDetailViewModel(
         }
     }
 
-    fun save(name: String, role: String, persona: String, modelId: String, modelVariant: String?, isMainBot: Boolean, avatarSeed: String, allowModelSelection: Boolean) {
+    fun save(
+        name: String,
+        role: String,
+        persona: String,
+        modelId: String,
+        modelVariant: String?,
+        isMainBot: Boolean,
+        avatarSeed: String,
+        allowModelSelection: Boolean,
+        capabilityServerNames: List<String>? = null,
+    ) {
         val bot = _uiState.value.bot ?: return
         if (name.isBlank() || role.isBlank() || persona.isBlank()) {
             emit("请填写名称、职责与人格设定")
@@ -106,6 +121,7 @@ class BotDetailViewModel(
                 allowModelSelection = allowModelSelection,
                 isMainBot = isMainBot,
                 avatarSeed = avatarSeed,
+                capabilityServerNames = capabilityServerNames,
             )
             refreshMemory(bot.id)
             "已保存"
@@ -123,6 +139,15 @@ class BotDetailViewModel(
         }
     }
 
+    /** 主控角色移交（仅用户可操作；主控 Bot 删除保护要求先走这里）。 */
+    fun setMainBot() {
+        val bot = _uiState.value.bot ?: return
+        launchBusy {
+            orchestrator.setMainBot(bot.id)
+            "已移交主控：${bot.name}"
+        }
+    }
+
     fun rollback(hash: String) {
         val bot = _uiState.value.bot ?: return
         launchBusy {
@@ -134,14 +159,7 @@ class BotDetailViewModel(
 
     fun exportBot() {
         val bot = _uiState.value.bot ?: return
-        launchBusy {
-            val base = context.getExternalFilesDir(null) ?: context.filesDir
-            val dir = File(base, "bot-exports").apply { mkdirs() }
-            val safeName = bot.name.replace(Regex("[^\\p{L}\\p{N}_-]"), "_")
-            val target = File(dir, "$safeName-${System.currentTimeMillis()}.zip")
-            packageService.exportBot(bot.id, target)
-            "已导出到 ${target.absolutePath}"
-        }
+        launchBusy { exportBotPackage(context, packageService, bot) }
     }
 
     suspend fun readMemoryDocument(botId: String, path: String) = memoryManager.readDocument(botId, path)

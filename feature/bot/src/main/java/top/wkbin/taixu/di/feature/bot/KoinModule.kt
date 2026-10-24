@@ -38,6 +38,7 @@ val featureBotModule = module {
             models = get(),
             packageService = get(),
             wakeup = getOrNull<BotScheduleWakeup>(),
+            mcpServerRepository = getOrNull(),
         )
     }
     viewModel<GroupChatViewModel> {
