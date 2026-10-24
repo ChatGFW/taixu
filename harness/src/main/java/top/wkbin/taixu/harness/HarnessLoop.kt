@@ -35,6 +35,7 @@ import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.harness.approval.ApprovalResumePolicy
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
 import top.wkbin.taixu.harness.checkpoint.RewindController
+import top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistry
 import top.wkbin.taixu.harness.checkpoint.TurnChangeCards
 import top.wkbin.taixu.harness.compaction.BranchSummarizer
 import top.wkbin.taixu.harness.session.QueuedInstructionRecorder
@@ -111,6 +112,7 @@ class HarnessLoop(
     private val executionEnvironments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
     private val approvalAuditor: top.wkbin.taixu.harness.approval.ApprovalAuditRecorder? = null,
     private val feedbackService: top.wkbin.taixu.core.database.MessageFeedbackService? = null,
+    private val backgroundSubagents: BackgroundSubagentRegistry? = null,
 ) : InteractiveSessionControl {
     private val loopScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -487,7 +489,7 @@ class HarnessLoop(
                 if (!isSessionBusy(sessionId) && startNextQueuedLocked(sessionId)) recovered++
             }
         }
-        if (recovered > 0) startForegroundServiceSafe()
+        if (recovered > 0) foregroundLauncher.start()
         return recovered
     }
 
@@ -550,6 +552,7 @@ class HarnessLoop(
         approvalRepository.deleteForSession(id)
         approvalAuditor?.deleteForSession(id)
         runCatching { feedbackService?.deleteForSession(id) }
+        backgroundSubagents?.cancelForSession(id)
         sessionApprovalGrants.revokeSession(id)
         agentTaskStateMachine.deleteForSession(id)
         sessionDao.deleteSession(id)
@@ -592,7 +595,7 @@ class HarnessLoop(
     )
     override suspend fun submit(sessionId: String, text: String, imageUrls: List<String>, queue: PromptQueue):
         PromptSubmission = inputController.submit(sessionId, text, imageUrls, queue).also {
-            if (it is PromptSubmission.Accepted) startForegroundServiceSafe()
+            if (it is PromptSubmission.Accepted) foregroundLauncher.start()
         }
     override fun send(text: String, targetSessionId: String?, imageUrls: List<String>) =
         submitAsync(PromptQueue.NEXT_RUN, text, targetSessionId, imageUrls)
@@ -630,7 +633,7 @@ class HarnessLoop(
             messageStore.moveTo(sessId, lastUserMessage.id)
             runLoopInternal(sessId, startedAt = now())
         }
-        startForegroundServiceSafe()
+        foregroundLauncher.start()
     }
 
     /** Rewinds before a tool call and asks the model to continue again on a preserved new branch. */
@@ -647,7 +650,7 @@ class HarnessLoop(
             messageStore.rewindBefore(sessId, target.id)
             runLoopInternal(sessId, startedAt = now())
         }
-        startForegroundServiceSafe()
+        foregroundLauncher.start()
     }
 
     /** Moves the main conversation cursor to an existing immutable-tree leaf. */
@@ -694,7 +697,7 @@ class HarnessLoop(
             messageStore.rewindBefore(sessId, targetMessage.id)
             runLoop(sessId, trimmed)
         }
-        startForegroundServiceSafe()
+        foregroundLauncher.start()
     }
 
     /** Navigate the active branch to immediately before this message. */
@@ -1440,10 +1443,6 @@ class HarnessLoop(
 
     private suspend fun touchSession(sessId: String) {
         sessionDao.touch(sessId, System.currentTimeMillis())
-    }
-
-    private fun startForegroundServiceSafe() {
-        foregroundLauncher.start()
     }
 
     private fun newId(): String = UUID.randomUUID().toString()

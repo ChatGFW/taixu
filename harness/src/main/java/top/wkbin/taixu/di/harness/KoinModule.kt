@@ -18,6 +18,7 @@ import top.wkbin.taixu.harness.ToolRoundDispatcher
 import top.wkbin.taixu.harness.TurnRunner
 import top.wkbin.taixu.harness.agent.AgentMcpBootstrap
 import top.wkbin.taixu.harness.approval.ApprovalAuditRecorder
+import top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistry
 import top.wkbin.taixu.harness.approval.ApprovalResumePolicy
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
 import top.wkbin.taixu.harness.browser.BrowserMcpBootstrap
@@ -111,11 +112,11 @@ val harnessModule = module {
 
     single<BuildScriptToolExecutor> { BuildScriptToolExecutor(repository = get(), environments = get()) }
 
-    single<SessionTurnCoordinator> {
-        SessionTurnCoordinatorImpl(preferences = get(), logger = get())
-    }
+    single<SessionTurnCoordinator> { SessionTurnCoordinatorImpl(preferences = get(), logger = get()) }
 
     single<ApprovalAuditRecorder> { ApprovalAuditRecorder(audit = get(), logger = get()) }
+
+    single<BackgroundSubagentRegistry> { BackgroundSubagentRegistry(promptQueueManager = get(), logger = get()) }
 
     single<HarnessLoop> {
         HarnessLoop(
@@ -151,12 +152,12 @@ val harnessModule = module {
             executionEnvironments = get(),
             approvalAuditor = get(),
             feedbackService = get(),
+            backgroundSubagents = get(),
         )
     }
     single<SessionControl> { get<HarnessLoop>() }
     single<InteractiveSessionControl> { get<HarnessLoop>() }
     single<HarnessPathResolver> { HarnessPathResolver() }
-
     single { RequestDiagnosticsStore(redactor = get(), repository = get()) }.onClose { it?.close() }
     factory<HarnessProviderRunner> {
         HarnessProviderRunner(
@@ -215,7 +216,6 @@ val harnessModule = module {
             summaryPublisher = get(),
         )
     }
-
     includes(toolBackendModule)
     single<ToolRoundDispatcher> { ToolRoundDispatcher() }
     single<TurnRunner> { TurnRunner(normalizer = get(), groupFreshness = get()) }

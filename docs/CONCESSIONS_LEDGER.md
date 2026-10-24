@@ -59,6 +59,12 @@
 - **偿还路径**：出现"放行追溯"真实需求时，把策略放行折叠为按 (会话, 模式) 的会话级审计行，而非逐调用。
 - **登记**：2026-10-24（DSH 借鉴批次，见 docs/DSH_BORROWING_ANALYSIS.md）。
 
+### C10 · 后台子代理批次进程被杀后不自动恢复
+- **妥协**：`invoke_subagent background=true` 的后台批次在进程级 scope 运行，进程被杀后批次协程不自动重建（DSH 的 continuation manager 支持冷恢复）。
+- **为什么让**：Lane 对话树已持久，重启后模型可用 task_id 续跑（continuable 的"数据保留"语义已达成）；自动恢复需要批次规格快照 + 启动对账 + 与 WorkflowRunManager 同级的 reconcile 体系，收益场景（重启恰逢后台批次在跑）罕见。
+- **偿还路径**：对齐 WorkflowRunManager.reconcileInterruptedRuns 模式，把后台批次规格持久化并在启动时对账重放。
+- **登记**：2026-10-25（DSH 借鉴批次，见 docs/DSH_BORROWING_ANALYSIS.md）。
+
 ### C9 · spill 保存失败时不保留全量内联
 - **妥协**：DSH 的 spill 保存失败时"尽力保留原内联结果"（宁可上下文大也不丢信息）；太墟 `.taixu-outputs/` 落盘失败时维持"截断 + grep/head/tail 分段提示"（有损，但预算可控）。
 - **为什么让**：移动端上下文预算敏感，失败路径通常伴随存储异常（磁盘满/权限），此时全量内联一条超大结果可能直接顶爆请求字节预算，连锁触发 413/压缩，伤害面更大；截断文案已引导模型分段取回。

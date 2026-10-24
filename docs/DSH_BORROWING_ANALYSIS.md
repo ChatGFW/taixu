@@ -89,11 +89,21 @@ DSH 的 deliverables 用轮始/末工作树快照 diff 自动得出"本轮改动
 
 ### P2（新能力方向，按需立项）
 
-- **可继续（continuable）子代理**："是否用父级轮次前缀作 seed"的数据与身份/冷恢复/所有权分离；
-  父级子代理目录持久在父会话日志，纯读目录不加载 Agent——`invoke_subagent` 拒绝 `background=true`
-  缺口的路线图。
-- **Agent Teams 任务板**：共享任务 DAG（每事件全量快照 + revision CAS + blockedBy 无环）、
-  roster provisioning→active|failed 终态、消息全走 Steer 投递——与 GROUP_TEAM_GOVERNANCE 同问题域。
+- **可继续（continuable）子代理**——**后台骨架已落地（2026-10-25）**：
+  `BackgroundSubagentRegistry`（进程级 scope，批次与主轮解耦不锁父会话）+
+  `invoke_subagent background=true` 从拒绝改为启动（立即返回 backgroundStartedText
+  收据，完成后 backgroundCompletionText 以 STEER 消息入队父会话——运行中被下一步前
+  消费、空闲时等用户输入触发推理）；FGS idle-stop 与电租约判定感知
+  `hasActive`（AgentForegroundService），会话删除取消其全部后台批次。
+  续跑能力沿用既有 task_id Lane 续跑（数据保留即 continuable 的 seed 语义）。
+  **让步 C10**：进程被杀后批次不自动恢复（Lane 持久可续跑，调度身份恢复让步）；
+  后台 Lane 审批沿用 deferred 语义（INCOMPLETE 汇总报告）。
+- **Agent Teams 任务板**——**评估后不做（2026-10-25）**：DSH 自身也标 experimental。
+  其任务板针对的三个问题在太墟各有已落地的对应物：并发写冲突 → 子代理 write_paths
+  写租约波次（buildWriteCleanWaves）；任务状态机 → AgentTaskStateMachine + 后台审批
+  通知；多 Bot 协作 → 群提案治理 + 接力派单树。缺实证需求（尚无"多 Bot 需要跨会话
+  看彼此任务依赖"的真实用例），硬造任务板 = 为对标而对标。触发条件：出现跨会话
+  协作任务依赖的真实场景（如多 Bot 联合构建一条流水线）再立项。
 - **跨会话全文检索**：SQLite FTS，跨会话按最强命中分组——正对让步 C1。
 - ~~轮改动交付物卡片~~ —— **已提前落地（P1，2026-10-24）**。
 - ~~"沙箱拦住了 vs 沙箱坏了"双分类器~~ —— **已提前落地（P1-7 顺延，2026-10-24，见上）**。
