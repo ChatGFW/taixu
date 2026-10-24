@@ -51,7 +51,8 @@ internal fun MessageFeedbackAction(messageId: String) {
     val scope = rememberCoroutineScope()
 
     // 每次打开都重读：用户可能在 Web 端或其他入口改过评价。
-    // 首次打开等读取完成再显示对话框，避免先闪一下默认“有帮助”。
+    // 关闭时把 prefilled 复位，下次打开等读取完成再显示，避免先闪旧值，
+    // 也避免 remember(existing) 在读取完成前用旧评价冲掉正在编辑的内容。
     LaunchedEffect(showDialog, messageId) {
         if (showDialog) {
             existing = runCatching { service.find(messageId) }.getOrNull()
@@ -73,7 +74,10 @@ internal fun MessageFeedbackAction(messageId: String) {
     if (showDialog && prefilled) {
         MessageFeedbackDialog(
             existing = existing,
-            onDismiss = { showDialog = false },
+            onDismiss = {
+                showDialog = false
+                prefilled = false
+            },
             onSubmit = { rating, note ->
                 val sessionId = tracker.currentSessionId.value
                 if (sessionId.isBlank()) {
@@ -89,6 +93,7 @@ internal fun MessageFeedbackAction(messageId: String) {
                         .onFailure { Toast.makeText(context, R.string.chat_message_feedback_failed, Toast.LENGTH_SHORT).show() }
                 }
                 showDialog = false
+                prefilled = false
             },
         )
     }
