@@ -110,6 +110,7 @@ class BotOrchestrator(
         avatarSeed: String? = null,
         modelVariant: String? = null,
         allowModelSelection: Boolean? = null,
+        capabilityServerNames: List<String>? = null,
     ): Bot = modelManager.withBotLock(botId) {
         val current = requireNotNull(botRepository.getBot(botId)) { "Bot 不存在" }
         val selection = modelManager.validate(modelId, modelVariant)
@@ -129,6 +130,7 @@ class BotOrchestrator(
             allowModelSelection = allowModelSelection ?: current.allowModelSelection,
             isMainBot = keepMain,
             avatarSeed = avatarSeed?.takeIf { it.isNotBlank() } ?: current.avatarSeed,
+            capabilityServerNames = capabilityServerNames ?: current.capabilityServerNames,
             updatedAt = System.currentTimeMillis(),
         )
         botRepository.saveBot(updated)
@@ -144,6 +146,9 @@ class BotOrchestrator(
         val bot = botRepository.getBot(botId) ?: return
         val adminGroups = groupRepository.countGroupsAsAdmin(botId)
         check(adminGroups == 0) { "该 Bot 仍是 $adminGroups 个群聊的管理员，请先转移管理员" }
+        // 借鉴 DS Bot 的删除保护：主控 Bot 不能直接删除，须先经 [setMainBot] 移交主控角色，
+        // 避免静默换帅让团队指挥链在用户不知情时变更。
+        check(!bot.isMainBot) { "主控 Bot 不能直接删除，请先把主控角色移交给其他 Bot" }
         assignmentRepository?.assignmentsForBot(botId)?.forEach { task ->
             assignmentRepository.cancelAssignment(task.id)
             task.sessionId?.let { sessionControl.deleteSession(it) }
@@ -157,12 +162,23 @@ class BotOrchestrator(
             }
         botRepository.deleteBot(botId)
         memoryManager.deleteMemory(botId)
-        if (bot.isMainBot) {
-            botRepository.listBots().firstOrNull()?.let { promote ->
-                botRepository.saveBot(promote.copy(isMainBot = true, updatedAt = System.currentTimeMillis()))
-            }
-        }
         logger.i("[BotOrchestrator] 已删除 Bot: ${bot.name}")
+    }
+
+    /**
+     * 主控角色移交（仅用户可调用；工具侧没有对应参数）。同一时间只保留一个主控：
+     * 先撤销现有主控，再提升目标；Bot 会话与人格不受影响。
+     */
+    suspend fun setMainBot(botId: String): Bot = modelManager.withBotLock(botId) {
+        val target = requireNotNull(botRepository.getBot(botId)) { "Bot 不存在" }
+        val now = System.currentTimeMillis()
+        botRepository.listBots().filter { it.isMainBot && it.id != botId }.forEach { current ->
+            botRepository.saveBot(current.copy(isMainBot = false, updatedAt = now))
+        }
+        val promoted = target.copy(isMainBot = true, updatedAt = now)
+        botRepository.saveBot(promoted)
+        logger.i("[BotOrchestrator] 主控已移交: ${promoted.name}")
+        promoted
     }
 
     /** 独占会话可能被用户在会话列表里删除；发言前自愈，避免 SESSION_NOT_FOUND。 */
@@ -182,15 +198,20 @@ class BotOrchestrator(
     private suspend fun ensureGroupSessionLocked(bot: Bot, groupId: String): String =
         groupSessionLocks.computeIfAbsent("${bot.id}:$groupId") { Mutex() }.withLock {
         val existing = groupSessionRepository.sessionIdFor(bot.id, groupId)
-        val title = groupSessionTitle(bot, groupRepository.getGroup(groupId)?.name)
+        val group = groupRepository.getGroup(groupId)
+        val title = groupSessionTitle(bot, group?.name)
+        // 群统一审批模式（DS Bot"全员统一沙盒预设"）：群维度会话创建与自愈都对齐该模式，
+        // 覆盖成员个人会话的默认权限；null = 沿用完全访问。
+        val approvalMode = group?.unifiedApprovalMode?.takeIf { it.isNotBlank() }
+            ?: ApprovalMode.FULL_ACCESS.id
         if (existing != null && sessionRepository.findById(existing) != null) {
-            ensureSessionRow(bot, existing, title)
+            ensureSessionRow(bot, existing, title, approvalMode)
             return@withLock existing
         }
         // 修复旧版本留下的悬空映射；重建必须使用新 ID，不能重新匹配旧诊断日志。
         if (existing != null) sessionControl.deleteSession(existing)
         val sessionId = UUID.randomUUID().toString()
-        sessionRepository.upsert(sessionEntity(bot, System.currentTimeMillis(), sessionId, title))
+        sessionRepository.upsert(sessionEntity(bot, System.currentTimeMillis(), sessionId, title, approvalMode))
         groupSessionRepository.save(bot.id, groupId, sessionId)
         logger.i("[BotOrchestrator] 创建群维度 Bot 会话: ${bot.name} @ $groupId ($sessionId)")
         sessionId
@@ -211,27 +232,31 @@ class BotOrchestrator(
         }
     }
 
-    private suspend fun ensureSessionRow(bot: Bot, sessionId: String, title: String) {
+    private suspend fun ensureSessionRow(
+        bot: Bot,
+        sessionId: String,
+        title: String,
+        approvalMode: String = ApprovalMode.FULL_ACCESS.id,
+    ) {
         val existing = sessionRepository.findById(sessionId)
         if (existing == null) {
             sessionRepository.upsert(
-                sessionEntity(bot, System.currentTimeMillis(), sessionId, title),
+                sessionEntity(bot, System.currentTimeMillis(), sessionId, title, approvalMode),
             )
             logger.w("[BotOrchestrator] Bot 会话缺失，已重建: ${bot.name} ($sessionId)")
             return
         }
         val now = System.currentTimeMillis()
-        // 群聊自动执行没有审批 UI；旧会话可能仍是 ASSISTED，发言前统一升级为完全访问。
-        val needsFullAccess = existing.approvalMode != ApprovalMode.FULL_ACCESS.id
-        // Existing sessions own their execution target. Never silently move resumed work to another environment.
-        if (needsFullAccess) {
+        // Bot 私聊会话保持完全访问（自动执行没有审批 UI）；群维度会话按群统一审批模式对齐，
+        // 有统一模式的群把旧会话收敛到该模式，没有的沿用完全访问。
+        if (existing.approvalMode != approvalMode) {
             sessionRepository.upsert(
                 existing.copy(
-                    approvalMode = ApprovalMode.FULL_ACCESS.id,
+                    approvalMode = approvalMode,
                     updatedAt = now,
                 ),
             )
-            logger.i("[BotOrchestrator] Bot 会话已启用完全访问（免审批）: ${bot.name} ($sessionId)")
+            logger.i("[BotOrchestrator] Bot 会话审批模式已对齐: ${bot.name} ($approvalMode)")
         }
         if (existing.modelId != bot.modelId || existing.modelVariant != bot.modelVariant) {
             sessionRepository.setModelSelection(sessionId, bot.modelId, bot.modelVariant, now)
@@ -292,6 +317,7 @@ class BotOrchestrator(
         now: Long,
         sessionId: String = bot.sessionId,
         title: String = sessionTitle(bot),
+        approvalMode: String = ApprovalMode.FULL_ACCESS.id,
     ) = HarnessSessionEntity(
         id = sessionId,
         title = title,
@@ -301,7 +327,7 @@ class BotOrchestrator(
         modelVariant = bot.modelVariant,
         workspace = "",
         projectType = "",
-        approvalMode = ApprovalMode.FULL_ACCESS.id,
+        approvalMode = approvalMode,
         executionTargetJson = "unbound",
     )
 }

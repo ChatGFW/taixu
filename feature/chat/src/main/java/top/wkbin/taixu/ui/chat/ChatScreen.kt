@@ -139,6 +139,9 @@ fun ChatScreen(
     val workspace by viewModel?.workspace?.collectAsStateWithLifecycle() ?: previewStateOf("")
     val mcpRecommendations by viewModel?.mcpRecommendations?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val workflowSuggestions by viewModel?.workflowSuggestions?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val btwQueries by viewModel?.btwController?.queries?.collectAsStateWithLifecycle()
+        ?: previewStateOf(emptyList<top.wkbin.taixu.core.model.BtwQuery>())
+    val btwStreaming by viewModel?.btwController?.streaming?.collectAsStateWithLifecycle() ?: previewStateOf("")
     val shareActions by viewModel?.shareActions?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val hiddenSkillSuggestions by viewModel?.hiddenSkillSuggestions?.collectAsStateWithLifecycle() ?: previewStateOf(emptySet())
     val sessionProjectType by viewModel?.projectType?.collectAsStateWithLifecycle() ?: previewStateOf("")
@@ -462,6 +465,9 @@ fun ChatScreen(
                     onInstallMcpRecommendation = onInstallMcp,
                     onDismissMcpRecommendation = { arg0 -> viewModel?.dismissMcpRecommendation(arg0) },
                     workflowSuggestions = workflowSuggestions,
+                    btwQueries = btwQueries,
+                    btwStreaming = btwStreaming,
+                    onCancelBtw = { viewModel?.btwController?.cancel() },
                     onLaunchWorkflowSuggestion = { arg0 -> viewModel?.launchWorkflowSuggestion(arg0) },
                     onDismissWorkflowSuggestion = { arg0 -> viewModel?.dismissWorkflowSuggestion(arg0) },
                     shareActions = shareActions,
@@ -699,6 +705,9 @@ private fun ChatPaneContent(
     workflowSuggestions: List<ProactiveWorkflowSuggestion> = emptyList(),
     onLaunchWorkflowSuggestion: (ProactiveWorkflowSuggestion) -> Unit = {},
     onDismissWorkflowSuggestion: (String) -> Unit = {},
+    btwQueries: List<top.wkbin.taixu.core.model.BtwQuery> = emptyList(),
+    btwStreaming: String = "",
+    onCancelBtw: () -> Unit = {},
     onResolveApproval: (String, Boolean, Boolean) -> Unit = { _, _, _ -> },
     onResolveQuestion: (String, String) -> Unit = { _, _ -> },
     contextUsage: ContextUsage = ContextUsage(),
@@ -764,30 +773,7 @@ private fun ChatPaneContent(
             }
         }
 
-        error?.let {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.errorContainer,
-            ) {
-                Row(
-                    Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        it,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(onClick = onClearError) {
-                        Text(stringResource(R.string.chat_close), color = MaterialTheme.colorScheme.onErrorContainer)
-                    }
-                }
-            }
-        }
+        error?.let { ChatErrorBanner(error = it, onClear = onClearError) }
 
         McpRecommendationBanner(
             recommendations = mcpRecommendations,
@@ -801,6 +787,13 @@ private fun ChatPaneContent(
             onLaunch = onLaunchWorkflowSuggestion,
             onDismiss = onDismissWorkflowSuggestion,
         )
+
+        BtwPanel(
+            queries = btwQueries,
+            streaming = btwStreaming,
+            onCancel = onCancelBtw,
+        )
+
         shareActions?.let { share -> ShareQuickActionsRow(state = share, modifier = Modifier.padding(vertical = 4.dp)) }
 
         Column(Modifier.windowInsetsPadding(chatBottomInsets())) { ChatComposer(

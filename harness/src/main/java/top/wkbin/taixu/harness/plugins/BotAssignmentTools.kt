@@ -184,7 +184,7 @@ internal fun botAssignmentTools(
 
 internal fun statusLabel(status: BotAssignmentStatus): String = when (status) {
     BotAssignmentStatus.QUEUED -> "排队中"
-    BotAssignmentStatus.WAITING_CHILDREN -> "等待下级交付"
+    BotAssignmentStatus.WAITING_CHILDREN -> "等待协作交付"
     BotAssignmentStatus.BLOCKED -> "受阻"
     BotAssignmentStatus.INTERRUPTED -> "结果待核对"
     BotAssignmentStatus.RUNNING -> "执行中"

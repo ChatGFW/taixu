@@ -22,10 +22,12 @@ class CapabilityToolGateway(
     private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
     /** 按工具策略拒绝已禁用的 MCP 工具。 */
     private val toolPolicy: McpToolCallPolicy? = null,
+    /** Bot 级能力白名单：非 Bot 会话为 null（不限制）。 */
+    private val capabilityScope: top.wkbin.taixu.harness.bot.BotCapabilityScope? = null,
     /** 宿主执行通道：与直接 host 调用共用同一 host 后端（含输出上限与截图 metadata 附带）。 */
     hostExecutor: suspend (JsonObject, String?, String, MutableMap<String, String>) -> Pair<Boolean, String>,
 ) {
-    private val router = CapabilityToolRouter(mcpManager, argRedactor, plugins, toolPolicy, hostExecutor)
+    private val router = CapabilityToolRouter(mcpManager, argRedactor, plugins, toolPolicy, capabilityScope, hostExecutor)
 
     suspend fun execute(
         args: JsonObject,
@@ -41,6 +43,10 @@ class CapabilityToolGateway(
         if (rawToolName != "use_capability") {
             // 兼容路径：对话历史/模型习惯中仍可能出现直接 mcp__ 调用（schema 已不再宣告）
             toolPolicy?.resolve(args, rawToolName)?.takeIf { !it.enabled }?.let { return false to it.disabledMessage() }
+            rawToolName?.removePrefix("mcp__")?.substringBefore("__")?.let { serverId ->
+                capabilityScope?.allowedMcpServers(sessionId)?.takeIf { serverId.lowercase() !in it }
+                    ?.let { return false to "MCP[$serverId] 不在当前 Bot 的能力白名单内，本次调用未执行。" }
+            }
             return mcpManager?.executeTool(rawToolName ?: "mcp", args, workspace) ?: (false to "未初始化 MCP 管理器")
         }
         val dispatch = ScriptCapabilityDispatcher(parentToolCallId, metadata, mcpManager, argRedactor, plugins, reenter)

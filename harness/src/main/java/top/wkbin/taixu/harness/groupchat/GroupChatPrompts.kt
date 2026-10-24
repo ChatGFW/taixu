@@ -12,6 +12,7 @@ internal fun buildGroupPrompt(
     history: String,
     members: List<Bot>,
     team: top.wkbin.taixu.core.model.bot.GroupTeam = top.wkbin.taixu.core.model.bot.GroupTeam(group.adminBotId, members.map { it.id }.toSet()),
+    governance: top.wkbin.taixu.core.model.bot.GroupGovernance = top.wkbin.taixu.core.model.bot.GroupGovernance(),
 ): String = buildString {
     appendLine("【群聊「${group.name}」】")
     appendLine("群聊 ID：${group.id}")
@@ -26,10 +27,11 @@ internal fun buildGroupPrompt(
         appendLine(history)
     }
     appendLine("所有团队成员均可调用 bot-management 的 list-models 查看已添加供应商及模型，select-model 为自己切换模型；不可改动其他成员或全局激活模型。")
-    val reports = team.directReports(bot.id)
-    appendLine("【团队边界】只能向直属下级派新任务，不得越级或指挥同级；已有任务由原派发负责人验收。组织关系仅由用户配置。")
+    val reports = team.directReports(bot.id) + members.filter { governance.canRoute(bot.id, it.id) }.map { it.id }
+    appendLine("【团队边界】向直属下级或审议规则明确授权的成员派单；已有任务仍由原负责人管理。组织和审议规则仅由用户配置。")
+    if (governance.rules.isNotEmpty()) appendLine(formatGovernance(governance, members))
     team.supervisorOf(bot.id)?.let { parent -> appendLine("直属上级：${members.firstOrNull { it.id == parent }?.name ?: parent}；交付包含结论、产物引用、验证证据和未解决问题。") }
-    if (bot.id == group.adminBotId || reports.isNotEmpty()) appendMainBotRules(group.id, members.filter { it.id in reports })
+    if (bot.id == group.adminBotId || reports.isNotEmpty()) appendMainBotRules(group.id, members.filter { it.id in reports }, governance.rules.isNotEmpty())
     else appendLine("当前没有直属下级，请在任务范围内直接执行，不要另建管理层或使用通用子智能体绕过团队关系。")
     appendLine()
     appendLine("【本次受理的来源消息／任务】（较新的用户纠正以群记录及后续更新为准）")
@@ -39,10 +41,10 @@ internal fun buildGroupPrompt(
 /**
  * 主控 Bot 的行为约束：先派发再兜底，明确来源工作区与建议产物范围。
  */
-private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>) {
+private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>, governed: Boolean) {
     appendLine()
     appendLine("【负责人职责（必须遵守）】")
-    appendLine("你负责当前任务及直属团队：按需拆解目标、分派任务、验收结果并汇总；简单任务直接完成，不为分层而分层。")
+    appendLine("你负责当前任务及获授权的协作：按需拆解目标、分派任务、验收结果并汇总；不为分层而分层。")
     appendLine("当前主控身份由应用的群会话映射确认。历史记忆中的工具权限失败仅代表当时结果；需要委派时先用 list-bots 核验当前能力，若仍失败则如实报告，勿反复重试。")
     appendLine("向群成员派发任务只能使用 bot-management 的 assign-task。invoke_subagent 创建的是当前会话里的通用子智能体，不代表群成员接单，也不会让成员进入各自工位；群聊协作禁止用 invoke_subagent 替代 assign-task。")
     appendLine("适合委派：独立、可界定的编码/调研/测试工作。只有互不依赖的任务才并行。")
@@ -52,7 +54,8 @@ private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>
     appendLine("复杂任务派发前，先在群聊发 2–3 行立会结论（目标拆解/分工/依赖），再同一轮连续调用多个 assign-task(wait=false)，每个任务指定不同 bot_name；同一轮的任务会归入同一工作批次，全部结束后只回报一次。派完结束本轮，不要逐条等待，也不要退化成子智能体并行。")
     appendLine("有依赖关系的任务必须串行：测试执行依赖开发产物，先派开发并验收，再派测试执行；不要把测试执行和开发实现同时派发。测试用例编写若不依赖实现产物，可以与开发并行，也不要把只写测试计划当成验收完成。")
     appendLine("派发测试时必须提供开发产物路径，并要求实际运行/验收，不能只交测试计划。")
-    appendLine("有合适成员时不要抢着实现；只有没有合适成员、成员明确失败或任务极小时才亲自兜底，并说明真实原因。")
+    if (governed) appendLine("实际执行必须交给已批准方案绑定的执行团队；主控、起草和审议会话不能直接调用执行工具兜底。")
+    else appendLine("有合适成员时不要抢着实现；只有没有合适成员、成员明确失败或任务极小时才亲自兜底，并说明真实原因。")
     appendLine("所有委派都会持久化记录，可用 list-assignments 查询进度、inspect-assignment 查看详情、cancel-assignment 终止任务。")
     appendLine("assign-task 会把任务交给成员在群聊前台执行：任务在独立会话运行，成员以自己的头像在群聊实时输出并展示工具步骤，不是临时子智能体。")
     appendLine("依赖任务：派发前先 list-assignments 确认前置任务状态，并在 depends_on 中传入其任务 ID；前置任务未 COMPLETED 时不得抢跑。")
@@ -60,7 +63,7 @@ private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>
         appendLine("当前没有其他成员可派发，请自己完成。")
         return
     }
-    appendLine("可派发成员（仅直属下级）：")
+    appendLine("可派发成员（直属下级及授权协作成员）：")
     members.forEach { appendLine("- bot_name=\"${it.name}\"；职责：${it.role}") }
     appendLine("派发步骤：")
     appendLine("1. 先调用 use_capability(action=\"inspect\", server=\"plugin.taixu.bot-management\") 查看 assign-task 参数；")
@@ -71,8 +74,8 @@ private fun StringBuilder.appendMainBotRules(groupId: String, members: List<Bot>
     appendLine("异步派单后结束本轮，等待批次完成通知；不要连续查询任务状态或反复检查尚未产出的文件。同一批次最多 12 个任务，不要把同一任务重复派发。需要补充要求、修正或继续受阻任务时，用 continue-assignment(assignment_id, instruction) 继续原任务；不要反复新建相同任务。执行中补充只排队，当前轮次结束后处理。")
     appendLine("涉及写文件时传 write_paths，使用来源工作区内的相对路径或 /workspace 下的项目路径，禁止以 /root 为新项目产物目录。群聊任务的 write_paths 是建议范围，文件工具仍执行工作区边界；不要把 Shell 可写当作文件工具授权。")
     appendLine("收到批次回传后，可用 inspect-assignment 查看单个任务的摘要、错误和同批状态；失败或结果未知时先只读核验产物，并用 continue-assignment 在原任务接续，不要盲目重做。验收应读取正文和实际运行，存在文件、行数和标题齐全只证明结构，不能证明内容正确。")
-    appendLine("按群说明及成员职责组织必要的方案审议与执行调度；尚未执行的审议不得宣称准奏。简单任务可明确说明简化流程。")
-    appendLine("派发任务只提供必要背景、目标、范围和验收条件；不要复制整个群聊。直属下级交付后先验收，再向原上级简要回报，保留产物与证据引用，失败和不确定性必须保留。")
+    appendLine("按群说明及成员职责组织必要的方案审议与执行调度；尚未执行的审议不得宣称准奏；已配置的程序门禁不能因任务简单而省略。")
+    appendLine("派发任务只提供必要背景、目标、范围和验收条件；不要复制整个群聊。受派成员交付后先核验，再向原派发负责人简要回报，保留产物与证据引用，失败和不确定性必须保留。")
     appendLine("任务预算不足时向用户报告并等待调整，再继续原任务；不得换会话、另建任务或拆批次绕过预算，也不能把预算受阻当作完成。")
     appendLine("只依据工具返回和群聊记录汇报，不要虚构成员进度或已完成的委派。")
 }

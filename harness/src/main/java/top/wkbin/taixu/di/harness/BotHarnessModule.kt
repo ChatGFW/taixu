@@ -25,6 +25,8 @@ import top.wkbin.taixu.harness.plugins.botSchedulePlugin
 
 /** PersonaBot：独立会话、Git 记忆、群聊调度与定时唤醒。 */
 val botHarnessModule = module {
+    single { top.wkbin.taixu.harness.bot.GroupGovernanceGuard(get(), get(), get()) }
+    single { top.wkbin.taixu.harness.bot.market.GroupTeamImporter(get(), get(), get()) }
     single { top.wkbin.taixu.harness.bot.BotModelManager(get(), get(), get(), get(), get()) }
     single { top.wkbin.taixu.harness.groupchat.GroupContextScope(groups = get(), assignments = get()) }
     single { top.wkbin.taixu.harness.groupchat.GroupReplyFreshness(groups = get(), messages = get(), contextScope = get()) }
@@ -81,9 +83,11 @@ val botHarnessModule = module {
                 val group = requireNotNull(groups.getGroup(requireNotNull(task.groupId)))
                 val target = requireNotNull(bots.getBot(task.botId))
                 val caller = requireNotNull(bots.getBot(requireNotNull(task.reportToBotId)))
+                val proposal = task.proposalId?.let { groups.getProposal(it) }
+                val reviewContext = proposal?.let { "\n【绑定方案 ${it.id} v${task.proposalVersion} · ${it.decision}，成员材料】\n${it.content}\n审核依据：${it.reason}\n" }.orEmpty()
                 get<GroupChatDispatcher>().runAssignment(
                     group, target, caller,
-                    "【独立任务 ${task.id} · 第 ${task.revision} 轮】\n${request.instruction}\n" +
+                    "【独立任务 ${task.id} · 第 ${task.revision} 轮】\n${request.instruction}\n$reviewContext" +
                             "这是同一任务的后续工作，先核验已有产物再修改。真正受阻时用 report-assignment 记录原因与产物；偏好问题60秒未回复采用推荐项继续。",
                     task.id, task.writePaths, task.sessionId, admitted
                 )
@@ -117,6 +121,7 @@ val botHarnessModule = module {
             logger = get(),
             runtime = { get() },
             modelManager = get(),
+            sessionStates = { get<top.wkbin.taixu.harness.session.SessionControl>().sessionRunStates.value },
         )
     }
     single<HarnessPlugin>(named("taixu.bot-schedule")) {

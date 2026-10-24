@@ -36,13 +36,22 @@ object MentionExtractor {
     private val GENERIC_REGEX = Regex("""@([^$MENTION_HARD_BOUNDARY]+)""")
 
     /**
+     * 全体保留字：`@所有人` / `@all` 等表示呼叫全体成员。语义上只对用户与管理员生效，
+     * 普通成员说出不触发（防止成员互相唤起一大片），该约束由调用方（群聊轮次）执行。
+     */
+    val ALL_KEYWORDS = setOf("all", "everyone", "所有人", "全体", "全体成员", "大家")
+
+    /** 消息里是否出现 `@全体保留字`；供群聊判定"唤醒全体"的入口。 */
+    fun containsAllKeyword(text: String): Boolean = parse(text).any { it in ALL_KEYWORDS }
+
+    /**
      * @param text 用户原始消息
      * @param knownNames 已知实体名（技能 name / id / triggerCommand 去掉前导 `/`、MCP 服务名等）。
      *                  传入后启用最长优先匹配，可正确处理名称内含空格的情况；传空则退化为通用解析。
      */
     fun parse(text: String, knownNames: Collection<String> = emptyList()): Set<String> {
         if (!text.contains("@") && !text.contains("＠")) return emptySet()
-        val normalized = normalize(text)
+        val normalized = stripCodeSegments(normalize(text))
         val result = linkedSetOf<String>()
 
         // 用可变字符数组「擦除」已识别的片段，避免重叠匹配与二次拆分。
@@ -63,7 +72,7 @@ object MentionExtractor {
             // 边界保护：@ 之后必须是「终止符或文本结束」，避免 "Git" 误吞 "GitHub" 的前缀；
             // @ 之前必须不是词字符，避免邮箱 user@host.com 里的 @host 被当成提及。
             val pattern = Regex(
-                """(?<![\w.+-])@${Regex.escape(candidate)}(?=$|[$MENTION_HARD_BOUNDARY])""",
+                """(?<![\w.+-/])@${Regex.escape(candidate)}(?=$|[$MENTION_HARD_BOUNDARY])""",
                 RegexOption.IGNORE_CASE,
             )
             var match = pattern.find(buffer)
@@ -80,18 +89,39 @@ object MentionExtractor {
 
         // 第二轮：通用兜底（覆盖未登记的实体），此时剩余的 @xxx 都不会再被误拆。
         for (match in GENERIC_REGEX.findAll(buffer.toString())) {
-            // 邮箱/标识符保护：@ 前一个字符是词字符时不视为提及（如 user@host.com）。
             val atIndex = match.range.first
-            if (atIndex > 0 && isWordChar(buffer[atIndex - 1])) continue
+            // 邮箱/标识符/URL 路径保护：@ 前一个字符是词字符或路径斜杠时不视为提及
+            // （如 user@host.com、https://weibo.com/@handle）。
+            if (atIndex > 0 && (isWordChar(buffer[atIndex - 1]) || buffer[atIndex - 1] == '/')) continue
             val name = match.groupValues[1].trim()
             if (name.isNotEmpty()) result += name.lowercase()
         }
         return result
     }
 
+    /**
+     * 代码段内的 @ 不是提及：Bot 回复常整段贴出含 @ 的命令或代码（如 `git @ref`、
+     * `user@host` 示例），照常解析会让群聊接力误触发。用等长空格替换 ``` 围栏块与
+     * ` 行内代码，保持其余文本的相对位置不变。
+     */
+    private fun stripCodeSegments(normalized: String): String {
+        if (!normalized.contains("```") && !normalized.contains("`")) return normalized
+        var stripped = FENCED_CODE_REGEX.replace(normalized) { match ->
+            " ".repeat(match.value.length)
+        }
+        stripped = INLINE_CODE_REGEX.replace(stripped) { match -> " ".repeat(match.value.length) }
+        return stripped
+    }
+
     /** 判断是否词字符（字母/数字/下划线/点/加号/减号）；用于邮箱与标识符保护。 */
     private fun isWordChar(c: Char): Boolean =
         c.isLetterOrDigit() || c == '_' || c == '.' || c == '+' || c == '-'
+
+    /** ``` 围栏代码块（先于行内代码处理，避免行内正则跨块配对）。 */
+    private val FENCED_CODE_REGEX = Regex("""```[\s\S]*?(?:```|$)""")
+
+    /** ` 行内代码段。 */
+    private val INLINE_CODE_REGEX = Regex("""`[^`\n]*`""")
 
     /** NFKC 归一：全角字符折半角，兼容全角 ＠ 与全角字母数字。 */
     private fun normalize(raw: String): String = Normalizer.normalize(raw, Normalizer.Form.NFKC)

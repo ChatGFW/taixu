@@ -38,4 +38,7 @@ data class BotAssignment(
     /** Original delegating task; unaffected by later team edits. */
     val parentAssignmentId: String? = null,
     val budgetId: String? = null,
+    val proposalId: String? = null,
+    val proposalVersion: Int? = null,
+    val teamBinding: String? = null,
 )

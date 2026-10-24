@@ -132,11 +132,12 @@ internal object PixelOfficeLayout {
         return remaining.coerceAtLeast(0)
     }
 
-    /** At most two speech bubbles: the selected bot, then whoever is busiest. */
+    /** At most two speech bubbles: the selected bot, then waiting-approval first, then whoever is busiest. */
     fun speakerIds(actors: List<OfficeActor>, selectedId: String?): List<String> {
         if (actors.isEmpty()) return emptyList()
-        val busy = actors.filter { it.state != BotAvatarState.IDLE }
-            .sortedBy { stateRank(it.state) }
+        // 等审批的成员最需要被看到（DS Bot 状态优先级：等批准 > 在干活 > 空闲）。
+        val busy = actors.filter { it.state != BotAvatarState.IDLE || it.waitSeconds != null }
+            .sortedWith(compareBy({ if (it.waitSeconds != null) -1 else 0 }, { stateRank(it.state) }))
             .map { it.botId }
         val ordered = buildList {
             if (selectedId != null && actors.any { it.botId == selectedId }) add(selectedId)
@@ -145,7 +146,6 @@ internal object PixelOfficeLayout {
         }
         return ordered.take(2)
     }
-
     private fun poseFor(state: BotAvatarState): OfficePose = when (state) {
         BotAvatarState.THINKING -> OfficePose.THINK
         BotAvatarState.EXECUTING, BotAvatarState.ACTIVE -> OfficePose.TYPE

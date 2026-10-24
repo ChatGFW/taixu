@@ -157,6 +157,7 @@ class ChatViewModel(
     val translationManager: TranslationManager? = null,
     val globalNavigationBus: GlobalNavigationBus? = null,
     private val workspaceCatalogSource: top.wkbin.taixu.runtime.SessionWorkspaceCatalog,
+    val btwController: BtwChatController? = null,
 ) : ViewModel() {
     private val _workflowLaunchRequests = MutableSharedFlow<WorkflowLaunchRequest>(extraBufferCapacity = 2)
     val workflowLaunchRequests: SharedFlow<WorkflowLaunchRequest> = _workflowLaunchRequests
@@ -212,6 +213,7 @@ class ChatViewModel(
                 }
             }
         }
+        btwController?.start(viewModelScope, harnessLoop.currentSessionId) { _notice.value = it }
     }
 
     val quickPhrases: StateFlow<List<QuickPhrase>> = quickPhraseRepository.observeAll()
@@ -1002,25 +1004,7 @@ class ChatViewModel(
         val attachments = _pendingAttachments.value
         if (trimmedInput.isBlank() && attachments.isEmpty()) return
         val imageUrls = attachments.mapNotNull { it.base64DataUrl }
-        val nonImageFiles = attachments.filter { !it.isImage }
-        val fullMessage = buildString {
-            if (trimmedInput.isNotBlank()) {
-                append(trimmedInput)
-            } else if (nonImageFiles.isNotEmpty()) {
-                append(context.getString(R.string.chat_attachment_files_prompt))
-            } else if (imageUrls.isNotEmpty()) {
-                append(context.getString(R.string.chat_attachment_images_prompt))
-            }
-            if (attachments.isNotEmpty()) {
-                append(context.getString(R.string.chat_attachment_mount_header))
-                attachments.forEachIndexed { i, att ->
-                    val guestPath = att.guestFilePath ?: "/attachments/${att.name}"
-                    val kind = context.getString(if (att.isImage) R.string.chat_attachment_image else R.string.chat_attachment_file)
-                    append(context.getString(R.string.chat_attachment_line, i + 1, kind, att.name, AttachmentHelper.formatFileSize(att.sizeBytes), guestPath))
-                }
-                append(context.getString(R.string.chat_attachment_access_hint))
-            }
-        }
+        val fullMessage = buildComposerMessage(context, trimmedInput, attachments)
         _pendingAttachments.value = emptyList()
         send(fullMessage, imageUrls)
     }
@@ -1032,6 +1016,12 @@ class ChatViewModel(
             setInput("")
             val projectName = workspace.value.trim('/').removePrefix("workspace/").substringBefore('/').takeIf(String::isNotBlank).orEmpty()
             _workflowLaunchRequests.tryEmit(WorkflowLaunchRequest(match.groupValues[1].takeIf(String::isNotBlank), projectName))
+            return
+        }
+        // 旁路问答：基于当前会话进展的"顺便问一句"，不打断回合、不进入模型上下文。
+        BtwChatController.COMMAND.matchEntire(rawText)?.let { match ->
+            setInput("")
+            btwController?.submit(match.groupValues[1])
             return
         }
         setInput("")
@@ -1064,7 +1054,7 @@ class ChatViewModel(
     }
 
     private companion object {
-        val WORKFLOW_COMMAND = Regex("^/wf(?:\\s+([A-Za-z0-9_.-]+))?$")
+        val WORKFLOW_COMMAND = Regex("^/wf(?:\\s+([A-Za-z0-9_.-]+))?\$")
     }
 
     /** 创建针对工具安装或沙箱异常的专属自愈会话并立即启动诊断 */

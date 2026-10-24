@@ -46,6 +46,7 @@ class BotListViewModel(
     private val packageService: BotPackageService,
     private val models: top.wkbin.taixu.core.database.AiModelRepository,
     private val wakeup: BotScheduleWakeup? = null,
+    private val teamImporter: top.wkbin.taixu.harness.bot.market.GroupTeamImporter? = null,
 ) : ViewModel() {
     val modelProfiles: StateFlow<List<top.wkbin.taixu.core.database.AiModelEntity>?> = models.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -97,7 +98,10 @@ class BotListViewModel(
         }
     }
 
-    fun createGroup(name: String, description: String, adminBotId: String, memberIds: Set<String>) {
+    suspend fun importTeam(templateId: String, name: String): String =
+        requireNotNull(teamImporter).importDefinition(templateId, name).id
+
+    fun createGroup(name: String, description: String, adminBotId: String, memberIds: Set<String>, teamGroupId: String? = null) {
         if (name.isBlank() || adminBotId.isBlank()) {
             emit("请填写群聊名称并选择管理员")
             return
@@ -107,20 +111,31 @@ class BotListViewModel(
             val ordered = listOf(adminBotId) + allBots.map { it.id }
                 .filter { it != adminBotId && it in memberIds }
             val groupId = UUID.randomUUID().toString()
-            groupRepository.saveGroup(
-                GroupChat(
+            val group = GroupChat(
                     id = groupId,
                     name = name.trim().take(40),
                     adminBotId = adminBotId,
                     description = description.trim().take(200),
                     createdAt = System.currentTimeMillis(),
-                ),
-            )
-            ordered.forEachIndexed { index, botId ->
-                groupRepository.addMember(groupId, botId, index)
+                )
+            if (teamGroupId != null) groupRepository.createReferencedGroup(group, teamGroupId)
+            else {
+                groupRepository.saveGroup(group)
+                ordered.forEachIndexed { index, botId -> groupRepository.addMember(groupId, botId, index) }
             }
             "已创建群聊「${name.trim()}」"
         }
+    }
+
+    suspend fun teamImpact(id: String) = memberGroupRepository.publicationImpact(id)
+    suspend fun teamVersions(id: String) = memberGroupRepository.observeVersions(id).first()
+    suspend fun publishTeam(id: String, revision: Int, selected: Set<String>) = memberGroupRepository.publish(id, revision, selected)
+    suspend fun upgradeTeams(id: String, version: Int, selected: Set<String>) = memberGroupRepository.upgrade(id, version, selected)
+
+    suspend fun saveTeamGroup(group: BotMemberGroup) {
+        require(group.name.isNotBlank()) { "请填写团队名称" }
+        requireNotNull(group.definition).validate(group.memberIds)
+        memberGroupRepository.saveGroup(group.copy(name = group.name.trim().take(40)))
     }
 
     fun saveMemberGroup(group: BotMemberGroup) {

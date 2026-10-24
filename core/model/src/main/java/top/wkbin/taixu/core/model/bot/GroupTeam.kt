@@ -1,6 +1,6 @@
 package top.wkbin.taixu.core.model.bot
 
-/** Group-local reporting lines. Missing overrides mean a direct report to the group administrator. */
+/** Reporting lines projected from a team definition. Missing overrides report to the administrator. */
 data class GroupTeam(
     val adminBotId: String,
     val memberIds: Set<String>,
@@ -28,9 +28,9 @@ data class GroupTeam(
     }
 
     fun validate() {
-        require(adminBotId in memberIds) { "群主控必须在团队中" }
-        require(supervisors.keys.all { it in memberIds && it != adminBotId }) { "只能设置普通群成员的上级" }
-        require(supervisors.values.all { it in memberIds }) { "直属上级必须是本群成员" }
+        require(adminBotId in memberIds) { "主控必须在团队中" }
+        require(supervisors.keys.all { it in memberIds && it != adminBotId }) { "只能设置普通团队成员的上级" }
+        require(supervisors.values.all { it in memberIds }) { "直属上级必须是本团队成员" }
         memberIds.forEach { id ->
             var current: String? = id
             val visited = mutableSetOf<String>()

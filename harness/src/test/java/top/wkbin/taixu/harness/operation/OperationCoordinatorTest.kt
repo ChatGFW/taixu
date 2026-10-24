@@ -22,6 +22,7 @@ import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.core.database.UsageLedgerSessionRow
 import top.wkbin.taixu.core.database.UsageLedgerRow
 import top.wkbin.taixu.core.database.HarnessUsageEntity
+import top.wkbin.taixu.core.database.UsageLedgerBotRow
 import top.wkbin.taixu.harness.ChatUsage
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.core.database.DailyCountRow
@@ -217,6 +218,11 @@ class OperationCoordinatorTest {
             provider: String?,
             sessionId: String?,
         ): List<UsageLedgerRow> = emptyList()
+        override suspend fun aggregateUsageLedgerByBot(start: Long?, end: Long?, sessionId: String?): List<UsageLedgerBotRow> = emptyList()
+
+        override suspend fun aggregateUsageLedgerForSessions(start: Long?, end: Long?, tzOffsetMs: Long, sessionIds: List<String>): List<UsageLedgerRow> = emptyList()
+
+        override suspend fun listRecentUsageForSessions(start: Long?, end: Long?, limit: Int, sessionIds: List<String>): List<HarnessUsageEntity> = emptyList()
 
         override suspend fun aggregateUsageLedgerBySession(
             start: Long?,

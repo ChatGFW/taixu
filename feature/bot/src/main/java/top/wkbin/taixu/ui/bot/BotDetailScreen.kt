@@ -55,6 +55,7 @@ fun BotDetailScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val profiles by viewModel.modelProfiles.collectAsStateWithLifecycle()
+    val mcpServers by viewModel.mcpServers.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
@@ -136,7 +137,13 @@ fun BotDetailScreen(
                 }
             }
             when (tab) {
-                TAB_PERSONA -> BotPersonaPanel(bot, state.busy, profiles, viewModel::save)
+                TAB_PERSONA -> BotPersonaPanel(
+                    bot = bot,
+                    busy = state.busy,
+                    profiles = profiles,
+                    mcpServers = mcpServers,
+                    onSave = viewModel::save,
+                )
                 TAB_MEMORY -> BotMemoryPanel(
                     files = state.memoryFiles,
                     commits = state.commits,
@@ -186,116 +193,6 @@ fun BotDetailScreen(
                 }
             },
         )
-    }
-}
-
-@Composable
-private fun BotPersonaPanel(
-    bot: Bot,
-    busy: Boolean,
-    profiles: List<top.wkbin.taixu.core.database.AiModelEntity>,
-    onSave: (name: String, role: String, persona: String, modelId: String, modelVariant: String?, isMainBot: Boolean, avatarSeed: String, allowModelSelection: Boolean) -> Unit,
-) {
-    var name by rememberSaveable(bot.id) { mutableStateOf(bot.name) }
-    var role by rememberSaveable(bot.id) { mutableStateOf(bot.role) }
-    var persona by rememberSaveable(bot.id) { mutableStateOf(bot.systemPrompt) }
-    var modelId by rememberSaveable(bot.id) { mutableStateOf(bot.modelId.orEmpty()) }
-    var modelVariant by rememberSaveable(bot.id) { mutableStateOf(bot.modelVariant) }
-    var allowModelSelection by rememberSaveable(bot.id) { mutableStateOf(bot.allowModelSelection) }
-    LaunchedEffect(bot.modelId, bot.modelVariant, bot.allowModelSelection) {
-        modelId = bot.modelId.orEmpty()
-        modelVariant = bot.modelVariant
-        allowModelSelection = bot.allowModelSelection
-    }
-    var isMain by rememberSaveable(bot.id) { mutableStateOf(bot.isMainBot) }
-    var avatarSeed by rememberSaveable(bot.id) { mutableStateOf(bot.avatarSeed) }
-    var avatarLoading by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        bot.name,
-                        style = MaterialTheme.typography.titleLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (bot.isMainBot) StatusBadge(stringResource(R.string.fbot_main_bot))
-                }
-                Text(
-                    profiles.firstOrNull { it.id == bot.modelId }?.let { "${it.name} / ${bot.modelVariant ?: it.model.substringBefore(',')}" }
-                        ?: bot.modelId ?: stringResource(R.string.fbot_model_default),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        BotAvatarEditor(avatarSeed, name.ifBlank { bot.name }, bot.colorHex, !busy,
-            onChange = { avatarSeed = it }, onLoading = { avatarLoading = it })
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it.take(40) },
-            label = { Text(stringResource(R.string.fbot_name)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = role,
-            onValueChange = { role = it.take(40) },
-            label = { Text(stringResource(R.string.fbot_role)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = persona,
-            onValueChange = { persona = it },
-            label = { Text(stringResource(R.string.fbot_persona)) },
-            placeholder = { Text(stringResource(R.string.fbot_persona_placeholder)) },
-            minLines = 6,
-            maxLines = 14,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        BotModelPicker(profiles, modelId.takeIf(String::isNotBlank), modelVariant, !busy) { id, concrete ->
-            modelId = id.orEmpty()
-            modelVariant = concrete
-        }
-        BotModelPolicySwitch(allowModelSelection, !busy) { allowModelSelection = it }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.fbot_main_switch), style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    stringResource(R.string.fbot_main_bot),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            RuntimeSwitch(checked = isMain, onCheckedChange = { isMain = it }, enabled = !busy)
-        }
-        RuntimeButton(
-            onClick = { onSave(name, role, persona, modelId, modelVariant, isMain, avatarSeed, allowModelSelection) },
-            enabled = !busy && !avatarLoading && name.isNotBlank() && role.isNotBlank() && persona.isNotBlank(),
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text(stringResource(R.string.fbot_save)) }
     }
 }
 

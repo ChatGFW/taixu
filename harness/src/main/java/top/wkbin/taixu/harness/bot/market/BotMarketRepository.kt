@@ -15,10 +15,9 @@ class BotMarketRepository(
     private val orchestrator: BotOrchestrator,
     private val subagentRepository: AgentSubagentRepository,
 ) {
-    suspend fun catalog(): List<MarketBotItem> {
+    suspend fun catalog(includeTemplateMembers: Boolean = false): List<MarketBotItem> {
         val localization = runCatching { subagentRepository.localization() }.getOrDefault(emptyMap())
-        return BUILTIN.map { it.copy(departmentId = "featured", departmentName = "精选") } +
-            SANSHENGLIUBU +
+        return curatedItems(includeTemplateMembers) +
             subagentRepository.enabledProfiles().map { profile ->
                 val department = AgentDepartments.find(profile.departmentId)
                 val zh = localization[profile.id]
@@ -67,7 +66,11 @@ class BotMarketRepository(
     private fun colorHex(argb: Long): String =
         String.format(Locale.ROOT, "#%06X", argb and 0xFFFFFF)
 
-    private companion object {
+    internal companion object {
+        fun curatedItems(includeTemplateMembers: Boolean = false): List<MarketBotItem> =
+            BUILTIN.map { it.copy(departmentId = "featured", departmentName = "精选") } +
+                if (includeTemplateMembers) SANSHENGLIUBU else emptyList()
+
         const val SUBAGENT_PREFIX = "subagent:"
 
         val BUILTIN = listOf(

@@ -242,6 +242,12 @@
     <string name="chat_command_clear_description">开启全新会话轮次，避免历史上下文过长</string>
     <string name="chat_command_help">环境与帮助</string>
     <string name="chat_command_help_description">查看当前 Linux PRoot 沙箱环境与 Agent 工具说明</string>
+    <string name="chat_command_btw">旁路问答</string>
+    <string name="chat_command_btw_description">不打断当前工作，基于已有进展顺便问一句</string>
+    <string name="chat_btw_answering">正在回答…</string>
+    <string name="chat_btw_cancel">取消</string>
+    <string name="chat_btw_cancelled">已取消</string>
+    <string name="chat_btw_note">答案基于提问时的已有进展，未执行任何操作，可能落后于最新进展。</string>
     <string name="chat_quick_bug">Bug 排查</string>
     <string name="chat_quick_feature">特性开发</string>
     <string name="chat_quick_environment">环境配置</string>

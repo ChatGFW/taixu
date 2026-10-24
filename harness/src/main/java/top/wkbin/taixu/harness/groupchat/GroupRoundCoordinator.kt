@@ -48,11 +48,15 @@ internal class GroupRoundCoordinator(
     private val jobs = ConcurrentHashMap<String, MutableSet<Job>>()
     private val lateRounds = ConcurrentHashMap<String, Int>()
     private val cancelledGroups = ConcurrentHashMap.newKeySet<String>()
+
+    /** 接力达上限而暂停的群：后台迟到回报不再自动开轮，用户新消息后恢复。 */
+    private val relayPausedGroups = ConcurrentHashMap.newKeySet<String>()
     private val jobsGuard = Any()
 
     fun resetLateRounds(groupId: String) {
         lateRounds.remove(groupId)
         cancelledGroups.remove(groupId)
+        relayPausedGroups.remove(groupId)
     }
 
     fun newRound(
@@ -239,14 +243,33 @@ internal class GroupRoundCoordinator(
             index += 1
         }
         var skipped = false
+        var relayOverflow = false
         for (remaining in index until slots.size) {
             if (slots[remaining].status == GroupSlotStatus.WAITING) {
                 slots[remaining].status = GroupSlotStatus.PASSED
                 skipped = true
+                if (slots[remaining].calledBy != null) relayOverflow = true
             }
         }
         if (skipped) persist(round, slots)
         finishRound(round, slots, GroupRoundStatus.DONE)
+        // 借鉴 DS Bot 的接力暂停制：@ 接力还在继续却撞到轮次总上限时，不硬截断后静默结束，
+        // 而是暂停群（迟到回报不再自动开轮）并留一行说明；用户发新消息即恢复（resetLateRounds）。
+        if (relayOverflow && groupId !in cancelledGroups && relayPausedGroups.add(groupId)) {
+            runCatching {
+                groups.postMessage(
+                    top.wkbin.taixu.core.model.bot.GroupMessage(
+                        id = UUID.randomUUID().toString(),
+                        groupId = groupId,
+                        senderId = "system",
+                        senderName = "系统通知",
+                        senderType = top.wkbin.taixu.core.model.bot.GroupSenderType.SYSTEM,
+                        content = "🛑 @ 接力已达轮次上限，群聊暂停；发送新消息即可继续。",
+                        timestamp = System.currentTimeMillis(),
+                    ),
+                )
+            }.onFailure { logger.w("[GroupRound] 接力暂停通知失败: ${it.message}") }
+        }
     }
 
     private suspend fun persist(round: GroupRound, slots: List<GroupRoundSlot>) {
@@ -279,6 +302,7 @@ internal class GroupRoundCoordinator(
         text: String,
     ) {
         if (groupId in cancelledGroups) return
+        if (groupId in relayPausedGroups) return
         val callerId = callerBotId ?: return
         if (callerId == workerId) return
         val count = lateRounds.getOrDefault(groupId, 0)
