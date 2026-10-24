@@ -11,6 +11,7 @@ import top.wkbin.taixu.core.database.HarnessEntryEntity
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.harness.SkillSuggestion
 import top.wkbin.taixu.harness.TaskDelivery
+import top.wkbin.taixu.harness.TurnChangesEvent
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.CapabilityEvent
 import top.wkbin.taixu.harness.HarnessMessage
@@ -21,11 +22,19 @@ import top.wkbin.taixu.harness.UserMessage
 import java.util.concurrent.ConcurrentHashMap
 import java.lang.ref.SoftReference
 
-/** Serialization and active-branch projection for the immutable session tree. */
+/**
+ * Serialization and active-branch projection for the immutable session tree.
+ *
+ * 解码策略（借鉴 DSH fail-closed）：无法解码或版本不可识别的 message 条目不进投影，
+ * 但必须在 [SessionCorruptionLedger] 登记（error 级日志 + 可查询记录）——静默丢史不允许。
+ * [loadStrict] 保持严格语义：坏条目直接抛出。
+ */
 class SessionTreeStore(
     private val repository: HarnessRuntimeRepository,
     private val json: Json,
     private val logger: AppLogger,
+    private val payloadMigrations: SessionPayloadMigrations = SessionPayloadMigrations(),
+    private val corruptionLedger: SessionCorruptionLedger = SessionCorruptionLedger(),
 ) {
     private class LaneLock(val mutex: Mutex = Mutex(), var users: Int = 0)
     private val laneLocks = ConcurrentHashMap<String, LaneLock>()
@@ -87,7 +96,7 @@ class SessionTreeStore(
         val messages = if (lane == null) emptyList() else
             repository.branchTail(sessionId, lane.leafId, MAX_LIVE_ENTRIES)
                 .filter { it.entryType == "message" }
-                .map { json.decodeFromString(HarnessMessage.serializer(), it.payloadJson) }
+                .map(::decodeStrict)
         currentCoroutineContext().ensureActive()
         messages
     } catch (failure: Exception) {
@@ -113,6 +122,7 @@ class SessionTreeStore(
                 entryType = "message",
                 customType = messageType(message),
                 payloadJson = json.encodeToString(HarnessMessage.serializer(), message),
+                payloadVersion = HarnessEntryPayloadVersion.CURRENT,
             )
             repository.appendToLane(sessionId, laneName, entry)
         }
@@ -151,6 +161,7 @@ class SessionTreeStore(
                     entryType = RECALL_ENTRY_TYPE,
                     customType = userMessageId,
                     payloadJson = block,
+                    payloadVersion = HarnessEntryPayloadVersion.CURRENT,
                 )
                 repository.appendToLane(sessionId, laneName, entry)
             }.onFailure {
@@ -258,10 +269,47 @@ class SessionTreeStore(
 
     internal fun decode(entity: HarnessEntryEntity): HarnessMessage? {
         if (entity.entryType != "message") return null
-        return runCatching { json.decodeFromString(HarnessMessage.serializer(), entity.payloadJson) }
-            .onFailure { logger.w("Skipping invalid harness entry ${entity.id}: ${it.message}") }
+        if (entity.payloadVersion > HarnessEntryPayloadVersion.CURRENT) {
+            recordCorruption(
+                entity,
+                "条目负载版本 ${entity.payloadVersion} 高于当前支持的 ${HarnessEntryPayloadVersion.CURRENT}（应用被降级？）",
+            )
+            return null
+        }
+        val payload = if (entity.payloadVersion < HarnessEntryPayloadVersion.CURRENT) {
+            runCatching {
+                payloadMigrations.upgrade(entity.payloadJson, entity.payloadVersion)
+            }.getOrElse { failure ->
+                if (failure is CancellationException) throw failure
+                recordCorruption(entity, "迁移链升级失败：${failure.message}")
+                return null
+            }
+        } else entity.payloadJson
+        return runCatching { json.decodeFromString(HarnessMessage.serializer(), payload) }
+            .onFailure { recordCorruption(entity, "payload 解码失败：${it.message}") }
             .getOrNull()
     }
+
+    private fun recordCorruption(entity: HarnessEntryEntity, cause: String) {
+        logger.e("Corrupt harness entry ${entity.id} (type=${entity.entryType}, v${entity.payloadVersion}) in ${entity.sessionId}: $cause")
+        corruptionLedger.record(entity, cause)
+    }
+
+    /** 严格路径的版本感知解码：迁移链升级 + 超前版本显式报错，坏条目不上浮为空历史。 */
+    private fun decodeStrict(entity: HarnessEntryEntity): HarnessMessage {
+        if (entity.payloadVersion > HarnessEntryPayloadVersion.CURRENT) {
+            val cause = "条目负载版本 ${entity.payloadVersion} 高于当前支持的 ${HarnessEntryPayloadVersion.CURRENT}（应用被降级？）"
+            recordCorruption(entity, cause)
+            throw IllegalArgumentException("Harness entry ${entity.id}: $cause")
+        }
+        val payload = if (entity.payloadVersion < HarnessEntryPayloadVersion.CURRENT) {
+            payloadMigrations.upgrade(entity.payloadJson, entity.payloadVersion)
+        } else entity.payloadJson
+        return json.decodeFromString(HarnessMessage.serializer(), payload)
+    }
+
+    /** 某会话被跳过投影的腐坏条目记录（诊断入口，见 [SessionCorruptionLedger]）。 */
+    fun corruptionReport(sessionId: String): List<CorruptEntryRecord> = corruptionLedger.snapshotFor(sessionId)
 
     private fun messageType(message: HarnessMessage): String = when (message) {
         is UserMessage -> "user"
@@ -272,6 +320,7 @@ class SessionTreeStore(
         is SkillSuggestion -> "skill_suggestion"
         is TaskDelivery -> "task_delivery"
         is ModelSwitchEvent -> "model_switch"
+        is TurnChangesEvent -> "turn_changes"
     }
 
     private fun searchableText(message: HarnessMessage): String = when (message) {
@@ -279,6 +328,7 @@ class SessionTreeStore(
         is SkillSuggestion -> "${message.skillName} ${message.description}"
         is TaskDelivery -> "task_delivery 任务交付 ${message.report.taskId} ${message.report.gaps}"
         is ModelSwitchEvent -> "${message.fromLabel} ${message.toLabel}"
+        is TurnChangesEvent -> "turn_changes 轮文件改动 ${(message.created + message.modified + message.touched).joinToString(" ")}"
         is UserMessage -> message.text
         is AssistantText -> "${message.text}\n${message.reasoning.orEmpty()}"
         is ToolCall -> "${message.rawToolName.orEmpty()} ${message.tool} ${message.args} ${message.reasoning.orEmpty()}"

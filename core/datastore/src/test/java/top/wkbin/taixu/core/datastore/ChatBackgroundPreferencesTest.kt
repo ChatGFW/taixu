@@ -4,13 +4,16 @@ import androidx.datastore.preferences.core.*
 import java.io.File
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
+import top.wkbin.taixu.core.datastore.RequiresAtomicRenameOverwrite
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
+
 class ChatBackgroundPreferencesTest {
     @get:Rule val temporary = TemporaryFolder()
+    @get:Rule val renameGuard = RequiresAtomicRenameOverwrite()
 
     @Test fun backgroundAndAdjustmentsPersistAndRemovalKeepsTheChosenStyle() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

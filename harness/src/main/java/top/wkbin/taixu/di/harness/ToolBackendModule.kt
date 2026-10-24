@@ -184,6 +184,7 @@ internal val toolBackendModule = module {
             eventBus = get(),
             checkpointStore = get(),
             sessionApprovalGrants = get(),
+            approvalAuditor = get(),
             settingsDataStore = get(),
             toolCheckpoints = get(),
             workspaceToolBackend = get(), governanceGuard = get(),

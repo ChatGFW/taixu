@@ -10,6 +10,8 @@ import top.wkbin.taixu.harness.bot.schedule.BotScheduleWakeup
 import io.ktor.client.HttpClient
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
+import top.wkbin.taixu.core.database.AgentApprovalAuditDao
+import top.wkbin.taixu.core.database.AgentMessageFeedbackDao
 import top.wkbin.taixu.core.database.AgentApprovalDao
 import top.wkbin.taixu.core.database.AgentContextDao
 import top.wkbin.taixu.core.database.AgentSkillDao
@@ -49,6 +51,8 @@ import top.wkbin.taixu.core.network.FileDownloader
 import top.wkbin.taixu.core.tools.DependencyManager
 import top.wkbin.taixu.core.tools.RuntimeManager
 import top.wkbin.taixu.core.tools.ToolRuntimeAdapter
+import top.wkbin.taixu.di.AppModule.provideAgentApprovalAuditDao
+import top.wkbin.taixu.di.AppModule.provideAgentMessageFeedbackDao
 import top.wkbin.taixu.di.AppModule.provideAgentApprovalDao
 import top.wkbin.taixu.di.AppModule.provideAgentContextDao
 import top.wkbin.taixu.di.AppModule.provideAgentForegroundLauncher
@@ -194,6 +198,10 @@ val appModule = module {
 
     single<AgentApprovalDao> { provideAgentApprovalDao(database = get()) }
 
+    single<AgentApprovalAuditDao> { provideAgentApprovalAuditDao(database = get()) }
+
+    single<AgentMessageFeedbackDao> { provideAgentMessageFeedbackDao(database = get()) }
+
     single<QuickPhraseDao> { provideQuickPhraseDao(database = get()) }
 
     single<HarnessRuntimeDao> { provideHarnessRuntimeDao(database = get()) }
@@ -257,6 +265,7 @@ val appModule = module {
             models = get(),
             approvals = get(),
             tasks = get(),
+            feedback = get(),
         )
     }
 

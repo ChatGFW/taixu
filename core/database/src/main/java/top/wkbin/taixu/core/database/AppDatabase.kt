@@ -29,6 +29,7 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         ToolSettingsEntity::class,
         AgentApprovalRequestEntity::class,
         AgentApprovalSettingsEntity::class,
+        AgentApprovalAuditEntity::class,
         QuickPhraseEntity::class,
         HarnessEntryEntity::class,
         HarnessLaneEntity::class,
@@ -67,8 +68,9 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         TaskBudgetEntity::class,
         BudgetRequestEntity::class,
         BtwQueryEntity::class,
+        AgentMessageFeedbackEntity::class,
     ],
-    version = 80,
+    version = 82,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -89,6 +91,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun storageMountBindingDao(): StorageMountBindingDao
     abstract fun toolSettingsDao(): ToolSettingsDao
     abstract fun agentApprovalDao(): AgentApprovalDao
+    abstract fun agentApprovalAuditDao(): AgentApprovalAuditDao
+    abstract fun agentMessageFeedbackDao(): AgentMessageFeedbackDao
     abstract fun quickPhraseDao(): QuickPhraseDao
     abstract fun harnessRuntimeDao(): HarnessRuntimeDao
     abstract fun androidAppDao(): AndroidAppDao

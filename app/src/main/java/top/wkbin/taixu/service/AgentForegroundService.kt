@@ -27,6 +27,7 @@ import top.wkbin.taixu.R
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
+import top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistry
 import top.wkbin.taixu.harness.session.SessionControl
 import top.wkbin.taixu.lifecycle.ProcessingPowerLease
 import top.wkbin.taixu.lifecycle.RuntimeLifecycleSupervisor
@@ -38,6 +39,9 @@ class AgentForegroundService : Service() {
     val sessionDao: HarnessSessionRepository by inject()
     val lifeCycleSupervisor: RuntimeLifecycleSupervisor by inject()
     val groupDispatcher: GroupChatDispatcher? get() = runCatching { getKoin().getOrNull<GroupChatDispatcher>() }.getOrNull()
+    // 后台子代理批次不进 sessionRunStates：FGS 的 idle-stop 与电租约判定必须显式感知它，
+    // 否则主轮结束后宽限期一到就把服务停掉，后台批次随进程失去保活。
+    private val backgroundSubagents: BackgroundSubagentRegistry? get() = runCatching { getKoin().getOrNull<BackgroundSubagentRegistry>() }.getOrNull()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val notifications by lazy { AgentNotifications(this) }
     private val manager by lazy { getSystemService(NotificationManager::class.java) }
@@ -113,7 +117,7 @@ class AgentForegroundService : Service() {
         if (active.isNotEmpty()) {
             idleStop?.cancel()
             idleStop = null
-            if (states.values.any { it == SessionRunState.RUNNING }) {
+            if (states.values.any { it == SessionRunState.RUNNING } || backgroundSubagents?.hasActive == true) {
                 if (lease == null) lease = lifeCycleSupervisor.acquireLease("agent")
             } else releaseLease()
             render(states, statuses)
@@ -122,7 +126,9 @@ class AgentForegroundService : Service() {
             // Avoid killing a service launched immediately before a queued run starts.
             if (idleStop?.isActive != true) idleStop = scope.launch {
                 delay(START_GRACE_MS)
-                if (harnessLoop.sessionRunStates.value.values.none { it in NOTIFIABLE_AGENT_STATES }) {
+                if (harnessLoop.sessionRunStates.value.values.none { it in NOTIFIABLE_AGENT_STATES } &&
+                    backgroundSubagents?.hasActive != true
+                ) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }

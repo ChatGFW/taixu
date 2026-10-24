@@ -35,6 +35,8 @@ import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.harness.approval.ApprovalResumePolicy
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
 import top.wkbin.taixu.harness.checkpoint.RewindController
+import top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistry
+import top.wkbin.taixu.harness.checkpoint.TurnChangeCards
 import top.wkbin.taixu.harness.compaction.BranchSummarizer
 import top.wkbin.taixu.harness.session.QueuedInstructionRecorder
 import top.wkbin.taixu.harness.session.SessionTreeStore
@@ -108,6 +110,9 @@ class HarnessLoop(
     private val skillEvolutionAdvisor: SkillEvolutionAdvisor? = null,
     private val turnCoordinator: SessionTurnCoordinator,
     private val executionEnvironments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
+    private val approvalAuditor: top.wkbin.taixu.harness.approval.ApprovalAuditRecorder? = null,
+    private val feedbackService: top.wkbin.taixu.core.database.MessageFeedbackService? = null,
+    private val backgroundSubagents: BackgroundSubagentRegistry? = null,
 ) : InteractiveSessionControl {
     private val loopScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -342,13 +347,13 @@ class HarnessLoop(
         val generation = foregroundLoadGeneration.incrementAndGet()
         sessionTracker.setCurrent(id)
         val sessionEntity = withContext(Dispatchers.IO) { sessionDao.findById(id) }
-        if (!isCurrentLoad(id, generation)) return
+        if (foregroundLoadGeneration.get() != generation || sessionTracker.currentSessionId.value != id) return
         _workspace.value = sessionEntity?.workspace.orEmpty()
         _projectType.value = sessionEntity?.projectType.orEmpty()
         refreshMcpRecommendations(_workspace.value)
 
         val liveFlow = messageProjector.preparedForLoad(id)
-        if (!isCurrentLoad(id, generation)) return
+        if (foregroundLoadGeneration.get() != generation || sessionTracker.currentSessionId.value != id) return
 
         messageProjector.resetForegroundProjection(liveFlow.value)
         stateMirrors.setForegroundRunning(sessionJobs[id]?.isActive == true)
@@ -358,7 +363,7 @@ class HarnessLoop(
         refreshPendingProjection(id)
 
         val hasPendingApprovals = withContext(Dispatchers.IO) { approvalRepository.pendingNow(id).isNotEmpty() }
-        if (!isCurrentLoad(id, generation)) return
+        if (foregroundLoadGeneration.get() != generation || sessionTracker.currentSessionId.value != id) return
         if (hasPendingApprovals) {
             stateMirrors.setRunState(id, SessionRunState.WAITING_APPROVAL)
             stateMirrors.setStatus(id, "等待用户批准")
@@ -484,7 +489,7 @@ class HarnessLoop(
                 if (!isSessionBusy(sessionId) && startNextQueuedLocked(sessionId)) recovered++
             }
         }
-        if (recovered > 0) startForegroundServiceSafe()
+        if (recovered > 0) foregroundLauncher.start()
         return recovered
     }
 
@@ -545,6 +550,9 @@ class HarnessLoop(
 
         messageStore.deleteSession(id)
         approvalRepository.deleteForSession(id)
+        approvalAuditor?.deleteForSession(id)
+        runCatching { feedbackService?.deleteForSession(id) }
+        backgroundSubagents?.cancelForSession(id)
         sessionApprovalGrants.revokeSession(id)
         agentTaskStateMachine.deleteForSession(id)
         sessionDao.deleteSession(id)
@@ -571,7 +579,7 @@ class HarnessLoop(
             override fun busy(sessionId: String) = isSessionBusy(sessionId)
             override suspend fun settleExpiredApprovals(sessionId: String) { checkAndSettleExpiredApprovalsLocked(sessionId) }
             override suspend fun hasNextRun(sessionId: String) = promptQueueManager.first(sessionId, PromptQueue.NEXT_RUN) != null
-            override suspend fun record(sessionId: String, input: PendingMessage) { createDurableTask(sessionId, input) }
+            override suspend fun record(sessionId: String, input: PendingMessage) { queuedInstructions.record(sessionId, input) }
             override suspend fun enqueue(sessionId: String, queue: PromptQueue, input: PendingMessage) =
                 promptQueueManager.enqueue(sessionId, queue, input)
             override suspend fun start(sessionId: String, input: PendingMessage): Boolean = withContext(NonCancellable) {
@@ -587,7 +595,7 @@ class HarnessLoop(
     )
     override suspend fun submit(sessionId: String, text: String, imageUrls: List<String>, queue: PromptQueue):
         PromptSubmission = inputController.submit(sessionId, text, imageUrls, queue).also {
-            if (it is PromptSubmission.Accepted) startForegroundServiceSafe()
+            if (it is PromptSubmission.Accepted) foregroundLauncher.start()
         }
     override fun send(text: String, targetSessionId: String?, imageUrls: List<String>) =
         submitAsync(PromptQueue.NEXT_RUN, text, targetSessionId, imageUrls)
@@ -625,7 +633,7 @@ class HarnessLoop(
             messageStore.moveTo(sessId, lastUserMessage.id)
             runLoopInternal(sessId, startedAt = now())
         }
-        startForegroundServiceSafe()
+        foregroundLauncher.start()
     }
 
     /** Rewinds before a tool call and asks the model to continue again on a preserved new branch. */
@@ -642,7 +650,7 @@ class HarnessLoop(
             messageStore.rewindBefore(sessId, target.id)
             runLoopInternal(sessId, startedAt = now())
         }
-        startForegroundServiceSafe()
+        foregroundLauncher.start()
     }
 
     /** Moves the main conversation cursor to an existing immutable-tree leaf. */
@@ -689,7 +697,7 @@ class HarnessLoop(
             messageStore.rewindBefore(sessId, targetMessage.id)
             runLoop(sessId, trimmed)
         }
-        startForegroundServiceSafe()
+        foregroundLauncher.start()
     }
 
     /** Navigate the active branch to immediately before this message. */
@@ -850,7 +858,7 @@ class HarnessLoop(
     private suspend fun startNextQueuedLocked(sessId: String): Boolean {
         val (queueItemId, next) = promptQueueManager.nextRunOrPromotedSteer(sessId) ?: return false
         val taskId = next.taskId ?: newId().also { generated ->
-            createDurableTask(sessId, next.copy(taskId = generated))
+            queuedInstructions.record(sessId, next.copy(taskId = generated))
         }
         val userMessage = UserMessage(newId(), now(), next.text, next.imageUrls)
         val operationId = operationCoordinator.acceptQueuedRun(sessId, queueItemId, userMessage, taskId)
@@ -970,9 +978,6 @@ class HarnessLoop(
         { sessionId, tag, message -> agentEventLogger.log(sessionId, tag, message) },
     ) { id -> messageStore.load(id).any { it is UserMessage } }
 
-    private suspend fun createDurableTask(sessId: String, pending: PendingMessage) =
-        queuedInstructions.record(sessId, pending)
-
     /** Resolve a waiting approval as a cancelled tool call before allowing a new run. */
     private suspend fun rejectPendingApprovalsForCancel(sessId: String) {
         val pending = approvalRepository.pendingNow(sessId)
@@ -1004,9 +1009,6 @@ class HarnessLoop(
         operationCoordinator.finish(sessId, "aborted")
     }
 
-    private fun isCurrentLoad(sessionId: String, generation: Long): Boolean =
-        foregroundLoadGeneration.get() == generation && sessionTracker.currentSessionId.value == sessionId
-
     private suspend fun executeSessionRun(
         sessId: String,
         runEpoch: Long,
@@ -1021,6 +1023,7 @@ class HarnessLoop(
                 stateMirrors.setError(sessId, null)
                 when (val result = block()) {
                     RunResult.Completed -> {
+                        TurnChangeCards.publishActiveTurn(sessId, rewindController, messageStore, messageProjector)
                         if (taskId != null) messageProjector.publishPersisted(sessId, operationCoordinator.completeTask(sessId, taskId))
                         else operationCoordinator.finish(sessId, "completed", messageProjector.messagesFlow(sessId).value.lastOrNull()?.id)
                         stateMirrors.setRunState(sessId, SessionRunState.COMPLETED)
@@ -1124,7 +1127,8 @@ class HarnessLoop(
         // 拦截器重置已移至 runLoopInternal 入口（覆盖 regenerate/retry/branch 等直达路径）。
         agentEventLogger.log(sessId, "UserPrompt", userText)
         val userMessage = UserMessage(id = newId(), createdAt = now(), text = userText, imageUrls = imageUrls)
-        rewindController.beginTurn(sessId, userText, userMessage.id)
+        // 上一轮在此关闭：补发其文件改动卡片（完成路径已发过则跳过，见 TurnChangeCards）。
+        TurnChangeCards.publishClosedTurn(sessId, rewindController.beginTurn(sessId, userText, userMessage.id), messageStore, messageProjector)
         val operationId = operationCoordinator.acceptRun(sessId, userMessage, taskId = taskId.takeIf { claimTask })
         taskId?.takeUnless { claimTask }?.let { agentTaskStateMachine.checkpoint(it, operationId, 0, 0, "任务已受理") }
         messageProjector.publishPersisted(sessId, userMessage)
@@ -1441,10 +1445,6 @@ class HarnessLoop(
         sessionDao.touch(sessId, System.currentTimeMillis())
     }
 
-    private fun startForegroundServiceSafe() {
-        foregroundLauncher.start()
-    }
-
     private fun newId(): String = UUID.randomUUID().toString()
     private fun now(): Long = System.currentTimeMillis()
 
@@ -1496,13 +1496,10 @@ class HarnessLoop(
                     } else if (approved) {
                         // 「本会话内记住」：用户显式勾选时把该操作的规范化类别写入会话授权表。
                         // critical 风险永不记忆；表纯内存、随会话删除/进程退出销毁（无永久授权）。
+                        // 审计：授权写入落 agent_approval_audits（授权本身仍不持久化）。
                         if (rememberForSession && !request.riskLevel.equals("critical", ignoreCase = true)) {
-                            sessionApprovalGrants.grant(
-                                request.sessionId,
-                                request.toolName,
-                                request.argumentsJson,
-                                request.riskLevel,
-                            )
+                            sessionApprovalGrants.grant(request.sessionId, request.toolName, request.argumentsJson, request.riskLevel)
+                            approvalAuditor?.grantWritten(request.sessionId, request.toolName, request.argumentsJson, request.riskLevel, request.id)
                         }
                         approvedTools.run(request).also { approvalResultPersisted = true }
                     } else {

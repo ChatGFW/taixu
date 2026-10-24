@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
+import top.wkbin.taixu.core.datastore.RequiresAtomicRenameOverwrite
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -15,8 +16,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
+
 class McpToolPolicyPreferencesTest {
     @get:Rule val temporary = TemporaryFolder()
+    @get:Rule val renameGuard = RequiresAtomicRenameOverwrite()
 
     @Test
     fun enabledAndRiskPersistPerTool() = runBlocking {

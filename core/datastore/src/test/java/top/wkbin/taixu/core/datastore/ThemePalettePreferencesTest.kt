@@ -11,6 +11,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import top.wkbin.taixu.core.datastore.RequiresAtomicRenameOverwrite
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -20,6 +21,7 @@ import top.wkbin.taixu.core.model.ThemePaletteStyle
 
 class ThemePalettePreferencesTest {
     @get:Rule val temporary = TemporaryFolder()
+    @get:Rule val renameGuard = RequiresAtomicRenameOverwrite()
 
     @Test fun manualSelectionPersistsAndAtomicallyTurnsOffWallpaperColor() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
