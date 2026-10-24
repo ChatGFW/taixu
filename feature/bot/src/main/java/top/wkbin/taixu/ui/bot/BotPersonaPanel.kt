@@ -160,6 +160,19 @@ internal fun BotPersonaPanel(
     }
 }
 
+/**
+ * 能力白名单切换（纯函数，供测试）：
+ * - 不限制（null）下首次点选 → 仅该服务；
+ * - 已选中集合内切换选中/取消；
+ * - 取消到空 → 回退 null（不限制），避免空集合把 MCP 全拒锁死。
+ */
+internal fun toggleCapabilitySelection(selected: List<String>?, serverId: String): List<String>? {
+    val lower = serverId.lowercase()
+    val current = selected ?: return listOf(serverId)
+    val next = current.filterNot { it.lowercase() == lower }
+    return if (next.size == current.size) current + serverId else next.ifEmpty { null }
+}
+
 /** 能力库：null（不限制）或具体服务集合；全部取消勾选回退为不限制，避免误锁死。 */
 @Composable
 private fun BotCapabilityChips(
@@ -188,14 +201,10 @@ private fun BotCapabilityChips(
                 enabled = enabled,
                 label = { Text("不限制") },
             )
-            servers.filter { it.isEnabled }.take(4).forEach { server ->
+            servers.filter { it.isEnabled }.forEach { server ->
                 RuntimeFilterChip(
                     selected = selected != null && server.id.lowercase() in selected.map { it.lowercase() },
-                    onClick = {
-                        val current = selected ?: servers.filter { it.isEnabled }.map { it.id }
-                        val next = current.filterNot { it.equals(server.id, ignoreCase = true) }
-                        if (next.size == current.size) onChange(current + server.id) else onChange(next)
-                    },
+                    onClick = { onChange(toggleCapabilitySelection(selected, server.id)) },
                     enabled = enabled,
                     label = { Text(server.name) },
                 )
