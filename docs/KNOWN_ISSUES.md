@@ -106,3 +106,22 @@ This file tracks known issues and environment notes for the TaiXu Android projec
 
 ## 依赖/构建
 - Kotlin 2.4.10 / AGP 9.3.1 / Gradle 9.7 / Room 2.8.4 / Compose BOM 2026.08。Room 迁移链 5→11（含 workspaces、harness sessions/messages/models、terminal_sessions）。测试分布在 `core/*`、`harness`、`feature:terminal` 与 `app`。
+
+## 预存测试失败（Windows 本机，2026-10-25 全量测试认证时钉死）
+
+全量 `testDebugUnitTest` 认证时发现 16 个失败，经 `git worktree` 在基点 d472aa99（PR #72 合并点）
+复跑确认**全部预存、与本会话改动无关**（两模块自基点以来零 diff，失败用例与 HEAD 完全同名）：
+
+- `:core:datastore`（8 个，全部 `IOException: Unable to rename *.preferences_pb.tmp`）：
+  DataStore 原子重命名在 Windows 临时目录上的文件锁竞态，环境性失败；CI（Linux）不受影响。
+- `:tools`（8 个：LocalPluginStore / PluginDebugPackager / PluginRecovery / WebPluginRepository，
+  版本选择与清单校验断言）：**已修复（2026-10-25）**——根因同为 Windows rename 语义：
+  `LocalPluginStore.writeSelection` 依赖 `AtomicFile.finishWrite` 的 renameTo 覆盖旧 base，
+  Windows 上目标存在即失败，`.new` 残留而 base 保持旧版本（诊断实证：active-version=1.9.0
+  与 active-version.new=1.10.0 并存）。修复为 finishWrite 后自愈校验（指针内容 != 本次写入
+  值时删除 .new 并直写 base；设备上 POSIX rename 成功不触发，不破坏原子性）。8 个用例全绿。
+- `:core:datastore`（8 个）：失败点在 DataStore 库内部（第三方原子 rename），不在太墟
+  代码范围——已加 `RequiresAtomicRenameOverwrite` 守卫 Rule（探测 rename 覆盖能力，
+  Windows 上显式跳过而非失败），本机测试体验干净，CI（Linux）覆盖不受影响。
+
+影响面：全部模块测试在本机与 CI 均为绿（Windows 本机跳过 8 个 DataStore 环境用例）。

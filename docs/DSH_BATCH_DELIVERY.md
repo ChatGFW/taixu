@@ -38,6 +38,23 @@
 - 测试：`ExecutionEnvironmentClassifierTest`、`MessageFeedbackServiceTest`、`MessageFeedbackMigration81To82Test`
 - 文档：CONCESSIONS_LEDGER C9 + C1 评估更新
 
+### 段四：P2 后台子代理（feat，2026-10-25）
+
+- `harness`：`BackgroundSubagentRegistry`（进程级 scope，批次与主轮解耦）+
+  `SubagentOrchestrator` background=true 从拒绝改启动（收据/完成投递）+
+  `HarnessLoop.deleteSession` 取消后台批次
+- `app`：`AgentForegroundService` idle-stop 与电租约感知 `hasActive`
+- 测试：`BackgroundSubagentRegistryTest`（4 用例，真实 PromptQueueManager + Room）
+- 文档：CONCESSIONS_LEDGER C10（进程被杀批次不自动恢复）；未提交，待授权
+
+### 段五：tools 预存测试回归修复（fix, 2026-10-25）
+
+- `LocalPluginStore.writeSelection` 自愈校验：Windows 上 AtomicFile finishWrite 的
+  rename 覆盖失败导致插件版本指针停留在旧值（8 个测试预存失败）；修复后全绿。
+  根因与修复记录见 KNOWN_ISSUES.md。
+- `core/datastore`：`RequiresAtomicRenameOverwrite` 守卫 Rule——DataStore 的 8 个
+  环境性失败（库内 rename，Windows）转为显式跳过，本机测试全绿，CI 覆盖不变。
+
 ### 通用（随段一或单列 chore）
 
 - CI：`.github/workflows/architecture-baseline.yml` harness-contracts 白名单补录 6 个测试类
