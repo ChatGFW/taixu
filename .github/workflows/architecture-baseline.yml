@@ -87,3 +87,6 @@ jobs:
           ./gradlew :runtime:testDebugUnitTest --no-daemon --console=plain \
             --tests 'top.wkbin.taixu.runtime.droidspaces.*' \
             --tests 'top.wkbin.taixu.runtime.proot.ProotCommandBuilderTest'
+          # 开发者诊断按首次出现会话聚合反馈：保序与空白标题回退必须进 CI 守门。
+          ./gradlew :feature:developer:testDebugUnitTest --no-daemon --console=plain \
+            --tests 'top.wkbin.taixu.ui.developer.FeedbackDiagnosticsGroupingTest'
