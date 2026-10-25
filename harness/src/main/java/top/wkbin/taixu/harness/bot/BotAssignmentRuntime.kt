@@ -49,6 +49,8 @@ class BotAssignmentRuntime(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val modelManager: BotModelManager? = null,
     private val taskUsage: GroupTaskUsage? = null,
+    private val nativeTasks: top.wkbin.taixu.core.database.task.AgentTaskRepository? = null,
+    private val runtimeRepository: top.wkbin.taixu.core.database.HarnessRuntimeRepository? = null,
 ) {
     private val pump = AssignmentRequestPump(repository, scope, logger, ::execute)
     private val maintenanceLock = Mutex()
@@ -71,22 +73,18 @@ class BotAssignmentRuntime(
     }
 
     suspend fun create(botId: String, groupId: String, requesterId: String, sourceSessionId: String, instruction: String,
-        writePaths: List<String> = emptyList(), dependsOn: List<String> = emptyList(), workId: String? = null, proposalId: String? = null): BotAssignment {
-        val create = suspend { createTask(botId, groupId, requesterId, sourceSessionId, instruction, writePaths, dependsOn, workId, proposalId) }
+        writePaths: List<String> = emptyList(), dependsOn: List<String> = emptyList(), workId: String? = null,
+        proposalId: String? = null, workItemId: String? = null, operationId: String? = workId): BotAssignment {
+        val create = suspend { createTask(botId, groupId, requesterId, sourceSessionId, instruction, writePaths, dependsOn, workId, proposalId, workItemId, operationId) }
         return modelManager?.withBotLock(botId, create) ?: create()
     }
 
     suspend fun batchSize(batchId: String): Int = repository.batchTaskCount(batchId)
 
     private suspend fun createTask(botId: String, groupId: String, requesterId: String, sourceSessionId: String, instruction: String,
-        writePaths: List<String>, dependsOn: List<String>, workId: String?, proposalId: String?): BotAssignment {
+        writePaths: List<String>, dependsOn: List<String>, workId: String?, proposalId: String?, workItemId: String?, operationId: String?): BotAssignment {
         start()
         require(instruction.isNotBlank()) { "任务内容不能为空" }
-        if (workId != null) {
-            require(repository.batchTaskCount(workId) < BotWorkBatch.MAX_TASKS) {
-                "本批任务已达上限（${BotWorkBatch.MAX_TASKS}），请等待已派任务结束或拆到下一轮"
-            }
-        }
         val bot = requireNotNull(bots.getBot(botId)) { "执行成员不存在" }
         val source = requireNotNull(sessions.findById(sourceSessionId)) { "来源会话不存在" }
         require(groups.getMembers(groupId).any { it.id == requesterId }) { "请求者不在群内" }
@@ -128,10 +126,21 @@ class BotAssignmentRuntime(
                 updatedAt = now,
             )
         }
+        val root = proposal?.rootWorkId ?: parent?.rootWorkId ?: rootWorkId(sourceSessionId, operationId, groupId)
+        val stage = when {
+            (proposal != null && parent != null && parent.botId == proposal.rule.executorId) ||
+                parent?.stageId?.startsWith("delivery:") == true -> "delivery:${parent?.id}"
+            proposal != null && botId == proposal.rule.reviewerId -> "review:${proposal.id}:${proposal.version}"
+            proposal != null -> "execute:${proposal.id}:${proposal.version}"
+            else -> "delegate:${parent?.id ?: "root"}:$botId"
+        }
+        val item = workItemId?.trim()?.takeIf { it.isNotEmpty() } ?: botId
+        require(item.length <= 120) { "工作项 ID 最多120字" }
         val task = BotAssignment(id, groupId, botId, bot.name, instruction.lineSequence().first().take(60), instruction,
             BotAssignmentStatus.QUEUED, writePaths, now, now, sessionId = UUID.randomUUID().toString(),
             reportToBotId = requesterId, independent = true, dependsOn = dependsOn, batchId = workId, parentAssignmentId = parent?.id,
-            proposalId = proposal?.id, proposalVersion = proposal?.version)
+            proposalId = proposal?.id, proposalVersion = proposal?.version,
+            rootWorkId = root, stageId = root?.let { stage }, workItemId = root?.let { item })
         val session = HarnessSessionEntity(
             id = requireNotNull(task.sessionId), title = "${bot.name} · ${task.title}", createdAt = now, updatedAt = now,
             modelId = bot.modelId,
@@ -140,8 +149,17 @@ class BotAssignmentRuntime(
             workspace = source.workspace, projectType = source.projectType,
             approvalMode = ApprovalMode.FULL_ACCESS.id, executionTargetJson = source.executionTargetJson,
         )
-        repository.createIndependent(task, session, BotAssignmentRequest("initial:$id", id, instruction, now), batch)
-        return repository.get(task.id) ?: task
+        val nativeSource = nativeTasks?.listForSession(sourceSessionId, top.wkbin.taixu.core.database.task.AgentTaskStatus.ACTIVE)
+            ?.singleOrNull { it.operationId == operationId && it.groupId == groupId }
+        val admitted = repository.createIndependentOnce(task, session, BotAssignmentRequest("initial:$id", id, instruction, now), batch, operationId, nativeSource?.id)
+        return requireNotNull(repository.get(admitted)) { "派发回执不存在" }
+    }
+
+    suspend fun rootWorkId(sessionId: String, operationId: String?, groupId: String): String? {
+        repository.assignmentForSession(sessionId)?.let { return it.rootWorkId.takeIf { _ -> it.groupId == groupId } }
+        if (operationId == null) return null
+        return nativeTasks?.listForSession(sessionId, top.wkbin.taixu.core.database.task.AgentTaskStatus.ACTIVE)
+            ?.singleOrNull { it.operationId == operationId && it.groupId == groupId }?.groupWorkId
     }
 
     suspend fun continueTask(id: String, groupId: String, instruction: String, requestId: String = UUID.randomUUID().toString()): String {
@@ -208,9 +226,20 @@ class BotAssignmentRuntime(
                 control.sessionRunStates.first { it[sessionId] !in BUSY_STATES }
             }
             val state = control.sessionRunStates.value[sessionId]
-            val uncertain = result.uncertain || state == SessionRunState.IDLE
+            result.blockedReason?.let { reason ->
+                repository.reportBlock(sessionId, reason, repository.getRequest(request.id)?.artifacts.orEmpty())
+            }
+            val unknownEffects = if (result.blockedReason == null) false else {
+                val native = repository.getRequest(request.id)?.nativeTaskId?.let { nativeTasks?.find(it) }
+                val operation = native?.operationId?.let { runtimeRepository?.findOperation(it) }
+                operation == null || operation.sessionId != sessionId ||
+                    (operation.pendingEffectKind == "tool" && operation.replayPolicy != "safe") ||
+                    assignmentEffectsUncertain(control.persistedMessages(sessionId), operation.startLeafId)
+            }
+            val uncertain = result.uncertain || unknownEffects || state == SessionRunState.IDLE && result.blockedReason == null
             val failed = result.failed || state == SessionRunState.FAILED
-            repository.finishRequest(request.id, !failed, uncertain, result.text, if (failed || uncertain) result.text else null)
+            val detail = if (unknownEffects) "原工具副作用或历史待核对，请先只读核验原会话与产物。\n${result.text}" else result.text
+            repository.finishRequest(request.id, !failed, uncertain, result.text, if (failed || uncertain) detail else null)
         } catch (cancelled: CancellationException) {
             task.sessionId?.let(control::cancel)
             withContext(NonCancellable) {

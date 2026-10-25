@@ -14,7 +14,22 @@ import top.wkbin.taixu.harness.MentionExtractor
 class GroupContextScope(
     private val groups: GroupChatRepository,
     private val assignments: BotAssignmentRepository,
+    private val nativeTasks: top.wkbin.taixu.core.database.task.AgentTaskRepository? = null,
 ) {
+    internal suspend fun workForReceipt(id: String?): String? {
+        if (id == null) return null
+        return assignments.get(id)?.rootWorkId ?: assignments.batchAssignments(id).firstOrNull()?.rootWorkId
+    }
+
+    internal suspend fun delegatedTargets(groupId: String, nativeTaskId: String?): Set<String> {
+        val task = nativeTaskId?.let { nativeTasks?.find(it) } ?: return emptySet()
+        if (task.groupId != groupId) return emptySet()
+        return task.operationId?.let { assignments.dispatchedBots(groupId, it, task.id) }.orEmpty()
+    }
+
+    internal suspend fun workForNativeTask(nativeTaskId: String?): String? =
+        nativeTaskId?.let { nativeTasks?.find(it)?.groupWorkId }
+
     internal suspend fun select(group: GroupChat, botId: String, sessionId: String, rows: List<GroupMessage>): List<GroupMessage> {
         val members = groups.getMembers(group.id)
         if (members.none { it.id == botId }) return emptyList()

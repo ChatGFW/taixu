@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import top.wkbin.taixu.core.common.logging.AppLogger
@@ -43,6 +44,7 @@ internal class GroupRoundCoordinator(
     private val responder: GroupRoundResponder,
     private val scope: CoroutineScope,
     private val logger: AppLogger,
+    private val delegatedTargets: suspend (String, String?) -> Set<String> = { _, _ -> emptySet() },
 ) {
     private val groupLocks = ConcurrentHashMap<String, Mutex>()
     private val jobs = ConcurrentHashMap<String, MutableSet<Job>>()
@@ -64,15 +66,17 @@ internal class GroupRoundCoordinator(
         responders: List<Bot>,
         trigger: String,
         imageUrls: List<String> = emptyList(),
+        rootWorkId: String? = null,
     ): GroupRound? {
         if (responders.isEmpty()) return null
         val now = System.currentTimeMillis()
+        val id = UUID.randomUUID().toString()
         return GroupRound(
-            id = UUID.randomUUID().toString(),
+            id = id,
             groupId = group.id,
             trigger = trigger,
             imageUrls = imageUrls,
-            slots = responders.map { GroupRoundSlot(it.id, it.name) },
+            slots = responders.map { GroupRoundSlot(it.id, it.name, rootWorkId = rootWorkId ?: id) },
             status = GroupRoundStatus.RUNNING,
             createdAt = now,
             updatedAt = now,
@@ -102,8 +106,8 @@ internal class GroupRoundCoordinator(
     }
 
     /** Late rounds have no user message; commit their row before starting them. */
-    suspend fun start(group: GroupChat, responders: List<Bot>, trigger: String, imageUrls: List<String> = emptyList()) {
-        val round = newRound(group, responders, trigger, imageUrls) ?: return
+    suspend fun start(group: GroupChat, responders: List<Bot>, trigger: String, imageUrls: List<String> = emptyList(), rootWorkId: String? = null) {
+        val round = newRound(group, responders, trigger, imageUrls, rootWorkId) ?: return
         groups.insertRound(round)
         launchPrepared(round)
     }
@@ -209,18 +213,20 @@ internal class GroupRoundCoordinator(
             val history = formatRoundHistory(group, messages, seen)
             val trigger = buildRoundTrigger(group, bot, slot, slots, index, round.trigger)
             val outcome = try {
-                queue.withLock(groupId, "${bot.id}:$groupId") {
-                    responder.respond(
-                        group,
-                        bot,
-                        trigger,
-                        history,
-                        members,
-                        round.imageUrls,
-                        slot.calledBy,
-                        onSubmitted = { groups.setSeenSeq(groupId, bot.id, seenSeq) },
-                    ) { text ->
-                        lateReply(groupId, slot, text)
+                withContext(GroupWorkContext(slot.rootWorkId ?: round.id, groupId)) {
+                    queue.withLock(groupId, "${bot.id}:$groupId") {
+                        responder.respond(
+                            group,
+                            bot,
+                            trigger,
+                            history,
+                            members,
+                            round.imageUrls,
+                            slot.calledBy,
+                            onSubmitted = { groups.setSeenSeq(groupId, bot.id, seenSeq) },
+                        ) { text ->
+                            lateReply(groupId, slot, text, slot.rootWorkId ?: round.id)
+                        }
                     }
                 }
             } catch (cancelled: CancellationException) {
@@ -236,7 +242,8 @@ internal class GroupRoundCoordinator(
                 outcome.failed -> slot.status = GroupSlotStatus.FAILED
                 else -> {
                     slot.status = GroupSlotStatus.POSTED
-                    appendRoundMentions(slots, index, outcome.text, members, turns, group)
+                    appendRoundMentions(slots, index, outcome.text, members, turns, group,
+                        delegatedTargets(groupId, outcome.nativeTaskId))
                 }
             }
             persist(round, slots)
@@ -290,8 +297,8 @@ internal class GroupRoundCoordinator(
         groups.finishRound(updated)
     }
 
-    private fun lateReply(groupId: String, slot: GroupRoundSlot, text: String) {
-        lateReplyRecovered(groupId, slot.botId, slot.name, slot.calledBy, text)
+    private fun lateReply(groupId: String, slot: GroupRoundSlot, text: String, rootWorkId: String) {
+        lateReplyRecovered(groupId, slot.botId, slot.name, slot.calledBy, text, rootWorkId)
     }
 
     fun lateReplyRecovered(
@@ -300,6 +307,7 @@ internal class GroupRoundCoordinator(
         workerName: String,
         callerBotId: String?,
         text: String,
+        rootWorkId: String? = null,
     ) {
         if (groupId in cancelledGroups) return
         if (groupId in relayPausedGroups) return
@@ -315,6 +323,7 @@ internal class GroupRoundCoordinator(
                 group,
                 listOf(caller),
                 "【迟到回复】$workerName 完成了你交给它的工作：\n${text}",
+                rootWorkId = rootWorkId,
             )
         }
     }

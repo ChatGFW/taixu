@@ -16,6 +16,11 @@ internal fun observeStreamHeartbeat(line: String, state: AtomicInteger, watchdog
     ) watchdog.cancel()
 }
 
+internal suspend fun observeStreamActivity(line: String, state: AtomicInteger, watchdog: Job) {
+    observeStreamHeartbeat(line, state, watchdog)
+    kotlinx.coroutines.currentCoroutineContext()[top.wkbin.taixu.harness.session.ProviderActivityContext]?.transport()
+}
+
 internal fun streamFailure(
     error: IOException,
     firstEventState: Int,

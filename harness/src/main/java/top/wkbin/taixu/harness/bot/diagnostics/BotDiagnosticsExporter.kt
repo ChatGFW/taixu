@@ -36,6 +36,7 @@ class BotDiagnosticsExporter(
     private val runtimeRepository: HarnessRuntimeRepository,
     private val json: Json,
     private val logger: AppLogger,
+    private val nativeTasks: top.wkbin.taixu.core.database.task.AgentTaskRepository? = null,
 ) {
     suspend fun exportGroup(groupId: String, destination: File): File {
         val group = requireNotNull(groupRepository.getGroup(groupId)) { "群聊不存在" }
@@ -125,6 +126,9 @@ class BotDiagnosticsExporter(
                     appendLine(request.instruction.take(2_000))
                     appendLine(request.blockedReason ?: request.summary ?: request.error ?: "")
                     appendLine("报告产物：${request.artifacts.joinToString()}")
+                    request.nativeTaskId?.let { id -> nativeTasks?.find(id) }?.let { native ->
+                        appendLine("业务任务=${native.groupWorkId ?: "—"} · 运行阶段=${native.groupProgressJson ?: "未记录"}")
+                    }
                 }
                 val sessionId = task.sessionId
                 if (sessionId != null && assignmentRepository.assignmentForSession(sessionId)?.id == task.id) {
@@ -140,6 +144,7 @@ class BotDiagnosticsExporter(
                     runtimeRepository.listActiveOperations(sessionId).forEach { operation ->
                         appendLine("- 任务活动执行：${operation.laneName} · ${operation.status}/${operation.phase} · updated=${stamp(operation.updatedAt)}")
                     }
+                    sessionControl.providerActivities.value[sessionId]?.let { appendLine("- 模型活动：${json.encodeToString(it)}") }
                 }
             }
             appendLine()
@@ -149,6 +154,7 @@ class BotDiagnosticsExporter(
                 val shown = all.takeLast(SESSION_MESSAGE_LIMIT)
                 appendLine()
                 appendLine("### ${bot.name} · ${sessionIds[bot.id] ?: "尚未建立群会话"}")
+                sessionIds[bot.id]?.let { sessionControl.providerActivities.value[it] }?.let { appendLine("模型活动：${json.encodeToString(it)}") }
                 transcriptErrors[bot.id]?.let { appendLine("读取失败：$it") }
                 appendLine("共 ${all.size} 条，导出最近 ${shown.size} 条")
                 if (shown.isEmpty()) appendLine("（无会话记录）")
@@ -227,6 +233,7 @@ class BotDiagnosticsExporter(
         appendLine("- id：`${assignment.id}`")
         appendLine("- botId：`${assignment.botId}` · sessionId：`${assignment.sessionId ?: "-"}`")
         appendLine("- lane：${assignment.laneName ?: "-"}")
+        appendLine("- work：${assignment.rootWorkId ?: "—"} · stage：${assignment.stageId ?: "—"} · item：${assignment.workItemId ?: "—"} · owner：${assignment.reportToBotId ?: "—"}")
         appendLine(
             "- 开始：${stamp(assignment.startedAt)}" +
                 (assignment.finishedAt?.let { " · 结束：${stamp(it)}" } ?: ""),

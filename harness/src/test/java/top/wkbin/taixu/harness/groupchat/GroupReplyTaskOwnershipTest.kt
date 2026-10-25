@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Test
@@ -120,6 +122,27 @@ class GroupReplyTaskOwnershipTest {
         }
     }
 
+    @Test fun `durable completion during progress publication wins over expired execution deadline`() = runBlocking {
+        val bot = seed()
+        tasks.upsert(task("task-1", AgentTaskStatus.RUNNING, 0))
+        var now = 0L
+        val observer = GroupReplyObserver(control, AppLogger(context) { it }, tracker) { now }
+        val outcome = withTimeout(5_000) {
+            observer.awaitReply("session", bot, emptySet(), 0, taskId = "task-1",
+                executionPolicy = GroupExecutionPolicy(10, 20)) { progress ->
+                if (progress.executionWarning) control.finish("task-1", "DURABLE_SUCCESS")
+                else now = 20
+            }
+        }
+        assertEquals("DURABLE_SUCCESS", outcome.candidate?.text)
+        assertFalse(outcome.noExecutionProgress)
+        assertFalse(outcome.failed)
+        assertTrue(control.cancellations.isEmpty())
+        val native = requireNotNull(tasks.find("task-1"))
+        assertEquals(AgentTaskStatus.COMPLETED, native.status)
+        assertEquals("warning_no_execution_progress", Json.parseToJsonElement(requireNotNull(native.groupProgressJson)).jsonObject["phase"]?.jsonPrimitive?.content)
+    }
+
     private fun task(id: String, status: String, startedAt: Long?) = AgentTaskEntity(
         id = id, sessionId = "session", title = id, description = id, status = status,
         createdAt = System.currentTimeMillis(), updatedAt = System.currentTimeMillis(), startedAt = startedAt,
@@ -131,6 +154,7 @@ class GroupReplyTaskOwnershipTest {
         override val sessionStatuses = MutableStateFlow<Map<String, String>>(emptyMap())
         val messages = MutableStateFlow<List<HarnessMessage>>(emptyList())
         val submissions = MutableStateFlow(0)
+        val cancellations = mutableListOf<String?>()
         private var durable = emptyList<HarnessMessage>()
         @Volatile var prepared = false
         override fun messagesForSession(sessionId: String) = messages
@@ -175,7 +199,7 @@ class GroupReplyTaskOwnershipTest {
         override fun send(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
         override fun steer(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
         override fun followUp(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
-        override fun cancel(targetSessionId: String?) { sessionRunStates.value = mapOf("session" to SessionRunState.IDLE) }
+        override fun cancel(targetSessionId: String?) { cancellations += targetSessionId; sessionRunStates.value = mapOf("session" to SessionRunState.IDLE) }
         override fun resolveApproval(requestId: String, approved: Boolean, rememberForSession: Boolean) = Unit
         override fun resolveQuestion(requestId: String, answersJson: String) = Unit
     }

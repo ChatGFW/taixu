@@ -41,4 +41,8 @@ data class BotAssignment(
     val proposalId: String? = null,
     val proposalVersion: Int? = null,
     val teamBinding: String? = null,
+    /** Business work survives native turns and independent session boundaries. */
+    val rootWorkId: String? = null,
+    val stageId: String? = null,
+    val workItemId: String? = null,
 )

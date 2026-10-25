@@ -54,6 +54,7 @@ fun botManagementPlugin(
         properties = mapOf(
             "bot_name" to pluginStringProperty("目标 Bot 名称"),
             "proposal_id" to pluginStringProperty("审议方案ID；审核和执行须绑定方案。下级执行继承原方案"),
+            "work_item_id" to pluginStringProperty("同阶段工作项的稳定ID；重试须复用，省略按执行成员去重。拆分互不冲突的交付物时分别提供ID、写入范围与验收标准"),
             "task" to pluginStringProperty("要交给它独立完成的具体任务"),
             "write_paths" to pluginStringArrayProperty(
                 "可选建议写入目录；群聊独立任务作为提示，无群聊子任务作为写入租约",
@@ -166,6 +167,7 @@ fun botManagementPlugin(
                         engine.create(
                             target.id, group.id, caller.id, request.sessionId, task, writePaths,
                             dependsOn = dependsOn, proposalId = request.arguments["proposal_id"]?.jsonPrimitive?.content,
+                            workItemId = request.arguments["work_item_id"]?.jsonPrimitive?.content, operationId = request.operationId,
                             workId = if (wait) null else request.operationId ?: if (engine.taskForSession(request.sessionId) != null) java.util.UUID.randomUUID().toString() else null,
                         )
                     }.getOrElse { return@PluginTool PluginToolOutput(false, "派发失败：${it.message}") }
@@ -178,7 +180,7 @@ fun botManagementPlugin(
                         val size = runCatching { engine.batchSize(batchId) }.getOrDefault(1)
                         "，已归入本轮工作批次（同批 $size 个任务，全部结束后统一回报）"
                     }.orEmpty()
-                    return@PluginTool PluginToolOutput(true, "已交给 ${target.name} 独立执行（任务 ${created.id}$batchNote）；群内实时展示过程。补充要求请用 continue-assignment 继续原任务。")
+                    return@PluginTool PluginToolOutput(true, "任务 ${created.id} · ${created.status} · 执行成员 ${target.name} · 原负责人 ${created.reportToBotId}$batchNote；同一工作项复用原任务，不重复执行、不覆盖原指令。补充或修改要求请用 continue-assignment 继续原任务。")
                 }
                 if (request.arguments["wait"]?.jsonPrimitive?.booleanOrNull == false) {
                     return@PluginTool PluginToolOutput(false, "独立后台委派需要群聊来源；请加入群聊或使用 wait=true 同步执行")
@@ -246,7 +248,7 @@ fun botManagementPlugin(
             botRepository = botRepository,
             groupRepository = groupRepository,
             assignments = assignments, runtime = runtime,
-        ) + independentAssignmentTools(botRepository, groupRepository, runtime) + botModelTools(botRepository, modelManager) + groupReviewTools(botRepository, groupRepository),
+        ) + independentAssignmentTools(botRepository, groupRepository, runtime) + botModelTools(botRepository, modelManager) + groupReviewTools(botRepository, groupRepository, runtime),
     )
 }
 

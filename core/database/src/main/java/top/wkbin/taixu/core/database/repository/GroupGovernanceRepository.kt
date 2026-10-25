@@ -14,7 +14,7 @@ interface GroupGovernanceRepository {
     fun observeProposals(groupId: String): Flow<List<GroupProposal>> = flowOf(emptyList())
     suspend fun getProposal(id: String): GroupProposal? = null
     suspend fun submitProposal(groupId: String, callerId: String, ruleId: String, id: String,
-        expectedVersion: Int, content: String): GroupProposal = error("方案提交不可用")
+        expectedVersion: Int, content: String, rootWorkId: String? = null): GroupProposal = error("方案提交不可用")
     suspend fun decideProposal(groupId: String, callerId: String, id: String, version: Int,
         decision: ProposalDecision, reason: String): GroupProposal = error("方案审核不可用")
 }
@@ -29,7 +29,7 @@ class RoomGroupGovernanceRepository(private val dao: GroupGovernanceDao) : Group
     }
     override suspend fun getProposal(id: String) = dao.proposal(id)
     override suspend fun submitProposal(groupId: String, callerId: String, ruleId: String, id: String,
-        expectedVersion: Int, content: String) = dao.submitProposal(groupId, callerId, ruleId, id, expectedVersion, content)
+        expectedVersion: Int, content: String, rootWorkId: String?) = dao.submitProposal(groupId, callerId, ruleId, id, expectedVersion, content, rootWorkId)
     override suspend fun decideProposal(groupId: String, callerId: String, id: String, version: Int,
         decision: ProposalDecision, reason: String) = dao.decideProposal(groupId, callerId, id, version, decision, reason)
 }

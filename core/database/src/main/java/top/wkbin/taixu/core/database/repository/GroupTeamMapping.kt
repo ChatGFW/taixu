@@ -21,6 +21,9 @@ internal fun GroupChatEntity.toModel() = GroupChat(
     background = background, taskBudgetTokens = taskBudgetTokens, teamGroupId = teamGroupId, teamVersion = teamVersion,
     replyMode = runCatching { GroupReplyMode.valueOf(replyMode) }.getOrDefault(GroupReplyMode.ADMIN_FIRST),
     unifiedApprovalMode = unifiedApprovalMode,
+    executionLimits = executionLimitsJson?.let { runCatching {
+        kotlinx.serialization.json.Json.decodeFromString<top.wkbin.taixu.core.model.bot.GroupExecutionLimits>(it)
+    }.getOrNull() } ?: top.wkbin.taixu.core.model.bot.GroupExecutionLimits(),
 )
 
 internal fun GroupChat.toEntity() = GroupChatEntity(
@@ -32,4 +35,5 @@ internal fun GroupChat.toEntity() = GroupChatEntity(
     background = background, taskBudgetTokens = taskBudgetTokens, teamGroupId = teamGroupId, teamVersion = teamVersion,
     replyMode = replyMode.name,
     unifiedApprovalMode = unifiedApprovalMode,
+    executionLimitsJson = kotlinx.serialization.json.Json.encodeToString(executionLimits),
 )

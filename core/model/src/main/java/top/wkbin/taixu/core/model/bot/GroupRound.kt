@@ -12,6 +12,7 @@ data class GroupRoundSlot(
     var status: GroupSlotStatus = GroupSlotStatus.WAITING,
     var trigger: String? = null,
     var calledBy: String? = null,
+    val rootWorkId: String? = null,
 )
 
 @Serializable

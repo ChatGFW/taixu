@@ -47,6 +47,7 @@ data class GroupChat(
     val background: String = "default",
     val replyMode: GroupReplyMode = GroupReplyMode.ADMIN_FIRST,
     val taskBudgetTokens: Long = 0,
+    val executionLimits: GroupExecutionLimits = GroupExecutionLimits(),
     val teamGroupId: String? = null,
     val teamVersion: Int? = null,
     /**

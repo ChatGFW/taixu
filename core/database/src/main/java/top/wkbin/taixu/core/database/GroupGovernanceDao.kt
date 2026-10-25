@@ -50,7 +50,7 @@ interface GroupGovernanceDao : GroupTeamDao {
     }
 
     @Transaction suspend fun submitProposal(groupId: String, callerId: String, ruleId: String,
-        proposalId: String, expectedVersion: Int, content: String): GroupProposal {
+        proposalId: String, expectedVersion: Int, content: String, rootWorkId: String? = null): GroupProposal {
         val team = governanceTeam(groupId)
         val policy = governance(groupId).also { it.validate(team) }
         val rule = requireNotNull(policy.rules.find { it.id == ruleId }) { "审议规则不存在" }
@@ -62,7 +62,7 @@ interface GroupGovernanceDao : GroupTeamDao {
         require(old == null || old.rule == rule && old.teamGroupId == linkedTeamId(groupId) && old.teamVersion == linkedVersion(groupId)) { "规则已变化，请新建方案" }
         require(old == null || old.decision in setOf(ProposalDecision.REJECTED, ProposalDecision.APPROVED)) { "只有已驳回或已批准的方案可以修改，新版本须重新审核" }
         val next = GroupProposal(proposalId, groupId, rule, expectedVersion + 1, content,
-            if (expectedVersion >= rule.maxRevisions) ProposalDecision.ESCALATED else ProposalDecision.PENDING, teamGroupId = linkedTeamId(groupId), teamVersion = linkedVersion(groupId))
+            if (expectedVersion >= rule.maxRevisions) ProposalDecision.ESCALATED else ProposalDecision.PENDING, teamGroupId = linkedTeamId(groupId), teamVersion = linkedVersion(groupId), rootWorkId = old?.rootWorkId ?: rootWorkId)
         require(next.version <= rule.maxRevisions + 1) { "已达修改上限，请提交主控裁决" }
         putProposal(GroupProposalEntity(next.id, next.version, groupId, Json.encodeToString(next)))
         return next

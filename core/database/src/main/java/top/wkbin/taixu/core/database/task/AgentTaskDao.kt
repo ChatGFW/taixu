@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AgentTaskDao {
+    @Query("UPDATE agent_tasks SET groupProgressJson = :progress WHERE id = :id AND status IN ('RUNNING', 'WAITING_APPROVAL')")
+    suspend fun updateGroupProgress(id: String, progress: String)
+
     @Query("SELECT * FROM agent_tasks ORDER BY updatedAt DESC")
     fun observeAllTasks(): Flow<List<AgentTaskEntity>>
 

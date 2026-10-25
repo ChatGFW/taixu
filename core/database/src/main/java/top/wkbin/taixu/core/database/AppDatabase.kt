@@ -60,6 +60,7 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         GroupLateReplyEntity::class,
         BotScheduleEntity::class,
         BotAssignmentEntity::class,
+        AssignmentDispatchReceipt::class,
         BotWorkBatchEntity::class,
         BotGroupSessionEntity::class,
         BotScheduleDeliveryEntity::class,
@@ -70,7 +71,7 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         BtwQueryEntity::class,
         AgentMessageFeedbackEntity::class,
     ],
-    version = 82,
+    version = 83,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

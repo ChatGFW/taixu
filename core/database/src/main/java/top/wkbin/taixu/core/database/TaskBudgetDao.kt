@@ -53,7 +53,7 @@ interface TaskBudgetDao {
 
     suspend fun rootBudget(task: BotAssignmentEntity): TaskBudgetEntity {
         val group = requireNotNull(task.groupId)
-        val id = "$group:${task.batchId ?: task.id}"
+        val id = "$group:${task.rootWorkId ?: task.batchId ?: task.id}"
         insertBudget(TaskBudgetEntity(id, group, task.title, defaultBudget(group) ?: 0, System.currentTimeMillis()))
         return requireNotNull(budget(id))
     }

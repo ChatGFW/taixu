@@ -104,7 +104,7 @@ internal class ResponsesApi(
                 var completed = false
                 while (true) {
                     val line = source.readUtf8Line() ?: break
-                    observeStreamHeartbeat(line, firstEventState, firstEventWatchdog)
+                    observeStreamActivity(line, firstEventState, firstEventWatchdog)
                     if (!line.startsWith("data:")) continue
                     val data = line.removePrefix("data:").trim()
                     if (data.isEmpty()) continue
