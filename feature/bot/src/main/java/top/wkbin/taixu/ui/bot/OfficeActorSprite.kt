@@ -18,6 +18,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -213,8 +214,12 @@ internal fun OfficeActorSprite(
 
 @Composable
 internal fun rememberMotionEnabled(): Boolean {
-    var enabled by remember { mutableStateOf(true) }
-    LaunchedEffect(Unit) {
+    val scope = rememberCoroutineScope()
+    val initial = remember(scope) {
+        (scope.coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f) > 0f
+    }
+    var enabled by remember { mutableStateOf(initial) }
+    LaunchedEffect(scope) {
         val scale = currentCoroutineContext()[MotionDurationScale] ?: return@LaunchedEffect
         snapshotFlow { scale.scaleFactor }.collect { enabled = it > 0f }
     }

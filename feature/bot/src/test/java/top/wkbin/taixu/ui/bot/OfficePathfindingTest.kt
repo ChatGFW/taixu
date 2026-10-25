@@ -26,14 +26,26 @@ class OfficePathfindingTest {
     }
 
     @Test
-    fun `long same floor moves follow the walkway`() {
+    fun `long same floor moves stay direct when the floor is clear`() {
         val path = officeWalkPath(scene, graph, OfficePoint(40, 150), OfficePoint(170, 150))
 
-        assertEquals(OfficePoint(40, 150), path.first())
-        assertEquals(OfficePoint(170, 150), path.last())
-        assertTrue(path.size >= 3)
-        assertTrue(path.all { it.y == 150 })
-        assertTrue(path.any { it == OfficePoint(96, 150) })
+        assertEquals(listOf(OfficePoint(40, 150), OfficePoint(170, 150)), path)
+    }
+
+    @Test
+    fun `same floor move does not take a single waypoint U-turn`() {
+        val path = officeWalkPath(scene, graph, OfficePoint(40, 150), OfficePoint(80, 150))
+
+        assertEquals(listOf(OfficePoint(40, 150), OfficePoint(80, 150)), path)
+    }
+
+    @Test
+    fun `local walk leaves a seat that sits inside its own furniture`() {
+        val floor = scene.floorAtRoomY(376)!!
+        val start = OfficePoint(40, 338)
+        val end = OfficePoint(40, 362)
+
+        assertEquals(listOf(start, end), officeLocalWalk(scene, start, end, floor))
     }
 
     @Test

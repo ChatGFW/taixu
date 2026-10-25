@@ -233,6 +233,22 @@ class OfficeSceneSpecTest {
     }
 
     @Test
+    fun `scene rejects floors that collapse or change identity after compaction`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(floors = listOf(OfficeFloorSpec("collapsed", 290, 306)))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(
+                floors = listOf(
+                    OfficeFloorSpec("a", 0, 295),
+                    OfficeFloorSpec("b", 295, PixelOfficeRoom.HEIGHT),
+                ),
+                seats = original.seats + OfficeSeat("mismatch", 150, 294, OfficePose.STAND),
+            )
+        }
+    }
+
+    @Test
     fun `waypoint graph rejects missing links disconnected nodes and outside anchors`() {
         assertThrows(IllegalArgumentException::class.java) {
             original.copy(waypoints = listOf(OfficeWaypointSpec("a", 16, 150, listOf("missing"))))

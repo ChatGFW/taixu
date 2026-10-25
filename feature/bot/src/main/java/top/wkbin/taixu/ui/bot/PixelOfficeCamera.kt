@@ -8,9 +8,11 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableFloatState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -46,10 +48,19 @@ internal class OfficeMetrics {
     lateinit var zoom: MutableFloatState
 
     val scale: Float get() = baseScale * zoom.floatValue
-    val fitZoom: Float get() = officeFitZoom(viewW, viewH, baseScale)
+    var fitZoom by mutableFloatStateOf(1f)
+        private set
     val minZoom: Float get() = fitZoom
     val isFitted: Boolean
         get() = this::zoom.isInitialized && abs(zoom.floatValue - fitZoom) <= 0.01f
+
+    fun updateViewport(viewW: Int, viewH: Int, baseScale: Float) {
+        this.viewW = viewW
+        this.viewH = viewH
+        this.baseScale = baseScale
+        val next = officeFitZoom(viewW, viewH, baseScale)
+        if (next != fitZoom) fitZoom = next
+    }
 
     fun panBy(delta: Offset) {
         if (viewW <= 0) return

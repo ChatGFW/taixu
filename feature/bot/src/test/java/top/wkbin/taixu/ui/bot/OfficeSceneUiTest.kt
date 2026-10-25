@@ -205,6 +205,39 @@ class OfficeSceneUiTest {
     }
 
     @Test
+    fun `camera fit control toggles its label`() {
+        compose.setContent {
+            TaiXuTheme {
+                Box(Modifier.requiredSize(384.dp, 700.dp)) {
+                    GroupPixelOffice(
+                        actors = emptyList(),
+                        recipes = emptyMap(),
+                        bubbles = emptyMap(),
+                        selectedId = null,
+                        emptyHint = null,
+                        onSelect = {},
+                    )
+                }
+            }
+        }
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val fitLabel = context.getString(R.string.fbot_pixel_office_fit_view)
+        val resetLabel = context.getString(R.string.fbot_pixel_office_reset_view)
+        compose.waitForIdle()
+
+        compose.onNodeWithTag("office-camera-fit")
+            .assertContentDescriptionContains(fitLabel)
+            .performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("office-camera-fit")
+            .assertContentDescriptionContains(resetLabel)
+            .performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("office-camera-fit")
+            .assertContentDescriptionContains(fitLabel)
+    }
+
+    @Test
     fun `camera zoom survives state restoration`() {
         val restoration = StateRestorationTester(compose)
         restoration.setContent {

@@ -13,7 +13,12 @@ internal fun requireValidOfficeScene(scene: OfficeSceneSpec) {
         ) { "$label is outside the room" }
     }
     fun requireFloor(label: String, x: Int, y: Int) {
-        require(scene.floorAtRoomY(y) != null) { "$label at ($x,$y) is outside every floor" }
+        val roomFloor = scene.floorAtRoomY(y)
+        require(roomFloor != null) { "$label at ($x,$y) is outside every floor" }
+        val sceneFloor = scene.floorAtSceneY(PixelOfficeScene.y(y.toFloat()).toInt())
+        require(sceneFloor?.id == roomFloor.id) {
+            "$label at ($x,$y) changes floor after walkway compaction"
+        }
     }
     fun requireUnblocked(label: String, x: Int, y: Int) {
         require(scene.furniture.none { it.blocksWalking && it.bounds.contains(x, y) }) {
@@ -37,6 +42,16 @@ internal fun requireValidOfficeScene(scene: OfficeSceneSpec) {
     }
     scene.floors.sortedBy { it.top }.zipWithNext().forEach { (first, second) ->
         require(first.bottom <= second.top) { "Floors ${first.id} and ${second.id} overlap" }
+    }
+    scene.floors.forEach { floor ->
+        require(floor.sceneBottom() > floor.sceneTop()) {
+            "Floor ${floor.id} collapses after walkway compaction"
+        }
+    }
+    scene.floors.sortedBy { it.top }.zipWithNext().forEach { (first, second) ->
+        require(first.sceneBottom() <= second.sceneTop()) {
+            "Floors ${first.id} and ${second.id} overlap after walkway compaction"
+        }
     }
     unique(scene.waypoints.map { it.id }, "waypoint")
     scene.waypoints.forEach { waypoint ->

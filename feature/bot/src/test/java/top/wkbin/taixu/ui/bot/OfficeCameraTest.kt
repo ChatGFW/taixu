@@ -52,14 +52,16 @@ class OfficeCameraTest {
     }
 
     private fun metrics(viewW: Int, viewH: Int): OfficeMetrics = OfficeMetrics().apply {
-        this.viewW = viewW
-        this.viewH = viewH
-        baseScale = maxOf(
-            viewW / PixelOfficeRoom.WIDTH.toFloat(),
-            viewH / PixelOfficeScene.HEIGHT.toFloat(),
-        )
         panX = mutableFloatStateOf(0f)
         panY = mutableFloatStateOf(0f)
         zoom = mutableFloatStateOf(1f)
+        updateViewport(
+            viewW,
+            viewH,
+            maxOf(
+                viewW / PixelOfficeRoom.WIDTH.toFloat(),
+                viewH / PixelOfficeScene.HEIGHT.toFloat(),
+            ),
+        )
     }
 }

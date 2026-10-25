@@ -76,8 +76,19 @@ jobs:
             --tests 'top.wkbin.taixu.core.database.MessageFeedbackMigration81To82Test' \
             --tests 'top.wkbin.taixu.core.database.MessageFeedbackServiceTest'
           # 能力白名单切换语义（空集合=锁死回归）必须进 CI 守门。
+          # 像素办公室的相机、场景数据、寻路、无障碍和动效契约同步纳入守门。
           ./gradlew :feature:bot:testDebugUnitTest --no-daemon --console=plain \
-            --tests 'top.wkbin.taixu.ui.bot.BotCapabilitySelectionTest'
+            --tests 'top.wkbin.taixu.ui.bot.BotCapabilitySelectionTest' \
+            --tests 'top.wkbin.taixu.ui.bot.OfficeCameraTest' \
+            --tests 'top.wkbin.taixu.ui.bot.OfficePathfindingTest' \
+            --tests 'top.wkbin.taixu.ui.bot.OfficeReducedMotionTest' \
+            --tests 'top.wkbin.taixu.ui.bot.OfficeSceneSpecTest' \
+            --tests 'top.wkbin.taixu.ui.bot.OfficeSceneUiTest' \
+            --tests 'top.wkbin.taixu.ui.bot.OfficeWalkHandoffsTest' \
+            --tests 'top.wkbin.taixu.ui.bot.GroupCyberStudioTest' \
+            --tests 'top.wkbin.taixu.ui.bot.PixelOfficeLayoutTest' \
+            --tests 'top.wkbin.taixu.ui.bot.PixelOfficeAmbientTest' \
+            --tests 'top.wkbin.taixu.ui.bot.OfficeReportLinksTest'
           ./gradlew :core:datastore:testDebugUnitTest --no-daemon --console=plain \
             --tests 'top.wkbin.taixu.core.datastore.McpClientPreferencesTest'
           ./gradlew :app:testDebugUnitTest --no-daemon --console=plain \

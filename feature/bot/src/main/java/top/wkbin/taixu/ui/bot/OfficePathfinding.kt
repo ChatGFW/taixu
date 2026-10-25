@@ -74,12 +74,23 @@ internal fun officeWalkPath(
     val middle = bestMiddle ?: return listOf(start, end)
     val startLeg = officeLocalWalk(scene, start, middle.first().point, startFloor)
     val endLeg = officeLocalWalk(scene, middle.last().point, end, endFloor)
-    return buildList {
+    val graphPath = buildList {
         add(start)
         startLeg.drop(1).forEach { addIfDifferent(it) }
         middle.drop(1).forEach { node -> addIfDifferent(node.point) }
         endLeg.drop(1).forEach { addIfDifferent(it) }
     }
+    if (startFloor.id != endFloor.id) return graphPath
+    val localPath = officeLocalWalk(scene, start, end, startFloor)
+    return if (polylineLength(localPath) <= polylineLength(graphPath) + 2f) localPath else graphPath
+}
+
+private fun polylineLength(points: List<OfficePoint>): Float {
+    var total = 0f
+    for (index in 1 until points.size) {
+        total += distance(points[index - 1], points[index])
+    }
+    return total
 }
 
 private fun MutableList<OfficePoint>.addIfDifferent(point: OfficePoint) {
@@ -120,7 +131,7 @@ internal fun officeLocalWalk(
     floor: OfficeFloorSpec,
 ): List<OfficePoint> {
     if (start == end) return listOf(start)
-    val obstacles = scene.localObstacles(floor)
+    val obstacles = scene.localObstacles(floor, start, end)
     if (!segmentBlocked(start, end, obstacles)) return listOf(start, end)
     val top = floor.sceneTop()
     val cols = ceil(PixelOfficeRoom.WIDTH / NAV_CELL).toInt()
@@ -188,10 +199,21 @@ internal fun officeLocalWalk(
     return simplifyLocalPath(raw, obstacles)
 }
 
-private fun OfficeSceneSpec.localObstacles(floor: OfficeFloorSpec): List<SceneRect> {
+private fun OfficeSceneSpec.localObstacles(
+    floor: OfficeFloorSpec,
+    start: OfficePoint,
+    end: OfficePoint,
+): List<SceneRect> {
     val floorTop = floor.sceneTop()
     val floorBottom = floor.sceneBottom()
     val result = mutableListOf<SceneRect>()
+    fun keep(rect: SceneRect): Boolean {
+        if (rect.bottom <= floorTop || rect.top >= floorBottom) return false
+        // Seats intentionally sit inside their own desk/sofa; do not trap the endpoint.
+        if (rect.contains(start.x.toFloat(), start.y.toFloat())) return false
+        if (rect.contains(end.x.toFloat(), end.y.toFloat())) return false
+        return true
+    }
     furniture.filter { it.blocksWalking }.forEach { item ->
         val rect = SceneRect(
             item.bounds.x.toFloat(),
@@ -199,7 +221,7 @@ private fun OfficeSceneSpec.localObstacles(floor: OfficeFloorSpec): List<SceneRe
             item.bounds.right.toFloat(),
             PixelOfficeScene.y(item.bounds.bottom.toFloat()),
         )
-        if (rect.bottom > floorTop && rect.top < floorBottom) result += rect
+        if (keep(rect)) result += rect
     }
     desks.forEach { desk ->
         val rect = SceneRect(
@@ -208,7 +230,7 @@ private fun OfficeSceneSpec.localObstacles(floor: OfficeFloorSpec): List<SceneRe
             (desk.x + 37).toFloat(),
             PixelOfficeScene.y((desk.y + 18).toFloat()),
         )
-        if (rect.bottom > floorTop && rect.top < floorBottom) result += rect
+        if (keep(rect)) result += rect
     }
     return result
 }

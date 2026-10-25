@@ -81,6 +81,9 @@ internal fun GroupPixelOffice(
     val panYState = rememberOfficeCameraFloat(0f)
     val zoomState = rememberOfficeCameraFloat(1f)
     val metrics = remember { OfficeMetrics() }
+    metrics.panX = panXState
+    metrics.panY = panYState
+    metrics.zoom = zoomState
     var aimed by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val debugNavigation = remember(context) {
@@ -92,43 +95,38 @@ internal fun GroupPixelOffice(
     } else {
         null
     }
-    Box(modifier.fillMaxSize()) {
-        BoxWithConstraints(
-            Modifier
-                .fillMaxSize()
-                .clipToBounds()
-                .officeGestures(metrics)
-                .testTag("pixel-office-scene"),
-        ) {
-            val widthPx = constraints.maxWidth
-            val heightPx = constraints.maxHeight
-            metrics.viewW = widthPx
-            metrics.viewH = heightPx
-            metrics.panX = panXState
-            metrics.panY = panYState
-            metrics.zoom = zoomState
-            metrics.baseScale = if (widthPx > 0 && heightPx > 0) maxOf(
-                widthPx / PixelOfficeRoom.WIDTH.toFloat(),
-                heightPx / PixelOfficeScene.HEIGHT.toFloat(),
-            ) else 1f
-            OfficeCameraFocusEffect(focus, sceneActors, metrics, widthPx, heightPx)
-            if (widthPx > 0 && heightPx > 0) {
-                val scale = metrics.scale
-                val mapW = (PixelOfficeRoom.WIDTH * scale).roundToInt()
-                val mapH = (PixelOfficeScene.HEIGHT * scale).roundToInt()
-                LaunchedEffect(widthPx, heightPx) {
-                    zoomState.floatValue = zoomState.floatValue.coerceIn(metrics.minZoom, OFFICE_MAX_ZOOM)
-                    val (x, y) = if (!aimed) {
-                        aimed = true
-                        openingOfficeCamera(widthPx, heightPx, metrics.baseScale * zoomState.floatValue)
-                    } else {
-                        clampOfficeCamera(panXState.floatValue, panYState.floatValue, metrics.baseScale * zoomState.floatValue, widthPx, heightPx)
-                    }
-                    panXState.floatValue = x
-                    panYState.floatValue = y
+    BoxWithConstraints(
+        modifier
+            .fillMaxSize()
+            .clipToBounds()
+            .testTag("pixel-office-scene"),
+    ) {
+        val widthPx = constraints.maxWidth
+        val heightPx = constraints.maxHeight
+        val baseScale = if (widthPx > 0 && heightPx > 0) maxOf(
+            widthPx / PixelOfficeRoom.WIDTH.toFloat(),
+            heightPx / PixelOfficeScene.HEIGHT.toFloat(),
+        ) else 1f
+        metrics.updateViewport(widthPx, heightPx, baseScale)
+        OfficeCameraFocusEffect(focus, sceneActors, metrics, widthPx, heightPx)
+        if (widthPx > 0 && heightPx > 0) {
+            val scale = metrics.scale
+            val mapW = (PixelOfficeRoom.WIDTH * scale).roundToInt()
+            val mapH = (PixelOfficeScene.HEIGHT * scale).roundToInt()
+            LaunchedEffect(widthPx, heightPx) {
+                zoomState.floatValue = zoomState.floatValue.coerceIn(metrics.minZoom, OFFICE_MAX_ZOOM)
+                val (x, y) = if (!aimed) {
+                    aimed = true
+                    openingOfficeCamera(widthPx, heightPx, metrics.baseScale * zoomState.floatValue)
+                } else {
+                    clampOfficeCamera(panXState.floatValue, panYState.floatValue, metrics.baseScale * zoomState.floatValue, widthPx, heightPx)
                 }
-                val panX = panXState.floatValue
-                val panY = panYState.floatValue
+                panXState.floatValue = x
+                panYState.floatValue = y
+            }
+            val panX = panXState.floatValue
+            val panY = panYState.floatValue
+            Box(Modifier.fillMaxSize().officeGestures(metrics)) {
                 Canvas(Modifier.fillMaxSize()) {
                     drawRect(Color(PixelOfficeRoom.FLOOR))
                     drawImage(
@@ -233,21 +231,21 @@ internal fun GroupPixelOffice(
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
-                if (actors.isEmpty() && !emptyHint.isNullOrBlank()) {
-                    Surface(
-                        modifier = Modifier.align(Alignment.Center).padding(24.dp).testTag("pixel-office-empty"),
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 6.dp,
-                    ) {
-                        Text(
-                            text = emptyHint,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        )
-                    }
+            }
+            if (actors.isEmpty() && !emptyHint.isNullOrBlank()) {
+                Surface(
+                    modifier = Modifier.align(Alignment.Center).padding(24.dp).testTag("pixel-office-empty"),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 6.dp,
+                ) {
+                    Text(
+                        text = emptyHint,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    )
                 }
             }
         }
