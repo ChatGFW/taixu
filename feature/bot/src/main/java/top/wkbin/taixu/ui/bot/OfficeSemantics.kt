@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotAvatarState
 import top.wkbin.taixu.core.model.bot.GroupToolStep
 import top.wkbin.taixu.feature.bot.R
 
@@ -49,6 +50,17 @@ internal fun outputSnippet(content: String, max: Int = 42): String? {
     val clean = line.trim('*', '`', '#', '>', ' ').replace(WHITESPACE, " ").trim()
     if (clean.isBlank()) return null
     return if (clean.length <= max) clean else "…" + clean.takeLast(max).trimStart()
+}
+
+@Composable
+internal fun officeStateLabel(state: BotAvatarState): String = when (state) {
+    BotAvatarState.THINKING -> stringResource(R.string.fbot_desk_status_thinking)
+    BotAvatarState.EXECUTING -> stringResource(R.string.fbot_desk_status_executing)
+    BotAvatarState.ACTIVE -> stringResource(R.string.fbot_desk_status_active)
+    BotAvatarState.BLOCKED -> stringResource(R.string.fbot_desk_status_blocked)
+    BotAvatarState.SUCCESS -> stringResource(R.string.fbot_desk_status_success)
+    BotAvatarState.FAILED -> stringResource(R.string.fbot_desk_status_failed)
+    BotAvatarState.IDLE -> stringResource(R.string.fbot_desk_status_idle)
 }
 
 @Composable

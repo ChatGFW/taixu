@@ -1,15 +1,21 @@
 package top.wkbin.taixu.ui.bot
 
+import android.content.Context
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -18,6 +24,8 @@ import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
+import top.wkbin.taixu.core.model.bot.BotAvatarState
+import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.theme.TaiXuTheme
 
 @RunWith(RobolectricTestRunner::class)
@@ -96,5 +104,161 @@ class OfficeSceneUiTest {
         val after = compose.onNodeWithTag("studio-actor-coder").fetchSemanticsNode().boundsInRoot
         assertEquals(4f * scale, after.left - before.left, 1f)
         assertEquals(4f * scale, after.top - before.top, 1f)
+    }
+
+    @Test
+    fun `board specs move both scene overlays`() {
+        val scene = mutableStateOf(OfficeSceneSpec.Default)
+        compose.setContent {
+            TaiXuTheme {
+                Box(Modifier.requiredSize(384.dp, 808.dp)) {
+                    GroupPixelOffice(
+                        actors = emptyList(),
+                        recipes = emptyMap(),
+                        bubbles = emptyMap(),
+                        selectedId = null,
+                        emptyHint = null,
+                        onSelect = {},
+                        scene = scene.value,
+                    )
+                }
+            }
+        }
+        val scale = compose.onNodeWithTag("pixel-office-scene").fetchSemanticsNode().boundsInRoot.width / 192f
+        val taskBefore = compose.onNodeWithTag("office-task-board").fetchSemanticsNode().boundsInRoot
+        val objectiveBefore = compose.onNodeWithTag("office-objective-board").fetchSemanticsNode().boundsInRoot
+        compose.runOnIdle {
+            val original = scene.value
+            scene.value = original.copy(
+                boards = OfficeBoardsSpec(
+                    task = OfficeBoardSpec(
+                        original.boards.task.bounds.copy(
+                            x = original.boards.task.bounds.x + 4,
+                            y = original.boards.task.bounds.y + 4,
+                        ),
+                    ),
+                    objective = OfficeBoardSpec(
+                        original.boards.objective.bounds.copy(
+                            x = original.boards.objective.bounds.x + 4,
+                            y = original.boards.objective.bounds.y + 4,
+                        ),
+                    ),
+                ),
+            )
+        }
+        val taskAfter = compose.onNodeWithTag("office-task-board").fetchSemanticsNode().boundsInRoot
+        val objectiveAfter = compose.onNodeWithTag("office-objective-board").fetchSemanticsNode().boundsInRoot
+        assertEquals(4f * scale, taskAfter.left - taskBefore.left, 1f)
+        assertEquals(4f * scale, taskAfter.top - taskBefore.top, 1f)
+        assertEquals(4f * scale, objectiveAfter.left - objectiveBefore.left, 1f)
+        assertEquals(4f * scale, objectiveAfter.top - objectiveBefore.top, 1f)
+    }
+
+    @Test
+    fun `actors and scenery interactions expose accessible targets`() {
+        compose.setContent {
+            TaiXuTheme {
+                Box(Modifier.requiredSize(384.dp, 808.dp)) {
+                    GroupPixelOffice(
+                        actors = listOf(
+                            OfficeActor(
+                                botId = "coder",
+                                name = "工程师",
+                                x = 36,
+                                y = 220,
+                                pose = OfficePose.SIT,
+                                state = BotAvatarState.EXECUTING,
+                            ),
+                        ),
+                        recipes = emptyMap(),
+                        bubbles = emptyMap(),
+                        selectedId = null,
+                        emptyHint = null,
+                        onSelect = {},
+                    )
+                }
+            }
+        }
+
+        val minimum = with(compose.density) { 48.dp.toPx() }
+        val actor = compose.onNodeWithTag("studio-actor-coder")
+            .assertHasClickAction()
+            .assertContentDescriptionContains("工程师", substring = true)
+            .fetchSemanticsNode().boundsInRoot
+        assertTrue(actor.width >= minimum - 0.5f)
+        assertTrue(actor.height >= minimum - 0.5f)
+
+        val cat = compose.onNodeWithTag("office-cat-lobby")
+            .assertHasClickAction()
+            .fetchSemanticsNode().boundsInRoot
+        assertTrue(cat.width >= minimum - 0.5f)
+        assertTrue(cat.height >= minimum - 0.5f)
+
+        val zoomInLabel = ApplicationProvider.getApplicationContext<Context>()
+            .getString(R.string.fbot_pixel_office_zoom_in)
+        compose.onNodeWithTag("office-camera-controls").assertExists()
+        compose.onNodeWithTag("office-camera-zoom-in")
+            .assertHasClickAction()
+            .assertContentDescriptionContains(zoomInLabel)
+            .performClick()
+        compose.onNodeWithTag("office-camera-fit").performClick()
+    }
+
+    @Test
+    fun `camera zoom survives state restoration`() {
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            TaiXuTheme {
+                Box(Modifier.requiredSize(384.dp, 808.dp)) {
+                    GroupPixelOffice(
+                        actors = listOf(
+                            OfficeActor(
+                                botId = "coder",
+                                name = "工程师",
+                                x = 30,
+                                y = 200,
+                                pose = OfficePose.SIT,
+                                state = BotAvatarState.EXECUTING,
+                            ),
+                        ),
+                        recipes = emptyMap(),
+                        bubbles = emptyMap(),
+                        selectedId = null,
+                        emptyHint = null,
+                        onSelect = {},
+                    )
+                }
+            }
+        }
+
+        val initial = compose.onNodeWithTag("studio-actor-coder").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("office-camera-zoom-in").performClick()
+        val zoomed = compose.onNodeWithTag("studio-actor-coder").fetchSemanticsNode().boundsInRoot
+        assertTrue(zoomed.left != initial.left || zoomed.top != initial.top)
+        restoration.emulateSavedInstanceStateRestore()
+        val restored = compose.onNodeWithTag("studio-actor-coder").fetchSemanticsNode().boundsInRoot
+        assertEquals(zoomed.left, restored.left, 1f)
+        assertEquals(zoomed.top, restored.top, 1f)
+    }
+
+    @Test
+    fun `navigation overlay renders the walkway graph`() {
+        val scene = OfficeSceneSpec.Default
+        compose.setContent {
+            TaiXuTheme {
+                Box(Modifier.requiredSize(384.dp, 808.dp)) {
+                    OfficeNavigationOverlay(
+                        scene = scene,
+                        graph = scene.walkGraph(),
+                        originX = 0f,
+                        originY = 0f,
+                        scale = 2f,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        }
+
+        compose.onNodeWithTag("office-navigation-overlay").assertExists()
     }
 }

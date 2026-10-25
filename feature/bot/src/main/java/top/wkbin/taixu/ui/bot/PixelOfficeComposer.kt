@@ -23,6 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,6 +62,9 @@ internal fun PixelOfficeComposer(
     val hasContent = value.text.isNotBlank() || attachments.isNotEmpty()
     val canSend = hasContent && !sending && !stopping
     val showStop = busy && !hasContent
+    val attachLabel = stringResource(R.string.fbot_attach)
+    val sendLabel = stringResource(R.string.fbot_send)
+    val stopLabel = stringResource(R.string.fbot_stop)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -99,7 +104,12 @@ internal fun PixelOfficeComposer(
             }
         }
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PixelNote(onClick = onAttach, container = wood, border = trim) {
+            PixelNote(
+                onClick = onAttach,
+                container = wood,
+                border = trim,
+                contentDescription = attachLabel,
+            ) {
                 RuntimeIcon(RuntimeIconName.Attach, Modifier.size(18.dp), tint = paper)
             }
             Surface(
@@ -138,6 +148,7 @@ internal fun PixelOfficeComposer(
                 enabled = buttonEnabled,
                 container = if (showStop) Color(0xFF8B3A32) else wood,
                 border = trim,
+                contentDescription = if (showStop) stopLabel else sendLabel,
             ) {
                 when {
                     stopping || sending -> RuntimeCircularProgressIndicator(
@@ -164,6 +175,7 @@ private fun PixelNote(
     container: Color,
     border: Color,
     enabled: Boolean = true,
+    contentDescription: String? = null,
     content: @Composable () -> Unit,
 ) {
     Surface(
@@ -173,6 +185,11 @@ private fun PixelNote(
         color = container,
         border = BorderStroke(3.dp, border),
         shadowElevation = 0.dp,
+        modifier = if (contentDescription == null) {
+            Modifier
+        } else {
+            Modifier.semantics { this.contentDescription = contentDescription }
+        },
     ) {
         Box(Modifier.padding(horizontal = 10.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
             content()

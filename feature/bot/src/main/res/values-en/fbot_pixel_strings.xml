@@ -41,6 +41,15 @@
     <string name="fbot_pixel_office_banner">Studio</string>
     <string name="fbot_pixel_office_pet_cat">Pet the cat</string>
     <string name="fbot_pixel_office_brew_coffee">Brew coffee</string>
+    <string name="fbot_pixel_office_zoom_in">Zoom office in</string>
+    <string name="fbot_pixel_office_zoom_out">Zoom office out</string>
+    <string name="fbot_pixel_office_fit_view">Fit office in view</string>
+    <string name="fbot_pixel_office_reset_view">Reset view</string>
+    <string name="fbot_pixel_office_show_paths">Show navigation debug</string>
+    <string name="fbot_pixel_office_hide_paths">Hide navigation debug</string>
+    <string name="fbot_pixel_office_select_actor">Select %1$s</string>
+    <string name="fbot_pixel_office_actor_description">%1$s, %2$s</string>
+    <string name="fbot_pixel_office_actor_waiting">%1$s, %2$s, waiting for approval for %3$d seconds</string>
     <string name="fbot_office_step_read">Reading %1$s</string>
     <string name="fbot_office_step_read_file">Reading a file</string>
     <string name="fbot_office_step_write">Writing %1$s</string>

@@ -69,6 +69,7 @@ internal fun OfficeTaskBoard(
     originX: Float,
     originY: Float,
     scale: Float,
+    board: OfficeBoardSpec = OfficeSceneSpec.Default.boards.task,
     onOpen: () -> Unit = {},
 ) {
     val density = LocalDensity.current
@@ -78,12 +79,15 @@ internal fun OfficeTaskBoard(
         Modifier
             .offset {
                 IntOffset(
-                    (originX + 10f * scale).roundToInt(),
-                    (originY + PixelOfficeScene.y(86f) * scale).roundToInt(),
+                    (originX + board.bounds.x * scale).roundToInt(),
+                    (originY + PixelOfficeScene.y(board.bounds.y.toFloat()) * scale).roundToInt(),
                 )
             }
-            .size(roomDp(74f, scale, density), roomDp(32f, scale, density))
-            .taskBoardBackground()
+            .size(
+                roomDp(board.bounds.width.toFloat(), scale, density),
+                roomDp(board.bounds.height.toFloat(), scale, density),
+            )
+            .taskBoardBackground(board.bounds.width)
             .testTag("office-task-board")
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -233,8 +237,8 @@ private fun rememberBoardGroups(tasks: List<OfficeBoardTask>): Map<OfficeBoardCo
         }
     }
 
-private fun Modifier.taskBoardBackground(): Modifier = drawBehind {
-    val unit = size.width / 74f
+private fun Modifier.taskBoardBackground(width: Int): Modifier = drawBehind {
+    val unit = size.width / width.toFloat()
     drawRect(Color(0xFF16222B))
     drawRect(Color(0xFF0E161C), Offset(0f, size.height - unit * 2f), Size(size.width, unit * 2f))
     drawRect(BoardCyan, Offset(0f, 0f), Size(size.width, unit * 0.65f))

@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.bot
 
+import android.os.SystemClock
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -7,16 +8,30 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableFloatState
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
-import android.os.SystemClock
+import kotlin.math.abs
 import kotlin.math.hypot
+import kotlin.math.min
 
-internal const val OFFICE_MIN_ZOOM = 1f
 internal const val OFFICE_MAX_ZOOM = 3f
+private const val OFFICE_ABSOLUTE_MIN_ZOOM = 0.05f
+
+/** Zoom relative to the cover scale that shows the whole room. */
+internal fun officeFitZoom(viewW: Int, viewH: Int, baseScale: Float): Float {
+    if (viewW <= 0 || viewH <= 0 || baseScale <= 0f) return 1f
+    val fitScale = min(
+        viewW / PixelOfficeRoom.WIDTH.toFloat(),
+        viewH / PixelOfficeScene.HEIGHT.toFloat(),
+    )
+    return (fitScale / baseScale).coerceIn(OFFICE_ABSOLUTE_MIN_ZOOM, 1f)
+}
 
 /** A request to smoothly bring one office actor into view. */
 internal data class OfficeFocusRequest(val botId: String, val nonce: Long)
@@ -31,6 +46,10 @@ internal class OfficeMetrics {
     lateinit var zoom: MutableFloatState
 
     val scale: Float get() = baseScale * zoom.floatValue
+    val fitZoom: Float get() = officeFitZoom(viewW, viewH, baseScale)
+    val minZoom: Float get() = fitZoom
+    val isFitted: Boolean
+        get() = this::zoom.isInitialized && abs(zoom.floatValue - fitZoom) <= 0.01f
 
     fun panBy(delta: Offset) {
         if (viewW <= 0) return
@@ -49,13 +68,26 @@ internal class OfficeMetrics {
         if (viewW <= 0 || factor == 1f) return
         val oldScale = scale
         if (oldScale <= 0f) return
-        val nextZoom = (zoom.floatValue * factor).coerceIn(OFFICE_MIN_ZOOM, OFFICE_MAX_ZOOM)
-        if (nextZoom == zoom.floatValue && factor < 1f) return
+        val nextZoom = (zoom.floatValue * factor).coerceIn(minZoom, OFFICE_MAX_ZOOM)
+        if (nextZoom == zoom.floatValue) return
         val newScale = baseScale * nextZoom
         val worldX = (focal.x - panX.floatValue) / oldScale
         val worldY = (focal.y - panY.floatValue) / oldScale
         zoom.floatValue = nextZoom
         val next = clampOfficeCamera(focal.x - worldX * newScale, focal.y - worldY * newScale, newScale, viewW, viewH)
+        panX.floatValue = next.first
+        panY.floatValue = next.second
+    }
+
+    fun zoomBy(factor: Float) {
+        if (viewW <= 0 || viewH <= 0) return
+        zoomAbout(factor, Offset(viewW / 2f, viewH / 2f))
+    }
+
+    fun fitToView() {
+        if (viewW <= 0 || viewH <= 0) return
+        zoom.floatValue = fitZoom
+        val next = clampOfficeCamera(0f, 0f, scale, viewW, viewH)
         panX.floatValue = next.first
         panY.floatValue = next.second
     }
@@ -95,7 +127,7 @@ internal fun OfficeCameraFocusEffect(
         val request = focus ?: return@LaunchedEffect
         if (viewW <= 0 || viewH <= 0 || metrics.baseScale <= 0f) return@LaunchedEffect
         val actor = actors.firstOrNull { it.botId == request.botId } ?: return@LaunchedEffect
-        val targetZoom = 1.7f.coerceIn(OFFICE_MIN_ZOOM, OFFICE_MAX_ZOOM)
+        val targetZoom = 1.7f.coerceIn(metrics.minZoom, OFFICE_MAX_ZOOM)
         val targetScale = metrics.baseScale * targetZoom
         val (targetX, targetY) = clampOfficeCamera(
             viewW / 2f - actor.x * targetScale,
@@ -172,3 +204,12 @@ internal fun Modifier.officeGestures(metrics: OfficeMetrics): Modifier = pointer
         }
     }
 }
+
+private val OfficeCameraFloatSaver = Saver<MutableFloatState, Float>(
+    save = { it.floatValue },
+    restore = { mutableFloatStateOf(it) },
+)
+
+@Composable
+internal fun rememberOfficeCameraFloat(initial: Float): MutableFloatState =
+    rememberSaveable(saver = OfficeCameraFloatSaver) { mutableFloatStateOf(initial) }

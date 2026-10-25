@@ -46,3 +46,46 @@ internal fun defaultOfficeZones() = listOf(
     OfficeZoneSpec("coffee", OfficeZoneKind.COFFEE, OfficeAnchor(146, 318)),
     OfficeZoneSpec("rest", OfficeZoneKind.REST, OfficeAnchor(6, 318)),
 )
+
+/** Room-space bands that mirror the four cutaway levels after the walkways are compacted. */
+internal fun defaultOfficeFloors() = listOf(
+    OfficeFloorSpec("lobby", 0, 66),
+    OfficeFloorSpec("think", 66, 178),
+    OfficeFloorSpec("work", 178, 306),
+    OfficeFloorSpec("rest", 306, PixelOfficeRoom.HEIGHT),
+)
+
+/** Walkway graph in room coordinates. Vertical links run along the left stair column. */
+internal fun defaultOfficeWaypoints() = listOf(
+    OfficeWaypointSpec("think-left", 16, 150, listOf("think-mid", "work-left")),
+    OfficeWaypointSpec("think-mid", 96, 150, listOf("think-left", "think-right")),
+    OfficeWaypointSpec("think-right", 176, 150, listOf("think-mid")),
+    OfficeWaypointSpec("work-left", 16, 288, listOf("work-mid", "think-left", "rest-left")),
+    OfficeWaypointSpec("work-mid", 96, 288, listOf("work-left", "work-right")),
+    OfficeWaypointSpec("work-right", 176, 288, listOf("work-mid")),
+    OfficeWaypointSpec("rest-left", 16, 420, listOf("rest-mid", "work-left")),
+    OfficeWaypointSpec("rest-mid", 96, 420, listOf("rest-left", "rest-right")),
+    OfficeWaypointSpec("rest-right", 176, 420, listOf("rest-mid")),
+)
+
+/** Floor-standing footprints used for anchor coverage checks; wall art is non-blocking. */
+internal fun defaultOfficeFurniture() = listOf(
+    OfficeFurnitureSpec("shelf-lobby", OfficeBounds(8, 16, 24, 36)),
+    OfficeFurnitureSpec("plant-lobby", OfficeBounds(36, 28, 12, 17)),
+    OfficeFurnitureSpec("lobby-frame", OfficeBounds(56, 16, 52, 36), blocksWalking = false),
+    OfficeFurnitureSpec("window", OfficeBounds(118, 12, 68, 42), blocksWalking = false),
+    OfficeFurnitureSpec("whiteboard", OfficeBounds(8, 84, 78, 36), blocksWalking = false),
+    OfficeFurnitureSpec("meeting-table", OfficeBounds(108, 108, 70, 22)),
+    OfficeFurnitureSpec("plant-think", OfficeBounds(174, 124, 12, 17)),
+    OfficeFurnitureSpec("plant-work", OfficeBounds(96, 236, 12, 17)),
+    OfficeFurnitureSpec("sofa", OfficeBounds(14, 352, 52, 26)),
+    OfficeFurnitureSpec("lounge-table", OfficeBounds(74, 368, 26, 16)),
+    OfficeFurnitureSpec("beanbag", OfficeBounds(108, 360, 20, 18)),
+    OfficeFurnitureSpec("plant-rest", OfficeBounds(134, 356, 12, 17)),
+    OfficeFurnitureSpec("stairs", OfficeBounds(8, 400, 28, 30), blocksWalking = false),
+    OfficeFurnitureSpec("coffee-bar", OfficeBounds(146, 348, 42, 18)),
+    OfficeFurnitureSpec("server-rack", OfficeBounds(136, 410, 14, 32)),
+    OfficeFurnitureSpec("water-cooler", OfficeBounds(93, 412, 15, 30)),
+    OfficeFurnitureSpec("coat-rack", OfficeBounds(116, 409, 13, 32)),
+    OfficeFurnitureSpec("doormat", OfficeBounds(43, 431, 32, 10), blocksWalking = false),
+)

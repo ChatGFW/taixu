@@ -173,6 +173,84 @@ class OfficeSceneSpecTest {
         assertThrows(IllegalArgumentException::class.java) { original.copy(overflow = OfficeOverflowSpec(columns = 0)) }
     }
 
+    @Test
+    fun `scene floors map room space onto compacted scene space`() {
+        assertEquals("lobby", original.floorAtRoomY(65)?.id)
+        assertEquals("think", original.floorAtSceneY(66)?.id)
+        assertEquals("work", original.floorAtSceneY(156)?.id)
+        assertEquals("rest", original.floorAtSceneY(274)?.id)
+        assertEquals(null, original.floorAtSceneY(PixelOfficeScene.HEIGHT))
+    }
+
+    @Test
+    fun `ambient anchors follow their scene instances`() {
+        val moved = original.copy(
+            ambient = original.ambient.copy(
+                window = original.ambient.window.copy(
+                    x = original.ambient.window.x + 4,
+                    y = original.ambient.window.y + 4,
+                ),
+            ),
+        )
+        assertAmbientTranslation(original, moved, 4f, 4f)
+    }
+
+    @Test
+    fun `scene rejects invalid floors boards ambient anchors and blocked overflow`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(floors = listOf(OfficeFloorSpec("bad", 100, 100)))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(floors = listOf(OfficeFloorSpec("work-only", 178, 306)))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(floors = listOf(
+                OfficeFloorSpec("first", 0, 300),
+                OfficeFloorSpec("second", 200, PixelOfficeRoom.HEIGHT),
+            ))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(boards = original.boards.copy(
+                task = OfficeBoardSpec(OfficeBounds(200, 86, 74, 32)),
+            ))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(ambient = original.ambient.copy(
+                windowLights = listOf(OfficeWindowLightSpec(100, 100)),
+            ))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(ambient = original.ambient.copy(clock = OfficeAnchor(192, 95)))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(
+                furniture = original.furniture + OfficeFurnitureSpec(
+                    "blocked-overflow",
+                    OfficeBounds(20, 148, 10, 10),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `waypoint graph rejects missing links disconnected nodes and outside anchors`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(waypoints = listOf(OfficeWaypointSpec("a", 16, 150, listOf("missing"))))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(waypoints = listOf(
+                OfficeWaypointSpec("a", 16, 150),
+                OfficeWaypointSpec("b", 96, 150),
+            ))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(waypoints = original.waypoints + OfficeWaypointSpec("outside", 200, 150))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            original.copy(waypoints = listOf(OfficeWaypointSpec("a", 16, 150, listOf("a"))))
+        }
+    }
+
     private fun bot(id: String) = Bot(
         id = id, name = id, role = "工程师", systemPrompt = "", avatarSeed = "", sessionId = "session-$id",
         createdAt = 1L, updatedAt = 1L,

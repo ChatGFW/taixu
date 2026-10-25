@@ -58,12 +58,12 @@ internal object PixelOfficeAmbient {
         val out = Dots()
         val t = nowMs / 1000f
         scene.coffeeMachines.forEach { steam(out, t, nowMs, interactionAt[it.id] ?: 0L, it) }
-        waterCooler(out, t)
+        waterCooler(out, t, scene.ambient.waterCooler)
         monitors(out, t, nowMs, scene.desks)
-        meetingScreen(out, t, nowMs)
-        serverLeds(out, nowMs, scene.coffeeMachines)
-        window(out, t)
-        lamps(out, t)
+        meetingScreen(out, t, nowMs, scene.ambient.meetingScreen)
+        serverLeds(out, nowMs, scene.coffeeMachines, scene.ambient.serverRack)
+        window(out, t, scene.ambient)
+        lamps(out, t, scene.ambient.lamps)
         scene.cats.forEach { catLife(out, t, it) }
         scene.cats.forEach { cat ->
             val at = interactionAt[cat.id] ?: 0L
@@ -107,10 +107,12 @@ internal object PixelOfficeAmbient {
         }
     }
 
-    private fun waterCooler(d: Dots, t: Float) {
+    private fun waterCooler(d: Dots, t: Float, cooler: OfficeBounds) {
+        val x = cooler.x + 5f
+        val y = cooler.y + 14f
         for (i in 0 until 2) {
             val p = phase(t, 2.6f, i * 0.46f + 0.1f)
-            d.add(98f + i * 4f + sin(p * TAU + i) * 0.7f, 426f - p * 10f, 0.5f, 0.5f, 0.55f * (1f - p * 0.4f), CYAN)
+            d.add(x + i * 4f + sin(p * TAU + i) * 0.7f, y - p * 10f, 0.5f, 0.5f, 0.55f * (1f - p * 0.4f), CYAN)
         }
     }
 
@@ -128,31 +130,42 @@ internal object PixelOfficeAmbient {
         }
     }
 
-    private fun meetingScreen(d: Dots, t: Float, nowMs: Long) {
+    private fun meetingScreen(d: Dots, t: Float, nowMs: Long, screen: OfficeBounds) {
         val p = phase(t, 6f, 0f)
-        d.add(122f + p * 48f, 89f, 0.35f, 12f, 0.10f, 0xFFFFFF)
-        if ((nowMs / 1000L) % 2L == 0L) d.add(172f, 89f, 0.6f, 0.6f, 0.8f, 0xE85D4C)
+        val x = screen.x + 3f
+        val y = screen.y + 3f
+        d.add(x + p * (screen.width - 9f), y, 0.35f, 12f, 0.10f, 0xFFFFFF)
+        if ((nowMs / 1000L) % 2L == 0L) d.add(screen.right - 4f, y, 0.6f, 0.6f, 0.8f, 0xE85D4C)
     }
 
-    private fun serverLeds(d: Dots, nowMs: Long, machines: List<OfficeCoffeeMachineSpec>) {
+    private fun serverLeds(
+        d: Dots,
+        nowMs: Long,
+        machines: List<OfficeCoffeeMachineSpec>,
+        rack: OfficeBounds,
+    ) {
         val colors = intArrayOf(0x8FD18A, 0x7EC8E3, 0xF3D36B, 0xE85D4C)
+        val x = rack.x + 10f
+        val y = rack.y + 8f
         for (i in 0 until 5) {
             if ((nowMs / 380L + i) % 3L != 0L) continue
-            d.add(146f, 418f + i * 4f, 0.6f, 0.6f, 0.9f, colors[i % colors.size])
+            d.add(x, y + i * 4f, 0.6f, 0.6f, 0.9f, colors[i % colors.size])
         }
         if ((nowMs / 700L) % 2L == 0L) machines.forEach { machine ->
             d.add(machine.indicator.x.toFloat(), machine.indicator.y.toFloat(), 0.5f, 0.5f, 0.9f, 0xE85D4C)
         }
     }
 
-    private fun window(d: Dots, t: Float) {
-        val lights = listOf(129f to 38f, 145f to 37f, 169f to 28f, 157f to 43f, 177f to 24f)
-        lights.forEachIndexed { i, (x, y) ->
+    private fun window(d: Dots, t: Float, ambient: OfficeAmbientSpec) {
+        val bounds = ambient.window
+        ambient.windowLights.forEachIndexed { i, light ->
             val k = (sin(t * 1.6f + i * 1.3f) + 1f) / 2f
-            if (k > 0.46f) d.add(x, y, 1.2f, 1.2f, 0.3f + 0.5f * k, AMBER)
+            if (k > 0.46f) {
+                d.add(bounds.x + light.dx.toFloat(), bounds.y + light.dy.toFloat(), 1.2f, 1.2f, 0.3f + 0.5f * k, AMBER)
+            }
         }
-        cloud(d, 121f + phase(t, 19f, 0.05f) * 27f, 15f, 151f)
-        cloud(d, 155f + phase(t, 25f, 0.4f) * 27f, 17f, 184f)
+        cloud(d, bounds.x + 3f + phase(t, 19f, 0.05f) * 27f, bounds.y + 3f, bounds.x + 33f)
+        cloud(d, bounds.x + 37f + phase(t, 25f, 0.4f) * 27f, bounds.y + 5f, bounds.x + 66f)
     }
 
     private fun cloud(d: Dots, x: Float, y: Float, limit: Float) {
@@ -162,16 +175,24 @@ internal object PixelOfficeAmbient {
         d.add(x + 3f, y + 2.2f, 6f, 0.9f, 0.5f, WHITE)
     }
 
-    private fun lamps(d: Dots, t: Float) {
-        val lamps = listOf(Triple(157f, 93f, 0f), Triple(100f, 201f, 2f), Triple(92f, 341f, 4f))
-        lamps.forEach { (x, y, offset) ->
+    private fun lamps(d: Dots, t: Float, lamps: List<OfficeLampSpec>) {
+        lamps.forEach { lamp ->
+            val x = lamp.anchor.x.toFloat()
+            val y = lamp.anchor.y.toFloat()
+            val offset = lamp.phase.toFloat()
             val pulse = (sin(t * 1.3f + offset) + 1f) / 2f
             val alpha = 0.045f + 0.035f * pulse
             d.add(x - 5f, y, 10f, 2.3f, alpha, LAMP_WARM)
             d.add(x - 3f, y + 2.3f, 6f, 1.4f, alpha * 0.65f, LAMP_WARM)
             d.add(x - 0.5f, y - 1f, 1.2f, 0.8f, 0.42f, 0xFFF3C4)
         }
-        d.add(157f + cos(t * 2.4f) * 3.2f, 93f + sin(t * 4.8f) * 1.4f, 0.6f, 0.6f, 0.85f, WHITE)
+        lamps.firstOrNull()?.let { lamp ->
+            d.add(
+                lamp.anchor.x + cos(t * 2.4f) * 3.2f,
+                lamp.anchor.y + sin(t * 4.8f) * 1.4f,
+                0.6f, 0.6f, 0.85f, WHITE,
+            )
+        }
     }
 
     private fun catLife(d: Dots, t: Float, cat: OfficeCatSpec) {
@@ -238,19 +259,13 @@ internal fun OfficeAmbientLayer(
     originX: Int,
     originY: Int,
     scale: Float,
+    motionEnabled: Boolean = true,
     modifier: Modifier = Modifier,
     scene: OfficeSceneSpec = OfficeSceneSpec.Default,
 ) {
-    val transition = rememberInfiniteTransition(label = "office-ambient")
-    val tick = transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 64f,
-        animationSpec = infiniteRepeatable(tween(8000, easing = LinearEasing), RepeatMode.Restart),
-        label = "office-ambient-tick",
-    )
-    val slot by remember { derivedStateOf { tick.value.toInt().coerceIn(0, 63) } }
-    val now = remember(slot) { SystemClock.uptimeMillis() }
-    val wall = remember(slot) { System.currentTimeMillis() }
+    val slot = if (motionEnabled) rememberOfficeAmbientSlot() else 0
+    val now = if (motionEnabled) remember(slot) { SystemClock.uptimeMillis() } else SystemClock.uptimeMillis()
+    val wall = if (motionEnabled) remember(slot) { System.currentTimeMillis() } else System.currentTimeMillis()
     Canvas(modifier) {
         PixelOfficeAmbient.dots(now, actors, celebrating, interactionAt, scene).forEach { dot ->
             drawRect(
@@ -259,17 +274,36 @@ internal fun OfficeAmbientLayer(
                 Size(max(1f, dot.w * scale), max(1f, dot.h * scale)),
             )
         }
-        drawClockHands(wall, originX, originY, scale)
+        drawClockHands(wall, originX, originY, scale, scene.ambient.clock)
     }
 }
 
-private fun DrawScope.drawClockHands(wallMs: Long, originX: Int, originY: Int, scale: Float) {
+@Composable
+private fun rememberOfficeAmbientSlot(): Int {
+    val transition = rememberInfiniteTransition(label = "office-ambient")
+    val tick = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 64f,
+        animationSpec = infiniteRepeatable(tween(8000, easing = LinearEasing), RepeatMode.Restart),
+        label = "office-ambient-tick",
+    )
+    val slot by remember { derivedStateOf { tick.value.toInt().coerceIn(0, 63) } }
+    return slot
+}
+
+private fun DrawScope.drawClockHands(
+    wallMs: Long,
+    originX: Int,
+    originY: Int,
+    scale: Float,
+    clock: OfficeAnchor,
+) {
     val calendar = Calendar.getInstance().apply { timeInMillis = wallMs }
     val second = calendar.get(Calendar.SECOND) + calendar.get(Calendar.MILLISECOND) / 1000f
     val minute = calendar.get(Calendar.MINUTE) + second / 60f
     val hour = (calendar.get(Calendar.HOUR) % 12) + minute / 60f
-    val cx = originX + 101f * scale
-    val cy = originY + PixelOfficeScene.y(95f) * scale
+    val cx = originX + clock.x * scale
+    val cy = originY + PixelOfficeScene.y(clock.y.toFloat()) * scale
     val ink = Color(0xFF3A2A1E)
     fun hand(angle: Float, length: Float, color: Color, width: Float) {
         val radians = Math.toRadians((angle - 90f).toDouble())
