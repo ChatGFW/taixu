@@ -41,6 +41,15 @@
     <string name="fbot_pixel_office_banner">协同办公</string>
     <string name="fbot_pixel_office_pet_cat">摸摸猫</string>
     <string name="fbot_pixel_office_brew_coffee">按一下咖啡机</string>
+    <string name="fbot_pixel_office_zoom_in">放大办公室</string>
+    <string name="fbot_pixel_office_zoom_out">缩小办公室</string>
+    <string name="fbot_pixel_office_fit_view">查看完整办公室</string>
+    <string name="fbot_pixel_office_reset_view">恢复默认视角</string>
+    <string name="fbot_pixel_office_show_paths">显示路径调试层</string>
+    <string name="fbot_pixel_office_hide_paths">隐藏路径调试层</string>
+    <string name="fbot_pixel_office_select_actor">选择 %1$s</string>
+    <string name="fbot_pixel_office_actor_description">%1$s，%2$s</string>
+    <string name="fbot_pixel_office_actor_waiting">%1$s，%2$s，等待确认 %3$d 秒</string>
     <string name="fbot_office_step_read">正在读取 %1$s</string>
     <string name="fbot_office_step_read_file">正在读取文件</string>
     <string name="fbot_office_step_write">正在写入 %1$s</string>

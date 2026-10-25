@@ -138,9 +138,9 @@ internal fun GroupCyberStudio(
             waiting -> waitingLine
             state == BotAvatarState.BLOCKED -> assignmentByBot[bot.id]?.error?.takeIf { it.isNotBlank() }
                 ?: assignmentByBot[bot.id]?.summary?.takeIf { it.isNotBlank() }
-                ?: officeStatus(state)
+                ?: officeStateLabel(state)
             state == BotAvatarState.IDLE -> officeIdleLine(bot, idleTick)
-            else -> liveStatusText(streamingBySender[bot.id], assignmentByBot[bot.id]) ?: officeStatus(state)
+            else -> liveStatusText(streamingBySender[bot.id], assignmentByBot[bot.id]) ?: officeStateLabel(state)
         }
     }
     val boardThought = actors.firstOrNull { it.pose == OfficePose.THINK && it.waitSeconds == null }
@@ -301,7 +301,7 @@ private fun OfficeActorCard(
             Column(Modifier.weight(1f)) {
                 Text(bot.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    text = bot.role.ifBlank { officeStatus(state) },
+                    text = bot.role.ifBlank { officeStateLabel(state) },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -381,15 +381,4 @@ private fun displayAssignment(tasks: List<BotAssignment>, now: Long): BotAssignm
         }
         else -> null
     }
-}
-
-@Composable
-private fun officeStatus(state: BotAvatarState): String = when (state) {
-    BotAvatarState.THINKING -> stringResource(R.string.fbot_desk_status_thinking)
-    BotAvatarState.EXECUTING -> stringResource(R.string.fbot_desk_status_executing)
-    BotAvatarState.ACTIVE -> stringResource(R.string.fbot_desk_status_active)
-    BotAvatarState.BLOCKED -> stringResource(R.string.fbot_desk_status_blocked)
-    BotAvatarState.SUCCESS -> stringResource(R.string.fbot_desk_status_success)
-    BotAvatarState.FAILED -> stringResource(R.string.fbot_desk_status_failed)
-    BotAvatarState.IDLE -> stringResource(R.string.fbot_desk_status_idle)
 }

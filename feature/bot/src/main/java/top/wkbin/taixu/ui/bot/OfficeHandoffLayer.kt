@@ -68,12 +68,14 @@ internal fun officeWalkHandoffs(
 internal fun walkableHandoffs(
     handoffs: List<OfficeWalkHandoff>,
     actors: List<OfficeActor>,
+    scene: OfficeSceneSpec = OfficeSceneSpec.Default,
 ): List<OfficeWalkHandoff> {
     val byId = actors.associateBy { it.botId }
     return handoffs.filter { handoff ->
         val from = byId[handoff.fromBotId] ?: return@filter false
         val to = byId[handoff.toBotId] ?: return@filter false
-        officeFloorOf(from.y) == officeFloorOf(to.y)
+        val fromFloor = scene.floorAtSceneY(from.y)?.id ?: return@filter false
+        fromFloor == scene.floorAtSceneY(to.y)?.id
     }
 }
 
@@ -86,20 +88,14 @@ internal data class OfficeHandoffState(
 internal fun officeHandoffState(
     handoffs: List<OfficeWalkHandoff>,
     actors: List<OfficeActor>,
+    scene: OfficeSceneSpec = OfficeSceneSpec.Default,
 ): OfficeHandoffState {
-    val walkable = walkableHandoffs(handoffs, actors)
+    val walkable = walkableHandoffs(handoffs, actors, scene)
     return OfficeHandoffState(
         handoffs = walkable,
         courierIds = walkable.mapTo(HashSet()) { it.fromBotId },
         taskIds = walkable.mapTo(HashSet()) { it.taskId },
     )
-}
-
-private fun officeFloorOf(sceneY: Int): Int = when {
-    sceneY < 66 -> 0
-    sceneY < 156 -> 1
-    sceneY < 274 -> 2
-    else -> 3
 }
 
 private const val HANDOFF_WINDOW_MS = 4_500L
@@ -116,6 +112,8 @@ internal fun OfficeHandoffLayer(
     originX: Int,
     originY: Int,
     scale: Float,
+    scene: OfficeSceneSpec = OfficeSceneSpec.Default,
+    walkGraph: OfficeWalkGraph = scene.walkGraph(),
     modifier: Modifier = Modifier,
 ) {
     val transition = rememberInfiniteTransition(label = "office-handoff")
@@ -134,7 +132,7 @@ internal fun OfficeHandoffLayer(
             val to = byId[handoff.toBotId] ?: return@forEach
             val age = now - handoff.completedAt
             if (age !in 0..6_000L) return@forEach
-            drawCourier(handoff, from, to, age, recipes, originX, originY, scale)
+            drawCourier(handoff, from, to, age, recipes, originX, originY, scale, scene, walkGraph)
         }
     }
 }
@@ -148,20 +146,21 @@ private fun DrawScope.drawCourier(
     originX: Int,
     originY: Int,
     scale: Float,
+    scene: OfficeSceneSpec,
+    walkGraph: OfficeWalkGraph,
 ) {
-    val sourceX = originX + from.x * scale
-    val sourceY = originY + from.y * scale
     val targetX = originX + to.x * scale
     val targetY = originY + to.y * scale
-    val feet = when {
-        age <= WALK_OUT_MS -> lerpPoint(sourceX, sourceY, targetX, targetY, smooth(age / WALK_OUT_MS.toFloat()))
-        age <= TRANSFER_MS -> Offset(targetX, targetY)
-        age <= WALK_BACK_MS -> lerpPoint(
-            targetX, targetY, sourceX, sourceY,
-            smooth((age - TRANSFER_MS) / (WALK_BACK_MS - TRANSFER_MS).toFloat()),
-        )
-        else -> Offset(sourceX, sourceY)
+    val outPath = officeWalkPath(scene, walkGraph, OfficePoint(from.x, from.y), OfficePoint(to.x, to.y))
+    val backPath = outPath.asReversed()
+    val (path, progress) = when {
+        age <= WALK_OUT_MS -> outPath to smooth(age / WALK_OUT_MS.toFloat())
+        age <= TRANSFER_MS -> outPath to 1f
+        age <= WALK_BACK_MS -> backPath to smooth((age - TRANSFER_MS) / (WALK_BACK_MS - TRANSFER_MS).toFloat())
+        else -> backPath to 1f
     }
+    val point = officePathPoint(path, progress)
+    val feet = Offset(originX + point.first * scale, originY + point.second * scale)
     drawOval(
         Color(0x332A1E14),
         Offset(feet.x - 5f * scale, feet.y - 1.4f * scale),

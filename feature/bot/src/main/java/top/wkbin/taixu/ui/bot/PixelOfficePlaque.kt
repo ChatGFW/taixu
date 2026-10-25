@@ -113,12 +113,24 @@ internal fun PixelOfficeChip(
 }
 
 @Composable
-internal fun OfficeObjectiveBoard(objective: String?, panX: Float, panY: Float, scale: Float) {
+internal fun OfficeObjectiveBoard(
+    objective: String?,
+    panX: Float,
+    panY: Float,
+    scale: Float,
+    board: OfficeBoardSpec = OfficeSceneSpec.Default.boards.objective,
+) {
     val density = LocalDensity.current
     Column(
         Modifier.offset {
-            IntOffset((panX + 59 * scale).roundToInt(), (panY + 20 * scale).roundToInt())
-        }.size(roomDp(46f, scale, density), roomDp(28f, scale, density))
+            IntOffset(
+                (panX + board.bounds.x * scale).roundToInt(),
+                (panY + PixelOfficeScene.y(board.bounds.y.toFloat()) * scale).roundToInt(),
+            )
+        }.size(
+            roomDp(board.bounds.width.toFloat(), scale, density),
+            roomDp(board.bounds.height.toFloat(), scale, density),
+        )
             .testTag("office-objective-board"),
     ) {
         Text(

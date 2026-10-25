@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
 /** Invisible room-space hit target for the cat and the coffee machine easter eggs. */
@@ -30,20 +31,27 @@ internal fun OfficeTapTarget(
     onClick: () -> Unit,
 ) {
     val density = LocalDensity.current
+    val targetW = roomDp(w, scale, density)
+    val targetH = roomDp(h, scale, density)
+    val hitW = maxOf(targetW, 48.dp)
+    val hitH = maxOf(targetH, 48.dp)
+    val extraW = with(density) { (hitW - targetW).toPx() / 2f }.roundToInt()
+    val extraH = with(density) { (hitH - targetH).toPx() }.roundToInt()
     Box(
         Modifier
             .offset {
                 IntOffset(
-                    (originX + x * scale).roundToInt(),
-                    (originY + PixelOfficeScene.y(y) * scale).roundToInt(),
+                    (originX + x * scale).roundToInt() - extraW,
+                    (originY + PixelOfficeScene.y(y) * scale).roundToInt() - extraH,
                 )
             }
-            .size(roomDp(w, scale, density), roomDp(h, scale, density))
+            .size(hitW, hitH)
             .testTag(tag)
             .semantics { contentDescription = label }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
+                onClickLabel = label,
                 onClick = onClick,
             ),
     )

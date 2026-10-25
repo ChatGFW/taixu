@@ -79,6 +79,21 @@ class OfficeWalkHandoffsTest {
         assertTrue(cross.courierIds.isEmpty())
     }
 
+    @Test
+    fun `handoff floor groups come from the scene spec`() {
+        val handoff = OfficeWalkHandoff("done", "worker", "chief", now - 500)
+        val actors = listOf(
+            actor("chief", 48, 150),
+            actor("worker", 116, 340),
+        )
+        assertTrue(officeHandoffState(listOf(handoff), actors).handoffs.isEmpty())
+
+        val merged = OfficeSceneSpec.Default.copy(
+            floors = listOf(OfficeFloorSpec("all", 0, PixelOfficeRoom.HEIGHT)),
+        )
+        assertEquals(listOf(handoff), officeHandoffState(listOf(handoff), actors, merged).handoffs)
+    }
+
     private fun bot(id: String) = Bot(
         id = id,
         name = id,
