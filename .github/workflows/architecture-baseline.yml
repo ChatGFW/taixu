@@ -69,11 +69,16 @@ jobs:
             --tests 'top.wkbin.taixu.harness.approval.ApprovalAuditTrailTest' \
             --tests 'top.wkbin.taixu.harness.checkpoint.TurnChangeCardsTest' \
             --tests 'top.wkbin.taixu.harness.ExecutionEnvironmentClassifierTest' \
+            --tests 'top.wkbin.taixu.harness.bot.AssignmentEffectVerificationTest' \
+            --tests 'top.wkbin.taixu.harness.session.ProviderActivityTest' \
+            --tests 'top.wkbin.taixu.harness.session.SessionInputControllerTest' \
             --tests 'top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistryTest'
           # 会话条目版本化 + 审批审计是持久化契约，迁移测试必须进 CI 守门。
           ./gradlew :core:database:testDebugUnitTest --no-daemon --console=plain \
             --tests 'top.wkbin.taixu.core.database.ApprovalAuditMigration80To81Test' \
             --tests 'top.wkbin.taixu.core.database.MessageFeedbackMigration81To82Test' \
+            --tests 'top.wkbin.taixu.core.database.GroupWorkAdmissionTest' \
+            --tests 'top.wkbin.taixu.core.database.GroupWorkMigrationTest' \
             --tests 'top.wkbin.taixu.core.database.MessageFeedbackServiceTest'
           # 能力白名单切换语义（空集合=锁死回归）必须进 CI 守门。
           # 像素办公室的相机、场景数据、寻路、无障碍和动效契约同步纳入守门。
