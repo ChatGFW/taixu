@@ -564,6 +564,9 @@ internal fun AssistantBubble(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+
+                // 消息反馈（自包含组件：koinInject 直取服务，不向列表/Screen 钻孔）
+                if (!live) MessageFeedbackAction(message.id)
             }
         }
     }
@@ -602,10 +605,7 @@ private fun extractTaskPlanSteps(text: String): List<TaskStepItem> {
 }
 
 @Composable
-private fun TaskPlanCard(
-    steps: List<TaskStepItem>,
-    modifier: Modifier = Modifier,
-) {
+private fun TaskPlanCard(steps: List<TaskStepItem>, modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(true) }
     val completedCount = steps.count { it.isCompleted }
     val progress = if (steps.isNotEmpty()) completedCount.toFloat() / steps.size else 0f
@@ -620,10 +620,7 @@ private fun TaskPlanCard(
                 expanded = !expanded
             },
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
         shape = RoundedCornerShape(12.dp),
     ) {
         Column(

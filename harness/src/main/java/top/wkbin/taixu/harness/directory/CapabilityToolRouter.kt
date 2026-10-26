@@ -25,6 +25,8 @@ class CapabilityToolRouter(
     private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
     /** 按工具策略过滤模型可见面并在执行前拒绝已禁用工具。 */
     private val toolPolicy: McpToolCallPolicy? = null,
+    /** Bot 级能力白名单：设置后非白名单 MCP 服务在 list/inspect/call 一律拒绝。 */
+    private val capabilityScope: top.wkbin.taixu.harness.bot.BotCapabilityScope? = null,
     /** 宿主执行通道：与直接 host 调用共用同一 executeHost（含输出上限与截图 metadata 附带）。 */
     private val hostExecutor: suspend (JsonObject, String?, String, MutableMap<String, String>) -> Pair<Boolean, String>,
 ) {
@@ -39,8 +41,8 @@ class CapabilityToolRouter(
     ): Pair<Boolean, String> {
         val action = args.stringArg("action")?.lowercase().orEmpty()
         return when (action) {
-            "list" -> listCapabilities()
-            "inspect" -> inspect(args)
+            "list" -> listCapabilities(sessionId)
+            "inspect" -> inspect(args, sessionId)
             "call" -> call(args, workspace, parentToolCallId, operationId, sessionId, metadata)
             "decline" -> {
                 val serverId = args.stringArg("server").orEmpty().trim()
@@ -71,8 +73,11 @@ class CapabilityToolRouter(
         return runner.execute(code, timeoutMs)
     }
 
-    private suspend fun listCapabilities(): Pair<Boolean, String> {
+    private suspend fun listCapabilities(sessionId: String): Pair<Boolean, String> {
+        // Bot 能力白名单：只列出该 Bot 可用的 MCP 服务，让模型一开始就看到正确的可用面。
+        val allowed = capabilityScope?.allowedMcpServers(sessionId)
         val summaries = mcpManager?.enabledServerSummaries().orEmpty()
+            .filter { allowed == null || it.id.lowercase() in allowed || it.name.lowercase() in allowed }
         val hostLine = HostCapabilityDirectory.listSummaryLine()
         val pluginLines = plugins?.summaries().orEmpty()
         if (summaries.isEmpty()) {
@@ -102,13 +107,14 @@ class CapabilityToolRouter(
         }
     }
 
-    private suspend fun inspect(args: JsonObject): Pair<Boolean, String> {
+    private suspend fun inspect(args: JsonObject, sessionId: String): Pair<Boolean, String> {
         val serverId = args.stringArg("server")?.trim().orEmpty()
         if (serverId.isBlank()) return false to "inspect 需要 server 参数（先用 list 查看可用的能力域 id）"
         if (serverId.startsWith("plugin.")) return plugins?.inspect(serverId) ?: (false to "插件目录未初始化")
         if (serverId.lowercase() == HostCapabilityDirectory.SERVER_ID) {
             return true to HostCapabilityDirectory.inspectListing()
         }
+        capabilityDenied(sessionId, serverId)?.let { return false to it }
         val manager = mcpManager ?: return false to "未初始化 MCP 管理器"
         // 缓存为空 = 服务尚未连接过：按需发现一次（唯一会拉起进程的 inspect 场景——
         // 模型无从得知未连接服务的工具名，必须给它完整清单才能构造 call）
@@ -209,6 +215,13 @@ class CapabilityToolRouter(
                 )
                 return false to reason
             }
+            capabilityDenied(sessionId, serverId)?.let { reason ->
+                NestedCalls.append(
+                    metadata, parentToolCallId, logicalName, NestedCalls.STATUS_BLOCKED,
+                    System.currentTimeMillis() - startedAt, callArgs.toString(), reason, argRedactor,
+                )
+                return false to reason
+            }
             if (toolPolicy?.policyFor(serverId, tool)?.enabled == false) {
                 val reason = "MCP[$serverId] 工具「$tool」已在设置中禁用，本次调用未执行。请改用其他能力或让用户重新启用。"
                 NestedCalls.append(
@@ -231,6 +244,14 @@ class CapabilityToolRouter(
             redact = argRedactor,
         )
         return outcome
+    }
+
+    /** Bot 能力白名单判定：非 null 返回值即拒绝原因。宿主与插件域不受白名单约束。 */
+    private suspend fun capabilityDenied(sessionId: String, serverId: String): String? {
+        val allowed = capabilityScope?.allowedMcpServers(sessionId) ?: return null
+        if (serverId.lowercase() in allowed) return null
+        return "MCP[$serverId] 不在当前 Bot 的能力白名单内，本次调用未执行。" +
+            "请先用 list 查看可用能力域；如需该服务，请用户在 Bot 详情的能力库中添加。"
     }
 }
 

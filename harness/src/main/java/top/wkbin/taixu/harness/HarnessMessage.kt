@@ -88,6 +88,28 @@ data class ModelSwitchEvent(
     val compactionPending: Boolean = false,
 ) : HarnessMessage
 
+/**
+ * UI-only 轮文件改动卡片（借鉴 DSH deliverables：轮结束的快照对比自动得出改动文件）。
+ *
+ * 数据源是 CheckpointStore 的轮快照（write/edit 触碰文件在轮初与最后写入后的内容对），
+ * 不含 shell 命令改动的文件（它们不经写工具，无快照）；id 确定性派生自会话与轮号，
+ * 重复发布（完成即时 + 下一轮开头补发）由存储层同 id 同 payload 幂等复用去重。
+ */
+@Serializable
+@SerialName("turn_changes")
+data class TurnChangesEvent(
+    override val id: String,
+    override val createdAt: Long,
+    /** 0 起始的用户轮次号（与 rewind checkpoint 的轮号同源）。 */
+    val turn: Int,
+    /** 轮初不存在、本轮新建的文件（工作区相对路径）。 */
+    val created: List<String> = emptyList(),
+    /** 轮初存在且内容发生变化的文件。 */
+    val modified: List<String> = emptyList(),
+    /** 被写工具触碰但无改动后凭据（写入失败/超大文件跳过捕获），改动未知。 */
+    val touched: List<String> = emptyList(),
+) : HarnessMessage
+
 @Serializable
 @SerialName("user")
 data class UserMessage(

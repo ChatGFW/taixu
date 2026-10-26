@@ -33,6 +33,8 @@ fun botManagementPlugin(
     logger: AppLogger,
     runtime: (() -> top.wkbin.taixu.harness.bot.BotAssignmentRuntime)? = null,
     modelManager: top.wkbin.taixu.harness.bot.BotModelManager? = null,
+    /** 各会话运行态快照（list-bots 状态行用）；缺省空表时状态行退化为任务维度。 */
+    sessionStates: () -> Map<String, top.wkbin.taixu.core.model.SessionRunState> = { emptyMap() },
 ): HarnessPlugin {
     val descriptor = botManagementDescriptor()
     val createSchema = pluginObjectSchema(
@@ -51,6 +53,8 @@ fun botManagementPlugin(
         required = listOf("bot_name", "task"),
         properties = mapOf(
             "bot_name" to pluginStringProperty("目标 Bot 名称"),
+            "proposal_id" to pluginStringProperty("审议方案ID；审核和执行须绑定方案。下级执行继承原方案"),
+            "work_item_id" to pluginStringProperty("同阶段工作项的稳定ID；重试须复用，省略按执行成员去重。拆分互不冲突的交付物时分别提供ID、写入范围与验收标准"),
             "task" to pluginStringProperty("要交给它独立完成的具体任务"),
             "write_paths" to pluginStringArrayProperty(
                 "可选建议写入目录；群聊独立任务作为提示，无群聊子任务作为写入租约",
@@ -120,7 +124,7 @@ fun botManagementPlugin(
             },
             PluginTool(
                 id = "assign-task",
-                description = "把任务交给指定 Bot 在独立会话执行：成员仍在群聊实时输出与展示工具步骤，任务可继续。同一轮 wait=false 的任务归入同一工作批次，全部结束后统一回报。仅能派发给本群直属下级。",
+                description = "把任务交给指定 Bot 在独立会话执行：成员仍在群聊实时输出与展示工具步骤，任务可继续。同一轮 wait=false 的任务归入同一工作批次，全部结束后统一回报。可派给直属下级或审议规则授权的协作成员；审核与执行传 proposal_id。",
                 schema = assignSchema,
             ) { request ->
                 val caller = botRepository.getBotBySessionId(request.sessionId)
@@ -128,11 +132,6 @@ fun botManagementPlugin(
                 val targetName = request.arguments["bot_name"]?.jsonPrimitive?.content.orEmpty()
                 val task = request.arguments["task"]?.jsonPrimitive?.content.orEmpty()
                 if (task.isBlank()) return@PluginTool PluginToolOutput(false, "任务内容不能为空")
-                val target = botRepository.findBotByName(targetName)
-                    ?: return@PluginTool PluginToolOutput(false, "找不到名为「$targetName」的 Bot")
-                if (target.id == caller.id) {
-                    return@PluginTool PluginToolOutput(false, "不能把任务派发给自己；请直接执行")
-                }
                 val dependsOn = request.stringArray("depends_on")
                 val unmet = unmetDependencies(assignments, dependsOn)
                 if (unmet.isNotEmpty()) {
@@ -147,7 +146,12 @@ fun botManagementPlugin(
                 if (group == null && (!requestedGroup.isNullOrBlank() || !caller.isMainBot)) {
                     return@PluginTool PluginToolOutput(false, "找不到来源群聊或当前会话不能管理该群")
                 }
-                if (group != null && !groupRepository.getTeam(group.id).canAssign(caller.id, target.id)) {
+                val target = (if (group == null) botRepository.findBotByName(targetName) else groupRepository.getMembers(group.id).singleOrNull { it.name == targetName })
+                    ?: return@PluginTool PluginToolOutput(false, "找不到名为「$targetName」的 Bot")
+                if (target.id == caller.id) {
+                    return@PluginTool PluginToolOutput(false, "不能把任务派发给自己；请直接执行")
+                }
+                if (group != null && !groupRepository.getTeam(group.id).canAssign(caller.id, target.id) && !groupRepository.getGovernance(group.id).canRoute(caller.id, target.id)) {
                     return@PluginTool PluginToolOutput(false, DIRECT_REPORT_ONLY)
                 }
                 if (group != null && groupRepository.getMembers(group.id).none { it.id == target.id }) {
@@ -162,7 +166,8 @@ fun botManagementPlugin(
                     val created = runCatching {
                         engine.create(
                             target.id, group.id, caller.id, request.sessionId, task, writePaths,
-                            dependsOn = dependsOn,
+                            dependsOn = dependsOn, proposalId = request.arguments["proposal_id"]?.jsonPrimitive?.content,
+                            workItemId = request.arguments["work_item_id"]?.jsonPrimitive?.content, operationId = request.operationId,
                             workId = if (wait) null else request.operationId ?: if (engine.taskForSession(request.sessionId) != null) java.util.UUID.randomUUID().toString() else null,
                         )
                     }.getOrElse { return@PluginTool PluginToolOutput(false, "派发失败：${it.message}") }
@@ -175,7 +180,7 @@ fun botManagementPlugin(
                         val size = runCatching { engine.batchSize(batchId) }.getOrDefault(1)
                         "，已归入本轮工作批次（同批 $size 个任务，全部结束后统一回报）"
                     }.orEmpty()
-                    return@PluginTool PluginToolOutput(true, "已交给 ${target.name} 独立执行（任务 ${created.id}$batchNote）；群内实时展示过程。补充要求请用 continue-assignment 继续原任务。")
+                    return@PluginTool PluginToolOutput(true, "任务 ${created.id} · ${created.status} · 执行成员 ${target.name} · 原负责人 ${created.reportToBotId}$batchNote；同一工作项复用原任务，不重复执行、不覆盖原指令。补充或修改要求请用 continue-assignment 继续原任务。")
                 }
                 if (request.arguments["wait"]?.jsonPrimitive?.booleanOrNull == false) {
                     return@PluginTool PluginToolOutput(false, "独立后台委派需要群聊来源；请加入群聊或使用 wait=true 同步执行")
@@ -211,16 +216,30 @@ fun botManagementPlugin(
                 val group = resolveTeamGroup(caller, request.sessionId,
                     request.arguments["group_id"]?.jsonPrimitive?.content, groupRepository, botRepository)
                 if (group == null && !request.arguments["group_id"]?.jsonPrimitive?.content.isNullOrBlank()) return@PluginTool PluginToolOutput(false, "找不到来源群聊")
-                val reports = group?.let { groupRepository.getTeam(it.id).directReports(caller.id) }.orEmpty()
+                val reports = group?.let { groupRepository.getTeam(it.id).directReports(caller.id) + groupRepository.getMembers(it.id).filter { bot -> groupRepository.getGovernance(it.id).canRoute(caller.id, bot.id) }.map { bot -> bot.id } }.orEmpty()
                 if (group == null && !caller.isMainBot || group != null && caller.id != group.adminBotId && reports.isEmpty()) return@PluginTool PluginToolOutput(false, DIRECT_REPORT_ONLY)
                 val bots = if (group != null) groupRepository.getMembers(group.id).filter { it.id in reports }
                     else botRepository.listBots()
                 if (bots.isEmpty()) {
                     PluginToolOutput(true, "（暂无 Bot）")
                 } else {
+                    val states = sessionStates()
+                    val activeBots = assignments.active.value.map { it.botName }.toSet()
+                    // groupSessionId 是挂起调用，先取齐再进非挂起的 joinToString；
+                    // 状态行是可选增强，映射查询失败不阻断名册输出。
+                    val groupSessionIds = group?.let { source ->
+                        bots.associate { bot ->
+                            bot.id to runCatching { orchestrator().groupSessionId(bot.id, source.id) }.getOrNull()
+                        }
+                    }.orEmpty()
                     val text = bots.joinToString("\n") { bot ->
                         val mark = if (bot.isMainBot) "👑 主控" else "成员"
-                        "- bot_name=\"${bot.name}\" · 职责=${bot.role} · $mark · 模型 ${bot.modelId ?: "默认"} / ${bot.modelVariant ?: "档案默认"}"
+                        val sessionIds = buildList {
+                            add(bot.sessionId)
+                            groupSessionIds[bot.id]?.let(::add)
+                        }
+                        "- bot_name=\"${bot.name}\" · ${botStatusLine(states, sessionIds, activeBots, bot.name)}" +
+                            " · 职责=${bot.role} · $mark · 模型 ${bot.modelId ?: "默认"} / ${bot.modelVariant ?: "档案默认"}"
                     }
                     PluginToolOutput(true, text.take(BOT_TOOL_MAX_CHARS))
                 }
@@ -229,7 +248,7 @@ fun botManagementPlugin(
             botRepository = botRepository,
             groupRepository = groupRepository,
             assignments = assignments, runtime = runtime,
-        ) + independentAssignmentTools(botRepository, groupRepository, runtime) + botModelTools(botRepository, modelManager),
+        ) + independentAssignmentTools(botRepository, groupRepository, runtime) + botModelTools(botRepository, modelManager) + groupReviewTools(botRepository, groupRepository, runtime),
     )
 }
 
@@ -237,22 +256,6 @@ internal suspend fun requireMainBot(
     sessionId: String,
     botRepository: PersonaBotRepository,
 ): Bot? = botRepository.getBotBySessionId(sessionId)?.takeIf { it.isMainBot }
-
-internal suspend fun resolveGroup(
-    caller: Bot,
-    requestedGroupId: String?,
-    groupRepository: GroupChatRepository,
-): GroupChat? {
-    if (requestedGroupId.isNullOrBlank()) {
-        return groupRepository.observeGroupsForBot(caller.id).first().firstOrNull()
-    }
-    val group = groupRepository.getGroup(requestedGroupId) ?: return null
-    val member = groupRepository.getMembers(group.id).any { it.id == caller.id }
-    return group.takeIf { member }
-}
-
-private fun normalizeColor(raw: String?): String =
-    raw?.trim()?.takeIf { it.matches(Regex("#[0-9a-fA-F]{6}")) } ?: "#3D5AFE"
 
 internal const val MAIN_BOT_ONLY = "只有主控 Bot 可以管理团队"
 internal const val BOT_TOOL_MAX_CHARS = 12_000

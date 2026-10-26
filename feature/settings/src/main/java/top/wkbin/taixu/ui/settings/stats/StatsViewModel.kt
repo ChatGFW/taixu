@@ -122,6 +122,7 @@ class StatsViewModel(
             StatsLedgerScopeDim.MODEL -> options.models
             StatsLedgerScopeDim.PROVIDER -> options.providers
             StatsLedgerScopeDim.SESSION -> options.sessions
+            StatsLedgerScopeDim.BOT -> options.bots
         }
         return scopeValue?.takeIf { value -> candidates.any { it.id == value } }
             ?: candidates.firstOrNull()?.id

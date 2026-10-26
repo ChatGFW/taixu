@@ -24,7 +24,23 @@ class StatsRepository(
     private val sessionRepository: HarnessSessionRepository,
     private val aiModelRepository: AiModelRepository,
     private val appStatsPreferences: AppStatsPreferences,
+    /** Bot 维度报表（DS Bot 用量页）：会话→Bot 映射与 Bot 名册。 */
+    private val botRepository: top.wkbin.taixu.core.database.repository.PersonaBotRepository? = null,
+    private val groupSessions: top.wkbin.taixu.core.database.repository.BotGroupSessionRepository? = null,
+    private val assignments: top.wkbin.taixu.core.database.repository.BotAssignmentRepository? = null,
 ) {
+    /** Bot 名下全部会话（私聊 + 群维度 + 独立任务）；无 Bot 数据源时返回空。 */
+    private suspend fun sessionIdsOfBot(botId: String): List<String> {
+        val bot = botRepository?.getBot(botId) ?: return emptyList()
+        return buildList {
+            add(bot.sessionId)
+            groupSessions?.listSessionIdsForBot(botId)?.let(::addAll)
+            addAll(
+                assignments?.assignmentsForBot(botId).orEmpty()
+                    .filter { it.independent }.mapNotNull { it.sessionId },
+            )
+        }.distinct()
+    }
     suspend fun buildSnapshot(
         range: StatsDateRange,
         scopeDim: StatsLedgerScopeDim = StatsLedgerScopeDim.ALL,
@@ -179,18 +195,26 @@ class StatsRepository(
         val scopeModelId = scopeValue.takeIf { scopeDim == StatsLedgerScopeDim.MODEL }
         val scopeProvider = scopeValue.takeIf { scopeDim == StatsLedgerScopeDim.PROVIDER }
         val scopeSessionId = scopeValue.takeIf { scopeDim == StatsLedgerScopeDim.SESSION }
+        val scopeBotId = scopeValue.takeIf { scopeDim == StatsLedgerScopeDim.BOT }
+        val scopeBotSessionIds = scopeBotId?.let { sessionIdsOfBot(it) }.orEmpty()
 
         val baseDayRows = runtimeRepository.aggregateUsageLedger(startEpochMs, endEpochMs, tzOffsetMs, null, null, null)
         // 按会话聚合不做日切，因此不需要时区偏移参数。
         val baseSessionRows = runtimeRepository.aggregateUsageLedgerBySession(startEpochMs, endEpochMs, null, null, null)
+        val baseBotRows = botRepository?.let {
+            runtimeRepository.aggregateUsageLedgerByBot(startEpochMs, endEpochMs, null)
+        }.orEmpty()
 
-        // 按会话作用域必须走 SQL 过滤（按日聚合行里没有 sessionId）；模型/供应商在内存里筛即可。
-        val ledgerRows = if (scopeSessionId != null) {
-            runtimeRepository.aggregateUsageLedger(
+        // 按会话/按 Bot 作用域必须走 SQL 过滤（按日聚合行里没有 sessionId）；
+        // 模型/供应商在内存里筛即可。
+        val ledgerRows = when {
+            scopeSessionId != null -> runtimeRepository.aggregateUsageLedger(
                 startEpochMs, endEpochMs, tzOffsetMs, scopeModelId, scopeProvider, scopeSessionId,
             )
-        } else {
-            baseDayRows.filter { row ->
+            scopeBotId != null -> runtimeRepository.aggregateUsageLedgerForSessions(
+                startEpochMs, endEpochMs, tzOffsetMs, scopeBotSessionIds,
+            )
+            else -> baseDayRows.filter { row ->
                 (scopeModelId == null || row.modelId == scopeModelId) &&
                     (scopeProvider == null || row.provider == scopeProvider)
             }
@@ -198,11 +222,23 @@ class StatsRepository(
         val ledgerSessionRows = baseSessionRows.filter { row ->
             (scopeModelId == null || row.modelId == scopeModelId) &&
                 (scopeProvider == null || row.provider == scopeProvider) &&
-                (scopeSessionId == null || row.sessionId == scopeSessionId)
+                (scopeSessionId == null || row.sessionId == scopeSessionId) &&
+                (scopeBotId == null || row.sessionId in scopeBotSessionIds)
         }
-        val ledgerRecentRows = runtimeRepository.listRecentUsage(
-            startEpochMs, endEpochMs, 40, scopeModelId, scopeProvider, scopeSessionId,
-        )
+        // Bot 分组行：会话作用域经 SQL 过滤；模型/供应商在内存筛；Bot 作用域按会话集过滤。
+        val ledgerBotRows = runtimeRepository.aggregateUsageLedgerByBot(startEpochMs, endEpochMs, scopeSessionId)
+            .filter { row ->
+                (scopeModelId == null || row.modelId == scopeModelId) &&
+                    (scopeProvider == null || row.provider == scopeProvider) &&
+                    (scopeBotId == null || row.botId == scopeBotId)
+            }
+        val ledgerRecentRows = if (scopeBotId != null) {
+            runtimeRepository.listRecentUsageForSessions(startEpochMs, endEpochMs, 40, scopeBotSessionIds)
+        } else {
+            runtimeRepository.listRecentUsage(
+                startEpochMs, endEpochMs, 40, scopeModelId, scopeProvider, scopeSessionId,
+            )
+        }
 
         fun modelLabelOf(modelId: String): String =
             allModels[modelId]?.name ?: modelId.ifBlank { "未标注模型" }
@@ -213,17 +249,24 @@ class StatsRepository(
         fun sessionLabelOf(sessionId: String): String =
             allSessions[sessionId]?.title?.ifBlank { "未命名会话" } ?: "会话 " + sessionId.take(8)
 
+        val botsById = botRepository?.listBots().orEmpty().associateBy { it.id }
+        fun botLabelOf(botId: String): String =
+            botsById[botId]?.let { "${it.name}（${it.role}）" } ?: "Bot " + botId.take(8)
+
         val ledger = assembleLedger(
             ledgerRows = ledgerRows,
             ledgerSessionRows = ledgerSessionRows,
+            ledgerBotRows = ledgerBotRows,
             recentRows = ledgerRecentRows,
             baseDayRows = baseDayRows,
             baseSessionRows = baseSessionRows,
+            baseBotRows = baseBotRows,
             trendStart = trendStart,
             trendEnd = trendEnd,
             modelLabelOf = { modelLabelOf(it) },
             providerLabelOf = { provider, modelId -> providerLabelOf(provider, modelId) },
             sessionLabelOf = { sessionLabelOf(it) },
+            botLabelOf = { botLabelOf(it) },
         )
 
         StatsSnapshot(

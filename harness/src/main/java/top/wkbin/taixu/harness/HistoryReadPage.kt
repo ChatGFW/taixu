@@ -52,6 +52,7 @@ internal object HistoryReadPage {
         is SkillSuggestion -> listOf("技能建议 ${message.skillName}: ", message.description)
         is TaskDelivery -> listOf("任务交付记录：", Json.encodeToString(TaskDeliveryReport.serializer(), message.report))
         is ModelSwitchEvent -> listOf("切换模型 ${message.fromLabel} → ${message.toLabel}")
+        is TurnChangesEvent -> listOf("轮文件改动：", (message.created + message.modified + message.touched).joinToString("、"))
         is UserMessage -> listOf("用户：", message.text, if (message.imageUrls.isEmpty()) "" else
             "\n[history_media=NOT_RESTORED count=${message.imageUrls.size}：本工具仅回读文本，不含图片内容；需要原图时请用户重新提供，不能据此推断视觉事实]")
         is AssistantText -> listOf("助手：", message.text, "\nreasoning:\n", message.reasoning.orEmpty())

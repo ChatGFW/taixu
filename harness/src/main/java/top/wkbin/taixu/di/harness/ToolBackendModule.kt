@@ -1,6 +1,7 @@
 package top.wkbin.taixu.di.harness
 
 import org.koin.dsl.module
+import kotlinx.coroutines.flow.first
 import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.security.SecretRedactor
@@ -120,12 +121,42 @@ internal val toolBackendModule = module {
         )
     }
     // 能力统一网关：use_capability 分发 + codemode 脚本装配 + legacy mcp__ 直连回退。
+    single<top.wkbin.taixu.harness.bot.BotCapabilityScope> {
+        // Bot 级 MCP 能力白名单（DS Bot 能力库）：Bot 未配置白名单时返回 null = 不限制。
+        // 条目按服务 id 与名称双向展开：挂载侧（@ 提及）id/name 都认，执行侧（use_capability/
+        // legacy mcp__）此前只认 id；统一后避免"list 按名称命中、call 用 id 被拒"的可见不可调。
+        top.wkbin.taixu.harness.bot.BotCapabilityScope { sessionId ->
+            val entries = get<PersonaBotRepository>().getBotBySessionId(sessionId)?.capabilityServerNames
+            if (entries == null) {
+                null
+            } else {
+                val servers = runCatching {
+                    get<top.wkbin.taixu.core.database.McpServerRepository>().servers.first()
+                }.getOrDefault(emptyList())
+                val allowed = mutableSetOf<String>()
+                entries.forEach { entry ->
+                    val lower = entry.lowercase()
+                    val matched = servers.firstOrNull {
+                        it.id.lowercase() == lower || it.name.lowercase() == lower
+                    }
+                    if (matched == null) {
+                        allowed += lower
+                    } else {
+                        allowed += matched.id.lowercase()
+                        allowed += matched.name.lowercase()
+                    }
+                }
+                allowed
+            }
+        }
+    }
     single {
         CapabilityToolGateway(
             mcpManager = get(),
             plugins = get(),
             argRedactor = { value: String -> get<SecretRedactor>().redact(value) },
             toolPolicy = get(),
+            capabilityScope = get(),
             hostExecutor = { args, operationId, sessionId, metadata ->
                 get<HostCapabilityToolBackend>().execute(HostToolRequest(args, operationId, sessionId, metadata))
             },
@@ -153,9 +184,10 @@ internal val toolBackendModule = module {
             eventBus = get(),
             checkpointStore = get(),
             sessionApprovalGrants = get(),
+            approvalAuditor = get(),
             settingsDataStore = get(),
             toolCheckpoints = get(),
-            workspaceToolBackend = get(),
+            workspaceToolBackend = get(), governanceGuard = get(),
             environments = get(),
         )
     }

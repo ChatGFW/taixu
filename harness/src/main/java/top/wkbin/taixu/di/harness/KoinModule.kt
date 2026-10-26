@@ -17,6 +17,8 @@ import top.wkbin.taixu.harness.ToolExecutor
 import top.wkbin.taixu.harness.ToolRoundDispatcher
 import top.wkbin.taixu.harness.TurnRunner
 import top.wkbin.taixu.harness.agent.AgentMcpBootstrap
+import top.wkbin.taixu.harness.approval.ApprovalAuditRecorder
+import top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistry
 import top.wkbin.taixu.harness.approval.ApprovalResumePolicy
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
 import top.wkbin.taixu.harness.browser.BrowserMcpBootstrap
@@ -110,9 +112,11 @@ val harnessModule = module {
 
     single<BuildScriptToolExecutor> { BuildScriptToolExecutor(repository = get(), environments = get()) }
 
-    single<SessionTurnCoordinator> {
-        SessionTurnCoordinatorImpl(preferences = get(), logger = get())
-    }
+    single<SessionTurnCoordinator> { SessionTurnCoordinatorImpl(preferences = get(), logger = get()) }
+
+    single<ApprovalAuditRecorder> { ApprovalAuditRecorder(audit = get(), logger = get()) }
+
+    single<BackgroundSubagentRegistry> { BackgroundSubagentRegistry(promptQueueManager = get(), logger = get()) }
 
     single<HarnessLoop> {
         HarnessLoop(
@@ -146,12 +150,14 @@ val harnessModule = module {
             skillEvolutionAdvisor = get(),
             turnCoordinator = get(),
             executionEnvironments = get(),
+            approvalAuditor = get(),
+            feedbackService = get(),
+            backgroundSubagents = get(),
         )
     }
     single<SessionControl> { get<HarnessLoop>() }
     single<InteractiveSessionControl> { get<HarnessLoop>() }
     single<HarnessPathResolver> { HarnessPathResolver() }
-
     single { RequestDiagnosticsStore(redactor = get(), repository = get()) }.onClose { it?.close() }
     factory<HarnessProviderRunner> {
         HarnessProviderRunner(
@@ -167,7 +173,7 @@ val harnessModule = module {
             compactionManager = get(), context = get(),
         )
     }
-    single { top.wkbin.taixu.harness.McpToolMountResolver(mcpManager = get(), repository = get(), policies = get(), capabilityWriter = get()) }
+    single { top.wkbin.taixu.harness.McpToolMountResolver(mcpManager = get(), repository = get(), policies = get(), capabilityWriter = get(), capabilityScope = get()) }
 
     factory<HarnessToolRoundRunner> {
         HarnessToolRoundRunner(
@@ -192,6 +198,7 @@ val harnessModule = module {
     }
 
     includes(providerModule)
+    includes(harnessStewardProviders)
     single<ProviderResponseNormalizer> { ProviderResponseNormalizer(json = get()) }
 
     single { top.wkbin.taixu.harness.SubagentSummaryPublisher(get(), get(), get(), get(), get()) }
@@ -207,9 +214,9 @@ val harnessModule = module {
             providerClient = get(),
             logger = get(),
             summaryPublisher = get(),
+            backgroundSubagents = get(),
         )
     }
-
     includes(toolBackendModule)
     single<ToolRoundDispatcher> { ToolRoundDispatcher() }
     single<TurnRunner> { TurnRunner(normalizer = get(), groupFreshness = get()) }
@@ -227,39 +234,31 @@ val harnessModule = module {
         )
     }
 
-    single<RewindController> {
-        RewindController(
+    single<RewindController> { RewindController(
             store = get(),
             fileAccess = get(),
             conversationRewinder = get(),
             environments = get(),
-        )
-    }
-    single<SessionForkConversationRewinder> {
-        SessionForkConversationRewinder(
+        ) }
+    single<SessionForkConversationRewinder> { SessionForkConversationRewinder(
             sessionDao = get(),
             runtimeRepo = get(),
             checkpointStore = get(),
-        )
-    }
+        ) }
 
-    single<BranchSummarizer> {
-        BranchSummarizer(
+    single<BranchSummarizer> { BranchSummarizer(
             repository = get(),
             json = get(),
             logger = get(),
             summarizer = get(),
-        )
-    }
+        ) }
 
-    single<CompactionManager> {
-        CompactionManager(
+    single<CompactionManager> { CompactionManager(
             repository = get(),
             json = get(),
             sessionStore = get(),
             summarizer = get(),
-        )
-    }
+        ) }
 
     single<CompactionSummarizer> { CompactionSummarizer(providerClient = get()) }
 
@@ -385,13 +384,7 @@ val harnessModule = module {
 
     single<MemoryRecallSelector> { MemoryRecallSelector(agentContextDao = get()) }
 
-    single<DefaultPrivilegeSectionRenderer> {
-        DefaultPrivilegeSectionRenderer(
-            context = get(),
-            privilegeManager = get(),
-            promptAssets = get(),
-        )
-    }
+    single<DefaultPrivilegeSectionRenderer> { DefaultPrivilegeSectionRenderer(context = get(), privilegeManager = get(), promptAssets = get()) }
 
     single<PromptAssetLoader> { PromptAssetLoader(context = get()) }
 
@@ -439,6 +432,7 @@ val harnessModule = module {
             sessionStore = get(),
             memoryRecallSelector = get(),
             agentApprovalRepository = get(), operationCoordinator = get(), plugins = get(), secretRedactor = get(), environments = get(),
+            compactionSteward = get(),
         )
     }
 

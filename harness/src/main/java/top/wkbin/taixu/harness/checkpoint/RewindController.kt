@@ -19,9 +19,15 @@ class RewindController(
 ) {
     fun checkpoints(sessionId: String): List<CheckpointMeta> = store.checkpoints(sessionId)
 
-    /** 用户轮次开始处调用：开启该轮 checkpoint。 */
+    /** 用户轮次开始处调用：开启该轮 checkpoint；返回被关闭的上一轮（见 [CheckpointStore.beginTurn]）。 */
     fun beginTurn(sessionId: String, prompt: String, anchorMessageId: String? = null) =
         store.beginTurn(sessionId, prompt, anchorMessageId)
+
+    /** 当前活动轮的轮次号；无活动轮为 null（轮改动卡片用，见 [TurnChangeCards]）。 */
+    fun activeTurnNumber(sessionId: String): Int? = store.activeTurnNumber(sessionId)
+
+    /** 当前活动轮的快照副本（轮改动卡片用，见 [TurnChangeCards]）。 */
+    fun activeTurnFiles(sessionId: String): List<FileSnap> = store.activeTurnFiles(sessionId)
 
     /** 会话结束/删除清理。 */
     fun dropSession(sessionId: String) = store.dropSession(sessionId)

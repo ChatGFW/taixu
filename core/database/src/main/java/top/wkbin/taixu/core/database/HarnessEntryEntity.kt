@@ -1,5 +1,6 @@
 package top.wkbin.taixu.core.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -24,6 +25,12 @@ data class HarnessEntryEntity(
     /** user | assistant | tool_call | tool_result, or an application custom type. */
     val customType: String? = null,
     val payloadJson: String,
+    /**
+     * payload 的格式版本（借鉴 DSH session format version）。
+     * 写入方恒为当前版本；读取方对更高版本按腐坏处理（应用降级）、更低版本走相邻迁移链。
+     * 旧数据迁移时统一回填 1（ = 当前格式）。
+     */
+    @ColumnInfo(defaultValue = "1") val payloadVersion: Int = 1,
 )
 
 /**

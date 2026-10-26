@@ -2,7 +2,9 @@ package top.wkbin.taixu.harness
 
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.HarnessSessionRepository
+import top.wkbin.taixu.harness.approval.ApprovalAuditRecorder
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
+import top.wkbin.taixu.harness.approval.planBlockedResult
 import top.wkbin.taixu.harness.checkpoint.CheckpointStore
 import top.wkbin.taixu.harness.core.ToolCheckpoints
 import top.wkbin.taixu.harness.directory.CapabilityToolGateway
@@ -70,9 +72,11 @@ class ToolExecutor(
     private val eventBus: HarnessEventBus? = null,
     private val checkpointStore: CheckpointStore? = null,
     private val sessionApprovalGrants: SessionApprovalGrants? = null,
+    private val approvalAuditor: ApprovalAuditRecorder? = null,
     private val settingsDataStore: AgentPreferences? = null,
     private val toolCheckpoints: ToolCheckpoints<ToolExecutionRequest, ToolResult> = ToolCheckpoints(),
     workspaceToolBackend: WorkspaceToolBackend? = null,
+    private val governanceGuard: top.wkbin.taixu.harness.bot.GroupGovernanceGuard? = null,
     private val environments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
 ) {
     private val mutationSnapshots = WorkspaceMutationSnapshots(checkpointStore, eventBus)
@@ -120,6 +124,9 @@ class ToolExecutor(
 
     private suspend fun executeBound(toolCall: ToolCall, sessionId: String, workspace: String, bypassApproval: Boolean,
         allowApprovalRequest: Boolean, progressReporter: (suspend (String) -> Unit)?, operationId: String?): ToolResult {
+        governanceGuard?.blockReason(sessionId, toolCall)?.let { reason ->
+            return ToolResult(UUID.randomUUID().toString(), System.currentTimeMillis(), toolCall.id, false, reason, errorCode = "GROUP_REVIEW_REQUIRED")
+        }
         val result = executionBoundary.execute(ToolExecutionRequest(toolCall, sessionId, workspace, operationId)) {
             executeWithPolicy(toolCall, sessionId, workspace, bypassApproval, allowApprovalRequest, progressReporter, operationId)
         }
@@ -160,20 +167,7 @@ class ToolExecutor(
                 if (runMode == RunMode.PLAN) {
                     approvalPolicyEngine.planBlock(toolCall.tool, toolCall.args, toolCall.rawToolName)?.let { blocked ->
                         val blockedName = toolCall.rawToolName ?: toolCall.tool.name.lowercase()
-                        return ToolResult(
-                            id = UUID.randomUUID().toString(),
-                            createdAt = now,
-                            toolCallId = toolCall.id,
-                            success = false,
-                            errorCode = "PLAN_BLOCKED",
-                            output = buildString {
-                                append("⛔ 只读规划模式（PLAN）已拦截本次调用：").append(blockedName).append('\n')
-                                append("原因：").append(blocked).append('\n')
-                                append("本次调用未执行，也未进入审批队列。\n")
-                                append("请不要重试同一调用，也不要声称该操作已完成：")
-                                append("把该动作写进规划结论的待办中，由用户切换到 BUILD（构建）模式后再执行。")
-                            },
-                        )
+                        return planBlockedResult(now, toolCall.id, blockedName, blocked)
                     }
                 }
                 val mcpCall = if (toolCall.tool == HarnessTool.MCP) {
@@ -199,11 +193,21 @@ class ToolExecutor(
                         argumentsJson = toolCall.args.toString(),
                         riskLevel = decision.riskLevel,
                     )
+                if (grantedBySession) approvalAuditor?.grantExempted(
+                    sessionId, toolCall.id,
+                    toolCall.rawToolName ?: toolCall.tool.name.lowercase(),
+                    toolCall.args.toString(), decision.riskLevel,
+                )
                 if (decision.required && !grantedBySession) {
                     if (!allowApprovalRequest) {
                         // 后台 Lane 没有可暂停的审批 UI，只能结构化交接：标记 approvalDeferred，
                         // 由 Lane 收集成待办上交父智能体。若只回一句失败文字，模型下一轮会输出
                         // "已交由主智能体"，而那句话曾被当成完成结论。
+                        approvalAuditor?.deferred(
+                            sessionId, toolCall.id,
+                            toolCall.rawToolName ?: toolCall.tool.name.lowercase(),
+                            decision.riskLevel, decision.reason,
+                        )
                         return ToolResult(
                             id = UUID.randomUUID().toString(),
                             createdAt = now,
@@ -308,7 +312,8 @@ class ToolExecutor(
             ToolOutputArtifact.serializer(), ToolOutputArtifact.capture(spillPath, archived).let {
                 if (hasIncompleteCommandOutput(output)) it.copy(complete = false) else it }))
         val recoverHint = if (spillPath != null) {
-            "${if (hasIncompleteCommandOutput(output)) "可用输出" else "完整输出"}已保存至 $spillPath，可用 read 工具（offset/limit 分页）查看其余部分。"
+            // 落盘字节量随定位符给出（DSH spill 语义）：模型据此决定 read 分页的步长。
+            "${if (hasIncompleteCommandOutput(output)) "可用输出" else "完整输出"}已保存至 $spillPath（约 ${(archived.toByteArray(Charsets.UTF_8).size + 1023) / 1024}KB），可用 read 工具（offset/limit 分页）查看其余部分。"
         } else {
             "需要其余部分请用 grep 过滤关键字、head/tail 取首尾、或 sed -n 'N,Mp' 取指定行段，不要原样重复执行同一命令。"
         }

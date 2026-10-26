@@ -38,6 +38,8 @@ data class GroupTurnOutcome(
     val messageId: String? = null,
     /** 成员已开始干活但本轮先让出，最终结果稍后作为迟到回复发出。 */
     val working: Boolean = false,
+    val blockedReason: String? = null,
+    val nativeTaskId: String? = null,
 )
 
 /**
@@ -60,7 +62,7 @@ class GroupChatDispatcher(
     private val freshness: GroupReplyFreshness? = null,
     taskRepository: top.wkbin.taixu.core.database.task.AgentTaskRepository? = null,
     runtimeRepository: top.wkbin.taixu.core.database.HarnessRuntimeRepository? = null,
-    contextScope: GroupContextScope? = null,
+    private val contextScope: GroupContextScope? = null,
 ) {
     private val replies = GroupReplyQueue(scope)
 
@@ -92,6 +94,7 @@ class GroupChatDispatcher(
         },
         scope = scope,
         logger = logger,
+        delegatedTargets = { groupId, nativeId -> contextScope?.delegatedTargets(groupId, nativeId).orEmpty() },
     )
     private val userAdmission = GroupRoundAdmission(
         groupRepository, roundCoordinator,
@@ -117,6 +120,7 @@ class GroupChatDispatcher(
         responder.recoverLateReplies { reply, text ->
             roundCoordinator.lateReplyRecovered(
                 reply.groupId, reply.workerId, reply.workerName, reply.callerBotId, text,
+                contextScope?.workForNativeTask(reply.taskId),
             )
         }
     }
@@ -140,7 +144,7 @@ class GroupChatDispatcher(
         // Read after acquiring the recipient lock so queued work sees recently committed peer replies.
         val history = formatGroupHistory(group, groupRepository.observeMessages(group.id).first())
         return responder.respond(group, bot, trigger, history, members, prepared.imageUrls, null,
-            deliveryId = delivery.id)
+            deliveryId = delivery.id, workReceiptId = source.delegatedTaskId)
     }
 
     fun observeMessages(groupId: String): Flow<List<GroupMessage>> =
@@ -338,6 +342,13 @@ internal fun openingResponders(
     if (mentions.isNotEmpty()) {
         val targeted = members.filter { bot -> mentions.any { it.equals(bot.name, ignoreCase = true) } }
         if (targeted.isNotEmpty()) return targeted
+        // 用户的 @所有人 唤醒全体成员（管理员优先）；成员回复中的全体保留字
+        // 由 appendRoundMentions 单独约束为仅管理员生效，这里只处理用户入口。
+        if (mentions.any { it in MentionExtractor.ALL_KEYWORDS }) {
+            val admin = members.firstOrNull { it.id == adminBotId }
+            return (if (admin == null) members else listOf(admin) + members.filter { it.id != admin.id })
+                .take(ROUND_MAX_TOTAL_TURNS)
+        }
     }
     val admin = members.firstOrNull { it.id == adminBotId }
     return when (mode) {

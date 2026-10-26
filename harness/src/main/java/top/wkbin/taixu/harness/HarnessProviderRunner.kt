@@ -22,23 +22,6 @@ import top.wkbin.taixu.harness.session.ApiContextAssembler
 import kotlin.time.Duration.Companion.milliseconds
 import top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore
 
-/**
- * 本地流式增量处理（消息投影 / 持久化 / UI 派生）失败。
- *
- * 与网络 [IOException] 严格隔离：这类异常不是网络故障，绝不能触发整轮网络重发，
- * 否则会把半截内容、重复文字或残缺 JSON 污染到后续上下文。
- */
-internal class StreamChunkHandlingException(message: String, cause: Throwable) : Exception(message, cause)
-
-/** 包裹流式回调：本地处理异常统一转成 [StreamChunkHandlingException]，取消原样透传。 */
-internal inline fun <T> withinStreamHandling(block: () -> T): T = try {
-    block()
-} catch (cancellation: CancellationException) {
-    throw cancellation
-} catch (throwable: Throwable) {
-    throw StreamChunkHandlingException(throwable.message ?: "流式增量处理失败", throwable)
-}
-
 /** 模型能力选择、流式请求重试及助手回复持久化；不持有会话调度状态。 */
 class HarnessProviderRunner(
     private val providerClient: ProviderClient,
@@ -141,42 +124,44 @@ class HarnessProviderRunner(
                     attempt = netRetry + 1,
                     maxAttempts = maxAttempts,
                 )
-                streamed = providerClient.chatStream(
-                    requestModel,
-                    requestMessages,
-                    onRequest = { protocol, body, bytes, secrets ->
-                        requestDiagnostics.record(sessId, operationId, round, ++requestAttempt, protocol, body, bytes, secrets, governance.report(bytes))
-                    },
-                    onReasoning = { chunk ->
+                streamed = withContext(top.wkbin.taixu.harness.session.ProviderActivityContext(stateMirrors.providerActivity, sessId)) {
+                    providerClient.chatStream(
+                        requestModel,
+                        requestMessages,
+                        onRequest = { protocol, body, bytes, secrets ->
+                            requestDiagnostics.record(sessId, operationId, round, ++requestAttempt, protocol, body, bytes, secrets, governance.report(bytes))
+                            stateMirrors.providerActivity.begin(sessId, operationId, requestAttempt)
+                        },
+                        onReasoning = { chunk ->
+                            withinStreamHandling {
+                                if (chunk.isNotEmpty()) stateMirrors.recordModelOutput(sessId, "thinking")
+                                streamReasoning.append(chunk)
+                                stateMirrors.setThinkingLive(sessId, true)
+                                stateMirrors.recordThinkingObserved(sessId)
+                                streamReasoning.publishIfDue(now(), ProviderClient.STREAM_PUBLISH_INTERVAL_MS)?.let {
+                                    messageProjector.streamReasoning(sessId, assistantId, assistantAt, it)
+                                }
+                            }
+                        },
+                        onToolProgress = { progress ->
+                            withinStreamHandling {
+                                stateMirrors.recordModelOutput(sessId, "tool_arguments")
+                                stateMirrors.setThinkingLive(sessId, false)
+                                stateMirrors.setStatus(sessId, progress.statusText())
+                            }
+                        },
+                        sessionKey = sessId,
+                    ) { chunk ->
                         withinStreamHandling {
                             if (chunk.isNotEmpty()) stateMirrors.recordModelOutput(sessId)
-                            streamReasoning.append(chunk)
-                            stateMirrors.setThinkingLive(sessId, true)
-                            stateMirrors.recordThinkingObserved(sessId)
-                            streamReasoning.publishIfDue(now(), ProviderClient.STREAM_PUBLISH_INTERVAL_MS)?.let {
-                                messageProjector.streamReasoning(sessId, assistantId, assistantAt, it)
+                            stateMirrors.setStatus(sessId, "回复中")
+                            streamText.append(chunk)
+                            streamText.publishSnapshotIfDue(now(), ProviderClient.STREAM_PUBLISH_INTERVAL_MS)?.let {
+                                messageProjector.streamText(sessId, assistantId, assistantAt, it)
                             }
-                        }
-                    },
-                    onToolProgress = { progress ->
-                        withinStreamHandling {
-                            stateMirrors.recordModelOutput(sessId)
-                            stateMirrors.setThinkingLive(sessId, false)
-                            stateMirrors.setStatus(sessId, progress.statusText())
-                        }
-                    },
-                    sessionKey = sessId,
-                ) { chunk ->
-                    withinStreamHandling {
-                        if (chunk.isNotEmpty()) stateMirrors.recordModelOutput(sessId)
-                        stateMirrors.setStatus(sessId, "回复中")
-                        streamText.append(chunk)
-                        streamText.publishSnapshotIfDue(now(), ProviderClient.STREAM_PUBLISH_INTERVAL_MS)?.let {
-                            messageProjector.streamText(sessId, assistantId, assistantAt, it)
                         }
                     }
                 }
-                // 流式传输完毕，无条件刷新一次完整内容
                 withinStreamHandling {
                     if (streamReasoning.length > 0) {
                         messageProjector.streamReasoning(sessId, assistantId, assistantAt, streamReasoning.toString())
@@ -218,6 +203,7 @@ class HarnessProviderRunner(
                     "流式响应处理失败（本地异常，未自动重试）：${friendly(handling.cause ?: handling)}",
                 )
             } catch (rateLimit: LlmRateLimitException) {
+                stateMirrors.providerActivity.retry(sessId, "rate_limit")
                 currentCoroutineContext().ensureActive()
                 if (rateLimit.quotaExhausted) {
                     stateMirrors.setThinkingLive(sessId, false)
@@ -248,6 +234,7 @@ class HarnessProviderRunner(
                 stateMirrors.setThinkingLive(sessId, false)
                 val recovered = if (outputLimitRecoveries < OUTPUT_LIMIT_MAX_RECOVERIES && !outputBudgetReduced) {
                     outputLimitRecoveries++
+                    stateMirrors.providerActivity.retry(sessId, "output_limit")
                     stateMirrors.setStatus(sessId, "输出达到上限，正在调整预算后重试")
                     recoverFromOutputLimit(sessId, requestModel, requestMessages, toolSchemaTokens,
                         compactionManager, agentEventLogger)
@@ -265,6 +252,7 @@ class HarnessProviderRunner(
                 settleFailedStream()
                 return TurnProviderOutcome.Failed("模型输出达到 token 上限，自动恢复后仍未完成。请增加输出预算或拆分任务后重试")
             } catch (invalidOutputTokens: LlmInvalidOutputTokensException) {
+                stateMirrors.providerActivity.retry(sessId, "invalid_output_tokens")
                 currentCoroutineContext().ensureActive()
                 if (outputBudgetReduced) throw invalidOutputTokens
                 outputBudgetReduced = true
@@ -279,6 +267,7 @@ class HarnessProviderRunner(
                 )
                 resetStreamBaseline()
             } catch (contextOverflow: LlmContextOverflowException) {
+                stateMirrors.providerActivity.retry(sessId, "context_overflow")
                 currentCoroutineContext().ensureActive()
                 stateMirrors.setThinkingLive(sessId, false)
                 // 必须位于 IOException 之前：LlmContextOverflowException 本身继承 IOException。
@@ -333,6 +322,7 @@ class HarnessProviderRunner(
                         "可以让模型用 compress 工具手动压缩，或切换到更大上下文窗口的模型后重试。",
                 )
             } catch (empty: LlmEmptyResponseException) {
+                stateMirrors.providerActivity.retry(sessId, "empty_response")
                 // 必须位于 IOException 之前：LlmEmptyResponseException 继承 IOException。
                 // 空响应多为上游瞬时异常（网关提前断流、配额抖动），原样重发通常即可恢复；
                 // 超出预算则明确失败并给出原始响应首部——绝不返回"什么都没有"，
@@ -374,6 +364,7 @@ class HarnessProviderRunner(
                 resetStreamBaseline()
                 delay(retryPolicy.delayForRetry(netRetry).milliseconds)
             } catch (io: IOException) {
+                stateMirrors.providerActivity.retry(sessId, "network_io")
                 // 用户取消会主动关闭 socket，通常以 IOException 形式抛出：先按取消语义保留已生成内容，再传播取消。
                 if (!currentCoroutineContext().isActive) {
                     persistCancelledPartial(sessId, assistantId, assistantAt, streamText, streamReasoning, startedAt, operationId, round)
@@ -578,7 +569,7 @@ class HarnessProviderRunner(
     }
 
     companion object {
-        private const val OUTPUT_LIMIT_MAX_RECOVERIES = 2
+        private const val OUTPUT_LIMIT_MAX_RECOVERIES = 1
         private const val EMPTY_RESPONSE_MAX_RETRIES = 2
 
         internal fun emergencyFoldBudget(model: ModelConfig): Int = providerEmergencyFoldBudget(model)

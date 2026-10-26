@@ -49,6 +49,8 @@ class ApiContextAssembler(
     private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
     private val secretRedactor: top.wkbin.taixu.core.security.SecretRedactor? = null,
     private val environments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
+    /** 上下文管家（DS Bot steward）：压缩触发时判断「换段 vs 窗口压缩」；null = 禁用。 */
+    private val compactionSteward: top.wkbin.taixu.harness.compaction.CompactionSteward? = null,
 ) {
     suspend fun assemble(
         sessId: String,
@@ -204,13 +206,25 @@ class ApiContextAssembler(
                 0
             }
             if (computedKeepFromIndex > 0) {
+                // 上下文管家（DS Bot steward）：任务告一段落 → 换段（只保留最后一轮用户消息起的
+                // 原文，其余折叠为交接摘要，前缀重置为 system+摘要+当前轮）；仍在进行 → 维持
+                // 窗口压缩。判定失败一律退化为现状。被折叠原文仍在会话树，可 history_search。
+                var keepFromIndex = computedKeepFromIndex
+                if (compactionSteward != null && compactionEnabled) {
+                    val recent = top.wkbin.taixu.harness.compaction.CompactionSteward.recentTranscript(msgs)
+                    if (compactionSteward.shouldSwitchSegment(model, recent)) {
+                        keepFromIndex = top.wkbin.taixu.harness.compaction.CompactionSteward
+                            .switchKeepFromIndex(msgs, computedKeepFromIndex)
+                        trace?.contribution("steward", listOf("switch segment: keepFrom=$keepFromIndex"))
+                    }
+                }
                 // LLM 结构化压缩摘要（pi 式）：当前模型生成，失败回退机械摘要。
                 // summaryContext 让摘要请求重放主对话的 system + 摘要层 + 原始消息前缀，
                 // 命中 provider KV 缓存（cache-replay 形状，对齐 Reasonix）。
                 compactedContext = compactionManager.compact(
                     sessId,
                     compactedContext,
-                    computedKeepFromIndex,
+                    keepFromIndex,
                     model = model,
                     summaryContext = SummaryRequestContext(
                         systemPrompt = systemPrompt,

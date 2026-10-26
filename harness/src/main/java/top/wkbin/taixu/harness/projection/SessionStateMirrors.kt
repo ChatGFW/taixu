@@ -20,6 +20,7 @@ import top.wkbin.taixu.harness.ToolCall
 class SessionStateMirrors(
     private val tracker: CurrentSessionTracker,
 ) {
+    val providerActivity = top.wkbin.taixu.harness.session.ProviderActivityTracker()
 
     private val _sessionRunStates = MutableStateFlow<Map<String, SessionRunState>>(emptyMap())
     /** 全局所有会话的运行状态映射（供会话抽屉、状态点等观察） */
@@ -31,7 +32,8 @@ class SessionStateMirrors(
 
     private val _modelOutputRevisions = MutableStateFlow<Map<String, Long>>(emptyMap())
     val modelOutputRevisions: StateFlow<Map<String, Long>> = _modelOutputRevisions.asStateFlow()
-    fun recordModelOutput(sessionId: String) {
+    fun recordModelOutput(sessionId: String, phase: String = "model_output") {
+        providerActivity.output(sessionId, phase)
         _modelOutputRevisions.update { it + (sessionId to ((it[sessionId] ?: 0L) + 1)) }
     }
 
@@ -72,6 +74,7 @@ class SessionStateMirrors(
     }
 
     fun removeSession(sessionId: String) {
+        providerActivity.remove(sessionId)
         sessionErrors.remove(sessionId)
         sessionThinkingLives.remove(sessionId)
         thinkingModes.remove(sessionId)

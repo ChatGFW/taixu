@@ -28,6 +28,7 @@ import top.wkbin.taixu.core.model.bot.BotWorkBatch
         Index(value = ["status"]),
         Index(value = ["sessionId"]),
         Index(value = ["batchId", "status"]),
+        Index(value = ["groupId", "rootWorkId", "stageId", "workItemId"], unique = true),
     ],
 )
 data class BotAssignmentEntity(
@@ -54,10 +55,16 @@ data class BotAssignmentEntity(
     @ColumnInfo(defaultValue = "NULL") val batchId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val parentAssignmentId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val budgetId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val proposalId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val proposalVersion: Int? = null,
+    @ColumnInfo(defaultValue = "NULL") val teamBinding: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val rootWorkId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val stageId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val workItemId: String? = null,
 )
 
 @Dao
-interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao, AssignmentHierarchyDao, TaskBudgetDao {
+interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao, AssignmentHierarchyDao, TaskBudgetDao, GroupGovernanceDao, AssignmentWorkDao {
     @Query("SELECT * FROM bot_assignments WHERE botId = :botId AND independent = 1")
     suspend fun assignmentsForBot(botId: String): List<BotAssignmentEntity>
 
@@ -70,20 +77,27 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao, Assignme
         session: HarnessSessionEntity,
         request: BotAssignmentRequestEntity,
         batch: BotWorkBatchEntity? = null,
-    ) {
+        dispatchOperationId: String? = null,
+        nativeTaskId: String? = null,
+    ): String {
         require(task.independent && task.sessionId == session.id && request.assignmentId == task.id)
         val group = requireNotNull(task.groupId)
         require(deliveryMember(group, task.botId)) { "执行成员已移出群聊" }
         require(task.reportToBotId != null && deliveryMember(group, task.reportToBotId)) { "请求者已移出群聊" }
-        val team = top.wkbin.taixu.core.model.bot.GroupTeam(requireNotNull(teamAdmin(group)),
-            teamMembers(group).map { it.botId }.toSet(), teamMembers(group).mapNotNull { row -> row.supervisorBotId?.let { row.botId to it } }.toMap())
-        require(team.canAssign(task.reportToBotId, task.botId)) { "只能向本群直属下级派发新任务" }
+        val team = effectiveTeam(group)
+        require(team.canAssign(task.reportToBotId, task.botId) || governance(group).canRoute(task.reportToBotId, task.botId)) { "只能向本群直属下级派发新任务" }
+        val boundWork = task.proposalId?.let { proposal(it) }?.rootWorkId
+        require(boundWork == null || task.rootWorkId == boundWork) { "方案所属业务任务不匹配" }
+        existingWorkTask(task.copy(teamBinding = linkedBinding(group)))?.let {
+            if (dispatchOperationId != null) recordDispatch(AssignmentDispatchReceipt(dispatchOperationId, it, group, task.botId, nativeTaskId))
+            return it
+        }
         task.parentAssignmentId?.let { id ->
             val parent = requireNotNull(findById(id)) { "父任务不存在" }
             require(parent.status == "RUNNING" && parent.botId == task.reportToBotId && parent.groupId == group) { "父任务已停止或不属于当前负责人" }
         }
         require(hasOpenTaskAncestry(task)) { "原上级任务已取消或归属无法核对，不能继续派发" }
-        require(hasCompletedDependencies(task)) { DEPENDENCY_BLOCK_REASON }
+        require(hasCompletedDependencies(task.copy(teamBinding = linkedBinding(group)))) { DEPENDENCY_BLOCK_REASON }
         if (batch == null) {
             require(task.batchId == null) { "批次实体缺失" }
         } else {
@@ -106,14 +120,17 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao, Assignme
         val state = requireNotNull(budgetState(owner.id))
         if (state.limitTokens > 0 && state.availableTokens == 0L) throw top.wkbin.taixu.core.model.bot.TaskBudgetExceededException("任务树预算不足，不能继续分派；请由用户调整原预算。")
         insertIndependentSession(session)
-        insertIndependentAssignment(task.copy(budgetId = owner.id))
+        insertIndependentAssignment(task.copy(budgetId = owner.id, teamBinding = linkedBinding(group)))
         insertAssignmentRequest(request)
+        if (dispatchOperationId != null) recordDispatch(AssignmentDispatchReceipt(dispatchOperationId, task.id, group, task.botId, nativeTaskId))
+        return task.id
     }
 
     @Transaction
     suspend fun enqueueRequest(request: BotAssignmentRequestEntity) {
         val task = requireNotNull(findById(request.assignmentId)) { "任务不存在" }
         require(task.independent) { "旧版任务没有独立会话，请重新派发" }
+        require(task.teamBinding == task.groupId?.let { linkedBinding(it) }) { "团队版本已变化，请在新版下创建新任务" }
         require(deliveryMember(requireNotNull(task.groupId), task.botId)) { "执行成员已移出群聊" }
         val existing = findAssignmentRequest(request.id)
         if (existing != null) {

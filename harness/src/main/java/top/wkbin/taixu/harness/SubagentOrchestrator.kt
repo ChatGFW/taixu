@@ -26,6 +26,7 @@ import top.wkbin.taixu.harness.session.LaneManager
 import top.wkbin.taixu.harness.subagent.SubagentApprovalHandoff
 import top.wkbin.taixu.harness.subagent.SubagentClaimAdjudication
 import top.wkbin.taixu.harness.subagent.SubagentLaneRunner
+import top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistry
 import top.wkbin.taixu.harness.subagent.SubagentTermination
 import top.wkbin.taixu.harness.subagent.adjudicateSubagentClaim
 import top.wkbin.taixu.harness.subagent.buildSubagentTimeoutSummary
@@ -66,6 +67,7 @@ class SubagentOrchestrator(
     private val providerClient: ProviderClient,
     private val logger: AppLogger,
     private val summaryPublisher: SubagentSummaryPublisher? = null,
+    private val backgroundSubagents: BackgroundSubagentRegistry? = null,
 ) {
     /**
      * Application-wide budget: a three-agent fan-out should actually run three lanes at once,
@@ -85,9 +87,11 @@ class SubagentOrchestrator(
         }
         val background = args["background"]?.jsonPrimitive?.booleanOrNull == true
         if (background) {
-            return@withContext false to
-                "background=true 暂不可用：移动端后台子任务尚未接入持久批次恢复与前台服务保活。" +
-                "为避免应用退后台后任务静默丢失，本次没有启动任何子任务；请移除 background 并以前台模式重试。"
+            val registry = backgroundSubagents
+                ?: return@withContext false to
+                    "background=true 暂不可用：后台批次注册表未初始化；请移除 background 并以前台模式重试。"
+            registry.launch(parentSessionId, specs.size) { runBatch(specs, parentSessionId) }
+            return@withContext true to backgroundStartedText(specs)
         }
         runBatch(specs, parentSessionId)
     }
@@ -391,15 +395,12 @@ class SubagentOrchestrator(
     private fun routingFailure(spec: SubagentTaskSpec): String = if (spec.role.isNotBlank()) {
         "精确角色 ${spec.role} 未配置或未启用。可改用 department + agentQuery 让本地索引派发。"
     } else {
-        "部门 ${spec.department} 中没有匹配 agentQuery=\"${spec.agentQuery}\" 的已启用角色。" +
-            "请保留部门并改用 2–5 个更具体的英文专业关键词。"
+        "部门 ${spec.department} 中没有匹配 agentQuery=\"${spec.agentQuery}\" 的已启用角色。请保留部门并改用 2–5 个更具体的英文专业关键词。"
     }
 
     private suspend fun buildSubagentPrompt(
-        spec: SubagentTaskSpec,
-        profile: AgentSubagent,
-        workspace: String,
-        parentSessionId: String,
+        spec: SubagentTaskSpec, profile: AgentSubagent,
+        workspace: String, parentSessionId: String,
         readOnlyWriteIntent: Boolean,
     ): String {
         val factsPack = buildParentFactsPack(parentSessionId, workspace)
@@ -447,10 +448,8 @@ class SubagentOrchestrator(
      * 这里只注入新指令与写租约提醒，不再重放整份任务模板。
      */
     private suspend fun buildSubagentResumePrompt(
-        spec: SubagentTaskSpec,
-        workspace: String,
-        parentSessionId: String,
-        readOnlyWriteIntent: Boolean,
+        spec: SubagentTaskSpec, workspace: String,
+        parentSessionId: String, readOnlyWriteIntent: Boolean,
     ): String {
         val factsPack = buildParentFactsPack(parentSessionId, workspace)
         return buildString {
@@ -574,11 +573,11 @@ internal fun selectSubagentModel(
 /** background=true 时立即返回给模型的启动确认：明确"不要轮询"（对齐 opencode task 工具的输出约定）。 */
 internal fun backgroundStartedText(specs: List<SubagentTaskSpec>): String = buildString {
     append("已启动 ${specs.size} 个后台子任务：${specs.joinToString("、") { it.taskName }}。\n")
-    append("任务在后台执行，完成后结果会自动注入本会话并触发后续推理。")
+    append("任务在后台执行，完成后结果会作为追加消息出现在本会话，你将在下一轮看到它。")
     append("不要等待、轮询进度或重复派发相同任务；可先处理其他独立工作，或直接结束本轮回复。")
 }
 
-/** 后台批次完成后的注入文本：汇总 + 续跑指引；由 HarnessLoop.send 以用户消息触发新轮推理。 */
+/** 后台批次完成后的注入文本：汇总 + 续跑指引；由 BackgroundSubagentRegistry 以 STEER 消息入队父会话。 */
 internal fun backgroundCompletionText(allSucceeded: Boolean, summaryMarkdown: String): String = buildString {
     append("【后台子任务已完成】\n\n")
     append(summaryMarkdown.trim())

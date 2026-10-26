@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -27,9 +28,10 @@ import top.wkbin.taixu.ui.components.RuntimeTextButton
 
 @Composable
 internal fun GroupTeamDialog(team: GroupTeam, members: List<Bot>, onDismiss: () -> Unit,
-    onSave: suspend (Map<String, String>) -> Unit) {
-    var draft by remember { mutableStateOf(team.supervisors) }
-    var selecting by remember { mutableStateOf<String?>(null) }
+    governance: top.wkbin.taixu.core.model.bot.GroupGovernance = top.wkbin.taixu.core.model.bot.GroupGovernance(),
+    initialMemberId: String? = null, onSave: suspend (Map<String, String>) -> Unit) {
+    var draft by rememberSaveable(stateSaver = SupervisorMapSaver) { mutableStateOf(team.supervisors) }
+    var selecting by rememberSaveable { mutableStateOf(initialMemberId?.takeUnless { it == team.adminBotId }) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -41,6 +43,7 @@ internal fun GroupTeamDialog(team: GroupTeam, members: List<Bot>, onDismiss: () 
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.fbot_team_hint), style = MaterialTheme.typography.bodySmall)
+                TeamArchitectureGraph(current, governance, members, editable = !saving) { if (it != team.adminBotId) selecting = it }
                 members.sortedBy { if (it.id == team.adminBotId) 0 else 1 }.forEach { member ->
                     RuntimeCard(modifier = Modifier.fillMaxWidth()) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

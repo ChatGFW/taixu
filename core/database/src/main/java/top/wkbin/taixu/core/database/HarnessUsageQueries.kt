@@ -113,6 +113,84 @@ interface HarnessUsageQueries {
         provider: String?,
         sessionId: String?,
     ): List<HarnessUsageEntity>
+
+    /**
+     * 按 (botId, provider, model) 聚合：Bot 维度报表（DS Bot 用量页语义）。
+     * sessionId→botId 经三路映射（私聊会话 / 群维度会话 / 独立任务会话）在 SQL 侧完成；
+     * `:sessionId` 只作过滤（如按会话作用域下钻时），不进分组。
+     */
+    @Query("""
+        SELECT
+            m.botId AS botId,
+            COALESCE(u.provider, '') AS provider,
+            COALESCE(u.modelId, '') AS modelId,
+            COALESCE(SUM(u.inputTokens), 0) AS inputTokens,
+            COALESCE(SUM(u.outputTokens), 0) AS outputTokens,
+            COALESCE(SUM(u.reasoningTokens), 0) AS reasoningTokens,
+            COALESCE(SUM(u.cacheReadTokens), 0) AS cacheReadTokens,
+            COALESCE(SUM(u.cacheWriteTokens), 0) AS cacheWriteTokens,
+            COUNT(*) AS calls
+        FROM harness_usage u
+        JOIN (
+            SELECT sessionId, id AS botId FROM persona_bots
+            UNION ALL SELECT sessionId, botId FROM bot_group_sessions
+            UNION ALL SELECT sessionId, botId FROM bot_assignments WHERE independent = 1
+        ) m ON u.sessionId = m.sessionId
+        WHERE u.adjustment = 0
+          AND (:start IS NULL OR u.createdAt >= :start)
+          AND (:end IS NULL OR u.createdAt < :end)
+          AND (:sessionId IS NULL OR u.sessionId = :sessionId)
+        GROUP BY m.botId, u.provider, u.modelId
+    """)
+    suspend fun aggregateLedgerByBot(
+        start: Long?,
+        end: Long?,
+        sessionId: String?,
+    ): List<UsageLedgerBotRow>
+
+    /** Bot 作用域下的按日聚合：sessionIds 为空时由调用方短路，不下发 SQL。 */
+    @Query("""
+        SELECT
+            strftime('%Y-%m-%d', (createdAt + :tzOffsetMs) / 1000, 'unixepoch') AS localDay,
+            COALESCE(provider, '') AS provider,
+            COALESCE(modelId, '') AS modelId,
+            COALESCE(SUM(inputTokens), 0) AS inputTokens,
+            COALESCE(SUM(outputTokens), 0) AS outputTokens,
+            COALESCE(SUM(reasoningTokens), 0) AS reasoningTokens,
+            COALESCE(SUM(cacheReadTokens), 0) AS cacheReadTokens,
+            COALESCE(SUM(cacheWriteTokens), 0) AS cacheWriteTokens,
+            COUNT(*) AS calls
+        FROM harness_usage
+        WHERE adjustment = 0
+          AND (:start IS NULL OR createdAt >= :start)
+          AND (:end IS NULL OR createdAt < :end)
+          AND sessionId IN (:sessionIds)
+        GROUP BY localDay, provider, modelId
+        ORDER BY localDay
+    """)
+    suspend fun aggregateUsageLedgerForSessions(
+        start: Long?,
+        end: Long?,
+        tzOffsetMs: Long,
+        sessionIds: List<String>,
+    ): List<UsageLedgerRow>
+
+    /** Bot 作用域下的最近调用明细；sessionIds 为空时由调用方短路。 */
+    @Query("""
+        SELECT * FROM harness_usage
+        WHERE adjustment = 0
+          AND (:start IS NULL OR createdAt >= :start)
+          AND (:end IS NULL OR createdAt < :end)
+          AND sessionId IN (:sessionIds)
+        ORDER BY sequence DESC
+        LIMIT :limit
+    """)
+    suspend fun listRecentUsageForSessions(
+        start: Long?,
+        end: Long?,
+        limit: Int,
+        sessionIds: List<String>,
+    ): List<HarnessUsageEntity>
 }
 
 /** 账本按 (本地日, provider, model) 聚合后的投影行；字段全部为 SQLite 侧标量。 */
@@ -131,6 +209,19 @@ data class UsageLedgerRow(
 /** 账本按 (sessionId, provider, model) 聚合后的投影行。 */
 data class UsageLedgerSessionRow(
     val sessionId: String,
+    val provider: String,
+    val modelId: String,
+    val inputTokens: Long,
+    val outputTokens: Long,
+    val reasoningTokens: Long,
+    val cacheReadTokens: Long,
+    val cacheWriteTokens: Long,
+    val calls: Int,
+)
+
+/** 账本按 (botId, provider, model) 聚合后的投影行（Bot 维度报表）。 */
+data class UsageLedgerBotRow(
+    val botId: String,
     val provider: String,
     val modelId: String,
     val inputTokens: Long,

@@ -43,6 +43,23 @@ class SessionInputControllerTest {
     private fun controller(runtime: Runtime, coordinator: SessionTurnCoordinator = SessionTurnCoordinatorImpl()) =
         SessionInputController(coordinator, runtime)
 
+    @Test fun `host business identity is captured before launch and survives queued serialization without leaking to next user input`() = runBlocking {
+        val runtime = Runtime()
+        runtime.onStart = { assertEquals("work", runtime.recorded.single().groupWorkId) }
+        withContext(top.wkbin.taixu.harness.groupchat.GroupWorkContext("work", "g")) {
+            controller(runtime).submit("s", "start", emptyList(), PromptQueue.NEXT_RUN)
+            controller(runtime).submit("s", "next", emptyList(), PromptQueue.NEXT_RUN)
+        }
+        val queued = runtime.enqueued.single().second
+        val payload = kotlinx.serialization.json.Json.encodeToString(PendingMessage.serializer(), queued)
+        val restored = kotlinx.serialization.json.Json.decodeFromString(PendingMessage.serializer(), payload)
+        assertEquals("work", restored.groupWorkId)
+        assertEquals("g", restored.groupId)
+        controller(runtime).submit("s", "new user task", emptyList(), PromptQueue.NEXT_RUN)
+        assertNull(runtime.recorded.last().groupWorkId)
+        assertNull(runtime.recorded.last().groupId)
+    }
+
     @Test fun emptyInputAndBlankSessionProduceNoSideEffects() = runBlocking {
         val runtime = Runtime(); val controller = controller(runtime)
         assertEquals(Rejected(Rejection.EMPTY_INPUT), controller.submit("s", "  ", emptyList(), PromptQueue.NEXT_RUN))

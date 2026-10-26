@@ -1,5 +1,6 @@
 package top.wkbin.taixu.core.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -17,6 +18,9 @@ data class BotMemberGroupEntity(
     @PrimaryKey val id: String,
     val name: String,
     val createdAt: Long,
+    @ColumnInfo(defaultValue = "NULL") val definitionJson: String? = null,
+    @ColumnInfo(defaultValue = "0") val publishedVersion: Int = 0,
+    @ColumnInfo(defaultValue = "0") val draftRevision: Int = 0,
 )
 
 @Entity(
@@ -46,7 +50,7 @@ data class BotMemberGroupMemberEntity(
 )
 
 @Dao
-interface BotMemberGroupDao {
+interface BotMemberGroupDao : TeamDefinitionDao {
     @Query("SELECT * FROM bot_member_groups ORDER BY createdAt ASC")
     fun observeGroups(): Flow<List<BotMemberGroupEntity>>
 
@@ -60,7 +64,12 @@ interface BotMemberGroupDao {
     suspend fun upsertGroup(group: BotMemberGroupEntity)
 
     @Query("DELETE FROM bot_member_groups WHERE id = :id")
-    suspend fun deleteById(id: String)
+    suspend fun deleteRecord(id: String)
+
+    @Transaction suspend fun deleteById(id: String) {
+        require(linkedChats(id).isEmpty()) { "团队组仍被群聊引用，请先更换群聊引用或删除群聊" }
+        deleteRecord(id)
+    }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addMember(member: BotMemberGroupMemberEntity)
@@ -70,8 +79,6 @@ interface BotMemberGroupDao {
 
     @Transaction
     suspend fun saveWithMembers(group: BotMemberGroupEntity, members: List<BotMemberGroupMemberEntity>) {
-        upsertGroup(group)
-        deleteMembers(group.id)
-        members.forEach { addMember(it) }
+        saveDefinition(group, members)
     }
 }

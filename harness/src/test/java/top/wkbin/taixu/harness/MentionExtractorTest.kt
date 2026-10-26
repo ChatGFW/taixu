@@ -112,4 +112,46 @@ class MentionExtractorTest {
             MentionExtractor.parse("@git-workflow 提交", listOf("/git-workflow")),
         )
     }
+
+    // ---- 代码段 / URL 路径 / 全体保留字 ----
+
+    @Test
+    fun `mention inside fenced code block is ignored`() {
+        // Bot 回复常贴出含 @ 的命令原文；围栏块内不是提及，不得触发群聊接力。
+        val text = """
+            看下这段：
+            ```
+            git blame user@host.com
+            再喊 @张三 来看
+            ```
+            结论是 @李四 负责修。
+        """.trimIndent()
+        assertEquals(setOf("李四"), MentionExtractor.parse(text, listOf("张三", "李四")))
+    }
+
+    @Test
+    fun `mention inside inline code is ignored`() {
+        assertEquals(
+            emptySet<String>(),
+            MentionExtractor.parse("运行 `@deploy --dry-run` 试试", listOf("deploy")),
+        )
+    }
+
+    @Test
+    fun `url path at sign is not a mention`() {
+        assertEquals(emptySet<String>(), MentionExtractor.parse("看 https://weibo.com/@张三 的主页"))
+    }
+
+    @Test
+    fun `all keyword is detected case-insensitively`() {
+        assertTrue(MentionExtractor.containsAllKeyword("@ALL 都到齐了吗"))
+        assertTrue(MentionExtractor.containsAllKeyword("@所有人 看一下"))
+        assertTrue(MentionExtractor.containsAllKeyword("请 @大家 评审"))
+        assertTrue(!MentionExtractor.containsAllKeyword("@张三 所有人都到了"))
+    }
+
+    @Test
+    fun `all keyword inside code block is not detected`() {
+        assertTrue(!MentionExtractor.containsAllKeyword("示例：`@everyone` 只是个例子"))
+    }
 }

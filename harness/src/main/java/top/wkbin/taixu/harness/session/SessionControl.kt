@@ -14,6 +14,7 @@ interface SessionControl {
     val sessionStatuses: StateFlow<Map<String, String>>
     /** Host-observed model output, including incomplete tool arguments; not status text or SSE heartbeats. */
     val modelOutputRevisions: StateFlow<Map<String, Long>> get() = NO_MODEL_OUTPUT
+    val providerActivities: StateFlow<Map<String, ProviderActivity>> get() = NO_PROVIDER_ACTIVITY
     fun messagesForSession(sessionId: String): StateFlow<List<HarnessMessage>>
     suspend fun prepareRemoteSession(sessionId: String): List<HarnessMessage>
     /** Read-only durable history; propagates storage failure instead of returning a fallback. */
@@ -38,6 +39,7 @@ interface SessionControl {
 }
 
 private val NO_MODEL_OUTPUT = MutableStateFlow<Map<String, Long>>(emptyMap()).asStateFlow()
+private val NO_PROVIDER_ACTIVITY = MutableStateFlow<Map<String, ProviderActivity>>(emptyMap()).asStateFlow()
 
 sealed interface PromptSubmission {
     data class Accepted(

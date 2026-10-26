@@ -129,8 +129,24 @@ internal fun OfficeReportLinksLayer(
     originX: Int,
     originY: Int,
     scale: Float,
+    motionEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
+    val slot = if (motionEnabled) rememberOfficeLinksSlot() else 0
+    val now = if (motionEnabled) remember(slot) { System.currentTimeMillis() } else System.currentTimeMillis()
+    Canvas(modifier.testTag("office-report-links")) {
+        val byId = actors.associateBy { it.botId }
+        links.forEach { link ->
+            val from = byId[link.fromBotId] ?: return@forEach
+            val to = byId[link.toBotId] ?: return@forEach
+            if (link.fromBotId == link.toBotId) return@forEach
+            drawReportLink(link, from, to, now, originX, originY, scale, walkingTaskIds, frozen = !motionEnabled)
+        }
+    }
+}
+
+@Composable
+private fun rememberOfficeLinksSlot(): Int {
     val transition = rememberInfiniteTransition(label = "office-links")
     val tick = transition.animateFloat(
         initialValue = 0f,
@@ -139,16 +155,7 @@ internal fun OfficeReportLinksLayer(
         label = "office-links-tick",
     )
     val slot by remember { derivedStateOf { tick.value.toInt().coerceIn(0, 63) } }
-    val now = remember(slot) { System.currentTimeMillis() }
-    Canvas(modifier.testTag("office-report-links")) {
-        val byId = actors.associateBy { it.botId }
-        links.forEach { link ->
-            val from = byId[link.fromBotId] ?: return@forEach
-            val to = byId[link.toBotId] ?: return@forEach
-            if (link.fromBotId == link.toBotId) return@forEach
-            drawReportLink(link, from, to, now, originX, originY, scale, walkingTaskIds)
-        }
-    }
+    return slot
 }
 
 private fun DrawScope.drawReportLink(
@@ -160,6 +167,7 @@ private fun DrawScope.drawReportLink(
     originY: Int,
     scale: Float,
     walkingTaskIds: Set<String>,
+    frozen: Boolean,
 ) {
     val sx = originX + from.x * scale
     val sy = originY + (from.y - 14f) * scale
@@ -168,7 +176,7 @@ private fun DrawScope.drawReportLink(
     val ctrlX = (sx + tx) / 2f
     val ctrlY = min(sy, ty) - 18f * scale
     val age = link.completedAt?.let { now - it } ?: 0L
-    if (!link.active && (age < 0L || age > 8_000L)) return
+    if (!link.active && (frozen || age < 0L || age > 8_000L)) return
     val accent = when {
         link.failed -> Color(0xFFE85D4C)
         link.dependency -> Color(0xFFC9A6E8)
@@ -192,14 +200,14 @@ private fun DrawScope.drawReportLink(
     for (i in 1 until 18) {
         val t = i / 18f
         val point = quadratic(sx, sy, ctrlX, ctrlY, tx, ty, t)
-        val pulse = 0.72f + 0.28f * ((sin(now / 520.0 + i * 0.6).toFloat() + 1f) / 2f)
+        val pulse = if (frozen) 1f else 0.72f + 0.28f * ((sin(now / 520.0 + i * 0.6).toFloat() + 1f) / 2f)
         drawRect(
             accent.copy(alpha = 0.62f * fade * pulse),
             Offset(point.x - dot / 2f, point.y - dot / 2f),
             Size(dot, dot),
         )
     }
-    if (link.active) {
+    if (link.active && !frozen) {
         val phase = (((now / 1500.0 + (link.taskId.hashCode() and 255) / 255.0) % 1.0) + 1.0) % 1.0
         val point = quadratic(sx, sy, ctrlX, ctrlY, tx, ty, phase.toFloat())
         drawRect(

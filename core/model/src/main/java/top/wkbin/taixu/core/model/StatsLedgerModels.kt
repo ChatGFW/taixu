@@ -29,6 +29,7 @@ data class StatsLedger(
     val byModel: List<StatsLedgerGroupRow> = emptyList(),
     val byProvider: List<StatsLedgerGroupRow> = emptyList(),
     val bySession: List<StatsLedgerGroupRow> = emptyList(),
+    val byBot: List<StatsLedgerGroupRow> = emptyList(),
     val recentCalls: List<StatsLedgerCallRow> = emptyList(),
     val trend: List<StatsTrendDay> = emptyList(),
 ) {
@@ -50,14 +51,18 @@ data class StatsLedger(
         StatsLedgerGroupDim.MODEL -> byModel
         StatsLedgerGroupDim.PROVIDER -> byProvider
         StatsLedgerGroupDim.SESSION -> bySession
+        StatsLedgerGroupDim.BOT -> byBot
     }
 }
 
-/** 作用域维度：数字"属于谁"。工具维度**故意不做**——账本没落工具名，无法归属。 */
-enum class StatsLedgerScopeDim { ALL, MODEL, PROVIDER, SESSION }
+/**
+ * 作用域维度：数字"属于谁"。工具维度**故意不做**——账本没落工具名，无法归属。
+ * Bot 维度经 sessionId→botId 三路映射（私聊/群维度/独立任务会话）聚合。
+ */
+enum class StatsLedgerScopeDim { ALL, MODEL, PROVIDER, SESSION, BOT }
 
 /** 分组方式：同一批数字"怎么拆"。与作用域正交。 */
-enum class StatsLedgerGroupDim { MODEL, PROVIDER, SESSION }
+enum class StatsLedgerGroupDim { MODEL, PROVIDER, SESSION, BOT }
 
 /** 某一分组维度下的一行。 */
 data class StatsLedgerGroupRow(
@@ -82,6 +87,7 @@ data class StatsLedgerScopeOptions(
     val models: List<StatsLedgerScopeOption> = emptyList(),
     val providers: List<StatsLedgerScopeOption> = emptyList(),
     val sessions: List<StatsLedgerScopeOption> = emptyList(),
+    val bots: List<StatsLedgerScopeOption> = emptyList(),
 )
 
 /** 账本逐次调用的明细行。 */

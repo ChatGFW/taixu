@@ -1,6 +1,7 @@
 package top.wkbin.taixu.ui.settings.stats
 
 import top.wkbin.taixu.core.database.HarnessUsageEntity
+import top.wkbin.taixu.core.database.UsageLedgerBotRow
 import top.wkbin.taixu.core.database.UsageLedgerRow
 import top.wkbin.taixu.core.database.UsageLedgerSessionRow
 import top.wkbin.taixu.core.model.StatsLedger
@@ -26,14 +27,17 @@ import java.time.LocalDate
 internal fun assembleLedger(
     ledgerRows: List<UsageLedgerRow>,
     ledgerSessionRows: List<UsageLedgerSessionRow>,
+    ledgerBotRows: List<UsageLedgerBotRow> = emptyList(),
     recentRows: List<HarnessUsageEntity>,
     baseDayRows: List<UsageLedgerRow>,
     baseSessionRows: List<UsageLedgerSessionRow>,
+    baseBotRows: List<UsageLedgerBotRow> = emptyList(),
     trendStart: LocalDate,
     trendEnd: LocalDate,
     modelLabelOf: (String) -> String,
     providerLabelOf: (String, String) -> String,
     sessionLabelOf: (String) -> String,
+    botLabelOf: (String) -> String = { "Bot " + it.take(8) },
 ): StatsLedger {
     var ledgerCalls = 0
     var ledgerInput = 0L
@@ -45,6 +49,7 @@ internal fun assembleLedger(
     val modelBuckets = linkedMapOf<String, StatsLedgerGroupRow>()
     val providerBuckets = linkedMapOf<String, StatsLedgerGroupRow>()
     val sessionBuckets = linkedMapOf<String, StatsLedgerGroupRow>()
+    val botBuckets = linkedMapOf<String, StatsLedgerGroupRow>()
 
     fun mergeGroup(
         buckets: MutableMap<String, StatsLedgerGroupRow>,
@@ -111,6 +116,13 @@ internal fun assembleLedger(
             row.cacheReadTokens, row.cacheWriteTokens, row.calls)
     }
 
+    for (row in ledgerBotRows) {
+        mergeGroup(botBuckets, row.botId, botLabelOf(row.botId),
+            providerLabelOf(row.provider, row.modelId),
+            row.inputTokens, row.outputTokens, row.reasoningTokens,
+            row.cacheReadTokens, row.cacheWriteTokens, row.calls)
+    }
+
     val ledgerTrend = ledgerTrendBuckets.entries
         .sortedBy { it.key }
         .map { (date, map) -> StatsTrendDay(date = date, providerTokens = map) }
@@ -119,7 +131,8 @@ internal fun assembleLedger(
         StatsLedgerCallRow(
             id = row.id,
             createdAt = row.createdAt,
-            label = modelLabelOf(row.modelId.orEmpty()),
+            // 旁路问答（/btw）单独标注 kind，与普通轮次调用区分（DS Bot 用量页语义）。
+            label = modelLabelOf(row.modelId.orEmpty()) + (if (row.operationId == "btw") " · 旁路问答" else ""),
             provider = providerLabelOf(row.provider.orEmpty(), row.modelId.orEmpty()),
             inputTokens = row.inputTokens,
             outputTokens = row.outputTokens,
@@ -150,10 +163,14 @@ internal fun assembleLedger(
             sessions = baseSessionRows.groupBy { it.sessionId }.entries
                 .map { (id, rows) -> StatsLedgerScopeOption(id, sessionLabelOf(id)) to rows.sumOf { it.calls } }
                 .sortedByDescending { it.second }.map { it.first },
+            bots = baseBotRows.groupBy { it.botId }.entries
+                .map { (id, rows) -> StatsLedgerScopeOption(id, botLabelOf(id)) to rows.sumOf { it.calls } }
+                .sortedByDescending { it.second }.map { it.first },
         ),
         byModel = modelBuckets.values.sortedByDescending { it.totalTokens }.take(20),
         byProvider = providerBuckets.values.sortedByDescending { it.totalTokens }.take(20),
         bySession = sessionBuckets.values.sortedByDescending { it.totalTokens }.take(20),
+        byBot = botBuckets.values.sortedByDescending { it.totalTokens }.take(20),
         recentCalls = ledgerRecentCalls,
         trend = ledgerTrend,
     )

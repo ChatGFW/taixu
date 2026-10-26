@@ -147,7 +147,7 @@ internal class ChatApi(
                 var nonSseBody: String? = null
                 while (true) {
                     val line = source.readUtf8Line() ?: break
-                    observeStreamHeartbeat(line, firstEventState, firstEventWatchdog)
+                    observeStreamActivity(line, firstEventState, firstEventWatchdog)
                     if (!sawSseData && rawHead.length < ProviderClient.RESPONSE_HEAD_CAPTURE_CHARS) {
                         rawHead.append(line).append('\n')
                     }

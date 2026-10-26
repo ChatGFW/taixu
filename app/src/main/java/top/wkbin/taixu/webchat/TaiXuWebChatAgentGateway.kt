@@ -13,6 +13,7 @@ import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.database.AgentApprovalRepository
+import top.wkbin.taixu.core.database.MessageFeedbackService
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.SessionRunState
@@ -23,6 +24,7 @@ import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.SkillSuggestion
 import top.wkbin.taixu.harness.TaskDelivery
+import top.wkbin.taixu.harness.TurnChangesEvent
 import top.wkbin.taixu.harness.task.TaskDeliveryReport
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
@@ -44,6 +46,7 @@ class TaiXuWebChatAgentGateway(
     private val models: AiModelRepository,
     private val approvals: AgentApprovalRepository,
     private val tasks: AgentTaskRepository,
+    private val feedback: MessageFeedbackService? = null,
 ) : WebChatAgentGateway {
 
     override suspend fun createSession(title: String, workspace: String): String {
@@ -118,6 +121,12 @@ class TaiXuWebChatAgentGateway(
     }
 
     override fun cancel(sessionId: String) = harnessLoop.cancel(sessionId)
+
+    override suspend fun setMessageFeedback(sessionId: String, messageId: String, rating: String, note: String?) =
+        requireNotNull(feedback) { "反馈服务未初始化" }.set(sessionId, messageId, rating, note)
+
+    override suspend fun messageFeedbacks(sessionId: String) =
+        feedback?.listForSession(sessionId) ?: emptyList()
 
     private fun toWebApproval(request: AgentApprovalRequestEntity) = WebChatApproval(
         id = request.id,
@@ -239,6 +248,19 @@ class TaiXuWebChatAgentGateway(
                 put("toContextTokens", message.toContextTokens)
                 put("compacted", message.compacted)
                 put("foldedMessageCount", message.foldedMessageCount)
+            },
+            createAt = message.createdAt,
+        )
+        is TurnChangesEvent -> WebChatMessage(
+            id = message.id,
+            user = 0,
+            type = 2,
+            content = buildJsonObject {
+                put("type", "agent_tool_summary")
+                put("toolTitle", "本轮文件改动")
+                put("toolType", "turn_changes")
+                put("status", "success")
+                put("details", (message.created + message.modified + message.touched).joinToString("、"))
             },
             createAt = message.createdAt,
         )

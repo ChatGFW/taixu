@@ -3,6 +3,7 @@ package top.wkbin.taixu.runtime.webchat
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import top.wkbin.taixu.core.database.AgentMessageFeedbackEntity
 
 /** Runtime-facing boundary for exposing TaiXu's native Harness to the LAN Web console. */
 interface WebChatAgentGateway {
@@ -15,6 +16,9 @@ interface WebChatAgentGateway {
     suspend fun send(sessionId: String, text: String, imageUrls: List<String>,
         mode: WebChatInputMode = WebChatInputMode.NEXT_RUN): WebChatInputReceipt
     suspend fun resolveApproval(sessionId: String, requestId: String, approved: Boolean): Boolean
+    /** 对单条 assistant 消息写入/覆盖用户反馈（目标校验失败抛 IllegalArgumentException）。 */
+    suspend fun setMessageFeedback(sessionId: String, messageId: String, rating: String, note: String?): AgentMessageFeedbackEntity
+    suspend fun messageFeedbacks(sessionId: String): List<AgentMessageFeedbackEntity>
     fun cancel(sessionId: String)
 }
 

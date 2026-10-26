@@ -39,14 +39,27 @@ internal fun MemberGroupsDialog(
     groups: List<BotMemberGroup>,
     bots: List<Bot>,
     onDismiss: () -> Unit,
-    onSave: (BotMemberGroup) -> Unit,
+    onSave: suspend (BotMemberGroup) -> Unit,
     onDelete: (BotMemberGroup) -> Unit,
+    initialGroupId: String? = null,
+    loadImpact: suspend (String) -> List<top.wkbin.taixu.core.model.bot.TeamUpgradeImpact> = { emptyList() },
+    loadVersions: suspend (String) -> List<top.wkbin.taixu.core.model.bot.TeamPublishedVersion> = { emptyList() },
+    onPublish: suspend (String, Int, Set<String>) -> Int = { _, _, _ -> error("发布不可用") },
+    onUpgrade: suspend (String, Int, Set<String>) -> Unit = { _, _, _ -> error("升级不可用") },
 ) {
-    var editing by remember { mutableStateOf<BotMemberGroup?>(null) }
-    var isNew by remember { mutableStateOf(false) }
+    var publicationId by rememberSaveable { mutableStateOf<String?>(null) }
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var creatingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var createdAt by rememberSaveable { mutableStateOf(0L) }
     var pendingDelete by remember { mutableStateOf<BotMemberGroup?>(null) }
 
-    val current = editing
+    var openedInitial by rememberSaveable(initialGroupId) { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(groups, initialGroupId) {
+        if (!openedInitial && initialGroupId != null) groups.firstOrNull { it.id == initialGroupId }?.let {
+            openedInitial = true; editingId = it.id
+        }
+    }
+    val current = groups.firstOrNull { it.id == editingId } ?: creatingId?.takeIf { it == editingId }?.let { BotMemberGroup(it, "", createdAt) }
     if (current == null) {
         RuntimeAlertDialog(
             onDismissRequest = onDismiss,
@@ -73,14 +86,17 @@ internal fun MemberGroupsDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    isNew = false
-                                    editing = group
+                                    creatingId = null
+                                    editingId = group.id
                                 }
                                 .padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(Modifier.weight(1f)) {
                                 Text(group.name, style = MaterialTheme.typography.bodyMedium)
+                                RuntimeTextButton(onClick = { publicationId = group.id }) {
+                                    Text("发布与升级 · " + if (group.publishedVersion == 0) "尚未发布" else "v${group.publishedVersion}")
+                                }
                                 Text(
                                     stringResource(R.string.fbot_member_group_member_count, group.memberIds.size),
                                     style = MaterialTheme.typography.labelSmall,
@@ -101,12 +117,9 @@ internal fun MemberGroupsDialog(
                     }
                     RuntimeFilledTonalButton(
                         onClick = {
-                            isNew = true
-                            editing = BotMemberGroup(
-                                id = UUID.randomUUID().toString(),
-                                name = "",
-                                createdAt = System.currentTimeMillis(),
-                            )
+                            createdAt = System.currentTimeMillis()
+                            creatingId = UUID.randomUUID().toString()
+                            editingId = creatingId
                         },
                     ) {
                         Text(stringResource(R.string.fbot_member_group_new))
@@ -118,16 +131,18 @@ internal fun MemberGroupsDialog(
             },
         )
     } else {
-        MemberGroupEditorDialog(
+        TeamGroupEditorDialog(
             group = current,
             bots = bots,
-            isNew = isNew,
-            onDismiss = { editing = null },
+            onDismiss = { editingId = null; creatingId = null },
             onSave = { saved ->
-                editing = null
                 onSave(saved)
+                editingId = null; creatingId = null
             },
         )
+    }
+    groups.firstOrNull { it.id == publicationId }?.let { group ->
+        TeamPublicationDialog(group, { publicationId = null }, loadImpact, loadVersions, onPublish, onUpgrade)
     }
     pendingDelete?.let { group ->
         RuntimeAlertDialog(
@@ -147,69 +162,4 @@ internal fun MemberGroupsDialog(
             },
         )
     }
-}
-
-@Composable
-private fun MemberGroupEditorDialog(
-    group: BotMemberGroup,
-    bots: List<Bot>,
-    isNew: Boolean,
-    onDismiss: () -> Unit,
-    onSave: (BotMemberGroup) -> Unit,
-) {
-    var name by rememberSaveable(group.id) { mutableStateOf(group.name) }
-    var selected by remember(group.id) { mutableStateOf(group.memberIds.toSet()) }
-    RuntimeAlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                stringResource(
-                    if (isNew) R.string.fbot_member_group_new else R.string.fbot_member_group_edit,
-                ),
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it.take(40) },
-                    label = { Text(stringResource(R.string.fbot_member_group_name)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (bots.isEmpty()) {
-                    Text(
-                        stringResource(R.string.fbot_need_bots),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                } else {
-                    MemberSelection(
-                        bots = bots,
-                        selectedIds = selected,
-                        onSelectionChange = { selected = it },
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            RuntimeButton(
-                onClick = {
-                    onSave(
-                        group.copy(
-                            name = name.trim(),
-                            memberIds = bots.map { it.id }.filter { it in selected },
-                        ),
-                    )
-                },
-                enabled = name.isNotBlank(),
-            ) { Text(stringResource(R.string.fbot_save)) }
-        },
-        dismissButton = {
-            RuntimeTextButton(onClick = onDismiss) { Text(stringResource(R.string.fbot_cancel)) }
-        },
-    )
 }

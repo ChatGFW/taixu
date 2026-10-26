@@ -45,7 +45,7 @@ interface PersonaBotRepository {
     suspend fun deleteBot(id: String)
 }
 
-interface GroupChatRepository : GroupDeliveryRepository, GroupRoundRepository {
+interface GroupChatRepository : GroupDeliveryRepository, GroupRoundRepository, GroupGovernanceRepository {
     suspend fun getTeam(groupId: String): top.wkbin.taixu.core.model.bot.GroupTeam {
         val group = requireNotNull(getGroup(groupId)) { "群聊不存在" }
         return top.wkbin.taixu.core.model.bot.GroupTeam(group.adminBotId, getMembers(groupId).map { it.id }.toSet())
@@ -53,11 +53,18 @@ interface GroupChatRepository : GroupDeliveryRepository, GroupRoundRepository {
     fun observeTeam(groupId: String): Flow<top.wkbin.taixu.core.model.bot.GroupTeam> =
         observeMembers(groupId).map { getTeam(groupId) }
     suspend fun saveTeam(groupId: String, supervisors: Map<String, String>) { error("团队结构保存不可用") }
+    suspend fun saveIndependentTeam(team: top.wkbin.taixu.core.model.bot.BotMemberGroup) { error("团队组保存不可用") }
+    suspend fun attachTeam(groupId: String, teamId: String) { error("团队组引用不可用") }
+    suspend fun createReferencedGroup(group: GroupChat, teamId: String) { error("团队建群不可用") }
+    suspend fun installTeamTemplate(group: GroupChat, members: List<String>, supervisors: Map<String, String>,
+        policy: top.wkbin.taixu.core.model.bot.GroupGovernance, createNew: Boolean) { error("团队模板导入不可用") }
     fun observeGroups(): Flow<List<GroupChat>>
     fun observeGroupsForBot(botId: String): Flow<List<GroupChat>>
     suspend fun getGroup(id: String): GroupChat?
     suspend fun countGroupsAsAdmin(botId: String): Int
     suspend fun saveGroup(group: GroupChat)
+    /** 群管理员移交：新管理员必须是本群成员；团队组的管理员由团队定义，不能单独移交。 */
+    suspend fun transferAdmin(groupId: String, newAdminBotId: String)
     suspend fun deleteGroup(id: String)
     fun observeMembers(groupId: String): Flow<List<Bot>>
     suspend fun getMembers(groupId: String): List<Bot>
@@ -143,12 +150,27 @@ class RoomGroupChatRepository(
     private val dao: GroupChatDao,
     private val json: Json,
 ) : GroupChatRepository, GroupDeliveryRepository by RoomGroupDeliveryRepository(dao, json),
-    GroupRoundRepository by RoomGroupRoundRepository(dao, json) {
+    GroupRoundRepository by RoomGroupRoundRepository(dao, json),
+    GroupGovernanceRepository by RoomGroupGovernanceRepository(dao) {
+    override suspend fun installTeamTemplate(group: GroupChat, members: List<String>, supervisors: Map<String, String>,
+        policy: top.wkbin.taixu.core.model.bot.GroupGovernance, createNew: Boolean) = dao.installTeamTemplate(group.toEntity(), members, supervisors, policy, createNew)
+    override suspend fun saveIndependentTeam(team: top.wkbin.taixu.core.model.bot.BotMemberGroup) {
+        val definition = requireNotNull(team.definition) { "团队组缺少组织定义" }
+        definition.validate(team.memberIds)
+        dao.installIndependentDefinition(top.wkbin.taixu.core.database.BotMemberGroupEntity(team.id, team.name, team.createdAt,
+            json.encodeToString(definition)), team.memberIds.mapIndexed { index, id ->
+                top.wkbin.taixu.core.database.BotMemberGroupMemberEntity(team.id, id, index, System.currentTimeMillis())
+            })
+    }
+    override suspend fun attachTeam(groupId: String, teamId: String) = dao.syncDefinitionToChat(groupId, teamId)
+    override suspend fun createReferencedGroup(group: GroupChat, teamId: String) = dao.createReferencedGroup(group.toEntity(), teamId)
     private val reactionMutex = Mutex()
     override suspend fun getTeam(groupId: String): top.wkbin.taixu.core.model.bot.GroupTeam =
-        teamFromRows(requireNotNull(dao.teamAdmin(groupId)), dao.teamMembers(groupId))
+        dao.effectiveTeam(groupId)
     override fun observeTeam(groupId: String): Flow<top.wkbin.taixu.core.model.bot.GroupTeam> =
-        dao.observeTeamMembers(groupId).map { teamFromRows(dao.teamAdmin(groupId).orEmpty(), it) }
+        kotlinx.coroutines.flow.combine(dao.observeTeamMembers(groupId), dao.observeLinkedDefinition(groupId)) { _, _ ->
+            if (dao.teamAdmin(groupId) == null) top.wkbin.taixu.core.model.bot.GroupTeam("", emptySet()) else dao.effectiveTeam(groupId)
+        }
     override suspend fun saveTeam(groupId: String, supervisors: Map<String, String>) = dao.saveTeam(groupId, supervisors)
 
     override fun observeGroups(): Flow<List<GroupChat>> = dao.observeAll().map { rows -> rows.map { it.toModel() } }
@@ -160,7 +182,9 @@ class RoomGroupChatRepository(
 
     override suspend fun countGroupsAsAdmin(botId: String): Int = dao.countAsAdmin(botId)
 
-    override suspend fun saveGroup(group: GroupChat) = dao.upsertGroup(group.toEntity())
+    override suspend fun saveGroup(group: GroupChat) = dao.saveChatConfiguration(group.toEntity())
+
+    override suspend fun transferAdmin(groupId: String, newAdminBotId: String) = dao.transferAdmin(groupId, newAdminBotId)
 
     override suspend fun deleteGroup(id: String) = dao.deleteById(id)
 
@@ -284,6 +308,7 @@ private fun BotEntity.toModel() = Bot(
     colorHex = colorHex,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    capabilityServerNames = decodeCapabilityServers(capabilityServerNames),
 )
 
 private fun Bot.toEntity() = BotEntity(
@@ -301,26 +326,7 @@ private fun Bot.toEntity() = BotEntity(
     colorHex = colorHex,
     createdAt = createdAt,
     updatedAt = updatedAt,
-)
-
-private fun GroupChatEntity.toModel() = GroupChat(
-    id = id,
-    name = name,
-    adminBotId = adminBotId,
-    description = description,
-    createdAt = createdAt,
-    background = background, taskBudgetTokens = taskBudgetTokens,
-    replyMode = runCatching { GroupReplyMode.valueOf(replyMode) }.getOrDefault(GroupReplyMode.ADMIN_FIRST),
-)
-
-private fun GroupChat.toEntity() = GroupChatEntity(
-    id = id,
-    name = name,
-    adminBotId = adminBotId,
-    description = description,
-    createdAt = createdAt,
-    background = background, taskBudgetTokens = taskBudgetTokens,
-    replyMode = replyMode.name,
+    capabilityServerNames = encodeCapabilityServers(capabilityServerNames),
 )
 
 internal fun GroupMessageEntity.toModel(json: Json) = GroupMessage(

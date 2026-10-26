@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import top.wkbin.taixu.core.common.logging.AppLogger
@@ -43,16 +44,21 @@ internal class GroupRoundCoordinator(
     private val responder: GroupRoundResponder,
     private val scope: CoroutineScope,
     private val logger: AppLogger,
+    private val delegatedTargets: suspend (String, String?) -> Set<String> = { _, _ -> emptySet() },
 ) {
     private val groupLocks = ConcurrentHashMap<String, Mutex>()
     private val jobs = ConcurrentHashMap<String, MutableSet<Job>>()
     private val lateRounds = ConcurrentHashMap<String, Int>()
     private val cancelledGroups = ConcurrentHashMap.newKeySet<String>()
+
+    /** 接力达上限而暂停的群：后台迟到回报不再自动开轮，用户新消息后恢复。 */
+    private val relayPausedGroups = ConcurrentHashMap.newKeySet<String>()
     private val jobsGuard = Any()
 
     fun resetLateRounds(groupId: String) {
         lateRounds.remove(groupId)
         cancelledGroups.remove(groupId)
+        relayPausedGroups.remove(groupId)
     }
 
     fun newRound(
@@ -60,15 +66,17 @@ internal class GroupRoundCoordinator(
         responders: List<Bot>,
         trigger: String,
         imageUrls: List<String> = emptyList(),
+        rootWorkId: String? = null,
     ): GroupRound? {
         if (responders.isEmpty()) return null
         val now = System.currentTimeMillis()
+        val id = UUID.randomUUID().toString()
         return GroupRound(
-            id = UUID.randomUUID().toString(),
+            id = id,
             groupId = group.id,
             trigger = trigger,
             imageUrls = imageUrls,
-            slots = responders.map { GroupRoundSlot(it.id, it.name) },
+            slots = responders.map { GroupRoundSlot(it.id, it.name, rootWorkId = rootWorkId ?: id) },
             status = GroupRoundStatus.RUNNING,
             createdAt = now,
             updatedAt = now,
@@ -98,8 +106,8 @@ internal class GroupRoundCoordinator(
     }
 
     /** Late rounds have no user message; commit their row before starting them. */
-    suspend fun start(group: GroupChat, responders: List<Bot>, trigger: String, imageUrls: List<String> = emptyList()) {
-        val round = newRound(group, responders, trigger, imageUrls) ?: return
+    suspend fun start(group: GroupChat, responders: List<Bot>, trigger: String, imageUrls: List<String> = emptyList(), rootWorkId: String? = null) {
+        val round = newRound(group, responders, trigger, imageUrls, rootWorkId) ?: return
         groups.insertRound(round)
         launchPrepared(round)
     }
@@ -205,18 +213,20 @@ internal class GroupRoundCoordinator(
             val history = formatRoundHistory(group, messages, seen)
             val trigger = buildRoundTrigger(group, bot, slot, slots, index, round.trigger)
             val outcome = try {
-                queue.withLock(groupId, "${bot.id}:$groupId") {
-                    responder.respond(
-                        group,
-                        bot,
-                        trigger,
-                        history,
-                        members,
-                        round.imageUrls,
-                        slot.calledBy,
-                        onSubmitted = { groups.setSeenSeq(groupId, bot.id, seenSeq) },
-                    ) { text ->
-                        lateReply(groupId, slot, text)
+                withContext(GroupWorkContext(slot.rootWorkId ?: round.id, groupId)) {
+                    queue.withLock(groupId, "${bot.id}:$groupId") {
+                        responder.respond(
+                            group,
+                            bot,
+                            trigger,
+                            history,
+                            members,
+                            round.imageUrls,
+                            slot.calledBy,
+                            onSubmitted = { groups.setSeenSeq(groupId, bot.id, seenSeq) },
+                        ) { text ->
+                            lateReply(groupId, slot, text, slot.rootWorkId ?: round.id)
+                        }
                     }
                 }
             } catch (cancelled: CancellationException) {
@@ -232,21 +242,41 @@ internal class GroupRoundCoordinator(
                 outcome.failed -> slot.status = GroupSlotStatus.FAILED
                 else -> {
                     slot.status = GroupSlotStatus.POSTED
-                    appendRoundMentions(slots, index, outcome.text, members, turns, group)
+                    appendRoundMentions(slots, index, outcome.text, members, turns, group,
+                        delegatedTargets(groupId, outcome.nativeTaskId))
                 }
             }
             persist(round, slots)
             index += 1
         }
         var skipped = false
+        var relayOverflow = false
         for (remaining in index until slots.size) {
             if (slots[remaining].status == GroupSlotStatus.WAITING) {
                 slots[remaining].status = GroupSlotStatus.PASSED
                 skipped = true
+                if (slots[remaining].calledBy != null) relayOverflow = true
             }
         }
         if (skipped) persist(round, slots)
         finishRound(round, slots, GroupRoundStatus.DONE)
+        // 借鉴 DS Bot 的接力暂停制：@ 接力还在继续却撞到轮次总上限时，不硬截断后静默结束，
+        // 而是暂停群（迟到回报不再自动开轮）并留一行说明；用户发新消息即恢复（resetLateRounds）。
+        if (relayOverflow && groupId !in cancelledGroups && relayPausedGroups.add(groupId)) {
+            runCatching {
+                groups.postMessage(
+                    top.wkbin.taixu.core.model.bot.GroupMessage(
+                        id = UUID.randomUUID().toString(),
+                        groupId = groupId,
+                        senderId = "system",
+                        senderName = "系统通知",
+                        senderType = top.wkbin.taixu.core.model.bot.GroupSenderType.SYSTEM,
+                        content = "🛑 @ 接力已达轮次上限，群聊暂停；发送新消息即可继续。",
+                        timestamp = System.currentTimeMillis(),
+                    ),
+                )
+            }.onFailure { logger.w("[GroupRound] 接力暂停通知失败: ${it.message}") }
+        }
     }
 
     private suspend fun persist(round: GroupRound, slots: List<GroupRoundSlot>) {
@@ -267,8 +297,8 @@ internal class GroupRoundCoordinator(
         groups.finishRound(updated)
     }
 
-    private fun lateReply(groupId: String, slot: GroupRoundSlot, text: String) {
-        lateReplyRecovered(groupId, slot.botId, slot.name, slot.calledBy, text)
+    private fun lateReply(groupId: String, slot: GroupRoundSlot, text: String, rootWorkId: String) {
+        lateReplyRecovered(groupId, slot.botId, slot.name, slot.calledBy, text, rootWorkId)
     }
 
     fun lateReplyRecovered(
@@ -277,8 +307,10 @@ internal class GroupRoundCoordinator(
         workerName: String,
         callerBotId: String?,
         text: String,
+        rootWorkId: String? = null,
     ) {
         if (groupId in cancelledGroups) return
+        if (groupId in relayPausedGroups) return
         val callerId = callerBotId ?: return
         if (callerId == workerId) return
         val count = lateRounds.getOrDefault(groupId, 0)
@@ -291,6 +323,7 @@ internal class GroupRoundCoordinator(
                 group,
                 listOf(caller),
                 "【迟到回复】$workerName 完成了你交给它的工作：\n${text}",
+                rootWorkId = rootWorkId,
             )
         }
     }

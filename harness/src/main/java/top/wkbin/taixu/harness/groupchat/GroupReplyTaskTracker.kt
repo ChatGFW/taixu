@@ -19,7 +19,7 @@ internal class GroupReplyTaskTracker(
     private val runtime: HarnessRuntimeRepository,
     private val control: SessionControl,
 ) {
-    data class Snapshot(val status: String, val startedAt: Long?, val anchorId: String?) {
+    data class Snapshot(val status: String, val startedAt: Long?, val anchorId: String?, val operationId: String? = null) {
         val queued get() = status == AgentTaskStatus.QUEUED || status == AgentTaskStatus.RECOVERING
         val completed get() = status == AgentTaskStatus.COMPLETED
         val interrupted get() = status == AgentTaskStatus.CANCELLED || status == AgentTaskStatus.SUSPENDED
@@ -35,12 +35,16 @@ internal class GroupReplyTaskTracker(
         }
     }
 
-    fun observe(sessionId: String, taskId: String): Flow<Snapshot?> = tasks.observeTask(taskId).map { task ->
-        if (task == null) return@map null
+    fun observe(sessionId: String, taskId: String): Flow<Snapshot?> = tasks.observeTask(taskId).map { task -> project(sessionId, task) }
+
+    suspend fun snapshot(sessionId: String, taskId: String): Snapshot? = project(sessionId, tasks.find(taskId))
+
+    private suspend fun project(sessionId: String, task: top.wkbin.taixu.core.database.task.AgentTaskEntity?): Snapshot? {
+        if (task == null) return null
         check(task.sessionId == sessionId) { "群回复任务不属于当前会话" }
         val operation = task.operationId?.let { runtime.findOperation(it) }
         check(operation == null || operation.sessionId == sessionId) { "群回复运行归属不匹配" }
-        Snapshot(task.status, operation?.startedAt ?: task.startedAt, operation?.startLeafId)
+        return Snapshot(task.status, operation?.startedAt ?: task.startedAt, operation?.startLeafId, task.operationId)
     }
 
     suspend fun completed(sessionId: String, taskId: String): GroupReplyObserver.ReplyOutcome {
@@ -66,4 +70,6 @@ internal class GroupReplyTaskTracker(
         if (task.sessionId == sessionId && task.status in setOf(AgentTaskStatus.RUNNING, AgentTaskStatus.WAITING_APPROVAL) &&
             runtime.listActiveOperations(sessionId).any { it.id == task.operationId }) control.cancel(sessionId)
     }
+
+    suspend fun recordProgress(taskId: String, progress: String) = tasks.updateGroupProgress(taskId, progress)
 }

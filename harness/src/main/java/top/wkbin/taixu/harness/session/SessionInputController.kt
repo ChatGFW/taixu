@@ -50,8 +50,10 @@ internal class SessionInputController(
             val busy = runtime.busy(sessionId)
             val backlog = queue == PromptQueue.NEXT_RUN && runtime.hasNextRun(sessionId)
             currentCoroutineContext().ensureActive()
+            val work = currentCoroutineContext()[top.wkbin.taixu.harness.groupchat.GroupWorkContext]
             val pending = PendingMessage(trimmed, images, taskId =
-                if (!busy || queue == PromptQueue.NEXT_RUN) UUID.randomUUID().toString() else null)
+                if (!busy || queue == PromptQueue.NEXT_RUN) UUID.randomUUID().toString() else null,
+                groupWorkId = work?.workId, groupId = work?.groupId)
             if (pending.taskId != null) {
                 runtime.record(sessionId, pending)
                 currentCoroutineContext().ensureActive()

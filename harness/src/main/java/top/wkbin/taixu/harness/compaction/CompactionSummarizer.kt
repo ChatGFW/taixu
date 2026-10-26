@@ -5,6 +5,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.harness.SkillSuggestion
 import top.wkbin.taixu.harness.TaskDelivery
+import top.wkbin.taixu.harness.TurnChangesEvent
 import top.wkbin.taixu.harness.ApiMessage
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.CapabilityEvent
@@ -40,9 +41,7 @@ object ConversationText {
     const val MAX_SERIALIZED_CHARS = 240_000
 
     fun toolCallDetailsOf(messages: List<HarnessMessage>): Map<String, Pair<String, JsonObject>> =
-        messages.filterIsInstance<ToolCall>().associate {
-            it.id to ((it.rawToolName ?: HarnessApiMapper.apiName(it.tool)) to it.args)
-        }
+        messages.filterIsInstance<ToolCall>().associate { it.id to ((it.rawToolName ?: HarnessApiMapper.apiName(it.tool)) to it.args) }
 
     fun serialize(
         messages: List<HarnessMessage>,
@@ -55,7 +54,7 @@ object ConversationText {
         while (index < messages.size) {
             val message = messages[index]
             when (message) {
-                is CapabilityEvent, is ModelSwitchEvent, is SkillSuggestion, is TaskDelivery -> Unit
+                is CapabilityEvent, is ModelSwitchEvent, is SkillSuggestion, is TaskDelivery, is TurnChangesEvent -> Unit
                 is UserMessage -> lines += "[User]: ${message.text.trim()}"
                 is AssistantText -> {
                     message.reasoning?.takeIf { it.isNotBlank() }?.let {

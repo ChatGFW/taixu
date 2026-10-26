@@ -10,6 +10,8 @@ import top.wkbin.taixu.harness.bot.schedule.BotScheduleWakeup
 import io.ktor.client.HttpClient
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
+import top.wkbin.taixu.core.database.AgentApprovalAuditDao
+import top.wkbin.taixu.core.database.AgentMessageFeedbackDao
 import top.wkbin.taixu.core.database.AgentApprovalDao
 import top.wkbin.taixu.core.database.AgentContextDao
 import top.wkbin.taixu.core.database.AgentSkillDao
@@ -19,6 +21,7 @@ import top.wkbin.taixu.core.database.AndroidAppDao
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.BotAssignmentDao
 import top.wkbin.taixu.core.database.BotGroupSessionDao
+import top.wkbin.taixu.core.database.BtwQueryDao
 import top.wkbin.taixu.core.database.BotMemberGroupDao
 import top.wkbin.taixu.core.database.BotScheduleDao
 import top.wkbin.taixu.core.database.BotScheduleDeliveryDao
@@ -48,6 +51,8 @@ import top.wkbin.taixu.core.network.FileDownloader
 import top.wkbin.taixu.core.tools.DependencyManager
 import top.wkbin.taixu.core.tools.RuntimeManager
 import top.wkbin.taixu.core.tools.ToolRuntimeAdapter
+import top.wkbin.taixu.di.AppModule.provideAgentApprovalAuditDao
+import top.wkbin.taixu.di.AppModule.provideAgentMessageFeedbackDao
 import top.wkbin.taixu.di.AppModule.provideAgentApprovalDao
 import top.wkbin.taixu.di.AppModule.provideAgentContextDao
 import top.wkbin.taixu.di.AppModule.provideAgentForegroundLauncher
@@ -58,6 +63,7 @@ import top.wkbin.taixu.di.AppModule.provideAiModelDao
 import top.wkbin.taixu.di.AppModule.provideAndroidAppDao
 import top.wkbin.taixu.di.AppModule.provideBotAssignmentDao
 import top.wkbin.taixu.di.AppModule.provideBotGroupSessionDao
+import top.wkbin.taixu.di.AppModule.provideBtwQueryDao
 import top.wkbin.taixu.di.AppModule.provideBotScheduleDao
 import top.wkbin.taixu.di.AppModule.provideBuildScriptDao
 import top.wkbin.taixu.di.AppModule.provideGroupChatDao
@@ -162,6 +168,8 @@ val appModule = module {
 
     single<BotGroupSessionDao> { provideBotGroupSessionDao(database = get()) }
 
+    single<BtwQueryDao> { provideBtwQueryDao(database = get()) }
+
     single<RuntimeDao> { provideRuntimeDao(database = get()) }
 
     single<HarnessSessionDao> { provideHarnessSessionDao(database = get()) }
@@ -189,6 +197,10 @@ val appModule = module {
     single<ToolSettingsDao> { provideToolSettingsDao(database = get()) }
 
     single<AgentApprovalDao> { provideAgentApprovalDao(database = get()) }
+
+    single<AgentApprovalAuditDao> { provideAgentApprovalAuditDao(database = get()) }
+
+    single<AgentMessageFeedbackDao> { provideAgentMessageFeedbackDao(database = get()) }
 
     single<QuickPhraseDao> { provideQuickPhraseDao(database = get()) }
 
@@ -253,6 +265,7 @@ val appModule = module {
             models = get(),
             approvals = get(),
             tasks = get(),
+            feedback = get(),
         )
     }
 

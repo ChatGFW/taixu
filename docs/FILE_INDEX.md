@@ -78,6 +78,8 @@ P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.
 
 聊天与主导航：`feature/navigation/.../TaiXuNavHost.kt` 默认进入智枢，保留各主页面独立返回栈；`feature/chat/.../ChatNavigationDrawer.kt` 共用 Activity 级会话模型并整合会话与功能入口；`feature/components/.../AppNavigation.kt` 提供导航上下文和主入口列表。`ChatTopBar.kt` / `ChatWorkbenchControls.kt` 实现会话、模型、工作区与按需展开的控制；`ChatWelcome.kt` 提供项目感知的欢迎与预填任务示例。原底部导航组件仅保留组件本身，不在主页面渲染。
 
+旁路问答（/btw）：[`BtwService.kt`](../harness/src/main/java/top/wkbin/taixu/harness/btw/BtwService.kt) 快照转录+同构单次调用+用量落账；[`BtwChatController.kt`](../feature/chat/src/main/java/top/wkbin/taixu/ui/chat/BtwChatController.kt) 会话内状态与收割；[`BtwPanel.kt`](../feature/chat/src/main/java/top/wkbin/taixu/ui/chat/BtwPanel.kt) 用户可见卡片；[`BtwQueryEntity.kt`](../core/database/src/main/java/top/wkbin/taixu/core/database/BtwQueryEntity.kt) 记录表与仓储。上下文管家（压缩 vs 换段判定）：[`CompactionSteward.kt`](../harness/src/main/java/top/wkbin/taixu/harness/compaction/CompactionSteward.kt)。Bot 能力白名单端口：[`BotCapabilityScope.kt`](../harness/src/main/java/top/wkbin/taixu/harness/bot/BotCapabilityScope.kt)。让步总账：[`CONCESSIONS_LEDGER.md`](CONCESSIONS_LEDGER.md)。
+
 窗口三态适配：`feature/components/.../RuntimeWindowSize.kt` 定义 `RuntimeWidthClass`（Compact/Medium/Expanded，600/840dp）、`LocalRuntimeWidthClass` 与共享动画规格，由 `MainActivity` 在页面缩放密度内注入；`RuntimeAdaptiveNavigationScaffold.kt` 按三态切换推拉抽屉 / Rail+浮层侧栏 / 停靠侧栏（可收起为 Rail），页面与侧栏以 movable content 迁移；`RuntimeNavigationRail.kt` 为中间态与展开态图标栏；`RuntimeAdaptiveContent.kt` 提供 `LocalRuntimePageWidth`、`runtimeContentPadding()`（宽屏内容最大 840dp 居中）与网格 `fullWidthItem`。`feature/chat/.../ChatAdaptiveLayout.kt` 负责智枢伴随面板：紧凑态浏览器整页、中间态右侧滑出、展开态可拖拽可收起双栏。
 
 ## 🗂️ 模型档案迁移

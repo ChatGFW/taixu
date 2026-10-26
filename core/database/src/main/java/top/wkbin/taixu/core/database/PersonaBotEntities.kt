@@ -34,29 +34,8 @@ data class BotEntity(
     val updatedAt: Long,
     val modelVariant: String? = null,
     @ColumnInfo(defaultValue = "0") val allowModelSelection: Boolean = false,
-)
-
-@Entity(
-    tableName = "group_chats",
-    foreignKeys = [
-        ForeignKey(
-            entity = BotEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["adminBotId"],
-            onDelete = ForeignKey.RESTRICT,
-        ),
-    ],
-    indices = [Index(value = ["adminBotId"])],
-)
-data class GroupChatEntity(
-    @PrimaryKey val id: String,
-    val name: String,
-    val adminBotId: String,
-    val description: String,
-    val createdAt: Long,
-    val background: String = "default",
-    @ColumnInfo(defaultValue = "'ADMIN_FIRST'") val replyMode: String = "ADMIN_FIRST",
-    @ColumnInfo(defaultValue = "0") val taskBudgetTokens: Long = 0,
+    /** Bot 级 MCP 能力白名单（JSON 字符串数组）；null = 不限制。 */
+    @ColumnInfo(defaultValue = "NULL") val capabilityServerNames: String? = null,
 )
 
 @Entity(
@@ -208,7 +187,7 @@ interface PersonaBotDao {
 }
 
 @Dao
-interface GroupChatDao : GroupDeliveryDao, GroupTeamDao {
+interface GroupChatDao : GroupDeliveryDao, GroupTemplateDao {
     @Query("SELECT * FROM group_chats ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<GroupChatEntity>>
 
@@ -243,13 +222,19 @@ interface GroupChatDao : GroupDeliveryDao, GroupTeamDao {
     suspend fun getMembers(groupId: String): List<BotEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun addMember(member: GroupMemberEntity)
+    suspend fun insertChatMember(member: GroupMemberEntity)
+
+    @Transaction suspend fun addMember(member: GroupMemberEntity) {
+        require(linkedTeamId(member.groupId) == null) { "成员请在团队组中修改" }
+        insertChatMember(member)
+    }
 
     @Query("DELETE FROM group_members WHERE groupId = :groupId AND botId = :botId")
     suspend fun deleteMember(groupId: String, botId: String)
 
     @Transaction
     suspend fun removeMember(groupId: String, botId: String) {
+        require(linkedTeamId(groupId) == null) { "团队成员请在团队组中修改" }
         require(teamAdmin(groupId) != botId) { "不能移出群主控" }
         cancelGroupDeliveries(groupId, botId)
         detachReports(groupId, botId); deleteMember(groupId, botId)

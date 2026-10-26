@@ -21,7 +21,7 @@ val featureBotModule = module {
             memberGroupRepository = get<BotMemberGroupRepository>(),
             scheduleRepository = get<BotScheduleRepository>(),
             orchestrator = get(),
-            marketRepository = get(),
+            marketRepository = get(), teamImporter = get(),
             packageService = get(),
             models = get(),
             wakeup = getOrNull<BotScheduleWakeup>(),
@@ -38,6 +38,7 @@ val featureBotModule = module {
             models = get(),
             packageService = get(),
             wakeup = getOrNull<BotScheduleWakeup>(),
+            mcpServerRepository = getOrNull(),
         )
     }
     viewModel<GroupChatViewModel> {
@@ -52,7 +53,7 @@ val featureBotModule = module {
             sessionControl = get(),
             assignments = get(), assignmentRuntime = get(),
             orchestrator = get(),
-            scheduleRepository = get<BotScheduleRepository>(), budgets = get(),
+            scheduleRepository = get<BotScheduleRepository>(), budgets = get(), memberGroups = get(),
         )
     }
 }

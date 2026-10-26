@@ -3,13 +3,16 @@ package top.wkbin.taixu.core.datastore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import java.io.File
 import kotlinx.coroutines.*
+import top.wkbin.taixu.core.datastore.RequiresAtomicRenameOverwrite
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
+
 class PluginPreferencesTest {
     @get:Rule val temporary = TemporaryFolder()
+    @get:Rule val renameGuard = RequiresAtomicRenameOverwrite()
 
     @Test fun selectionSurvivesStoreRecreationAndOnlyChangesRequestedIdentity() = runBlocking {
         val file = File(temporary.root, "plugins.preferences_pb")

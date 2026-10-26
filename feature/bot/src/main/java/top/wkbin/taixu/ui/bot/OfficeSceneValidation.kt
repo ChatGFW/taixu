@@ -6,16 +6,101 @@ internal fun requireValidOfficeScene(scene: OfficeSceneSpec) {
         require(ids.all { it.isNotBlank() } && ids.distinct().size == ids.size) { "Duplicate or blank $kind ID" }
     }
     fun inside(x: Int, y: Int) = x in 0 until PixelOfficeRoom.WIDTH && y in 0 until PixelOfficeRoom.HEIGHT
-    unique(scene.desks.map { it.id } + scene.cats.map { it.id } + scene.coffeeMachines.map { it.id }, "furniture")
+    fun boundsInside(label: String, bounds: OfficeBounds) {
+        require(bounds.width > 0 && bounds.height > 0) { "$label has empty bounds" }
+        require(
+            inside(bounds.x, bounds.y) && inside(bounds.right - 1, bounds.bottom - 1),
+        ) { "$label is outside the room" }
+    }
+    fun requireFloor(label: String, x: Int, y: Int) {
+        val roomFloor = scene.floorAtRoomY(y)
+        require(roomFloor != null) { "$label at ($x,$y) is outside every floor" }
+        val sceneFloor = scene.floorAtSceneY(PixelOfficeScene.y(y.toFloat()).toInt())
+        require(sceneFloor?.id == roomFloor.id) {
+            "$label at ($x,$y) changes floor after walkway compaction"
+        }
+    }
+    fun requireUnblocked(label: String, x: Int, y: Int) {
+        require(scene.furniture.none { it.blocksWalking && it.bounds.contains(x, y) }) {
+            "$label at ($x,$y) overlaps fixed furniture"
+        }
+    }
+    unique(
+        scene.desks.map { it.id } + scene.cats.map { it.id } + scene.coffeeMachines.map { it.id } +
+            scene.furniture.map { it.id },
+        "furniture",
+    )
     unique(scene.allSeats.map { it.id }, "seat")
     require(scene.allSeats.map { it.x to it.y }.distinct().size == scene.allSeats.size) { "Seats overlap" }
     unique(scene.interactions.map { it.id }, "interaction")
     unique(scene.zones.map { it.id }, "zone")
+    unique(scene.floors.map { it.id }, "floor")
+    scene.floors.forEach { floor ->
+        require(floor.top < floor.bottom && floor.top >= 0 && floor.bottom <= PixelOfficeRoom.HEIGHT) {
+            "Floor ${floor.id} is invalid"
+        }
+    }
+    scene.floors.sortedBy { it.top }.zipWithNext().forEach { (first, second) ->
+        require(first.bottom <= second.top) { "Floors ${first.id} and ${second.id} overlap" }
+    }
+    scene.floors.forEach { floor ->
+        require(floor.sceneBottom() > floor.sceneTop()) {
+            "Floor ${floor.id} collapses after walkway compaction"
+        }
+    }
+    scene.floors.sortedBy { it.top }.zipWithNext().forEach { (first, second) ->
+        require(first.sceneBottom() <= second.sceneTop()) {
+            "Floors ${first.id} and ${second.id} overlap after walkway compaction"
+        }
+    }
+    unique(scene.waypoints.map { it.id }, "waypoint")
+    scene.waypoints.forEach { waypoint ->
+        require(inside(waypoint.x, waypoint.y)) { "Waypoint ${waypoint.id} is outside the room" }
+        requireFloor("Waypoint ${waypoint.id}", waypoint.x, waypoint.y)
+        waypoint.links.forEach { link ->
+            require(link != waypoint.id) { "Waypoint ${waypoint.id} links to itself" }
+            require(scene.waypoints.any { it.id == link }) { "Waypoint ${waypoint.id} links to missing $link" }
+        }
+    }
+    if (scene.waypoints.isNotEmpty()) {
+        val links = officeWaypointLinks(scene.waypoints)
+        val visited = mutableSetOf<String>()
+        val queue = ArrayDeque<String>()
+        queue.add(scene.waypoints.first().id)
+        visited += scene.waypoints.first().id
+        while (queue.isNotEmpty()) {
+            links[queue.removeFirst()].orEmpty().forEach { link ->
+                if (visited.add(link)) queue.add(link)
+            }
+        }
+        require(visited.size == scene.waypoints.size) { "Waypoint graph is disconnected" }
+    }
+    scene.furniture.forEach { boundsInside("Furniture ${it.id}", it.bounds) }
+    boundsInside("Task board", scene.boards.task.bounds)
+    boundsInside("Objective board", scene.boards.objective.bounds)
+    boundsInside("Water cooler", scene.ambient.waterCooler)
+    boundsInside("Meeting screen", scene.ambient.meetingScreen)
+    boundsInside("Server rack", scene.ambient.serverRack)
+    boundsInside("Window", scene.ambient.window)
+    require(inside(scene.ambient.clock.x, scene.ambient.clock.y)) { "Clock is outside the room" }
+    scene.ambient.lamps.forEach { lamp ->
+        require(inside(lamp.anchor.x, lamp.anchor.y)) { "Lamp anchor is outside the room" }
+    }
+    scene.ambient.windowLights.forEach { light ->
+        require(scene.ambient.window.contains(scene.ambient.window.x + light.dx, scene.ambient.window.y + light.dy)) {
+            "Window light is outside the window"
+        }
+    }
     scene.allSeats.forEach { seat ->
         require(inside(seat.x, seat.y)) { "Seat ${seat.id} is outside the room" }
+        requireFloor("Seat ${seat.id}", seat.x, seat.y)
         require(seat.pose in seat.poses) { "Seat ${seat.id} does not support its default pose" }
         seat.roamOffset?.let {
-            require(inside(seat.x + it.x, seat.y + it.y)) { "Seat ${seat.id} roams outside the room" }
+            val roamX = seat.x + it.x
+            val roamY = seat.y + it.y
+            require(inside(roamX, roamY)) { "Seat ${seat.id} roams outside the room" }
+            requireFloor("Seat ${seat.id} roam", roamX, roamY)
+            requireUnblocked("Seat ${seat.id} roam", roamX, roamY)
         }
     }
     scene.desks.forEach {
@@ -48,6 +133,11 @@ internal fun requireValidOfficeScene(scene: OfficeSceneSpec) {
         require(rows.isNotEmpty() && columns > 0 && spacingX > 0 && cycleOffsetY >= 0) { "Invalid overflow geometry" }
         require(rows.all { inside(startX, it) && inside(startX + (columns - 1) * spacingX, it) }) {
             "Overflow row is outside the room"
+        }
+        repeat(rows.size * columns) { index ->
+            val anchor = anchor(index)
+            requireFloor("Overflow anchor $index", anchor.x, anchor.y)
+            requireUnblocked("Overflow anchor $index", anchor.x, anchor.y)
         }
     }
 }

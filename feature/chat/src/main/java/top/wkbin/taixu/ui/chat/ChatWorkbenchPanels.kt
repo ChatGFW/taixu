@@ -65,6 +65,7 @@ import top.wkbin.taixu.harness.QueuedPrompt
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.CapabilityEvent
 import top.wkbin.taixu.harness.ModelSwitchEvent
+import top.wkbin.taixu.harness.TurnChangesEvent
 import top.wkbin.taixu.harness.SkillSuggestion
 import top.wkbin.taixu.harness.TaskDelivery
 import top.wkbin.taixu.harness.HarnessMessage
@@ -458,8 +459,7 @@ internal fun SubagentResultSheet(
 
                 if (processExpanded) {
                     items(
-                        items = state.messages.filter { it !is ToolResult && it.id != finalResult?.id },
-                        key = { it.id },
+                        items = state.messages.filter { it !is ToolResult && it.id != finalResult?.id }, key = { it.id },
                     ) { message ->
                         when (message) {
                             is UserMessage -> Unit
@@ -474,7 +474,7 @@ internal fun SubagentResultSheet(
                                 running = branch.isBusy,
                                 liveStatus = null,
                             )
-                            is CapabilityEvent -> Unit
+                            is CapabilityEvent, is TurnChangesEvent -> Unit
                             is SkillSuggestion, is TaskDelivery -> Unit
                             is ModelSwitchEvent -> Unit
                             is ToolResult -> Unit

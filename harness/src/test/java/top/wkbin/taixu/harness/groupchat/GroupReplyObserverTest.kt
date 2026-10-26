@@ -32,6 +32,73 @@ class GroupReplyObserverTest {
     private val log = AppLogger(ApplicationProvider.getApplicationContext()) { it }
     private val bot = Bot("bot", "name", "role", "persona", "seed", sessionId = "session", createdAt = 0, updatedAt = 0)
 
+    @Test fun `tool started during progress publication wins over stale execution deadline`() = runTest {
+        val control = FakeControl()
+        var now = 0L
+        var startedTool = false
+        val outcome = GroupReplyObserver(control, log) { now }.awaitReply("session", bot, emptySet(), 0,
+            executionPolicy = GroupExecutionPolicy(10, 20)) { progress ->
+            when {
+                progress.steps.any { it.success == null } -> {
+                    now += 1_000
+                    control.messages.value += ToolResult("built", now, "build", true, "built")
+                    control.messages.value += AssistantText("done", now, "done", totalMs = 1)
+                    control.sessionRunStates.value = mapOf("session" to SessionRunState.COMPLETED)
+                }
+                progress.executionWarning && !startedTool -> {
+                    startedTool = true
+                    control.messages.value += ToolCall("build", now, HarnessTool.BASE, JsonObject(emptyMap()))
+                }
+                else -> if (now == 0L) now = 20
+            }
+        }
+        assertTrue(startedTool)
+        assertEquals("done", outcome.candidate?.text)
+        assertFalse(outcome.noExecutionProgress)
+        assertTrue(control.cancelled.isEmpty())
+    }
+
+    @Test fun `reasoning and transport heartbeat do not extend an execution progress deadline`() = runTest {
+        val control = FakeControl()
+        val updates = mutableListOf<GroupReplyProgress>()
+        val result = async { GroupReplyObserver(control, log) { testScheduler.currentTime }
+            .awaitReply("session", bot, emptySet(), 0, executionPolicy = GroupExecutionPolicy(120, 300), onProgress = updates::add) }
+        runCurrent()
+        for (time in 1..29) {
+            advanceTimeBy(10)
+            control.messages.value = listOf(AssistantText("thought", 0, "", reasoning = "thinking $time"))
+            control.modelOutputRevisions.value = mapOf("session" to time.toLong())
+            control.providerActivities.value = mapOf("session" to top.wkbin.taixu.harness.session.ProviderActivity("op", 0, 1, lastTransportAt = time * 10L))
+            runCurrent()
+        }
+        assertTrue(updates.any { it.executionWarning })
+        assertFalse(result.isCompleted)
+        advanceTimeBy(10)
+        runCurrent()
+        assertTrue(result.await().noExecutionProgress)
+        assertEquals(listOf("session"), control.cancelled)
+    }
+
+    @Test fun `long tool gets its own deadline and completed tools restart progress time`() = runTest {
+        val control = FakeControl()
+        control.messages.value = listOf(ToolCall("build", 0, HarnessTool.BASE, JsonObject(emptyMap())))
+        val result = async { GroupReplyObserver(control, log) { testScheduler.currentTime }
+            .awaitReply("session", bot, emptySet(), 0, executionPolicy = GroupExecutionPolicy(120, 300)) {} }
+        runCurrent()
+        advanceTimeBy(5_000)
+        runCurrent()
+        assertFalse(result.isCompleted)
+        assertTrue(control.cancelled.isEmpty())
+        control.messages.value += ToolResult("built", 5_000, "build", true, "done")
+        runCurrent()
+        advanceTimeBy(299)
+        runCurrent()
+        assertFalse(result.isCompleted)
+        advanceTimeBy(1)
+        runCurrent()
+        assertTrue(result.await().noExecutionProgress)
+    }
+
     @Test fun `live group projection forwards chunks without materializing full strings`() = runTest {
         val control = FakeControl()
         val builder = top.wkbin.taixu.core.model.ChunkedText.Builder()
@@ -297,6 +364,7 @@ class GroupReplyObserverTest {
         override val sessionRunStates = MutableStateFlow(mapOf("session" to SessionRunState.RUNNING))
         override val sessionStatuses = MutableStateFlow<Map<String, String>>(emptyMap())
         override val modelOutputRevisions = MutableStateFlow<Map<String, Long>>(emptyMap())
+        override val providerActivities = MutableStateFlow<Map<String, top.wkbin.taixu.harness.session.ProviderActivity>>(emptyMap())
         val messages = MutableStateFlow<List<HarnessMessage>>(emptyList())
         val cancelled = mutableListOf<String?>()
         override fun messagesForSession(sessionId: String) = messages
