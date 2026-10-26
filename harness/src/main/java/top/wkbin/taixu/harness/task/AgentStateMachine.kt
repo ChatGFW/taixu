@@ -23,6 +23,8 @@ class AgentStateMachine(
         autoResume: Boolean = true,
         maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
         nowMs: Long = System.currentTimeMillis(),
+        groupWorkId: String? = null,
+        groupId: String? = null,
     ): AgentTaskEntity {
         require(sessionId.isNotBlank()) { "Durable task requires a session id" }
         require(description.isNotBlank()) { "Durable task requires a prompt" }
@@ -37,6 +39,7 @@ class AgentStateMachine(
             maxAttempts = maxAttempts.coerceIn(1, MAX_ATTEMPTS),
             autoResume = autoResume,
             statusDetail = "等待执行",
+            groupWorkId = groupWorkId, groupId = groupId,
         )
         repository.upsert(task)
         return task

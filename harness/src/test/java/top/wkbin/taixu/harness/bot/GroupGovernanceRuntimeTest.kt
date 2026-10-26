@@ -45,6 +45,9 @@ class GroupGovernanceRuntimeTest {
         groups.saveGovernance("g", GroupGovernance(listOf(GroupReviewRule("r", "Review", "author", "reviewer", "executor"))))
         sessions.upsert(HarnessSessionEntity("parent", "Root", 1, 1, null, workspace = "/workspace/project"))
         val guard = GroupGovernanceGuard(groups, bots, tasks)
+        val nativeTasks = top.wkbin.taixu.core.database.task.RoomAgentTaskRepository(db.agentTaskDao())
+        nativeTasks.upsert(top.wkbin.taixu.core.database.task.AgentTaskEntity("native-root", "parent", "Root", "draft",
+            "RUNNING", 1, 1, operationId = "root-operation", groupWorkId = "root-work", groupId = "g"))
         val executions = mutableListOf<String>()
         lateinit var engine: BotAssignmentRuntime
         engine = BotAssignmentRuntime(tasks, groups, bots, sessions, control, BotAssignmentTracker(tasks),
@@ -53,7 +56,7 @@ class GroupGovernanceRuntimeTest {
                 val accepted = control.submit(sessionId, request.instruction) as PromptSubmission.Accepted
                 admitted(accepted.taskId)
                 when (task.botId) {
-                    "author" -> groups.submitProposal("g", "author", "r", "p", if (request.instruction == "draft") 0 else 1, request.instruction)
+                    "author" -> groups.submitProposal("g", "author", "r", "p", if (request.instruction == "draft") 0 else 1, request.instruction, task.rootWorkId)
                     "reviewer" -> groups.decideProposal("g", "reviewer", "p", requireNotNull(task.proposalVersion),
                         if (task.proposalVersion == 1) ProposalDecision.REJECTED else ProposalDecision.APPROVED, "review evidence")
                     "executor" -> {
@@ -64,6 +67,7 @@ class GroupGovernanceRuntimeTest {
                         assertEquals(BotAssignmentStatus.COMPLETED, result.status)
                         assertEquals(2, child.proposalVersion)
                         assertEquals("p", child.proposalId)
+                        assertEquals("root-work", child.rootWorkId)
                     }
                     "worker" -> {
                         executions += "worker"
@@ -72,8 +76,9 @@ class GroupGovernanceRuntimeTest {
                 }
                 control.setState(sessionId, SessionRunState.COMPLETED)
                 GroupTurnOutcome("verified ${task.botId}", false)
-            }, AppLogger(context) { it }, scope)
-        val draft = engine.create("author", "g", "chief", "parent", "draft")
+            }, AppLogger(context) { it }, scope, nativeTasks = nativeTasks)
+        val draft = engine.create("author", "g", "chief", "parent", "draft", operationId = "root-operation")
+        assertEquals("root-work", draft.rootWorkId)
         assertEquals(BotAssignmentStatus.COMPLETED, withTimeout(10_000) { engine.awaitTask(draft.id) }.status)
         val review = engine.create("reviewer", "g", "chief", "parent", "review", proposalId = "p")
         assertEquals(BotAssignmentStatus.COMPLETED, withTimeout(10_000) { engine.awaitTask(review.id) }.status)
@@ -89,6 +94,11 @@ class GroupGovernanceRuntimeTest {
         assertEquals(listOf("executor", "worker"), executions)
         assertEquals(draft.sessionId, tasks.get(draft.id)!!.sessionId)
         assertEquals(2, execution.proposalVersion)
+        val repeated = engine.create("executor", "g", "author", "parent", "execute again", proposalId = "p")
+        assertEquals(execution.id, repeated.id)
+        assertEquals(execution.sessionId, repeated.sessionId)
+        assertEquals("chief", repeated.reportToBotId)
+        assertEquals(listOf("executor", "worker"), executions)
     }
 
     private class FakeControl : SessionControl {

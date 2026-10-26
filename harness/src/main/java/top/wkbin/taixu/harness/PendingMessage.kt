@@ -11,6 +11,8 @@ data class PendingMessage(
     val createdAt: Long = System.currentTimeMillis(),
     /** Durable task owning this queued prompt. Null keeps old queue payloads readable. */
     val taskId: String? = null,
+    val groupWorkId: String? = null,
+    val groupId: String? = null,
 )
 
 /** Durable prompt plus its delivery semantics, exposed for queue-aware UI. */

@@ -56,6 +56,22 @@ class GroupContextScopeTest {
     private suspend fun selected(bot: String, session: String, rows: List<GroupMessage>) =
         scope.select(groups.getGroup("g")!!, bot, session, rows).map { it.id }.toSet()
 
+    @Test fun `only current native operation dispatch receipts suppress relays and receipts survive a new scope instance`() = runBlocking {
+        seed()
+        val native = top.wkbin.taixu.core.database.task.RoomAgentTaskRepository(db.agentTaskDao())
+        native.upsert(top.wkbin.taixu.core.database.task.AgentTaskEntity("native", "group-session", "Root", "work", "COMPLETED", 1, 2,
+            operationId = "operation", groupWorkId = "work", groupId = "g"))
+        db.botAssignmentDao().recordDispatch(AssignmentDispatchReceipt("operation", "leader", "g", "lead", "native"))
+        val restored = GroupContextScope(groups, tasks, native)
+        assertEquals(setOf("lead"), restored.delegatedTargets("g", "native"))
+        assertTrue(restored.delegatedTargets("other-group", "native").isEmpty())
+        assertTrue(restored.delegatedTargets("g", "missing-native").isEmpty())
+        native.upsert(native.find("native")!!.copy(id = "discussion", operationId = "next-operation"))
+        assertTrue(restored.delegatedTargets("g", "discussion").isEmpty())
+        native.upsert(native.find("native")!!.copy(operationId = "recovered-operation"))
+        assertEquals(setOf("lead"), restored.delegatedTargets("g", "native"))
+    }
+
     @Test fun `task context keeps its own work and relevant corrections without importing parallel tasks`() = runBlocking {
         seed()
         val rows = listOf(

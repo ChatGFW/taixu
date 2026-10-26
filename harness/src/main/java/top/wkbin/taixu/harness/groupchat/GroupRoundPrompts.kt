@@ -13,6 +13,7 @@ internal fun appendRoundMentions(
     members: List<Bot>,
     turns: Map<String, Int>,
     group: GroupChat,
+    delegatedBotIds: Set<String> = emptySet(),
 ) {
     if (text.isBlank()) return
     val mentionedNames = MentionExtractor.parse(text, members.map { it.name })
@@ -33,12 +34,14 @@ internal fun appendRoundMentions(
     if (mentioned.isEmpty()) return
     var insertAt = currentIndex + 1
     for (member in mentioned) {
+        // Only automatic Bot relays are suppressed; existing user-addressed slots stay intact.
+        if (member.id in delegatedBotIds) continue
         if ((turns[member.id] ?: 0) >= capFor(member, group)) continue
         val waiting = slots.withIndex().firstOrNull { (at, slot) ->
             at > currentIndex && slot.botId == member.id && slot.status == GroupSlotStatus.WAITING
         }
         val slot = if (waiting == null) {
-            GroupRoundSlot(member.id, member.name)
+            GroupRoundSlot(member.id, member.name, rootWorkId = slots.getOrNull(currentIndex)?.rootWorkId)
         } else {
             slots.removeAt(waiting.index)
         }

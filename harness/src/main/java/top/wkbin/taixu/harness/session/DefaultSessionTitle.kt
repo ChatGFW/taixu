@@ -76,6 +76,7 @@ class QueuedInstructionRecorder(
             title = title,
             description = description,
             nowMs = pending.createdAt,
+            groupWorkId = pending.groupWorkId, groupId = pending.groupId,
         )
         titles.adopt(sessionId, title)
         log(sessionId, "DurableTaskQueued", "taskId=$taskId")

@@ -7,7 +7,8 @@ import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.bot.ProposalDecision
 
-internal fun groupReviewTools(bots: PersonaBotRepository, groups: GroupChatRepository): List<PluginTool> {
+internal fun groupReviewTools(bots: PersonaBotRepository, groups: GroupChatRepository,
+    runtime: (() -> top.wkbin.taixu.harness.bot.BotAssignmentRuntime)? = null): List<PluginTool> {
     val properties = mapOf(
         "group_id" to pluginStringProperty("来源群聊ID"),
         "rule_id" to pluginStringProperty("团队审议规则ID；从 inspect-governance 获取"),
@@ -39,7 +40,8 @@ internal fun groupReviewTools(bots: PersonaBotRepository, groups: GroupChatRepos
                     "submit-proposal" -> {
                         val version = requireNotNull(arg("version").toIntOrNull()) { "须提供准确版本号" }
                         val proposal = groups.submitProposal(group.id, caller.id, arg("rule_id"),
-                            arg("proposal_id").ifBlank { UUID.randomUUID().toString() }, version, arg("content"))
+                            arg("proposal_id").ifBlank { UUID.randomUUID().toString() }, version, arg("content"),
+                            runtime?.invoke()?.rootWorkId(request.sessionId, request.operationId, group.id))
                         "方案 ${proposal.id} · v${proposal.version} · ${proposal.decision}。用 assign-task(proposal_id=该ID) 请求指定成员审核；达上限时提交群主控裁决。"
                     }
                     "review-proposal" -> {

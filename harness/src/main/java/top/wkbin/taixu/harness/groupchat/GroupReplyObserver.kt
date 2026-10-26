@@ -22,6 +22,7 @@ internal data class GroupReplyProgress(
     val contentText: ChunkedText,
     val reasoning: String,
     val steps: List<GroupToolStep>,
+    val executionWarning: Boolean = false,
 ) {
     constructor(content: String, reasoning: String, steps: List<GroupToolStep>) :
         this(ChunkedText.of(content), reasoning, steps)
@@ -44,6 +45,7 @@ internal class GroupReplyObserver(
         val stalled: Boolean = false,
         val failed: Boolean = false,
         val interrupted: Boolean = false,
+        val noExecutionProgress: Boolean = false,
     )
 
     suspend fun awaitReply(
@@ -54,6 +56,7 @@ internal class GroupReplyObserver(
         baselineOutputRevision: Long = 0L,
         completionOnly: Boolean = false,
         taskId: String? = null,
+        executionPolicy: GroupExecutionPolicy? = null,
         onProgress: suspend (GroupReplyProgress) -> Unit,
     ): ReplyOutcome = coroutineScope {
         var latestWithText: AssistantText? = null
@@ -72,10 +75,12 @@ internal class GroupReplyObserver(
         var previousSteps = emptyList<GroupToolStep>()
         var outputRevision = baselineOutputRevision
         var taskStarted = false
+        var execution = executionPolicy?.let { GroupExecutionWatchdog(startedAt, it) }
+        var telemetry = GroupExecutionTelemetry(startedAt)
         val messageFlow = sessionControl.messagesForSession(sessionId)
         val taskFlow = if (taskId != null && taskTracker != null) taskTracker.observe(sessionId, taskId) else flowOf(null)
-        val events = combine(messageFlow, sessionControl.sessionRunStates, sessionControl.modelOutputRevisions, taskFlow) { messages, states, revisions, task ->
-            ReplySnapshot(messages, states[sessionId] ?: SessionRunState.IDLE, revisions[sessionId] ?: 0L, task)
+        val events = combine(messageFlow, sessionControl.sessionRunStates, sessionControl.modelOutputRevisions, taskFlow, sessionControl.providerActivities) { messages, states, revisions, task, activities ->
+            ReplySnapshot(messages, states[sessionId] ?: SessionRunState.IDLE, revisions[sessionId] ?: 0L, task, activities[sessionId])
         }.distinctUntilChanged().conflate().produceIn(this)
         try {
             var snapshot = events.receive()
@@ -99,12 +104,15 @@ internal class GroupReplyObserver(
                         previous = now
                         outputRevision = snapshot.revision
                         taskStarted = true
+                        execution = executionPolicy?.let { GroupExecutionWatchdog(began, it) }
+                        telemetry = GroupExecutionTelemetry(began)
                     }
                 }
                 val messages = task?.messages(snapshot.messages) ?: snapshot.messages
                 val state = task?.state ?: snapshot.state
                 val revision = snapshot.revision
                 if (revision > outputRevision) {
+                    telemetry.output(now)
                     receivedOutput = true
                     progressDeadline = now + FIRST_TOKEN_TIMEOUT_MS
                     outputRevision = revision
@@ -127,14 +135,24 @@ internal class GroupReplyObserver(
                 latestSteps = groupReplyToolSteps(messages, baseline, startedAt)
                 // Observe actual output, including reasoning beyond the bounded UI preview.
                 val output = candidates.map { it.textContent to it.reasoning }
+                val modelChanged = output != previousOutput && output.any { it.first.hasText || !it.second.isNullOrBlank() }
                 if ((output != previousOutput || latestSteps != previousSteps) &&
                     (output.any { it.first.hasText || !it.second.isNullOrBlank() } || latestSteps.isNotEmpty())) {
                     receivedOutput = true
                     progressDeadline = now + FIRST_TOKEN_TIMEOUT_MS
+                    if (modelChanged) telemetry.output(now)
                 }
                 previousOutput = output
                 previousSteps = latestSteps
-                val progress = GroupReplyProgress(latestWithText?.textContent ?: ChunkedText.EMPTY, reasoning, latestSteps)
+                execution?.update(now, latestSteps, state == SessionRunState.WAITING_APPROVAL)
+                val warn = execution?.shouldWarn(now) == true
+                if (warn) execution.markWarned()
+                execution?.let { watchdog ->
+                    if (taskId != null) telemetry.checkpoint(now, state, reasoning, latestSteps, watchdog,
+                        provider = snapshot.activity?.takeIf { task?.operationId == it.operationId })?.let { taskTracker?.recordProgress(taskId, it) }
+                }
+                val progress = GroupReplyProgress(latestWithText?.textContent ?: ChunkedText.EMPTY, reasoning, latestSteps,
+                    execution?.warned == true)
                 if (progress != lastProgress) {
                     onProgress(progress)
                     lastProgress = progress
@@ -151,6 +169,31 @@ internal class GroupReplyObserver(
                 if (settled) return@coroutineScope ReplyOutcome(latestWithText ?: latestCandidate,
                     steps = latestSteps, reasoning = reasoning, failed = state == SessionRunState.FAILED,
                     interrupted = state == SessionRunState.IDLE)
+                val toolRunning = latestSteps.any { it.success == null }
+                val expired = execution?.expired(now) == true || state != SessionRunState.WAITING_APPROVAL && (
+                    now >= deadline || !completionOnly && (
+                        !receivedOutput && now >= firstTokenDeadline ||
+                            receivedOutput && !toolRunning && now >= progressDeadline))
+                if (expired) {
+                    // Publishing progress suspends. Completion, approval or a newly started tool
+                    // must win over stale deadlines; fresh text/heartbeats cannot defer a stop.
+                    val freshTask = if (taskId != null && taskTracker != null) taskTracker.snapshot(sessionId, taskId) else null
+                    val freshMessages = messageFlow.value
+                    val freshState = sessionControl.sessionRunStates.value[sessionId] ?: SessionRunState.IDLE
+                    val freshSteps = groupReplyToolSteps(freshTask?.messages(freshMessages) ?: freshMessages, baseline, startedAt)
+                    if (freshTask != task || freshState != snapshot.state || freshSteps != latestSteps) {
+                        snapshot = ReplySnapshot(freshMessages, freshState,
+                            sessionControl.modelOutputRevisions.value[sessionId] ?: 0L, freshTask,
+                            sessionControl.providerActivities.value[sessionId])
+                        continue
+                    }
+                }
+                if (execution?.expired(now) == true) {
+                    logger.w("[GroupReplyObserver] Bot ${bot.name} 无有效执行进展，停止原轮次并回报负责人")
+                    cancel(sessionId, taskId)
+                    return@coroutineScope ReplyOutcome(latestWithText ?: latestCandidate, steps = latestSteps,
+                        reasoning = reasoning, noExecutionProgress = true)
+                }
                 if (state != SessionRunState.WAITING_APPROVAL && now >= deadline) {
                     cancel(sessionId, taskId)
                     return@coroutineScope ReplyOutcome(latestWithText ?: latestCandidate, steps = latestSteps, replyTimedOut = true, reasoning = reasoning)
@@ -160,7 +203,6 @@ internal class GroupReplyObserver(
                     cancel(sessionId, taskId)
                     return@coroutineScope ReplyOutcome(null, firstTokenTimedOut = true, steps = latestSteps, reasoning = reasoning)
                 }
-                val toolRunning = latestSteps.any { it.success == null }
                 if (!completionOnly && state != SessionRunState.WAITING_APPROVAL && receivedOutput && !toolRunning && now >= progressDeadline) {
                     logger.w("[GroupReplyObserver] Bot ${bot.name} 连续 ${FIRST_TOKEN_TIMEOUT_MS / 1000} 秒无新输出，已请求取消")
                     cancel(sessionId, taskId)
@@ -176,7 +218,7 @@ internal class GroupReplyObserver(
                     else -> deadline
                 }
                 // No polling: wait for model/state changes, with timers only for actual deadlines.
-                val next = withTimeoutOrNull((wakeAt - clock()).coerceAtLeast(1)) { events.receive() }
+                val next = withTimeoutOrNull((minOf(wakeAt, execution?.nextWakeAt() ?: Long.MAX_VALUE) - clock()).coerceAtLeast(1)) { events.receive() }
                 // A receive racing its timeout can discard an event; re-read the authoritative flows.
                 snapshot = next ?: snapshot.copy(messages = messageFlow.value,
                     state = sessionControl.sessionRunStates.value[sessionId] ?: SessionRunState.IDLE,
@@ -197,6 +239,7 @@ internal class GroupReplyObserver(
     private data class ReplySnapshot(
         val messages: List<HarnessMessage>, val state: SessionRunState, val revision: Long,
         val task: GroupReplyTaskTracker.Snapshot?,
+        val activity: top.wkbin.taixu.harness.session.ProviderActivity? = null,
     )
 
     private companion object {

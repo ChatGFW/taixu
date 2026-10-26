@@ -21,6 +21,25 @@ class GroupRoundPromptsTest {
     )
     private val group = GroupChat(id = "group", name = "Team", adminBotId = "bot1", createdAt = 1)
 
+    @Test fun `dispatch announcement does not relay to the same executor but discussion still can`() {
+        val planner = bot.copy(id = "planner", name = "Planner")
+        val slots = mutableListOf(GroupRoundSlot(bot.id, bot.name))
+        appendRoundMentions(slots, 0, "Assigned @Planner", listOf(bot, planner), emptyMap(), group, setOf(planner.id))
+        assertEquals(1, slots.size)
+        appendRoundMentions(slots, 0, "Please discuss @Planner", listOf(bot, planner), emptyMap(), group)
+        assertEquals(listOf(bot.id, planner.id), slots.map { it.botId })
+    }
+
+    @Test fun `dispatch announcement preserves an explicit user addressed waiting slot`() {
+        val planner = bot.copy(id = "planner", name = "Planner")
+        val userSlot = GroupRoundSlot(planner.id, planner.name, trigger = "user correction")
+        val slots = mutableListOf(GroupRoundSlot(bot.id, bot.name), userSlot)
+        appendRoundMentions(slots, 0, "Assigned @Planner", listOf(bot, planner), emptyMap(), group, setOf(planner.id))
+        assertEquals(2, slots.size)
+        assertEquals("user correction", slots[1].trigger)
+        assertEquals(null, slots[1].calledBy)
+    }
+
     @Test fun `short speaking order lists every member`() {
         val slots = (1..3).map { GroupRoundSlot("bot$it", "Bot$it") }
         assertEquals("Bot1 → Bot2 → Bot3", formatSpeakingOrder(slots))

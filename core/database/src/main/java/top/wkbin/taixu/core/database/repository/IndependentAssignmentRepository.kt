@@ -20,6 +20,13 @@ interface IndependentAssignmentRepository {
         batch: BotWorkBatch? = null,
     )
     suspend fun enqueueRequest(request: BotAssignmentRequest)
+    /** Atomic get-or-create; never creates a session/request for a duplicate work item. */
+    suspend fun createIndependentOnce(task: BotAssignment, session: HarnessSessionEntity,
+        request: BotAssignmentRequest, batch: BotWorkBatch? = null, operationId: String? = null, nativeTaskId: String? = null): String {
+        createIndependent(task, session, request, batch)
+        return task.id
+    }
+    suspend fun dispatchedBots(groupId: String, operationId: String, nativeTaskId: String? = null): Set<String> = emptySet()
     fun pendingRequests(): Flow<List<BotAssignmentRequest>>
     fun observeRequest(id: String): Flow<BotAssignmentRequest?>
     suspend fun getRequest(id: String): BotAssignmentRequest?
@@ -41,7 +48,11 @@ internal class RoomIndependentAssignmentRepository(private val dao: BotAssignmen
         session: HarnessSessionEntity,
         request: BotAssignmentRequest,
         batch: BotWorkBatch?,
-    ) = dao.createIndependent(task.toEntity(json), session, request.toEntity(), batch?.toEntity())
+    ) { dao.createIndependent(task.toEntity(json), session, request.toEntity(), batch?.toEntity()) }
+    override suspend fun createIndependentOnce(task: BotAssignment, session: HarnessSessionEntity,
+        request: BotAssignmentRequest, batch: BotWorkBatch?, operationId: String?, nativeTaskId: String?): String =
+        dao.createIndependent(task.toEntity(json), session, request.toEntity(), batch?.toEntity(), operationId, nativeTaskId)
+    override suspend fun dispatchedBots(groupId: String, operationId: String, nativeTaskId: String?) = dao.dispatchedBots(groupId, operationId, nativeTaskId).toSet()
     override suspend fun enqueueRequest(request: BotAssignmentRequest) = dao.enqueueRequest(request.toEntity())
     override fun pendingRequests() = dao.pendingAssignmentRequests().map { rows -> rows.map { it.model() } }
     override fun observeRequest(id: String) = dao.observeAssignmentRequest(id).map { it?.model() }

@@ -28,7 +28,7 @@ val botHarnessModule = module {
     single { top.wkbin.taixu.harness.bot.GroupGovernanceGuard(get(), get(), get()) }
     single { top.wkbin.taixu.harness.bot.market.GroupTeamImporter(get(), get(), get()) }
     single { top.wkbin.taixu.harness.bot.BotModelManager(get(), get(), get(), get(), get()) }
-    single { top.wkbin.taixu.harness.groupchat.GroupContextScope(groups = get(), assignments = get()) }
+    single { top.wkbin.taixu.harness.groupchat.GroupContextScope(groups = get(), assignments = get(), nativeTasks = get()) }
     single { top.wkbin.taixu.harness.groupchat.GroupReplyFreshness(groups = get(), messages = get(), contextScope = get()) }
     single { BotMemoryManager(pathManager = get(), logger = get()) }
     single { BotAttachmentPreparer(context = get(), paths = get()) }
@@ -74,6 +74,8 @@ val botHarnessModule = module {
             executor = get(),
             modelManager = get(),
             taskUsage = get(),
+            nativeTasks = get(),
+            runtimeRepository = get(),
         )
     }
     single<BotAssignmentExecutor> {
@@ -107,6 +109,7 @@ val botHarnessModule = module {
             runtimeRepository = get(),
             json = get(),
             logger = get(),
+            nativeTasks = get(),
         )
     }
     single { BotMarketRepository(orchestrator = get(), subagentRepository = get()) }

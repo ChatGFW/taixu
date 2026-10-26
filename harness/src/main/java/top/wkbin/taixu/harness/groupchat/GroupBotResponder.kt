@@ -50,6 +50,7 @@ internal class GroupBotResponder(
         imageUrls: List<String>,
         admission: CompletableDeferred<Boolean>?,
         delegatedTaskId: String? = null,
+        workReceiptId: String? = null,
         deliveryId: String? = null,
         sessionOverride: String? = null,
         onAdmitted: suspend (String?) -> Unit = {},
@@ -65,6 +66,8 @@ internal class GroupBotResponder(
         var contextBinding: GroupReplyFreshness.Binding? = null
         val placeholderId = deliveryId?.let { "delivery-reply:$it" } ?: UUID.randomUUID().toString()
         val startedAt = System.currentTimeMillis()
+        val limits = group.executionLimits
+        val executionPolicy = GroupExecutionPolicy(limits.warnAfterMs, limits.stopAfterMs)
         try {
             groupRepository.postMessage(
                 GroupMessage(
@@ -105,7 +108,10 @@ internal class GroupBotResponder(
                 "执行成员已移出来源群聊，未提交任务"
             }
             submissionAttempted = true
-            val submission = sessionControl.submit(sessionId, prompt, imageUrls)
+            val inheritedWork = contextScope?.workForReceipt(workReceiptId ?: delegatedTaskId)
+            val work = inheritedWork?.let { GroupWorkContext(it, group.id) }
+                ?: currentCoroutineContext()[GroupWorkContext] ?: GroupWorkContext(placeholderId, group.id)
+            val submission = withContext(work) { sessionControl.submit(sessionId, prompt, imageUrls) }
             admittedTaskId = (submission as? PromptSubmission.Accepted)?.taskId
             if (deliveryId != null && submission is PromptSubmission.Accepted) {
                 check(groupRepository.admitDelivery(deliveryId, sessionId, submission.taskId)) { "群消息受理回执未保存" }
@@ -131,6 +137,7 @@ internal class GroupBotResponder(
             }
 
             var sawWork = false
+            var warned = false
             var lastProgress: GroupReplyProgress? = null
             suspend fun observe(completionOnly: Boolean): GroupReplyObserver.ReplyOutcome =
                 withGroupReplyCheckpoints(persist = { progress ->
@@ -138,8 +145,17 @@ internal class GroupBotResponder(
                 }) { checkpoint ->
                     observer.awaitReply(
                         sessionId, bot, baseline, startedAt, baselineOutputRevision, completionOnly, admittedTaskId,
+                        executionPolicy = if (delegatedTaskId != null && sessionOverride != null) executionPolicy else null,
                     ) { progress ->
                         lastProgress = progress
+                        if (progress.executionWarning && !warned) {
+                            warned = true
+                            groupRepository.postMessage(GroupMessage(
+                                id = "execution-warning:$placeholderId", groupId = group.id,
+                                senderId = "system", senderName = "系统通知", senderType = GroupSenderType.SYSTEM,
+                                content = "⚠️ ${bot.name} 已连续${limits.warnAfterMs / 1_000}秒没有工具执行进展；模型输出不代表任务推进。${limits.stopAfterMs / 1_000}秒仍无进展将停止本轮并回报原负责人。",
+                                timestamp = System.currentTimeMillis(), delegatedTaskId = delegatedTaskId))
+                        }
                         if (progress.steps.isNotEmpty() || progress.contentText.hasText) sawWork = true
                         liveReplies.update { it + (placeholderId to progress) }
                         checkpoint(progress)
@@ -186,6 +202,7 @@ internal class GroupBotResponder(
             }
             val finalText = when {
                 outcome.replyTimedOut -> "❌ 本轮超过 ${GroupReplyTimeoutPolicy.REPLY_TIMEOUT_MS / 60_000} 分钟，已请求停止；执行结果待核对，请检查已有工具结果"
+                outcome.noExecutionProgress -> "⛔ 连续${limits.stopAfterMs / 1_000}秒没有有效执行进展，本轮已停止；任务受阻，请原负责人核验原会话与已有产物后继续。"
                 outcome.firstTokenTimedOut ->
                     "❌ ${FIRST_TOKEN_TIMEOUT_MS / 1000} 秒未收到模型正文、推理或工具调用，已请求停止；执行结果待核对"
                 outcome.stalled -> "❌ 连续 ${FIRST_TOKEN_TIMEOUT_MS / 1000} 秒无新输出，已请求停止；执行结果待核对，请先检查已有产物"
@@ -199,9 +216,11 @@ internal class GroupBotResponder(
             awaitSettledPlaceholder(group.id, placeholderId)
             return GroupTurnOutcome(
                 text = finalText,
-                failed = outcome.replyTimedOut || outcome.firstTokenTimedOut || outcome.stalled || outcome.failed || outcome.interrupted || content.isBlank(),
+                failed = outcome.replyTimedOut || outcome.firstTokenTimedOut || outcome.stalled || outcome.failed || outcome.interrupted || outcome.noExecutionProgress || content.isBlank(),
                 uncertain = outcome.replyTimedOut || outcome.firstTokenTimedOut || outcome.stalled || outcome.interrupted,
                 messageId = placeholderId,
+                blockedReason = finalText.takeIf { outcome.noExecutionProgress },
+                nativeTaskId = admittedTaskId,
             )
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {

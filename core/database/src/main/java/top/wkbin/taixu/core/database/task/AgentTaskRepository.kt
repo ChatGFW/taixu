@@ -15,6 +15,7 @@ interface AgentTaskRepository {
     suspend fun checkpoint(checkpoint: AgentTaskCheckpoint): Boolean
     suspend fun deleteForSession(sessionId: String)
     suspend fun delete(id: String)
+    suspend fun updateGroupProgress(id: String, progress: String) {}
 }
 
 data class AgentTaskTransition(
@@ -81,4 +82,5 @@ class RoomAgentTaskRepository(
 
     override suspend fun deleteForSession(sessionId: String) = dao.deleteTasksForSession(sessionId)
     override suspend fun delete(id: String) = dao.deleteTask(id)
+    override suspend fun updateGroupProgress(id: String, progress: String) = dao.updateGroupProgress(id, progress)
 }
