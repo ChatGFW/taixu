@@ -1,5 +1,17 @@
 # 静态 Web 页面、外部包与能力授权（P5）
 
+## 服务写入与 GitHub 插件（2026-10-27）
+
+外部 WEB 包可显式声明 `{"name":"SERVICE_WRITE","target":"service"}`，仅限 `TOOL_SERVICE` 来源，且运行中的 PROCESS 后端必须声明 `LOCAL_WEB/authenticated-v1`。页面不会自启或停止此服务；先在工具中心启动，关闭配置页后后台任务继续。普通静态包、`PROOT_SERVICE` 写入和未认证后端均拒绝。服务页面自动登记原有只读 request/stream；只有声明写入能力才登记 `host.service-write`。旧 APK 需更新一次。
+
+工具中心按固定发行版、安装清单与进程实例生成 256 位密钥，通过 stdin 启动握手传递，不进入环境变量、页面、URL 或日志。全部资源/读取/写入均签名：请求 HMAC-SHA256 覆盖时间戳、随机 ID、方法、路径和正文 SHA-256，服务只接受 ±30 秒窗口并按 ID 拒绝重放（有界缓存）。响应签名绑定原请求 ID、状态码和正文摘要；宿主最多缓冲 2 MiB 并验签，不接收伪造或漂移的来源。已占用端口不被采纳，进程退出/替换、发行版或远程选择变化后旧租约拒绝调用。认证密钥不经 HTTP 签发，此协议不是同 UID 隔离。
+
+消息仍为 `{id, action, target, text}`，动作 `host.service-write`、目标固定 `service`；`text` 为 `相对路径 + \n + JSON 正文`，总长不超过 1024 UTF-16 单元，整体消息不超过 4096。路径沿用相对路径白名单；不接受页面指定的 URL、端口、方法或请求头。正文作为 UTF-8 `application/json` POST 到当前租约绑定的服务，原生固定添加 `X-Taixu-Plugin-Write: 1`。代理、重定向、自动重试、压缩响应仍关闭，响应仍有界；取消会取消在途 POST。服务执行语义与 JSON 字段由插件后端校验，宿主不提供通用 Shell 或任意宿主 API。
+
+写入强制每次原生确认，不能借用只读长期授权，即使错误登记 `allowSession` 也不能持续授权。确认展示固定操作路径，正文可能含 Token，故不回显正文；执行使用已被冻结的完整原始请求，不接受后续表单替换。未声明写入时拒绝调用。撤销不能回滚服务已接受/完成的任务，不承诺远端 exactly-once；服务来源仍属于应用层门控，不是同 UID 强隔离。
+
+配套 GitHub 插件源码见 [`assets/plugins/github/README.md`](../assets/plugins/github/README.md)，通过 `tools/package-github-plugin.py` 生成 1.0.1 PROCESS 后端包与 WEB 页面包，分别导入工具中心与外部 Web 插件。业务代码、官方 gh ARM64 二进制与页面均在外部包，不进入 APK。任务最近状态/结果原子落盘，不保存表单和凭据；重启中的任务标记结果待核对，不自动重放。页面退避轮询并在 240 次请求前提示重开，避免耗尽宿主 256 次上限。支持 Token、SSH、公钥、仓库与 PR；页面不导出 Token/私钥。
+
 `plugin:ui` 提供 `WebPagePlugin`，将宿主注册的静态 Web 页面接入既有 PAGE 目录。`plugin:runtime` 的 `PluginCapabilitySession` 管理当前文档的授权与请求。注册只构造描述，不加载 WebView、静态文件或执行器。
 
 `.txplugin` v2 现支持 PROCESS 与受限静态 WEB 两种包。编译时接口与外部静态包共用 Web 宿主，不加载远程页面或外部原生代码；受管理服务资源目前仅支持宿主注册的有界静态快照。先前的原生页面与 Harness 扩展规则不变。

@@ -28,6 +28,7 @@ import top.wkbin.taixu.core.tools.ToolNotificationNotifier
 import top.wkbin.taixu.core.tools.ToolRegistry
 import top.wkbin.taixu.core.tools.ToolRepository
 import top.wkbin.taixu.core.tools.ToolServiceController
+import top.wkbin.taixu.core.tools.ServiceNotificationSink
 import top.wkbin.taixu.runtime.tools.AuthUrlDetector
 import top.wkbin.taixu.runtime.tools.CodexToolInstaller
 import top.wkbin.taixu.runtime.tools.HelloToolInstaller
@@ -142,6 +143,7 @@ val toolsModule = module {
     single<ToolchainInstalls> { ToolManagerToolchainInstalls(toolManager = get()) }
 
     single<ToolNotificationNotifier> { ToolNotificationNotifier(context = get()) }
+    single<ServiceNotificationSink> { get<ToolNotificationNotifier>() }
 
     single<ToolRegistry> {
         ToolRegistry(
@@ -153,7 +155,8 @@ val toolsModule = module {
 
     single<ToolRepository> { ToolRepository(toolDao = get(), toolRegistry = get()) }
 
-    single<ToolServiceController> { ToolServiceController(linuxRuntime = get()) }
+    single<ToolServiceController> { ToolServiceController(linuxRuntime = get(), notifier = get()) }
+    single { top.wkbin.taixu.core.tools.PersistentToolServices(get(), get(), get(), get(), get(), get(), get(), get()) }
 
     /** MCP 能力仓库的「检查更新 / 一键升级」执行器：只依赖 Linux 运行时，联网都在装配脚本里。 */
     single<McpCatalogUpdater> { McpCatalogUpdater(linuxRuntime = get()) }

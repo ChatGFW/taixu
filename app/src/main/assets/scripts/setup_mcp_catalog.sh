@@ -87,14 +87,78 @@ require_npm() {
   command -v npm >/dev/null 2>&1 || fail "npm 不可用，请先安装「Node.js 核心运行时」组件"
 }
 
+# Each online operation gets a fresh cache. Never repair or delete the user's
+# shared ~/.npm: old content/link proxies can survive a PRoot engine update.
+prepare_npm_cache() {
+  MCP_NPM_CACHE="$(mktemp -d "${TMPDIR:-/tmp}/taixu-mcp-npm.XXXXXX")" \
+    || fail "无法创建 MCP npm 独立缓存目录"
+  export npm_config_cache="$MCP_NPM_CACHE"
+  trap 'finish_npm_cache $?' 0
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  log "使用独立 npm 缓存：$MCP_NPM_CACHE"
+  prepare_npm_cli
+}
+
+MCP_NPM_CLI=""
+npm_cli() {
+  if [ -n "$MCP_NPM_CLI" ]; then
+    node "$MCP_NPM_CLI" "$@"
+  else
+    command npm "$@"
+  fi
+}
+
+# npm 9/cacache 17 uses link + concurrent unlink/chmod, then may try to
+# rename an already removed source. Bootstrap without npm so that its failing
+# cache implementation is never used to install its own replacement.
+prepare_npm_cli() {
+  npm_version="$(command npm --version)" || fail "无法读取 npm 版本"
+  log "当前 Node $(node --version)，npm $npm_version"
+  case "${npm_version%%.*}" in
+    ''|*[!0-9]*) fail "无法识别 npm 版本：$npm_version" ;;
+  esac
+  [ "${npm_version%%.*}" -lt 10 ] || return 0
+  node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a===18 ? +(b<17) : +(a<20 || (a===20 && b<5)))' \
+    || fail "npm 10.9.4 需要 Node 18.17+ 或 20.5+，请升级 Node.js 运行时"
+  # Keep Debian's global prefix: upstream npm and Debian npm have different defaults.
+  npm_config_prefix="$(command npm prefix -g)" || fail "无法定位 npm 全局安装前缀"
+  [ -n "$npm_config_prefix" ] || fail "npm 全局安装前缀为空"
+  export npm_config_prefix
+  NPM_BOOTSTRAP_INTEGRITY="sha512-OnUG836FwboQIbqtefDNlyR0gTHzIfwRfE3DuiNewBvnMnWEpB0VEXwBlFVgqpNzIgYo/MHh3d2Hel/pszapAA=="
+  npm_archive="$MCP_NPM_CACHE/npm-10.9.4.tgz"
+  log "正在下载并校验 MCP 专用 npm 10.9.4（绕过旧版缓存硬链接流程）"
+  curl --fail --location --proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 180 \
+    --retry 2 --output "$npm_archive" "${REGISTRY%/}/npm/-/npm-10.9.4.tgz" \
+    || fail "下载 MCP 专用 npm 失败"
+  node -e '
+    const fs = require("fs"), crypto = require("crypto");
+    const actual = "sha512-" + crypto.createHash("sha512").update(fs.readFileSync(process.argv[1])).digest("base64");
+    if (actual !== process.argv[2]) process.exit(1);
+  ' "$npm_archive" "$NPM_BOOTSTRAP_INTEGRITY" || fail "MCP 专用 npm 摘要校验失败"
+  mkdir -p "$MCP_NPM_CACHE/npm-cli" || fail "无法创建 npm CLI 目录"
+  tar -xzf "$npm_archive" -C "$MCP_NPM_CACHE/npm-cli" --strip-components=1 || fail "解压 npm CLI 失败"
+  MCP_NPM_CLI="$MCP_NPM_CACHE/npm-cli/bin/npm-cli.js"
+  [ "$(npm_cli --version)" = "10.9.4" ] || fail "MCP 专用 npm 版本验证失败"
+  log "使用 MCP 专用 npm 10.9.4，全局前缀：$npm_config_prefix"
+}
+
+finish_npm_cache() {
+  if [ "$1" -eq 0 ]; then
+    rm -rf -- "$MCP_NPM_CACHE"
+  else
+    log "操作失败，保留诊断缓存与 npm 日志：$MCP_NPM_CACHE"
+  fi
+}
+
 # 从镜像读取某个固定版本已发布 tarball 的校验和；查不到就返回空串。
 remote_integrity() {
-  npm view "$1" dist.integrity --registry="$REGISTRY" 2>/dev/null | tr -d '\r\n'
+  npm_cli view "$1" dist.integrity --registry="$REGISTRY" 2>/dev/null | tr -d '\r\n'
 }
 
 # 从镜像读取上游最新版本号；查不到就返回空串。
 remote_latest() {
-  npm view "$1" version --registry="$REGISTRY" 2>/dev/null | tr -d '\r\n'
+  npm_cli view "$1" version --registry="$REGISTRY" 2>/dev/null | tr -d '\r\n'
 }
 
 # 本地探针核对实际包版本与入口，不联网、不执行包代码，也不认 PATH 中的同名命令。
@@ -103,7 +167,7 @@ resolve_entry() {
   command -v node >/dev/null 2>&1 || fail "Node.js 不可用"
   spec="$(installed_spec)"
   [ -n "$spec" ] || fail "能力 $ID 尚未安装"
-  root="$(npm root -g 2>/dev/null)" || fail "无法定位全局包目录"
+  root="$(npm_cli root -g 2>/dev/null)" || fail "无法定位全局包目录"
   node -e '
     const fs = require("fs"), path = require("path");
     const [root, spec, expected] = process.argv.slice(1);
@@ -129,6 +193,7 @@ case "$CMD" in
     [ -n "$EXPECTED" ] || fail "缺少期望校验和"
     require_pinned "$SPEC" >/dev/null
     require_npm
+    prepare_npm_cache
 
     log "核对 $SPEC 的发布摘要（镜像：$REGISTRY）"
     ACTUAL="$(remote_integrity "$SPEC")"
@@ -138,7 +203,7 @@ case "$CMD" in
     fi
 
     log "校验通过，开始全局安装 $SPEC"
-    npm install -g "$SPEC" --registry="$REGISTRY" --no-audit --no-fund || fail "安装失败：$SPEC"
+    npm_cli install -g "$SPEC" --registry="$REGISTRY" --no-audit --no-fund || fail "安装失败：$SPEC"
 
     mkdir -p "$MARKER_DIR" || fail "无法创建落位标记目录 $MARKER_DIR"
     write_marker "$SPEC" "$ACTUAL"
@@ -159,6 +224,7 @@ case "$CMD" in
       printf 'ERROR=Node.js 运行时不可用，无法检查更新\n'
       exit 1
     fi
+    prepare_npm_cache
     LATEST="$(remote_latest "$PKG")"
     if [ -z "$LATEST" ]; then
       printf 'ERROR=无法从镜像读取 %s 的最新版本（请检查网络与镜像可用性）\n' "$PKG"
@@ -172,6 +238,7 @@ case "$CMD" in
     [ -n "$ID" ] || fail "缺少能力 id"
     [ -n "$PKG" ] || fail "缺少包名"
     require_npm
+    prepare_npm_cache
 
     log "查询 $PKG 的上游最新版本（镜像：$REGISTRY）"
     LATEST="$(remote_latest "$PKG")"
@@ -191,7 +258,7 @@ case "$CMD" in
     [ -n "$ACTUAL" ] || fail "无法从镜像读取 $SPEC 的 dist.integrity（请检查网络与镜像可用性）"
 
     log "开始升级 $ID → $LATEST"
-    npm install -g "$SPEC" --registry="$REGISTRY" --no-audit --no-fund || fail "升级失败：$SPEC"
+    npm_cli install -g "$SPEC" --registry="$REGISTRY" --no-audit --no-fund || fail "升级失败：$SPEC"
 
     mkdir -p "$MARKER_DIR" || fail "无法创建落位标记目录 $MARKER_DIR"
     # 校验和随版本一起落盘：后续任何一次按标记重装都会拿它做比对，上游若偷偷改包会被挡住。

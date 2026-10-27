@@ -59,6 +59,8 @@ assets/plugins/cc-switch/payload/lib/
 # The vendored skills (payload/skills) stay versioned for provenance; the launcher
 # and the android-cli payload are reproduced by tools/vendor-android-skills-plugin.py.
 assets/plugins/android-skills/payload/bin/
+# Reproduced by tools/package-github-plugin.py from the pinned official gh archive.
+assets/plugins/github/payload/vendor/
 dist/
 .workbuddy/
 .trae/
@@ -93,3 +95,6 @@ scripts_patch/
 
 # 设计稿截图（本地验证用，不入库）
 shots/
+
+# Reproduced from pinned Agent2API release by tools/package-agent2api-plugin.py.
+assets/plugins/agent2api/payload/vendor/
