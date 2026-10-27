@@ -102,7 +102,14 @@ jobs:
           # 架构棘轮与 harness 契约都不跑 :runtime，缺了这一步实现回归时不会报警。
           ./gradlew :runtime:testDebugUnitTest --no-daemon --console=plain \
             --tests 'top.wkbin.taixu.runtime.droidspaces.*' \
-            --tests 'top.wkbin.taixu.runtime.proot.ProotCommandBuilderTest'
+            --tests 'top.wkbin.taixu.runtime.proot.ProotCommandBuilderTest' \
+            --tests 'top.wkbin.taixu.runtime.remote.SshLanRouteTest' \
+            --tests 'top.wkbin.taixu.runtime.remote.SshConnectionStageTest' \
+            --tests 'top.wkbin.taixu.runtime.remote.RemoteMetricsCommandTest' \
+            --tests 'top.wkbin.taixu.runtime.rootfs.TarHardlinkCopyTest'
+          # 远程连接测试要按阶段报错，不能把密码或私钥带回界面。
+          ./gradlew :feature:settings:testDebugUnitTest --no-daemon --console=plain \
+            --tests 'top.wkbin.taixu.ui.settings.RemoteConnectionStageTest'
           # 开发者诊断按首次出现会话聚合反馈：保序与空白标题回退必须进 CI 守门。
           ./gradlew :feature:developer:testDebugUnitTest --no-daemon --console=plain \
             --tests 'top.wkbin.taixu.ui.developer.FeedbackDiagnosticsGroupingTest'

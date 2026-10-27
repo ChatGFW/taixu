@@ -74,7 +74,7 @@ class SshRemoteIntegrationTest {
         connector.test(trusted, credentials)
         assertEquals(1, authentications.get())
         try { connector.test(trusted.copy(fingerprint = "SHA256:wrong"), credentials); fail() }
-        catch (e: IllegalStateException) { assertTrue(e.message!!.contains("指纹")) }
+        catch (e: SshConnectionException) { assertTrue(e.message!!.contains("指纹")) }
         assertEquals(1, authentications.get())
     }
     @Test fun `password connection reads writes edits and bounds remote paths`() = runBlocking {
