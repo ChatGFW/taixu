@@ -54,7 +54,7 @@ interface ProcessRegistry {
     suspend fun cleanupDeadProcesses(): Int
 
     /** 回收 [port] 上被遗弃的本运行时监听者（上一代 tracer 消失后留下的孤儿），返回收到信号的进程数。 */
-    suspend fun reclaimListeningPort(port: Int): Int
+    suspend fun reclaimListeningPort(port: Int, protectedSessions: Set<Long> = emptySet()): Int
     fun list(): List<ManagedProcess>
     fun observeLogs(idOrToolId: String): Flow<List<String>>
     fun getLogs(idOrToolId: String): List<String>
@@ -66,7 +66,11 @@ internal fun interface RegistrySessionFactory {
 }
 
 class ProcessCleanupException(val failures: List<Throwable>) :
-    IllegalStateException("${failures.size} 项进程资源清理失败", failures.firstOrNull()) {
+    // 带上第一个失败的原因：UI 只展示这条 message，不带上就只能看到「1 项进程资源清理失败」。
+    IllegalStateException(
+        "${failures.size} 项进程资源清理失败：${failures.firstOrNull()?.message}",
+        failures.firstOrNull(),
+    ) {
     init { failures.drop(1).forEach(::addSuppressed) }
 }
 
@@ -204,13 +208,13 @@ class ProcessRegistryImpl internal constructor(
     }
 
     /**
-     * 只回收与 [port] 直接相关的孤儿：持有该端口监听套接字、且已脱离宿主与在册会话树的同 uid 进程。
-     * 在册会话根全部列为保护名单，因此工具中心正在跑的服务不会被顺手拿走。
+     * 只回收与 [port] 相关或（网络表不可读时）已被遗弃的本运行时进程。
+     * 登记表进程与 [protectedSessions]（终端会话、前台命令）全部列为保护名单。
      */
-    override suspend fun reclaimListeningPort(port: Int): Int = mutex.withLock {
+    override suspend fun reclaimListeningPort(port: Int, protectedSessions: Set<Long>): Int = mutex.withLock {
         val reclaimer = this.reclaimer ?: return@withLock 0
-        val protectedRoots = processes.values.filter { it.session?.isAlive == true }.mapNotNull { it.process?.pid }.toSet()
-        withContext(Dispatchers.IO) { reclaimer.reclaim(port, protectedRoots) }
+        val registered = processes.values.filter { it.session?.isAlive == true }.mapNotNull { it.process?.pid }.toSet()
+        withContext(Dispatchers.IO) { reclaimer.reclaim(port, registered + protectedSessions) }
     }
 
     private suspend fun releaseAll(entries: List<Entry>) = withContext(NonCancellable) {

@@ -1,7 +1,9 @@
 package top.wkbin.taixu.core.tools
 
 import java.lang.reflect.Proxy
+import java.net.InetSocketAddress
 import java.net.ServerSocket
+import java.net.Socket
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
@@ -99,6 +101,24 @@ class ToolServiceInstanceTest {
         } finally { fixture.close() }
     }
 
+    @Test fun stopReclaimsAListenerTheServiceLeftBehind() = runBlocking {
+        val fixture = Fixture()
+        try {
+            fixture.controller.start("gateway", fixture.adapter, fixture.spec)
+            // 模拟「tracer 先退、server 被 reparent 后继续监听」：停止时登记的实例没释放端口，
+            // 只能靠停止后的端口兜底回收；停止本身不应报错。
+            fixture.leavePortBehind = true
+            fixture.controller.stop("gateway", fixture.spec)
+            assertTrue("未触发端口兜底回收", fixture.reclaims >= 1)
+            assertTrue("端口仍被残留监听者占用", isPortFree(fixture.port))
+        } finally { fixture.close() }
+    }
+
+    private fun isPortFree(port: Int): Boolean = runCatching {
+        Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 250) }
+        false
+    }.getOrDefault(true)
+
     private class FakeServiceNotificationSink : ServiceNotificationSink {
         private val posted = linkedSetOf<Pair<String, String>>()
         var shows = 0
@@ -124,6 +144,9 @@ class ToolServiceInstanceTest {
         val sink = FakeServiceNotificationSink()
         var launches = 0
         var sequence = 0
+        var leavePortBehind = false
+        var reclaims = 0
+        private var leftover: ServerSocket? = null
 
         inner class Session(private val server: ServerSocket?) : LinuxSession {
             var alive = true
@@ -133,6 +156,7 @@ class ToolServiceInstanceTest {
             override suspend fun resize(columns: Int, rows: Int) = Unit
             override suspend fun interrupt() = Unit
             override suspend fun close() = shutdown()
+            fun boundServer(): ServerSocket? = server
             fun shutdown() { alive = false; runCatching { server?.close() } }
         }
 
@@ -144,13 +168,24 @@ class ToolServiceInstanceTest {
             when (method.name) {
                 "getActiveDistroId" -> MutableStateFlow("debian")
                 "getSupportsBackgroundInstanceStop" -> true
-                "reclaimListeningPort" -> 0
+                "reclaimListeningPort" -> {
+                    reclaims++
+                    leftover?.close()
+                    leftover = null
+                    1
+                }
                 "startBackground" -> error("非认证服务通过 adapter.startService 启动")
                 "listBackground" -> processes.values.toList()
                 "stopBackgroundInstance" -> {
                     val owned = args[0] as ManagedProcess
                     if (processes[owned.id] !== owned) !owned.session.isAlive
-                    else { (owned.session as Session).shutdown(); processes.remove(owned.id); true }
+                    else {
+                        // 残留场景故意不关套接字（并由 fixture 持引用，避免被 GC 回收），
+                        // 交由停止后的端口兜底回收。
+                        if (leavePortBehind) leftover = (owned.session as Session).boundServer()
+                        else (owned.session as Session).shutdown()
+                        processes.remove(owned.id); true
+                    }
                 }
                 "stopBackground" -> { processes[args[0]]?.let { (it.session as Session).shutdown() }; processes.remove(args[0]); true }
                 "getBackgroundLogs" -> emptyList<String>()
@@ -174,6 +209,8 @@ class ToolServiceInstanceTest {
         val spec = LocalServiceSpec("gateway", port, startupTimeoutMs = 2_000, pollIntervalMs = 50, distroId = "debian", path = "/taixu/")
 
         fun close() {
+            leftover?.close()
+            leftover = null
             processes.values.forEach { runCatching { (it.session as Session).shutdown() } }
             processes.clear()
         }

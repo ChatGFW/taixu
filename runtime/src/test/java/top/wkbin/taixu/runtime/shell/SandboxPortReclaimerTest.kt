@@ -25,85 +25,115 @@ class SandboxPortReclaimerTest {
     private fun reclaimer(fs: FakeProcFS, killed: MutableList<Long> = mutableListOf()) =
         SandboxPortReclaimer(listOf(ownedRoot), fs) { pid -> killed += pid; true }
 
-    /** 上一代 tracer 已消失：node 监听者连同整棵树都被收回。 */
+    /** tracer 已消失（被 reparent 到 init）：监听者连同整棵树都被收回。 */
     @Test fun abandonedListenerOnThePortIsReclaimedWithItsTree() {
         val killed = mutableListOf<Long>()
         val fs = FakeProcFS(
-            entries = mutableMapOf(
+            entries = mapOf(
                 40L to SandboxProcEntry(1L, tracerBinary),
                 41L to SandboxProcEntry(40L, guestShell),
                 42L to SandboxProcEntry(41L, guestBinary),
             ),
-            listening = mutableMapOf(3065 to setOf(900L)),
-            sockets = mutableMapOf(42L to setOf(900L)),
+            listening = mapOf(3065 to setOf(900L)),
+            sockets = mapOf(42L to setOf(900L)),
         )
         assertEquals(3, reclaimer(fs, killed).reclaim(3065))
         assertEquals(listOf(40L, 41L, 42L), killed)
     }
 
-    /** 终端里手起的服务挂在活的 tracer 之下：整棵树都有主人，绝不误伤。 */
-    @Test fun listenerStillAnchoredToAHostOwnedTreeIsNeverTouched() {
+    /**
+     * 回归：托管网关的 tracer 就是宿主 App 的直接子进程。停止失败后它在登记表之外存活，
+     * 早期实现把「根挂在宿主 App 下」当成「仍有主人」而拒绝回收，端口于是永远占着。
+     */
+    @Test fun listenerAnchoredOnlyToTheHostAppIsReclaimed() {
         val killed = mutableListOf<Long>()
         val fs = FakeProcFS(
-            entries = mutableMapOf(
+            entries = mapOf(
+                7L to SandboxProcEntry(1L, hostBinary),
+                40L to SandboxProcEntry(7L, tracerBinary),
+                41L to SandboxProcEntry(40L, guestShell),
+                42L to SandboxProcEntry(41L, guestBinary),
+            ),
+            listening = mapOf(3065 to setOf(900L)),
+            sockets = mapOf(42L to setOf(900L)),
+        )
+        assertEquals(3, reclaimer(fs, killed).reclaim(3065))
+        assertEquals(listOf(40L, 41L, 42L), killed)
+    }
+
+    /** 终端里手起的服务：tracer 作为会话根被调用方豁免，整棵树放过。 */
+    @Test fun listenerAnchoredToAProtectedSessionRootIsLeftAlone() {
+        val killed = mutableListOf<Long>()
+        val fs = FakeProcFS(
+            entries = mapOf(
                 7L to SandboxProcEntry(1L, hostBinary),
                 40L to SandboxProcEntry(7L, tracerBinary),
                 41L to SandboxProcEntry(40L, guestBinary),
             ),
-            listening = mutableMapOf(8080 to setOf(900L)),
-            sockets = mutableMapOf(41L to setOf(900L)),
+            listening = mapOf(8080 to setOf(900L)),
+            sockets = mapOf(41L to setOf(900L)),
         )
-        assertEquals(0, reclaimer(fs, killed).reclaim(8080))
+        assertEquals(0, reclaimer(fs, killed).reclaim(8080, protectedRoots = setOf(40L)))
         assertTrue(killed.isEmpty())
     }
 
-    /** 在册会话根（工具中心正在跑的网关）列为保护名单，携带它的整棵树放过。 */
-    @Test fun treeCarryingARegisteredSessionRootIsLeftAlone() {
-        val killed = mutableListOf<Long>()
-        val fs = FakeProcFS(
-            entries = mutableMapOf(
-                40L to SandboxProcEntry(1L, tracerBinary),
-                41L to SandboxProcEntry(40L, guestBinary),
-            ),
-            listening = mutableMapOf(3065 to setOf(900L)),
-            sockets = mutableMapOf(41L to setOf(900L)),
-        )
-        assertEquals(0, reclaimer(fs, killed).reclaim(3065, protectedRoots = setOf(40L)))
-        assertTrue(killed.isEmpty())
-    }
-
-    /** 端口上没有本运行时的监听者（他应用占用），或读不到网络表：只报告 0。 */
+    /** 端口上没有本运行时的监听者（他应用占用）：不碰任何东西。 */
     @Test fun foreignOrUnknownListenersAreNeverKilled() {
         val killed = mutableListOf<Long>()
         val fs = FakeProcFS(
-            entries = mutableMapOf(42L to SandboxProcEntry(1L, guestBinary)),
-            listening = mutableMapOf(3065 to setOf(900L)),
-            sockets = emptyMap<Long, Set<Long>>(),
+            entries = mapOf(42L to SandboxProcEntry(1L, guestBinary)),
+            listening = mapOf(3065 to setOf(900L)),
+            sockets = emptyMap(),
         )
         assertEquals(0, reclaimer(fs, killed).reclaim(3065))
-        assertTrue(killed.isEmpty())
-
-        val blind = FakeProcFS(
-            entries = mutableMapOf(42L to SandboxProcEntry(1L, guestBinary)),
-            listening = emptyMap<Int, Set<Long>>(),
-            sockets = mutableMapOf(42L to setOf(900L)),
-        )
-        assertEquals(0, reclaimer(blind, killed).reclaim(3065))
         assertTrue(killed.isEmpty())
     }
 
-    /** 监听者本身仍是宿主直接子进程（在册/竞态）：不当作遗弃。 */
-    @Test fun listenerAttachedToTheHostProcessIsNotAbandoned() {
+    /**
+     * 网络表读不到（部分内核/SELinux 屏蔽 `/proc/net`）：退回「本运行时的全部进程」，
+     * 但豁免名单仍然生效 —— 否则腾端口会连着终端和前台命令一起杀掉。
+     */
+    @Test fun unreadableSocketTableFallsBackToReclaimingOnlyAbandonedTrees() {
         val killed = mutableListOf<Long>()
         val fs = FakeProcFS(
-            entries = mutableMapOf(
-                7L to SandboxProcEntry(1L, hostBinary),
-                42L to SandboxProcEntry(7L, guestBinary),
+            entries = mapOf(
+                40L to SandboxProcEntry(1L, tracerBinary),
+                41L to SandboxProcEntry(40L, guestBinary),
+                60L to SandboxProcEntry(1L, tracerBinary),
+                61L to SandboxProcEntry(60L, guestBinary),
             ),
-            listening = mutableMapOf(3065 to setOf(900L)),
-            sockets = mutableMapOf(42L to setOf(900L)),
+            listening = emptyMap(),
+            sockets = emptyMap(),
         )
-        assertEquals(0, reclaimer(fs, killed).reclaim(3065))
-        assertTrue(killed.isEmpty())
+        assertEquals(2, reclaimer(fs, killed).reclaim(3065, protectedRoots = setOf(60L)))
+        assertEquals(listOf(40L, 41L), killed)
+    }
+
+    /** 二进制被替换成 `(deleted)`、或 exe 不可读时，退回 cwd / cmdline 判定归属。 */
+    @Test fun ownershipFallsBackToWorkingDirectoryAndCommandLine() {
+        val killed = mutableListOf<Long>()
+        val fs = FakeProcFS(
+            entries = mapOf(
+                40L to SandboxProcEntry(1L, null, workingDirectory = File(ownedRoot, "distros/ubuntu/opt/taixu/data/agent2api").absolutePath),
+                41L to SandboxProcEntry(1L, null, commandLine = "$tracerBinary --kill-on-exit -r ${File(ownedRoot, "distros/ubuntu/rootfs").absolutePath}"),
+            ),
+            listening = mapOf(3065 to setOf(900L)),
+            sockets = mapOf(40L to setOf(900L), 41L to setOf(900L)),
+        )
+        assertEquals(2, reclaimer(fs, killed).reclaim(3065))
+        assertEquals(listOf(40L, 41L), killed)
+    }
+
+    @Test fun deletedMarkerAndParentlessEntriesStillCountAsOwnedOrphans() {
+        val reaper = reclaimer(
+            FakeProcFS(entries = mapOf(60L to SandboxProcEntry(null, "$guestBinary (deleted)"))),
+        )
+        // 无端口归属信息 → 兜底路径；父进程未知同样按被遗弃处理。
+        assertEquals(1, reaper.reclaim(3065))
+    }
+
+    @Test fun nothingIsReclaimedWithoutPerProcessFacts() {
+        val blind = SandboxPortReclaimer(listOf(ownedRoot), FakeProcFS()) { error("must not signal") }
+        assertEquals(0, blind.reclaim(3065))
     }
 }

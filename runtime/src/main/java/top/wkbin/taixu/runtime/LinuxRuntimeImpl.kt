@@ -722,8 +722,8 @@ class LinuxRuntimeImpl(
     override fun listBackground(): List<ManagedProcess> = processRegistry.list()
 
     override suspend fun cleanupDeadBackground(): Int = processRegistry.cleanupDeadProcesses()
-
-    override suspend fun reclaimListeningPort(port: Int): Int = processRegistry.reclaimListeningPort(port)
+    override suspend fun reclaimListeningPort(port: Int, protectedSessions: Set<Long>): Int =
+        processRegistry.reclaimListeningPort(port, protectedSessions + interactiveSessions.rootPids() + shellExecutor.pendingRootPids())
 
     override fun observeBackgroundLogs(idOrToolId: String): Flow<List<String>> =
         processRegistry.observeLogs(idOrToolId)

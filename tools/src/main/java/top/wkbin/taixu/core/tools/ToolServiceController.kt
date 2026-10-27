@@ -177,6 +177,15 @@ class ToolServiceController(
     }
 
     private suspend fun stopLocked(toolId: String, spec: LocalServiceSpec?) {
+        // 收尾失败不能让端口回收被跳过：先把实例停掉（或尽力停），再无条件确认端口交还。
+        val failure = runCatching { stopInstancesLocked(toolId, spec) }.exceptionOrNull()
+        if (spec != null) awaitPortReleased(spec)
+        notifier?.hideService(spec?.distroId ?: activeDistro(), toolId)
+        // 端口已交还就说明服务真的停了：此时收尾告警只当作噪声，不再让 UI 弹「停止失败」。
+        if (failure != null && (spec == null || probe.isBusy(spec.port))) throw failure
+    }
+
+    private suspend fun stopInstancesLocked(toolId: String, spec: LocalServiceSpec?) {
         val tracked = trackedInstances(toolId, spec)
         if (tracked.isNotEmpty()) {
             tracked.forEach { (key, entry) ->
@@ -193,12 +202,28 @@ class ToolServiceController(
                     } else linuxRuntime.stopBackground(process.id)
                 }
         }
-        if (spec != null) probe.awaitFree(spec.port, PORT_RELEASE_TIMEOUT_MS)
-        // 幂等：即使本次没停到进程（已崩溃），也把可能残留的通知一并撤销。
-        notifier?.hideService(spec?.distroId ?: activeDistro(), toolId)
+    }
+
+    /**
+     * 停止后的端口交还确认。仍被占用则回收该端口上被遗弃的本运行时监听者：网关常自建进程组，
+     * tracer 先死时 host/server 会被 reparent 到 init 继续监听，这个兜底比留下一个错误更有用。
+     * 外部监听者不归我们管，留给下一次启动的排他检查去拒绝。
+     */
+    private suspend fun awaitPortReleased(spec: LocalServiceSpec) {
+        if (probe.awaitFree(spec.port, PORT_RELEASE_TIMEOUT_MS)) return
+        runCatching { linuxRuntime.reclaimListeningPort(spec.port) }
+        probe.awaitFree(spec.port, PORT_RELEASE_TIMEOUT_MS)
     }
 
     private suspend fun release(entry: Instance) {
+        val failure = runCatching { releaseProcess(entry) }.exceptionOrNull() ?: return
+        // 进程树确实已经没了（例如整组/端口兜底已回收，只是某个流的 close 报了错）：
+        // 清理告警不应否定「已停止」的结果，否则 UI 会显示一个误导性的失败。
+        if (!entry.process.session.isAlive) return
+        throw failure
+    }
+
+    private suspend fun releaseProcess(entry: Instance) {
         if (!linuxRuntime.supportsBackgroundInstanceStop) {
             linuxRuntime.stopBackground(entry.process.id)
             return

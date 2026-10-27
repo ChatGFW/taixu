@@ -1,6 +1,8 @@
 package top.wkbin.taixu.runtime.shell
 
 import android.os.Process as AndroidProcess
+import android.system.Os
+import android.system.OsConstants
 import java.io.File
 
 /**
@@ -24,6 +26,18 @@ internal interface ProcessTreeReaper {
      */
     fun descendantsOf(rootPid: Long): List<Long>
 
+    /**
+     * 目标进程所在进程组；与宿主 App 同组或不可得时返回 null。
+     *
+     * 网关（agent2api / cc-switch 等）常常自己 setsid/setpgid，把 host 与 server 放进新进程组；
+     * 只信号根 PID 会把整组留给 init。但若子进程继承的是**我们自己的进程组**，整组信号会连带
+     * 杀掉宿主 App，所以必须把「与自身同组」挡在外面。
+     */
+    fun processGroupOf(pid: Long): Long? = null
+
+    /** 向进程组投递信号（内部取负 pid）；返回是否成功投递。 */
+    fun signalGroup(processGroup: Long, force: Boolean): Boolean = false
+
     /** 递归收掉 [rootPid] 的后代并 SIGKILL 根本身，返回成功收掉的进程数。 */
     fun reap(rootPid: Long): Int
 
@@ -44,6 +58,23 @@ internal object SystemProcessTreeReaper : ProcessTreeReaper {
     override fun descendantsOf(rootPid: Long): List<Long> = runCatching {
         collectDescendants(childrenByParent(), rootPid)
     }.getOrDefault(emptyList())
+
+    override fun processGroupOf(pid: Long): Long? = runCatching {
+        val group = processGroupFrom(File("/proc/$pid/stat"))
+        val own = processGroupFrom(File("/proc/self/stat"))
+        group?.takeIf { it > 0 && it != own }
+    }.getOrNull()
+
+    override fun signalGroup(processGroup: Long, force: Boolean): Boolean = runCatching {
+        if (processGroup <= 0 || processGroup > Int.MAX_VALUE) return@runCatching false
+        Os.kill(-processGroup.toInt(), if (force) OsConstants.SIGKILL else OsConstants.SIGTERM)
+        true
+    }.getOrDefault(false)
+
+    /** `/proc/<pid>/stat` = `pid (comm) state ppid pgrp ...`；comm 可能含空格，所以从最后一个 `)` 之后取。 */
+    private fun processGroupFrom(statFile: File): Long? = runCatching {
+        statFile.readText().substringAfterLast(')').trim().split(' ').getOrNull(2)?.toLong()
+    }.getOrNull()
 
     override fun reap(rootPid: Long): Int = runCatching {
         val childrenOf = childrenByParent()

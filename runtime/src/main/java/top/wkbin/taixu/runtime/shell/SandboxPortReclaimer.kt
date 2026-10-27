@@ -5,21 +5,25 @@ import java.io.File
 import java.nio.file.Files
 
 /**
- * 回环端口孤儿回收。
+ * 沙箱残留监听者回收。
  *
- * 网关真正的 LISTEN 者往往不是 PRoot tracer 本身，而是它的孙进程（`sh` 下的 node/python）。tracer 被
- * SIGKILL（进程卡死、App 被系统回收、旧版本收尾缺失）时来不及带走它们，它们就被 reparent 到 init：
- * **端口还占着，本进程的进程表里却查无此人**。此后停止看起来成功了，下一次启动却永远面对
- * 「服务端口已被占用，拒绝连接未知进程」。频繁启停的插件因此再难起来。
+ * 网关真正的 LISTEN 者往往不是 PRoot tracer 本身，而是它的孙进程（`sh` 下的 host/server）。tracer 被
+ * SIGKILL 或提前退出时来不及带走它们，它们就被 reparent 到 init：**端口还占着，本进程的进程表里却
+ * 查无此人**。此后停止看起来成功了，下一次启动却永远面对「服务端口已被占用，拒绝连接未知进程」。
  *
- * 这里按「端口事实 + 归属事实」精确回收，而不是见孤儿就杀：
- * 1. 从 `/proc/net/tcp{,6}` 找出 [port] 上 LISTEN 的 socket inode，再经 `/proc/<pid>/fd` 反查到持有点
- *    —— 只有同 uid 的 fd 可读，因此他应用/系统的监听者天然落选，仍由调用方按「端口已被占用」拒绝；
- * 2. 沿持有点向上找这棵进程树的根，只有**全程都落在本运行时目录内、最后停在 init 或已消失父进程**
- *    才算被遗弃；途中碰到宿主/系统进程或在册会话根就放弃 —— 那棵树还有主人（终端里手起的服务、
- *    工具中心正在跑的网关都不会被误伤）。
+ * 判定分两步，先精确后兜底：
+ * 1. 精确：从 `/proc/net/tcp{,6}` 找出 [port] 上 LISTEN 的 socket inode，再经 `/proc/<pid>/fd`
+ *    反查到持有点（只有同 uid 的 fd 可读，他应用/系统监听者天然落选）；
+ * 2. 兜底：网络表读不到时（部分内核/SELinux 会屏蔽 `/proc/net`）退回「本运行时的全部进程」——
+ *    这一步只在调用方明确要求腾出端口时触发，且**所有 App 已知的会话根都被豁免**。
  *
- * 读不到 procfs 时一律不杀，只报告 0；调用方退回原有的「拒绝启动」语义。
+ * 归属（是不是我们的沙箱进程）用 `exe` / `cwd` / `cmdline` 任一落在本运行时目录内判定：二进制被
+ * 替换成 `(deleted)`、或 exe 不可读时仍有 cmdline（tracer 命令行必然带 rootfs/opt 路径）兜底。
+ *
+ * 沿父链向上走到「第一个不属于本运行时的父进程」为止，取最高的本运行时祖先作为这棵树的根。
+ * 注意：**不能因为根挂在宿主 App 下就认为它「仍有主人」** —— 托管网关的 tracer 恰恰是 App 的直接
+ * 子进程，停止失败后它在登记表之外存活，越过它就会把端口永久占住。真正的主人只由调用方显式传入的
+ * [protectedRoots]（进程登记表 + 终端会话 + 前台命令）认定。
  */
 class SandboxPortReclaimer(
     private val ownedRoots: List<File>,
@@ -36,7 +40,8 @@ class SandboxPortReclaimer(
     /**
      * 回收 [port] 上被遗弃的本运行时监听者及其整棵子树，返回成功收到信号的进程数。
      *
-     * [protectedRoots] 是调用方仍在册的会话根 pid；命中即整棵树放过。
+     * [protectedRoots] 是调用方仍在册/仍在用的会话根 pid（登记表进程、终端会话、前台命令）；
+     * 命中即整棵树放过。
      */
     fun reclaim(port: Int, protectedRoots: Set<Long> = emptySet()): Int {
         val table = proc.entries()
@@ -55,24 +60,18 @@ class SandboxPortReclaimer(
         protectedRoots: Set<Long>,
     ): List<Long> {
         val inodes = proc.listeningSocketInodes(port)
-        if (inodes.isEmpty()) return emptyList()
-        return table.keys
-            .filter { pid -> isOwned(pid, table) && proc.socketInodes(pid).any(inodes::contains) }
-            .mapNotNull { listener -> abandonedRoot(listener, table, protectedRoots) }
-            .distinct()
+        val owned = table.keys.filter { pid -> isOwned(table[pid]) }
+        val listeners = if (inodes.isEmpty()) owned else owned.filter { pid -> proc.socketInodes(pid).any(inodes::contains) }
+        if (listeners.isEmpty()) return emptyList()
+        return listeners.map { abandonedRoot(it, table) }.filter { it !in protectedRoots }.distinct()
     }
 
-    /**
-     * 从 [listener] 向上走到这棵树的根；只有「全程都在本运行时目录内、最后停在 init 或已消失父进程」
-     * 才算被遗弃。碰到在册会话根或宿主/系统进程就返回 null：那棵树还有主人。
-     */
-    private fun abandonedRoot(listener: Long, table: Map<Long, SandboxProcEntry>, protectedRoots: Set<Long>): Long? {
-        if (listener in protectedRoots || !isOwned(listener, table)) return null
+    /** 从 [listener] 上行到最高的本运行时祖先；父进程不属于本运行时（宿主 App / init / 已消失）即停。 */
+    private fun abandonedRoot(listener: Long, table: Map<Long, SandboxProcEntry>): Long {
         var current = listener
         while (true) {
             val parent = table[current]?.parent
-            if (parent == null || parent <= INIT_PID || parent !in table) return current
-            if (parent in protectedRoots || !isOwned(parent, table)) return null
+            if (parent == null || parent <= INIT_PID || parent !in table || !isOwned(table[parent])) return current
             current = parent
         }
     }
@@ -92,12 +91,12 @@ class SandboxPortReclaimer(
         return found
     }
 
-    private fun isOwned(pid: Long, table: Map<Long, SandboxProcEntry>): Boolean = isOwned(table[pid]?.executable)
-
-    private fun isOwned(executable: String?): Boolean {
-        val path = executable ?: return false
-        val normalized = path.removeSuffix(DELETED_SUFFIX)
-        return ownedPrefixes.any { normalized.startsWith(it) }
+    private fun isOwned(entry: SandboxProcEntry?): Boolean {
+        if (entry == null) return false
+        val paths = listOfNotNull(entry.executable, entry.workingDirectory).map { it.removeSuffix(DELETED_SUFFIX) }
+        if (paths.any { path -> ownedPrefixes.any(path::startsWith) }) return true
+        val commandLine = entry.commandLine ?: return false
+        return ownedPrefixes.any(commandLine::contains)
     }
 
     private companion object {
@@ -110,6 +109,8 @@ class SandboxPortReclaimer(
 data class SandboxProcEntry(
     val parent: Long?,
     val executable: String?,
+    val workingDirectory: String? = null,
+    val commandLine: String? = null,
 )
 
 interface SandboxProcFS {
@@ -131,7 +132,7 @@ object LinuxSandboxProcFS : SandboxProcFS {
             val status = runCatching { File(entry, "status").readText() }.getOrNull() ?: return@mapNotNull null
             val parent = status.lineSequence()
                 .firstOrNull { it.startsWith("PPid:") }?.substringAfter('\t')?.trim()?.toLong()
-            pid to SandboxProcEntry(parent, executableOf(pid))
+            pid to SandboxProcEntry(parent, linkTarget(entry, "exe"), linkTarget(entry, "cwd"), commandLineOf(entry))
         }.toMap()
     }.getOrDefault(emptyMap())
 
@@ -158,8 +159,12 @@ object LinuxSandboxProcFS : SandboxProcFS {
         }
     }.getOrDefault(emptySet())
 
-    private fun executableOf(pid: Long): String? =
-        runCatching { File(PROC, "$pid/exe").canonicalFile.absolutePath }.getOrNull()
+    /** `/proc/<pid>/exe` 与 `cwd` 都是符号链接；解析结果同时保留 `(deleted)` 后缀给上层剥离。 */
+    private fun linkTarget(entry: File, name: String): String? =
+        runCatching { File(entry, name).canonicalFile.absolutePath }.getOrNull()
+
+    private fun commandLineOf(entry: File): String? =
+        runCatching { File(entry, "cmdline").readText().replace('\u0000', ' ').trim() }.getOrNull()?.takeIf { it.isNotEmpty() }
 
     private const val PROC = "/proc"
     private const val SOCKET_PREFIX = "socket:["

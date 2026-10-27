@@ -160,9 +160,13 @@ class ProcessLinuxSession internal constructor(
         // 到 init：继续持有 LISTEN 套接字、App 侧却再无记录，下一次启动只能看到「端口已被占用」。
         // 因此必须在动手杀之前把整棵后代快照下来，收尾后统一补刀。
         val descendants = childPid?.let(reaper::descendantsOf).orEmpty()
+        // 网关常自己 setsid/setpgid（host 与 server 同组）：只杀根会把整组留给 init，所以先拿到
+        // 进程组；与宿主 App 同组时返回 null（整组信号会连带杀掉自己）。
+        val group = childPid?.let(reaper::processGroupOf)
         if (process.isAlive) process.destroy()
         var exited = process.waitFor(PROCESS_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         if (!exited) {
+            group?.let { reaper.signalGroup(it, force = false) }
             process.destroyForcibly()
             exited = process.waitFor(PROCESS_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
             if (!exited && childPid != null) {
@@ -172,11 +176,12 @@ class ProcessLinuxSession internal constructor(
                 reaper.reap(childPid)
                 exited = process.waitFor(PROCESS_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
             }
+            group?.let { reaper.signalGroup(it, force = true) }
         }
         // 优雅退出（PRoot --kill-on-exit）时快照里的进程多半已经消失，kill 失败即静默跳过；
         // 但 tracer 未替我们收尾的那些（网关子进程、脚本孙进程）只能在这里被收掉。
         reaper.reapDetached(descendants)
-        check(exited) { "进程强制终止后仍未退出，保留会话供重试" }
+        check(exited) { "进程强制终止后仍未退出（root=${childPid ?: "未知"}），保留会话供重试" }
     }
 
     private class ClosingSessions(val sessions: Set<ProcessLinuxSession>) :
