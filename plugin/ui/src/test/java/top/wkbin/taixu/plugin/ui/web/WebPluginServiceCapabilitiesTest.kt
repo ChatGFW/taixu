@@ -5,6 +5,13 @@ import org.junit.Test
 import top.wkbin.taixu.plugin.runtime.PluginCapabilityInput
 
 class WebPluginServiceCapabilitiesTest {
+    @Test fun serviceWriteIsSeparateFromReadsAndAlwaysOneShot() {
+        val write = WebPluginServiceCapabilities.write { null }
+        assertEquals(PluginCapabilityInput.SERVICE_WRITE, write.capability)
+        assertFalse(write.allowSession)
+        assertNotNull(write.execute)
+        assertNull(write.stream)
+    }
     @Test fun registersOnlyTheTwoReadOnlyServiceCapabilities() {
         val request = WebPluginServiceCapabilities.request { null }
         val stream = WebPluginServiceCapabilities.stream { null }

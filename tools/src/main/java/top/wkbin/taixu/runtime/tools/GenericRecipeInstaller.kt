@@ -239,7 +239,7 @@ class GenericRecipeInstaller(
     )
 
     override suspend fun startService(): ManagedProcess = linuxRuntime.startBackground(
-        id = "${toolId}-service",
+        id = "tool-service:${linuxRuntime.activeDistroId.value}:$toolId",
         command = ShellCommand(
             commandLine = manifest.launchCommand ?: manifest.id,
             environment = runtimeEnvironment(),
@@ -250,7 +250,9 @@ class GenericRecipeInstaller(
 
     override suspend fun serviceLaunch(): ServiceLaunch? {
         val commandLine = manifest.launchCommand ?: return null
-        return ServiceLaunch(commandLine, runtimeEnvironment(), manifest.executionIdentity())
+        return ServiceLaunch(commandLine, runtimeEnvironment(), manifest.executionIdentity(),
+            authenticated = manifest.plugin?.capabilities?.any { it.name == "LOCAL_WEB" && it.target == "authenticated-v1" } == true,
+            distroId = linuxRuntime.activeDistroId.value)
     }
 
     override suspend fun uninstall(deleteData: Boolean): ToolActionResult {
