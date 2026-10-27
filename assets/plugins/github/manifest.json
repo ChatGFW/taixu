@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 2,
+  "id": "github",
+  "name": "GitHub · gh 与 Git",
+  "description": "官方 ARM64 gh，附带本地配置服务；配合 GitHub Web 插件完成 Token、SSH、仓库与 PR 操作。",
+  "version": "1.0.1",
+  "publisher": "TaiXu Community",
+  "category": "DEVELOPER",
+  "homepage": "https://cli.github.com/",
+  "architectures": [
+    "ARM64"
+  ],
+  "launchType": "web",
+  "servicePort": 18765,
+  "servicePath": "/",
+  "source": "LOCAL",
+  "offlineOnly": true,
+  "installMethod": "LOCAL_PACKAGE",
+  "dependencies": [
+    "python",
+    "git",
+    "ca-certificates"
+  ],
+  "permissions": [
+    "NETWORK",
+    "WORKSPACE_READ",
+    "WORKSPACE_WRITE",
+    "LOCAL_WEB"
+  ],
+  "installSteps": [
+    "/bin/sh \"$TAIXU_PLUGIN_PAYLOAD/scripts/install.sh\""
+  ],
+  "launchCommand": "gh-ui serve",
+  "verifyCommand": "gh --version",
+  "commandLinks": [
+    "gh",
+    "gh-ui",
+    "gh-git"
+  ],
+  "plugin": {
+    "id": "community.github",
+    "api": {
+      "minimum": 1,
+      "maximum": 1
+    },
+    "execution": "PROCESS",
+    "extensions": [
+      {
+        "id": "launch",
+        "point": "PROCESS"
+      }
+    ],
+    "capabilities": [
+      {
+        "name": "NETWORK",
+        "target": "github.com"
+      },
+      {
+        "name": "LOCAL_WEB",
+        "target": "authenticated-v1"
+      }
+    ],
+    "integrity": {
+      "bin/gh": "cd39986b653e19e8b936b684b47b96611adf2d59216e6c766730708e54d91350",
+      "bin/gh-git": "01591a23210011b097fb0d1e35035ef5bf487ab78591e915e0203d86f7bbc158",
+      "bin/gh-ui": "7c45872c7782736f9cc10f32ff2549dc6e7e51e1bab4f370e0081277077f6b82",
+      "lib/github_plugin.py": "175f5ba8d0895a4c2fe930fe53bdbe76d0f49bc9a8f6452369f937da9a20e286",
+      "lib/service_protocol.py": "cffe30db2ec57474f340a68904ba9553c0a542ff948a614d1d4b99a5c80ae63c",
+      "scripts/install.sh": "5b3e6b1e5b0f3184e975ee633f2d4d506594ebd431d94bd5be56a411e6e1f0b6",
+      "vendor/gh": "a82a52e1bbe05bcd485f8cbbd5aa67e11a76fce6bdad394a2d179e1c24cfe367",
+      "vendor/LICENSE": "6da4adc42392c8485e40b4251c7e332fc3352df1947c9ffade71dd60b14a7a4f",
+      "web/app.css": "f64eb4bb21b204ec6f45fb5e7b3072f363e6790ade6fb047cc08751e07aee16c",
+      "web/app.js": "c69ec131a9bd33326ee172e8b3495afca40e3c8d5926142de875c8b0683d206f",
+      "web/index.html": "4d873c0406bdff7b5a9f388c0625ea936c32d4c85045f7d2ae357496d6fb4a7a"
+    }
+  }
+}

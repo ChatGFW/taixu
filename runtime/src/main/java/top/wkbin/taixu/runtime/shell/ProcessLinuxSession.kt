@@ -100,9 +100,9 @@ class ProcessLinuxSession internal constructor(
 
     override val output: Flow<TerminalOutput> = outputChannel.receiveAsFlow()
 
-    // Android's Process API does not expose a portable PID accessor; keep this
-    // nullable rather than parsing implementation-specific /proc state.
-    override val pid: Long? get() = null
+    // Android 的 Process API 不保证能拿到任意实现的 pid；这里只回报告诉我们自己从
+    // /proc 快照到的直接子进程 pid（非 Linux / 权限受限时仍为 null）。
+    override val pid: Long? get() = childPid
 
     override val isAlive: Boolean
         get() = !closed.get() && process.isAlive
@@ -156,6 +156,10 @@ class ProcessLinuxSession internal constructor(
     }
 
     private fun stopProcess() {
+        // 客态网关（node/python 等）是 PRoot tracer 的孙进程。根进程一旦先死，它们会被 reparent
+        // 到 init：继续持有 LISTEN 套接字、App 侧却再无记录，下一次启动只能看到「端口已被占用」。
+        // 因此必须在动手杀之前把整棵后代快照下来，收尾后统一补刀。
+        val descendants = childPid?.let(reaper::descendantsOf).orEmpty()
         if (process.isAlive) process.destroy()
         var exited = process.waitFor(PROCESS_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         if (!exited) {
@@ -169,6 +173,9 @@ class ProcessLinuxSession internal constructor(
                 exited = process.waitFor(PROCESS_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
             }
         }
+        // 优雅退出（PRoot --kill-on-exit）时快照里的进程多半已经消失，kill 失败即静默跳过；
+        // 但 tracer 未替我们收尾的那些（网关子进程、脚本孙进程）只能在这里被收掉。
+        reaper.reapDetached(descendants)
         check(exited) { "进程强制终止后仍未退出，保留会话供重试" }
     }
 

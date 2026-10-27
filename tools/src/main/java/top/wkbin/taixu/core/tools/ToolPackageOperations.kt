@@ -12,9 +12,10 @@ class ToolPackageOperations(private val repository: ToolRepository, private val 
     private val hostGrants: top.wkbin.taixu.runtime.bridge.FullAccessGrant? = null) {
     private val operations = Mutex()
 
-    suspend fun <T> useInstalled(distro: String, expected: ToolManifest, action: suspend () -> T): T = operations.withLock {
+    suspend fun <T> useInstalled(distro: String, expected: ToolManifest, allowUpdateAvailable: Boolean = false, action: suspend () -> T): T = operations.withLock {
         val installed = repository.findById(distro, expected.id)
-        check(installed?.installedVersion != null && installed.state == "INSTALLED") { "插件未安装或正在改变" }
+        check(installed?.installedVersion != null && (installed.state == "INSTALLED" ||
+            allowUpdateAvailable && installed.state == "UPDATE_AVAILABLE")) { "插件未安装或正在改变" }
         check(runtimeManifest(distro, expected.id) == expected) { "插件安装版本已改变，请重新发现扩展" }
         action()
     }

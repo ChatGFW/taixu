@@ -26,6 +26,10 @@ internal class ShellProcessOwner(
 
     fun stopProcess() = synchronized(processMonitor) {
         if (!stopped) {
+            // 与长驻会话同理：必须在杀根之前快照整棵后代。强杀的 SIGKILL 不会给 PRoot tracer 收尾
+            // 的机会，它的 tracee 与孙进程（安装脚本留下的后台服务、编译器守护进程）会 reparent 到
+            // init 继续占用端口与文件，下一次启动就只能面对「端口已被占用」。
+            val descendants = childPid?.let(reaper::descendantsOf).orEmpty()
             if (process.isAlive) process.destroyForcibly()
             var exited = process.waitFor(1_000, TimeUnit.MILLISECONDS)
             if (!exited) {
@@ -37,6 +41,7 @@ internal class ShellProcessOwner(
                     exited = process.waitFor(1_000, TimeUnit.MILLISECONDS)
                 }
             }
+            reaper.reapDetached(descendants)
             check(exited) { "命令进程尚未退出，保留资源供重试" }
             stopped = true
         }

@@ -1,0 +1,45 @@
+#!/bin/sh
+set -eu
+umask 077
+tool_dir=${TAIXU_TOOL_DIR:-/opt/taixu/tools/agent2api}
+data_dir=${TAIXU_TOOL_DATA:-/opt/taixu/data/agent2api}
+export AGENT2API_HOST=127.0.0.1
+export AGENT2API_PROXY_PORT=3065
+export AGENT2API_UI_DIR="$tool_dir/lib/ui"
+export AGENT2API_ALLOW_NO_KEY=0
+export AGENT2API_SELF_UPDATE=0
+unset AGENT2API_PANEL_PORT WORKBUDDY_PROXY_HOME WORKBUDDY_PROXY_PORT
+case "${1:-}" in
+    --verify)
+        "$tool_dir/lib/agent2api-host" --version
+        # A fresh empty database exercises the real ELF loader without reading user accounts.
+        scratch=$(mktemp -d "$tool_dir/verify.XXXXXX")
+        child=
+        cleanup() {
+            if test -n "$child"; then kill "$child" 2>/dev/null || true; wait "$child" 2>/dev/null || true; fi
+            rm -rf "$scratch"
+        }
+        trap cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM HUP
+        export HOME="$scratch" AGENT2API_PROXY_HOME="$scratch" AGENT2API_PROXY_PORT=13065
+        unset AGENT2API_ADMIN_USER AGENT2API_ADMIN_PASSWORD AGENT2API_ADMIN_PASSWORD_HASH
+        "$tool_dir/lib/agent2api-server" > "$scratch/startup.log" 2>&1 &
+        child=$!
+        sleep 2
+        if ! kill -0 "$child" 2>/dev/null; then
+            cat "$scratch/startup.log" >&2
+            echo 'Agent2API startup failed; requires compatible Linux ARM64/glibc (2.36+) and free port 13065' >&2
+            exit 1
+        fi
+        echo 'Agent2API 3.0.8 (Linux ARM64) startup verified'
+        ;;
+    '')
+        mkdir -p "$data_dir/home"
+        chmod 700 "$data_dir" "$data_dir/home"
+        export HOME="$data_dir/home" AGENT2API_PROXY_HOME="$data_dir"
+        cd "$tool_dir/lib"
+        exec "$tool_dir/lib/agent2api-host"
+        ;;
+    *) echo 'Usage: agent2api [--verify]' >&2; exit 2 ;;
+esac

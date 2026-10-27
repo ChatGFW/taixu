@@ -723,6 +723,8 @@ class LinuxRuntimeImpl(
 
     override suspend fun cleanupDeadBackground(): Int = processRegistry.cleanupDeadProcesses()
 
+    override suspend fun reclaimListeningPort(port: Int): Int = processRegistry.reclaimListeningPort(port)
+
     override fun observeBackgroundLogs(idOrToolId: String): Flow<List<String>> =
         processRegistry.observeLogs(idOrToolId)
 

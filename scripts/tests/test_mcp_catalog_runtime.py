@@ -1,10 +1,14 @@
 """Offline shell regression: real Node, fake npm; never contacts a registry."""
 import json
+import base64
+import hashlib
+import io
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import tarfile
 import unittest
 
 
@@ -39,6 +43,12 @@ class CatalogRuntimeTest(unittest.TestCase):
         self.remote.mkdir()
         self.bin = self.root / "bin"
         self.bin.mkdir()
+        self.cache_tmp = self.root / "cache-tmp"
+        self.cache_tmp.mkdir()
+        self.old_cache = self.root / "old-cache"
+        self.old_cache.mkdir()
+        (self.old_cache / "keep").write_text("user cache", encoding="utf-8")
+        self.npm_calls = self.root / "npm-calls"
         self.write_npm_stub()
         source = Path(__file__).resolve().parents[2] / "app/src/main/assets/scripts/setup_mcp_catalog.sh"
         self.script = self.root / "catalog.sh"
@@ -53,8 +63,21 @@ class CatalogRuntimeTest(unittest.TestCase):
         npm = self.bin / "npm"
         npm.write_text(
             "#!/bin/sh\n"
+            'printf \'%s|%s\\n\' "$1" "${npm_config_cache:-}" >> "' + shell_path(self.npm_calls) + '"\n'
+            'if [ "$1" = "--version" ]; then\n'
+            '  if [ -f "' + shell_path(self.root) + '/legacy-npm" ]; then echo 9.2.0; else echo 10.9.4; fi; exit 0\n'
+            'fi\n'
+            'if [ "$1" = "prefix" ]; then echo "' + shell_path(self.root / "prefix") + '"; exit 0; fi\n'
+            'if [ "$1" = "view" ] || [ "$1" = "install" ]; then\n'
+            '  if [ -f "' + shell_path(self.root) + '/legacy-npm" ] && [ "${MCP_TEST_MODERN:-}" != 1 ]; then echo "OLD CACHE ENOENT" >&2; exit 1; fi\n'
+            'fi\n'
+            'if [ "${MCP_TEST_MODERN:-}" = 1 ]; then printf \'%s\\n\' "${npm_config_prefix:-}" > "' + shell_path(self.root / "modern-prefix") + '"; fi\n'
             'if [ "$1" = "root" ] && [ "$2" = "-g" ]; then printf \'%s\\n\' "' + self.modules.as_posix() + '"; exit 0; fi\n'
             'if [ "$1" = "install" ]; then\n'
+            '  if [ -f "' + shell_path(self.root) + '/fail-install" ]; then\n'
+            '    mkdir -p "$npm_config_cache/_logs"; echo "rename ENOENT fixture" > "$npm_config_cache/_logs/debug.log"\n'
+            '    echo "rename ENOENT fixture" >&2; exit 1\n'
+            '  fi\n'
             '  spec="$3"; name="${spec%@*}"; ver="${spec##*@}"\n'
             '  mkdir -p "' + shell_path(self.modules) + '/$name" || exit 1\n'
             '  printf \'{"name":"%s","version":"%s","bin":{"%s":"entry.cjs"}}\' "$name" "$ver" "$name"'
@@ -80,6 +103,35 @@ class CatalogRuntimeTest(unittest.TestCase):
             encoding="utf-8")
         npm.chmod(0o755)
 
+    def prepare_legacy_bootstrap(self, corrupt=False):
+        (self.root / "legacy-npm").touch()
+        # Offline replacement CLI delegates to our stub, but marks itself so the
+        # stub rejects any accidental use of the legacy CLI for network actions.
+        cli = (
+            'if(process.argv[2]==="--version"){console.log("10.9.4");process.exit(0);}\n'
+            'const r=require("child_process").spawnSync(' + json.dumps(self.bash) + ','
+            '["-c",\'exec "$@"\',"fixture",' + json.dumps(shell_path(self.bin / "npm")) + ',...process.argv.slice(2)],'
+            '{env:{...process.env,MCP_TEST_MODERN:"1"},stdio:"inherit"});process.exit(r.status??1);\n'
+        ).encode()
+        archive = self.root / "npm-fixture.tgz"
+        with tarfile.open(archive, "w:gz") as tar:
+            info = tarfile.TarInfo("package/bin/npm-cli.js")
+            info.size = len(cli)
+            tar.addfile(info, io.BytesIO(cli))
+        integrity = "sha512-" + base64.b64encode(hashlib.sha512(archive.read_bytes()).digest()).decode()
+        source = self.script.read_text(encoding="utf-8")
+        start = source.index('  NPM_BOOTSTRAP_INTEGRITY="')
+        end = source.index('\n', start)
+        self.script.write_text(source[:start] + '  NPM_BOOTSTRAP_INTEGRITY="' + integrity + '"' + source[end:], encoding="utf-8")
+        if corrupt:
+            archive.write_bytes(b"tampered archive")
+        curl = self.bin / "curl"
+        curl.write_text(
+            '#!/bin/sh\nwhile [ "$#" -gt 0 ]; do\n'
+            '  if [ "$1" = "--output" ]; then cp "' + shell_path(archive) + '" "$2"; exit $?; fi\n'
+            '  shift\ndone\nexit 1\n', encoding="utf-8")
+        curl.chmod(0o755)
+
     def set_remote(self, version=None, integrity=None, integrity_spec=None):
         """Publish (or withdraw) what the fake registry can answer."""
         (self.remote / "version").unlink(missing_ok=True)
@@ -96,9 +148,10 @@ class CatalogRuntimeTest(unittest.TestCase):
         return (self.markers / "fixture.ok").read_text(encoding="utf-8")
 
     def _run(self, *argv):
+        env = dict(os.environ, TMPDIR=shell_path(self.cache_tmp), npm_config_cache=shell_path(self.old_cache))
         return subprocess.run([self.bash, "-c", 'export PATH="$1:$PATH"; shift; exec /bin/sh "$@"',
             "test", shell_path(self.bin), shell_path(self.script), *argv],
-            capture_output=True, text=True, encoding="utf-8", timeout=10)
+            capture_output=True, text=True, encoding="utf-8", timeout=10, env=env)
 
     def run_catalog(self, command, *args):
         """check / upgrade / probe / run share the `<id> <pkgName> [serverArgs...]` shape."""
@@ -160,6 +213,55 @@ class CatalogRuntimeTest(unittest.TestCase):
         self.assertIn("SPEC=fixture-mcp@1.2.3", marker)
         self.assertIn("VERSION=1.2.3", marker)
         self.assertIn("INTEGRITY=sha512-AAA", marker)
+
+    def test_online_operations_use_fresh_cache_without_touching_shared_cache(self):
+        self.set_remote(version="1.3.0", integrity="sha512-AAA", integrity_spec="fixture-mcp@1.2.3")
+        first = self.run_install("fixture-mcp@1.2.3", "sha512-AAA")
+        self.assertEqual(0, first.returncode, first.stderr)
+        first_calls = self.npm_calls.read_text().splitlines()
+        caches = {line.split("|", 1)[1] for line in first_calls}
+        self.assertEqual(1, len(caches))
+        first_cache = caches.pop()
+        self.assertTrue(first_cache.startswith(shell_path(self.cache_tmp) + "/taixu-mcp-npm."))
+        self.assertEqual([], list(self.cache_tmp.iterdir()))
+        self.assertEqual(0, self.run_catalog("check").returncode)
+        second_cache = self.npm_calls.read_text().splitlines()[-1].split("|", 1)[1]
+        self.assertNotEqual(first_cache, second_cache)
+        self.assertEqual("user cache", (self.old_cache / "keep").read_text())
+        self.assertEqual([], list(self.cache_tmp.iterdir()))
+
+    def test_failed_install_keeps_diagnostics_and_old_marker(self):
+        self.set_remote(integrity="sha512-AAA")
+        previous_marker = self.marker_text()
+        (self.root / "fail-install").touch()
+        result = self.run_install("fixture-mcp@1.2.3", "sha512-AAA")
+        self.assertNotEqual(0, result.returncode)
+        self.assertEqual(previous_marker, self.marker_text())
+        self.assertIn("保留诊断缓存", result.stdout)
+        retained = list(self.cache_tmp.iterdir())
+        self.assertEqual(1, len(retained))
+        self.assertIn("rename ENOENT", (retained[0] / "_logs/debug.log").read_text())
+
+    def test_legacy_npm_is_bootstrapped_without_using_its_broken_cache(self):
+        self.prepare_legacy_bootstrap()
+        self.set_remote(integrity="sha512-AAA")
+        result = self.run_install("fixture-mcp@1.2.3", "sha512-AAA")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("使用 MCP 专用 npm 10.9.4", result.stdout)
+        self.assertIn((self.root / "modern-prefix").read_text().strip(),
+                      {shell_path(self.root / "prefix"), (self.root / "prefix").as_posix()})
+        self.assertEqual([], list(self.cache_tmp.iterdir()))
+        self.assertEqual(0, self.run_catalog("probe").returncode)
+
+    def test_bootstrap_integrity_failure_never_executes_or_installs(self):
+        self.prepare_legacy_bootstrap(corrupt=True)
+        previous_marker = self.marker_text()
+        result = self.run_install("fixture-mcp@1.2.3", "sha512-AAA")
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("npm 摘要校验失败", result.stderr)
+        self.assertEqual(previous_marker, self.marker_text())
+        self.assertFalse((self.root / "modern-prefix").exists())
+        self.assertFalse(any(line.startswith("install|") for line in self.npm_calls.read_text().splitlines()))
 
     # ---- check: installed x upstream ----
 

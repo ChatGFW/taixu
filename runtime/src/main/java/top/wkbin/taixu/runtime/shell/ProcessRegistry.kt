@@ -36,6 +36,7 @@ data class ManagedProcess(
     val toolId: String? = null,
     val pid: Long? = session.pid,
     val type: ProcessType = ProcessType.UNKNOWN,
+    val distroId: String? = null,
 )
 
 interface ProcessRegistry {
@@ -51,6 +52,9 @@ interface ProcessRegistry {
     suspend fun stopInstance(process: ManagedProcess): Boolean = false
     suspend fun stopAll()
     suspend fun cleanupDeadProcesses(): Int
+
+    /** 回收 [port] 上被遗弃的本运行时监听者（上一代 tracer 消失后留下的孤儿），返回收到信号的进程数。 */
+    suspend fun reclaimListeningPort(port: Int): Int
     fun list(): List<ManagedProcess>
     fun observeLogs(idOrToolId: String): Flow<List<String>>
     fun getLogs(idOrToolId: String): List<String>
@@ -69,6 +73,7 @@ class ProcessCleanupException(val failures: List<Throwable>) :
 class ProcessRegistryImpl internal constructor(
     private val sessionFactory: RegistrySessionFactory,
     private val scope: CoroutineScope,
+    private val reclaimer: SandboxPortReclaimer? = null,
 ) : ProcessRegistry {
     constructor(
         pathManager: RuntimePathManager,
@@ -95,6 +100,9 @@ class ProcessRegistryImpl internal constructor(
             )
         },
         CoroutineScope(SupervisorJob() + Dispatchers.IO),
+        // 客态进程的可执行文件要么在各发行版 rootfs/opt/home 之下，要么就是我们自己的 PRoot
+        // tracer（随 APK 解出的 native 库目录）。两者都算本运行时的进程，才可能被回收。
+        SandboxPortReclaimer(listOfNotNull(pathManager.baseDir, pathManager.bundledProotFile.parentFile)),
     )
 
     private class Entry(val id: String) {
@@ -132,7 +140,7 @@ class ProcessRegistryImpl internal constructor(
         try {
             entry.session = sessionFactory.open(command, distroId, mounts)
             val session = checkNotNull(entry.session)
-            entry.process = ManagedProcess(id, System.currentTimeMillis(), session, toolId, type = type)
+            entry.process = ManagedProcess(id, System.currentTimeMillis(), session, toolId, type = type, distroId = distroId)
             currentCoroutineContext().ensureActive()
             entry.reader = readLogs(session, setOf(toolId ?: id, id))
             currentCoroutineContext().ensureActive()
@@ -193,6 +201,16 @@ class ProcessRegistryImpl internal constructor(
         val dead = processes.values.filter { it.session?.isAlive != true }
         releaseAll(dead)
         dead.size
+    }
+
+    /**
+     * 只回收与 [port] 直接相关的孤儿：持有该端口监听套接字、且已脱离宿主与在册会话树的同 uid 进程。
+     * 在册会话根全部列为保护名单，因此工具中心正在跑的服务不会被顺手拿走。
+     */
+    override suspend fun reclaimListeningPort(port: Int): Int = mutex.withLock {
+        val reclaimer = this.reclaimer ?: return@withLock 0
+        val protectedRoots = processes.values.filter { it.session?.isAlive == true }.mapNotNull { it.process?.pid }.toSet()
+        withContext(Dispatchers.IO) { reclaimer.reclaim(port, protectedRoots) }
     }
 
     private suspend fun releaseAll(entries: List<Entry>) = withContext(NonCancellable) {
