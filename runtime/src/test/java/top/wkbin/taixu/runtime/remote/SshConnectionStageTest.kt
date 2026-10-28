@@ -2,6 +2,7 @@ package top.wkbin.taixu.runtime.remote
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.EOFException
 import java.net.ConnectException
@@ -24,6 +25,23 @@ class SshConnectionStageTest {
         assertEquals(SSH_FAILURE_SFTP, sshTestFailure(IllegalArgumentException("远程工作目录不存在或不是目录")).message)
         assertEquals(SSH_FAILURE_SFTP, sshTestFailure(SftpException("no such file")).message)
         assertEquals(SSH_FAILURE_GENERIC, sshTestFailure(IllegalStateException("offline")).message)
+        val lanTimeout = sshTestFailure(SocketTimeoutException("Connect timed out"), "192.168.10.8").message!!
+        assertTrue(lanTimeout.startsWith(SSH_FAILURE_TIMEOUT))
+        assertTrue(lanTimeout.contains(LocalNetworkAccess.USER_HINT))
+        assertTrue(lanTimeout.contains("附近的设备"))
+        assertEquals(SSH_FAILURE_TIMEOUT, sshTestFailure(SocketTimeoutException("Connect timed out"), "8.8.8.8").message)
+        assertEquals(SSH_FAILURE_TIMEOUT, sshTestFailure(SocketTimeoutException("Connect timed out"), "example.test").message)
+        assertEquals(
+            SSH_FAILURE_LOCAL_NETWORK,
+            sshTestFailure(SecurityException("Permission denied"), "10.1.2.3").message,
+        )
+        assertEquals(SSH_FAILURE_GENERIC, sshTestFailure(SecurityException("Permission denied")).message)
+        assertEquals(SSH_FAILURE_GENERIC, sshTestFailure(SecurityException("Permission denied"), "1.2.3.4").message)
+        assertEquals(
+            SSH_FAILURE_SFTP,
+            sshTestFailure(SftpException("Permission denied"), "192.168.1.9").message,
+        )
+        assertFalse(sshTestFailure(SocketTimeoutException("Connect timed out"), "172.16.0.8").message!!.contains("s3cret"))
     }
 
     @Test fun `stage text never copies passwords keys or the raw stack message`() {

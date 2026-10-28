@@ -103,6 +103,8 @@ jobs:
           ./gradlew :runtime:testDebugUnitTest --no-daemon --console=plain \
             --tests 'top.wkbin.taixu.runtime.droidspaces.*' \
             --tests 'top.wkbin.taixu.runtime.proot.ProotCommandBuilderTest' \
+            --tests 'top.wkbin.taixu.runtime.GuestProcessEnvironmentTest' \
+            --tests 'top.wkbin.taixu.runtime.GuestLoginEnvironmentTest' \
             --tests 'top.wkbin.taixu.runtime.remote.SshLanRouteTest' \
             --tests 'top.wkbin.taixu.runtime.remote.SshConnectionStageTest' \
             --tests 'top.wkbin.taixu.runtime.remote.RemoteMetricsCommandTest' \
