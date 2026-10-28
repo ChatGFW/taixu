@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GitHub · 太墟</title><link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="app.css"><script src="app.js" defer></script></head>
+<body><main><header><span class="badge">TAIXU / GITHUB</span><h1>代码，从这里连接。</h1><p>连接账号、配置 SSH，在手机上完成 Git 与 PR 工作流。</p></header>
+<div id="notice" role="status">正在连接插件服务…请先在工具中心启动 GitHub 服务，关闭本页面不会停止后台任务。</div>
+<section><h2>01　连接 GitHub</h2><p id="account">尚未读取连接状态</p>
+<label>Personal access token<input id="token" type="password" autocomplete="off" placeholder="github_pat_… 或 ghp_…"></label>
+<p class="hint">Token 仅保存在本机插件数据目录。细粒度 Token 需选择仓库并授予 Contents、Pull requests 读写权限。上传 SSH 公钥通常需要 classic Token 的 admin:public_key 权限，也可手动上传。</p>
+<div class="actions"><button data-action="auth/token">验证并保存 Token</button><button class="tonal" data-action="auth/logout">删除本地 Token</button><button class="tonal" id="refresh">刷新本机状态</button></div></section>
+<section><h2>02　Git 提交身份</h2><div class="grid"><label>提交用户名<input id="name" autocomplete="name"></label><label>提交邮箱<input id="email" type="email" autocomplete="email" placeholder="可使用 GitHub noreply 邮箱"></label></div><button data-action="git/identity">保存提交身份</button></section>
+<section><h2>03　SSH 密钥</h2><p class="hint">生成本机专用、无口令 Ed25519 密钥，不覆盖已有密钥。页面只显示公钥。SSH 只负责 Git 传输；创建 PR 仍需要 Token。</p>
+<div class="actions"><button data-action="ssh/generate">生成 SSH 密钥</button><button class="tonal" data-action="ssh/upload">上传公钥到 GitHub</button><button class="tonal" data-action="ssh/hostkeys">同步 GitHub 主机公钥</button></div>
+<label>SSH 公钥<textarea id="publicKey" rows="3" readonly></textarea></label><p class="hint">手动添加地址：https://github.com/settings/ssh/new</p></section>
+<section><h2>04　仓库与代码</h2><label>仓库<input id="repo" placeholder="owner/repo" autocapitalize="off" spellcheck="false"></label>
+<label>克隆协议<select id="protocol"><option value="https">HTTPS · Token</option><option value="ssh">SSH · 本机密钥</option></select></label>
+<div class="actions"><button data-action="repo/clone">克隆仓库</button><button class="tonal" data-action="repo/pull">拉取更新</button><button class="tonal" data-action="repos/list">列出我的仓库</button><button class="tonal" data-action="pr/list">查看此仓库 PR</button></div>
+<p class="hint" id="repoRoot">仓库保存在插件数据目录，使用终端或编辑器修改代码。</p>
+<div class="grid"><label>新分支<input id="branch" placeholder="feature/my-change" autocapitalize="off"></label><label>提交说明<input id="message" maxlength="200" placeholder="feat: 完成功能"></label></div>
+<button data-action="repo/commit-push">创建新分支、提交全部修改并推送</button><p class="hint">此操作会包含该仓库中全部未忽略的修改。执行前请检查文件；推送失败会保留本地分支和提交，可在终端继续处理。</p></section>
+<section><h2>05　创建 Pull Request</h2><label>PR 标题<input id="title" maxlength="150"></label><label>变更说明<textarea id="body" rows="4" maxlength="450"></textarea></label><button data-action="pr/create">为当前分支创建 PR</button></section>
+<section><h2>操作结果</h2><pre id="result" aria-live="polite">还没有执行操作。</pre></section>
+<footer>插件页面通过太墟消息桥调用绑定服务。写操作需要原生确认；Token、私钥不回传到页面。</footer></main></body></html>

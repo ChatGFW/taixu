@@ -306,7 +306,7 @@ val harnessModule = module {
         )
     }
 
-    single<top.wkbin.taixu.harness.mcp.McpCatalogAvailability> { top.wkbin.taixu.harness.mcp.McpCatalogAvailability(get(), get(), get()) }
+    single<top.wkbin.taixu.harness.mcp.McpCatalogAvailability> { top.wkbin.taixu.harness.mcp.McpCatalogAvailability(get(), get(), get(), get()) }
     single<McpManager> {
         McpManager(
             repository = get(), stdio = get(), http = get(),

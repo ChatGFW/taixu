@@ -333,11 +333,13 @@ PyPI 提供 `info.version` + `urls[].digests.sha256`，同样可固定可校验�
 - `:harness:testDebugUnitTest --tests "*LocalMcpProtocolTest*"` ✅
 - `:tools:compileDebugKotlin` / `:harness:compileDebugKotlin` / `:feature:settings:compileDebugKotlin` ✅
 - `architectureCheck` ✅ — **33 个模块 · 依赖白名单 / 无环 / import 黑名单 / 尺寸棘轮 全部通过**
-- `setup_mcp_catalog.sh` 通过 `sh -n`；**`scripts/tests/test_mcp_catalog_runtime.py` 12 例全绿**（`python -m unittest discover -s scripts/tests`）——真实 Node + stub npm，全程不触网：
+- `setup_mcp_catalog.sh` 通过 `sh -n`；**`scripts/tests/test_mcp_catalog_runtime.py` 16 例全绿**（`python -m unittest discover -s scripts/tests`）——真实 Node + stub npm，全程不触网：
   - 探针 / 启动：正常安装可 probe 与 run（参数含空格也原样透传）、包被删后陈旧标记不放行、版本错配与入口缺失被拒、包被替换与 `../` 越界入口被拒
   - 安装：`@latest` / `@*` / 裸包名 / `@next` 全部被固定版本守卫拒绝、校验和不匹配时中止且**不动落位标记**、成功后 `SPEC`/`VERSION`/`INTEGRITY` 三者写入标记
   - 检查更新：输出 `INSTALLED` × `LATEST`；镜像不可达时仍先输出 `INSTALLED` 再给 `ERROR`（不让整条状态丢失）
   - 升级：重写标记为新版本、升级后 `run` 立即拉到新版本（版本确实来自标记而非代码）、已最新则跳过、镜像不可达时保留旧标记并以非零码退出
+  - 缓存隔离：在线操作用 `mktemp` 创建独立 npm 缓存，摘要查询与安装共享本次缓存，不复用或删除用户的 `~/.npm`；成功自动清理，失败保留目录及 npm 日志并在输出中给出路径。离线探针和启动不创建缓存。设备上全新缓存仍复现 `rename ENOENT`，因此隔离并非完整修复。
+  - 旧 npm 兼容：在线操作检测到 npm <10 时，使用 curl 下载固定 npm 10.9.4 tarball，先核对代码中钉住的 SHA-512，再解压并以 Node 执行；支持 Node 18.17+ / 20.5+，保留旧 npm 的全局安装前缀，不替换系统 npm。npm 9.2.0 的 cacache 17.0.3 使用硬链接及并行 unlink/chmod，chmod 失败时可能尝试 rename 已删除的源文件；npm 10.9.4 的 cacache 19.0.1 已改用 moveFile。真实上游包的故障注入复现了旧版 `ENOENT rename`，新版缓存 put/get 通过；尚需真机在线装配复测。离线回归覆盖旧 CLI 不得执行查询/安装，以及 bootstrap 摘要错误时禁止执行。
 
 **顺带收敛的存量违规**：工作区里另有 6 个文件此前已超棘轮基线（`harness/mcp/McpStdioTransport.kt` 与 `feature/chat` 的 5 个），它们挂在 `app:preBuild → architectureCheck` 上会让整个构建失败。本轮按「缩减而非放宽」处理，**未修改 `.architecture-baseline.json` 的任何数值**：`ChatToolCards` 632≤633、`ChatDialogs` 882≤887、`ContextUsageDialog` 399≤400、`ChatWorkbenchPanels` 1490≤1494、`ChatComposer` 618≤618、`McpStdioTransport` 419≤420。清理内容是主题重构（硬编码色值 → `semanticColors()`）留下的未使用 import 残渣与游离空行——本就是该做的事。
 

@@ -13,3 +13,9 @@ manifest 和压缩 layer 均校验原始字节，完整缓存可离线重装，�
 太墟不实现上游 build/push/sync/copy/login 命令，也不生成上游 sysdata 的伪造 `/proc` 文件。
 PRoot 的主程序与 loader 必须来自同一官方 Termux 包；构建前运行
 `tools/prepare-proot-runtime.ps1` 可校验包 SHA-256 并同时准备两者。
+
+当前打包 Termux PRoot **5.1.107.101**（主程序和 ARM64 loader 来自同一个官方 deb）。
+PRoot 引擎与 proot-distro 是两个独立版本；OCI 安装实现仍以 5.10.0 为基线，
+运行环境额外同步 proot-distro 5.10.3 的 `MOZ_SHM_NO_SEALS=1` Firefox 兼容设置。
+未移植 5.10.1/5.10.2 的 Python CLI Registry 认证与限流处理，不能仅修改版本文案声称已全量升级。
+此次引擎升级不代表已经验证修复 npm 缓存 `rename ENOENT`，仍需在真机复测。
