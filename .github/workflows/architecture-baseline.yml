@@ -42,6 +42,12 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           packages: 'platform-tools'
+      - name: Runtime and MCP credential recovery regressions
+        run: |
+          chmod +x gradlew
+          ./gradlew :runtime:testDebugUnitTest :core:database:testDebugUnitTest --no-daemon --console=plain \
+            --tests 'top.wkbin.taixu.runtime.*' \
+            --tests 'top.wkbin.taixu.core.database.McpHeaderRecoveryTest'
       - name: Offline protocol and output contracts
         run: |
           chmod +x gradlew
