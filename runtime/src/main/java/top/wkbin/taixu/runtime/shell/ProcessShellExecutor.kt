@@ -1,5 +1,6 @@
 package top.wkbin.taixu.runtime.shell
 
+import top.wkbin.taixu.runtime.GuestProcessEnvironment
 import top.wkbin.taixu.runtime.RuntimePathManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -49,10 +50,15 @@ class ProcessShellExecutor internal constructor(
         var acquired: ShellProcessOwner? = null
         val capture = currentCoroutineContext()[CommandOutputCapture]?.start(captureDirectory())
         val registration = currentCoroutineContext()[ExecutionEnvironmentContext]?.own { acquired?.close() }
+        val launchEnvironment = GuestProcessEnvironment.commandLaunchEnvironment(
+            baseEnvironment() + environment,
+            command.firstOrNull().orEmpty(),
+            System.getenv("PATH"),
+        )
         // forkTid 必须取样于 startProcess 之前，且两者之间不得有挂起点：/proc 以线程粒度记录
         // children，一旦期间线程被调度走，解析出的 pid 就不再是本次 fork 的子进程。
         val forkTid = reaper.forkTid()
-        val process = try { startProcess(command, workingDirectory, baseEnvironment() + environment) }
+        val process = try { startProcess(command, workingDirectory, launchEnvironment) }
         catch (failure: Throwable) { registration?.close(); throw failure }
         val childPid = forkTid?.let(reaper::childOfThread)
         val owned = ShellProcessOwner(process = process, reaper = reaper, childPid = childPid) { pending.remove(it) }

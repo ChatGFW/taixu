@@ -64,6 +64,7 @@ class ProotCommandBuilderTest {
         assertEquals("-lc", args[workingDirectoryIndex + 3])
         assert(args[workingDirectoryIndex + 4].contains("export HOME='/root'"))
         assert(args[workingDirectoryIndex + 4].contains("export TMPDIR='/tmp'"))
+        assert(args[workingDirectoryIndex + 4].contains("export PATH='${EnvironmentResolver().runtimePath()}'"))
         assert(args[workingDirectoryIndex + 4].contains("cat /etc/os-release"))
     }
 

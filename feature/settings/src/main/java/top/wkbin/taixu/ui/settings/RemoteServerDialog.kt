@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -22,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.model.*
+import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.*
 import java.util.UUID
 
@@ -46,6 +48,9 @@ internal fun RemoteServerDialog(viewModel: RemoteServerViewModel, existing: Remo
         username.isNotBlank() && workspace.startsWith('/') && secret.isNotBlank()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var localNetworkMessage by remember { mutableStateOf<String?>(null) }
+    val localNetworkDenied = stringResource(R.string.settings_local_network_permission_required)
+    val withLocalNetwork = rememberLocalNetworkPermission { localNetworkMessage = localNetworkDenied }
     LaunchedEffect(existing?.id) {
         if (existing != null) {
             try { val credentials = viewModel.credentials(existing.id); secret = credentials.secret; phrase = credentials.passphrase }
@@ -121,13 +126,21 @@ internal fun RemoteServerDialog(viewModel: RemoteServerViewModel, existing: Remo
                 HorizontalDivider()
                 Text("连接测试", style = MaterialTheme.typography.labelLarge)
                 Text("测试不会保存配置。首次连接需核对主机指纹，服务器需启用 SSH / SFTP。", style = MaterialTheme.typography.bodySmall)
-                RuntimeOutlinedButton(enabled = valid && !state.busy, onClick = { viewModel.test(server(), SshCredentials(secret, phrase)) }) { Text("测试连接") }
-                (state.message ?: importError)?.let { Text(it, color = if (state.tested) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
+                RuntimeOutlinedButton(enabled = valid && !state.busy, onClick = {
+                    localNetworkMessage = null
+                    val target = server()
+                    val credentials = SshCredentials(secret, phrase)
+                    withLocalNetwork(target.host) { viewModel.test(target, credentials) }
+                }) { Text("测试连接") }
+                (localNetworkMessage ?: state.message ?: importError)?.let { Text(it, color = if (state.tested && localNetworkMessage == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
                 if (state.busy) RuntimeLinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = { RuntimeTextButton(enabled = valid && !state.busy, onClick = {
-            viewModel.connect(server(), SshCredentials(secret, phrase))
+            localNetworkMessage = null
+            val target = server()
+            val credentials = SshCredentials(secret, phrase)
+            withLocalNetwork(target.host) { viewModel.connect(target, credentials) }
         }) { Text(if (state.busy) "验证中…" else "保存") } },
         dismissButton = { RuntimeTextButton(enabled = !state.busy, onClick = { viewModel.clear(); onDismiss() }) { Text("取消") } },
     )

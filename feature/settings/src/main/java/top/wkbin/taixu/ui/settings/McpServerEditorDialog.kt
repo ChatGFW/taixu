@@ -235,6 +235,9 @@ internal fun McpServerEditorDialog(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        initial?.headersReadError?.let {
+                            Text(it, color = MaterialTheme.colorScheme.error)
+                        }
                         McpHeadersEditor(headersJson, { headersJson = it },
                             if (headerConflict) "自定义 Authorization 与 OAuth 不能同时启用" else parsedHeaders.exceptionOrNull()?.message)
                         Row(
@@ -322,6 +325,7 @@ internal fun McpServerEditorDialog(
                             args = argsList,
                             serverUrl = serverUrl.trim(),
                             headers = if (transport == McpTransportType.SSE) parsedHeaders.getOrThrow() else initial?.headers.orEmpty(),
+                            headersReadError = null,
                             authMode = if (oauthEnabled) McpAuthMode.OAUTH else McpAuthMode.NONE,
                             oauthClientId = oauthClientId.trim(),
                             oauthAuthorizationEndpoint = oauthAuthorizationEndpoint.trim(),
