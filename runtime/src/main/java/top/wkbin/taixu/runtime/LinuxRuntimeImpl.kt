@@ -772,10 +772,8 @@ class LinuxRuntimeImpl(
 
     override fun workspacePath(): File = pathManager.workspaceDir
 
-    private fun detectArchitecture(): CpuArch {
-        val abi = Build.SUPPORTED_ABIS.firstOrNull().orEmpty()
-        return CpuArch.fromBuildAbi(abi)
-    }
+    private fun detectArchitecture(): CpuArch =
+        CpuArch.fromBuildAbi(Build.SUPPORTED_ABIS.firstOrNull().orEmpty())
 
     private fun checkStorage() {
         val filesPath = pathManager.baseDir.parentFile?.absolutePath
