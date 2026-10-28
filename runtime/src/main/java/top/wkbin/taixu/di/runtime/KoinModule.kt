@@ -66,7 +66,9 @@ val runtimeModule = module {
     single { top.wkbin.taixu.runtime.SessionWorkspaceCatalog(servers = get(), remote = get(), local = get()) }
     single {
         val manager = get<LinuxEnvironmentManager>()
-        top.wkbin.taixu.runtime.remote.SshConnector { manager.snapshotForSsh() }
+        top.wkbin.taixu.runtime.remote.SshConnector(
+            lanSockets = top.wkbin.taixu.runtime.remote.androidLanSockets(get<android.content.Context>()),
+        ) { manager.snapshotForSsh() }
     }
     single<top.wkbin.taixu.runtime.remote.SshConnectionTester> { get<top.wkbin.taixu.runtime.remote.SshConnector>() }
     single { top.wkbin.taixu.runtime.remote.RemoteSystemService(get(), get()) }

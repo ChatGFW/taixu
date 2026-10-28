@@ -1,5 +1,6 @@
 package top.wkbin.taixu.runtime.droidspaces
 
+import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.core.model.StorageMountBinding
 import top.wkbin.taixu.runtime.EnvironmentResolver
@@ -47,6 +48,17 @@ class DroidspacesCommandBuilderTest {
         emulatorBinary = null,
         hostCredential = emptyMap(),
     )
+
+    @Test
+    fun guestPathIsAppliedBeforeTheLoginShell() {
+        val script = build()[2]
+        val path = EnvironmentResolver().runtimePath()
+        val assignment = "PATH=" + ShellQuote.of(path)
+        val envAt = script.indexOf(assignment)
+        val shellAt = script.lastIndexOf("sh -lc")
+        assertTrue("客态 PATH 必须在 sh -lc 之前由 env 注入", envAt >= 0 && shellAt > envAt)
+        assertFalse(script.substring(envAt, shellAt).contains("/system/bin"))
+    }
 
     @Test
     fun buildWrapsEverythingInSuDashC() {

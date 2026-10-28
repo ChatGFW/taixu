@@ -1,5 +1,6 @@
 ﻿package top.wkbin.taixu.runtime.shell
 
+import top.wkbin.taixu.runtime.GuestProcessEnvironment
 import java.io.File
 import java.io.IOException
 import java.io.InputStreamReader
@@ -201,11 +202,16 @@ class ProcessLinuxSession internal constructor(
 
         init {
             scope.coroutineContext.ensureActive()
+            val launchEnvironment = GuestProcessEnvironment.commandLaunchEnvironment(
+                hostEnvironment,
+                command.firstOrNull().orEmpty(),
+                System.getenv("PATH"),
+            )
             // 取样 tid 与 fork 必须在同一线程且之间没有挂起点：/proc 以线程粒度记录 children，
             // 一旦期间线程被调度走，解析出的 pid 就不再是本次 fork 的子进程。
             val tid = reaper.forkTid()
             process = ProcessBuilder(command).directory(File("/"))
-                .apply { environment().clear(); environment().putAll(hostEnvironment) }
+                .apply { environment().clear(); environment().putAll(launchEnvironment) }
                 .redirectErrorStream(true).start()
             childPid = tid?.let(reaper::childOfThread)
         }
