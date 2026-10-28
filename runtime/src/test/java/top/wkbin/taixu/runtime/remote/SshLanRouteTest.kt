@@ -108,7 +108,8 @@ class SshLanRouteTest {
             fail()
         } catch (e: SshConnectionException) {
             assertEquals(1, binds)
-            assertEquals(SSH_FAILURE_REFUSED, e.message)
+            assertEquals("$SSH_FAILURE_REFUSED。${LocalNetworkAccess.USER_HINT}", e.message)
+            assertTrue(e.message!!.contains("附近的设备"))
             assertFalse(e.message!!.contains("s3cret-password"))
             assertFalse(e.message!!.contains("hunter2-key"))
         }

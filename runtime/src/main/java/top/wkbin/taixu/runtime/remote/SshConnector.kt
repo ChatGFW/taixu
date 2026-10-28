@@ -90,7 +90,7 @@ class SshConnector(
         } catch (e: HostKeyConfirmationRequired) {
             throw e
         } catch (e: Throwable) {
-            throw sshTestFailure(e)
+            throw sshTestFailure(e, server.host)
         }
     }
 
