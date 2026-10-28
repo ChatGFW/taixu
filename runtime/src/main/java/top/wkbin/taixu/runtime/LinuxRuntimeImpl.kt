@@ -722,6 +722,8 @@ class LinuxRuntimeImpl(
     override fun listBackground(): List<ManagedProcess> = processRegistry.list()
 
     override suspend fun cleanupDeadBackground(): Int = processRegistry.cleanupDeadProcesses()
+    override suspend fun reclaimListeningPort(port: Int, protectedSessions: Set<Long>): Int =
+        processRegistry.reclaimListeningPort(port, protectedSessions + interactiveSessions.rootPids() + shellExecutor.pendingRootPids())
 
     override fun observeBackgroundLogs(idOrToolId: String): Flow<List<String>> =
         processRegistry.observeLogs(idOrToolId)
@@ -770,10 +772,8 @@ class LinuxRuntimeImpl(
 
     override fun workspacePath(): File = pathManager.workspaceDir
 
-    private fun detectArchitecture(): CpuArch {
-        val abi = Build.SUPPORTED_ABIS.firstOrNull().orEmpty()
-        return CpuArch.fromBuildAbi(abi)
-    }
+    private fun detectArchitecture(): CpuArch =
+        CpuArch.fromBuildAbi(Build.SUPPORTED_ABIS.firstOrNull().orEmpty())
 
     private fun checkStorage() {
         val filesPath = pathManager.baseDir.parentFile?.absolutePath

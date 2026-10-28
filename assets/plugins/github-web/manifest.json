@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 2,
+  "id": "github-web",
+  "name": "GitHub · 配置与仓库",
+  "description": "连接 GitHub，管理 Token、SSH、仓库与 PR。请先安装后端插件并在工具中心启动 GitHub 服务；关闭此页面不停止后台任务。写入须逐次确认。",
+  "version": "1.0.1",
+  "source": "LOCAL",
+  "offlineOnly": true,
+  "installMethod": "LOCAL_PACKAGE",
+  "plugin": {
+    "id": "community.github-web",
+    "api": {
+      "minimum": 1,
+      "maximum": 1
+    },
+    "execution": "WEB",
+    "webSource": "TOOL_SERVICE",
+    "serviceToolId": "github",
+    "extensions": [
+      {
+        "id": "main",
+        "point": "PAGE"
+      }
+    ],
+    "capabilities": [
+      {
+        "name": "SERVICE_WRITE",
+        "target": "service"
+      }
+    ],
+    "integrity": {}
+  }
+}

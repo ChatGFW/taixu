@@ -8,10 +8,11 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $jniDirectory = Join-Path $projectRoot 'app\src\main\jniLibs\arm64-v8a'
 $prootTarget = Join-Path $jniDirectory 'libproot.so'
 $loaderTarget = Join-Path $jniDirectory 'libproot-loader.so'
-$packageVersion = '5.1.107.92'
-$packageSha256 = '1f1c983509701f6826f568482c70673ee453a9ba38c9f5fa445a472d6b7524e9'
-$prootSha256 = 'ea47e17da8e6ff4882c169c6508861e5b4be9227e477c6020f4f14facc85c10d'
-$loaderSha256 = '44ef39c1e1a18c09f6e4c4b5d6f8bba82d30596598bd155ec162d05c5122ff04'
+$packageVersion = '5.1.107.101'
+# Official termux-main binary-aarch64 Packages index; tracer and loader from this deb.
+$packageSha256 = 'a28355e9be257e1f87f4e9294b3118470d4fd7a5442fed8b278f4443c83407d7'
+$prootSha256 = 'bc3e5416748276374c513eaad1c6cabedc94246fdf2dd58fa6531374e481fa09'
+$loaderSha256 = '1da54355333cca3fb6ee10e3b82a24df24fb230c99241ce83809bf9e240609b5'
 $packageUrls = @(
     "https://termux.librehat.com/apt/termux-main/pool/main/p/proot/proot_${packageVersion}_aarch64.deb",
     "https://packages.termux.dev/apt/termux-main/pool/main/p/proot/proot_${packageVersion}_aarch64.deb"

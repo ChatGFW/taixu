@@ -96,6 +96,8 @@ v2 使用严格 SemVer，含预发布优先级，build metadata 不影响排序�
 
 ## 静态 WEB 包（P5）
 
+2026-10-27 增补：仅 `TOOL_SERVICE` 来源 WEB 包可声明 `{"name":"SERVICE_WRITE","target":"service"}`，以逐次原生确认提交有界 JSON 表单，且运行中的 PROCESS 后端须声明 `LOCAL_WEB/authenticated-v1`、服务端口与启动命令。密钥仅由工具中心通过 stdin 下发，请求与响应均 HMAC 验签；页面关闭不停止服务。普通 PACKAGE/PROOT_STATIC/PROOT_SERVICE 来源拒绝写入。详情见 [服务写入契约](PLUGIN_WEB_EXTENSIONS.md#服务写入与-github-插件2026-10-27)。该能力不开放任意宿主 API、Shell、URL 或网络。
+
 设置 → 应用功能插件 → 外部 Web 插件提供独立的导入、打开与移除入口。WEB 包导入成功即可打开，不进入 Linux 工具目录、配方安装、命令入口或进程收据；工具中心的 PROCESS 导入入口拒绝 WEB 包。
 
 使用同一 ZIP 格式、严格 v2 字段、API/SemVer、身份冲突和 SHA-256 规则，`plugin.execution` 为 `WEB`，扩展必须恰好为 `[{"id":"main","point":"PAGE"}]`。固定入口是 `payload/index.html`；最多 63 个普通文件，合计 2 MiB，每个路径最多 256 字符、16 段，只接受普通 ASCII 文件名与目录，不允许查询串、百分号编码或宿主保留的根 `theme.css`。归档本身最多 129 个条目、解压合计最多 3 MiB（含 1 MiB 清单）；流式预览同样有界。声明与实际 payload 文件集合及哈希必须完全一致。

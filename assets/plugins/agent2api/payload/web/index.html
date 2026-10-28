@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Agent2API 管理</title><link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="app.css"></head>
+<body><main>
+  <header><span class="eyebrow">太墟 · 本地服务</span><h1>Agent2API</h1><p>管理本机网关和面板账号。关闭此页面，服务仍会继续运行。</p></header>
+  <section aria-labelledby="status-title"><h2 id="status-title">服务状态</h2><p id="status" role="status">正在连接本机服务…</p><p id="adminStatus"></p><button id="refresh" type="button">刷新状态</button></section>
+  <section aria-labelledby="admin-title"><h2 id="admin-title">管理员账号</h2><p>没有默认账号密码。首次使用可以创建管理员；如果忘记原账号，可在这里重新设置。模型账号、已有网关 Key 和配置会保留。</p>
+    <label for="username">新的管理员用户名</label><input id="username" autocomplete="username" value="admin" maxlength="32" pattern="[A-Za-z0-9_.-]{3,32}" aria-describedby="username-hint"><small id="username-hint">3–32 位字母、数字、点、下划线或短横线</small>
+    <p class="notice">重设会短暂重启网关，中断进行中的请求。太墟会要求逐次确认；密码由本机安全随机生成，不写入日志。</p>
+    <button id="reset" type="button">创建或重设管理员</button>
+    <div id="credentials" hidden><h3>请保存新的登录凭据</h3><p>此结果只在当前服务内短暂保留；关闭页面后请使用你保存的密码。再次重设会使上一次密码失效。</p><label for="resultUser">用户名</label><input id="resultUser" readonly><label for="resultPassword">新密码</label><input id="resultPassword" readonly type="password"><button id="reveal" type="button">显示密码</button></div>
+  </section>
+  <section aria-labelledby="connect-title"><h2 id="connect-title">连接太墟模型</h2><p>在原版管理面板添加你的服务商账号，并创建「网关 Key」。在太墟选择本地模型分组和 OpenAI 兼容协议：</p><label for="baseUrl">Base URL</label><input id="baseUrl" readonly value="http://127.0.0.1:3065/v1"><p>使用工具详情「外部浏览器打开」进入完整原版面板。这里不使用太墟生成的 Token。</p><h3>已发现模型</h3><pre id="models">尚未刷新</pre></section>
+  <p id="result" role="status" aria-live="polite"></p>
+</main><script src="app.js"></script></body></html>

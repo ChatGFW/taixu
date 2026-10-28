@@ -36,6 +36,7 @@ class ProcessShellExecutor internal constructor(
     private val pending = ConcurrentHashMap<ShellProcessOwner, Boolean>()
     override fun hasPending() = pending.isNotEmpty()
     override fun hasUnsettled() = pending.values.any { it }
+    override fun pendingRootPids(): Set<Long> = pending.keys.mapNotNull { it.rootPid }.toSet()
     override suspend fun closePending() = closeRuntimeResources(pending.keys.toList().map { owner -> suspend { owner.close() } })
 
     override suspend fun execute(
