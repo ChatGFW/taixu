@@ -539,7 +539,7 @@ fun AgentSettingsScreen(
                     }
                 }
                 Text(
-                    text = "在文件管理器中任选一个目录（支持任意深度嵌套，含 Skill 目录内再嵌套 Skill 子目录的情况），自动查找其中所有包含 SKILL.md 的技能文件夹并导入",
+                    text = "可选择单个 Skill 或技能集合目录。包含 SKILL.md 的目录作为一个完整 Skill 导入，内部子文档和脚本保留为资源，不单独列出",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp, start = 4.dp),
