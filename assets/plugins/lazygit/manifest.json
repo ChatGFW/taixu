@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 2,
+  "id": "lazygit",
+  "name": "Lazygit · 终端 Git",
+  "description": "原生 PTY 中运行 ARM64 Lazygit；在仓库目录启动，支持显式复用 GitHub 插件配置。",
+  "version": "0.66.2",
+  "publisher": "TaiXu Community",
+  "category": "DEVELOPER",
+  "architectures": [
+    "ARM64"
+  ],
+  "launchType": "pty",
+  "source": "LOCAL",
+  "offlineOnly": true,
+  "installMethod": "LOCAL_PACKAGE",
+  "dependencies": [
+    "git"
+  ],
+  "permissions": [
+    "WORKSPACE_READ",
+    "WORKSPACE_WRITE",
+    "NETWORK"
+  ],
+  "installSteps": [
+    "/bin/sh \"$TAIXU_PLUGIN_PAYLOAD/scripts/install.sh\""
+  ],
+  "launchCommand": "lazygit",
+  "verifyCommand": "lazygit --version",
+  "commandLinks": [
+    "lazygit"
+  ],
+  "plugin": {
+    "id": "community.lazygit",
+    "api": {
+      "minimum": 1,
+      "maximum": 1
+    },
+    "execution": "PROCESS",
+    "extensions": [
+      {
+        "id": "launch",
+        "point": "PROCESS"
+      }
+    ],
+    "capabilities": [
+      {
+        "name": "WORKSPACE_READ",
+        "target": "/workspace"
+      },
+      {
+        "name": "WORKSPACE_WRITE",
+        "target": "/workspace"
+      },
+      {
+        "name": "NETWORK",
+        "target": "git-remotes"
+      }
+    ],
+    "dependencies": [],
+    "resources": [],
+    "integrity": {
+      "bin/lazygit": "4026619a6a876507265e95ba0a09d519c96ac9ebb0e7c6b7656228fa2ed8f696",
+      "config.yml": "b85a55adb5a4dc4a5344590e12ae0f20443624ee69394cde8a4f1d1fcdf569d9",
+      "scripts/install.sh": "72dbd64ccc417862bb038856f033d046f5e6128ed90896d04bf39233a0003247",
+      "vendor/lazygit": "784cc7cfa382e9c27d032035ffbe24c626015e1410d6035edb58127e8a7b2d74",
+      "vendor/LICENSE": "52d2fee59711a3373bea27d637831b5ab234443d3cf1d68ec076a37d0ed3c333"
+    }
+  },
+  "homepage": "https://github.com/jesseduffield/lazygit"
+}

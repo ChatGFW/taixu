@@ -61,6 +61,8 @@ assets/plugins/cc-switch/payload/lib/
 assets/plugins/android-skills/payload/bin/
 # Reproduced by tools/package-github-plugin.py from the pinned official gh archive.
 assets/plugins/github/payload/vendor/
+# Reproduced from the pinned official ARM64 release by package-workspace-plugins.py.
+assets/plugins/lazygit/payload/vendor/
 dist/
 .workbuddy/
 .trae/
