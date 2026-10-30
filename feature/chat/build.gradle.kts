@@ -6,6 +6,11 @@ android {
     namespace = "top.wkbin.taixu.feature.chat"
 }
 
+// Compose 截图用例依赖帧时钟与效果调度，同 JVM 连续运行会互相干扰，按测试类隔离。
+tasks.withType<Test>().configureEach {
+    forkEvery = 1
+}
+
 dependencies {
     implementation(project(":feature:theme"))
     implementation(project(":core:common"))
