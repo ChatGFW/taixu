@@ -364,7 +364,7 @@ fun ChatScreen(
                 onOpenSessions = onOpenNavigation, onOpenBots = { onNavigate(MainDestination.Bots) }, onOpenWorkshop = { onNavigate(MainDestination.Workspace) },
                 onOpenRunModes = { showRunModes = true },
                 onOpenBranches = { showBranches = true },
-                onOpenRuntime = { showRuntimeTimeline = true },
+                onOpenRuntime = { showRuntimeTimeline = true }, onOpenMemory = { showMemorySheet = true },
                 onOpenBrowser = onOpenBrowser,
                 browserHighlight = browserHighlight,
                 onOpenRepository = onOpenRepository?.let { open ->
@@ -628,7 +628,7 @@ fun ChatScreen(
     }
 
     if (showMemorySheet) {
-        SessionMemorySheet(memories = memories, scratchpads = scratchpads,
+        SessionMemorySheet(memories = memories, scratchpads = scratchpads, sessionId = currentSessionId, failureMemoryAccess = viewModel?.failureMemoryAccess,
             onDeleteMemory = { arg0 -> viewModel?.deleteMemory(arg0) }, onDeleteScratchpad = { arg0 -> viewModel?.deleteScratchpad(arg0) },
             onClearScratchpads = { viewModel?.clearScratchpads() }, onDismiss = { showMemorySheet = false })
     }

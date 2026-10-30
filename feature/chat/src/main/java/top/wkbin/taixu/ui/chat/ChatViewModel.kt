@@ -144,7 +144,7 @@ class ChatViewModel(
     private val sessionModelSwitcher: SessionModelSwitcher,
     private val quickPhraseRepository: QuickPhraseRepository,
     private val laneManager: LaneManager,
-
+    private val operationCoordinator: top.wkbin.taixu.harness.operation.OperationCoordinator,
     private val eventBus: HarnessEventBus,
     private val proactiveWorkflowAdvisor: ProactiveWorkflowAdvisor,
     private val modelDiscovery: AgentModelDiscovery,
@@ -159,6 +159,7 @@ class ChatViewModel(
     private val workspaceCatalogSource: top.wkbin.taixu.runtime.SessionWorkspaceCatalog,
     val btwController: BtwChatController? = null,
 ) : ViewModel() {
+    val failureMemoryAccess get() = operationCoordinator.failureMemories
     private val _workflowLaunchRequests = MutableSharedFlow<WorkflowLaunchRequest>(extraBufferCapacity = 2)
     val workflowLaunchRequests: SharedFlow<WorkflowLaunchRequest> = _workflowLaunchRequests
     private val _workflowSuggestions = MutableStateFlow<List<ProactiveWorkflowSuggestion>>(emptyList())
