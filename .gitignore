@@ -100,3 +100,6 @@ shots/
 
 # Reproduced from pinned Agent2API release by tools/package-agent2api-plugin.py.
 assets/plugins/agent2api/payload/vendor/
+# 官网落地页的构建副本与 Qoder 部署清单（源文件在 site/，可重新生成）
+site/dist/
+*.qoder.site
