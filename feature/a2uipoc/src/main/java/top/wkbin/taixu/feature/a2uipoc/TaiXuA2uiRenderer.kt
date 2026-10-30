@@ -6,6 +6,8 @@ import androidx.a2ui.compose.ui.A2uiMessageProcessor
 import androidx.a2ui.model.protocol.A2uiClientErrorMessage
 import androidx.a2ui.model.protocol.A2uiClientEventMessage
 import androidx.a2ui.model.protocol.A2uiDeleteSurfaceMessage
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.a2ui.A2uiSurface
 import androidx.compose.material3.a2ui.catalog.materialA2uiBasicCatalogV1
 import androidx.compose.runtime.Composable
@@ -263,7 +265,21 @@ object TaiXuA2uiRenderer {
                 .distinctUntilChanged()
         }.collectAsState(initial = null)
         val current = surface ?: return false
-        A2uiSurface(surfaceModel = current, modifier = modifier)
+        A2uiSurface(
+            surfaceModel = current,
+            modifier = modifier,
+            // 根组件就绪前用骨架屏占位（官方默认是转圈，与 alpha02 的骨架语言不统一）。
+            loadingContent = {
+                TaiXuA2uiSkeletonGroup { shimmerRootModifier ->
+                    TaiXuA2uiSkeleton(
+                        Modifier
+                            .then(shimmerRootModifier)
+                            .fillMaxWidth()
+                            .height(TaiXuA2uiRootSkeletonHeight),
+                    )
+                }
+            },
+        )
         return true
     }
 

@@ -4,6 +4,7 @@ import androidx.a2ui.compose.runtime.A2uiComponentScope
 import androidx.a2ui.compose.ui.catalog.A2uiBasicCatalogV1
 import androidx.a2ui.compose.ui.catalog.A2uiBasicCatalogV1.AccessibilityAttributes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -56,9 +57,11 @@ internal class TaiXuVideoComponent : A2uiBasicCatalogV1.Video {
         }
         val player = rememberA2uiPlayer(allowed)
         var failed by remember(allowed) { mutableStateOf(false) }
+        var firstFrameRendered by remember(allowed) { mutableStateOf(false) }
         DisposableEffect(player) {
             val listener = object : Player.Listener {
                 override fun onPlayerError(error: PlaybackException) { failed = true }
+                override fun onRenderedFirstFrame() { firstFrameRendered = true }
             }
             player.addListener(listener)
             onDispose {
@@ -70,17 +73,26 @@ internal class TaiXuVideoComponent : A2uiBasicCatalogV1.Video {
             TaiXuA2uiMediaNotice(stringResource(R.string.fa2ui_video_failed), modifier.fillMaxWidth())
             return
         }
-        AndroidView(
-            factory = { context ->
-                PlayerView(context).apply {
-                    useController = true
-                    this.player = player
-                    contentDescription = accessibility?.label
-                }
-            },
-            update = { view -> view.player = player },
-            modifier = modifier.fillMaxWidth().aspectRatio(16f / 9f),
-        )
+        Box(modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
+            AndroidView(
+                factory = { context ->
+                    PlayerView(context).apply {
+                        useController = true
+                        this.player = player
+                        contentDescription = accessibility?.label
+                    }
+                },
+                update = { view -> view.player = player },
+                modifier = Modifier.matchParentSize(),
+            )
+            // 首帧出来之前用骨架屏占位，避免卡片里挂一块纯黑矩形。
+            if (!firstFrameRendered) {
+                TaiXuA2uiSkeleton(
+                    Modifier.matchParentSize(),
+                    shape = MaterialTheme.shapes.small,
+                )
+            }
+        }
     }
 }
 
