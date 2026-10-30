@@ -30,11 +30,14 @@ class TarHardlinkCopyTest {
         assertEquals(String(payload), File(destination, "usr/bin/id").readText())
         assertEquals(String(payload), File(destination, "usr/bin/tr").readText())
         listOf("usr/bin/id", "usr/bin/tr").forEach { relative ->
-            val applied = recordedChmods.last { it.first.endsWith("/$relative") }.second
+            // chmod 收到的是宿主路径：Windows 分隔符是 `\`，断言前统一成 `/`。
+            val applied = recordedChmods.last { it.first.normalizedPath().endsWith("/$relative") }.second
             assertEquals(relative, mode, applied and 0xfff)
         }
-        assertTrue(recordedChmods.any { it.first.endsWith("/usr/bin/busybox") })
+        assertTrue(recordedChmods.any { it.first.normalizedPath().endsWith("/usr/bin/busybox") })
     }
+
+    private fun String.normalizedPath(): String = replace('\\', '/')
 
     private fun tar(payload: ByteArray, mode: Int): ByteArray {
         val out = ByteArrayOutputStream()
