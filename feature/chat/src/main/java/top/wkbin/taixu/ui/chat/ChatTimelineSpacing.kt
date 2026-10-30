@@ -12,12 +12,13 @@ internal fun chatTimelineItemSpacing(previous: ChatRenderItem?, current: ChatRen
     if (message is UserMessage) return 16
     if (previous.isCompactToolLine() && current.isCompactToolLine()) return 0
     if (previous.isCompactToolLine() || current.isCompactToolLine() ||
-        (message is AssistantText && !message.reasoning.isNullOrBlank())) return 4
+        (current is ChatRenderItem.MessageItem && message is AssistantText && current.showReasoning &&
+            !message.reasoning.isNullOrBlank())) return 4
     return 8
 }
 
 private fun ChatRenderItem.isCompactToolLine(): Boolean {
-    if (this is ToolStepsItem) return true
+    if (this is ToolStepsItem || this is ChatRenderItem.ReasoningItem) return true
     val call = (this as? ChatRenderItem.MessageItem)?.message as? ToolCall ?: return false
     return call.tool != HarnessTool.SUBAGENT && call.tool != HarnessTool.RENDER_SURFACE
 }

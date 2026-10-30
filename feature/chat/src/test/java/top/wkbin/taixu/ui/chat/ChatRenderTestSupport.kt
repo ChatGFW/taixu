@@ -135,8 +135,11 @@ abstract class ChatRenderTestSupport {
                     return previous
                 }
                 val expandedHeight = chainHeight()
-                assertTrue("Three compact rows and one header must not have large blank gaps: $expandedHeight",
-                    expandedHeight <= 124)
+                // 头部 + 四条紧凑行（三条工具 + 一条思考）。
+                assertTrue("One header plus four compact rows must not have large blank gaps: $expandedHeight",
+                    expandedHeight <= 152)
+                val title = chainTitleText(root)
+                assertTrue("Chain title must count tool calls only, thinking excluded: $title", title.contains("3 次"))
                 activateChainTitle(root)
                 val collapsedHeight = settleChainLayout()
                 root.draw(Canvas(bitmap))
@@ -183,6 +186,11 @@ abstract class ChatRenderTestSupport {
         }
         assertTrue(requireNotNull(target.config.getOrNull(SemanticsActions.OnClick)?.action).invoke())
     }
+
+    private fun chainTitleText(root: View): String = semanticsNodes(root).single { node ->
+        node.config.getOrNull(SemanticsProperties.Text).orEmpty().any { it.text.startsWith("工具调用") } &&
+            node.config.getOrNull(SemanticsActions.OnClick) != null
+    }.config.getOrNull(SemanticsProperties.Text).orEmpty().joinToString { it.text }
 
     private fun activateChainTitle(root: View) = clickSemantics(root) { node ->
         node.config.getOrNull(SemanticsProperties.Text).orEmpty().any { it.text.startsWith("工具调用") }

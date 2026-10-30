@@ -25,7 +25,9 @@ import top.wkbin.taixu.ui.theme.semanticColors
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 internal fun ToolStepsCard(item: ToolStepsItem, results: Map<String, ToolResult>, messages: List<HarnessMessage>,
     workspace: String, onOpenFile: ((String, String) -> Unit)?, running: Boolean, liveStatus: String?,
-    defaultExpanded: Boolean, onRetry: (String) -> Unit, executing: Boolean = running) {
+    defaultExpanded: Boolean, onRetry: (String) -> Unit, executing: Boolean = running,
+    liveReasoningId: String? = null, autoTranslate: Boolean = false,
+    onNavigateToSettings: (() -> Unit)? = null) {
     var expanded by rememberSaveable(item.stableKey) { mutableStateOf(true) }
     var visibleCount by rememberSaveable(item.stableKey) { mutableIntStateOf(8) }
     val focus = LocalChatTimelineFocus.current
@@ -38,15 +40,18 @@ internal fun ToolStepsCard(item: ToolStepsItem, results: Map<String, ToolResult>
     val hidden = item.steps.size - visible.size
     val stateLabel = stringResource(if (expanded) R.string.chat_drawer_section_expanded else R.string.chat_drawer_section_collapsed)
     val lineColor = MaterialTheme.colorScheme.outlineVariant
-    val attention = item.steps.count { toolStepState(results[it.message.id], executing) in
-        setOf(ToolStepState.FAILED, ToolStepState.UNKNOWN, ToolStepState.WAITING, ToolStepState.DEFERRED) }
+    val attention = item.steps.count { step ->
+        val id = step.toolCallId ?: return@count false
+        toolStepState(results[id], executing) in
+            setOf(ToolStepState.FAILED, ToolStepState.UNKNOWN, ToolStepState.WAITING, ToolStepState.DEFERRED)
+    }
     Column(Modifier.fillMaxWidth().then(chatGreetingModifier()).animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())) {
         Row(Modifier.fillMaxWidth().heightIn(min = 28.dp).clickable {
             expanded = !expanded
             if (!expanded) focus?.value = null
         }.semantics { stateDescription = stateLabel }.padding(horizontal = 2.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.chat_tool_chain_title, item.steps.size), modifier = Modifier.weight(1f),
+            Text(stringResource(R.string.chat_tool_chain_title, item.toolCount), modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (attention > 0) Text(stringResource(R.string.chat_tool_chain_attention, attention),
@@ -63,11 +68,27 @@ internal fun ToolStepsCard(item: ToolStepsItem, results: Map<String, ToolResult>
                     color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             visible.forEach { step ->
-                key(step.message.id) {
-                    val call = step.message as ToolCall
-                    ToolCard(call, results[call.id], workspace, onOpenFile, running, liveStatus,
-                        showReasoning = call.reasoning != null && !reasoningAlreadyShown(messages, step.rawIndex, call.reasoning),
-                        defaultExpanded = defaultExpanded, onRetry = { onRetry(call.id) }, executing = executing)
+                key(step.stableKey) {
+                    when (step) {
+                        is ChatRenderItem.ReasoningItem -> ThinkingBlock(
+                            id = step.messageId,
+                            reasoning = step.reasoning,
+                            defaultExpanded = defaultExpanded,
+                            live = step.messageId == liveReasoningId,
+                            durationMs = step.durationMs,
+                            autoTranslate = autoTranslate,
+                            onNavigateToSettings = onNavigateToSettings,
+                        )
+                        is ChatRenderItem.MessageItem -> {
+                            val call = step.message as ToolCall
+                            ToolCard(call, results[call.id], workspace, onOpenFile, running, liveStatus,
+                                showReasoning = call.reasoning != null &&
+                                    !reasoningAlreadyShown(messages, step.rawIndex, call.reasoning),
+                                defaultExpanded = defaultExpanded, onRetry = { onRetry(call.id) },
+                                executing = executing)
+                        }
+                        else -> Unit
+                    }
                 }
             }
         }

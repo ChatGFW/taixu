@@ -19,7 +19,7 @@ class ChatTimelineProjectionTest {
         val items = projectChatTimeline(messages)
         assertEquals(listOf("u", "tool_steps_a", "text", "sub", "surface", "tool_steps_ask"), items.map { it.stableKey })
         val group = items[1] as ToolStepsItem
-        assertEquals(listOf(1, 3), group.steps.map { it.rawIndex })
+        assertEquals(listOf(1, 3), group.steps.map { it.stepRawIndex })
         assertTrue(group.containsMessage("b"))
         assertFalse(group.containsMessage("r-a"))
     }
@@ -36,12 +36,12 @@ class ChatTimelineProjectionTest {
         val steps = (1..40).map { ChatRenderItem.MessageItem(call("c$it"), it) }
         val results = steps.associate { it.message.id to result(it.message.id) }.toMutableMap()
         results["c3"] = result("c3", false)
-        assertEquals(listOf("c3", "c39", "c40"), visibleToolChainSteps(steps, results, false, 2).map { it.message.id })
+        assertEquals(listOf("c3", "c39", "c40"), visibleToolChainSteps(steps, results, false, 2).mapNotNull { it.stepId })
         val expanded = visibleToolChainSteps(steps, results, false, 8)
         assertEquals(9, expanded.size)
         assertEquals(listOf(steps[2]) + steps.takeLast(8), expanded)
         assertEquals(steps, visibleToolChainSteps(steps, results, false, 40))
-        assertTrue(visibleToolChainSteps(steps, results, false, 2, "c12").any { it.message.id == "c12" })
+        assertTrue(visibleToolChainSteps(steps, results, false, 2, "c12").any { it.stepId == "c12" })
     }
 
     @Test fun approvalAndUnknownResultsNeverBecomeSuccessOrGenericFailure() {
@@ -76,7 +76,7 @@ class ChatTimelineProjectionTest {
             listOf(AssistantText("answer", 50, "done"), user("u2"))
         val collapsed = projectChatTimeline(messages, collapseEnabled = true)
         assertEquals(1, collapsed.filterIsInstance<ChatRenderItem.CollapseButtonItem>().size)
-        assertEquals(listOf("c5", "c6"), collapsed.filterIsInstance<ToolStepsItem>().single().steps.map { it.message.id })
+        assertEquals(listOf("c5", "c6"), collapsed.filterIsInstance<ToolStepsItem>().single().steps.mapNotNull { it.stepId })
         val expanded = projectChatTimeline(messages, expandedOverrides = mapOf("u1" to true), collapseEnabled = true)
         assertEquals(6, expanded.filterIsInstance<ToolStepsItem>().single().steps.size)
     }
@@ -86,13 +86,34 @@ class ChatTimelineProjectionTest {
         val groups = projectChatTimeline(messages).filterIsInstance<ToolStepsItem>()
         assertEquals(1, groups.size)
         assertEquals(8, visibleToolChainSteps(groups.single().steps, emptyMap(), false).size)
-        assertEquals(messages.map { it.id }, groups.flatMap { it.steps }.map { it.message.id })
+        assertEquals(messages.map { it.id }, groups.flatMap { it.steps }.mapNotNull { it.stepId })
     }
 
     @Test fun assistantIdentityAppearsOncePerUserTurnAcrossTextAndSteps() {
         val items = projectChatTimeline(listOf(user("u1"), call("t1"), AssistantText("a1", 20, "done"),
             user("u2"), AssistantText("a2", 30, "progress"), call("t2")))
         assertEquals(setOf("tool_steps_t1", "a2"), assistantTurnLabelKeys(items))
+    }
+
+    @Test fun reasoningJoinsTheSameChainWithoutCountingAsToolSteps() {
+        val messages = listOf(user("u"),
+            AssistantText("a1", 2, "", reasoning = "先看环境"),
+            call("t1"), AssistantText("a2", 3, "", reasoning = "再确认"), call("t2"))
+        val chain = projectChatTimeline(messages).filterIsInstance<ToolStepsItem>().single()
+        assertEquals(listOf("a1", "t1", "a2", "t2"), chain.steps.mapNotNull { it.stepId })
+        assertEquals(2, chain.toolCount)
+        assertEquals("tool_steps_t1", chain.stableKey)
+    }
+
+    @Test fun reasoningWithProseKeepsItsBubbleButStopsRenderingThinkingTwice() {
+        val items = projectChatTimeline(listOf(user("u"), AssistantText("a", 2, "答案", reasoning = "推理")))
+        assertEquals(listOf("u", "reasoning_a", "a"), items.map { it.stableKey })
+        assertFalse((items[2] as ChatRenderItem.MessageItem).showReasoning)
+    }
+
+    @Test fun streamingReasoningPlaceholderDoesNotLeaveAnEmptyBubble() {
+        val items = projectChatTimeline(listOf(user("u"), AssistantText("a", 2, "", reasoning = "思考中")))
+        assertEquals(listOf("u", "reasoning_a"), items.map { it.stableKey })
     }
 
     @Test fun focusedMessageResolvesItsRoundEvenWhenLegacyCollapseHidesIt() {

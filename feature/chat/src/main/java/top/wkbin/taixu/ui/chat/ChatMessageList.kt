@@ -181,7 +181,9 @@ internal fun ChatMessageList(
                 if (index > 0) Spacer(Modifier.height(chatTimelineItemSpacing(renderItems[index - 1], item).dp))
                 if (item.stableKey in turnLabelKeys) AssistantTurnLabel()
                 when (item) {
-                    is ToolStepsItem -> ToolStepsCard(item, toolResults, messages, workspace, onOpenFile, running, status, thinkingExpanded, onRetryTool, executing = running && item.steps.first().rawIndex > lastInputIndex)
+                    is ToolStepsItem -> ToolStepsCard(item, toolResults, messages, workspace, onOpenFile, running, status,
+                        thinkingExpanded, onRetryTool, running && item.steps.first().stepRawIndex > lastInputIndex,
+                        liveThinkingMessageId.takeIf { thinkingLive }, thinkingAutoTranslate, onNavigateToSettings)
                     is ChatRenderItem.CollapseButtonItem -> {
                         RoundCollapseButton(
                             item = item,
@@ -193,6 +195,9 @@ internal fun ChatMessageList(
                             },
                         )
                     }
+                    is ChatRenderItem.ReasoningItem -> ReasoningRow(item, thinkingExpanded,
+                        thinkingLive && item.messageId == liveThinkingMessageId, thinkingAutoTranslate,
+                        onNavigateToSettings)
                     is ChatRenderItem.MessageItem -> {
                         when (val message = item.message) {
                             is CapabilityEvent -> CapabilityEventCard(message)
@@ -215,7 +220,8 @@ internal fun ChatMessageList(
                                 onRewind = { scope -> onRewindMessage(message.id, scope) },
                             )
                             is AssistantText -> AssistantBubble(
-                                message = message,
+                                // 思考已作为链内步骤渲染时，气泡不再重复展示。
+                                message = if (item.showReasoning) message else message.copy(reasoning = null),
                                 defaultExpanded = thinkingExpanded,
                                 live = thinkingLive && message.id == liveThinkingMessageId,
                                 showRegenerate = !running && message.id == lastAssistantMessageId, prominentActions = message.id in toolbarIds,
@@ -284,50 +290,6 @@ internal fun ChatMessageList(
         if (!top.wkbin.taixu.ui.theme.LocalChatBackgroundActive.current) ScrollFadeOverlay(top = androidx.compose.foundation.layout.WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 72.dp, bottom = 0.dp)
     }
 }
-}
-
-@Composable
-internal fun RoundCollapseButton(
-    item: ChatRenderItem.CollapseButtonItem,
-    onToggle: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val text = if (item.isExpanded) {
-        stringResource(R.string.chat_collapse)
-    } else {
-        val durationSuffix = if (item.hiddenDurationMs > 0) {
-            " · " + formatChatDuration(item.hiddenDurationMs)
-        } else {
-            ""
-        }
-        stringResource(R.string.chat_expand_more, item.hiddenSteps, item.totalSteps, durationSuffix)
-    }
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onToggle)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        HorizontalDivider(
-            modifier = Modifier.weight(1f),
-            thickness = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 12.dp),
-        )
-        HorizontalDivider(
-            modifier = Modifier.weight(1f),
-            thickness = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-        )
-    }
 }
 
 @Composable

@@ -19,7 +19,8 @@ internal fun assistantTurnLabelKeys(items: List<ChatRenderItem>): Set<String> = 
     items.forEach { item ->
         val message = (item as? ChatRenderItem.MessageItem)?.message
         if (message is UserMessage) needsLabel = true
-        else if (needsLabel && (message is AssistantText || message is ToolCall || item is ToolStepsItem)) {
+        else if (needsLabel && (message is AssistantText || message is ToolCall ||
+                item is ToolStepsItem || item is ChatRenderItem.ReasoningItem)) {
             add(item.stableKey)
             needsLabel = false
         }
