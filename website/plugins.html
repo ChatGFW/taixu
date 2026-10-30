@@ -15,7 +15,7 @@
   <header class="site-header docs-header" data-header>
     <a class="brand" href="index.html" aria-label="返回太墟首页"><span class="brand-mark"><img src="assets/taixu-logo.png" alt=""></span><span class="brand-name">太墟</span><span class="brand-roman">TAIXU</span></a>
     <button class="menu-toggle" type="button" aria-label="打开导航" aria-expanded="false" data-menu-toggle><span></span><span></span></button>
-    <nav class="site-nav" aria-label="主导航" data-nav><a href="index.html#vision">理念</a><a href="index.html#themes">界面</a><a href="plugins.html" aria-current="page">插件教程</a><a href="templates.html">模板教程</a><a class="nav-github" href="https://github.com/wkbin/taixu" target="_blank" rel="noreferrer">GitHub ↗</a></nav>
+    <nav class="site-nav" aria-label="主导航" data-nav><a href="index.html#vision">理念</a><a href="index.html#themes">界面</a><a href="plugins.html" aria-current="page">插件教程</a><a href="templates.html">模板教程</a><a class="nav-github" href="https://github.com/taixu-lab/taixu" target="_blank" rel="noreferrer">GitHub ↗</a></nav>
   </header>
 
   <main id="main" class="docs-main">
@@ -115,7 +115,7 @@ echo "hello from TaiXu"</code></pre>
           <p>WEB 使用同一 v2 容器，<code>plugin.execution=WEB</code>，扩展固定为 <code>[{"id":"main","point":"PAGE"}]</code>。默认静态入口是 <code>payload/index.html</code>，导入后即可从外部 Web 插件页面打开，无需 Linux 配方安装。</p>
           <ul><li>静态 payload 最多 63 个普通文件、合计 2 MiB；含清单解压总量最多 3 MiB，归档最多 129 个条目。</li><li>文件名与目录使用普通 ASCII；不能包含查询串、百分号编码或保留的根 <code>theme.css</code>。</li><li>不接受安装步骤、Shell 命令、环境变量、旧权限字段、全局资源或插件依赖。</li><li>可声明 APP_INFO、CLIPBOARD_WRITE、INSTALL_APK、LOGCAT 白名单能力；原生侧确认后调用，剪贴板写入和 APK 安装每次确认。</li><li>升级或移除后旧页面授权失效；能力授权不随导入自动授予。</li></ul>
           <p>还支持固定的受管理 PRoot 来源与已安装服务来源，具体字段和限制请按完整规范选用，包不能自行提供任意地址、端口或命令。</p>
-          <a class="text-link" href="https://github.com/wkbin/taixu/blob/main/docs/PLUGIN_WEB_EXTENSIONS.md" target="_blank" rel="noreferrer">查看完整 WEB 示例与消息协议 ↗</a>
+          <a class="text-link" href="https://github.com/taixu-lab/taixu/blob/main/docs/PLUGIN_WEB_EXTENSIONS.md" target="_blank" rel="noreferrer">查看完整 WEB 示例与消息协议 ↗</a>
         </section>
 
         <section id="runtime" class="reveal">
@@ -153,12 +153,12 @@ is_aarch64_elf() {
         <section id="checklist" class="reveal">
           <h2>10 / 发布前检查</h2>
           <ul><li>CLI check / pack / inspect 均通过，完整性清单与所有 payload 文件精确对应。</li><li>身份、SemVer、API 范围和扩展类型正确；满足 PROCESS 或 WEB 各自容量限制。</li><li>PROCESS：ARM64、启动入口和依赖正确；不依赖未声明的可选命令。</li><li>PROCESS：执行位与 ABI 已核对，离线安装、验证和启动通过；失败时 staging 可清理。</li><li>WEB：默认静态入口可打开，原生能力确认、拒绝、撤销与升级失效均验证。</li><li>重复导入、新版本升级和卸载或移除均验证。</li><li>安装进度单调递增，日志与页面资源不包含凭据。</li><li>大型包已核算私有副本、payload、staging 和最终目录的总空间。</li></ul>
-          <a class="button button-primary" href="https://github.com/wkbin/taixu/blob/main/docs/PLUGIN_DEVELOPMENT_GUIDELINES.md" target="_blank" rel="noreferrer">阅读完整规范 <span>↗</span></a>
-          <p><a class="text-link" href="https://github.com/wkbin/taixu/blob/main/docs/PLUGIN_PACKAGE_V2.md" target="_blank" rel="noreferrer">v2 包协议、资源声明与安装收据 ↗</a></p>
+          <a class="button button-primary" href="https://github.com/taixu-lab/taixu/blob/main/docs/PLUGIN_DEVELOPMENT_GUIDELINES.md" target="_blank" rel="noreferrer">阅读完整规范 <span>↗</span></a>
+          <p><a class="text-link" href="https://github.com/taixu-lab/taixu/blob/main/docs/PLUGIN_PACKAGE_V2.md" target="_blank" rel="noreferrer">v2 包协议、资源声明与安装收据 ↗</a></p>
         </section>
       </article>
     </div>
   </main>
-  <footer><div class="footer-brand"><strong>太墟</strong><span>TAIXU / LINUX AI RUNTIME</span></div><p>于太墟中立极，于方寸间创世。</p><div class="footer-links"><a href="index.html">首页</a><a href="templates.html">模板教程</a><a href="https://github.com/wkbin/taixu">GitHub</a></div><small>© <span data-year></span> TaiXu Project. Open source on GitHub.</small></footer>
+  <footer><div class="footer-brand"><strong>太墟</strong><span>TAIXU / LINUX AI RUNTIME</span></div><p>于太墟中立极，于方寸间创世。</p><div class="footer-links"><a href="index.html">首页</a><a href="templates.html">模板教程</a><a href="https://github.com/taixu-lab/taixu">GitHub</a></div><small>© <span data-year></span> TaiXu Project. Open source on GitHub.</small></footer>
 </body>
 </html>

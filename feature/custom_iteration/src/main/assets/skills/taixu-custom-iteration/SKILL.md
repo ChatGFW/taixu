@@ -44,7 +44,7 @@ description: 太墟（TaiXu）自定义迭代与 TaiXuDev 构建规范，引导 
 由于手机端架构（ARM64）与标准 Android 编译工具链（x86_64）的差异，优先使用 GitHub Actions 云端 CI 构建：
 
 1. 确保用户的 Fork 仓库已包含 `.github/workflows/taixudev-build.yml`。模板缓存在 `/attachments/templates/workflows/taixudev-build.yml`（不在克隆目标内）。官方 main 已包含该文件；若 Fork 缺少，克隆完成后再复制进 `~/custom_taixu/.github/workflows/` 并提交；
-2. 在 Fork 克隆目录内触发工作流并实时监控。不要对 `wkbin/taixu` 执行 `workflow_dispatch`（contributor 会 403）。目标仓库取 `git remote get-url origin` 解析出的 `owner/name`：
+2. 在 Fork 克隆目录内触发工作流并实时监控。不要对 `taixu-lab/taixu` 执行 `workflow_dispatch`（contributor 会 403）。目标仓库取 `git remote get-url origin` 解析出的 `owner/name`：
    ```bash
    gh workflow run taixudev-build.yml --ref <feature-branch> -R <fork-owner/name>
    gh run watch <run-id> --exit-status -R <fork-owner/name>
@@ -60,6 +60,6 @@ description: 太墟（TaiXu）自定义迭代与 TaiXuDev 构建规范，引导 
 ## 4. 开源 PR 提交规范
 
 经过本地真机安装验证满意后，协助用户生成标准 PR 模板并提交到太墟官方仓库：
-- **目标仓库**：`wkbin/taixu:main`
+- **目标仓库**：`taixu-lab/taixu:main`
 - **源分支**：`user-fork:feature/xxx`
 - **PR 模板包含**：概述（Summary）、改动点（Changes）、测试结果（Testing）、截图/录屏（Screenshots）、潜在风险（Risks）。

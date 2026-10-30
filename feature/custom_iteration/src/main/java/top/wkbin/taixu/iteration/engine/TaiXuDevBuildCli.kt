@@ -15,7 +15,7 @@ internal object TaiXuDevBuildCli {
     const val WORKFLOW = "taixudev-build.yml"
     const val ARTIFACT = "taixudev-apk"
     const val APK_NAME = "TaiXuDev-arm64-debug.apk"
-    const val DEFAULT_REPO = "wkbin/taixu"
+    const val DEFAULT_REPO = "taixu-lab/taixu"
 
     /** 唯一可信的代码托管主机；`origin` 指向其他主机时拒绝解析。 */
     const val GITHUB_HOST = "github.com"

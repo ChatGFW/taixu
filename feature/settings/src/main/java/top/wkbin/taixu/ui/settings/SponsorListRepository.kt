@@ -88,6 +88,6 @@ class SponsorListRepository(
 
     companion object {
         // TODO: 把仓库根目录的 sponsors.json 推送到 GitHub 后，确认该地址可访问
-        const val SPONSORS_JSON_URL = "https://raw.githubusercontent.com/wkbin/taixu/main/sponsors.json"
+        const val SPONSORS_JSON_URL = "https://raw.githubusercontent.com/taixu-lab/taixu/main/sponsors.json"
     }
 }
