@@ -33,7 +33,7 @@ internal fun ToolStepHeader(call: ToolCall, result: ToolResult?, running: Boolea
         ChatProcessIcon(toolIcon(call.tool), running = state == ToolStepState.RUNNING)
         val target = toolStepTarget(call)
         val title = toolStepTitle(call)
-        Text(if (target == null) title else "$title · $target", Modifier.weight(1f),
+        Text(if (target == null) title else "$title · $target", Modifier.weight(1f).then(chatProcessPulse(state == ToolStepState.RUNNING)),
             style = MaterialTheme.typography.bodySmall, color = chatProcessColor(),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (state != ToolStepState.SUCCEEDED && state != ToolStepState.RUNNING) Text(stateText,
