@@ -4,4 +4,8 @@
     <external-cache-path name="external_cache" path="." />
     <external-files-path name="external_files" path="." />
     <external-path name="external_storage" path="." />
+    <!-- 仅暴露产物目录（workspace / attachments）；rootfs、bin、opt 等不参与分享。
+         授权按单次 Intent 发放，provider 本身 exported=false。 -->
+    <files-path name="linux_runtime_workspace" path="linux-runtime/workspace/" />
+    <files-path name="linux_runtime_attachments" path="linux-runtime/attachments/" />
 </paths>
