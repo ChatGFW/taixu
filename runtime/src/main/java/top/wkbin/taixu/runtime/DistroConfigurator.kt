@@ -331,21 +331,7 @@ class DistroConfigurator(
     }
 
     fun configureEnvironment(distroId: String = "ubuntu") {
-        val profileDir = File(pathManager.rootfsDir(distroId), "etc/profile.d")
-        profileDir.mkdirs()
-        File(profileDir, "taixu-env.sh").writeText(
-            """
-            export LANG=C.UTF-8
-            export PATH=/root/.local/bin:/opt/taixu/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-            export HOME=/root
-            # HostBridge — 沙箱通过 localhost HTTP 桥接触发宿主侧操作
-            export TAIXU_BRIDGE_URL="http://127.0.0.1:7980"
-            export TAIXU_BRIDGE_PORT=7980
-            # Android 二进制参考路径（用 taixu-android-exec 包装器执行）
-            export ANDROID_BIN_PATH="/system/bin:/system/xbin"
-            export ANDROID_LIB_PATH="/system/lib64:/system/lib:/vendor/lib64:/vendor/lib"
-            """.trimIndent() + "\n",
-        )
+        GuestLoginEnvironment.install(pathManager.rootfsDir(distroId))
         val home = pathManager.homeDir(distroId)
         home.mkdirs()
         File(home, ".gitconfig").writeText(
