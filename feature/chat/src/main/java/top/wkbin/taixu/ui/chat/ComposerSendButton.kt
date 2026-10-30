@@ -19,13 +19,28 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 
 @Composable
 internal fun ComposerSendButton(onClick: () -> Unit, enabled: Boolean, tint: Color) {
+    ComposerActionButton(onClick, enabled, RuntimeIconName.ArrowUp, stringResource(R.string.chat_send),
+        if (enabled) tint.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceContainerHighest,
+        if (enabled) tint else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f))
+}
+
+@Composable
+internal fun ComposerStopButton(onClick: () -> Unit) {
+    ComposerActionButton(onClick, true, RuntimeIconName.Stop, stringResource(R.string.chat_stop_generation),
+        MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.onError)
+}
+
+@Composable
+private fun ComposerActionButton(
+    onClick: () -> Unit, enabled: Boolean, icon: RuntimeIconName, description: String,
+    containerColor: Color, iconColor: Color,
+) {
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         RuntimeCard(shape = CircleShape, contentPadding = PaddingValues(0.dp),
-            containerColor = if (enabled) tint.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceContainerHighest) {
+            containerColor = containerColor) {
             RuntimeIconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(30.dp),
-                contentDescription = stringResource(R.string.chat_send)) {
-                RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(22.dp),
-                    if (enabled) tint else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f))
+                contentDescription = description) {
+                RuntimeIcon(icon, Modifier.size(22.dp), iconColor)
             }
         }
     }

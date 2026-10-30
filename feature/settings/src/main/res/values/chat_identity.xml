@@ -1,0 +1,9 @@
+<resources>
+    <string name="settings_chat_identity_title">聊天标识</string>
+    <string name="settings_chat_identity_description">自定义名称与 Logo，保存在本地。图片大小不超过 10 MB。</string>
+    <string name="settings_chat_identity_name">名称（最多 40 字）</string>
+    <string name="settings_chat_identity_save">保存名称</string>
+    <string name="settings_chat_identity_logo">选择 Logo</string>
+    <string name="settings_chat_identity_reset">恢复默认名称与 Logo</string>
+    <string name="settings_chat_identity_error">保存失败，请重试或选择其他图片。</string>
+</resources>

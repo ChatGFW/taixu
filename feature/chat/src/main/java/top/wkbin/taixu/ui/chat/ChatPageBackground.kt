@@ -39,12 +39,14 @@ internal fun ChatPageSurface(
     val appearance = previewOrNull { koinInject<AppearancePreferences>() }
     val classicDots by appearance?.classicToolStatusDots?.collectAsStateWithLifecycle(initialValue = false) ?: previewStateOf(false)
     val normalized = style.normalized()
-    CompositionLocalProvider(LocalChatBackgroundActive provides
-        (normalized.imageName != null && normalized.visibility > 0f), LocalClassicToolStatusDots provides classicDots) {
-        // One continuous image behind the top bar, conversation, composer and system insets.
-        Box(modifier) {
-            RuntimeChatBackground(normalized, Modifier.matchParentSize())
-            content()
+    ChatIdentityHost {
+        CompositionLocalProvider(LocalChatBackgroundActive provides
+            (normalized.imageName != null && normalized.visibility > 0f), LocalClassicToolStatusDots provides classicDots) {
+            // One continuous image behind the top bar, conversation, composer and system insets.
+            Box(modifier) {
+                RuntimeChatBackground(normalized, Modifier.matchParentSize())
+                content()
+            }
         }
     }
 }

@@ -13,12 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.PaddingValues
 import top.wkbin.taixu.ui.components.RuntimeCard
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
@@ -35,8 +33,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import top.wkbin.taixu.feature.chat.R
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
@@ -397,26 +393,7 @@ internal fun ChatComposer(
                             ComposerSendButton(onClick = doSend, enabled = true, tint = sendTint)
                         }
 
-                        run {
-                            val stopDesc = stringResource(R.string.chat_stop_generation)
-                            Surface(
-                                onClick = onStop,
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier
-                                    .minimumInteractiveComponentSize()
-                                    .size(48.dp)
-                                    .semantics { contentDescription = stopDesc },
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    RuntimeIcon(
-                                        name = RuntimeIconName.Stop,
-                                        modifier = Modifier.size(24.dp),
-                                        tint = MaterialTheme.colorScheme.onError,
-                                    )
-                                }
-                            }
-                        }
+                        ComposerStopButton(onClick = onStop)
                     }
                 } else {
                     Row(

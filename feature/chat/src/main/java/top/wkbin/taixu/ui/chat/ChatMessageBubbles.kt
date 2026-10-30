@@ -393,6 +393,7 @@ internal fun AssistantBubble(
     autoTranslate: Boolean = false,
     live: Boolean = false,
     showRegenerate: Boolean = false,
+    prominentActions: Boolean = true,
     onRegenerate: () -> Unit = {},
     onCreateBranch: () -> Unit = {},
     onNavigateToSettings: (() -> Unit)? = null,
@@ -420,7 +421,7 @@ internal fun AssistantBubble(
         Toast.makeText(context, context.getString(R.string.chat_response_copied), Toast.LENGTH_SHORT).show()
     }
 
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (!reasoning.isNullOrBlank()) {
             ThinkingBlock(
                 id = message.id,
@@ -497,77 +498,8 @@ internal fun AssistantBubble(
             }
         }
 
-        // 统计区域占满剩余宽度，操作按钮始终贴右；长统计文本可收缩省略。
         if (!live && message.text.isNotBlank()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 0.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    message.totalMs?.let {
-                        Text(
-                            stringResource(R.string.chat_elapsed, formatChatDuration(it)),
-                            modifier = Modifier.weight(1f, fill = false),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontFamily = FontFamily.Monospace,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-
-                    // Provider 报告的本轮 token 用量明细（输入/输出/缓存命中与命中率）。
-                    val tokenParts = buildList {
-                        message.promptTokens?.let { add("↑${formatTokenCount(it)}") }
-                        message.completionTokens?.let { add("↓${formatTokenCount(it)}") }
-                        message.cachedTokens?.takeIf { cached -> cached > 0 }?.let { cached ->
-                            val prompt = message.promptTokens ?: 0
-                            val pct = if (prompt > 0) ((cached.toLong() * 100L) / prompt.toLong()).toInt().coerceIn(1, 100) else null
-                            if (pct != null) {
-                                add("⚡${formatTokenCount(cached)} ($pct%)")
-                            } else {
-                                add("⚡${formatTokenCount(cached)}")
-                            }
-                        }
-                    }
-
-                    if (tokenParts.isNotEmpty()) {
-                        Text(
-                            tokenParts.joinToString(" "),
-                            modifier = Modifier.weight(1f, fill = false),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                            fontFamily = FontFamily.Monospace,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-
-                }
-
-                if (showRegenerate) {
-                    IconButton(onClick = onRegenerate, modifier = Modifier.size(24.dp), contentDescription = stringResource(R.string.chat_regenerate)) {
-                        RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
-
-                IconButton(onClick = onCreateBranch, modifier = Modifier.size(24.dp), contentDescription = stringResource(R.string.chat_branch_from_here)) {
-                    RuntimeIcon(RuntimeIconName.GitBranch, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-
-                // 复制按钮
-                IconButton(onClick = copyAll, modifier = Modifier.size(24.dp), contentDescription = stringResource(R.string.chat_copy)) {
-                    RuntimeIcon(
-                        RuntimeIconName.Copy,
-                        Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                // 消息反馈（自包含组件：koinInject 直取服务，不向列表/Screen 钻孔）
-                if (!live) MessageFeedbackAction(message.id)
-            }
+            AssistantMessageFooter(message, prominentActions, showRegenerate, onRegenerate, onCreateBranch, copyAll)
         }
     }
 }
@@ -794,15 +726,12 @@ internal fun ThinkingBlock(
         Toast.makeText(context, context.getString(R.string.chat_reasoning_copied), Toast.LENGTH_SHORT).show()
     }
 
-    RuntimeCard(
-        modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large,
-        containerColor = Color.Transparent, contentPadding = PaddingValues(0.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().then(chatGreetingModifier())) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier
-                .fillMaxWidth().clip(MaterialTheme.shapes.medium)
+                .fillMaxWidth().heightIn(min = 28.dp).clip(MaterialTheme.shapes.small)
                 .clickable { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); expanded = !expanded },
         ) {
             Box(
@@ -812,7 +741,7 @@ internal fun ThinkingBlock(
                 if (live) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
-                        strokeWidth = 1.5.dp,
+                        // 保留默认描边参数，让 Runtime 组件使用 Expressive 形变动画。
                         color = MaterialTheme.colorScheme.primary,
                     )
                 } else {
