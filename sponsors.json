@@ -2,6 +2,22 @@
   "entries": [
     {
       "kind": "contribution",
+      "name": "ygpking",
+      "source": "github",
+      "identifier": "ygpking",
+      "avatar": "https://avatars.githubusercontent.com/u/30524294?s=96",
+      "note": "42 次提交"
+    },
+    {
+      "kind": "contribution",
+      "name": "liulihuishe",
+      "source": "github",
+      "identifier": "liulihuishe",
+      "avatar": "https://avatars.githubusercontent.com/u/81918978?s=96",
+      "note": "33 次提交"
+    },
+    {
+      "kind": "contribution",
       "name": "wid",
       "source": "github",
       "identifier": "liaoyh9422-creator",
@@ -10,19 +26,27 @@
     },
     {
       "kind": "contribution",
-      "name": "ygpking",
+      "name": "baizenb",
       "source": "github",
-      "identifier": "ygpking",
-      "avatar": "https://avatars.githubusercontent.com/u/30524294?s=96",
-      "note": "23 次提交"
+      "identifier": "baizenb",
+      "avatar": "https://avatars.githubusercontent.com/baizenb?s=96",
+      "note": "11 次提交"
     },
     {
       "kind": "contribution",
-      "name": "liulihuishe",
+      "name": "ttao159",
       "source": "github",
-      "identifier": "liulihuishe",
-      "avatar": "https://avatars.githubusercontent.com/u/81918978?s=96",
-      "note": "5 次提交"
+      "identifier": "ttao159",
+      "avatar": "https://avatars.githubusercontent.com/ttao159?s=96",
+      "note": "6 次提交"
+    },
+    {
+      "kind": "contribution",
+      "name": "Tunny1985",
+      "source": "github",
+      "identifier": "Tunny1985",
+      "avatar": "https://avatars.githubusercontent.com/u/18304273?s=96",
+      "note": "4 次提交"
     },
     {
       "kind": "contribution",
@@ -39,6 +63,46 @@
       "identifier": "axin8880888-create",
       "avatar": "https://avatars.githubusercontent.com/u/289113275?s=96",
       "note": "2 次提交"
+    },
+    {
+      "kind": "contribution",
+      "name": "MioHueCode",
+      "source": "github",
+      "identifier": "MioHueCode",
+      "avatar": "https://avatars.githubusercontent.com/u/242268374?s=96",
+      "note": "1 次提交"
+    },
+    {
+      "kind": "contribution",
+      "name": "YiouozhTuTde3oO",
+      "source": "github",
+      "identifier": "YiouozhTuTde3oO",
+      "avatar": "https://avatars.githubusercontent.com/YiouozhTuTde3oO?s=96",
+      "note": "1 次提交"
+    },
+    {
+      "kind": "contribution",
+      "name": "anyongjun616-hue",
+      "source": "github",
+      "identifier": "anyongjun616-hue",
+      "avatar": "https://avatars.githubusercontent.com/anyongjun616-hue?s=96",
+      "note": "1 次提交"
+    },
+    {
+      "kind": "contribution",
+      "name": "haotaoran520",
+      "source": "github",
+      "identifier": "haotaoran520",
+      "avatar": "https://avatars.githubusercontent.com/u/63030406?s=96",
+      "note": "1 次提交"
+    },
+    {
+      "kind": "contribution",
+      "name": "matianxuan",
+      "source": "github",
+      "identifier": "matianxuan",
+      "avatar": "https://avatars.githubusercontent.com/u/42168069?s=96",
+      "note": "1 次提交"
     }
   ]
 }
