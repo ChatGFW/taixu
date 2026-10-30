@@ -1,5 +1,40 @@
 # 凭证与暴露面清单 (Security Surface)
 
+## 2026-10-30：产物外发、二进制边界与请求体积
+
+交付卡片、工作区编辑器与 WebChat 下载现在共用同一套外发路径，暴露面变化如下：
+
+- `FileProvider` 新增 `linux_runtime`（`filesDir/linux-runtime`，覆盖 workspace / attachments / distros）映射；provider 仍为 `exported=false`，权限按单次 Intent 的 `FLAG_GRANT_READ_URI_PERMISSION` 发放，拿到 URI 的应用只能读该次授权文件，不获得真实路径或目录枚举。
+- 交付产物的“打开/分享/另存”在动作前流式计算 SHA-256 并与记录值比对；不一致或文件不存在会明确提示，不静默当作记录版本。哈希只说明字节一致，不证明来源或安全性；装 APK 仍受既有安装审批约束。
+- 编辑器与预览在把文件当文本处理前嗅探文件头（魔数 / NUL / 控制字符占比）；二进制不再按 UTF-8 解码后回写，避免乱码覆盖与 `text/plain` 导出损坏。启发式判定不是内容审计，无法阻止用户主动用其他应用打开可疑文件。
+- WebChat `GET /workspaces/download` 改为流式响应（定长缓冲），不再把整个文件读入内存；接口本身仍以宿主凭据为前提、路径限定在工作区根内。
+- 请求体图片预算：`ApiMessageProjector` 对用户图片 data URL 实行每请求 8MB 总额（最新优先）；被挤掉的旧图在正文里以一行说明代替，原图仍保留在会话记录和 UI，只是不再重复上行。这降低上游 413 与费用，但意味着模型对旧图的事实依据会衰减。
+
+历史条目：
+
+## 2026-10-30：工作区检索与 Lazygit 插件
+
+`local-rag` 是外部 PROCESS/MCP 包：MCP 输入只允许 `/workspace` 内显式选择的项目相对目录，
+拒绝路径穿越与符号链接，遵循 Git 忽略规则；只写插件数据目录，不修改源项目。
+索引含原文片段，保存在 `/opt/taixu/data/local-rag`，普通卸载默认保留。
+搜索核对文件 SHA-256，变化命中隐藏旧片段；不是恶意并发下的原子快照。
+检索结果是低权威资料，不授予指令权限；离线索引不阻止调用方把结果交给在线模型。
+这不增加 PRoot 同 UID 隔离，也不保证忽略规则能识别任意秘密。
+
+`lazygit` 复用原生 PTY 和当前 Git 权限，能执行用户选择的 Git 写入与远端操作。
+默认沿用终端认证环境；显式 `--github` 设置仅作用于当前进程树的 Git/SSH 配置路径，
+不复制 Token、不改全局 Git 配置，使用 GitHub 插件既有凭据链路和严格 SSH 主机校验。
+Lazygit 仍可执行 Git hooks/用户自定义命令，不能把包能力声明理解成执行隔离。
+完整限制与真机验收范围见 [工作区插件](WORKSPACE_PLUGINS.md)。
+
+## 2026-10-29：远程插件库
+
+本地包更新判断使用插件包版本，不使用验证命令的程序版本输出。旧 v1 记录只按安装收据已绑定的包版本及同身份本地清单校正；在安装互斥锁内先复制原收据再更新数据库，保留旧键及原能力、资源声明，不授予新能力、不执行脚本、不把已选择的候选包推定为已安装。
+
+2026-10-30：目录与工具清单验签使用 Bouncy Castle lightweight Ed25519 API，校验 RFC 8410 SPKI 格式，避开 AndroidKeyStore/JCA Provider 的公钥导入兼容问题；不生成密钥、不注册或替换全局 Provider，固定公钥、验签失败拒绝与 revision 防回退边界不变。
+
+官方 GitHub / Gitee 远程目录使用 APK 内 `registry/library-public-key.txt` 固定的同一 Ed25519 公钥验证，在线公钥文件不参与信任决策；按渠道记录最高 revision 并拒绝同渠道回退。渠道选择由 DataStore 领域分面持久化，操作期间不可切换，不静默跨源回退。Gitee 仅发布小插件，发布机令牌通过环境与 API 请求头传递，不进入 Git、App 或目录；上传后公开下载校验不携带令牌。签名仅证明发布源，不授予运行权限。分片和完整包均核对 SHA-256/大小，v1 的 legacy 身份或 v2 包内身份与目录一致后才进入既有 PROCESS / WEB 原生确认流程。缓存可被系统回收；签名私钥保存在发布机仓库外，不进入 APK。插件脚本与 PRoot 同 UID 的原有风险不变。详见 [远程插件库](REMOTE_PLUGIN_LIBRARY.md)。
+
 ## 2026-10-27：插件服务写入增补
 
 外部服务页面可声明 `SERVICE_WRITE/service`，由 `PluginCapabilityInput.SERVICE_WRITE` 强制逐次确认；未声明和非服务来源拒绝。文本固定为相对路径、换行与有界 JSON 正文，原生将 POST 发送到当前租约已解析的 loopback 服务，不接受页面指定端口、主机、请求头或 Shell。POST 不重定向、不自动重试，可协作取消；审批只显示路径，不显示可能含 Token 的正文。服务已接受的任务和远端副作用无法通过撤销回滚。

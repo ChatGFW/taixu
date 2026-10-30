@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -81,7 +80,8 @@ internal class TaiXuImageComponent : A2uiBasicCatalogV1.Image {
                 modifier = Modifier.matchParentSize(),
             )
             when (phase) {
-                0 -> CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                // 图片下载中：用与官方 Catalog 同款骨架屏占位，不再转圈。
+                0 -> TaiXuA2uiSkeleton(Modifier.matchParentSize(), shape = shape)
                 2 -> TaiXuA2uiMediaNotice(stringResource(R.string.fa2ui_image_failed), Modifier.matchParentSize())
             }
         }

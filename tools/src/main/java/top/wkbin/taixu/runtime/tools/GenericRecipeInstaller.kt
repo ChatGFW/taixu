@@ -208,7 +208,7 @@ class GenericRecipeInstaller(
             }
 
             val versionOutput = versionResult.stdout.trim().lineSequence().firstOrNull()?.takeIf { it.isNotBlank() } ?: manifest.version
-            emit(InstallEvent.Completed(toolId, if (manifest.schemaVersion == 2) manifest.version else versionOutput))
+            emit(InstallEvent.Completed(toolId, top.wkbin.taixu.core.tools.installedToolVersion(manifest, versionOutput)))
         } catch (cancellation: CancellationException) {
             if (manifest.source == "LOCAL") {
                 runCatching {

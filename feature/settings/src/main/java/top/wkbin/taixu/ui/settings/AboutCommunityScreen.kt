@@ -147,7 +147,7 @@ fun AboutCommunityScreen(
             releaseNotes = currentReleaseNotes,
             isLoading = isLoadingReleaseNotes,
             onDismiss = { showReleaseNotesDialog = false },
-            onOpenHistory = { openBrowser(context, "https://github.com/wkbin/taixu/releases") },
+            onOpenHistory = { openBrowser(context, "https://github.com/taixu-lab/taixu/releases") },
         )
     }
 
@@ -220,8 +220,8 @@ fun AboutCommunityScreen(
                 SettingsRow(
                     icon = RuntimeIconName.Github,
                     title = "GitHub 开源项目",
-                    subtitle = "https://github.com/wkbin/taixu · 欢迎 Star 支持",
-                    onClick = { openBrowser(context, "https://github.com/wkbin/taixu") },
+                    subtitle = "https://github.com/taixu-lab/taixu · 欢迎 Star 支持",
+                    onClick = { openBrowser(context, "https://github.com/taixu-lab/taixu") },
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 SettingsRow(

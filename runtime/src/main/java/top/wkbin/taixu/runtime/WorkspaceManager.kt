@@ -112,7 +112,7 @@ class WorkspaceManager(
     private val context: Context,
     private val pathManager: RuntimePathManager,
     private val workspaceDao: WorkspaceRepository,
-    private val fileService: WorkspaceFileService,
+    internal val fileService: WorkspaceFileService,
     private val linuxRuntime: Lazy<LinuxRuntime>,
     private val projectTemplateEngine: ProjectTemplateEngine,
     private val buildScriptRepository: Lazy<BuildScriptRepository>? = null,

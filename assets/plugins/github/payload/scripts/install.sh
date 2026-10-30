@@ -30,4 +30,4 @@ chmod 755 "$TAIXU_TOOL_DIR/lib/gh"
 printf '[TAIXU_PROGRESS:80] [VERIFY] 验证 gh 可执行文件\n'
 "$TAIXU_TOOL_DIR/lib/gh" --version
 /usr/bin/python3 -I -c 'import ast,sys; ast.parse(open(sys.argv[1], encoding="utf-8").read())' "$TAIXU_TOOL_DIR/lib/github_plugin.py"
-printf '[TAIXU_PROGRESS:100] [VERIFY] 安装完成，请导入 github-web 页面插件\n'
+printf '[TAIXU_PROGRESS:100] [VERIFY] 安装完成，请在插件详情启动服务并打开管理页面\n'

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
   "id": "github",
-  "name": "GitHub · gh 与 Git",
-  "description": "官方 ARM64 gh，附带本地配置服务；配合 GitHub Web 插件完成 Token、SSH、仓库与 PR 操作。",
-  "version": "1.0.1",
+  "name": "GitHub · 配置与仓库",
+  "description": "官方 ARM64 gh、Git 与内置网页控制端。安装后在插件详情启动服务并打开管理页面，配置 Token、SSH、仓库与 PR，无需另装网页插件。",
+  "version": "1.0.2",
   "publisher": "TaiXu Community",
   "category": "DEVELOPER",
   "homepage": "https://cli.github.com/",
@@ -64,14 +64,14 @@
       "bin/gh": "cd39986b653e19e8b936b684b47b96611adf2d59216e6c766730708e54d91350",
       "bin/gh-git": "01591a23210011b097fb0d1e35035ef5bf487ab78591e915e0203d86f7bbc158",
       "bin/gh-ui": "7c45872c7782736f9cc10f32ff2549dc6e7e51e1bab4f370e0081277077f6b82",
-      "lib/github_plugin.py": "175f5ba8d0895a4c2fe930fe53bdbe76d0f49bc9a8f6452369f937da9a20e286",
-      "lib/service_protocol.py": "cffe30db2ec57474f340a68904ba9553c0a542ff948a614d1d4b99a5c80ae63c",
-      "scripts/install.sh": "5b3e6b1e5b0f3184e975ee633f2d4d506594ebd431d94bd5be56a411e6e1f0b6",
+      "lib/github_plugin.py": "cb5ddb9a15741d6b89c4b8ca9ca45c87625d58d4fe20cebc5b952720eb22a5d3",
+      "lib/service_protocol.py": "bd429020c7fa52a3dde8aacb21a174d752e39e72906241037023c4128a7104fd",
+      "scripts/install.sh": "564a56f852bd8db8552dd48214cc99b272b0ce82265083877491f655bba879c2",
       "vendor/gh": "a82a52e1bbe05bcd485f8cbbd5aa67e11a76fce6bdad394a2d179e1c24cfe367",
       "vendor/LICENSE": "6da4adc42392c8485e40b4251c7e332fc3352df1947c9ffade71dd60b14a7a4f",
-      "web/app.css": "f64eb4bb21b204ec6f45fb5e7b3072f363e6790ade6fb047cc08751e07aee16c",
-      "web/app.js": "c69ec131a9bd33326ee172e8b3495afca40e3c8d5926142de875c8b0683d206f",
-      "web/index.html": "4d873c0406bdff7b5a9f388c0625ea936c32d4c85045f7d2ae357496d6fb4a7a"
+      "web/index.html": "0aa48f0e1001e3b17f9eed77fcdfdb8f1ed8466a986c0258f159c1e84cd30f60",
+      "web/app.js": "d5a02ccb6c5c635b772a4ee7c31675e6bfa9b2c0862c1cf0a92e1ec28c72fbad",
+      "web/app.css": "2a1cf8ec5e13fe84bca6512fe2ee59c3d5606a257e0f1ded69a91416acb05b3a"
     }
   }
 }

@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+tool=/opt/taixu/tools/lazygit
+data=/opt/taixu/data/lazygit
+case "${1:-}" in
+  --version) exec "$tool/libexec/lazygit" --version ;;
+  --github)
+    shift
+    test -x /opt/taixu/tools/github/bin/gh || { echo '请先安装并配置 GitHub 插件' >&2; exit 1; }
+    export GIT_CONFIG_GLOBAL=/opt/taixu/data/github/gitconfig
+    export GIT_SSH_COMMAND='ssh -i /opt/taixu/data/github/ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/opt/taixu/data/github/ssh/known_hosts'
+    ;;
+esac
+command -v git >/dev/null || { echo '需要预先安装 git' >&2; exit 1; }
+if [ ! -t 0 ] || [ ! -t 1 ]; then
+  echo '请在原生交互终端中运行 lazygit' >&2
+  exit 1
+fi
+umask 077
+mkdir -p "$data/config"
+if [ ! -f "$data/config/config.yml" ]; then
+  cp "$tool/config.yml" "$data/config/config.yml"
+fi
+export LG_CONFIG_DIR="$data/config"
+export TERM="${TERM:-xterm-256color}"
+exec "$tool/libexec/lazygit" "$@"

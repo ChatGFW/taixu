@@ -21,6 +21,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.xz)
+    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
     testImplementation(libs.junit)
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.bundles.test.robolectric)

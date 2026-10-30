@@ -12,6 +12,6 @@ import top.wkbin.taixu.ui.components.RuntimePreview
 @Composable
 private fun AgentEcoSettingsScreenPreview() {
     RuntimePreview {
-        AgentEcoSettingsScreen(onBack = { }, onOpenModelProfiles = { }, onOpenLocalLlm = { }, onOpenToolCenter = { }, onOpenAgentSettings = { }, onOpenSubagentSettings = { }, onOpenSkillSettings = { }, onOpenMcpSettings = { }, onOpenQuickPhrases = { }, onOpenStats = { }, onOpenPhoneAgent = { })
+        AgentEcoSettingsScreen(onBack = { }, onOpenModelProfiles = { }, onOpenLocalLlm = { }, onOpenAgentSettings = { }, onOpenSubagentSettings = { }, onOpenSkillSettings = { }, onOpenMcpSettings = { }, onOpenQuickPhrases = { }, onOpenStats = { }, onOpenPhoneAgent = { })
     }
 }

@@ -67,7 +67,7 @@ class GenericRecipeInstallerTest {
         runtime.commandResults["npm install -g @anthropic-ai/claude-code"] =
             CommandResult(0, "added 1 package in 2s", "", 1)
         runtime.commandResults["claude --version"] =
-            CommandResult(0, "1.0.0\n", "", 1)
+            CommandResult(0, "2.3.4\n", "", 1)
 
         val installer = GenericRecipeInstaller(
             manifest = manifest,
@@ -87,7 +87,7 @@ class GenericRecipeInstallerTest {
             ),
         )
         val completed = events.filterIsInstance<InstallEvent.Completed>().single()
-        assertEquals("1.0.0", completed.version)
+        assertEquals("2.3.4", completed.version)
     }
 
     @Test

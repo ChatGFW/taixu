@@ -148,6 +148,11 @@
     <string name="workspace_deleted">Deleted</string>
     <string name="workspace_delete_failed">Delete failed</string>
     <string name="workspace_open_file_failed">Failed to open file</string>
+    <string name="workspace_binary_title">Binary file</string>
+    <string name="workspace_binary_message">This is a binary artifact (%1$s); the editor only handles text. Open it with another app or share it.</string>
+    <string name="workspace_binary_open">Open with another app</string>
+    <string name="workspace_binary_share">Share</string>
+    <string name="workspace_open_external_failed">No app available to open this file</string>
     <string name="workspace_file_saved">File saved</string>
     <string name="workspace_save_failed">Save failed</string>
     <string name="workspace_save_conflict_title">File changed on disk</string>

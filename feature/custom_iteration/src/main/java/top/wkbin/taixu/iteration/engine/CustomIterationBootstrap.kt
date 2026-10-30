@@ -24,8 +24,8 @@ import java.io.File
 object CustomIterationBootstrap {
 
     const val WORKSPACE_NAME = "custom_taixu"
-    const val OFFICIAL_REPO = "https://github.com/wkbin/taixu"
-    const val OFFICIAL_REPO_SLUG = "wkbin/taixu"
+    const val OFFICIAL_REPO = "https://github.com/taixu-lab/taixu"
+    const val OFFICIAL_REPO_SLUG = "taixu-lab/taixu"
     const val DEFAULT_BRANCH = "main"
 
     /** 模块 assets 中的 Skill 名称与工作流文件名。 */
@@ -63,7 +63,7 @@ object CustomIterationBootstrap {
      * 它不是合法仓库标识，Agent 必须先执行 `git remote get-url origin`。
      */
     const val FORK_REPO_PLACEHOLDER =
-        "<先执行 git remote get-url origin 解析 owner/name；禁止对 wkbin/taixu 执行 workflow_dispatch>"
+        "<先执行 git remote get-url origin 解析 owner/name；禁止对 taixu-lab/taixu 执行 workflow_dispatch>"
 
     /** 工作流模板里的关键锚点，用于校验落盘内容确为可用模板。 */
     private const val WORKFLOW_REQUIRED_MARKER = "TAIXU_DEV_BUILD"

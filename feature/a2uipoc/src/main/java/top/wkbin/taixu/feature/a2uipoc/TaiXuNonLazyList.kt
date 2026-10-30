@@ -9,10 +9,12 @@ import androidx.a2ui.compose.ui.catalog.A2uiBasicCatalogV1
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,38 +60,64 @@ internal object TaiXuNonLazyList : A2uiBasicCatalogV1.List {
         modifier: Modifier,
     ) {
         val listModifier = modifier.listAccessibility(accessibility)
-        when (direction) {
-            A2uiBasicCatalogV1.List.Direction.Horizontal -> {
-                LazyRow(
-                    modifier = listModifier,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = align.toVerticalAlignment(),
-                ) {
-                    items(children, key = { it.id to it.baseDataPath }) { childRef ->
-                        ListItem(childRef = childRef, modifier = Modifier)
-                    }
-                }
-            }
-
-            A2uiBasicCatalogV1.List.Direction.Vertical -> {
-                if (children.size <= MAX_EAGER_CHILDREN) {
-                    Column(
-                        modifier = listModifier,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalAlignment = align.toHorizontalAlignment(),
+        // 与官方 Basic Catalog 一致：同一容器内的子项骨架共享一条扫光，按序号错峰呼吸。
+        TaiXuA2uiSkeletonGroup { shimmerRootModifier ->
+            when (direction) {
+                A2uiBasicCatalogV1.List.Direction.Horizontal -> {
+                    LazyRow(
+                        modifier = listModifier.then(shimmerRootModifier),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = align.toVerticalAlignment(),
                     ) {
-                        children.forEach { childRef ->
-                            ListItem(childRef = childRef, modifier = Modifier.fillMaxWidth())
+                        itemsIndexed(
+                            children,
+                            key = { _, childRef -> childRef.id to childRef.baseDataPath },
+                        ) { index, childRef ->
+                            ListItem(
+                                childRef = childRef,
+                                direction = direction,
+                                index = index,
+                                modifier = Modifier,
+                            )
                         }
                     }
-                } else {
-                    LazyColumn(
-                        modifier = listModifier.heightIn(max = MAX_LAZY_HEIGHT),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalAlignment = align.toHorizontalAlignment(),
-                    ) {
-                        items(children, key = { it.id to it.baseDataPath }) { childRef ->
-                            ListItem(childRef = childRef, modifier = Modifier.fillMaxWidth())
+                }
+
+                A2uiBasicCatalogV1.List.Direction.Vertical -> {
+                    if (children.size <= MAX_EAGER_CHILDREN) {
+                        Column(
+                            modifier = listModifier.then(shimmerRootModifier),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = align.toHorizontalAlignment(),
+                        ) {
+                            children.forEachIndexed { index, childRef ->
+                                ListItem(
+                                    childRef = childRef,
+                                    direction = direction,
+                                    index = index,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = listModifier
+                                .then(shimmerRootModifier)
+                                .heightIn(max = MAX_LAZY_HEIGHT),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = align.toHorizontalAlignment(),
+                        ) {
+                            itemsIndexed(
+                                children,
+                                key = { _, childRef -> childRef.id to childRef.baseDataPath },
+                            ) { index, childRef ->
+                                ListItem(
+                                    childRef = childRef,
+                                    direction = direction,
+                                    index = index,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                         }
                     }
                 }
@@ -100,10 +128,12 @@ internal object TaiXuNonLazyList : A2uiBasicCatalogV1.List {
     @Composable
     private fun A2uiComponentScope.ListItem(
         childRef: A2uiComponentReference,
+        direction: A2uiBasicCatalogV1.List.Direction,
+        index: Int,
         modifier: Modifier = Modifier,
     ) {
-        // 与官方 ListItemStateWrapper 等价：按子组件状态 加载中/失败/成功 三态渲染，
-        // 去掉 AnimatedContent 过渡，避免依赖 MaterialA2uiDefaults 的内部成员。
+        // 与官方 ListItemStateWrapper 等价：按子组件状态 加载中/失败/成功 三态渲染。
+        // 加载态用太墟骨架屏（官方 MaterialA2uiDefaults 是 internal，无法直接复用）。
         when (val state = observeA2uiComponentState(childRef)) {
             is A2uiComponentState.Success ->
                 A2uiComponent(component = state.component, modifier = modifier)
@@ -116,12 +146,19 @@ internal object TaiXuNonLazyList : A2uiBasicCatalogV1.List {
                     modifier = modifier,
                 )
 
-            is A2uiComponentState.Loading ->
-                Text(
-                    text = "加载中…",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = modifier,
+            is A2uiComponentState.Loading -> {
+                val loadingModifier = if (
+                    direction == A2uiBasicCatalogV1.List.Direction.Vertical
+                ) {
+                    Modifier.fillMaxWidth().height(56.dp)
+                } else {
+                    Modifier.size(width = 120.dp, height = 64.dp)
+                }
+                TaiXuA2uiSkeleton(
+                    modifier = modifier.then(loadingModifier),
+                    index = index,
                 )
+            }
         }
     }
 }

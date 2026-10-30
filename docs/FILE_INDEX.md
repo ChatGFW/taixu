@@ -59,7 +59,8 @@ P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.
 | `harness/ToolRecoveryAdvice.kt` | 工具失败后的结构化行动建议，持久化后供模型投影使用 | 失败恢复提示 |
 | `harness/operation/FailureMemory.kt` / `FailureMemoryJournal.kt` | 与结果原子保存的运行内失败事实、指纹、TTL 与低权威背景投影 | 失败记忆 |
 | `harness/TaskDelivery.kt` / `harness/task/TaskDeliveryBuilder.kt` / `TaskDeliveryReport.kt` | 本轮工具证据、缺口和文件版本引用；与任务完成一起原子落库 | 任务交付记录 |
-| `harness/ToolOutputArtifact.kt` / `ToolFileArtifacts.kt` / `feature/chat/.../TaskDeliveryCard.kt` | 脱敏日志、实际 APK/图片/下载文件 SHA-256 观察及未验证交付卡片 | 文件版本与展示 |
+| `harness/ToolOutputArtifact.kt` / `ToolFileArtifacts.kt` / `feature/chat/.../TaskDeliveryCard.kt` / `DeliveryArtifactActions.kt` | 脱敏日志、实际 APK/图片/下载文件 SHA-256 观察及未验证交付卡片（缩略图、打开/分享/另存、指纹复核） | 文件版本与展示 |
+| `core/common/.../BinaryFileSniffer.kt` / `FileDigest.kt` / `runtime/HostFileActions.kt` / `runtime/WorkspaceFileAccess.kt` / `feature/workspace/.../BinaryFileNotice.kt` | 文件头二进制判定、流式 SHA-256、FileProvider 打开/分享/另存与编辑器对二进制的拦截 | 二进制产物 |
 | `harness/BuildArtifactObserver.kt` | 标准 APK 目录有界前后扫描；区分新增、变化、已有和不完整观察 | 构建产物观察 |
 | `runtime/environment/FileFingerprint.kt` / `harness/environment/LocalFileFingerprint.kt` / `runtime/remote/SshExecutionFiles.kt` | 当前执行环境的流式二进制指纹、容量与并发变化检查；缺少能力不回退 | 文件指纹 |
 | `harness/ToolExecutionBoundary.kt` / `ToolExecutionRequest.kt` | 检查点观察快照、否决及说明脱敏；保留结果标识与审批状态 | 扩展控制边界 |
@@ -129,7 +130,7 @@ P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.
 | `runtime/.../shell/CommandOutputCapture.kt` | 有界前台命令流落盘，容量和不完整输出标记；结束时清理私有缓存 | 长输出保留 |
 | `runtime/.../shell/CommandResourcePolicy.kt` / `ForegroundCommandAdmission.kt` | 已知重型前台命令的独立资源分类、共享 FIFO 名额与取消 | 本地资源调度 |
 | `runtime/.../ProotCommandBuilder.kt` | `-b` 挂载点规范化 + Shell 注入防护 | 安全 |
-| `runtime/.../WorkspaceFileService.kt` | 工作区读/写/搜/hash/zip/share | 与 file.* 工具对齐 |
+| `runtime/.../WorkspaceFileService.kt` | 工作区读/写/搜/hash/zip/share，含文件头二进制检查与宿主路径解析 | 与 file.* 工具对齐 |
 | `runtime/.../shell/VT100.kt` | 终端 VT100 状态机 | 终端渲染 |
 
 ## 📱 内置无线 ADB 与 Logcat

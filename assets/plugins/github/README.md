@@ -1,14 +1,18 @@
 # GitHub 本地插件
 
-无需把 GitHub 业务代码编译进 APK。宿主需包含 `SERVICE_WRITE` 与认证服务协议，需先更新本次 APK。请使用 **1.0.1**，停用旧 1.0.0 后端；旧版公开 nonce 的校验不足以保护本地 HTTP 写入。
+单包包含官方 gh、Git 配置服务和网页控制端，无需单独安装 `github-web`。
+宿主需包含 `SERVICE_WRITE` 与认证服务协议。请使用 **1.0.2**；旧 1.0.0 的公开 nonce 校验不足以保护本地 HTTP 写入。
 
 ## 安装
 
 1. 在本地 Linux 发行版准备 `python3`、`git`、`openssh-client`、`ca-certificates`。Debian/Ubuntu 可在终端执行 `apt-get update && apt-get install -y python3 git openssh-client ca-certificates`。插件安装配方本身不下载、不调用包管理器。
-2. 设置 → 本地插件/工具中心，导入 `dist/plugins/github-1.0.1.txplugin` 并安装；在工具中心启动 GitHub 服务。
-3. 设置 → 应用功能插件 → 外部 Web 插件，导入 `dist/plugins/github-web-1.0.1.txplugin`，打开页面。页面使用 `TOOL_SERVICE` 连接已运行的认证服务，关闭页面不会停止服务和任务。停止服务请回到工具中心操作。
+2. 在插件中心下载 GitHub，或导入 `dist/plugins/github-1.0.2.txplugin` 并安装。
+3. 在 GitHub 插件详情启动服务，点击「以插件页面打开」进入网页控制端，与 Agent2API 使用相同的服务页面宿主。关闭页面不会停止服务和任务；停止服务请回到插件详情操作。
 4. 允许读取本页服务，在 Token 表单输入 GitHub Token，点击验证并保存，原生确认本次服务写入。页面不返回 Token。
 5. 设置 Git 用户名和邮箱。克隆 `owner/repo`，在终端/编辑器修改文件，再在页面创建新分支、提交全部修改并推送，最后创建 PR。
+
+已安装的旧 `github-web` 入口可手动移除，不影响 GitHub 后端的配置、仓库或任务。
+旧入口仍可连接同一服务，但不再在下载目录分发；没有后端时旧入口无法独立使用。
 
 ## Token 与 SSH
 
@@ -55,9 +59,10 @@ python tools/package-github-plugin.py
 # 有缓存时不联网；也可 --archive 指定已下载的官方 tar.gz。
 $env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
 .\gradlew.bat :plugin:cli:installDist
-plugin\cli\build\install\taixu-plugin\bin\taixu-plugin.bat inspect dist/plugins/github-1.0.1.txplugin
-plugin\cli\build\install\taixu-plugin\bin\taixu-plugin.bat inspect dist/plugins/github-web-1.0.1.txplugin
+plugin\cli\build\install\taixu-plugin\bin\taixu-plugin.bat inspect dist/plugins/github-1.0.2.txplugin
 python -m unittest discover -s scripts/tests -p test_github_plugin.py -v
 node scripts/tests/test_github_web.cjs
 node scripts/tests/test_github_web_tasks.cjs
 ```
+
+默认只生成一个包；`--legacy-web` 仅为旧入口兼容测试额外打包，不再发布到插件目录。

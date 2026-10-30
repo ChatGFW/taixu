@@ -60,11 +60,6 @@ internal fun selectedPluginPage(destination: androidx.navigation3.runtime.NavKey
 }
 
 @Composable
-internal fun ManagedPluginsScreen(platform: NativePluginPlatform, controller: PluginController, onOpen: (PluginExtensionRef) -> Unit, onOpenTool: (String) -> Unit, onBack: () -> Unit, onOpenWebPackages: () -> Unit = {}) {
-    top.wkbin.taixu.plugin.ui.PluginManagerScreen(platform.plugins, controller, onOpen, onBack) {
-        top.wkbin.taixu.ui.components.RuntimeTextButton(onClick = onOpenWebPackages) {
-            androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.settings.R.string.web_packages_title))
-        }
-        top.wkbin.taixu.ui.settings.PackagedPluginInventorySection(onOpenTool)
-    }
+internal fun ManagedPluginsScreen(platform: NativePluginPlatform, controller: PluginController, onOpen: (PluginExtensionRef) -> Unit, onBack: () -> Unit) {
+    top.wkbin.taixu.plugin.ui.PluginManagerScreen(platform.plugins, controller, onOpen, onBack)
 }

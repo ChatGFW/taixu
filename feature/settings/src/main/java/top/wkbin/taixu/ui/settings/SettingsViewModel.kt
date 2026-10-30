@@ -15,6 +15,7 @@ import top.wkbin.taixu.core.datastore.BrowserPreferences
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.database.AgentSkillRepository
+import top.wkbin.taixu.core.database.SkillDirectoryDiscovery
 import top.wkbin.taixu.core.database.McpServerRepository
 import top.wkbin.taixu.core.database.StorageMountBindingRepository
 import top.wkbin.taixu.core.tools.ProviderRepository
@@ -1157,8 +1158,7 @@ class SettingsViewModel(
     /**
      * 从用户自选的任意目录（SAF 目录选择器）导入 Skill：递归查找直属含 SKILL.md
      * 的目录，把最顶层的 Skill 目录整体复制到 attachments/skills 下再由扫描入库，
-     * 保证资源落在 PRoot 可访问的挂载路径内。嵌套的 Skill 子目录随父目录一并复制，
-     * 之后由递归扫描逐个注册。
+     * 保证资源落在 PRoot 可访问的挂载路径内；子文档随主 Skill 复制，作为资源保留。
      */
     fun importSkillsFromTree(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -1181,15 +1181,13 @@ class SettingsViewModel(
 
     /** 递归遍历 SAF 目录，把顶层 Skill 目录复制到 [targetRoot]；返回复制的目录数。 */
     private fun importDocumentTree(dir: DocumentFile, targetRoot: File): Int {
+        if (isDocumentSkillDir(dir)) {
+            copyDocumentTree(dir, File(targetRoot, uniqueDirName(targetRoot, dir.name ?: "skill")))
+            return 1
+        }
         var count = 0
         dir.listFiles().filter { it.isDirectory }.forEach { child ->
-            if (isDocumentSkillDir(child)) {
-                val name = uniqueDirName(targetRoot, child.name ?: "skill")
-                copyDocumentTree(child, File(targetRoot, name))
-                count++
-            } else {
-                count += importDocumentTree(child, targetRoot)
-            }
+            count += importDocumentTree(child, targetRoot)
         }
         return count
     }
@@ -1276,11 +1274,9 @@ class SettingsViewModel(
                     }
                 }
             } ?: error("无法读取 Skill 压缩包")
-            val promptFile = target.walkTopDown()
-                .maxDepth(3)
-                .filter { it.isFile && it.name.lowercase() in setOf("skill.md", "prompt.md") }
+            val promptFile = SkillDirectoryDiscovery.discover(target)
                 .singleOrNull()
-                ?: error("压缩包内未找到 SKILL.md")
+                ?: error("压缩包须包含一个主 Skill 入口；多个独立 Skill 请从目录批量导入")
             val markdown = promptFile.readText().trim()
             require(markdown.isNotBlank()) { "SKILL.md 为空" }
             val skillName = AgentSkillRepository.extractSkillMetadata(markdown, "name")
@@ -1288,9 +1284,11 @@ class SettingsViewModel(
                 ?: promptFile.parentFile?.name
                 ?: id
             val description = AgentSkillRepository.extractSkillMetadata(markdown, "description") ?: "从压缩包导入的 Skill"
-            val guestPath = "/attachments/skills/$id"
+            val resourceDir = requireNotNull(promptFile.parentFile)
+            val relative = resourceDir.relativeTo(target).invariantSeparatorsPath
+            val guestPath = "/attachments/skills/$id" + if (relative.isEmpty()) "" else "/$relative"
             val prompt = markdown + "\n\n【Skill 资源目录】$guestPath\n如需执行该 Skill 附带的脚本，请先检查脚本内容与参数，再从此目录调用。"
-            agentSkillRepository.addCustom(AgentSkill(id, skillName, description, prompt, isBuiltin = false, category = "自定义", resourcePath = target.absolutePath))
+            agentSkillRepository.addCustom(AgentSkill(id, skillName, description, prompt, isBuiltin = false, category = "自定义", resourcePath = resourceDir.absolutePath))
             return "Skill“$skillName”导入成功，脚本资源位于 $guestPath"
         } catch (error: Throwable) {
             target?.let(::deleteOwnedSkillDirectory)

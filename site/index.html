@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>太墟 TaiXu — 掌中归墟，万象可期</title>
+  <meta name="description" content="太墟 TaiXu 是一款无需 Root 的 Android Linux 运行时与 AI Agent 工坊：PRoot 多发行版沙箱、原生 PTY 终端、Agent Harness、Bot 团队、可视化工作流、Git 与浏览器自动化，把意图变成可交付的产物。">
+  <meta name="theme-color" content="#05070d">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="太墟 TaiXu — 掌中归墟，万象可期">
+  <meta property="og:description" content="无需 Root，在 Android 上运行真实 Linux；让 Agent 读写代码、调用工具、验证结果，从一句意图抵达可交付的产物。">
+  <meta property="og:image" content="assets/screen-agent-dark-sm.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/favicon.png">
+  <script>document.documentElement.classList.add('reveal-on');</script>
+  <link rel="stylesheet" href="styles.css">
+  <script src="main.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+
+  <header class="site-header" data-header>
+    <div class="header-inner">
+      <a class="brand" href="#top" aria-label="太墟首页">
+        <img class="brand-mark" src="assets/taixu-mark-white.png" alt="" width="1254" height="1254">
+        <span class="brand-text"><b>太墟</b><em>TAIXU</em></span>
+      </a>
+
+      <nav class="site-nav" id="site-nav" aria-label="主导航">
+        <a href="#vision">理念</a>
+        <a href="#capabilities">能力</a>
+        <a href="#team">团队</a>
+        <a href="#workflows">工作流</a>
+        <a href="#screens">界面</a>
+        <a href="#safety">边界</a>
+        <a href="#start">上手</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="ghost-link" href="https://github.com/taixu-lab/taixu" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+        <a class="btn btn-primary btn-sm" href="https://github.com/taixu-lab/taixu/releases" target="_blank" rel="noreferrer">获取太墟</a>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="打开导航" data-nav-toggle>
+          <span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-bg" aria-hidden="true">
+        <svg viewBox="0 0 1440 980" preserveAspectRatio="xMidYMid slice" focusable="false">
+          <defs>
+            <radialGradient id="abyssGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#8b97ff" stop-opacity=".22"/>
+              <stop offset="55%" stop-color="#4d5bd6" stop-opacity=".07"/>
+              <stop offset="100%" stop-color="#04070d" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="ringStroke" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#9aa5ff" stop-opacity=".34"/>
+              <stop offset="55%" stop-color="#6fe3c1" stop-opacity=".1"/>
+              <stop offset="100%" stop-color="#9aa5ff" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <circle cx="1060" cy="430" r="520" fill="url(#abyssGlow)"/>
+          <g fill="none" stroke="url(#ringStroke)" stroke-width="1">
+            <path d="M520 300c150-120 430-150 640-40s290 300 210 460-330 260-560 210-420-230-390-400 210-230 420-230 400 90 460 250-60 320-260 380-430 20-540-140"/>
+            <path d="M610 340c130-95 370-120 545-30s235 250 170 385-280 215-470 175-355-195-330-335 175-195 355-195 340 75 390 210-50 270-220 320-365 15-455-120"/>
+            <path d="M700 380c110-70 305-90 450-20s180 205 130 315-230 175-385 140-285-160-265-270 140-160 290-160 280 60 320 170-40 220-180 260-300 10-370-100"/>
+            <path d="M800 425c85-45 230-55 340-10s125 150 90 230-170 125-285 100-205-115-190-195 100-115 210-115 215 45 245 125-25 165-130 195"/>
+            <path d="M890 470c55-25 150-30 220-5s80 95 55 145-105 80-175 65-125-75-115-125 60-70 130-70 135 30 155 80"/>
+          </g>
+          <g fill="#9aa5ff" fill-opacity=".5">
+            <circle cx="1180" cy="238" r="2"/>
+            <circle cx="880" cy="700" r="1.6"/>
+            <circle cx="1322" cy="620" r="1.4"/>
+            <circle cx="726" cy="214" r="1.4"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="pulse"></span>ANDROID · PRoot LINUX · AI AGENT</p>
+          <h1>太墟<span class="h1-en">TAIXU</span></h1>
+          <p class="tagline">掌中归墟，万象可期。</p>
+          <p class="lead">无需 Root，在 Android 上运行真实 Linux 沙箱。让 Agent 读写代码、调用工具、验证结果，与终端、工作区、Git 和自动化工作流共用同一片执行空间——从一句意图，抵达可交付的产物。</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="https://github.com/taixu-lab/taixu/releases" target="_blank" rel="noreferrer">下载最新版本 <span aria-hidden="true">↗</span></a>
+            <a class="btn btn-quiet" href="#capabilities">看看能做什么 <span aria-hidden="true">↓</span></a>
+          </div>
+          <dl class="hero-meta">
+            <div><dt>当前源码</dt><dd>v1.6.1</dd></div>
+            <div><dt>系统</dt><dd>Android 10+</dd></div>
+            <div><dt>架构</dt><dd>arm64-v8a</dd></div>
+            <div><dt>许可</dt><dd>GPL-3.0</dd></div>
+          </dl>
+        </div>
+
+        <div class="hero-stage" aria-label="太墟应用界面示意">
+          <div class="orbit orbit-a" aria-hidden="true"></div>
+          <div class="orbit orbit-b" aria-hidden="true"></div>
+          <div class="stage-glow" aria-hidden="true"></div>
+
+          <figure class="phone phone-main">
+            <div class="phone-frame">
+              <img src="assets/screen-agent-dark-sm.jpg" width="1000" height="2171" alt="太墟「智枢」Agent 对话与工具调用的实机截图" fetchpriority="high">
+            </div>
+            <figcaption>实机截图 · 智枢</figcaption>
+          </figure>
+
+          <div class="float-card float-runtime" aria-hidden="true">
+            <p class="float-head"><span class="dot ok"></span>Linux 沙箱引擎</p>
+            <p class="float-main">已就绪</p>
+            <p class="float-sub">Ubuntu 24.04 · PRoot · arm64</p>
+          </div>
+
+          <div class="float-card float-approval" aria-hidden="true">
+            <p class="float-head"><span class="dot warn"></span>待审批操作</p>
+            <p class="float-main mono">write_file</p>
+            <p class="float-sub">app/src/main/…/Runtime.kt</p>
+            <div class="float-actions"><span>允许一次</span><span class="muted">拒绝</span></div>
+          </div>
+
+          <div class="float-card float-flow" aria-hidden="true">
+            <p class="float-head"><span class="dot jade"></span>工作流运行</p>
+            <p class="float-sub">构建 · 测试 · 人工确认</p>
+            <div class="mini-progress"><i style="width:75%"></i></div>
+            <p class="float-sub mono">3 / 4 步骤通过</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec-strip">
+        <div class="wrap spec-inner" aria-label="技术关键词">
+          <span>PRoot</span><i>·</i>
+          <span>Native PTY</span><i>·</i>
+          <span>Kotlin 2.4</span><i>·</i>
+          <span>Jetpack Compose</span><i>·</i>
+          <span>MCP</span><i>·</i>
+          <span>OpenAI Compatible</span><i>·</i>
+          <span>JGit</span><i>·</i>
+          <span>GPL-3.0</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section vision" id="vision">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="section-index"><span>01</span>缘起</p>
+          <h2>让意图有落点，<br>让执行有回声。</h2>
+          <p class="section-lead">《列子·汤问》里，渤海之东有壑，其下无底，名曰归墟，八纮九野之水莫不注之。太墟取意于此：在 Android 的应用沙盒与权限边界之内，构筑一方可运行、可观测、可恢复、可演进的 Linux 与 AI 自动化环境。</p>
+        </header>
+
+        <div class="principles">
+          <article class="principle reveal">
+            <span class="principle-no">壹</span>
+            <h3>可运行</h3>
+            <p>PRoot、真实 PTY 与持久化工作区。进程会启动，文件会写入，构建会产出安装包，而不只是停在回答里。</p>
+          </article>
+          <article class="principle reveal" style="--d:.08s">
+            <span class="principle-no">贰</span>
+            <h3>可观测</h3>
+            <p>计划、工具调用、行级 Diff、运行历史与网络时间线都留下轨迹。你可以随时看见正在发生什么，并在需要时介入。</p>
+          </article>
+          <article class="principle reveal" style="--d:.16s">
+            <span class="principle-no">叁</span>
+            <h3>可恢复</h3>
+            <p>会话、任务与操作状态持久化；文件检查点与对话回退让中断不必从零开始，让每一次尝试都可以撤回。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section capabilities" id="capabilities">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="section-index"><span>02</span>能力</p>
+          <h2>一台设备，<br>一座完整的工坊。</h2>
+          <p class="section-lead">从运行环境到智能体，从工具执行到工程构建，太墟把分散的能力编织成一条完整的链路：意图进入系统，行动抵达文件与进程。</p>
+        </header>
+
+        <div class="bento">
+          <article class="card span-7 reveal">
+            <div class="card-top"><span class="card-kicker">LINUX RUNTIME</span><span class="card-no">01</span></div>
+            <h3>无 Root，运行真实 Linux</h3>
+            <p>基于 PRoot 运行 ARM64 Linux 用户空间，RootFS 从 OCI 镜像安装并校验。支持多发行版共存、切换与回滚，可把 Android 共享存储挂载进沙箱。</p>
+            <ul class="distro-chips" aria-label="支持的发行版">
+              <li>Ubuntu</li><li>Debian</li><li>Kali</li><li>Arch</li><li>Fedora</li>
+              <li>Alpine</li><li>AlmaLinux</li><li>Rocky</li><li>openSUSE</li><li>Manjaro</li>
+            </ul>
+            <div class="runtime-strip" aria-hidden="true">
+              <span><b>10</b> 发行版配置</span>
+              <span><b>3</b> 环境切换 · 回滚</span>
+              <span><b>1</b> 块屏幕</span>
+            </div>
+            <div class="env-panel" aria-hidden="true">
+              <div class="env-row active"><span class="env-dot"></span><b>Ubuntu 24.04 LTS</b><em>主环境</em></div>
+              <div class="env-row"><span class="env-dot"></span><b>Debian 12</b><em>已就绪</em></div>
+              <div class="env-row"><span class="env-dot"></span><b>Kali Rolling</b><em>可切换</em></div>
+            </div>
+          </article>
+
+          <article class="card span-5 accent reveal" style="--d:.06s">
+            <div class="card-top"><span class="card-kicker">AGENT HARNESS</span><span class="card-no">02</span></div>
+            <h3>让模型从回答，走向完成</h3>
+            <p>兼容 Chat Completions、Responses 与 Anthropic Messages；统一处理流式正文、推理、函数调用、视觉输入与上下文压缩。</p>
+            <div class="loop" aria-hidden="true">
+              <div class="loop-ring"></div>
+              <span class="loop-core">AI</span>
+              <span class="loop-node n1">意图</span>
+              <span class="loop-node n2">规划</span>
+              <span class="loop-node n3">工具</span>
+              <span class="loop-node n4">验证</span>
+            </div>
+            <p class="card-note">任务计划 · 子智能体 · 语义记忆 · 未完成则继续</p>
+          </article>
+
+          <article class="card span-4 reveal">
+            <div class="card-top"><span class="card-kicker">NATIVE PTY</span><span class="card-no">03</span></div>
+            <h3>真实终端，真实作业控制</h3>
+            <p>JNI 后端通过 openpty、fork、setsid 与 execve 创建控制终端，支持多会话、Ctrl+C 和窗口尺寸变化。</p>
+            <div class="terminal" aria-hidden="true">
+              <div class="terminal-bar"><i></i><i></i><i></i><span>ubuntu · arm64</span></div>
+              <pre><code><span class="t-prompt">taixu@ubuntu</span>:<span class="t-path">~</span>$ pnpm build
+<span class="t-ok">✓ built in 3.42s</span>
+<span class="t-prompt">taixu@ubuntu</span>:<span class="t-path">~</span>$ </code></pre>
+            </div>
+          </article>
+
+          <article class="card span-4 reveal" style="--d:.06s">
+            <div class="card-top"><span class="card-kicker">WORKSPACE</span><span class="card-no">04</span></div>
+            <h3>为项目建立坐标</h3>
+            <p>新建项目、导入 ZIP 或克隆 GitHub 仓库；浏览源码与行级 Diff，在沙箱内后台构建，签名并安装 APK。</p>
+            <div class="tree" aria-hidden="true">
+              <span class="tree-root">▾ taixu</span>
+              <span>├─ app/</span>
+              <span>├─ runtime/</span>
+              <span>├─ harness/</span>
+              <span>└─ feature/</span>
+            </div>
+          </article>
+
+          <article class="card span-4 reveal" style="--d:.12s">
+            <div class="card-top"><span class="card-kicker">GIT WORKBENCH</span><span class="card-no">05</span></div>
+            <h3>改动有迹可循</h3>
+            <p>基于 JGit 直接管理宿主工作区：暂存、提交、分支、标签、提交图与推送预览，Token 加密保存。</p>
+            <div class="commit-graph" aria-hidden="true">
+              <div class="commit-row"><i></i><span>feat: 统一工具目录</span><em>a1c9f2</em></div>
+              <div class="commit-row"><i></i><span>fix: 审批白名单校验</span><em>7d3e10</em></div>
+              <div class="commit-row dim"><i></i><span>docs: 更新安全边界</span><em>2b8c44</em></div>
+            </div>
+          </article>
+
+          <article class="card span-6 reveal">
+            <div class="card-top"><span class="card-kicker">BROWSER &amp; MCP</span><span class="card-no">06</span></div>
+            <h3>网页也进入执行链</h3>
+            <p>多标签 WebView 池与 Browser MCP，让 Agent 读取页面、点击交互；页面 Hook、CDP 断点与网络时间线支撑进一步调试。MCP 支持 STDIO、Streamable HTTP、legacy SSE 与 OAuth PKCE。</p>
+            <div class="browser-stack" aria-hidden="true">
+              <div class="browser-tab"><span class="fav"></span>docs.example.dev</div>
+              <div class="browser-tab active"><span class="fav jade"></span>localhost:5173</div>
+              <div class="browser-line"></div>
+              <div class="browser-line short"></div>
+            </div>
+          </article>
+
+          <article class="card span-6 card-plugin reveal" style="--d:.06s">
+            <div class="card-top"><span class="card-kicker">PLUGIN PLATFORM</span><span class="card-no">07</span></div>
+            <h3>把你的工具，装进太墟</h3>
+            <p><code>.txplugin</code> v2 以 PROCESS 包承载命令与服务，以 WEB 包承载受限页面；版本、依赖与 SHA-256 校验，能力逐项授权。</p>
+            <div class="code-card" aria-hidden="true">
+              <div class="code-head">manifest.json<span>v2</span></div>
+              <pre><code>{
+  <span class="k">"schemaVersion"</span>: 2,
+  <span class="k">"plugin"</span>: { <span class="k">"id"</span>: <span class="s">"example.hello"</span>,
+               <span class="k">"execution"</span>: <span class="s">"PROCESS"</span> }
+}</code></pre>
+            </div>
+          </article>
+
+          <article class="card span-12 more reveal">
+            <div class="card-top"><span class="card-kicker">MORE WAYS TO BUILD</span><span class="card-no">08</span></div>
+            <div class="more-grid">
+              <div>
+                <h3>从灵感到产物的更多入口</h3>
+                <p class="more-lead">同一个运行时里，创建、评审与协作可以换一种发生方式。</p>
+              </div>
+              <div class="more-item"><b>一句话做 App</b><span>描述目标，交给 Agent 搭起项目骨架与首版界面。</span></div>
+              <div class="more-item"><b>AI 圆桌会议</b><span>多视角并行评审，汇总成一份可读的结论。</span></div>
+              <div class="more-item"><b>A2UI 声明式界面</b><span>Agent 输出界面描述，由原生 Compose 渲染成表单与交互。</span></div>
+              <div class="more-item"><b>局域网 WebChat</b><span>在电脑大屏继续同一场任务，手机负责执行。</span></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section team" id="team">
+      <div class="wrap team-grid">
+        <div class="team-copy">
+          <header class="section-head reveal">
+            <p class="section-index"><span>03</span>团队</p>
+            <h2>把不同专长，<br>带进同一个群聊。</h2>
+            <p class="section-lead">为 Bot 设置角色与模型，在私聊里深入，在群聊里推进。主控统筹目标，@ 提及完成路由，成员各自持有独立任务与会话。</p>
+          </header>
+          <div class="team-list">
+            <article class="reveal"><span>01</span><div><h3>角色、模型，各就各位</h3><p>每位成员可以选择已配置的供应商与具体模型，把合适的任务交给合适的角色。</p></div></article>
+            <article class="reveal" style="--d:.06s"><span>02</span><div><h3>群聊轮次，有序接力</h3><p>按轮次推进，PASS 与 @ 接力让讨论不抢话；审批发生时让出执行权，回来再继续。</p></div></article>
+            <article class="reveal" style="--d:.12s"><span>03</span><div><h3>并行派单，互不踩踏</h3><p>把独立任务分给不同成员，各自保留上下文与产物；写路径租约降低并行修改的冲突。</p></div></article>
+            <article class="reveal" style="--d:.18s"><span>04</span><div><h3>团队状态，看得见</h3><p>任务状态、成员回报与像素办公室视图，让一支 Agent 团队像一间亮着灯的工坊。</p></div></article>
+          </div>
+        </div>
+
+        <div class="reveal" style="--d:.1s">
+          <div class="chat-panel" role="img" aria-label="Bot 团队群聊示意：用户提出目标，主控拆解并派发任务，开发与文案成员分别回报，任务全部完成">
+            <div class="chat-head">
+              <span class="chat-drop"></span>
+              <div><b>发布小队</b><span>3 位成员 · 2 个任务进行中</span></div>
+              <span class="chat-badge">群聊示意</span>
+            </div>
+            <div class="chat-body">
+              <div class="msg msg-user">
+                <span class="avatar">你</span>
+                <div><b>你</b><p>这周把发版说明整理完，顺手补一版官网。</p></div>
+              </div>
+              <div class="msg msg-lead">
+                <span class="avatar lead">主</span>
+                <div><b>主控</b><p>拆成三件事：核对产物、整理变更、起草文案。@ 开发 @ 文案</p></div>
+              </div>
+              <div class="msg">
+                <span class="avatar dev">开</span>
+                <div><b>开发</b><p>已核对 APK 与 SHA-256，清单写入 <code>build/verify.md</code>。</p></div>
+              </div>
+              <div class="msg">
+                <span class="avatar write">文</span>
+                <div><b>文案</b><p>初稿已提交，等待评审意见。</p></div>
+              </div>
+            </div>
+            <div class="chat-foot"><span class="dot jade"></span>3 / 3 任务完成 · 产物已回传</div>
+          </div>
+          <a class="text-link" href="https://github.com/taixu-lab/taixu/blob/main/docs/BOT_COLLABORATION.md" target="_blank" rel="noreferrer">阅读团队协作设计 <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section workflows" id="workflows">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="section-index"><span>04</span>工作流</p>
+          <h2>把一次完成，<br>变成下次的起点。</h2>
+          <p class="section-lead">用持久化 DAG 连接命令、后台进程、Agent、子智能体、构建与人工审批。条件分支、并行节点与运行历史，让重复的事有据可依。</p>
+        </header>
+
+        <div class="flow" role="img" aria-label="工作流示意：定时或手动触发，执行环境检查后分叉为构建与失败分析，最后经人工审批完成交付">
+          <div class="flow-node">
+            <small>触发</small>
+            <b>定时 · 每日 08:00</b>
+            <span>WorkManager</span>
+          </div>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <div class="flow-node">
+            <small>执行</small>
+            <b>拉取 · 构建</b>
+            <span>Bash / Agent</span>
+          </div>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <div class="flow-split">
+            <div class="flow-node pass">
+              <small>通过</small>
+              <b>测试与产物</b>
+              <span>后台进程</span>
+            </div>
+            <div class="flow-node fail">
+              <small>失败</small>
+              <b>分析与修复</b>
+              <span>子智能体</span>
+            </div>
+          </div>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <div class="flow-node gate">
+            <small>确认</small>
+            <b>人工审批</b>
+            <span>通知 · 可恢复</span>
+          </div>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <div class="flow-node done">
+            <small>交付</small>
+            <b>产物归档</b>
+            <span>运行历史</span>
+          </div>
+        </div>
+
+        <div class="workflow-notes">
+          <div class="note-card reveal"><b>条件与并行</b><span>按结果分流，多个节点同时推进。</span></div>
+          <div class="note-card reveal" style="--d:.06s"><b>中断与恢复</b><span>沿原运行记录继续，已完成的步骤不重复派发。</span></div>
+          <div class="note-card reveal" style="--d:.12s"><b>计划与通知</b><span>一次性、间隔与每日计划；审批从通知进入。</span></div>
+          <div class="note-card reveal" style="--d:.18s"><b>可移植</b><span>JSON 导入导出，模板复制即可开跑。</span></div>
+        </div>
+        <p class="flow-caption">流程示意 · 实际节点与审批策略以应用内配置为准</p>
+      </div>
+    </section>
+
+    <section class="section screens" id="screens">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="section-index"><span>05</span>界面</p>
+          <h2>工具之间的距离，<br>只有一次点击。</h2>
+          <p class="section-lead">智枢处理对话与任务，工坊承载项目与构建，乾坤管理模型与运行环境。以下为 Android 实机截图，界面布局以当前版本为准。</p>
+        </header>
+
+        <div class="shots">
+          <figure class="shot reveal">
+            <div class="shot-frame">
+              <img src="assets/screen-agent-dark-sm.jpg" width="1000" height="2171" alt="智枢 Agent 对话界面实机截图" loading="lazy">
+            </div>
+            <figcaption><b>智枢</b><span>对话 · 计划 · 工具调用</span></figcaption>
+          </figure>
+          <figure class="shot reveal" style="--d:.06s">
+            <div class="shot-frame">
+              <img src="assets/screen-workspace-dark-sm.jpg" width="1000" height="2171" alt="工坊项目工作区界面实机截图" loading="lazy">
+            </div>
+            <figcaption><b>工坊</b><span>项目 · 源码 · 构建</span></figcaption>
+          </figure>
+          <figure class="shot reveal" style="--d:.12s">
+            <div class="shot-frame">
+              <img src="assets/screen-settings-dark-sm.jpg" width="1000" height="2171" alt="乾坤系统设置界面实机截图" loading="lazy">
+            </div>
+            <figcaption><b>乾坤</b><span>模型 · Linux · 系统</span></figcaption>
+          </figure>
+          <figure class="shot reveal" style="--d:.18s">
+            <div class="shot-frame">
+              <img src="assets/theme-chengming-light-sm.jpg" width="1000" height="2171" alt="太墟澄明浅色主题界面实机截图" loading="lazy">
+            </div>
+            <figcaption><b>澄明</b><span>浅色主题 · 壁纸取色</span></figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section safety" id="safety">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="section-index"><span>06</span>边界</p>
+          <h2>能动手，<br>也守得住边界。</h2>
+          <p class="section-lead">太墟把 Agent 视为会长期运行、真实修改工作区的执行系统，而不只是一次性的问答接口。</p>
+        </header>
+
+        <div class="safety-grid">
+          <div class="approval-mock reveal" role="img" aria-label="审批界面示意：待审批的写入操作，提供允许一次与拒绝选项">
+            <div class="approval-head"><span class="dot warn"></span>待审批操作</div>
+            <div class="approval-body">
+              <p class="mono">write_file</p>
+              <p class="approval-path">app/src/main/java/…/Runtime.kt</p>
+              <p class="approval-desc">该操作将写入 214 行内容。审批仅对本次调用生效。</p>
+            </div>
+            <div class="approval-actions"><span class="allow">允许一次</span><span class="deny">拒绝</span></div>
+            <p class="approval-note">界面示意 · 会话授权与全局策略分离</p>
+          </div>
+
+          <ul class="safety-list">
+            <li class="reveal"><b>分级审批</b><span>会话授权与全局策略分离；PLAN 模式只读；MCP 注解参与风险判断，按需发现与脚本编排中的调用同样受检查。</span></li>
+            <li class="reveal" style="--d:.06s"><b>可恢复执行</b><span>意图、工具结果与操作状态持久化；恢复时继续检查权限，而不是跳过审批。</span></li>
+            <li class="reveal" style="--d:.12s"><b>检查点与回退</b><span>每轮前创建文件检查点；rewind 时检测会话外修改并报告冲突，满足条件可撤销最近一次恢复。</span></li>
+            <li class="reveal" style="--d:.18s"><b>上下文治理</b><span>自动与手动压缩、token 预算、大工具输出落盘，避免上下文被一次性撑爆。</span></li>
+            <li class="reveal" style="--d:.24s"><b>凭据边界</b><span>模型密钥、Git Token 与 OAuth Token 进入应用侧安全存储，不写入工作区，也不进入模型上下文。</span></li>
+          </ul>
+        </div>
+
+        <div class="boundaries">
+          <p class="boundaries-title">需要知道的限制</p>
+          <div class="boundary-grid">
+            <div><b>仅 ARM64</b><span>当前只适配 arm64-v8a，其他 ABI 不在支持范围内。</span></div>
+            <div><b>PRoot ≠ 安全隔离</b><span>它提供 Linux 兼容环境，但不是对抗恶意代码的沙箱，guest 进程使用 App uid。</span></div>
+            <div><b>首次需网络</b><span>RootFS 不随 APK 分发，安装镜像需要网络与额外存储空间。</span></div>
+            <div><b>后台受系统约束</b><span>Doze、厂商省电策略与前台服务时限仍可能中断长任务。</span></div>
+          </div>
+          <a class="text-link" href="https://github.com/taixu-lab/taixu/blob/main/docs/SECURITY_SURFACE.md" target="_blank" rel="noreferrer">查看完整安全边界 <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section start" id="start">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="section-index"><span>07</span>上手</p>
+          <h2>四步之后，<br>开始第一轮任务。</h2>
+          <p class="section-lead">准备一台 ARM64、Android 10 以上的设备，预留足够存储与网络。RootFS 不内置，首次初始化会下载镜像。</p>
+        </header>
+
+        <ol class="steps">
+          <li class="step reveal"><span class="step-no">01</span><h3>安装 APK</h3><p>从 Releases 下载最新版本，建议核对页面提供的 SHA-256。</p></li>
+          <li class="step reveal" style="--d:.06s"><span class="step-no">02</span><h3>初始化 Linux</h3><p>跟随启程向导选择发行版，默认推荐 Ubuntu 24.04 LTS，等待 RootFS 就绪。</p></li>
+          <li class="step reveal" style="--d:.12s"><span class="step-no">03</span><h3>配置模型</h3><p>添加云端服务或 OpenAI-compatible 本地端点，例如 llama.cpp、Ollama 类型服务。</p></li>
+          <li class="step reveal" style="--d:.18s"><span class="step-no">04</span><h3>创建工作区</h3><p>新建项目、导入 ZIP 或克隆仓库，然后在智枢里描述你的第一个目标。</p></li>
+        </ol>
+
+        <div class="start-cta reveal">
+          <div>
+            <h3>把一座 Linux 工坊，装进口袋。</h3>
+            <p>源码、文档与安装包都在 GitHub。功能按当前源码 v1.6.1 整理，安装包以 Releases 页面为准。</p>
+            <ul class="req-chips">
+              <li>Android 10+</li><li>arm64-v8a</li><li>推荐 Android 12+</li><li>GPL-3.0</li>
+            </ul>
+          </div>
+          <div class="start-actions">
+            <a class="btn btn-primary" href="https://github.com/taixu-lab/taixu/releases" target="_blank" rel="noreferrer">获取最新版本 <span aria-hidden="true">↗</span></a>
+            <a class="btn btn-quiet" href="https://github.com/taixu-lab/taixu#readme" target="_blank" rel="noreferrer">阅读完整文档 <span aria-hidden="true">→</span></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section faq" id="faq">
+      <div class="wrap faq-grid">
+        <header class="section-head reveal">
+          <p class="section-index"><span>08</span>问答</p>
+          <h2>开始之前，<br>你可能想知道。</h2>
+        </header>
+        <div class="faq-list">
+          <details class="reveal">
+            <summary>需要 Root 或解锁 Bootloader 吗？</summary>
+            <p>不需要。Linux 环境基于 PRoot 在用户态运行，不依赖 Root 权限；宿主自动化能力则取决于你是否授予无线 ADB、Shizuku 或无障碍等权限。</p>
+          </details>
+          <details class="reveal">
+            <summary>支持哪些设备？</summary>
+            <p>当前仅支持 arm64-v8a 架构、Android 10（API 29）及以上，推荐 Android 12+。复杂 TUI、软键盘组合键与重型交叉编译会受到设备性能、内存与 PRoot 兼容性影响。</p>
+          </details>
+          <details class="reveal">
+            <summary>为什么 RootFS 不随 APK 提供？</summary>
+            <p>镜像体积大且更新频繁，因此从 OCI Registry 按需下载并校验。这样可以支持多发行版共存，也让 APK 保持相对轻量；代价是首次安装需要网络和额外存储。</p>
+          </details>
+          <details class="reveal">
+            <summary>可以连接本地模型吗？</summary>
+            <p>可以。任何提供 OpenAI-compatible Chat Completions 或 Responses 端点的服务都可以接入；沙箱内或局域网中的 llama.cpp、Ollama 类型服务同样适用。</p>
+          </details>
+          <details class="reveal">
+            <summary>能替代电脑开发吗？</summary>
+            <p>它不是电脑的替代品，而是把验证、调试与轻量构建带到移动场景。项目可导入、可构建、可交付 APK；重型编译与长时间任务仍更适合放在电脑或远程 Linux 上，太墟也可以通过 SSH 连接过去。</p>
+          </details>
+          <details class="reveal">
+            <summary>备份会包含哪些数据？</summary>
+            <p>本地 ZIP 涵盖会话、记忆、计划、技能资源、附件与可移植偏好；不包含 RootFS、工作区实际文件、API Key 与自定义请求头。模型档案可单独导出，选择包含凭据时会以明文写入，需要自行保管。</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <img src="assets/taixu-mark-white.png" alt="" width="1254" height="1254">
+          <div><b>太墟 · TaiXu</b><span>掌中归墟，万象可期。</span></div>
+        </div>
+        <nav class="footer-nav" aria-label="页脚导航">
+          <div>
+            <b>项目</b>
+            <a href="https://github.com/taixu-lab/taixu" target="_blank" rel="noreferrer">GitHub</a>
+            <a href="https://github.com/taixu-lab/taixu/releases" target="_blank" rel="noreferrer">Releases</a>
+            <a href="https://github.com/taixu-lab/taixu/issues" target="_blank" rel="noreferrer">Issues</a>
+          </div>
+          <div>
+            <b>文档</b>
+            <a href="https://github.com/taixu-lab/taixu/blob/main/docs/AI_NAVIGATION.md" target="_blank" rel="noreferrer">导航总览</a>
+            <a href="https://github.com/taixu-lab/taixu/blob/main/docs/WORKFLOW.md" target="_blank" rel="noreferrer">工作流指南</a>
+            <a href="https://github.com/taixu-lab/taixu/blob/main/docs/SECURITY_SURFACE.md" target="_blank" rel="noreferrer">安全边界</a>
+          </div>
+          <div>
+            <b>本站</b>
+            <a href="#vision">理念</a>
+            <a href="#capabilities">能力</a>
+            <a href="#start">开始使用</a>
+          </div>
+        </nav>
+      </div>
+      <div class="footer-bottom">
+        <p>© <span data-year>2026</span> 王克斌 · 以 GPL-3.0 许可发布</p>
+        <p>功能描述按当前源码 v1.6.1 整理，界面与能力随版本演进；安装包以 Releases 为准。</p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "太墟 TaiXu",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Android 10+",
+    "description": "无需 Root 的 Android Linux 运行时与 AI Agent 工坊，包含 PRoot 多发行版沙箱、原生 PTY 终端、Agent Harness、Bot 团队与可视化工作流。",
+    "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" },
+    "url": "https://github.com/taixu-lab/taixu"
+  }
+  </script>
+</body>
+</html>

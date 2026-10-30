@@ -35,7 +35,6 @@ import top.wkbin.taixu.ui.components.MainDestination
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.LocalOpenPluginManager
 
 /**
  * 太墟 · 乾坤配置 (TaiXu Settings & Models)
@@ -50,11 +49,11 @@ fun SettingsScreen(
     onOpenAboutCommunity: () -> Unit,
     onOpenSearch: () -> Unit = {},
     onOpenFeatureHub: () -> Unit = {},
+    onOpenPluginCenter: () -> Unit = {},
     viewModel: SettingsViewModel? = previewOrNull { koinViewModel() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) },
 ) {
     var showUsageNotice by rememberSaveable { mutableStateOf(false) }
     if (showUsageNotice) RuntimeUsageNoticeDialog(onDismiss = { showUsageNotice = false })
-    val openPluginManager = LocalOpenPluginManager.current
     val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val developer by viewModel?.developerMode?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val themeMode by viewModel?.themeMode?.collectAsStateWithLifecycle() ?: previewStateOf("")
@@ -117,9 +116,9 @@ fun SettingsScreen(
                 SettingsCategoryCard(RuntimeIconName.Sparkles, stringResource(R.string.settings_feature_hub_title),
                     stringResource(R.string.settings_nav_features_summary),
                     "5 项功能", first = true, last = false, onClick = onOpenFeatureHub)
-                if (openPluginManager != null) SettingsCategoryCard(RuntimeIconName.Extension,
-                    stringResource(R.string.settings_material_plugins_title), stringResource(R.string.settings_material_plugins_summary),
-                    value = null, first = false, last = false, onClick = openPluginManager)
+                SettingsCategoryCard(RuntimeIconName.Extension, stringResource(R.string.plugin_center_title),
+                    stringResource(R.string.plugin_center_summary), value = null,
+                    first = false, last = false, onClick = onOpenPluginCenter)
                 LocalBackupSettingsCard(first = false, last = true)
             }
         }
