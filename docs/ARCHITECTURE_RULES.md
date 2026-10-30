@@ -83,6 +83,8 @@
 - ZIP 导入必须使用 `WorkspaceManager.importProjectArchive()`，禁止直接解压不受信路径；Git HTTP(S) 与 SSH URL 必须按用户选择的 transport 分别校验。
 - 导入类型写入 `.taixu-project.properties`，不能只靠文件扩展名或目录内容重新猜测用户选择。
 - 同一插件 ID + version 已存在时返回“已导入”，不得递归覆盖现有 payload；安装框架应先保证 `$toolDir/bin` 存在。
+- **二进制与文本必须分开处理**：任何入口（编辑器、预览、导出、分享）在把文件当文本处理前，先用 `BinaryFileSniffer` 嗅探文件头（魔数 / NUL / 控制字符占比）；二进制产物禁止按 UTF-8 解码后回写，一律通过 `HostFileActions` + FileProvider 交给系统应用打开、分享或另存（`taixu_file_paths.xml` 的 `linux_runtime` 只暴露 `filesDir/linux-runtime`，授权按单次 Intent 发放）。
+- **大文件传输一律流式**：HTTP 下载与 SAF 另存必须按块拷贝（`sendFileResponse` / `copyTo(64 * 1024)`），禁止 `readBytes()` 整份载入；交付产物卡片在动作前流式计算 SHA-256 并与记录值比对，不一致或文件缺失必须显式提示，不得静默当作原版本。
 
 ---
 

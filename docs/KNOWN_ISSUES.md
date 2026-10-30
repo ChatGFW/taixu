@@ -102,6 +102,14 @@ This file tracks known issues and environment notes for the TaiXu Android projec
 - 终端触摸滚动 / IME 中文输入未完善：透明输入层在键盘输入时会挡 LazyColumn 触摸滚动；中文输入法组合尚未完全直通。
 - Codex / OpenClaw / Hermes 三个真实工具的整机安装、启动、健康检查验收**尚未完整跑通**（仅修了外围：apt 自愈、30s→20min 超时、git HTTP/1.1、安装器失败重试）。
 - `feature` 各屏缺单元测试（Compose 测试需 Robolectric，尚未接入）。
+- **产物预览仍是纯文本通道**：`ArtifactPreviewSheet` 只接收 `content: String`（来自工具 read/write/edit 输出），
+  所以二进制被工具按 UTF-8 读出来后仍会在浮层里显示乱码，其“分享/另存”也按 `text/plain` 处理（会损坏文件）。
+  编辑器与交付卡片已改走 `BinaryFileSniffer` + `HostFileActions`；彻底修复需要让浮层接收源 `File`（并同步调整
+  `ToolDiffView`），因两者都已触尺寸棘轮，待专门重构。
+- **非内部工作区的交付产物不给动作**：`/sdcard` 等共享存储工程无法从会话 `workspace` 映射到宿主路径，
+  卡片显示 `UNRESOLVED`（无提示、按钮禁用），需要补 `sandboxHostRoots["sdcard"]` 与存储权限联动。
+- **图片预算只覆盖用户图片**：`ApiMessageProjector` 的 8MB 总额作用于 `UserMessage.imageUrls`；
+  工具截图仍单独按 `MAX_RECENT_TOOL_IMAGES = 2` 张控制，两者未合并成统一配额。
 - 设备当前离线，最新 APK（多会话/流式/模型管理/模块化）尚未真机安装验证。
 
 ## 依赖/构建
