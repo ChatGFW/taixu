@@ -3,10 +3,11 @@ package top.wkbin.taixu.feature.a2uipoc
 import androidx.a2ui.compose.runtime.A2uiMessageParser
 import androidx.a2ui.compose.ui.A2uiCatalog
 import androidx.a2ui.compose.ui.A2uiMessageProcessor
-import androidx.a2ui.model.catalog.functions.A2uiLocaleProvider
 import androidx.a2ui.model.protocol.A2uiClientErrorMessage
 import androidx.a2ui.model.protocol.A2uiClientEventMessage
 import androidx.a2ui.model.protocol.A2uiDeleteSurfaceMessage
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.a2ui.A2uiSurface
 import androidx.compose.material3.a2ui.catalog.materialA2uiBasicCatalogV1
 import androidx.compose.runtime.Composable
@@ -40,7 +41,7 @@ import top.wkbin.taixu.harness.A2uiSurfaceBus
  * - 用户交互事件（Button 点击等）经 [processor].outboundEvents 收集后转发到
  *   A2uiSurfaceBus，由装配层路由回原会话的 agent 循环。
  *
- * 注意：A2UI 库当前为 1.0.0-alpha01，API 可能随版本变动；本文件是唯一的对接点，
+ * 注意：A2UI 库当前为 1.0.0-alpha02，API 可能随版本变动；本文件是唯一的对接点，
  * 升级库版本时只需调整这里（关键符号：materialA2uiBasicCatalogV1 /
  * A2uiMessageProcessor / A2uiMessageParser / A2uiSurface / outboundEvents）。
  */
@@ -55,12 +56,10 @@ object TaiXuA2uiRenderer {
             image = TaiXuImageComponent(),
             video = TaiXuVideoComponent(),
             audioPlayer = TaiXuAudioPlayerComponent(),
-            urlOpener = TaiXuUrlOpener,
+            functions = TaiXuA2uiClientFunctions,
             // 覆写 List：官方纵向 LazyColumn 在聊天流里拿到无限高会直接崩溃。
             // 短列表展平，超长列表限高后再懒加载，见 TaiXuNonLazyList.kt。
             list = TaiXuNonLazyList,
-            messageFormatter = TaiXuMessageFormatter,
-            localeProvider = A2uiLocaleProvider.Default,
         ),
     )
 
@@ -266,7 +265,21 @@ object TaiXuA2uiRenderer {
                 .distinctUntilChanged()
         }.collectAsState(initial = null)
         val current = surface ?: return false
-        A2uiSurface(surfaceModel = current, modifier = modifier)
+        A2uiSurface(
+            surfaceModel = current,
+            modifier = modifier,
+            // 根组件就绪前用骨架屏占位（官方默认是转圈，与 alpha02 的骨架语言不统一）。
+            loadingContent = {
+                TaiXuA2uiSkeletonGroup { shimmerRootModifier ->
+                    TaiXuA2uiSkeleton(
+                        Modifier
+                            .then(shimmerRootModifier)
+                            .fillMaxWidth()
+                            .height(TaiXuA2uiRootSkeletonHeight),
+                    )
+                }
+            },
+        )
         return true
     }
 

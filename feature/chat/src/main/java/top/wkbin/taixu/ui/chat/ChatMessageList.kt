@@ -194,7 +194,7 @@ internal fun ChatMessageList(
                     is ChatRenderItem.MessageItem -> {
                         when (val message = item.message) {
                             is CapabilityEvent -> CapabilityEventCard(message)
-                            is TaskDelivery -> TaskDeliveryCard(message)
+                            is TaskDelivery -> TaskDeliveryCard(message, workspace, onOpenFile)
                             is SkillSuggestion -> if (message.id !in hiddenSkillSuggestions) {
                                 SkillSuggestionCard(
                                     suggestion = message,

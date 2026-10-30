@@ -15,8 +15,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/wkbin/taixu/releases">Releases</a> ·
-  <a href="https://github.com/wkbin/taixu/issues">Issues</a> ·
+  <a href="https://github.com/taixu-lab/taixu/releases">Releases</a> ·
+  <a href="https://github.com/taixu-lab/taixu/issues">Issues</a> ·
   <strong>简体中文</strong> · <a href="README_EN.md">English</a>
 </p>
 
@@ -64,7 +64,7 @@
 | **原生交互界面** | Agent 可通过 `render_surface` 输出 A2UI 声明式界面，在 Compose 中呈现表单等交互内容；提供最近界面查看与示例入口。 |
 | **备份与配置迁移** | 本地 ZIP 备份涵盖会话、记忆、计划、技能资源、附件与可移植偏好；模型档案另支持 JSON 导入预览、复制或更新、导出与系统分享。 |
 
-> 本文按当前源码 `v1.0.0` 更新。已发布版本及其安装包请以 [Releases](https://github.com/wkbin/taixu/releases) 页面为准。
+> 本文按当前源码 `v1.0.0` 更新。已发布版本及其安装包请以 [Releases](https://github.com/taixu-lab/taixu/releases) 页面为准。
 
 ---
 
@@ -89,7 +89,7 @@
 
 ### 1. 安装
 
-在 **ARM64、Android 10+**（推荐 Android 12+）设备上安装 [最新 Release APK](https://github.com/wkbin/taixu/releases)。Release 页面同时提供构建产物与 SHA-256，建议安装前校验。
+在 **ARM64、Android 10+**（推荐 Android 12+）设备上安装 [最新 Release APK](https://github.com/taixu-lab/taixu/releases)。Release 页面同时提供构建产物与 SHA-256，建议安装前校验。
 
 ### 2. 初始化 Linux
 
@@ -343,7 +343,7 @@ Android 应用业务层以 Kotlin 与 Jetpack Compose 为主；底层还包含 C
 
 ## 🤝 参与贡献
 
-欢迎提交 [Issue](https://github.com/wkbin/taixu/issues)、Pull Request，或分享你的真机使用记录。开始修改前建议先阅读 [AI_NAVIGATION.md](docs/AI_NAVIGATION.md) 与对应模块文档，并运行架构检查和相关测试。
+欢迎提交 [Issue](https://github.com/taixu-lab/taixu/issues)、Pull Request，或分享你的真机使用记录。开始修改前建议先阅读 [AI_NAVIGATION.md](docs/AI_NAVIGATION.md) 与对应模块文档，并运行架构检查和相关测试。
 
 ---
 

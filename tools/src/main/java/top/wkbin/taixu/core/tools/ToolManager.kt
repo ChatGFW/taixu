@@ -413,8 +413,7 @@ class ToolManager(
         }
         distroIds.forEach { distroId ->
             manifests.forEach { manifest ->
-                val existing = toolRepository.findById(distroId, manifest.id)
-                toolRepository.upsert(manifest.toEntity(distroId, existing))
+                val existing = packageOperations.syncManifest(distroId, manifest)
                 if (existing?.state == ToolState.INSTALLING.name && manifest.id !in liveInstallTools) {
                     // The process may have been killed while an installer was running.
                     // Never leave a durable INSTALLING state that has no live Job behind it.
@@ -574,12 +573,11 @@ class ToolManager(
                     // 而 DB 已记新版本且状态 INSTALLED——磁盘回旧版却永不提示更新，无法自愈。
                     // commit 后落库则任一时刻被杀都可恢复：快照在 → 按旧快照回滚、DB 版本号仍是
                     // 旧值（一致）；快照已删 → 磁盘即新版，最坏多提示一次更新（无害）。
-                    val receiptVersion = safeEvent.version?.trim()?.takeIf { it.isNotBlank() } ?: fixed.version
+                    val receiptVersion = installedToolVersion(fixed, safeEvent.version)
                     packageOperations.record(distroId, fixed, receiptVersion)
                     transaction?.let { installTransactionManager.commit(it) }
                     transaction = null
-                    val installedVer = safeEvent.version?.trim()?.takeIf { it.isNotBlank() }
-                        ?: fixed.version
+                    val installedVer = receiptVersion
                     toolRepository.updateStateAndInstalledVersion(
                         distroId = distroId,
                         id = toolId,

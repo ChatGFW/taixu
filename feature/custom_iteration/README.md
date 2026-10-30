@@ -70,9 +70,9 @@ feature/custom_iteration/
    * 自举时生成 6 步引导 Prompt（含设备码认证、免本地 SDK 策略、双包校验），交给 Chat 会话执行。
    * 云端构建目标与 Coordinator 一致：在 `~/custom_taixu` 执行 `git remote get-url origin`，
      再用同一套 GitHub `owner/name` 解析。尚未克隆或无法解析时写入占位符，要求 Agent 先读
-     `git remote`，禁止对 `wkbin/taixu` 执行 `workflow_dispatch`。
+     `git remote`，禁止对 `taixu-lab/taixu` 执行 `workflow_dispatch`。
 6. **开源 PR 交付闭环**：
-   * 本地真机体验通过后，Agent 协助生成标准格式 PR 提交到 `wkbin/taixu:main`。
+   * 本地真机体验通过后，Agent 协助生成标准格式 PR 提交到 `taixu-lab/taixu:main`。
 7. **克隆之后才写入 Fork 仓库**（自举阶段不执行）：
    * 工作流：官方 main 已自带 `.github/workflows/taixudev-build.yml`。若 Fork 缺少或过旧，再执行
      `mkdir -p ~/custom_taixu/.github/workflows && cp /attachments/templates/workflows/taixudev-build.yml ~/custom_taixu/.github/workflows/taixudev-build.yml`。

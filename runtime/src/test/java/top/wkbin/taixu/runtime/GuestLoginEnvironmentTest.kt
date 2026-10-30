@@ -54,6 +54,9 @@ class GuestLoginEnvironmentTest {
 
     @Test
     fun missingProfileIsCreatedAndSymlinkIsReplacedWithGuardedFile() {
+        // Windows 默认不允许普通进程创建符号链接（需开发者模式/管理员）：
+        // 跳过而不是把环境限制当作失败。Linux CI 仍然覆盖这条分支。
+        requireSymlinkSupport()
         val root = Files.createTempDirectory("taixu-rootfs-link").toFile()
         try {
             GuestLoginEnvironment.install(root)
@@ -72,6 +75,17 @@ class GuestLoginEnvironmentTest {
             assertEquals("# vendor\nif [ \"\$(id -u)\" -eq 0 ]; then\n:\nfi\n", target.readText())
         } finally {
             root.deleteRecursively()
+        }
+    }
+
+    private fun requireSymlinkSupport() {
+        val probe = Files.createTempDirectory("taixu-symlink-probe").toFile()
+        try {
+            Files.createSymbolicLink(File(probe, "link").toPath(), File(probe, "target").toPath())
+        } catch (error: Exception) {
+            org.junit.Assume.assumeNoException("当前文件系统不允许创建符号链接", error)
+        } finally {
+            probe.deleteRecursively()
         }
     }
 

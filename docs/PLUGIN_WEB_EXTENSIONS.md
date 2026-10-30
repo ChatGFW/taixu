@@ -10,7 +10,7 @@
 
 写入强制每次原生确认，不能借用只读长期授权，即使错误登记 `allowSession` 也不能持续授权。确认展示固定操作路径，正文可能含 Token，故不回显正文；执行使用已被冻结的完整原始请求，不接受后续表单替换。未声明写入时拒绝调用。撤销不能回滚服务已接受/完成的任务，不承诺远端 exactly-once；服务来源仍属于应用层门控，不是同 UID 强隔离。
 
-配套 GitHub 插件源码见 [`assets/plugins/github/README.md`](../assets/plugins/github/README.md)，通过 `tools/package-github-plugin.py` 生成 1.0.1 PROCESS 后端包与 WEB 页面包，分别导入工具中心与外部 Web 插件。业务代码、官方 gh ARM64 二进制与页面均在外部包，不进入 APK。任务最近状态/结果原子落盘，不保存表单和凭据；重启中的任务标记结果待核对，不自动重放。页面退避轮询并在 240 次请求前提示重开，避免耗尽宿主 256 次上限。支持 Token、SSH、公钥、仓库与 PR；页面不导出 Token/私钥。
+配套 GitHub 插件源码见 [`assets/plugins/github/README.md`](../assets/plugins/github/README.md)。2026-10-30 起通过 `tools/package-github-plugin.py` 默认只生成 1.0.2 PROCESS 单包，包含后端和网页资源，从插件详情启动服务并打开服务插件页面，与 Agent2API 共用页面宿主。旧 `github-web` WEB 入口保留兼容，但不再在下载目录分发，无需另装。业务代码、官方 gh ARM64 二进制与页面均在外部包，不进入 APK。任务最近状态/结果原子落盘，不保存表单和凭据；重启中的任务标记结果待核对，不自动重放。页面退避轮询并在 240 次请求前提示重开，避免耗尽宿主 256 次上限。支持 Token、SSH、公钥、仓库与 PR；页面不导出 Token/私钥。
 
 `plugin:ui` 提供 `WebPagePlugin`，将宿主注册的静态 Web 页面接入既有 PAGE 目录。`plugin:runtime` 的 `PluginCapabilitySession` 管理当前文档的授权与请求。注册只构造描述，不加载 WebView、静态文件或执行器。
 

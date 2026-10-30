@@ -140,7 +140,7 @@ class TaiXuDevBuildCoordinatorTest {
         val trigger = TaiXuDevBuildCli.triggerWorkflow(branch = "feature/ci-build-coordinator")
         assertTrue(trigger.contains("gh workflow run 'taixudev-build.yml'"))
         assertTrue(trigger.contains("--ref 'feature/ci-build-coordinator'"))
-        assertTrue(trigger.contains("-R 'wkbin/taixu'"))
+        assertTrue(trigger.contains("-R 'taixu-lab/taixu'"))
         assertFalse(trigger.contains("release_tag"))
         assertFalse(TaiXuDevBuildCli.triggerWorkflow(releaseTag = "   ").contains("release_tag"))
         assertTrue(
@@ -157,17 +157,17 @@ class TaiXuDevBuildCoordinatorTest {
         val latest = TaiXuDevBuildCli.listRuns(branch = "feature/x")
         assertTrue(latest.contains("--workflow 'taixudev-build.yml'"))
         assertTrue(latest.contains("--branch 'feature/x'"))
-        assertTrue(latest.contains("-R 'wkbin/taixu'"))
+        assertTrue(latest.contains("-R 'taixu-lab/taixu'"))
         assertTrue(latest.contains("databaseId,createdAt,status,conclusion,event,headBranch"))
         assertFalse(latest.contains("--jq"))
 
-        assertTrue(TaiXuDevBuildCli.runStatus(42L).contains("gh run view 42 -R 'wkbin/taixu'"))
+        assertTrue(TaiXuDevBuildCli.runStatus(42L).contains("gh run view 42 -R 'taixu-lab/taixu'"))
         assertTrue(
             TaiXuDevBuildCli.downloadArtifact(42L, "/sdcard/Download")
-                .contains("gh run download 42 -n 'taixudev-apk' -D '/sdcard/Download' -R 'wkbin/taixu'"),
+                .contains("gh run download 42 -n 'taixudev-apk' -D '/sdcard/Download' -R 'taixu-lab/taixu'"),
         )
-        assertTrue(TaiXuDevBuildCli.watchWorkflow(42L).contains("-R 'wkbin/taixu'"))
-        assertTrue(TaiXuDevBuildCli.checkFailedLog(42L).contains("--log-failed -R 'wkbin/taixu'"))
+        assertTrue(TaiXuDevBuildCli.watchWorkflow(42L).contains("-R 'taixu-lab/taixu'"))
+        assertTrue(TaiXuDevBuildCli.checkFailedLog(42L).contains("--log-failed -R 'taixu-lab/taixu'"))
         assertEquals("sha256sum 'TaiXuDev-arm64-debug.apk'", TaiXuDevBuildCli.computeChecksum())
         assertEquals("cat 'TaiXuDev-arm64-debug.apk.sha256'", TaiXuDevBuildCli.readChecksumFile())
         assertEquals(
@@ -379,7 +379,7 @@ class TaiXuDevBuildCoordinatorTest {
     }
 
     @Test
-    fun `every gh command targets wkbin taixu`() = runTest {
+    fun `every gh command targets taixu lab taixu`() = runTest {
         val fake = FakeShellRunner().apply {
             seedNewRun("feature/x")
             runStatusResults += okJson("""{"status":"completed","conclusion":"failure"}""")
@@ -389,7 +389,7 @@ class TaiXuDevBuildCoordinatorTest {
         val ghCommands = fake.commands.map { it.commandLine }.filter { it.startsWith("gh ") }
         assertTrue(ghCommands.isNotEmpty())
         ghCommands.forEach { line ->
-            assertTrue(line, line.contains("-R 'wkbin/taixu'"))
+            assertTrue(line, line.contains("-R 'taixu-lab/taixu'"))
         }
     }
 
@@ -407,7 +407,7 @@ class TaiXuDevBuildCoordinatorTest {
             "every gh command must target the fork: $lines",
             lines.filter { it.startsWith("gh ") }.all { it.contains("-R 'haotaoran520/taixu'") },
         )
-        assertTrue(lines.none { it.contains("-R 'wkbin/taixu'") })
+        assertTrue(lines.none { it.contains("-R 'taixu-lab/taixu'") })
         assertTrue(lines.any { it == "git remote get-url origin" })
     }
 
@@ -435,7 +435,7 @@ class TaiXuDevBuildCoordinatorTest {
         assertTrue(fake.commands.any { it.commandLine == "git remote get-url origin" })
         assertTrue(
             fake.commands.filter { it.commandLine.startsWith("gh ") }
-                .all { it.commandLine.contains("-R 'wkbin/taixu'") },
+                .all { it.commandLine.contains("-R 'taixu-lab/taixu'") },
         )
     }
 
@@ -587,7 +587,7 @@ class TaiXuDevBuildCoordinatorTest {
         val lines = fake.commands.map { it.commandLine }
         assertEquals("rm -rf $quoted && mkdir -p $quoted", lines.single { it.startsWith("rm ") })
         assertEquals(
-            "gh run download 42 -n 'taixudev-apk' -D $quoted -R 'wkbin/taixu'",
+            "gh run download 42 -n 'taixudev-apk' -D $quoted -R 'taixu-lab/taixu'",
             lines.single { it.startsWith("gh run download") },
         )
         assertEquals(runDir, fake.commands.single { it.commandLine.startsWith("sha256sum") }.workingDirectory)

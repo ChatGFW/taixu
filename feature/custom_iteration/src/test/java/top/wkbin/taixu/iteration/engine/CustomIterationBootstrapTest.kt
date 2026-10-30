@@ -206,10 +206,10 @@ class CustomIterationBootstrapTest {
             forkRepo = "haotaoran520/taixu",
         )
         assertTrue(prompt.contains("构建目标仓库 = haotaoran520/taixu"))
-        assertTrue(prompt.contains("https://github.com/wkbin/taixu"))
+        assertTrue(prompt.contains("https://github.com/taixu-lab/taixu"))
         assertTrue(prompt.contains(".github/workflows/taixudev-build.yml"))
         assertTrue(prompt.contains(CustomIterationBootstrap.GUEST_WORKFLOW_CACHE))
-        assertFalse(prompt.contains("构建目标仓库 = wkbin/taixu"))
+        assertFalse(prompt.contains("构建目标仓库 = taixu-lab/taixu"))
         assertFalse(prompt.contains("\${"))
         assertFalse(prompt.contains("OFFICIAL_REPO_SLUG"))
         assertFalse(prompt.contains("WORKSPACE_NAME"))
@@ -223,8 +223,8 @@ class CustomIterationBootstrapTest {
         )
         assertTrue(prompt.contains(CustomIterationBootstrap.FORK_REPO_PLACEHOLDER))
         assertTrue(prompt.contains("git remote get-url origin"))
-        assertTrue(prompt.contains("禁止对 wkbin/taixu 执行 workflow_dispatch"))
-        assertFalse(prompt.contains("构建目标仓库 = wkbin/taixu"))
+        assertTrue(prompt.contains("禁止对 taixu-lab/taixu 执行 workflow_dispatch"))
+        assertFalse(prompt.contains("构建目标仓库 = taixu-lab/taixu"))
         assertEquals(
             CustomIterationBootstrap.FORK_REPO_PLACEHOLDER,
             CustomIterationBootstrap.promptForkLabel("  "),

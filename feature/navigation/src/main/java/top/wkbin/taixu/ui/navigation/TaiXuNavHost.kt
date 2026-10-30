@@ -1,5 +1,4 @@
 package top.wkbin.taixu.ui.navigation
-
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -84,7 +83,6 @@ import top.wkbin.taixu.ui.workspace.WorkshopScriptEditorScreen
 import top.wkbin.taixu.ui.workspace.WorkshopScriptType
 import top.wkbin.taixu.ui.workspace.WorkshopSettingsScreen
 import top.wkbin.taixu.ui.workspace.WorkshopSigningScreen
-
 /** 太墟核心导航分发系统：采用 Navigation 3，为每个 Tab 独立维护持久回退栈与状态生命周期 */
 @Composable
 fun TaiXuNavHost(
@@ -113,7 +111,6 @@ fun TaiXuNavHost(
     fun NavBackStack<NavKey>.pushRaw(destination: NavKey) {
         if (lastOrNull() != destination) add(destination)
     }
-
     val sidebarGesturesEnabled = activeStack.canSwipeOpenNavigation()
     LaunchedEffect(sidebarGesturesEnabled) { if (!sidebarGesturesEnabled) showNavigation = false }
     val selectedMain = activeStack.lastOrNull { it == HomeDestination || it == WorkspaceDestination || it == BotsDestination || it == SettingsDestination }.toMainDestination()
@@ -314,6 +311,7 @@ fun TaiXuNavHost(
                         onOpenAboutCommunity = { activeStack.push(SettingsDestination, AboutCommunityDestination) },
                         onOpenSearch = { activeStack.push(SettingsDestination, SettingsSearchDestination) },
                         onOpenFeatureHub = { activeStack.push(SettingsDestination, FeatureHubDestination) },
+                        onOpenPluginCenter = { activeStack.push(SettingsDestination, ToolCenterDestination) },
                         viewModel = settingsViewModel,
                     )
                 }
@@ -329,6 +327,7 @@ fun TaiXuNavHost(
                                 SettingsSearchTarget.LOCAL_LLM -> activeStack.push(SettingsSearchDestination, LocalLlmDestination)
                                 SettingsSearchTarget.QUICK_PHRASES -> activeStack.push(SettingsSearchDestination, QuickPhrasesDestination)
                                 SettingsSearchTarget.STATS -> activeStack.push(SettingsSearchDestination, StatsDestination)
+                                SettingsSearchTarget.PLUGIN_LIBRARY -> activeStack.push(SettingsSearchDestination, RemotePluginLibraryDestination)
                                 SettingsSearchTarget.TOOL_CENTER -> activeStack.push(SettingsSearchDestination, ToolCenterDestination)
                                 SettingsSearchTarget.CC_SWITCH -> activeStack.push(SettingsSearchDestination, CcSwitchDestination)
                                 SettingsSearchTarget.AGENT_EXECUTION -> activeStack.push(SettingsSearchDestination, AgentSettingsDestination)
@@ -409,7 +408,6 @@ fun TaiXuNavHost(
                         onOpenModelProfiles = { activeStack.push(AgentEcoSettingsDestination, ModelProfilesDestination) },
                         onOpenLocalLlm = { activeStack.push(AgentEcoSettingsDestination, LocalLlmDestination) },
                         onOpenCcSwitch = { activeStack.push(AgentEcoSettingsDestination, CcSwitchDestination) },
-                        onOpenToolCenter = { activeStack.push(AgentEcoSettingsDestination, ToolCenterDestination) },
                         onOpenAgentSettings = { activeStack.push(AgentEcoSettingsDestination, AgentSettingsDestination) },
                         onOpenSubagentSettings = { activeStack.push(AgentEcoSettingsDestination, AgentSubagentSettingsDestination) },
                         onOpenSkillSettings = { activeStack.push(AgentEcoSettingsDestination, AgentSkillSettingsDestination) },
@@ -506,15 +504,16 @@ fun TaiXuNavHost(
             }
             entry<ToolCenterDestination> {
                 GuardedEntry(ToolCenterDestination) {
-                    ToolCenterScreen(
-                        onBack = ::popBack,
+                    ToolCenterScreen(onBack = ::popBack,
                         onLaunchPty = { toolId -> activeStack.push(ToolCenterDestination, TerminalDestination(toolId = toolId)) },
                         onOpenToolDetail = { toolId -> activeStack.push(ToolCenterDestination, ToolDetailDestination(toolId = toolId)) },
                         onStartAiHealing = { toolId, toolName, logs ->
-                            val prompt = ToolSelfHealingHelper.buildHealingPrompt(toolId, toolName, logs)
-                            pendingHealingTask = HealingTask("🔧 自愈: $toolName", prompt)
+                            pendingHealingTask = HealingTask("🔧 自愈: $toolName", ToolSelfHealingHelper.buildHealingPrompt(toolId, toolName, logs))
                             navigateMain(MainDestination.Agent)
                         },
+                        onOpenLibrary = { activeStack.pushRaw(RemotePluginLibraryDestination) },
+                        onOpenBuiltinFeatures = { activeStack.pushRaw(PluginManagerDestination) },
+                        onOpenWebPlugins = { activeStack.pushRaw(WebPluginManagerDestination) },
                     )
                 }
             }
@@ -667,7 +666,8 @@ fun TaiXuNavHost(
                     )
                 }
             }
-            entry<PluginManagerDestination> { GuardedEntry(PluginManagerDestination) { ManagedPluginsScreen(pluginPlatform, pluginController, { activeStack.pushRaw(PluginPageDestination(it.pluginId, it.extensionId)) }, { activeStack.pushRaw(ToolDetailDestination(it)) }, ::popBack, { activeStack.pushRaw(WebPluginManagerDestination) }) } }
+            entry<PluginManagerDestination> { GuardedEntry(PluginManagerDestination) { ManagedPluginsScreen(pluginPlatform, pluginController, { activeStack.pushRaw(PluginPageDestination(it.pluginId, it.extensionId)) }, ::popBack) } }
+            entry<RemotePluginLibraryDestination> { GuardedEntry(RemotePluginLibraryDestination) { top.wkbin.taixu.ui.settings.RemotePluginLibraryScreen(::popBack) } }
             entry<WebPluginManagerDestination> { GuardedEntry(WebPluginManagerDestination) { top.wkbin.taixu.ui.settings.WebPluginsScreen({ id, version, plugin -> activeStack.pushRaw(PluginPageDestination(plugin, "main", mapOf("web.package.id" to id, "web.package.version" to version))) }, ::popBack) } }
             entry<PluginPageDestination> { destination ->
                 GuardedEntry(destination) { RegisteredPluginPage(pluginPages, destination, ::popBack) }

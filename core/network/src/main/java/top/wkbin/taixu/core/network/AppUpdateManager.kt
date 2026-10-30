@@ -28,10 +28,10 @@ class AppUpdateManager(
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     companion object {
-        const val GITHUB_REPO = "wkbin/taixu"
-        const val GITHUB_REPO_URL = "https://github.com/wkbin/taixu"
+        const val GITHUB_REPO = "taixu-lab/taixu"
+        const val GITHUB_REPO_URL = "https://github.com/taixu-lab/taixu"
         const val QQ_GROUP_ID = "964382207"
-        private const val RELEASES_API = "https://api.github.com/repos/wkbin/taixu/releases/latest"
+        private const val RELEASES_API = "https://api.github.com/repos/taixu-lab/taixu/releases/latest"
     }
 
     /**

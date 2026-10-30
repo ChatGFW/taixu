@@ -1,0 +1,9 @@
+gui:
+  mouseEvents: true
+  showCommandLog: false
+  nerdFontsVersion: ""
+git:
+  autoFetch: false
+update:
+  method: never
+disableStartupPopups: true

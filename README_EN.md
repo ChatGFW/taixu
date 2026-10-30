@@ -15,8 +15,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/wkbin/taixu/releases">Releases</a> ·
-  <a href="https://github.com/wkbin/taixu/issues">Issues</a> ·
+  <a href="https://github.com/taixu-lab/taixu/releases">Releases</a> ·
+  <a href="https://github.com/taixu-lab/taixu/issues">Issues</a> ·
   <a href="README.md">简体中文</a> · <strong>English</strong>
 </p>
 
@@ -60,7 +60,7 @@ Persistent workflows -> Conditions / parallel nodes / schedules / background run
 | **Native Interactive UI** | Agent-produced A2UI through `render_surface`, rendered in Compose with interactive forms, recent surfaces, and examples. |
 | **Backup and Migration** | Local ZIP backups for sessions, memories, plans, skills, attachments, and portable preferences. Separate model-profile JSON import preview, copy/update, export, and system sharing. |
 
-> This README describes source version `v1.0.0`. Published packages and their corresponding features are listed on [Releases](https://github.com/wkbin/taixu/releases).
+> This README describes source version `v1.0.0`. Published packages and their corresponding features are listed on [Releases](https://github.com/taixu-lab/taixu/releases).
 
 ---
 
@@ -81,7 +81,7 @@ A script stops at an inner call that requires approval. Approval applies to that
 
 ## 🚀 Quick Start
 
-1. **Install** an APK from [Releases](https://github.com/wkbin/taixu/releases) on an ARM64 Android 10+ device. Release builds include SHA-256 files for verification.
+1. **Install** an APK from [Releases](https://github.com/taixu-lab/taixu/releases) on an ARM64 Android 10+ device. Release builds include SHA-256 files for verification.
 2. **Initialize Linux** through the onboarding wizard. Ubuntu 24.04 LTS is the default. RootFS downloads require network access and additional storage; they are not bundled in the APK.
 3. **Configure a model** in Settings using a supported API and your credentials. Compatible local endpoints such as llama.cpp / Ollama can also be connected.
 4. **Create a workspace** in the Workshop, or import a GitHub repository / local ZIP. Describe a goal in Chat to edit code, run tools, test, and build. Use workflows for repeated tasks.
