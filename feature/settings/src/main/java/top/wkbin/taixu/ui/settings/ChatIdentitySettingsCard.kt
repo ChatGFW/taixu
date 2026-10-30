@@ -22,10 +22,15 @@ internal fun ChatIdentitySettingsCard(viewModel: ChatIdentitySettingsViewModel? 
     val saved by viewModel?.style?.collectAsStateWithLifecycle() ?: previewStateOf(ChatIdentityStyle())
     val busy by viewModel?.busy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val failed by viewModel?.failed?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val cropBitmap by viewModel?.cropBitmap?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     var name by rememberSaveable { mutableStateOf(saved.name) }
     LaunchedEffect(saved.name) { name = saved.name }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let { viewModel?.chooseImage(it) }
+    }
+    cropBitmap?.let { bitmap ->
+        AvatarCropDialog(bitmap, busy, failed, onDismiss = { viewModel?.cancelCrop() },
+            onConfirm = { viewModel?.confirmCrop(it) })
     }
     PersonalizationSection(stringResource(R.string.settings_chat_identity_title)) {
         RuntimeCard(contentPadding = PaddingValues(16.dp)) {
@@ -47,7 +52,7 @@ internal fun ChatIdentitySettingsCard(viewModel: ChatIdentitySettingsViewModel? 
                     }
                     RuntimeOutlinedButton(onClick = {
                         picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }, enabled = !busy) { Text(stringResource(R.string.settings_chat_identity_logo)) }
+                    }, enabled = !busy) { Text(stringResource(R.string.settings_chat_identity_avatar)) }
                 }
                 RuntimeTextButton(onClick = { viewModel?.reset() }, enabled = !busy && saved != ChatIdentityStyle()) {
                     Text(stringResource(R.string.settings_chat_identity_reset))

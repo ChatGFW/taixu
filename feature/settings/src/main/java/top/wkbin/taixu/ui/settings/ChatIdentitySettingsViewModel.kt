@@ -1,6 +1,7 @@
 package top.wkbin.taixu.ui.settings
 
 import android.net.Uri
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.*
@@ -19,14 +20,23 @@ class ChatIdentitySettingsViewModel(private val preferences: ChatIdentityPrefere
     val busy = _busy.asStateFlow()
     private val _failed = MutableStateFlow(false)
     val failed = _failed.asStateFlow()
+    private val _cropBitmap = MutableStateFlow<Bitmap?>(null)
+    val cropBitmap = _cropBitmap.asStateFlow()
     fun setName(name: String) = mutate { preferences.setName(name) }
     fun chooseImage(uri: Uri) = mutate {
+        _cropBitmap.value = images.loadAvatarForCrop(uri)
+    }
+    fun cancelCrop() { if (!_busy.value) _cropBitmap.value = null }
+    fun confirmCrop(crop: AvatarCrop) = mutate {
+        val bitmap = _cropBitmap.value ?: return@mutate
+        val bounds = crop.bounds(bitmap.width, bitmap.height)
         val old = preferences.style.first().imageName
         withContext(NonCancellable) {
-            val name = images.importImage(uri)
+            val name = images.saveAvatarCrop(bitmap, bounds.left, bounds.top, bounds.side)
             try { preferences.setImage(name) }
             catch (failure: Exception) { images.deleteImage(name); throw failure }
             images.deleteImage(old)
+            _cropBitmap.value = null
         }
     }
     fun reset() = mutate {

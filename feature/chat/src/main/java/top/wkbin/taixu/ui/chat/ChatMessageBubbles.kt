@@ -729,41 +729,15 @@ internal fun ThinkingBlock(
     Column(modifier = Modifier.fillMaxWidth().then(chatGreetingModifier())) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .fillMaxWidth().heightIn(min = 28.dp).clip(MaterialTheme.shapes.small)
-                .clickable { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); expanded = !expanded },
+                .clickable { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); expanded = !expanded }
+                .padding(horizontal = 2.dp, vertical = 4.dp),
         ) {
-            Box(
-                modifier = Modifier.size(18.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (live) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        // 保留默认描边参数，让 Runtime 组件使用 Expressive 形变动画。
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                } else {
-                    RuntimeIcon(
-                        RuntimeIconName.Brain,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            ChatProcessIcon(RuntimeIconName.Brain, running = live)
 
-            Text(
-                text = when {
-                    live -> stringResource(R.string.chat_deep_reasoning)
-                    durationMs != null && durationMs > 0 ->
-                        stringResource(R.string.chat_reasoning_duration, "%.1f".format(durationMs / 1000.0))
-                    else -> stringResource(R.string.chat_reasoning_process)
-                },
-                style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f),
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            ChatReasoningLabel(id, live, durationMs, Modifier.weight(1f))
 
             if (expanded) {
                 if (!live) {
@@ -810,7 +784,7 @@ internal fun ThinkingBlock(
                                 RuntimeIconName.Globe,
                                 Modifier.size(18.dp),
                                 tint = if (showTranslation) MaterialTheme.colorScheme.primary
-                                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                                       else chatProcessColor(),
                             )
                         }
                     }
@@ -824,15 +798,15 @@ internal fun ThinkingBlock(
                     RuntimeIcon(
                         RuntimeIconName.Copy,
                         Modifier.size(18.dp),
-                        MaterialTheme.colorScheme.onSurfaceVariant,
+                        chatProcessColor(),
                     )
                 }
             }
 
             RuntimeIcon(
                 if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                Modifier.size(18.dp),
-                MaterialTheme.colorScheme.onSurfaceVariant,
+                Modifier.size(16.dp),
+                chatProcessColor(),
             )
         }
 
@@ -841,72 +815,74 @@ internal fun ThinkingBlock(
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut(),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        expanded = false
-                    }
-                    .padding(top = 12.dp, bottom = 4.dp),
-            ) {
-                if (showTranslation && translatedText != null) {
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(bottom = 2.dp),
-                        ) {
-                            RuntimeIcon(
-                                RuntimeIconName.Globe,
-                                Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                                text = "中文译文 (ML Kit 离线生成)",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
+            ChatProcessContent {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            expanded = false
+                        }
+                        .padding(top = 12.dp, bottom = 4.dp),
+                ) {
+                    if (showTranslation && translatedText != null) {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(bottom = 2.dp),
+                            ) {
+                                RuntimeIcon(
+                                    RuntimeIconName.Globe,
+                                    Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                Text(
+                                    text = "中文译文 (ML Kit 离线生成)",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            MarkdownText(
+                                translatedText.orEmpty(),
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         }
-                        MarkdownText(
-                            translatedText.orEmpty(),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                } else if (isTranslating) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(vertical = 4.dp),
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 1.5.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            text = "正在离线翻译思考内容...",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                        )
-                    }
-                } else {
-                    if (live) {
-                        SelectionContainer {
+                    } else if (isTranslating) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 1.5.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                             Text(
-                                text = reasoning,
-                                modifier = Modifier.fillMaxWidth(),
+                                text = "正在离线翻译思考内容...",
                                 style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = chatProcessColor(),
                                 ),
                             )
                         }
                     } else {
-                        MarkdownText(
-                            reasoning,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        if (live) {
+                            SelectionContainer {
+                                Text(
+                                    text = reasoning,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        color = chatProcessColor(),
+                                    ),
+                                )
+                            }
+                        } else {
+                            MarkdownText(
+                                reasoning,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }

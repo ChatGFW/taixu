@@ -263,7 +263,7 @@ internal fun ChatMessageList(
             if (waitingForFirstOutput) {
                 item(key = "assistant_generation_placeholder") {
                     Spacer(Modifier.height(8.dp))
-                    ChatTypingIndicator()
+                    ChatTypingIndicator(messages.getOrNull(lastInputIndex)?.id ?: "first_output", messages.getOrNull(lastInputIndex)?.createdAt)
                 }
             }
         }

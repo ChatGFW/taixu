@@ -11,7 +11,6 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import top.wkbin.taixu.feature.chat.R
@@ -26,21 +25,16 @@ internal fun ToolStepHeader(call: ToolCall, result: ToolResult?, running: Boolea
     val tint = when (state) {
         ToolStepState.FAILED, ToolStepState.UNKNOWN -> MaterialTheme.colorScheme.error
         ToolStepState.WAITING, ToolStepState.DEFERRED -> semanticColors().warning
-        ToolStepState.SUCCEEDED -> semanticColors().success
-        ToolStepState.RUNNING -> MaterialTheme.colorScheme.primary
-        ToolStepState.INCOMPLETE -> MaterialTheme.colorScheme.onSurfaceVariant
+        ToolStepState.SUCCEEDED, ToolStepState.RUNNING, ToolStepState.INCOMPLETE -> chatProcessColor()
     }
     Row(Modifier.fillMaxWidth().heightIn(min = 28.dp).padding(horizontal = 2.dp, vertical = 4.dp)
         .semantics { stateDescription = stateText },
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(Modifier.size(18.dp), contentAlignment = Alignment.Center) {
-            if (state == ToolStepState.RUNNING) RuntimeCircularProgressIndicator(Modifier.size(18.dp), color = tint)
-            else RuntimeIcon(toolIcon(call.tool), Modifier.size(16.dp), tint)
-        }
+        ChatProcessIcon(toolIcon(call.tool), running = state == ToolStepState.RUNNING)
         val target = toolStepTarget(call)
         val title = toolStepTitle(call)
         Text(if (target == null) title else "$title · $target", Modifier.weight(1f),
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall, color = chatProcessColor(),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (state != ToolStepState.SUCCEEDED && state != ToolStepState.RUNNING) Text(stateText,
             style = MaterialTheme.typography.labelSmall, color = tint, maxLines = 1)
@@ -49,17 +43,9 @@ internal fun ToolStepHeader(call: ToolCall, result: ToolResult?, running: Boolea
         }
         diff?.let { (added, deleted) -> DiffStatBadge(added, deleted) }
         val duration = result?.durationMs ?: result?.let { (it.createdAt - call.createdAt).coerceAtLeast(0) }
-        var elapsed by remember(call.id) { mutableStateOf(0L) }
-        LaunchedEffect(call.id, state) {
-            if (state == ToolStepState.RUNNING) while (true) {
-                elapsed = (System.currentTimeMillis() - call.createdAt).coerceAtLeast(0)
-                delay(1_000)
-            }
-        }
-        if (duration != null || state == ToolStepState.RUNNING) Text(formatChatDuration(duration ?: elapsed),
-            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        ChatProcessTimer(call.id, state == ToolStepState.RUNNING, call.createdAt, duration)
         RuntimeIcon(RuntimeIconName.ChevronRight,
-            Modifier.size(12.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+            Modifier.size(16.dp), chatProcessColor())
     }
 }
 

@@ -17,7 +17,7 @@
         "feature/browser/src/main/java/top/wkbin/taixu/ui/browser/BrowserViewModel.kt": 403,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatComposer.kt": 410,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatDialogs.kt": 817,
-        "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatMessageBubbles.kt": 1168,
+        "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatMessageBubbles.kt": 1144,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatMessageList.kt": 425,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatScreen.kt": 904,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatSheets.kt": 826,
