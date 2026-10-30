@@ -48,6 +48,7 @@ import org.koin.core.qualifier.named
 
 /** Dependency registrations owned by the tools module. */
 val toolsModule = module {
+    single { top.wkbin.taixu.core.tools.RemotePluginLibrary(get(), get()) }
     single { val local = get<top.wkbin.taixu.runtime.environment.LocalBackendAccess>()
         top.wkbin.taixu.core.tools.InstalledPluginCatalog(get(), get(), get(), local::requireLocal) }
         .onClose { it?.close() }

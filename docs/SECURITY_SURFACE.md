@@ -1,5 +1,13 @@
 # 凭证与暴露面清单 (Security Surface)
 
+## 2026-10-29：远程插件库
+
+本地包更新判断使用插件包版本，不使用验证命令的程序版本输出。旧 v1 记录只按安装收据已绑定的包版本及同身份本地清单校正；在安装互斥锁内先复制原收据再更新数据库，保留旧键及原能力、资源声明，不授予新能力、不执行脚本、不把已选择的候选包推定为已安装。
+
+2026-10-30：目录与工具清单验签使用 Bouncy Castle lightweight Ed25519 API，校验 RFC 8410 SPKI 格式，避开 AndroidKeyStore/JCA Provider 的公钥导入兼容问题；不生成密钥、不注册或替换全局 Provider，固定公钥、验签失败拒绝与 revision 防回退边界不变。
+
+官方 GitHub / Gitee 远程目录使用 APK 内 `registry/library-public-key.txt` 固定的同一 Ed25519 公钥验证，在线公钥文件不参与信任决策；按渠道记录最高 revision 并拒绝同渠道回退。渠道选择由 DataStore 领域分面持久化，操作期间不可切换，不静默跨源回退。Gitee 仅发布小插件，发布机令牌通过环境与 API 请求头传递，不进入 Git、App 或目录；上传后公开下载校验不携带令牌。签名仅证明发布源，不授予运行权限。分片和完整包均核对 SHA-256/大小，v1 的 legacy 身份或 v2 包内身份与目录一致后才进入既有 PROCESS / WEB 原生确认流程。缓存可被系统回收；签名私钥保存在发布机仓库外，不进入 APK。插件脚本与 PRoot 同 UID 的原有风险不变。详见 [远程插件库](REMOTE_PLUGIN_LIBRARY.md)。
+
 ## 2026-10-27：插件服务写入增补
 
 外部服务页面可声明 `SERVICE_WRITE/service`，由 `PluginCapabilityInput.SERVICE_WRITE` 强制逐次确认；未声明和非服务来源拒绝。文本固定为相对路径、换行与有界 JSON 正文，原生将 POST 发送到当前租约已解析的 loopback 服务，不接受页面指定端口、主机、请求头或 Shell。POST 不重定向、不自动重试，可协作取消；审批只显示路径，不显示可能含 Token 的正文。服务已接受的任务和远端副作用无法通过撤销回滚。

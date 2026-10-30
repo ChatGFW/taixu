@@ -19,6 +19,7 @@
 | **本地工具与生态插件开发** | [`docs/PLUGIN_DEVELOPMENT_GUIDELINES.md`](PLUGIN_DEVELOPMENT_GUIDELINES.md) | 插件 Manifest 结构、Recipe 安装事务与环境变量注入规范 |
 | **一切皆插件：平台方案与迁移** | [`docs/PLUGIN_PLATFORM.md`](PLUGIN_PLATFORM.md) | 内核边界、插件生命周期、页面/菜单贡献、授权设计与 P1–P6 验收路线 |
 | **v2 进程插件包** | [`docs/PLUGIN_PACKAGE_V2.md`](PLUGIN_PACKAGE_V2.md) | 严格包格式、SemVer、完整性、安装收据与资源声明边界 |
+| **远程插件分发与更新** | [`docs/REMOTE_PLUGIN_LIBRARY.md`](REMOTE_PLUGIN_LIBRARY.md) | 签名目录、分片下载、版本比较与原生安装确认 |
 | **智能体与工作流扩展** | [`docs/PLUGIN_HARNESS_EXTENSIONS.md`](PLUGIN_HARNESS_EXTENSIONS.md) | 编译时工具、背景资料、Provider 与自定义节点，以及审批和恢复边界 |
 | **Web 插件与页面授权** | [`docs/PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.md) | 静态 Web 宿主、外部包、结构化能力、页面级限时授权与独立宿主凭据 |
 | **项目模板制作与变量协议** | [`docs/PROJECT_TEMPLATE_SPEC.md`](PROJECT_TEMPLATE_SPEC.md) | template.json 规范、变量表单、动态模板替换与生命周期 hooks |
