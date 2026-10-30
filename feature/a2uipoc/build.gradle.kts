@@ -15,7 +15,7 @@ dependencies {
     implementation(project(":feature:components"))
     implementation(libs.kotlinx.serialization.json)
 
-    // A2UI 官方渲染器（1.0.0-alpha01，API 不稳定，仅限本模块使用）
+    // A2UI 官方渲染器（1.0.0-alpha02，API 不稳定，仅限本模块使用）
     implementation(libs.a2ui.model)
     implementation(libs.a2ui.compose.runtime)
     implementation(libs.a2ui.compose.ui)

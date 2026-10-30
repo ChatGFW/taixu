@@ -4,8 +4,12 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.a2ui.compose.ui.catalog.A2uiBasicCatalogV1
+import androidx.a2ui.model.catalog.functions.A2uiLocaleProvider
 import androidx.a2ui.model.catalog.functions.A2uiMessageFormatter
+import androidx.a2ui.model.catalog.functions.A2uiPluralizeFunction
 import androidx.a2ui.model.catalog.functions.A2uiUrlOpener
+import androidx.a2ui.model.protocol.A2uiExecutionContext
 import androidx.a2ui.model.protocol.A2uiException
 import java.util.Locale
 
@@ -42,4 +46,24 @@ internal object TaiXuUrlOpener : A2uiUrlOpener {
 internal object TaiXuMessageFormatter : A2uiMessageFormatter {
     override fun format(pattern: String, locale: Locale, arguments: Map<String, Any>): String =
         TaiXuA2uiMediaPolicy.formatMessage(pattern, locale, arguments)
+}
+
+/** alpha02 collects host behavior in Functions; keep URL policy and the host ICU formatter. */
+internal object TaiXuA2uiClientFunctions : A2uiBasicCatalogV1.Functions {
+    private val pluralize = A2uiPluralizeFunction(TaiXuMessageFormatter, A2uiLocaleProvider.Default)
+
+    override fun openUrl(url: String, executionContext: A2uiExecutionContext) = TaiXuUrlOpener.openUrl(url)
+
+    override fun pluralize(
+        value: Double, zero: String?, one: String?, two: String?, few: String?, many: String?,
+        other: String, executionContext: A2uiExecutionContext,
+    ): String = pluralize.execute(buildMap {
+        put("value", value)
+        put("other", other)
+        zero?.let { put("zero", it) }
+        one?.let { put("one", it) }
+        two?.let { put("two", it) }
+        few?.let { put("few", it) }
+        many?.let { put("many", it) }
+    }, executionContext) as String
 }
