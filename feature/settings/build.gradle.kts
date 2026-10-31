@@ -6,6 +6,9 @@ android {
     namespace = "top.wkbin.taixu.feature.settings"
 }
 
+// Native Compose render fixtures own separate frame clocks and modal windows.
+tasks.withType<Test>().configureEach { forkEvery = 1 }
+
 dependencies {
     implementation(project(":plugin:ui"))
     implementation(project(":feature:theme"))
@@ -24,4 +27,5 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.bundles.test.robolectric)
 }
