@@ -22,23 +22,23 @@ import java.io.InputStream
  */
 object McpResponseSizeLimiter {
 
-    /** 允许在内存中内联缓冲解析的最大体积：512KB */
-    const val DEFAULT_MAX_INLINE_BYTES = 512L * 1024
+    /** 允许在内存中内联缓冲解析的最大体积：5MB */
+    const val DEFAULT_MAX_INLINE_BYTES = 5L * 1024* 1024
 
-    /** 允许流式落盘转存的最大上限 / 熔断阈值：4MB */
-    const val DEFAULT_MAX_SPILL_BYTES = 4L * 1024 * 1024
+    /** 允许流式落盘转存的最大上限 / 熔断阈值：16MB */
+    const val DEFAULT_MAX_SPILL_BYTES = 16L * 1024 * 1024
 
     /**
-     * SSE 路径的累积流硬顶：8MB（仅 McpHttpTransport 的 SSE 读取使用）。
+     * SSE 路径的累积流硬顶：16MB（仅 McpHttpTransport 的 SSE 读取使用）。
      * 非 SSE 路径没有这一级：内联超限后直接进入落盘区，落盘超 [DEFAULT_MAX_SPILL_BYTES] 即熔断。
      */
-    const val DEFAULT_HARD_LIMIT_BYTES = 8L * 1024 * 1024
+    const val DEFAULT_HARD_LIMIT_BYTES = 16L * 1024 * 1024
 
     /** 轻量文本预览字符上限 */
     const val PREVIEW_MAX_CHARS = 2048
 
     /** spill 目录总容量配额（与 ToolOutputSpillStore 对齐） */
-    private const val MAX_SPILL_DIR_BYTES = 64L * 1024 * 1024
+    private const val MAX_SPILL_DIR_BYTES = 128L * 1024 * 1024
 
     /** spill 目录文件数配额 */
     private const val MAX_SPILL_DIR_FILES = 64
