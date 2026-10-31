@@ -287,7 +287,8 @@ internal fun ChatMessageList(
             Spacer(Modifier.height(4.dp))
         }
     }
-        if (!top.wkbin.taixu.ui.theme.LocalChatBackgroundActive.current) ScrollFadeOverlay(top = androidx.compose.foundation.layout.WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 72.dp, bottom = 0.dp)
+        ScrollFadeOverlay(top = androidx.compose.foundation.layout.WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 72.dp,
+            bottom = 0.dp, color = top.wkbin.taixu.ui.theme.chatBackdropChrome())
     }
 }
 }

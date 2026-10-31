@@ -39,6 +39,7 @@ val featureChatModule = module {
             approvalRepository = get(),
             agentContextDao = get(),
             compactionManager = get(),
+            contextMemoryBackend = get(),
             sessionModelSwitcher = get(),
             quickPhraseRepository = get(),
             laneManager = get(),

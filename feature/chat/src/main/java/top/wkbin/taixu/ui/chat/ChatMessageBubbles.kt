@@ -18,6 +18,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,9 +35,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import androidx.compose.material3.ButtonDefaults
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
@@ -48,25 +51,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
-import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import top.wkbin.taixu.feature.chat.R
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -143,13 +150,14 @@ internal fun UserBubble(
                 }
             }
 
-            // 🌟 2. 用户文字气泡
+            // 🌟 2. 用户文字气泡（clipBubbleShape 只裁绘制：四角异径的 Surface 会在图层轮廓里
+            // 生成 Path，超长消息下半部分触摸判定会因 float 精度失效）
             if (message.text.isNotBlank()) {
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(24.dp, 8.dp, 24.dp, 24.dp),
+                Box(
                     modifier = Modifier
                         .widthIn(max = 560.dp)
+                        .clipBubbleShape(RoundedCornerShape(24.dp, 8.dp, 24.dp, 24.dp))
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
                         .clickable { showMenu = true },
                 ) {
                     val mentionColor = MaterialTheme.colorScheme.primary
@@ -340,6 +348,17 @@ private fun RewindScopeOption(
 }
 
 /**
+ * 只裁剪绘制内容，不像 [clip] 那样把形状设成图层轮廓。
+ *
+ * 四个角半径不同时图层轮廓是 Path，Compose 判断触摸点是否落在轮廓内时用 Path 求交，
+ * 坐标超过 8192px 后 float 精度不够，求交结果为空——超长用户消息的下半部分就收不到触摸了。
+ */
+private fun Modifier.clipBubbleShape(shape: Shape): Modifier = drawWithCache {
+    val path = Path().apply { addOutline(shape.createOutline(size, layoutDirection, this@drawWithCache)) }
+    onDrawWithContent { clipPath(path) { this@onDrawWithContent.drawContent() } }
+}
+
+/**
  * 🌟 多模态图片优雅缩略图卡片（支持 Base64 Data URL 与本地文件路径）。
  *
  * Base64 解码不能放在 remember 里：remember 的计算发生在 Compose 主线程，历史大图会
@@ -508,171 +527,6 @@ private const val MAX_LIVE_TEXT_CHARS = 64_000
 /** Avoid rescanning a multi-megabyte Base64 response whenever its lazy-list item re-enters composition. */
 private val generatedImageFlagCache = LruCache<String, Boolean>(64)
 
-private data class TaskStepItem(
-    val index: Int,
-    val title: String,
-    val isCompleted: Boolean,
-)
-
-private val taskPlanCache = LruCache<String, List<TaskStepItem>>(200)
-
-private fun extractTaskPlanSteps(text: String): List<TaskStepItem> {
-    taskPlanCache.get(text)?.let { return it }
-    val lines = text.lines()
-    val steps = mutableListOf<TaskStepItem>()
-    val checkboxRegex = Regex("""^(\s*[-*]|\s*\d+[\.\)])?\s*\[([ xX])\]\s*(.+)""")
-    var idx = 1
-    for (line in lines) {
-        val match = checkboxRegex.find(line.trim())
-        if (match != null) {
-            val isChecked = match.groupValues[2].equals("x", ignoreCase = true)
-            val title = match.groupValues[3].trim()
-            if (title.isNotBlank()) {
-                steps.add(TaskStepItem(index = idx++, title = title, isCompleted = isChecked))
-            }
-        }
-    }
-    taskPlanCache.put(text, steps)
-    return steps
-}
-
-@Composable
-private fun TaskPlanCard(steps: List<TaskStepItem>, modifier: Modifier = Modifier) {
-    var expanded by remember { mutableStateOf(true) }
-    val completedCount = steps.count { it.isCompleted }
-    val progress = if (steps.isNotEmpty()) completedCount.toFloat() / steps.size else 0f
-    val haptic = LocalHapticFeedback.current
-
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                expanded = !expanded
-            },
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    RuntimeIcon(
-                        RuntimeIconName.Code,
-                        modifier = Modifier.size(13.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-
-                Text(
-                    text = stringResource(R.string.chat_plan),
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-
-                Spacer(Modifier.weight(1f))
-
-                Surface(
-                    color = if (completedCount == steps.size) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                    else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(6.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.chat_plan_completed, completedCount, steps.size),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                        ),
-                        color = if (completedCount == steps.size) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    )
-                }
-
-                RuntimeIcon(
-                    if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                    Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            // 进度条
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            )
-
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
-            ) {
-                Column(
-                    modifier = Modifier.padding(top = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    steps.forEach { step ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (step.isCompleted) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    ),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (step.isCompleted) {
-                                    Text(
-                                        "✓",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                        ),
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                    )
-                                }
-                            }
-
-                            Text(
-                                text = step.title,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontWeight = if (step.isCompleted) FontWeight.Normal else FontWeight.Medium,
-                                ),
-                                color = if (step.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant
-                                else MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 @Composable
 internal fun ThinkingBlock(
     id: String,
@@ -706,6 +560,27 @@ internal fun ThinkingBlock(
     }
     val translationModelStatus by (translationManager?.status ?: fallbackStatusFlow)
         .collectAsStateWithLifecycle()
+    // 流式思考限高视口：长思考固定在 160dp 视口内滚动并跟随尾部；用户拖动即暂停跟随，
+    // 可点「跟随」恢复。手势判定与群聊 GroupReasoningPanel 同一模式。
+    val liveScroll = rememberScrollState()
+    var liveFollowing by remember(id) { mutableStateOf(true) }
+    LaunchedEffect(liveScroll) {
+        liveScroll.interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is DragInteraction.Start -> liveFollowing = false
+                is DragInteraction.Stop, is DragInteraction.Cancel ->
+                    liveFollowing = liveScroll.value >= liveScroll.maxValue - 2
+                else -> Unit
+            }
+        }
+    }
+    LaunchedEffect(liveScroll, expanded) {
+        // 监听测量结果而非 token 到达：文本排版可能晚一帧完成。
+        snapshotFlow { Triple(liveScroll.maxValue, liveFollowing, liveScroll.isScrollInProgress) }.collect { (maximum, follow, moving) ->
+            if (!moving && !follow && liveScroll.value >= maximum - 2) liveFollowing = true
+            if (expanded && follow && maximum != Int.MAX_VALUE && !moving) liveScroll.scrollTo(maximum)
+        }
+    }
     LaunchedEffect(expanded, autoTranslate) {
         if (expanded && autoTranslate && !live && !showTranslation && translatedText == null) {
             if (translationManager?.isReady() == true) {
@@ -868,14 +743,27 @@ internal fun ThinkingBlock(
                         }
                     } else {
                         if (live) {
-                            SelectionContainer {
-                                Text(
-                                    text = reasoning,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        color = chatProcessColor(),
-                                    ),
-                                )
+                            Box(Modifier.fillMaxWidth().heightIn(max = 160.dp)) {
+                                SelectionContainer {
+                                    Text(
+                                        text = reasoning,
+                                        modifier = Modifier.fillMaxWidth().verticalScroll(liveScroll),
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            color = chatProcessColor(),
+                                        ),
+                                    )
+                                }
+                                if (!liveFollowing && liveScroll.maxValue > 0) {
+                                    TextButton(
+                                        onClick = { liveFollowing = true },
+                                        modifier = Modifier.align(Alignment.BottomEnd),
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.chat_follow_reasoning),
+                                            style = MaterialTheme.typography.labelSmall,
+                                        )
+                                    }
+                                }
                             }
                         } else {
                             MarkdownText(

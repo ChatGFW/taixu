@@ -24,6 +24,30 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.material3.Slider
+import androidx.compose.material3.toPath
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.DpSize
+import androidx.graphics.shapes.Morph
+import kotlinx.coroutines.flow.drop
+import kotlin.math.roundToInt
 import androidx.compose.material3.ExperimentalMaterial3Api
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
@@ -194,12 +218,11 @@ internal fun SkillsAndMcpSheet(
                                     shape = MaterialTheme.shapes.large, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    FlowRow(
+                                    Column(
                                         modifier = Modifier.padding(16.dp),
-                                        itemVerticalAlignment = Alignment.CenterVertically, verticalArrangement = Arrangement.spacedBy(12.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
-                                        Column(modifier = Modifier.widthIn(min = 160.dp).weight(1f)) {
+                                        Column(modifier = Modifier.fillMaxWidth()) {
                                             FlowRow(
                                                 itemVerticalAlignment = Alignment.CenterVertically, verticalArrangement = Arrangement.spacedBy(8.dp),
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -238,8 +261,9 @@ internal fun SkillsAndMcpSheet(
                                         }
 
                                         Row(
+                                            modifier = Modifier.fillMaxWidth(),
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                                         ) {
                                             Surface(
                                                 shape = MaterialTheme.shapes.medium,
@@ -305,7 +329,7 @@ internal fun SkillsAndMcpSheet(
                                     enabled = server.isEnabled,
                                     connectionState = mcpConnectionStates[server.id] ?: McpConnectionState.UNKNOWN,
                                     toolCount = mcpToolCounts[server.id],
-                                    trailing = {
+                                    bottomActions = {
                                         Surface(
                                             shape = MaterialTheme.shapes.medium,
                                             color = if (isPinned) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -382,6 +406,7 @@ internal fun SkillsAndMcpSheet(
  * ⚡ 思考/推理强度悬浮调节面板（ChatGPT 同款平滑胶囊滑块）
  */
 @Composable
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 internal fun ReasoningEffortSlider(
     currentMode: String?,
     currentEffort: String?,
@@ -405,162 +430,194 @@ internal fun ReasoningEffortSlider(
         else -> 2 // 默认中推理
     }
 
+    val haptics = LocalHapticFeedback.current
+    val sliderState = remember {
+        androidx.compose.material3.SliderState(
+            value = currentIndex.toFloat(),
+            trackRange = 0f..(levels.size - 1).toFloat(),
+            steps = levels.size - 2,
+        )
+    }
+    // 拖动过程中跟随滑块预览档位（英雄图/文案即时变化），松手后才提交
+    LaunchedEffect(currentIndex) { sliderState.value = currentIndex.toFloat() }
+    LaunchedEffect(sliderState) {
+        snapshotFlow { sliderState.value.roundToInt() }
+            .drop(1)
+            .collect { haptics.performHapticFeedback(HapticFeedbackType.SegmentTick) }
+    }
     var selectedIndex by remember(currentIndex) { mutableIntStateOf(currentIndex) }
+    val activeLevel = levels.getOrElse(selectedIndex) { levels[2] }
 
-    Surface(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-        ),
-        shadowElevation = 6.dp,
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            val activeLevel = levels.getOrElse(selectedIndex) { levels[2] }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "思考强度",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = activeLevel.first,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = activeLevel.second,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            ReasoningHero(index = selectedIndex)
+            IconButton(
+                onClick = onClose,
+                contentDescription = stringResource(R.string.chat_close),
+            ) {
+                RuntimeIcon(RuntimeIconName.Close, Modifier.size(16.dp), MaterialTheme.colorScheme.outline)
+            }
+        }
 
-            // 顶部居中大字标题与说明（还原 ChatGPT 样式）
+        // 步进滑杆：粗短轨道 + 竖条拇指（对齐 rikkahub ReasoningPicker）
+        Slider(
+            state = sliderState,
+            onValueChange = {
+                sliderState.value = it
+                selectedIndex = it.roundToInt().coerceIn(0, levels.size - 1)
+            },
+            onValueChangeFinished = {
+                val snapped = sliderState.value.roundToInt().coerceIn(0, levels.size - 1)
+                sliderState.value = snapped.toFloat()
+                selectedIndex = snapped
+                val (mode, effort) = levels[snapped].third
+                onSelect(mode, effort)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            thumb = {
+                SliderDefaults.Thumb(
+                    interactionSource = remember { MutableInteractionSource() },
+                    isVertical = false,
+                    thumbSize = DpSize(4.dp, 52.dp),
+                )
+            },
+            track = { state ->
+                SliderDefaults.Track(
+                    sliderState = state,
+                    trackCornerSize = 12.dp,
+                    modifier = Modifier.height(40.dp),
+                )
+            },
+        )
+
+        // 💡 说明提示：必须模型支持才生效
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Spacer(Modifier.size(20.dp))
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(
-                        text = activeLevel.first,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                        ),
-                        color = reasoningLevelTint(selectedIndex),
-                    )
-                    Text(
-                        text = activeLevel.second,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier.minimumInteractiveComponentSize(),
-                    contentDescription = stringResource(R.string.chat_close),
-                ) {
-                    RuntimeIcon(RuntimeIconName.Close, Modifier.size(13.dp), MaterialTheme.colorScheme.outline)
-                }
-            }
-
-            // 现代化连续胶囊滑动条 (Smooth Segmented Slider)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    levels.indices.forEach { index ->
-                        val isSelected = index == selectedIndex
-                        val itemColor = if (isSelected) {
-                            reasoningLevelTint(index)
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(36.dp)
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(
-                                    if (isSelected) {
-                                        reasoningLevelTint(index).copy(alpha = 0.25f)
-                                    } else Color.Transparent,
-                                )
-                                .clickable {
-                                    selectedIndex = index
-                                    val (mode, effort) = levels[index].third
-                                    onSelect(mode, effort)
-                                },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = when (index) {
-                                    0 -> stringResource(R.string.chat_depth_off)
-                                    1 -> stringResource(R.string.chat_depth_light)
-                                    2 -> stringResource(R.string.chat_depth_medium)
-                                    3 -> stringResource(R.string.chat_depth_deep)
-                                    4 -> stringResource(R.string.chat_depth_extreme)
-                                    else -> ""
-                                },
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 11.5.sp,
-                                ),
-                                color = if (isSelected) itemColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 💡 说明提示：必须模型支持才生效
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    RuntimeIcon(
-                        name = RuntimeIconName.Info,
-                        modifier = Modifier.size(15.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        text = stringResource(R.string.chat_reasoning_model_support_notice),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                RuntimeIcon(
+                    name = RuntimeIconName.Info,
+                    modifier = Modifier.size(15.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(R.string.chat_reasoning_model_support_notice),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
 }
 
-/**
- * 推理强度档位的统一配色。
- *
- * 档位强弱用 [MaterialTheme.colorScheme.primary] 的明度梯度表达，而非绿/蓝/紫/粉彩虹色：
- * 彩虹色在 Material You 动态取色下与容器主色割裂，且深色主题中低饱和档位对比度不足。
- * index 0 为「关闭」，使用 onSurfaceVariant 表达中性态。
- */
+/** 档位 → MaterialShapes 形状：档位越高形状越「激烈」，Morph 连续过渡（参考 rikkahub PickerHero）。 */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+private fun reasoningLevelShape(index: Int): androidx.graphics.shapes.RoundedPolygon = when (index) {
+    0 -> androidx.compose.material3.MaterialShapes.Circle
+    1 -> androidx.compose.material3.MaterialShapes.Cookie4Sided
+    2 -> androidx.compose.material3.MaterialShapes.Cookie6Sided
+    3 -> androidx.compose.material3.MaterialShapes.Cookie9Sided
+    else -> androidx.compose.material3.MaterialShapes.SoftBurst
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun reasoningLevelTint(index: Int): Color = when (index) {
-    0 -> MaterialTheme.colorScheme.onSurfaceVariant
-    1 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.62f)
-    2 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.78f)
-    3 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
-    else -> MaterialTheme.colorScheme.primary
+private fun ReasoningHero(index: Int, modifier: Modifier = Modifier) {
+    val shapes = remember { (0..4).map { reasoningLevelShape(it) } }
+    val morphs = remember(shapes) { shapes.zipWithNext { from, to -> Morph(from, to) } }
+    val position by animateFloatAsState(
+        targetValue = index.toFloat(),
+        animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
+    )
+    val containerColor by animateColorAsState(
+        targetValue = when {
+            index == 0 -> MaterialTheme.colorScheme.surfaceContainerHighest
+            index <= 2 -> MaterialTheme.colorScheme.primaryContainer
+            else -> MaterialTheme.colorScheme.primary
+        },
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+    )
+    val contentColor by animateColorAsState(
+        targetValue = when {
+            index == 0 -> MaterialTheme.colorScheme.onSurfaceVariant
+            index <= 2 -> MaterialTheme.colorScheme.onPrimaryContainer
+            else -> MaterialTheme.colorScheme.onPrimary
+        },
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+    )
+
+    Box(
+        modifier = modifier
+            .size(72.dp)
+            .drawBehind {
+                // 弹簧会过冲，position 可能略微越界
+                val segment = position.toInt().coerceIn(0, morphs.lastIndex)
+                val morphPath = Path()
+                morphs[segment].toPath(
+                    progress = (position - segment).coerceIn(0f, 1f),
+                    path = morphPath,
+                )
+                withTransform({
+                    rotate(position * 30f)
+                    // MaterialShapes 归一化到 1x1，按实际尺寸放大
+                    scale(size.width, size.height, pivot = Offset.Zero)
+                }) {
+                    drawPath(morphPath, containerColor)
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        val iconEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        val iconSpatialSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+        AnimatedContent(
+            targetState = index == 0,
+            transitionSpec = {
+                (fadeIn(animationSpec = iconEffectsSpec) +
+                    scaleIn(animationSpec = iconSpatialSpec, initialScale = 0.6f)) togetherWith
+                    (fadeOut(animationSpec = iconEffectsSpec) +
+                        scaleOut(animationSpec = iconSpatialSpec, targetScale = 0.6f))
+            },
+            label = "reasoning-hero-icon",
+        ) { disabled ->
+            RuntimeIcon(
+                name = if (disabled) RuntimeIconName.Brain else RuntimeIconName.Sparkles,
+                modifier = Modifier.size(28.dp),
+                tint = contentColor,
+            )
+        }
+    }
 }
 
 /**

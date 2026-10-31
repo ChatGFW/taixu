@@ -141,6 +141,7 @@ class ChatViewModel(
     private val approvalRepository: AgentApprovalRepository,
     private val agentContextDao: AgentContextRepository,
     private val compactionManager: CompactionManager,
+    private val contextMemoryBackend: top.wkbin.taixu.harness.ContextMemoryToolBackend,
     private val sessionModelSwitcher: SessionModelSwitcher,
     private val quickPhraseRepository: QuickPhraseRepository,
     private val laneManager: LaneManager,
@@ -976,6 +977,14 @@ class ChatViewModel(
     val attachmentsProcessing: StateFlow<Boolean> = _attachmentsProcessing.asStateFlow()
 
     /** 需要以 Toast 提示用户的轻量通知（附件失败、模型档案已存在等），展示后调用 clearNotice() */
+    /** 手动压缩当前会话历史为结构化摘要（"+" 附件弹窗入口）。 */
+    fun compactContextNow() {
+        viewModelScope.launch {
+            val (ok, message) = contextMemoryBackend.manualCompact(currentSessionId.value)
+            _notice.value = if (ok) message else "压缩失败：$message"
+        }
+    }
+
     private val _notice = MutableStateFlow<String?>(null)
     val notice: StateFlow<String?> = _notice.asStateFlow()
 

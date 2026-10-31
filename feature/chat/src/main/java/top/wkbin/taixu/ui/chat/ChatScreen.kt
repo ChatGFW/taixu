@@ -269,15 +269,15 @@ fun ChatScreen(
     // 🌟 1. 消息发送与流式输出跟随滚动
     // 仅当用户本来就停在底部附近时才跟随输出滚动；上滑阅读历史时不打扰，
     // 重新滑回底部（或新发消息）后恢复自动跟随。
+    var lastSeenMessageCount by remember { mutableStateOf(messages.size) }
     LaunchedEffect(messages.size, lastMessageSignature) {
+        val userSent = messages.size > lastSeenMessageCount && messages.lastOrNull() is UserMessage
+        lastSeenMessageCount = messages.size
         if (messages.isNotEmpty()) {
             delay(30)
-            if (initialPositionedSessionKey != currentSessionKey) {
-                initialPositionedSessionKey = currentSessionKey
-                listState.safeScrollToLastItem()
-            } else if (followLatest) {
-                listState.safeScrollToLastItem()
-            }
+            val reposition = initialPositionedSessionKey != currentSessionKey
+            if (reposition) initialPositionedSessionKey = currentSessionKey
+            if (reposition || followLatest || userSent) listState.safeScrollToAbsoluteBottom()
         }
     }
 
@@ -379,7 +379,7 @@ fun ChatScreen(
 
     // 模型回复里的 /workspace、/attachments 等沙箱路径在此翻译为宿主真实文件，
     // 否则 Coil 会按 Android 根文件系统路径加载而必然失败。
-    CompositionLocalProvider(LocalSandboxHostRoots provides (viewModel?.sandboxHostRoots ?: emptyMap()), LocalA2uiSessionId provides currentSessionId, LocalChatTimelineFocus provides timelineFocus, LocalChatTimelineItems provides timelineItems) {
+    CompositionLocalProvider(LocalSandboxHostRoots provides (viewModel?.sandboxHostRoots ?: emptyMap()), LocalA2uiSessionId provides currentSessionId, LocalChatTimelineFocus provides timelineFocus, LocalChatTimelineItems provides timelineItems, LocalChatContextLimit provides contextUsage.limitTokens) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -443,6 +443,7 @@ fun ChatScreen(
                     initializing = initializing,
                     pinnedCapabilities = pinnedCapabilities,
                     onOpenSkillsMcp = { showSkillsMcpSheet = true },
+                    onCompactContext = { viewModel?.compactContextNow() },
                     onUnpinMention = { arg0 -> viewModel?.unpinMention(arg0) },
                     activePlan = activePlan,
                     pendingApprovals = pendingApprovals,
@@ -601,23 +602,18 @@ fun ChatScreen(
     if (showApprovalModes) {
         ApprovalModeSheet(currentApprovalMode = currentApprovalMode,
             onSelect = { mode -> viewModel?.setCurrentSessionApprovalMode(mode); showApprovalModes = false },
-            onDismiss = { showApprovalModes = false })
-    }
+            onDismiss = { showApprovalModes = false }) }
 
     if (showRunModes) {
         RunModeSheet(currentRunMode = currentRunMode,
             onSelect = { mode -> viewModel?.setCurrentSessionRunMode(mode); showRunModes = false },
-            onDismiss = { showRunModes = false })
-    }
+            onDismiss = { showRunModes = false }) }
 
     if (showReasoningSlider) {
-        PlainBackdropModalBottomSheet(onDismissRequest = { showReasoningSlider = false }) {
-            ReasoningEffortSlider(
-                currentMode = activeModel?.reasoningMode, currentEffort = activeModel?.reasoningEffort,
-                onSelect = { mode, effort -> viewModel?.updateActiveModelReasoning(mode, effort); showReasoningSlider = false },
-                onClose = { showReasoningSlider = false },
-            )
-        }
+        PlainBackdropModalBottomSheet(onDismissRequest = { showReasoningSlider = false }) { ReasoningEffortSlider(
+            currentMode = activeModel?.reasoningMode, currentEffort = activeModel?.reasoningEffort,
+            onSelect = { mode, effort -> viewModel?.updateActiveModelReasoning(mode, effort); showReasoningSlider = false },
+            onClose = { showReasoningSlider = false }) }
     }
 
     if (showMemorySheet) {
@@ -684,6 +680,7 @@ private fun ChatPaneContent(
     initializing: Boolean = false,
     pinnedCapabilities: List<MentionItem> = emptyList(),
     onOpenSkillsMcp: () -> Unit = {},
+    onCompactContext: () -> Unit = {},
     onUnpinMention: (String) -> Unit = {},
     activeModel: AiModelEntity? = null,
     onOpenModels: () -> Unit, approvalMode: ApprovalMode, onOpenApprovalModes: () -> Unit,
@@ -789,7 +786,7 @@ private fun ChatPaneContent(
 
         shareActions?.let { share -> ShareQuickActionsRow(state = share, modifier = Modifier.padding(vertical = 4.dp)) }
 
-        Column(Modifier.windowInsetsPadding(chatBottomInsets())) { ChatComposer(
+        Column(Modifier.chatInputScrim().windowInsetsPadding(chatBottomInsets())) { ChatComposer(
             listState = listState,
             running = running,
             initializing = initializing,
@@ -820,6 +817,7 @@ private fun ChatPaneContent(
             pinnedCapabilities = pinnedCapabilities,
             onUnpinMention = onUnpinMention,
             onOpenSkillsMcp = onOpenSkillsMcp,
+            onCompactContext = onCompactContext,
             activeModel = activeModel,
             onOpenModels = onOpenModels, approvalMode = approvalMode, onOpenApprovalModes = onOpenApprovalModes,
             onUpdateReasoning = onUpdateReasoning,
