@@ -5,6 +5,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -41,7 +42,7 @@ internal fun ChatIdentitySettingsCard(viewModel: ChatIdentitySettingsViewModel? 
                 }
                 Text(stringResource(R.string.settings_chat_identity_description), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedTextField(value = name, onValueChange = { value ->
+                RuntimeFilledTextField(value = name, onValueChange = { value ->
                     if (value.codePointCount(0, value.length) <= ChatIdentityStyle.MAX_NAME_LENGTH) name = value
                 }, label = { Text(stringResource(R.string.settings_chat_identity_name)) }, singleLine = true,
                     enabled = !busy, modifier = Modifier.fillMaxWidth())

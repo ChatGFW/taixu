@@ -37,7 +37,7 @@ import androidx.compose.material3.HorizontalDivider
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import androidx.compose.material3.Scaffold
 import top.wkbin.taixu.ui.components.RuntimeSlider as Slider
 import androidx.compose.material3.Surface
@@ -407,7 +407,7 @@ fun AgentSettingsScreen(
                 AgentBlockTitle("角色列表")
             }
             item {
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = subagentQuery,
                     onValueChange = { subagentQuery = it },
                     modifier = Modifier.fillMaxWidth(),
@@ -560,7 +560,7 @@ fun AgentSettingsScreen(
             }
 
             item {
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = skillQuery,
                     onValueChange = { skillQuery = it },
                     modifier = Modifier.fillMaxWidth(),
@@ -1367,28 +1367,28 @@ private fun AddSkillDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("技能名称（如: Rust 编译专家）") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = desc,
                     onValueChange = { desc = it },
                     label = { Text("简要描述") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = cmd,
                     onValueChange = { cmd = it },
                     label = { Text("触发指令（选填，如 /rust）") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
                     label = { Text("系统提示词规则 (System Prompt)") },
@@ -1454,7 +1454,7 @@ private fun SubagentEditorDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = roleId,
                     onValueChange = { roleId = it },
                     label = { Text("角色标识") },
@@ -1465,14 +1465,14 @@ private fun SubagentEditorDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("显示名称") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text("职责简介") },
@@ -1480,7 +1480,7 @@ private fun SubagentEditorDialog(
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
                     label = { Text("角色指导词") },
@@ -1717,7 +1717,7 @@ You are a helpful and expert AI assistant called {{char}}, based on model {{mode
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = charNameBuffer,
                     onValueChange = { charNameBuffer = it },
                     label = { Text("模型自称") },
@@ -1726,7 +1726,7 @@ You are a helpful and expert AI assistant called {{char}}, based on model {{mode
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodySmall,
                 )
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = userNameBuffer,
                     onValueChange = { userNameBuffer = it },
                     label = { Text("对用户的称呼") },
@@ -1766,7 +1766,7 @@ You are a helpful and expert AI assistant called {{char}}, based on model {{mode
                     }
                 }
 
-                OutlinedTextField(
+                RuntimeFilledTextField(
                     value = textBuffer,
                     onValueChange = { textBuffer = it },
                     placeholder = { Text("在此输入自定义系统提示词，支持 {{cur_datetime}} 等宏变量...") },

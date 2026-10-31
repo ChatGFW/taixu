@@ -23,7 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCheckbox as Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -322,7 +322,7 @@ internal fun AskUserCard(
                         }
                     }
                     if (question.allowCustom) {
-                        OutlinedTextField(
+                        RuntimeFilledTextField(
                             value = custom[index].orEmpty(),
                             onValueChange = { value ->
                                 custom[index] = value

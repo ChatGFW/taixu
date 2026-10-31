@@ -72,16 +72,13 @@ fun SettingsScreen(
 
 
     PersonalizationScaffold(stringResource(R.string.personal_settings_title), onBack) {
-        item("settings_illustration") {
-            RuntimeIllustration(RuntimeIllustrationScene.Settings, Modifier.height(144.dp))
-        }
         item("search") {
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onOpenSearch,
-                shape = CircleShape,
+                shape = MaterialTheme.shapes.extraLarge,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                contentPadding = PaddingValues(20.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     RuntimeIcon(RuntimeIconName.Search, Modifier.size(24.dp), MaterialTheme.colorScheme.onSurfaceVariant)
@@ -89,6 +86,9 @@ fun SettingsScreen(
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
+        }
+        item("settings_illustration") {
+            RuntimeIllustration(RuntimeIllustrationScene.Settings, Modifier.height(80.dp))
         }
         item("appearance") {
             SettingsCategoryCard(
