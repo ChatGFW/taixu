@@ -21,6 +21,7 @@ import top.wkbin.taixu.harness.R
 import kotlinx.coroutines.CancellationException
 import top.wkbin.taixu.harness.ApiToolCallSpec
 import top.wkbin.taixu.harness.ModelConfig
+import top.wkbin.taixu.harness.messagePromptTokens
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.session.ApiMessageProjector
 
@@ -150,7 +151,7 @@ class SubagentLaneRunner(
                         responsesTurn = result.responsesTurn,
                         modelId = model.model,
                         providerId = model.provider,
-                        promptTokens = result.usage.inputTokens.takeIf { it > 0 }?.toInt(),
+                        promptTokens = result.usage.messagePromptTokens(model.protocol),
                         completionTokens = result.usage.outputTokens.takeIf { it > 0 }?.toInt(),
                         cachedTokens = result.usage.cacheReadTokens.takeIf { it > 0 }?.toInt(),
                     )

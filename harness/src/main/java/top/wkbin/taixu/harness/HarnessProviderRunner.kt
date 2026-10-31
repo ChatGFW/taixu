@@ -498,7 +498,7 @@ class HarnessProviderRunner(
             responsesTurn = responsesTurn,
             modelId = model?.model,
             providerId = model?.provider,
-            promptTokens = usage?.inputTokens?.takeIf { it > 0 }?.toInt(),
+            promptTokens = usage?.messagePromptTokens(model?.protocol ?: ApiProtocol.OPENAI),
             completionTokens = usage?.outputTokens?.takeIf { it > 0 }?.toInt(),
             cachedTokens = usage?.cacheReadTokens?.takeIf { it > 0 }?.toInt(),
         )
