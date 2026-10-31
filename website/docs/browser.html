@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fafafa">
+  <meta name="description" content="太墟浏览器与网页自动化：内置多标签浏览器、让 AI 读取与操作网页、Browser MCP、页面 Hook 与网络时间线调试。">
+  <title>浏览器与网页自动化 · 太墟使用文档</title>
+  <link rel="icon" href="../assets/favicon.png">
+  <script>(function(){try{var t=localStorage.getItem('taixu-theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="docs.css?v=202610314">
+  <script src="docs.js?v=202610314" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="doc-header">
+    <a class="brand" href="../index.html" aria-label="返回太墟首页">
+      <span class="brand-mark"><img src="../assets/taixu-logo.png" alt=""></span>
+      <span class="brand-name">太墟</span><span class="brand-roman">TAIXU</span>
+    </a>
+    <button class="doc-search-btn" type="button" data-search-open>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      搜索文档… <kbd>Ctrl K</kbd>
+    </button>
+    <div class="doc-header-right">
+      <a href="https://github.com/taixu-lab/taixu" target="_blank" rel="noreferrer">GitHub ↗</a>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="切换深浅模式">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+      </button>
+      <button class="doc-menu-btn" type="button" data-docs-menu aria-label="打开目录" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="doc-shell">
+    <aside class="doc-sidebar" data-docs-sidebar></aside>
+    <div class="doc-backdrop" data-docs-backdrop></div>
+
+    <main class="doc-article" id="main">
+      <h1>浏览器与网页自动化</h1>
+      <p class="doc-lead">太墟内置一个多标签浏览器：你可以正常用它上网，也可以把它交给 AI——读页面、点按钮、查资料，都是真实执行。</p>
+
+      <h2>自己用：一个够用的内置浏览器</h2>
+      <ul>
+        <li>多标签浏览，地址栏输入网址即可；页面在应用内打开，不必来回切换 App。</li>
+        <li>配合「悬浮助手」，可以边看网页边问 AI。</li>
+      </ul>
+
+      <h2>交给 AI：让网页进入执行链</h2>
+      <p>AI 拥有 <strong>Browser 工具</strong>（内置预设之一），可以直接操作浏览器完成网页任务：</p>
+      <pre><code>打开 xxx 官网，找到最新版本的更新日志，把要点总结成 5 条。</code></pre>
+      <p>执行时你会看到它依次<strong>打开页面 → 读取内容 → 汇总</strong>的完整过程链；涉及导航或交互的操作同样受审批策略约束。</p>
+      <div class="callout callout-tip">
+        <b>典型的网页任务</b><br>
+        查资料并汇总、对比多个页面信息、监控某个页面的变化（配合工作流定时运行）、按步骤完成网页上的查询流程。
+      </div>
+
+      <h2>进阶：调试与自动化能力</h2>
+      <p>对开发者而言，内置浏览器还提供了一套调试面板：</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>能力</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td>页面 Hook</td><td>在页面上下文中注入脚本，观察或修改页面行为。</td></tr>
+            <tr><td>CDP 断点</td><td>基于 Chrome DevTools 协议的断点调试。</td></tr>
+            <tr><td>网络时间线</td><td>查看页面发起的所有请求，排查接口问题。</td></tr>
+            <tr><td>Fetch 拦截</td><td>Worker 级拦截与检查网络请求。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>这些能力默认不影响普通浏览；需要时再开启即可。</p>
+
+      <h2>常见问题</h2>
+      <ul>
+        <li><strong>AI 打不开某个网页</strong>：确认设备能访问该站点；部分站点有反爬或登录要求，可先手动登录一次再让 AI 操作。</li>
+        <li><strong>页面内点击不生效</strong>：个别页面结构复杂，把目标描述得更具体（「点右上角的登录按钮」），或让 AI 分步执行。</li>
+        <li><strong>想接入更多网页能力</strong>：通过 MCP 添加第三方浏览器扩展服务器，见<a href="tools.html">工具与 MCP</a>。</li>
+      </ul>
+
+      <h2>接下来探索</h2>
+      <ul class="card-grid">
+        <li><a href="tools.html"><b>工具与 MCP</b><span>AI 工具箱的全貌。</span></a></li>
+        <li><a href="chat.html"><b>智枢对话基础</b><span>看懂网页任务的过程链。</span></a></li>
+        <li><a href="workflows.html"><b>可视化工作流</b><span>定时盯页面的正确姿势。</span></a></li>
+        <li><a href="approval.html"><b>审批模式与安全</b><span>控制 AI 的网页操作。</span></a></li>
+      </ul>
+    </main>
+
+    <aside class="doc-toc" data-docs-toc></aside>
+  </div>
+
+  <footer class="doc-footer">
+    <p>© <span data-year></span> <a href="../index.html">太墟 TaiXu</a> · 问题与建议欢迎到 <a href="https://github.com/taixu-lab/taixu/issues" target="_blank" rel="noreferrer">GitHub Issues</a> 反馈</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,252 @@
+/* ============================================================
+   太墟使用文档 · 布局与组件
+   依赖 ../styles.css 提供设计变量与基础元素样式
+   ============================================================ */
+
+/* ---------- 顶栏 ---------- */
+.doc-header {
+  position: sticky; top: 0; z-index: 60;
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 20px; height: 58px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.doc-header .brand { font-size: 0.98rem; }
+.doc-header .brand-mark img { width: 22px; height: 22px; }
+.doc-header .brand-roman { display: none; }
+.doc-search-btn {
+  flex: 1; max-width: 340px; margin: 0 auto;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px;
+  background: var(--bg-soft); border: 1px solid var(--line); border-radius: 999px;
+  color: var(--ink-3); font-size: 0.86rem; cursor: pointer;
+  transition: border-color 0.15s;
+}
+.doc-search-btn:hover { border-color: var(--ink-3); }
+.doc-search-btn kbd {
+  margin-left: auto; font-family: var(--mono); font-size: 0.72rem;
+  border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; background: var(--surface);
+}
+.doc-header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.doc-header-right > a {
+  padding: 7px 12px; border-radius: 999px; font-size: 0.88rem; color: var(--ink-2);
+}
+.doc-header-right > a:hover { color: var(--ink); background: var(--bg-soft); }
+.doc-menu-btn {
+  display: none;
+  width: 36px; height: 36px;
+  align-items: center; justify-content: center;
+  background: none; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; color: var(--ink);
+}
+.doc-menu-btn svg { width: 17px; height: 17px; }
+
+/* ---------- 三栏骨架 ---------- */
+.doc-shell {
+  display: grid; grid-template-columns: 236px minmax(0, 1fr) 188px;
+  gap: 48px; align-items: start;
+  width: min(1220px, calc(100% - 40px));
+  margin: 0 auto; padding: 28px 0 80px;
+}
+
+/* 左侧栏 */
+.doc-sidebar {
+  position: sticky; top: 58px;
+  max-height: calc(100vh - 58px); overflow-y: auto;
+  padding: 12px 12px 40px 0;
+  font-size: 0.9rem;
+}
+.doc-sidebar-group { margin-bottom: 26px; }
+.doc-sidebar-group > b {
+  display: block; font-size: 0.76rem; letter-spacing: 0.14em; color: var(--ink-3);
+  text-transform: uppercase; margin-bottom: 8px; font-weight: 600;
+}
+.doc-sidebar-group a {
+  display: block; padding: 5px 10px; margin-left: -10px;
+  border-radius: 8px; color: var(--ink-2); line-height: 1.5;
+  transition: color 0.12s, background 0.12s;
+}
+.doc-sidebar-group a:hover { color: var(--ink); background: var(--bg-soft); }
+.doc-sidebar-group a.active {
+  color: var(--ink); font-weight: 600;
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* 右侧目录 */
+.doc-toc {
+  position: sticky; top: 86px;
+  font-size: 0.83rem; max-height: calc(100vh - 100px); overflow-y: auto;
+}
+.doc-toc b {
+  display: block; font-size: 0.74rem; letter-spacing: 0.14em; color: var(--ink-3);
+  text-transform: uppercase; margin-bottom: 8px; font-weight: 600;
+}
+.doc-toc a { display: block; padding: 3px 0 3px 12px; color: var(--ink-2); border-left: 1px solid var(--line); line-height: 1.5; }
+.doc-toc a:hover { color: var(--ink); }
+.doc-toc a.lv3 { padding-left: 24px; }
+
+/* ---------- 正文 ---------- */
+.doc-article { max-width: 728px; padding-top: 12px; min-width: 0; }
+.doc-article > h1 {
+  font-family: var(--serif); font-size: clamp(1.8rem, 4vw, 2.35rem); margin-bottom: 10px;
+}
+.doc-lead { color: var(--ink-2); font-size: 1.05rem; margin-bottom: 30px; }
+.doc-article h2 {
+  font-size: 1.42rem; margin: 2.2em 0 0.8em; padding-top: 1.2em;
+  border-top: 1px solid var(--line-soft);
+  scroll-margin-top: 76px;
+}
+.doc-article h2:first-of-type { border-top: none; padding-top: 0; margin-top: 1.8em; }
+.doc-article h3 {
+  font-size: 1.12rem; margin: 1.8em 0 0.6em;
+  scroll-margin-top: 76px;
+}
+.doc-article h2 .h-anchor, .doc-article h3 .h-anchor {
+  margin-left: 8px; color: var(--ink-3); opacity: 0; font-weight: 500; font-size: 0.8em;
+  text-decoration: none;
+}
+.doc-article h2:hover .h-anchor, .doc-article h3:hover .h-anchor { opacity: 1; }
+.doc-article img { border-radius: var(--radius-md); border: 1px solid var(--line); margin: 0.5em 0 1.2em; }
+.doc-article ul ul, .doc-article ol ol, .doc-article ul ol, .doc-article ol ul { margin-bottom: 0.4em; }
+
+/* ---------- 组件：步骤 ---------- */
+.steps { list-style: none; padding: 0; margin: 0 0 1.5em; counter-reset: step; }
+.steps > li {
+  counter-increment: step;
+  position: relative; padding: 0 0 22px 52px; margin: 0;
+}
+.steps > li::before {
+  content: counter(step);
+  position: absolute; left: 0; top: 0;
+  width: 32px; height: 32px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent); color: var(--accent-ink);
+  font-weight: 700; font-size: 0.9rem;
+}
+.steps > li > b { display: block; font-size: 1.02rem; margin-bottom: 4px; }
+.steps > li::after {
+  content: ""; position: absolute; left: 15.5px; top: 38px; bottom: 6px;
+  width: 1px; background: var(--line);
+}
+.steps > li:last-child { padding-bottom: 0; }
+.steps > li:last-child::after { display: none; }
+
+/* ---------- 组件：提示块 ---------- */
+.callout { border-radius: var(--radius-md); padding: 14px 18px; font-size: 0.93rem; margin: 0 0 1.4em; border: 1px solid var(--line); background: var(--bg-soft); }
+.callout > b:first-child, .callout > p:first-child b { display: inline; }
+.callout-tip { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+.callout-warn { border-color: color-mix(in srgb, #f5a623 45%, var(--line)); background: rgba(245, 166, 35, 0.1); }
+.callout-danger { border-color: color-mix(in srgb, #e5484d 40%, var(--line)); background: rgba(229, 72, 77, 0.08); }
+
+/* ---------- 组件：卡片网格（接下来探索） ---------- */
+.card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 0 0 1.5em; padding: 0; list-style: none; }
+.card-grid a {
+  display: block; height: 100%;
+  padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface); transition: border-color 0.15s, transform 0.15s;
+}
+.card-grid a:hover { border-color: var(--ink-3); transform: translateY(-1px); }
+.card-grid b { display: block; margin-bottom: 4px; font-size: 0.95rem; }
+.card-grid span { font-size: 0.85rem; color: var(--ink-2); line-height: 1.6; display: block; }
+@media (max-width: 640px) { .card-grid { grid-template-columns: 1fr; } }
+
+/* ---------- 组件：表格包裹（横向滚动） ---------- */
+.table-scroll { overflow-x: auto; margin-bottom: 1.4em; }
+.table-scroll table { margin-bottom: 0; min-width: 480px; }
+
+/* ---------- 上一页 / 下一页 ---------- */
+.doc-pager {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  margin-top: 56px; padding-top: 28px; border-top: 1px solid var(--line);
+}
+.doc-pager a {
+  padding: 14px 18px; border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface); transition: border-color 0.15s;
+}
+.doc-pager a:hover { border-color: var(--ink-3); }
+.doc-pager a.next { text-align: right; }
+.doc-pager small { display: block; font-size: 0.76rem; color: var(--ink-3); margin-bottom: 2px; }
+.doc-pager b { font-size: 0.95rem; }
+
+/* ---------- 搜索弹窗 ---------- */
+.search-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  display: none; align-items: flex-start; justify-content: center;
+  padding: 12vh 20px 20px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(3px);
+}
+.search-overlay.open { display: flex; }
+.search-panel {
+  width: min(560px, 100%);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25); overflow: hidden;
+}
+.search-panel input {
+  width: 100%; padding: 15px 18px; border: none; outline: none;
+  background: transparent; color: var(--ink); font-size: 1rem; font-family: var(--sans);
+  border-bottom: 1px solid var(--line);
+}
+.search-results { max-height: 46vh; overflow-y: auto; padding: 8px; }
+.search-results:empty::after {
+  content: "没有匹配的页面"; display: block; text-align: center;
+  color: var(--ink-3); font-size: 0.9rem; padding: 24px 0;
+}
+.search-results a { display: block; padding: 10px 12px; border-radius: 8px; }
+.search-results a:hover, .search-results a.selected { background: var(--bg-soft); }
+.search-results b { display: block; font-size: 0.93rem; }
+.search-results span { display: block; font-size: 0.8rem; color: var(--ink-3); }
+.search-hint { padding: 8px 14px; border-top: 1px solid var(--line-soft); font-size: 0.74rem; color: var(--ink-3); display: flex; gap: 14px; }
+.search-hint kbd { font-family: var(--mono); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; background: var(--bg-soft); }
+
+/* ---------- 页脚（文档简版） ---------- */
+.doc-footer {
+  border-top: 1px solid var(--line);
+  padding: 28px 20px 36px; text-align: center;
+  font-size: 0.84rem; color: var(--ink-3);
+}
+.doc-footer a { color: var(--ink-2); }
+.doc-footer a:hover { color: var(--ink); }
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 1100px) {
+  .doc-shell { grid-template-columns: 220px minmax(0, 1fr); }
+  .doc-toc { display: none; }
+}
+@media (max-width: 860px) {
+  .doc-header { gap: 10px; padding: 0 14px; }
+  .doc-header .brand { white-space: nowrap; }
+  .doc-header-right { gap: 6px; }
+  .doc-header-right > a { display: none; }
+  .doc-search-btn {
+    flex: 0 0 auto; width: 36px; height: 36px; max-width: none; margin: 0;
+    padding: 0; justify-content: center; font-size: 0;
+  }
+  .doc-search-btn kbd { display: none; }
+  .doc-menu-btn { display: inline-flex; }
+  .doc-shell { grid-template-columns: 1fr; gap: 0; width: calc(100% - 32px); }
+  .doc-sidebar {
+    position: fixed; z-index: 90; top: 0; left: 0; bottom: 0;
+    width: 280px; max-height: none;
+    background: var(--surface); border-right: 1px solid var(--line);
+    padding: 20px 16px 40px;
+    transform: translateX(-102%); transition: transform 0.22s ease;
+  }
+  .doc-sidebar.open { transform: none; box-shadow: 0 0 60px rgba(0, 0, 0, 0.2); }
+  .doc-sidebar .sidebar-close {
+    display: flex; align-items: center; justify-content: space-between;
+    font-weight: 700; margin-bottom: 18px;
+  }
+  .doc-backdrop {
+    position: fixed; inset: 0; z-index: 80;
+    background: rgba(0, 0, 0, 0.35);
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .doc-backdrop.show { opacity: 1; pointer-events: auto; }
+}
+@media (min-width: 861px) {
+  .doc-sidebar .sidebar-close { display: none; }
+  .doc-backdrop { display: none; }
+}

@@ -17,6 +17,7 @@
 <p align="center">
   <a href="https://github.com/taixu-lab/taixu/releases">Releases</a> ·
   <a href="https://github.com/taixu-lab/taixu/issues">Issues</a> ·
+  <a href="https://taixu-lab.github.io/taixu/docs/index.html">在线文档</a> ·
   <strong>简体中文</strong> · <a href="README_EN.md">English</a>
 </p>
 
@@ -86,6 +87,8 @@
 ---
 
 ## 🚀 快速上手
+
+> 更适合新手的图文版教程见[在线使用文档](https://taixu-lab.github.io/taixu/docs/quickstart.html)。
 
 ### 1. 安装
 

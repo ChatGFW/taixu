@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fafafa">
+  <meta name="description" content="太墟快速上手：初始化 Linux、配置第一个模型服务商、发出第一条消息并完成一个真实小任务，五分钟入门。">
+  <title>快速上手：第一条 AI 任务 · 太墟使用文档</title>
+  <link rel="icon" href="../assets/favicon.png">
+  <script>(function(){try{var t=localStorage.getItem('taixu-theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="docs.css?v=202610314">
+  <script src="docs.js?v=202610312" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="doc-header">
+    <a class="brand" href="../index.html" aria-label="返回太墟首页">
+      <span class="brand-mark"><img src="../assets/taixu-logo.png" alt=""></span>
+      <span class="brand-name">太墟</span><span class="brand-roman">TAIXU</span>
+    </a>
+    <button class="doc-search-btn" type="button" data-search-open>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      搜索文档… <kbd>Ctrl K</kbd>
+    </button>
+    <div class="doc-header-right">
+      <a href="https://github.com/taixu-lab/taixu" target="_blank" rel="noreferrer">GitHub ↗</a>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="切换深浅模式">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+      </button>
+      <button class="doc-menu-btn" type="button" data-docs-menu aria-label="打开目录" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="doc-shell">
+    <aside class="doc-sidebar" data-docs-sidebar></aside>
+    <div class="doc-backdrop" data-docs-backdrop></div>
+
+    <main class="doc-article" id="main">
+      <h1>快速上手：第一条 AI 任务</h1>
+      <p class="doc-lead">从安装完成到让 AI 真正替你做一件事，只需 5 步。本页以「DeepSeek」为例配置模型（任何一家都可以），全程不需要任何命令行知识。</p>
+
+      <h2>第 1 步：初始化 Linux 环境</h2>
+      <ol class="steps">
+        <li><b>打开太墟，进入「启程向导」</b><p>首次启动会自动进入向导；之后也可以在「乾坤（设置）→ Linux」中重新进入。</p></li>
+        <li><b>选择发行版</b><p>直接用推荐的 <strong>Ubuntu 24.04 LTS</strong> 即可——它资料最多、软件最全，对新手最友好。想尝鲜以后随时可以再装其他发行版。</p></li>
+        <li><b>等待下载完成</b><p>向导会从镜像源下载并校验 RootFS（约 1–2 GB，视网速几分钟到半小时）。确保 Wi-Fi 稳定、电量充足。</p></li>
+      </ol>
+      <div class="callout callout-warn">
+        <b>下载失败？</b><br>多为网络波动所致：换个网络重试，或在设置里切换镜像线路后重新安装。
+      </div>
+
+      <h2>第 2 步：申请一个 API Key</h2>
+      <p>太墟本身不带模型，需要接入一家「模型服务商」。以 DeepSeek 为例：</p>
+      <ol class="steps">
+        <li><b>注册并充值</b><p>访问 DeepSeek 开放平台（platform.deepseek.com），注册账号，充值几元人民币即可起步。</p></li>
+        <li><b>创建 API Key</b><p>在平台的「API Keys」页面点「创建」，复制生成的一长串字符。<strong>它只显示一次，立刻复制保存好。</strong></p></li>
+      </ol>
+      <div class="callout callout-tip">
+        <b>用别家可以吗？</b><br>可以。OpenAI、Claude、Gemini、SiliconFlow、各类 OpenAI 兼容中转站，甚至电脑上的 Ollama 本地模型都可以，详见<a href="providers.html">配置模型服务商</a>。
+      </div>
+
+      <h2>第 3 步：把服务商配置进太墟</h2>
+      <ol class="steps">
+        <li><b>进入「乾坤」→ 模型服务</b><p>点击添加服务商，类型选择与所配平台匹配的模板（如 DeepSeek）。</p></li>
+        <li><b>粘贴接口地址与 API Key</b><p>用模板时地址已自动填好，只需粘贴你的 API Key，保存。</p></li>
+        <li><b>拉取模型列表并选择模型</b><p>点击「获取模型」或手动填写模型名（如 <code>deepseek-chat</code>），把它设为默认模型。</p></li>
+      </ol>
+      <p>配置完成后发一句「你好」测试连通性，能正常回复即配置成功。</p>
+
+      <h2>第 4 步：发出第一条消息</h2>
+      <p>回到<strong>智枢</strong>（对话主界面），像用普通聊天应用一样输入：</p>
+      <pre><code>帮我在工作区创建一个 hello.sh，内容是打印「你好，太墟」，然后运行它给我看结果。</code></pre>
+      <p>你会看到 AI 的<strong>过程链</strong>：它先思考，然后调用工具创建文件、执行脚本，最后汇报结果。过程中如果涉及需要审批的操作，会弹出确认卡片，你点「允许」它才继续。</p>
+      <div class="callout callout-tip">
+        <b>多给「可验证」的任务</b><br>「写个脚本并运行」「建个文件并展示内容」这类任务有真实结果可看，最适合体会太墟和普通聊天应用的区别。
+      </div>
+
+      <h2>第 5 步：养成三个好习惯</h2>
+      <ol class="steps">
+        <li><b>用「工坊」装项目</b><p>把要处理的代码、文档放进一个工作区项目，AI 的每一步操作都围绕它进行，结果可查可回退。</p></li>
+        <li><b>先看过程再收货</b><p>智枢会展示 AI 的思考与工具调用记录，收货前扫一眼它做了什么，是保证质量最简单的方法。</p></li>
+        <li><b>允许通知 + 电池白名单</b><p>长任务在后台运行时，这两项设置能大幅降低被系统中断的概率，见<a href="schedules.html">定时计划与后台运行</a>。</p></li>
+      </ol>
+
+      <h2>遇到问题？</h2>
+      <ul>
+        <li>发消息没有回复 → 见 <a href="faq.html">常见问题</a> 的排查清单；</li>
+        <li>模型报 401 / 余额不足 → 检查 Key 是否粘贴完整、账户是否有余额；</li>
+        <li>想系统了解某个功能 → 左侧目录按主题组织，随时查阅。</li>
+      </ul>
+
+      <h2>接下来探索</h2>
+      <ul class="card-grid">
+        <li><a href="chat.html"><b>智枢对话基础</b><span>过程链、停止继续、分支回退。</span></a></li>
+        <li><a href="bots.html"><b>认识 Bot</b><span>打造有固定人格和记忆的智能体。</span></a></li>
+        <li><a href="terminal.html"><b>终端与 Linux</b><span>直接操作你的口袋 Linux。</span></a></li>
+        <li><a href="workflows.html"><b>可视化工作流</b><span>把重复任务交给流程图。</span></a></li>
+      </ul>
+    </main>
+
+    <aside class="doc-toc" data-docs-toc></aside>
+  </div>
+
+  <footer class="doc-footer">
+    <p>© <span data-year></span> <a href="../index.html">太墟 TaiXu</a> · 问题与建议欢迎到 <a href="https://github.com/taixu-lab/taixu/issues" target="_blank" rel="noreferrer">GitHub Issues</a> 反馈</p>
+  </footer>
+</body>
+</html>

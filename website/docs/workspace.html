@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fafafa">
+  <meta name="description" content="太墟工坊与 Git：创建 / 导入 / 克隆项目、源码浏览与 Diff、沙箱内构建 Android / Flutter、APK 签名安装、Git 工作台与 AI 提交说明。">
+  <title>工坊与 Git · 太墟使用文档</title>
+  <link rel="icon" href="../assets/favicon.png">
+  <script>(function(){try{var t=localStorage.getItem('taixu-theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="docs.css?v=202610314">
+  <script src="docs.js?v=202610312" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="doc-header">
+    <a class="brand" href="../index.html" aria-label="返回太墟首页">
+      <span class="brand-mark"><img src="../assets/taixu-logo.png" alt=""></span>
+      <span class="brand-name">太墟</span><span class="brand-roman">TAIXU</span>
+    </a>
+    <button class="doc-search-btn" type="button" data-search-open>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      搜索文档… <kbd>Ctrl K</kbd>
+    </button>
+    <div class="doc-header-right">
+      <a href="https://github.com/taixu-lab/taixu" target="_blank" rel="noreferrer">GitHub ↗</a>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="切换深浅模式">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+      </button>
+      <button class="doc-menu-btn" type="button" data-docs-menu aria-label="打开目录" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="doc-shell">
+    <aside class="doc-sidebar" data-docs-sidebar></aside>
+    <div class="doc-backdrop" data-docs-backdrop></div>
+
+    <main class="doc-article" id="main">
+      <h1>工坊与 Git</h1>
+      <p class="doc-lead">工坊承载项目：新建、导入或克隆代码，浏览源码、构建 APK；Git 工作台让 AI 的每一步改动都有迹可循。</p>
+
+      <h2>把项目放进工坊</h2>
+      <ol class="steps">
+        <li><b>新建空项目</b><p>适合从零开始的新想法。</p></li>
+        <li><b>导入本地 ZIP</b><p>把电脑上的项目打包成 ZIP 传到手机后导入（已内置 Zip Slip 路径攻击防护）。</p></li>
+        <li><b>克隆 GitHub 仓库</b><p>粘贴仓库地址直接克隆；私有仓库需要配置 Token，见下文 Git 部分。</p></li>
+      </ol>
+
+      <h2>浏览与检查代码</h2>
+      <ul>
+        <li><strong>源码树</strong>：按目录浏览项目文件，点开即看代码。</li>
+        <li><strong>行级 Diff</strong>：AI 改了哪些文件、改了哪几行，逐处可查。</li>
+        <li>配合智枢里的「过程链」，每次交付都能核对到具体改动。</li>
+      </ul>
+
+      <h2>构建与安装 APK</h2>
+      <ol class="steps">
+        <li><b>触发构建</b><p>在项目页选择构建目标（Android / Flutter），构建在 Linux 沙箱内后台进行。</p></li>
+        <li><b>等待产物</b><p>构建日志实时可看；成功后得到 APK。</p></li>
+        <li><b>签名并安装</b><p>按引导完成签名，可直接安装到本机（首次需授予「安装应用」权限）。</p></li>
+      </ol>
+      <div class="callout callout-warn">
+        <b>构建需要空间与时间</b><br>
+        Android 构建工具链体积较大，首次会下载依赖，建议预留充足存储，并在 Wi-Fi 与充电状态下进行。
+      </div>
+
+      <h2>Git 工作台</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>功能</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>改动 / 暂存 / 提交</td><td>查看变更、选择性暂存、写说明提交。</td></tr>
+            <tr><td>AI 提交说明</td><td>让模型根据改动自动生成提交信息。</td></tr>
+            <tr><td>分支 / 标签 / 提交图</td><td>分支管理与历史可视化。</td></tr>
+            <tr><td>推送预览</td><td>push 前先看将要推送的内容，确认后同步远程。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>私有仓库的 HTTPS Token 加密存储在应用内；同样地，<strong>不要</strong>把 Token 写进代码或提交历史。</p>
+      <div class="callout callout-tip">
+        <b>让 Git 为 AI 兜底</b><br>
+        在让 AI 大改之前先提交一次当前状态；改完不满意可以整体回退——这是最简单可靠的「后悔药」。
+      </div>
+
+      <h2>接下来探索</h2>
+      <ul class="card-grid">
+        <li><a href="chat.html"><b>智枢对话基础</b><span>让 AI 在项目里干活。</span></a></li>
+        <li><a href="workflows.html"><b>可视化工作流</b><span>把构建做成自动化流程。</span></a></li>
+        <li><a href="approval.html"><b>审批模式与安全</b><span>控制 AI 对项目的写入。</span></a></li>
+        <li><a href="terminal.html"><b>终端与 Linux</b><span>构建背后的执行环境。</span></a></li>
+      </ul>
+    </main>
+
+    <aside class="doc-toc" data-docs-toc></aside>
+  </div>
+
+  <footer class="doc-footer">
+    <p>© <span data-year></span> <a href="../index.html">太墟 TaiXu</a> · 问题与建议欢迎到 <a href="https://github.com/taixu-lab/taixu/issues" target="_blank" rel="noreferrer">GitHub Issues</a> 反馈</p>
+  </footer>
+</body>
+</html>

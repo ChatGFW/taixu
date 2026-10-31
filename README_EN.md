@@ -17,6 +17,7 @@
 <p align="center">
   <a href="https://github.com/taixu-lab/taixu/releases">Releases</a> ·
   <a href="https://github.com/taixu-lab/taixu/issues">Issues</a> ·
+  <a href="https://taixu-lab.github.io/taixu/docs/index.html">Online Docs</a> ·
   <a href="README.md">简体中文</a> · <strong>English</strong>
 </p>
 
@@ -80,6 +81,8 @@ A script stops at an inner call that requires approval. Approval applies to that
 ---
 
 ## 🚀 Quick Start
+
+> A beginner-friendly illustrated guide lives in the [online documentation](https://taixu-lab.github.io/taixu/docs/quickstart.html) (Chinese).
 
 1. **Install** an APK from [Releases](https://github.com/taixu-lab/taixu/releases) on an ARM64 Android 10+ device. Release builds include SHA-256 files for verification.
 2. **Initialize Linux** through the onboarding wizard. Ubuntu 24.04 LTS is the default. RootFS downloads require network access and additional storage; they are not bundled in the APK.
