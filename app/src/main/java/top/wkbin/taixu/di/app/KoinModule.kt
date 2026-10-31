@@ -85,6 +85,7 @@ import top.wkbin.taixu.di.AppModule.provideMcpOAuthCredentialDao
 import top.wkbin.taixu.di.AppModule.provideMcpOAuthTransactionDao
 import top.wkbin.taixu.di.AppModule.provideMcpServerDao
 import top.wkbin.taixu.di.AppModule.provideOkHttpClient
+import top.wkbin.taixu.di.AppModule.provideModelsDevUpdater
 import top.wkbin.taixu.di.AppModule.provideProcessRegistry
 import top.wkbin.taixu.di.AppModule.providePtyManager
 import top.wkbin.taixu.di.AppModule.provideQuickPhraseDao
@@ -101,6 +102,7 @@ import top.wkbin.taixu.di.AppModule.provideWorkflowScheduleStore
 import top.wkbin.taixu.di.AppModule.provideWorkspaceDao
 import top.wkbin.taixu.di.AppModule.provideWorkspaceFileAccess
 import top.wkbin.taixu.harness.AgentForegroundLauncher
+import top.wkbin.taixu.harness.model.ModelsDevUpdater
 import top.wkbin.taixu.harness.WorkspaceFileAccess
 import top.wkbin.taixu.harness.agent.AgentMcpForegroundLauncher
 import top.wkbin.taixu.harness.checkpoint.CheckpointStore
@@ -223,6 +225,8 @@ val appModule = module {
     single<ProcessRegistry> { provideProcessRegistry(impl = get()) }
 
     single<OkHttpClient> { provideOkHttpClient(provider = get()) }
+
+    single<ModelsDevUpdater> { provideModelsDevUpdater(context = get(), okHttpClient = get()) }
 
     single<HttpClient> { provideKtorHttpClient(provider = get(), okHttpClient = get()) }
 

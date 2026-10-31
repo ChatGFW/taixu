@@ -92,6 +92,7 @@ import top.wkbin.taixu.core.database.QuickPhraseDao
 import top.wkbin.taixu.core.database.HarnessRuntimeDao
 import top.wkbin.taixu.core.database.AndroidAppDao
 import top.wkbin.taixu.harness.WorkspaceFileAccess
+import top.wkbin.taixu.harness.model.ModelsDevUpdater
 import top.wkbin.taixu.harness.checkpoint.CheckpointStore
 import top.wkbin.taixu.harness.checkpoint.FileCheckpointPersistence
 import top.wkbin.taixu.core.database.AgentContextDao
@@ -227,6 +228,9 @@ object AppModule {
     fun provideProcessRegistry(impl: ProcessRegistryImpl): ProcessRegistry = impl
 
     fun provideOkHttpClient(provider: HttpClientProvider): OkHttpClient = provider.create()
+
+    fun provideModelsDevUpdater(context: Context, okHttpClient: OkHttpClient): ModelsDevUpdater =
+        ModelsDevUpdater(context, okHttpClient)
 
     fun provideKtorHttpClient(
         provider: HttpClientProvider,

@@ -23,7 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCheckbox as Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -70,7 +70,6 @@ import kotlinx.serialization.json.buildJsonObject
  * 工具调用卡的运行态配色：组合期读取 [semanticColors]，随明暗主题切换。
  * 原先的文件级十六进制常量在三套主题（标准 M3 / 动态取色 / 液态玻璃）下都固定为深色值，两头都不达标。
  */
-private val DotRunning: Color @Composable get() = semanticColors().warning
 private val DotSuccess: Color @Composable get() = semanticColors().success
 private val DotFailed: Color @Composable get() = MaterialTheme.colorScheme.error
 
@@ -85,21 +84,9 @@ internal fun ToolCard(
     showReasoning: Boolean = false,
     defaultExpanded: Boolean = false,
     onRetry: () -> Unit = {},
+    executing: Boolean = running,
 ) {
-    var expanded by remember(call.id) { mutableStateOf(false) }
-    val dotColor = when {
-        result == null && running -> DotRunning
-        result?.success == true -> DotSuccess
-        result?.success == false -> DotFailed
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    // 状态点补充文本语义，避免 TalkBack 只感知到一块颜色
-    val dotDesc = when {
-        result == null && running -> stringResource(R.string.chat_tool_state_running)
-        result?.success == true -> stringResource(R.string.chat_tool_state_success)
-        result?.success == false -> stringResource(R.string.chat_tool_state_failed)
-        else -> null
-    }
+    var showDetails by rememberToolDetailsVisible(call.id)
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
         Column(
             Modifier.fillMaxWidth(),
@@ -115,76 +102,16 @@ internal fun ToolCard(
                         )
                     }
             }
-            RuntimeCard(
-                modifier = Modifier.fillMaxWidth(), onClick = { expanded = !expanded },
-                shape = MaterialTheme.shapes.large, contentPadding = PaddingValues(0.dp),
-                containerColor = Color.Transparent,
+            Column(
+                modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).clickable { showDetails = true },
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Box(
-                        modifier = Modifier.size(18.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        ToolStatusIndicator(toolIcon(call.tool), dotColor, dotDesc)
-                    }
-                    Text(
-                        toolDisplayName(call),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        toolArgsSummary(call).replace('\n', ' ').replace('\r', ' '),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
-                    )
-                    // 代码改动统计徽章 (+N -M)
-                    val diffStat = remember(call, result) {
-                        if (call.tool == HarnessTool.WRITE || call.tool == HarnessTool.EDIT) parseDiffStat(call, result) else null
-                    }
-                    diffStat?.let { (added, deleted) ->
-                        DiffStatBadge(added = added, deleted = deleted)
-                    }
-                    val durationText = if (result != null) {
-                        formatChatDuration(result.durationMs ?: (result.createdAt - call.createdAt).coerceAtLeast(0L))
-                    } else if (running) {
-                        var elapsed by remember(call.id) { mutableStateOf(0L) }
-                        LaunchedEffect(call.id) {
-                            while (true) {
-                                elapsed = (System.currentTimeMillis() - call.createdAt).coerceAtLeast(0L)
-                                // 500ms 刷新足够展示秒级耗时；过密轮询会让长会话持续重组抖动
-                                delay(500)
-                            }
-                        }
-                        formatChatDuration(elapsed)
-                    } else {
-                        null
-                    }
-                    durationText?.let {
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false,
-                        )
-                    }
-                    RuntimeIcon(
-                        if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                        Modifier.size(18.dp),
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                ToolStepHeader(call, result, executing)
             }
 
             val downloadingPrefix = stringResource(R.string.chat_downloading_prefix)
             val verifyingDownload = stringResource(R.string.chat_verifying_download)
             val downloadStatus = liveStatus?.takeIf {
-                call.tool == HarnessTool.DOWNLOAD && result == null && running &&
+                call.tool == HarnessTool.DOWNLOAD && result == null && executing &&
                     (it.startsWith(downloadingPrefix) || it.startsWith(verifyingDownload))
             }
             if (downloadStatus != null) {
@@ -215,24 +142,8 @@ internal fun ToolCard(
                 A2uiPocSurfaceCard(call = call, modifier = Modifier.fillMaxWidth())
             }
 
-            // 展开 Diff 与输出详情视图
-            if (expanded) {
-                ToolDiffView(
-                    call = call,
-                    result = result,
-                    workspace = workspace,
-                    onOpenFile = onOpenFile,
-                )
-                if (result != null && !running) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = onRetry) {
-                            RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(4.dp))
-                            Text(stringResource(R.string.chat_retry_from_tool), style = MaterialTheme.typography.labelLarge)
-                        }
-                    }
-                }
-            }
+            if (showDetails) ToolDetailsSheet(call, result, workspace, onOpenFile, executing,
+                canRetry = !running, onRetry = onRetry, onDismiss = { showDetails = false })
         }
     }
 }
@@ -411,7 +322,7 @@ internal fun AskUserCard(
                         }
                     }
                     if (question.allowCustom) {
-                        OutlinedTextField(
+                        RuntimeFilledTextField(
                             value = custom[index].orEmpty(),
                             onValueChange = { value ->
                                 custom[index] = value
@@ -486,7 +397,7 @@ private fun AskUserOptionChip(
     }
 }
 
-/** 工具类型 → 语义前缀图标（与思考块的 Brain 图标同一视觉语言）。形状标识工具类别；颜色由调用处以状态色着色。穷尽 HarnessTool，新增工具有编译器兜底。 */
+/** 工具类型 → 语义前缀图标（与思考块的 Brain 图标同一视觉语言）。形状标识工具类别；过程行由 ChatProcessIcon 统一线宽与中性灰。穷尽 HarnessTool，新增工具有编译器兜底。 */
 internal fun toolIcon(tool: HarnessTool): RuntimeIconName = when (tool) {
     HarnessTool.READ -> RuntimeIconName.Document
     HarnessTool.WRITE -> RuntimeIconName.WriteDocument

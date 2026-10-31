@@ -24,11 +24,11 @@ internal object SettingsDensity {
 }
 
 @Composable
-internal fun settingsTitleStyle(): TextStyle = MaterialTheme.typography.titleMedium.copy(
+internal fun settingsTitleStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(
     lineHeight = 22.sp, letterSpacing = 0.sp,
 )
 
 @Composable
-internal fun settingsSupportingStyle(): TextStyle = MaterialTheme.typography.bodySmall.copy(
-    lineHeight = 18.sp, letterSpacing = 0.sp,
+internal fun settingsSupportingStyle(): TextStyle = MaterialTheme.typography.bodyMedium.copy(
+    lineHeight = 20.sp, letterSpacing = 0.sp,
 )

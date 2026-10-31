@@ -22,6 +22,14 @@ import top.wkbin.taixu.core.datastore.WorkshopPreferences
 
 /** Dependency registrations owned by the core:datastore module. */
 val coreDatastoreModule = module {
+    single { top.wkbin.taixu.core.datastore.ChatIdentityPreferences(context = get()) }
+    single(org.koin.core.qualifier.named("chatIdentityImages")) {
+        val context = get<android.content.Context>().applicationContext
+        top.wkbin.taixu.core.datastore.ChatBackgroundImageStore(
+            java.io.File(context.filesDir, top.wkbin.taixu.core.model.ChatIdentityStyle.IMAGE_DIRECTORY),
+            { uri -> context.contentResolver.openInputStream(uri) }, maxBytes = 10L * 1024 * 1024,
+        )
+    }
     single { top.wkbin.taixu.core.datastore.ChatBackgroundPreferences(context = get()) }
     single { top.wkbin.taixu.core.datastore.ChatBackgroundImageStore(context = get()) }
     single { top.wkbin.taixu.core.datastore.PluginPreferences(context = get()) }

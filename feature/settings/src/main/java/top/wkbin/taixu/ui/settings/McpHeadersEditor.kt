@@ -3,7 +3,7 @@ package top.wkbin.taixu.ui.settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,7 +19,7 @@ import top.wkbin.taixu.ui.settings.LocalizedText as Text
 internal fun McpHeadersEditor(value: String, onChange: (String) -> Unit, error: String?) {
     var visible by remember { mutableStateOf(false) }
     Column {
-        OutlinedTextField(
+        RuntimeFilledTextField(
             value = value,
             onValueChange = onChange,
             label = { Text("HTTP 请求头（JSON，可选）") },

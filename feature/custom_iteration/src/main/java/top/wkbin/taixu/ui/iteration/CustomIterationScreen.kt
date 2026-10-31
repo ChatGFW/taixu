@@ -42,7 +42,7 @@ import top.wkbin.taixu.ui.components.NoticeBanner
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeOutlinedTextField
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
 @Composable
@@ -167,7 +167,7 @@ fun CustomIterationScreen(
 
             RuntimeCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    RuntimeOutlinedTextField(
+                    RuntimeFilledTextField(
                         value = branchText,
                         onValueChange = { branchText = it },
                         label = { Text(stringResource(R.string.iteration_build_branch_label)) },

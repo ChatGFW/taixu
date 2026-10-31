@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fafafa">
+  <meta name="description" content="太墟更多能力：悬浮助手、快捷指令、WebChat 电脑大屏协作、FTP 文件传输、特色功能（一句话做 App、AI 圆桌会议、晨报哨兵、A2UI）与无线 ADB。">
+  <title>更多能力与特色功能 · 太墟使用文档</title>
+  <link rel="icon" href="../assets/favicon.png">
+  <script>(function(){try{var t=localStorage.getItem('taixu-theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="docs.css?v=202610314">
+  <script src="docs.js?v=202610314" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="doc-header">
+    <a class="brand" href="../index.html" aria-label="返回太墟首页">
+      <span class="brand-mark"><img src="../assets/taixu-logo.png" alt=""></span>
+      <span class="brand-name">太墟</span><span class="brand-roman">TAIXU</span>
+    </a>
+    <button class="doc-search-btn" type="button" data-search-open>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      搜索文档… <kbd>Ctrl K</kbd>
+    </button>
+    <div class="doc-header-right">
+      <a href="https://github.com/taixu-lab/taixu" target="_blank" rel="noreferrer">GitHub ↗</a>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="切换深浅模式">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+      </button>
+      <button class="doc-menu-btn" type="button" data-docs-menu aria-label="打开目录" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="doc-shell">
+    <aside class="doc-sidebar" data-docs-sidebar></aside>
+    <div class="doc-backdrop" data-docs-backdrop></div>
+
+    <main class="doc-article" id="main">
+      <h1>更多能力与特色功能</h1>
+      <p class="doc-lead">除了主线功能，太墟还藏了不少趁手的小能力。这一页按「你在哪、想干嘛」把它们串起来。</p>
+
+      <h2>悬浮助手：在任何 App 上找 AI</h2>
+      <p>开启悬浮窗权限后，全局悬浮助手可以在任何界面上方唤起对话——刷到想保存的文章、看到想查的东西，随手问一句。</p>
+
+      <h2>快捷指令：把常用提示词变成按钮</h2>
+      <p>在输入区附近可以把常用提示词保存为快捷指令，之后<strong>一键发送</strong>。适合「帮我总结这个页面」「检查当前项目改动」这类高频操作。</p>
+
+      <h2>WebChat：换到电脑大屏继续干活</h2>
+      <ol class="steps">
+        <li><b>在手机上开启 WebChat</b><p>设置中打开后，会显示一个局域网访问地址和<strong>临时配对码</strong>。</p></li>
+        <li><b>电脑浏览器访问</b><p>输入地址，填入配对码完成配对，就能在大屏上输入和查看任务进展。</p></li>
+        <li><b>用完即关</b><p>配对码是临时的，会话结束后建议关闭 WebChat 开关。</p></li>
+      </ol>
+      <div class="callout callout-warn">
+        <b>仅限局域网</b><br>
+        WebChat 面向同一 Wi-Fi 下的自己的电脑，带临时 PIN 防护；不要在不信任的公共网络中开启。
+      </div>
+
+      <h2>FTP 与文件来往</h2>
+      <p>需要批量搬运项目文件时，可以启用 FTP 传输，用电脑上的文件管理器直接访问手机工作区；少量文件则用系统分享或共享存储挂载更方便。</p>
+
+      <h2>乾坤 → 特色功能</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>功能</th><th>是什么</th></tr></thead>
+          <tbody>
+            <tr><td>一句话做 App</td><td>描述需求，由 Planner / Executor 双智能体规划并逐步实现一个可运行的小应用。</td></tr>
+            <tr><td>AI 圆桌会议</td><td>多个视角的模型并行评审同一个问题，汇总成一份综合报告。</td></tr>
+            <tr><td>晨报哨兵</td><td>定时为你汇总关注的信息，生成一份晨报。</td></tr>
+            <tr><td>A2UI 界面</td><td>Agent 输出声明式交互界面（表单、卡片），在对话里直接呈现可操作的界面。</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>无线 ADB 与宿主自动化</h2>
+      <ul>
+        <li>支持 mDNS 发现设备、通知栏输入配对码完成无线 ADB 连接，可用于查看日志、设备体检与 Intent 诊断。</li>
+        <li>经你逐项授权后，还能通过无线 ADB、Shizuku、无障碍等通道执行更高级的宿主与 GUI 自动化。</li>
+        <li>这些能力<strong>默认关闭</strong>，不用就不需要授予任何权限。</li>
+      </ul>
+      <div class="callout callout-tip">
+        <b>按需授权原则</b><br>
+        太墟的每类系统能力（悬浮窗、通知、安装 APK、无障碍等）都是独立开关。只用对话和终端的话，一个额外权限都不用给。
+      </div>
+
+      <h2>接下来探索</h2>
+      <ul class="card-grid">
+        <li><a href="chat.html"><b>智枢对话基础</b><span>悬浮助手与快捷指令的入口。</span></a></li>
+        <li><a href="schedules.html"><b>定时计划</b><span>晨报哨兵这类定时能力的底座。</span></a></li>
+        <li><a href="workspace.html"><b>工坊与 Git</b><span>「一句话做 App」的产物在这里。</span></a></li>
+        <li><a href="faq.html"><b>常见问题</b><span>权限相关疑问。</span></a></li>
+      </ul>
+    </main>
+
+    <aside class="doc-toc" data-docs-toc></aside>
+  </div>
+
+  <footer class="doc-footer">
+    <p>© <span data-year></span> <a href="../index.html">太墟 TaiXu</a> · 问题与建议欢迎到 <a href="https://github.com/taixu-lab/taixu/issues" target="_blank" rel="noreferrer">GitHub Issues</a> 反馈</p>
+  </footer>
+</body>
+</html>

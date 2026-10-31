@@ -18,6 +18,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,9 +35,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import androidx.compose.material3.ButtonDefaults
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
@@ -48,25 +51,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
-import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import top.wkbin.taixu.feature.chat.R
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -143,13 +150,14 @@ internal fun UserBubble(
                 }
             }
 
-            // 🌟 2. 用户文字气泡
+            // 🌟 2. 用户文字气泡（clipBubbleShape 只裁绘制：四角异径的 Surface 会在图层轮廓里
+            // 生成 Path，超长消息下半部分触摸判定会因 float 精度失效）
             if (message.text.isNotBlank()) {
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(24.dp, 8.dp, 24.dp, 24.dp),
+                Box(
                     modifier = Modifier
                         .widthIn(max = 560.dp)
+                        .clipBubbleShape(RoundedCornerShape(24.dp, 8.dp, 24.dp, 24.dp))
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
                         .clickable { showMenu = true },
                 ) {
                     val mentionColor = MaterialTheme.colorScheme.primary
@@ -340,6 +348,17 @@ private fun RewindScopeOption(
 }
 
 /**
+ * 只裁剪绘制内容，不像 [clip] 那样把形状设成图层轮廓。
+ *
+ * 四个角半径不同时图层轮廓是 Path，Compose 判断触摸点是否落在轮廓内时用 Path 求交，
+ * 坐标超过 8192px 后 float 精度不够，求交结果为空——超长用户消息的下半部分就收不到触摸了。
+ */
+private fun Modifier.clipBubbleShape(shape: Shape): Modifier = drawWithCache {
+    val path = Path().apply { addOutline(shape.createOutline(size, layoutDirection, this@drawWithCache)) }
+    onDrawWithContent { clipPath(path) { this@onDrawWithContent.drawContent() } }
+}
+
+/**
  * 🌟 多模态图片优雅缩略图卡片（支持 Base64 Data URL 与本地文件路径）。
  *
  * Base64 解码不能放在 remember 里：remember 的计算发生在 Compose 主线程，历史大图会
@@ -393,6 +412,7 @@ internal fun AssistantBubble(
     autoTranslate: Boolean = false,
     live: Boolean = false,
     showRegenerate: Boolean = false,
+    prominentActions: Boolean = true,
     onRegenerate: () -> Unit = {},
     onCreateBranch: () -> Unit = {},
     onNavigateToSettings: (() -> Unit)? = null,
@@ -420,7 +440,7 @@ internal fun AssistantBubble(
         Toast.makeText(context, context.getString(R.string.chat_response_copied), Toast.LENGTH_SHORT).show()
     }
 
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (!reasoning.isNullOrBlank()) {
             ThinkingBlock(
                 id = message.id,
@@ -497,77 +517,8 @@ internal fun AssistantBubble(
             }
         }
 
-        // 统计区域占满剩余宽度，操作按钮始终贴右；长统计文本可收缩省略。
         if (!live && message.text.isNotBlank()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 0.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    message.totalMs?.let {
-                        Text(
-                            stringResource(R.string.chat_elapsed, formatChatDuration(it)),
-                            modifier = Modifier.weight(1f, fill = false),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontFamily = FontFamily.Monospace,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-
-                    // Provider 报告的本轮 token 用量明细（输入/输出/缓存命中与命中率）。
-                    val tokenParts = buildList {
-                        message.promptTokens?.let { add("↑${formatTokenCount(it)}") }
-                        message.completionTokens?.let { add("↓${formatTokenCount(it)}") }
-                        message.cachedTokens?.takeIf { cached -> cached > 0 }?.let { cached ->
-                            val prompt = message.promptTokens ?: 0
-                            val pct = if (prompt > 0) ((cached.toLong() * 100L) / prompt.toLong()).toInt().coerceIn(1, 100) else null
-                            if (pct != null) {
-                                add("⚡${formatTokenCount(cached)} ($pct%)")
-                            } else {
-                                add("⚡${formatTokenCount(cached)}")
-                            }
-                        }
-                    }
-
-                    if (tokenParts.isNotEmpty()) {
-                        Text(
-                            tokenParts.joinToString(" "),
-                            modifier = Modifier.weight(1f, fill = false),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                            fontFamily = FontFamily.Monospace,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-
-                }
-
-                if (showRegenerate) {
-                    IconButton(onClick = onRegenerate, modifier = Modifier.size(24.dp), contentDescription = stringResource(R.string.chat_regenerate)) {
-                        RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
-
-                IconButton(onClick = onCreateBranch, modifier = Modifier.size(24.dp), contentDescription = stringResource(R.string.chat_branch_from_here)) {
-                    RuntimeIcon(RuntimeIconName.GitBranch, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-
-                // 复制按钮
-                IconButton(onClick = copyAll, modifier = Modifier.size(24.dp), contentDescription = stringResource(R.string.chat_copy)) {
-                    RuntimeIcon(
-                        RuntimeIconName.Copy,
-                        Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                // 消息反馈（自包含组件：koinInject 直取服务，不向列表/Screen 钻孔）
-                if (!live) MessageFeedbackAction(message.id)
-            }
+            AssistantMessageFooter(message, prominentActions, showRegenerate, onRegenerate, onCreateBranch, copyAll)
         }
     }
 }
@@ -575,171 +526,6 @@ internal fun AssistantBubble(
 private const val MAX_LIVE_TEXT_CHARS = 64_000
 /** Avoid rescanning a multi-megabyte Base64 response whenever its lazy-list item re-enters composition. */
 private val generatedImageFlagCache = LruCache<String, Boolean>(64)
-
-private data class TaskStepItem(
-    val index: Int,
-    val title: String,
-    val isCompleted: Boolean,
-)
-
-private val taskPlanCache = LruCache<String, List<TaskStepItem>>(200)
-
-private fun extractTaskPlanSteps(text: String): List<TaskStepItem> {
-    taskPlanCache.get(text)?.let { return it }
-    val lines = text.lines()
-    val steps = mutableListOf<TaskStepItem>()
-    val checkboxRegex = Regex("""^(\s*[-*]|\s*\d+[\.\)])?\s*\[([ xX])\]\s*(.+)""")
-    var idx = 1
-    for (line in lines) {
-        val match = checkboxRegex.find(line.trim())
-        if (match != null) {
-            val isChecked = match.groupValues[2].equals("x", ignoreCase = true)
-            val title = match.groupValues[3].trim()
-            if (title.isNotBlank()) {
-                steps.add(TaskStepItem(index = idx++, title = title, isCompleted = isChecked))
-            }
-        }
-    }
-    taskPlanCache.put(text, steps)
-    return steps
-}
-
-@Composable
-private fun TaskPlanCard(steps: List<TaskStepItem>, modifier: Modifier = Modifier) {
-    var expanded by remember { mutableStateOf(true) }
-    val completedCount = steps.count { it.isCompleted }
-    val progress = if (steps.isNotEmpty()) completedCount.toFloat() / steps.size else 0f
-    val haptic = LocalHapticFeedback.current
-
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                expanded = !expanded
-            },
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    RuntimeIcon(
-                        RuntimeIconName.Code,
-                        modifier = Modifier.size(13.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-
-                Text(
-                    text = stringResource(R.string.chat_plan),
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-
-                Spacer(Modifier.weight(1f))
-
-                Surface(
-                    color = if (completedCount == steps.size) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                    else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(6.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.chat_plan_completed, completedCount, steps.size),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                        ),
-                        color = if (completedCount == steps.size) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    )
-                }
-
-                RuntimeIcon(
-                    if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                    Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            // 进度条
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            )
-
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
-            ) {
-                Column(
-                    modifier = Modifier.padding(top = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    steps.forEach { step ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (step.isCompleted) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    ),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (step.isCompleted) {
-                                    Text(
-                                        "✓",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                        ),
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                    )
-                                }
-                            }
-
-                            Text(
-                                text = step.title,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontWeight = if (step.isCompleted) FontWeight.Normal else FontWeight.Medium,
-                                ),
-                                color = if (step.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant
-                                else MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 @Composable
 internal fun ThinkingBlock(
@@ -774,6 +560,27 @@ internal fun ThinkingBlock(
     }
     val translationModelStatus by (translationManager?.status ?: fallbackStatusFlow)
         .collectAsStateWithLifecycle()
+    // 流式思考限高视口：长思考固定在 160dp 视口内滚动并跟随尾部；用户拖动即暂停跟随，
+    // 可点「跟随」恢复。手势判定与群聊 GroupReasoningPanel 同一模式。
+    val liveScroll = rememberScrollState()
+    var liveFollowing by remember(id) { mutableStateOf(true) }
+    LaunchedEffect(liveScroll) {
+        liveScroll.interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is DragInteraction.Start -> liveFollowing = false
+                is DragInteraction.Stop, is DragInteraction.Cancel ->
+                    liveFollowing = liveScroll.value >= liveScroll.maxValue - 2
+                else -> Unit
+            }
+        }
+    }
+    LaunchedEffect(liveScroll, expanded) {
+        // 监听测量结果而非 token 到达：文本排版可能晚一帧完成。
+        snapshotFlow { Triple(liveScroll.maxValue, liveFollowing, liveScroll.isScrollInProgress) }.collect { (maximum, follow, moving) ->
+            if (!moving && !follow && liveScroll.value >= maximum - 2) liveFollowing = true
+            if (expanded && follow && maximum != Int.MAX_VALUE && !moving) liveScroll.scrollTo(maximum)
+        }
+    }
     LaunchedEffect(expanded, autoTranslate) {
         if (expanded && autoTranslate && !live && !showTranslation && translatedText == null) {
             if (translationManager?.isReady() == true) {
@@ -794,47 +601,18 @@ internal fun ThinkingBlock(
         Toast.makeText(context, context.getString(R.string.chat_reasoning_copied), Toast.LENGTH_SHORT).show()
     }
 
-    RuntimeCard(
-        modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large,
-        containerColor = Color.Transparent, contentPadding = PaddingValues(0.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().then(chatGreetingModifier())) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
-                .fillMaxWidth().clip(MaterialTheme.shapes.medium)
-                .clickable { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); expanded = !expanded },
+                .fillMaxWidth().heightIn(min = 28.dp).clip(MaterialTheme.shapes.small)
+                .clickable { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); expanded = !expanded }
+                .padding(horizontal = 2.dp, vertical = 4.dp),
         ) {
-            Box(
-                modifier = Modifier.size(18.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (live) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 1.5.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                } else {
-                    RuntimeIcon(
-                        RuntimeIconName.Brain,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            ChatProcessIcon(RuntimeIconName.Brain, running = live)
 
-            Text(
-                text = when {
-                    live -> stringResource(R.string.chat_deep_reasoning)
-                    durationMs != null && durationMs > 0 ->
-                        stringResource(R.string.chat_reasoning_duration, "%.1f".format(durationMs / 1000.0))
-                    else -> stringResource(R.string.chat_reasoning_process)
-                },
-                style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f),
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            ChatReasoningLabel(id, live, durationMs, Modifier.weight(1f))
 
             if (expanded) {
                 if (!live) {
@@ -881,7 +659,7 @@ internal fun ThinkingBlock(
                                 RuntimeIconName.Globe,
                                 Modifier.size(18.dp),
                                 tint = if (showTranslation) MaterialTheme.colorScheme.primary
-                                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                                       else chatProcessColor(),
                             )
                         }
                     }
@@ -895,15 +673,15 @@ internal fun ThinkingBlock(
                     RuntimeIcon(
                         RuntimeIconName.Copy,
                         Modifier.size(18.dp),
-                        MaterialTheme.colorScheme.onSurfaceVariant,
+                        chatProcessColor(),
                     )
                 }
             }
 
             RuntimeIcon(
                 if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                Modifier.size(18.dp),
-                MaterialTheme.colorScheme.onSurfaceVariant,
+                Modifier.size(16.dp),
+                chatProcessColor(),
             )
         }
 
@@ -912,72 +690,87 @@ internal fun ThinkingBlock(
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut(),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        expanded = false
-                    }
-                    .padding(top = 12.dp, bottom = 4.dp),
-            ) {
-                if (showTranslation && translatedText != null) {
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(bottom = 2.dp),
-                        ) {
-                            RuntimeIcon(
-                                RuntimeIconName.Globe,
-                                Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                                text = "中文译文 (ML Kit 离线生成)",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
+            ChatProcessContent {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            expanded = false
+                        }
+                        .padding(top = 12.dp, bottom = 4.dp),
+                ) {
+                    if (showTranslation && translatedText != null) {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(bottom = 2.dp),
+                            ) {
+                                RuntimeIcon(
+                                    RuntimeIconName.Globe,
+                                    Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                Text(
+                                    text = "中文译文 (ML Kit 离线生成)",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            MarkdownText(
+                                translatedText.orEmpty(),
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         }
-                        MarkdownText(
-                            translatedText.orEmpty(),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                } else if (isTranslating) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(vertical = 4.dp),
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 1.5.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            text = "正在离线翻译思考内容...",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                        )
-                    }
-                } else {
-                    if (live) {
-                        SelectionContainer {
+                    } else if (isTranslating) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 1.5.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                             Text(
-                                text = reasoning,
-                                modifier = Modifier.fillMaxWidth(),
+                                text = "正在离线翻译思考内容...",
                                 style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = chatProcessColor(),
                                 ),
                             )
                         }
                     } else {
-                        MarkdownText(
-                            reasoning,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        if (live) {
+                            Box(Modifier.fillMaxWidth().heightIn(max = 160.dp)) {
+                                SelectionContainer {
+                                    Text(
+                                        text = reasoning,
+                                        modifier = Modifier.fillMaxWidth().verticalScroll(liveScroll),
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            color = chatProcessColor(),
+                                        ),
+                                    )
+                                }
+                                if (!liveFollowing && liveScroll.maxValue > 0) {
+                                    TextButton(
+                                        onClick = { liveFollowing = true },
+                                        modifier = Modifier.align(Alignment.BottomEnd),
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.chat_follow_reasoning),
+                                            style = MaterialTheme.typography.labelSmall,
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            MarkdownText(
+                                reasoning,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }

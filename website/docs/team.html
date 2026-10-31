@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fafafa">
+  <meta name="description" content="太墟群聊与团队协作：创建群聊、分配 Bot 成员、@ 提及分工、独立任务与续办、状态查看与结果回报。">
+  <title>群聊与团队协作 · 太墟使用文档</title>
+  <link rel="icon" href="../assets/favicon.png">
+  <script>(function(){try{var t=localStorage.getItem('taixu-theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="docs.css?v=202610314">
+  <script src="docs.js?v=202610312" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="doc-header">
+    <a class="brand" href="../index.html" aria-label="返回太墟首页">
+      <span class="brand-mark"><img src="../assets/taixu-logo.png" alt=""></span>
+      <span class="brand-name">太墟</span><span class="brand-roman">TAIXU</span>
+    </a>
+    <button class="doc-search-btn" type="button" data-search-open>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      搜索文档… <kbd>Ctrl K</kbd>
+    </button>
+    <div class="doc-header-right">
+      <a href="https://github.com/taixu-lab/taixu" target="_blank" rel="noreferrer">GitHub ↗</a>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="切换深浅模式">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+      </button>
+      <button class="doc-menu-btn" type="button" data-docs-menu aria-label="打开目录" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="doc-shell">
+    <aside class="doc-sidebar" data-docs-sidebar></aside>
+    <div class="doc-backdrop" data-docs-backdrop></div>
+
+    <main class="doc-article" id="main">
+      <h1>群聊与团队协作</h1>
+      <p class="doc-lead">把不同专长的 Bot 拉进同一个群聊，@ 它们分工干活——像带一个小团队一样推进项目。</p>
+
+      <h2>组建一个团队</h2>
+      <ol class="steps">
+        <li><b>先建好成员</b><p>提前创建几个职责清晰的 <a href="bots.html">Bot</a>：比如「主控」「开发」「评审」。</p></li>
+        <li><b>创建群聊并拉人</b><p>新建群聊，把这些 Bot 加为成员。</p></li>
+        <li><b>说清目标</b><p>第一句话描述整体目标与验收标准，比如：<br><code>目标：把登录模块从 XML 迁移到 Compose。@开发 负责改造，@评审 负责检查，完成后我来验收。</code></p></li>
+      </ol>
+
+      <h2>@ 提及就是分工</h2>
+      <ul>
+        <li>群里用 <code>@成员名</code> 点名，被点到的 Bot 才重点响应，避免一窝蜂抢答。</li>
+        <li>不点名时，通常会由主控（或你指定的组织者）来拆解与分派。</li>
+        <li>每个成员使用<strong>自己的模型与人格</strong>，强模型写代码、便宜模型跑杂活，互不影响。</li>
+      </ul>
+
+      <h2>独立任务：把讨论落到执行</h2>
+      <p>群聊里达成一致后，可以让成员把它变成一个<strong>独立任务</strong>去执行：</p>
+      <ul>
+        <li>任务有自己的会话与状态：<strong>排队 / 运行中 / 受阻 / 已完成</strong>，在任务列表里随时查看。</li>
+        <li>执行过程中的审批仍然只归你——需要确认的操作会单独弹出，见<a href="approval.html">审批模式与安全</a>。</li>
+        <li>任务完成后成员会<strong>回报结果</strong>，产物（文件、提交、报告）可以直接查看。</li>
+      </ul>
+
+      <h2>续办：沿着原任务继续</h2>
+      <p>看到回报后想改？不用重开任务，直接在原任务上补充要求（「把错误处理再补一下」），它会沿着<strong>原来的会话与上下文</strong>继续推进——这是团队协作里最省心的接力方式。</p>
+
+      <h2>协作小贴士</h2>
+      <ul>
+        <li><strong>目标写验收标准</strong>：「可构建、测试通过」比「做好一点」有效得多。</li>
+        <li><strong>成员宁少勿多</strong>：3 个职责清晰的成员好过 8 个互相等待的成员。</li>
+        <li><strong>让主控记备忘</strong>：把分工与约定写进主控 Bot 的<a href="memory.html">记忆</a>，下次群里接着用。</li>
+      </ul>
+
+      <h2>接下来探索</h2>
+      <ul class="card-grid">
+        <li><a href="bots.html"><b>认识 Bot</b><span>建好团队里的每个成员。</span></a></li>
+        <li><a href="memory.html"><b>Bot 记忆</b><span>让团队约定被记住。</span></a></li>
+        <li><a href="workflows.html"><b>可视化工作流</b><span>把固定协作流程固化下来。</span></a></li>
+        <li><a href="approval.html"><b>审批模式与安全</b><span>团队执行时的权限控制。</span></a></li>
+      </ul>
+    </main>
+
+    <aside class="doc-toc" data-docs-toc></aside>
+  </div>
+
+  <footer class="doc-footer">
+    <p>© <span data-year></span> <a href="../index.html">太墟 TaiXu</a> · 问题与建议欢迎到 <a href="https://github.com/taixu-lab/taixu/issues" target="_blank" rel="noreferrer">GitHub Issues</a> 反馈</p>
+  </footer>
+</body>
+</html>

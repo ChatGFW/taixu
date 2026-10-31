@@ -77,6 +77,7 @@ class TaiXuApplication : Application(), Configuration.Provider {
     private val botAssignmentRuntimeLazy: Lazy<top.wkbin.taixu.harness.bot.BotAssignmentRuntime> = inject()
     private val groupChatDispatcherLazy: Lazy<GroupChatDispatcher> = inject()
     private val botAssignmentTrackerLazy: Lazy<BotAssignmentTracker> = inject()
+    private val modelsDevUpdaterLazy: Lazy<top.wkbin.taixu.harness.model.ModelsDevUpdater> = inject()
 
     private val appLoggerLazy: Lazy<AppLogger> = inject()
     private val virtualDisplayCoordinatorLazy: Lazy<VirtualDisplayCoordinator> = inject()
@@ -134,6 +135,8 @@ class TaiXuApplication : Application(), Configuration.Provider {
                 launch { runCatching { mcpServerRepositoryLazy.value.ensureInitialized() } }
                 // 上次进程被杀时仍在 RUNNING 的委派无法恢复执行，收敛为失败以免工作面板永久转圈。
                 launch { runCatching { botAssignmentTrackerLazy.value.recoverOrphaned() } }
+                // models.dev 模型目录：先装本地快照供元数据查询，过期后再联网刷新（失败静默）
+                launch { runCatching { modelsDevUpdaterLazy.value.start() } }
             }
             appStatsPreferences.incrementLaunchCount()
             // Bot 定时排期：进程重启后收敛旧唤醒链，只保留最近一次触发。

@@ -539,4 +539,18 @@
     <string name="toolchain_confirm_large">Android components are large downloads and may take a while.</string>
     <string name="toolchain_confirm_ok">Install</string>
     <string name="toolchain_confirm_cancel">Cancel</string>
+    <string name="chat_follow_reasoning">Follow</string>
+    <string name="chat_nerd_context">Context %1$s</string>
+    <string name="chat_nerd_cache">Cached %1$d%%</string>
+    <string name="chat_nerd_output">Out %1$s tok</string>
+    <string name="chat_nerd_turn">Turn %1$s</string>
+    <string name="chat_nerd_cached">Cached</string>
+    <string name="chat_nerd_uncached">New input</string>
+    <string name="chat_nerd_output_label">Output</string>
+    <string name="chat_nerd_remaining">Free</string>
+    <string name="chat_search_provider">Search providers or models</string>
+    <string name="chat_search_models">Search models</string>
+    <string name="chat_no_matching_models">No matching models</string>
+    <string name="chat_manual_model">Enter model ID</string>
+    <string name="chat_model_list">Model list</string>
 </resources>

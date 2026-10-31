@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fafafa">
+  <meta name="description" content="太墟备份与迁移：本地 ZIP 备份包含与不包含的内容、恢复预览、模型档案迁移、换机迁移完整清单。">
+  <title>备份与迁移 · 太墟使用文档</title>
+  <link rel="icon" href="../assets/favicon.png">
+  <script>(function(){try{var t=localStorage.getItem('taixu-theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="docs.css?v=202610314">
+  <script src="docs.js?v=202610312" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="doc-header">
+    <a class="brand" href="../index.html" aria-label="返回太墟首页">
+      <span class="brand-mark"><img src="../assets/taixu-logo.png" alt=""></span>
+      <span class="brand-name">太墟</span><span class="brand-roman">TAIXU</span>
+    </a>
+    <button class="doc-search-btn" type="button" data-search-open>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      搜索文档… <kbd>Ctrl K</kbd>
+    </button>
+    <div class="doc-header-right">
+      <a href="https://github.com/taixu-lab/taixu" target="_blank" rel="noreferrer">GitHub ↗</a>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="切换深浅模式">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+      </button>
+      <button class="doc-menu-btn" type="button" data-docs-menu aria-label="打开目录" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="doc-shell">
+    <aside class="doc-sidebar" data-docs-sidebar></aside>
+    <div class="doc-backdrop" data-docs-backdrop></div>
+
+    <main class="doc-article" id="main">
+      <h1>备份与迁移</h1>
+      <p class="doc-lead">换机、重装、升级大版本前，花两分钟做一次备份。备份是一个 ZIP 文件，可以自己保存到任何地方。</p>
+
+      <h2>创建备份</h2>
+      <ol class="steps">
+        <li><b>进入「乾坤 → 备份」</b></li>
+        <li><b>选择导出</b><p>应用会打包本地数据并生成 ZIP，通过系统分享保存到网盘、电脑或直接发送。</p></li>
+        <li><b>妥善保存</b><p>建议按日期命名（如 <code>taixu-backup-20261031.zip</code>），与重要文件一起管理。</p></li>
+      </ol>
+
+      <h2>备份包含 / 不包含什么</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>✅ 包含</th><th>❌ 不包含（需另行处理）</th></tr></thead>
+          <tbody>
+            <tr><td>会话与对话记录</td><td>Linux RootFS（重新安装即可）</td></tr>
+            <tr><td>Bot 配置与记忆</td><td>工作区里的实际项目文件</td></tr>
+            <tr><td>工作流与定时计划</td><td>API Key 与自定义请求头</td></tr>
+            <tr><td>技能资源、附件、可移植偏好</td><td>Git Token 等凭据</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout-warn">
+        <b>最容易被忽略的三样</b><br>
+        ① 工作区项目文件（用 FTP / 共享存储 / Git 远程另行备份）；② API Key（重新粘贴即可）；③ RootFS（重装，无需迁移）。
+      </div>
+
+      <h2>恢复备份</h2>
+      <ol class="steps">
+        <li><b>导入备份文件</b><p>「乾坤 → 备份 → 恢复」选择 ZIP。</p></li>
+        <li><b>预览确认</b><p>恢复前会列出<strong>将要新增的数据</strong>；已有会话不会被覆盖，只做合并。</p></li>
+        <li><b>完成恢复</b><p>打开智枢确认会话与配置回来了，再重新粘贴 API Key。</p></li>
+      </ol>
+
+      <h2>换机迁移完整清单</h2>
+      <ol class="steps">
+        <li>旧手机：导出<strong>本地备份 ZIP</strong>；</li>
+        <li>旧手机：导出<strong>模型档案 JSON</strong>（「模型服务 → 模型档案」，默认不含 Key，敏感文件传完即删）；</li>
+        <li>旧手机：把<strong>工作区项目</strong>推到 Git 远程，或打 ZIP 传走；</li>
+        <li>新手机：安装太墟 → 恢复备份 → 导入模型档案 → 重新配置 Key → 重装 RootFS → 克隆回项目。</li>
+      </ol>
+
+      <h2>接下来探索</h2>
+      <ul class="card-grid">
+        <li><a href="models.html"><b>模型档案</b><span>服务商配置的单独迁移。</span></a></li>
+        <li><a href="download.html"><b>下载与安装</b><span>新机安装与升级。</span></a></li>
+        <li><a href="workspace.html"><b>工坊与 Git</b><span>项目文件的安全转移。</span></a></li>
+        <li><a href="faq.html"><b>常见问题</b><span>备份恢复相关疑问。</span></a></li>
+      </ul>
+    </main>
+
+    <aside class="doc-toc" data-docs-toc></aside>
+  </div>
+
+  <footer class="doc-footer">
+    <p>© <span data-year></span> <a href="../index.html">太墟 TaiXu</a> · 问题与建议欢迎到 <a href="https://github.com/taixu-lab/taixu/issues" target="_blank" rel="noreferrer">GitHub Issues</a> 反馈</p>
+  </footer>
+</body>
+</html>

@@ -35,6 +35,7 @@ internal fun ChatTopBar(
     toolchainHighlight: Boolean = false, onOpenToolchain: () -> Unit,
     onOpenReasoning: (() -> Unit)? = null, companion: ChatCompanionToggle? = null,
     speech: ChatSpeechToggle? = null,
+    onOpenMemory: () -> Unit = {},
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val openFloatingChat = rememberFloatingChatLauncher()
@@ -92,6 +93,11 @@ internal fun ChatTopBar(
                     onOpenRepository = onOpenRepository?.let(closeThen), repositoryHighlight = repositoryHighlight)
                 Text(stringResource(R.string.chat_workbench_session), Modifier.padding(top = 8.dp),
                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                RuntimeTextButton(onClick = closeThen(onOpenMemory)) {
+                    RuntimeIcon(RuntimeIconName.Brain, Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.chat_memory_sheet_title))
+                }
                 ChatWorkbenchControls(runMode, currentBranch, runtimeEvents, running,
                     closeThen(onOpenRunModes), closeThen(onOpenBranches),
                     closeThen(onOpenRuntime), closeThen(onOpenToolchain), toolchainHighlight,

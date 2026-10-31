@@ -5,8 +5,8 @@ import java.security.MessageDigest
 import java.util.Properties
 import org.gradle.kotlin.dsl.configure
 
-val appVersionName = "1.7.0"
-val appVersionCode = 45
+val appVersionName = "1.8.0"
+val appVersionCode = 46
 
 // TaiXuDev 双包构建开关：CI（.github/workflows/taixudev-build.yml）设 TAIXU_DEV_BUILD=1 时，
 // 产出独立预览包 top.wkbin.taixu.dev / 应用名 TaiXuDev / 版本后缀 -dev，

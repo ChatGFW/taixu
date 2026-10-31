@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fafafa">
+  <meta name="description" content="太墟定时计划与后台运行：一次性 / 间隔 / 每日计划设置、后台执行与通知审批、电池优化建议、为什么任务可能被系统推迟。">
+  <title>定时计划与后台运行 · 太墟使用文档</title>
+  <link rel="icon" href="../assets/favicon.png">
+  <script>(function(){try{var t=localStorage.getItem('taixu-theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="docs.css?v=202610314">
+  <script src="docs.js?v=202610312" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="doc-header">
+    <a class="brand" href="../index.html" aria-label="返回太墟首页">
+      <span class="brand-mark"><img src="../assets/taixu-logo.png" alt=""></span>
+      <span class="brand-name">太墟</span><span class="brand-roman">TAIXU</span>
+    </a>
+    <button class="doc-search-btn" type="button" data-search-open>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      搜索文档… <kbd>Ctrl K</kbd>
+    </button>
+    <div class="doc-header-right">
+      <a href="https://github.com/taixu-lab/taixu" target="_blank" rel="noreferrer">GitHub ↗</a>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="切换深浅模式">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+      </button>
+      <button class="doc-menu-btn" type="button" data-docs-menu aria-label="打开目录" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="doc-shell">
+    <aside class="doc-sidebar" data-docs-sidebar></aside>
+    <div class="doc-backdrop" data-docs-backdrop></div>
+
+    <main class="doc-article" id="main">
+      <h1>定时计划与后台运行</h1>
+      <p class="doc-lead">工作流和任务可以离开屏幕自己跑：按计划定时执行，在后台推进，需要你时用通知找你。</p>
+
+      <h2>三种计划类型</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>类型</th><th>行为</th><th>例子</th></tr></thead>
+          <tbody>
+            <tr><td><strong>一次性</strong></td><td>在指定时间执行一次。</td><td>「今晚 23:00 备份数据库」</td></tr>
+            <tr><td><strong>间隔</strong></td><td>每隔固定时长执行一次。</td><td>「每 30 分钟检查一次构建状态」</td></tr>
+            <tr><td><strong>每日</strong></td><td>每天固定时刻执行。</td><td>「每天 07:30 生成晨报」</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>在「工作流 → 计划」中为工作流添加计划；到点后由系统调度器（WorkManager）唤醒执行。</p>
+
+      <h2>后台运行与通知审批</h2>
+      <ul>
+        <li>长任务运行期间，太墟会以<strong>前台服务</strong>方式保活，并在通知栏显示进度。</li>
+        <li>流程走到<strong>人工审批</strong>节点时，会发送系统通知——点开通知即可批准或拒绝，不必守在屏幕前。</li>
+        <li>应用被系统杀掉后，未完成的运行记录仍在；重新打开太墟可以恢复继续。</li>
+      </ul>
+
+      <h2>提高后台成功率的三个设置</h2>
+      <ol class="steps">
+        <li><b>允许通知</b><p>否则审批通知和进度提示都收不到。</p></li>
+        <li><b>关闭太墟的电池优化</b><p>系统设置 → 应用 → 太墟 → 电池 → 允许后台活动 / 不受限制（不同厂商叫法不同）。国产系统的「省电策略」建议设为「无限制」。</p></li>
+        <li><b>保持网络稳定</b><p>涉及云端模型与远程仓库的计划任务，建议在 Wi-Fi 环境执行。</p></li>
+      </ol>
+
+      <h2>为什么任务没有准点执行？</h2>
+      <p>Android 的后台调度是「尽量按时」而不是「绝对准时」：省电策略、息屏深度休眠、厂商自启动管理都可能把执行推迟几分钟甚至更久。这是系统机制，不是太墟出了问题。对策：</p>
+      <ul>
+        <li>完成上面三个设置；</li>
+        <li>对时间敏感的任务，接受 ±几分钟的弹性；</li>
+        <li>重要流程在计划后接一个「通知我结果」的节点，没收到通知就去 App 里看看。</li>
+      </ul>
+
+      <h2>接下来探索</h2>
+      <ul class="card-grid">
+        <li><a href="workflows.html"><b>可视化工作流</b><span>定时执行的主体。</span></a></li>
+        <li><a href="approval.html"><b>审批模式与安全</b><span>后台任务的审批策略。</span></a></li>
+        <li><a href="backup.html"><b>备份与迁移</b><span>计划也会随备份保存。</span></a></li>
+        <li><a href="faq.html"><b>常见问题</b><span>后台被杀等疑难情况。</span></a></li>
+      </ul>
+    </main>
+
+    <aside class="doc-toc" data-docs-toc></aside>
+  </div>
+
+  <footer class="doc-footer">
+    <p>© <span data-year></span> <a href="../index.html">太墟 TaiXu</a> · 问题与建议欢迎到 <a href="https://github.com/taixu-lab/taixu/issues" target="_blank" rel="noreferrer">GitHub Issues</a> 反馈</p>
+  </footer>
+</body>
+</html>
