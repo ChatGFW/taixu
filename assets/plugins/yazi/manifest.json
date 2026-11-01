@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 2,
+  "id": "yazi",
+  "name": "Yazi · 终端文件管理",
+  "description": "原生 PTY 中运行 ARM64 Yazi；三栏浏览与预览，默认关闭镜像协议以适配无 Kitty 终端。",
+  "version": "26.9.1",
+  "publisher": "TaiXu Community",
+  "category": "DEVELOPER",
+  "architectures": [
+    "ARM64"
+  ],
+  "launchType": "pty",
+  "source": "LOCAL",
+  "offlineOnly": true,
+  "installMethod": "LOCAL_PACKAGE",
+  "dependencies": [],
+  "permissions": [
+    "WORKSPACE_READ",
+    "WORKSPACE_WRITE"
+  ],
+  "installSteps": [
+    "/bin/sh \"$TAIXU_PLUGIN_PAYLOAD/scripts/install.sh\""
+  ],
+  "launchCommand": "yazi",
+  "verifyCommand": "yazi --version",
+  "commandLinks": [
+    "yazi",
+    "ya"
+  ],
+  "plugin": {
+    "id": "community.yazi",
+    "api": {
+      "minimum": 1,
+      "maximum": 1
+    },
+    "execution": "PROCESS",
+    "extensions": [
+      {
+        "id": "launch",
+        "point": "PROCESS"
+      }
+    ],
+    "capabilities": [
+      {
+        "name": "WORKSPACE_READ",
+        "target": "/workspace"
+      },
+      {
+        "name": "WORKSPACE_WRITE",
+        "target": "/workspace"
+      }
+    ],
+    "dependencies": [],
+    "resources": [],
+    "integrity": {
+      "bin/ya": "7d588f61f56df992ec2bf9666cf98198e5bbe501936775eddc69b635ef680c65",
+      "bin/yazi": "2e21c4bcacebe6417605c6a396a33f7ab6479a483ff43f6152ac6f5348ff9002",
+      "config/yazi.toml": "14925136b3d921456846482ac6b27755bd2b03defd084e1acaa9113ace77c4c0",
+      "scripts/install.sh": "a271780b702aec7f63f0a41f6b3d5ce1cb9863685c69dcc088d7437f0dbc319d",
+      "vendor/LICENSE": "e66519d3d006dc76760d00d40361d24d2b97ba80ab93438885e78bc5a70bdd9c",
+      "vendor/ya": "f57c493f991f77cb2e00076ef8dce6c4b24f7268af58248074c99f30326bff36",
+      "vendor/yazi": "2b8f6f2350836110982117d14e32bba28e69c8c4ca903deb6fe52fc17bbdc000"
+    }
+  },
+  "homepage": "https://github.com/sxyazi/yazi"
+}

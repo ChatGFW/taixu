@@ -63,6 +63,8 @@ assets/plugins/android-skills/payload/bin/
 assets/plugins/github/payload/vendor/
 # Reproduced from the pinned official ARM64 release by package-workspace-plugins.py.
 assets/plugins/lazygit/payload/vendor/
+assets/plugins/yazi/payload/vendor/
+assets/plugins/term-devtools/payload/vendor/
 dist/
 .workbuddy/
 .trae/

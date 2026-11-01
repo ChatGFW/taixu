@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+tool=/opt/taixu/tools/term-devtools
+case "${1:-}" in
+  --version|-v|version)
+    exec "$tool/libexec/fx" --version
+    ;;
+esac
+export TERM="${TERM:-xterm-256color}"
+exec "$tool/libexec/fx" "$@"
