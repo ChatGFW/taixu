@@ -1,7 +1,7 @@
 # 太墟插件平台方案与迁移路线
 
 状态：P1–P4 已完成本地实现、单元测试与 Debug 打包；P5 已接入静态 Web 宿主、页面级授权、外部静态包和宿主注册的服务静态来源，范围见第 18–23 节。尚未做真机交互验证。
-目标是让业务能力通过插件装配，逐步形成稳定内核与开放生态。P3 已接入 v1 目录适配与 v2 包协议；P4 接入编译时 Harness 扩展；2026-10-19 增加外部 PROCESS/MCP 工具、Provider 和工作流节点，详见 [补齐说明](PLUGIN_V2_COMPLETION.md)。P5 已接入静态 Web 宿主、页面级授权、外部静态包、受管理服务通用化（已安装工具服务与 PRoot 启动服务）、有界动态 API、外部分包服务声明、只读长期授权与开发者全权模式，范围见第 18–30 节。WebSocket 通道、真机验收与 P6 仍待实现。原生页面和 Harness 回调能力不会自动赋予 `.txplugin` 包。
+目标是让业务能力通过插件装配，逐步形成稳定内核与开放生态。P3 已接入 v1 目录适配与 v2 包协议；P4 接入编译时 Harness 扩展；2026-10-19 增加外部 PROCESS/MCP 工具、Provider 和工作流节点，详见 [v2 包协议](PLUGIN_PACKAGE_V2.md) 与 [Harness 扩展](PLUGIN_HARNESS_EXTENSIONS.md)。P5 已接入静态 Web 宿主、页面级授权、外部静态包、受管理服务通用化（已安装工具服务与 PRoot 启动服务）、有界动态 API、外部分包服务声明、只读长期授权与开发者全权模式，范围见第 18–30 节。WebSocket 通道、真机验收与 P6 仍待实现。原生页面和 Harness 回调能力不会自动赋予 `.txplugin` 包。
 
 ## 1. 目标与当前事实
 
@@ -398,4 +398,4 @@ WEB 包新增可选 `plugin.webSource`：默认 `PACKAGE` 直接读取资源，`
 
 ## 31. 外部 Harness 与限时确认（2026-10-19）
 
-外部包的受限 `plugin.harness` 声明已接入安装收据目录、MCP stdio 工具、显式选择的 Provider 与逐次确认的工作流节点。发现不启动进程；工具域绑定安装版本，候选升级不改变运行配置。Provider 不继承全局模型 Key，流式调用为缓冲兼容模式。原生确认按系统/包身份/安装版本保存在内存，最长 30 分钟；开发者开关本身不授权，关闭、撤销和超时会立即拒绝旧令牌。详细边界、验证记录见 [PLUGIN_V2_COMPLETION.md](PLUGIN_V2_COMPLETION.md)，包契约见 [PLUGIN_PACKAGE_V2.md](PLUGIN_PACKAGE_V2.md)。
+外部包的受限 `plugin.harness` 声明已接入安装收据目录、MCP stdio 工具、显式选择的 Provider 与逐次确认的工作流节点。发现不启动进程；工具域绑定安装版本，候选升级不改变运行配置。Provider 不继承全局模型 Key，流式调用为缓冲兼容模式。原生确认按系统/包身份/安装版本保存在内存，最长 30 分钟；开发者开关本身不授权，关闭、撤销和超时会立即拒绝旧令牌。包契约与边界见 [PLUGIN_PACKAGE_V2.md](PLUGIN_PACKAGE_V2.md)、[PLUGIN_HARNESS_EXTENSIONS.md](PLUGIN_HARNESS_EXTENSIONS.md)。

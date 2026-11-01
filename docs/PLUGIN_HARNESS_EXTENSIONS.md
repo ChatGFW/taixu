@@ -1,6 +1,6 @@
 # Agent 与工作流插件扩展（P4）
 
-P4 支持编译时装配的受信任 Kotlin 扩展；v2 PROCESS 包还可以通过受限 `plugin.harness` 元数据注册 MCP 工具、Provider 和工作流节点，不能通过 JSON 加载任意 Kotlin 回调。外部协议见 [本轮补齐说明](PLUGIN_V2_COMPLETION.md)。注册入口为 `HarnessPluginRegistry`，契约位于 `harness/plugins/HarnessPlugin.kt`；最小 `plugin:api` 只增加扩展点标识，不引入 Android、OkHttp 或 Harness 业务依赖。
+P4 支持编译时装配的受信任 Kotlin 扩展；v2 PROCESS 包还可以通过受限 `plugin.harness` 元数据注册 MCP 工具、Provider 和工作流节点，不能通过 JSON 加载任意 Kotlin 回调。外部协议见 [v2 包协议](PLUGIN_PACKAGE_V2.md)。注册入口为 `HarnessPluginRegistry`，契约位于 `harness/plugins/HarnessPlugin.kt`；最小 `plugin:api` 只增加扩展点标识，不引入 Android、OkHttp 或 Harness 业务依赖。
 
 ## 装配
 
