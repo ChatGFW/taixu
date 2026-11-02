@@ -428,7 +428,7 @@ class ChatApiTest {
     @Test
     fun `readUtf8Bounded truncates oversized non sse payloads`() {
         val source = okio.Buffer().writeUtf8("x".repeat(100))
-        val (text, truncated) = ProviderClient.readUtf8Bounded(source, maxBytes = 40)
+        val (text, truncated) = ProviderStreamIo.readUtf8Bounded(source, maxBytes = 40)
         assertEquals(40, text.length)
         assertTrue(truncated)
         assertEquals(60, source.buffer.size)

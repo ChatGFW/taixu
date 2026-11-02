@@ -23,7 +23,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okio.BufferedSource
 import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 import top.wkbin.taixu.harness.mcp.McpToolApiName
 import top.wkbin.taixu.harness.mcp.toApiToolDefinition
@@ -31,7 +30,6 @@ import java.net.URI
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlin.math.min
 
 /** 可独立测试的 HTTP 层：OpenAI 兼容 chat/completions 请求与响应解析。 */
 internal class ChatApi(
@@ -161,26 +159,7 @@ internal class ChatApi(
                             trimmed.startsWith("event:") || trimmed.startsWith("id:") ||
                             trimmed.startsWith("retry:") || trimmed.startsWith(":")
                         if (!sawSseData && !sseField) {
-                            // 限量读取：兼容网关整段 JSON，同时避免把巨大 HTML/错误页整页吸入堆。
-                            // 首行已由 readUtf8Line 读入，计入预算；剩余按余额截断。
-                            val lineBudget = min(
-                                line.length.toLong(),
-                                ProviderClient.NON_SSE_BODY_LIMIT_BYTES,
-                            ).toInt()
-                            val linePart = line.take(lineBudget)
-                            val remaining = ProviderClient.NON_SSE_BODY_LIMIT_BYTES - lineBudget
-                            val (rest, restTruncated) = if (remaining > 0L) {
-                                ProviderClient.readUtf8Bounded(source, remaining)
-                            } else {
-                                "" to source.request(1L)
-                            }
-                            val truncated = restTruncated || linePart.length < line.length
-                            nonSseBody = buildString {
-                                append(linePart).append('\n').append(rest)
-                                if (truncated) {
-                                    append("\n…[non-SSE body truncated at ${ProviderClient.NON_SSE_BODY_LIMIT_BYTES} bytes]")
-                                }
-                            }
+                            nonSseBody = ProviderStreamIo.captureNonSseBody(source, line)
                             break
                         }
                         continue
@@ -720,24 +699,8 @@ class ProviderClient internal constructor(
         /** 空响应诊断时缓冲的原始响应首部上限（字符）：只用于报错与兜底判定，不参与正文累积。 */
         internal const val RESPONSE_HEAD_CAPTURE_CHARS = 2_000
 
-        /**
-         * 非 SSE 整段 body 的读取上限（字节）。兼容忽略 `stream:true` 的网关 JSON 补全，
-         * 同时防止把巨大 HTML/错误页整页读进堆。
-         */
-        internal const val NON_SSE_BODY_LIMIT_BYTES = 512L * 1024L
-
         /** 错误文案里展示的响应首部长度。 */
         private const val RESPONSE_HEAD_DISPLAY_CHARS = 160
-
-        /** 至多读取 [maxBytes]；第二项为 true 表示还有未读数据被截断。 */
-        internal fun readUtf8Bounded(source: BufferedSource, maxBytes: Long): Pair<String, Boolean> {
-            require(maxBytes > 0L)
-            source.request(maxBytes + 1L)
-            val available = source.buffer.size
-            val truncated = available > maxBytes
-            val toRead = min(available, maxBytes)
-            return source.readUtf8(toRead) to truncated
-        }
 
         /**
          * 把原始响应首部压成单行诊断片段：转义换行、截断。
@@ -1161,163 +1124,5 @@ class ProviderClient internal constructor(
             val stripped = unclosedPattern.replace(thinkPattern.replace(content, ""), "").trim()
             return stripped.ifEmpty { null }
         }
-    }
-}
-
-/**
- * 流式 chunk 的 <think> 标签与思考/正文智能分流器。
- * 兼容：原生 reasoning_chunk、在 content 中输出 <think>...</think> 标签以及跨 chunk 标签碎片。
- * 内置思维链死循环/重复自旋检测与保护机制。
- */
-internal class ThinkTagStreamDemuxer(
-    private val onReasoning: (String) -> Unit,
-    private val onDelta: (String) -> Unit,
-    private val maxReasoningChars: Int = ProviderClient.MAX_STREAM_REASONING_CHARS,
-    /** 跨协议流式输出硬失败预算；非空时正文/思考增量计入，超限抛异常终止本轮请求。 */
-    private val budget: StreamBudget? = null,
-) {
-    val fullText = StringBuilder()
-    val fullReasoning = StringBuilder()
-
-    private var inThinkTag = false
-    private val pendingBuffer = StringBuilder()
-    private var reasoningMutedDueToLoop = false
-
-    fun onExplicitReasoningChunk(chunk: String) {
-        if (chunk.isEmpty()) return
-        appendReasoning(chunk)
-    }
-
-    fun onContentChunk(chunk: String) {
-        if (chunk.isEmpty()) return
-        pendingBuffer.append(chunk)
-        processPending()
-    }
-
-    fun flush() {
-        if (pendingBuffer.isNotEmpty()) {
-            val leftover = pendingBuffer.toString()
-            pendingBuffer.clear()
-            if (inThinkTag) {
-                appendReasoning(leftover)
-            } else {
-                appendText(leftover)
-            }
-        }
-    }
-
-    private fun processPending() {
-        while (pendingBuffer.isNotEmpty()) {
-            if (!inThinkTag) {
-                val thinkStartIdx = pendingBuffer.indexOf("<think>")
-                if (thinkStartIdx != -1) {
-                    val before = pendingBuffer.substring(0, thinkStartIdx)
-                    if (before.isNotEmpty()) {
-                        appendText(before)
-                    }
-                    pendingBuffer.delete(0, thinkStartIdx + "<think>".length)
-                    inThinkTag = true
-                } else {
-                    val possiblePrefixLen = matchTrailingPrefix(pendingBuffer, "<think>")
-                    if (possiblePrefixLen > 0) {
-                        val emitLen = pendingBuffer.length - possiblePrefixLen
-                        if (emitLen > 0) {
-                            val toEmit = pendingBuffer.substring(0, emitLen)
-                            appendText(toEmit)
-                            pendingBuffer.delete(0, emitLen)
-                        }
-                        break
-                    } else {
-                        val textToEmit = pendingBuffer.toString()
-                        pendingBuffer.clear()
-                        appendText(textToEmit)
-                    }
-                }
-            } else {
-                val thinkEndIdx = pendingBuffer.indexOf("</think>")
-                if (thinkEndIdx != -1) {
-                    val reasoningContent = pendingBuffer.substring(0, thinkEndIdx)
-                    if (reasoningContent.isNotEmpty()) {
-                        appendReasoning(reasoningContent)
-                    }
-                    pendingBuffer.delete(0, thinkEndIdx + "</think>".length)
-                    inThinkTag = false
-                } else {
-                    val possiblePrefixLen = matchTrailingPrefix(pendingBuffer, "</think>")
-                    if (possiblePrefixLen > 0) {
-                        val emitLen = pendingBuffer.length - possiblePrefixLen
-                        if (emitLen > 0) {
-                            val toEmit = pendingBuffer.substring(0, emitLen)
-                            appendReasoning(toEmit)
-                            pendingBuffer.delete(0, emitLen)
-                        }
-                        break
-                    } else {
-                        val reasoningToEmit = pendingBuffer.toString()
-                        pendingBuffer.clear()
-                        appendReasoning(reasoningToEmit)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun appendText(str: String) {
-        if (str.isEmpty()) return
-        budget?.add(str)
-        fullText.append(str)
-        onDelta(str)
-    }
-
-    private fun appendReasoning(str: String) {
-        if (str.isEmpty()) return
-        // 死循环静默后的重复思考不再计入预算：它已被丢弃、不会继续占用内存。
-        if (reasoningMutedDueToLoop) return
-        budget?.add(str)
-
-        if (detectRepetitionLoop(fullReasoning, str)) {
-            reasoningMutedDueToLoop = true
-            val notice = "\n[太墟提示：检测到思维链重复自旋死循环，已自动截断冗余思考内容并继续执行]\n"
-            if (fullReasoning.length + notice.length <= maxReasoningChars) {
-                fullReasoning.append(notice)
-            }
-            onReasoning(notice)
-            return
-        }
-
-        if (fullReasoning.length < maxReasoningChars) {
-            val takeCount = (maxReasoningChars - fullReasoning.length).coerceAtMost(str.length)
-            fullReasoning.append(str.take(takeCount))
-        }
-        onReasoning(str)
-    }
-
-    private fun matchTrailingPrefix(sb: CharSequence, target: String): Int {
-        for (len in target.length - 1 downTo 1) {
-            if (sb.length >= len) {
-                val sub = sb.subSequence(sb.length - len, sb.length)
-                if (target.startsWith(sub)) {
-                    return len
-                }
-            }
-        }
-        return 0
-    }
-
-    private fun detectRepetitionLoop(history: StringBuilder, newChunk: String): Boolean {
-        if (history.length < 200) return false
-        val recent = history.takeLast(300).toString() + newChunk
-        for (patternLen in 12..40) {
-            if (recent.length >= patternLen * 4) {
-                val p = recent.takeLast(patternLen)
-                val p2 = recent.substring(recent.length - patternLen * 2, recent.length - patternLen)
-                val p3 = recent.substring(recent.length - patternLen * 3, recent.length - patternLen * 2)
-                val p4 = recent.substring(recent.length - patternLen * 4, recent.length - patternLen * 3)
-                if (p == p2 && p2 == p3 && p3 == p4) {
-                    return true
-                }
-            }
-        }
-        return false
     }
 }

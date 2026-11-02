@@ -551,11 +551,9 @@ class HarnessProviderRunner(
             }
         }
     }
-    /** 单调时钟：用于耗时与 StreamBuffer 发布节流，避免墙钟回拨卡住/前跳刷屏。 */
-    private fun now(): Long = SystemClock.elapsedRealtime()
+    private fun now(): Long = SystemClock.elapsedRealtime() // 单调时钟：耗时与 StreamBuffer 节流
     private fun friendly(throwable: Throwable): String =
         throwable.message?.take(200) ?: throwable::class.simpleName.orEmpty()
-
     /** 首个响应看门狗到点：不按网络中断重试，直接给出与上游错误区分开的说明。 */
     private suspend fun failFirstResponseTimeout(
         sessId: String,

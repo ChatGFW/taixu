@@ -165,20 +165,9 @@ internal fun judgeSubagentConclusion(
 }
 
 /**
- * 写租约的执行期强制校验。提示词只能建议，模型忽略提示时必须有闸门，
- * 否则并行子任务之间的写隔离只是纸面约定。
- *
- * - `writePaths` 为空 → 只读任务：结构化写工具拒绝；疑似 shell 写（base/process）也拒绝；
- * - `["*"]` / `["."]` → 整工作区租约，放行；
- * - 其他 → 目标路径必须落在声明的文件或目录之下。
- *
- * 目标与租约都经 [normalizeWritePath] 按段消解 `..` 后再比较，否则租约 `docs` 下
- * `docs/../secret.txt` 会因前缀匹配被放行；消解后仍逃出工作区顶层的路径直接判越界。
- *
- * 非空局部写租约下，`base`/`process` 的 shell 写仍无法可靠静态判定路径范围，
- * 只做事后软提示（见 [detectSuspectedShellWrites]），不能当成硬隔离。
- *
- * @return null 表示放行；非 null 为回写给模型的拒绝原因。
+ * 写租约执行期闸门：空租约拒结构化写与疑似 shell 写；`*`/`.` 整区放行；否则路径须落在租约内
+ *（经 [normalizeWritePath]）。局部租约下 shell 写仍只靠 [detectSuspectedShellWrites] 软提示。
+ * @return null 放行；非 null 为拒绝原因。
  */
 internal fun subagentWriteScopeRejection(
     tool: HarnessTool,
