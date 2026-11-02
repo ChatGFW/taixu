@@ -1425,10 +1425,6 @@ class HarnessLoop(
     private fun friendly(throwable: Throwable): String =
         throwable.message?.take(200) ?: throwable::class.simpleName.orEmpty()
 
-    private suspend fun touchSession(sessId: String) {
-        sessionDao.touch(sessId, System.currentTimeMillis())
-    }
-
     private fun newId(): String = UUID.randomUUID().toString()
     private fun now(): Long = System.currentTimeMillis()
 
@@ -1627,8 +1623,6 @@ class HarnessLoop(
     companion object {
         internal fun maxNetworkRetriesFor(estimatedRequestTokens: Int, configuredRetries: Int): Int =
             HarnessProviderRunner.maxNetworkRetriesFor(estimatedRequestTokens, configuredRetries)
-        const val RETRY_BACKOFF_MS = 1_000L
-        const val RETRY_BACKOFF_SEC = 2L
 
         const val MAX_ROUNDS = 200
 

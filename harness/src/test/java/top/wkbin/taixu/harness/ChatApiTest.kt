@@ -349,6 +349,18 @@ class ChatApiTest {
     }
 
     @Test
+    fun `ordinary 400 without stream_options is not retried`() = runBlocking {
+        server.enqueue(
+            MockResponse().setResponseCode(400)
+                .setBody("""{"error":{"message":"model foo does not exist"}}"""),
+        )
+        val thrown = runCatching { api.chatStream(model(), emptyList()) { } }.exceptionOrNull()
+        assertTrue(thrown is IllegalStateException)
+        assertFalse(thrown is StreamOptionsRejectedException)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
     fun `empty stream fails loudly and carries the raw response head`() = runBlocking {
         // 上游 200 但只发了 [DONE]：此前会被判定为"模型答完了"，前台表现为没有任何回复。
         server.enqueue(MockResponse().setBody("data: [DONE]"))
@@ -411,5 +423,24 @@ class ChatApiTest {
         assertFalse(ProviderClient.looksLikeJsonResponse("\uFEFF<html></html>"))
         assertFalse(ProviderClient.looksLikeJsonResponse("plain text error page"))
         assertFalse(ProviderClient.looksLikeJsonResponse(""))
+    }
+
+    @Test
+    fun `readUtf8Bounded truncates oversized non sse payloads`() {
+        val source = okio.Buffer().writeUtf8("x".repeat(100))
+        val (text, truncated) = ProviderClient.readUtf8Bounded(source, maxBytes = 40)
+        assertEquals(40, text.length)
+        assertTrue(truncated)
+        assertEquals(60, source.buffer.size)
+    }
+
+    @Test
+    fun `oversized non sse html does not get fully buffered as a completion`() = runBlocking {
+        // 首行很短，其余超限；限量读取后应失败而不是把整页 HTML 当补全。
+        val huge = "<!doctype html>\n<html>" + "A".repeat(600_000) + "</html>"
+        server.enqueue(MockResponse().setBody(huge))
+        val thrown = runCatching { api.chatStream(model(), emptyList()) { } }.exceptionOrNull()
+        assertTrue(thrown is LlmEmptyResponseException || thrown is IllegalStateException)
+        assertEquals(1, server.requestCount)
     }
 }

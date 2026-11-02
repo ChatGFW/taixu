@@ -34,6 +34,17 @@ class StreamBufferSnapshotTest {
         assertEquals("abcde", buffer.toString())
     }
 
+    @Test fun `wall-clock rollback does not publish until interval elapses on monotonic now`() {
+        val buffer = StreamBuffer()
+        buffer.append("one")
+        assertEquals("one", buffer.publishIfDue(1_000, 50))
+        buffer.append("two")
+        // 墙钟回拨：若误用 currentTimeMillis，可能永远发不出或乱序；单调 now 下应继续节流。
+        assertNull(buffer.publishIfDue(900, 50))
+        assertNull(buffer.publishIfDue(1_040, 50))
+        assertEquals("onetwo", buffer.publishIfDue(1_050, 50))
+    }
+
     @Test fun `assistant wire format and string copy remain compatible`() {
         val json = Json { encodeDefaults = true }
         val builder = ChunkedText.Builder()

@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness
 
 import android.content.Context
+import android.os.SystemClock
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
@@ -550,7 +551,8 @@ class HarnessProviderRunner(
             }
         }
     }
-    private fun now(): Long = System.currentTimeMillis()
+    /** 单调时钟：用于耗时与 StreamBuffer 发布节流，避免墙钟回拨卡住/前跳刷屏。 */
+    private fun now(): Long = SystemClock.elapsedRealtime()
     private fun friendly(throwable: Throwable): String =
         throwable.message?.take(200) ?: throwable::class.simpleName.orEmpty()
 

@@ -168,16 +168,15 @@ internal fun judgeSubagentConclusion(
  * 写租约的执行期强制校验。提示词只能建议，模型忽略提示时必须有闸门，
  * 否则并行子任务之间的写隔离只是纸面约定。
  *
- * - `writePaths` 为空 → 只读任务，任何写工具都拒绝；
+ * - `writePaths` 为空 → 只读任务：结构化写工具拒绝；疑似 shell 写（base/process）也拒绝；
  * - `["*"]` / `["."]` → 整工作区租约，放行；
  * - 其他 → 目标路径必须落在声明的文件或目录之下。
  *
  * 目标与租约都经 [normalizeWritePath] 按段消解 `..` 后再比较，否则租约 `docs` 下
  * `docs/../secret.txt` 会因前缀匹配被放行；消解后仍逃出工作区顶层的路径直接判越界。
  *
- * 闸门只覆盖结构化写工具（write/edit/download）。`base` 执行的 shell 写
- * （重定向、`sed -i`、`mv`/`rm`）无法可靠静态判定，仍只由提示词约束——
- * 提示词与 tools.md 必须如实说明这条边界，否则模型会对 base 写产生错误信任。
+ * 非空局部写租约下，`base`/`process` 的 shell 写仍无法可靠静态判定路径范围，
+ * 只做事后软提示（见 [detectSuspectedShellWrites]），不能当成硬隔离。
  *
  * @return null 表示放行；非 null 为回写给模型的拒绝原因。
  */
@@ -196,6 +195,15 @@ internal fun subagentWriteScopeRejection(
         return if (writePaths.isEmpty()) {
             "本子任务未声明 write_paths，按只读任务执行，禁止执行 build_script 的 $action 落盘/绑定动作。请改为 list/get，或重新派发并声明写租约。"
         } else null
+    }
+    if ((tool == HarnessTool.BASE || tool == HarnessTool.PROCESS) && writePaths.isEmpty()) {
+        val command = args.stringOrNull("command").orEmpty()
+        if (command.isNotBlank() && looksLikeShellWrite(command)) {
+            return "本子任务未声明 write_paths，按只读任务执行，禁止通过 shell 写入" +
+                "（重定向、sed -i、mv/rm/cp/tee 等）。请把需要落盘的内容作为结论返回，" +
+                "或让主智能体重新派发并声明 write_paths。"
+        }
+        return null
     }
     val pathKey = when (tool) {
         HarnessTool.WRITE, HarnessTool.EDIT -> "path"
@@ -229,7 +237,8 @@ internal fun subagentWriteScopeRejection(
 
 /**
  * 结构化写工具：写租约闸门与"写入最终失败"追踪共用的作用域。
- * `base` 的 shell 写不在其中——见 [subagentWriteScopeRejection] 的边界说明。
+ * 只读任务下 base/process 的疑似 shell 写也会被 [subagentWriteScopeRejection] 拦截，
+ * 但不纳入本集合（无法可靠归因到具体路径）。
  */
 internal val LANE_WRITE_TOOLS = setOf(HarnessTool.WRITE, HarnessTool.EDIT, HarnessTool.DOWNLOAD)
 

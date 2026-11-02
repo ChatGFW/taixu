@@ -424,8 +424,7 @@ class SubagentOrchestrator(
     private fun buildWriteLeaseLine(spec: SubagentTaskSpec, readOnlyWriteIntent: Boolean): String = when {
         spec.writePaths.isEmpty() -> buildString {
             append("本任务为只读任务：禁止调用 write/edit/download，禁止执行会修改工作区的命令；只返回分析或数据。")
-            append("write/edit/download 在本 Lane 内会被强制拦截；base 命令不受该闸门约束，")
-            append("因此绝不允许用 shell 重定向、sed -i、mv、rm 等方式绕过。")
+            append("write/edit/download 以及疑似 shell 写（重定向、sed -i、mv/rm/cp/tee 等）在本 Lane 内会被强制拦截。")
             if (readOnlyWriteIntent) {
                 // 任务文字要求落盘却没有写租约：必须显式指出冲突，否则子智能体会在
                 // "要写"与"不许写"之间自行猜测，并可能把"没法写"当成完成。
@@ -439,7 +438,7 @@ class SubagentOrchestrator(
         else -> buildString {
             append("限定写入范围（write/edit/download 会强制校验，越界写入直接拦截）：")
             append(spec.writePaths.joinToString("、"))
-            append("。base 命令不受该闸门约束，也必须遵守同一范围。")
+            append("。base/process 的 shell 写无法静态核验路径，必须遵守同一范围；越界疑似写入会在汇总中提示复核。")
         }
     }
 

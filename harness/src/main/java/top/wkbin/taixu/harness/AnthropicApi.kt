@@ -292,25 +292,22 @@ internal class AnthropicApi(
                                     )
                                 }
                                 message.imageUrls.forEach { url ->
-                                    if (url.startsWith("data:")) {
-                                        val match = Regex("""data:(image/[a-zA-Z+]+);base64,(.+)""").matchEntire(url)
-                                        if (match != null) {
-                                            val mediaType = match.groupValues[1]
-                                            val b64Data = match.groupValues[2]
-                                            add(
-                                                buildJsonObject {
-                                                    put("type", "image")
-                                                    put(
-                                                        "source",
-                                                        buildJsonObject {
-                                                            put("type", "base64")
-                                                            put("media_type", mediaType)
-                                                            put("data", b64Data)
-                                                        },
-                                                    )
-                                                },
-                                            )
-                                        }
+                                    val dataImage = parseDataImageUrl(url)
+                                    if (dataImage != null) {
+                                        val (mediaType, b64Data) = dataImage
+                                        add(
+                                            buildJsonObject {
+                                                put("type", "image")
+                                                put(
+                                                    "source",
+                                                    buildJsonObject {
+                                                        put("type", "base64")
+                                                        put("media_type", mediaType)
+                                                        put("data", b64Data)
+                                                    },
+                                                )
+                                            },
+                                        )
                                     } else if (url.startsWith("https://", ignoreCase = true) ||
                                         url.startsWith("http://", ignoreCase = true)
                                     ) {
@@ -630,4 +627,24 @@ internal class AnthropicApi(
         const val DEFAULT_MAX_TOKENS = 8192
         val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }
+}
+
+/**
+ * 解析 `data:image/...;base64,<payload>`。用 indexOf 切分，避免对大 base64 串
+ * 编译正则 + matchEntire + groupValues 双份拷贝。
+ */
+internal fun parseDataImageUrl(url: String): Pair<String, String>? {
+    if (!url.startsWith("data:")) return null
+    val marker = url.indexOf(";base64,")
+    if (marker <= "data:".length) return null
+    val mediaType = url.substring("data:".length, marker)
+    if (!mediaType.startsWith("image/")) return null
+    val subtype = mediaType.removePrefix("image/")
+    // 对齐原正则 image/[a-zA-Z+]+。
+    if (subtype.isEmpty() || subtype.any { ch -> ch !in 'a'..'z' && ch !in 'A'..'Z' && ch != '+' }) {
+        return null
+    }
+    val payload = url.substring(marker + ";base64,".length)
+    if (payload.isEmpty()) return null
+    return mediaType to payload
 }

@@ -23,6 +23,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okio.BufferedSource
 import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 import top.wkbin.taixu.harness.mcp.McpToolApiName
 import top.wkbin.taixu.harness.mcp.toApiToolDefinition
@@ -30,6 +31,7 @@ import java.net.URI
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlin.math.min
 
 /** 可独立测试的 HTTP 层：OpenAI 兼容 chat/completions 请求与响应解析。 */
 internal class ChatApi(
@@ -74,8 +76,8 @@ internal class ChatApi(
      * 交给 UI；工具调用参数按 index 分片累积。推理增量通过 [onReasoning] 回调。
      *
      * 默认携带 stream_options.include_usage 请求最终 usage 块；个别严格校验的
-     * Provider 会因此 400，此时自动降级为不带该参数重试一次（请求在流开始前
-     * 即失败，不会有增量重复发送的风险）。
+     * Provider 会因此在流开始前 400。仅捕获 [StreamOptionsRejectedException] 并降级重试一次，
+     * 避免把中途 [IllegalStateException]（如预算超限）误当成可重放的协议拒绝。
      */
     @OptIn(InternalCoroutinesApi::class)
     override suspend fun chatStream(
@@ -86,12 +88,8 @@ internal class ChatApi(
         onDelta: (String) -> Unit,
     ): ChatResult = try {
         executeStream(model, messages, onReasoning, onToolProgress, onDelta, includeUsage = true)
-    } catch (rejected: IllegalStateException) {
-        if (rejected.message?.contains("stream_options", ignoreCase = true) == true) {
-            executeStream(model, messages, onReasoning, onToolProgress, onDelta, includeUsage = false)
-        } else {
-            throw rejected
-        }
+    } catch (_: StreamOptionsRejectedException) {
+        executeStream(model, messages, onReasoning, onToolProgress, onDelta, includeUsage = false)
     }
 
     @OptIn(InternalCoroutinesApi::class)
@@ -122,6 +120,12 @@ internal class ChatApi(
                     }
                     if (response.code in 500..599) {
                         throw ProviderClient.transientHttpException(response.code, rawBody, response.header("Retry-After"))
+                    }
+                    // 仅在流尚未开始、且明确拒绝 stream_options 时抛专用异常，供外层无增量重试。
+                    if (includeUsage && rawBody.contains("stream_options", ignoreCase = true)) {
+                        throw StreamOptionsRejectedException(
+                            ProviderClient.formatHttpErrorMessage(response.code, rawBody),
+                        )
                     }
                     throw ProviderClient.contextOverflowException(response.code, rawBody)
                 }
@@ -157,7 +161,26 @@ internal class ChatApi(
                             trimmed.startsWith("event:") || trimmed.startsWith("id:") ||
                             trimmed.startsWith("retry:") || trimmed.startsWith(":")
                         if (!sawSseData && !sseField) {
-                            nonSseBody = line + "\n" + source.readUtf8()
+                            // 限量读取：兼容网关整段 JSON，同时避免把巨大 HTML/错误页整页吸入堆。
+                            // 首行已由 readUtf8Line 读入，计入预算；剩余按余额截断。
+                            val lineBudget = min(
+                                line.length.toLong(),
+                                ProviderClient.NON_SSE_BODY_LIMIT_BYTES,
+                            ).toInt()
+                            val linePart = line.take(lineBudget)
+                            val remaining = ProviderClient.NON_SSE_BODY_LIMIT_BYTES - lineBudget
+                            val (rest, restTruncated) = if (remaining > 0L) {
+                                ProviderClient.readUtf8Bounded(source, remaining)
+                            } else {
+                                "" to source.request(1L)
+                            }
+                            val truncated = restTruncated || linePart.length < line.length
+                            nonSseBody = buildString {
+                                append(linePart).append('\n').append(rest)
+                                if (truncated) {
+                                    append("\n…[non-SSE body truncated at ${ProviderClient.NON_SSE_BODY_LIMIT_BYTES} bytes]")
+                                }
+                            }
                             break
                         }
                         continue
@@ -697,8 +720,24 @@ class ProviderClient internal constructor(
         /** 空响应诊断时缓冲的原始响应首部上限（字符）：只用于报错与兜底判定，不参与正文累积。 */
         internal const val RESPONSE_HEAD_CAPTURE_CHARS = 2_000
 
+        /**
+         * 非 SSE 整段 body 的读取上限（字节）。兼容忽略 `stream:true` 的网关 JSON 补全，
+         * 同时防止把巨大 HTML/错误页整页读进堆。
+         */
+        internal const val NON_SSE_BODY_LIMIT_BYTES = 512L * 1024L
+
         /** 错误文案里展示的响应首部长度。 */
         private const val RESPONSE_HEAD_DISPLAY_CHARS = 160
+
+        /** 至多读取 [maxBytes]；第二项为 true 表示还有未读数据被截断。 */
+        internal fun readUtf8Bounded(source: BufferedSource, maxBytes: Long): Pair<String, Boolean> {
+            require(maxBytes > 0L)
+            source.request(maxBytes + 1L)
+            val available = source.buffer.size
+            val truncated = available > maxBytes
+            val toRead = min(available, maxBytes)
+            return source.readUtf8(toRead) to truncated
+        }
 
         /**
          * 把原始响应首部压成单行诊断片段：转义换行、截断。
@@ -973,9 +1012,9 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "memory",
-                    description = "长期语义与事实记忆管理：持久化记录用户的长期偏好、项目架构规范、稳定事实。支持 action: save, query, list, delete。scope: global, project, session。kind: preference, rule, fact, project_info。",
+                    description = "长期语义与事实记忆管理：持久化用户长期偏好、项目规范与稳定事实。支持 action: save, query, list, delete, verify。scope: global, project, session。kind: preference, rule, fact, project_info。同 subjectKey 会去重升级 revision；expiresAt 过期不召回；召回按年龄降权。save 时务必在 value 中标明来源（用户原话 / 模型推断），避免把推断写成事实。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"action":{"type":"string","enum":["save","query","list","delete"],"description":"操作动作"},"key":{"type":"string","description":"记忆键名"},"value":{"type":"string","description":"记忆内容（save 必需）"},"kind":{"type":"string","enum":["preference","rule","fact","project_info"],"description":"记忆类型"},"scope":{"type":"string","enum":["global","project","session"],"description":"记忆作用域"}},"required":["action"]}""",
+                        """{"type":"object","properties":{"action":{"type":"string","enum":["save","query","list","delete","verify"],"description":"操作动作；verify 刷新新鲜度"},"key":{"type":"string","description":"记忆键名"},"value":{"type":"string","description":"记忆内容（save 必需）；开头注明来源，如 [用户] 或 [推断]"},"kind":{"type":"string","enum":["preference","rule","fact","project_info"],"description":"记忆类型"},"scope":{"type":"string","enum":["global","project","session"],"description":"记忆作用域"},"subjectKey":{"type":"string","description":"主题去重键（如 project.package_manager）；省略则等于 key"},"pinned":{"type":"boolean","description":"是否钉选到 system 前缀（默认 false）"},"expiresAt":{"type":"integer","description":"过期时间戳毫秒；省略表示永不过期"},"volatility":{"type":"string","enum":["reference","project","user"],"description":"新鲜度分级，默认 reference"}},"required":["action"]}""",
                     ).jsonObject,
                 ),
             ),
@@ -1000,7 +1039,7 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "invoke_subagent",
-                    description = "按研发部门和简短专业关键词从本地索引解析角色，并发派发隔离子智能体。用户枚举多个独立子任务时，必须在同一次调用的 subagents 数组中完整提交，禁止逐个派发；结果保持数组顺序。writePaths=[] 表示只读并行，精确路径表示局部写租约，[\"*\"] 表示整工作区独占写入。写租约对 write/edit/download 是强制闸门：writePaths=[] 的子任务调用这些工具会被直接拦截，越界路径同样拦截，需要落盘必须先声明具体路径；base 的 shell 写不受闸门约束，写租约也只在同一次调用内协调。子任务需要审批类操作（后台 Lane 无法暂停审批）时会作为待办上交，必须由你在主会话重新发起。候选目录不会进入主对话。summary 中每个子任务都带有 task_id，把未完结子任务的 task_id 连同新指令再次提交（task_id 字段）可在同一子会话上续跑，而不是从零开始。",
+                    description = "按研发部门和简短专业关键词从本地索引解析角色，并发派发隔离子智能体。用户枚举多个独立子任务时，必须在同一次调用的 subagents 数组中完整提交，禁止逐个派发；结果保持数组顺序。writePaths=[] 表示只读并行，精确路径表示局部写租约，[\"*\"] 表示整工作区独占写入。写租约对 write/edit/download 是强制闸门：writePaths=[] 的子任务调用这些工具会被直接拦截，越界路径同样拦截；只读任务里疑似 shell 写（重定向/sed -i/mv/rm 等）也会拦截。局部写租约下 base/process 的 shell 写仍无法静态核验路径，只做事后提示，写租约也只在同一次调用内协调。子任务需要审批类操作（后台 Lane 无法暂停审批）时会作为待办上交，必须由你在主会话重新发起。候选目录不会进入主对话。summary 中每个子任务都带有 task_id，把未完结子任务的 task_id 连同新指令再次提交（task_id 字段）可在同一子会话上续跑，而不是从零开始。",
                     parameters = Json.parseToJsonElement(
                         """{"type":"object","properties":{"subagents":{"type":"array","description":"一次性提交的完整独立子任务列表；用户枚举 N 项时必须包含全部 N 项","minItems":1,"maxItems":6,"items":{"type":"object","properties":{"taskName":{"type":"string","description":"简短子任务名称"},"department":{"type":"string","enum":["engineering","design","product","project-management","testing","security","game-development","spatial-computing","specialized"],"description":"先选研发部门，匹配严格限制在该部门"},"agentQuery":{"type":"string","minLength":2,"maxLength":80,"description":"2-5 个简短英文专业关键词，如 frontend react、mobile android、test automation；不要复制完整任务"},"role":{"type":"string","description":"可选：仅兼容已知 profile id/name 的精确覆盖；存在时优先于索引匹配"},"prompt":{"type":"string","description":"详细任务指令与交付要求；填写 task_id 时为本轮续跑指令"},"writePaths":{"type":"array","description":"必须声明。纯调研/分析填空数组 []；修改文件时列出精确相对路径；只有整工作区独占写入才填 [\"*\"]","items":{"type":"string"}},"model":{"type":"string","description":"可选：已保存模型档案的 ID/名称，或档案中已配置的具体模型名；优先于角色默认模型。传 inherit 强制继承父会话模型；不填则使用角色默认模型，角色未配置时继承父会话"},"task_id":{"type":"string","description":"可选：续跑已有子任务时填入上次汇总中的 task_id（原样复制），本次在该子会话已有上下文上继续；此时 role/department/agentQuery 会被忽略"}},"required":["taskName","department","agentQuery","prompt","writePaths"]}}},"required":["subagents"]}""",
                     ).jsonObject,

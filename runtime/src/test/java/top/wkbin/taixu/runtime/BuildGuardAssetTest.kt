@@ -317,4 +317,15 @@ class BuildGuardAssetTest {
         assertTrue(installer.contains("jar_bin"))
         assertTrue(installer.contains("TAIXU_TOOL_DIR/bin/unzip"))
     }
+
+    @Test
+    fun adbWrapperFallsBackToHostBridgeWhenGuestElfIsUnusable() {
+        val wrapper = File(assets, "bin/adb").readText()
+        assertTrue(wrapper.contains("elf_interp_ok"))
+        assertTrue(wrapper.contains("host_bridge_fallback"))
+        assertTrue(wrapper.contains("host_devices_status"))
+        assertTrue(wrapper.contains("解释器悬空") || wrapper.contains("Bionic 解释器"))
+        assertFalse(wrapper.contains("未找到本地 ARM64 adb 二进制文件"))
+        assertTrue(offlineAndroidVerifier.readText().contains("adb_elf_interp_ok"))
+    }
 }

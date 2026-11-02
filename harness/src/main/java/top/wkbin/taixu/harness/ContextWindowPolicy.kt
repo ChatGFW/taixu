@@ -858,16 +858,19 @@ object ContextWindowPolicy {
      */
     private fun closeToolPairs(messages: List<HarnessMessage>, boundary: Int): Int {
         var closed = boundary.coerceIn(0, messages.size)
+        // 一次扫描建立 toolCallId → 最后一次 ToolCall 下标，避免每个 ToolResult 全表 indexOfLast。
+        val lastCallIndexById = HashMap<String, Int>()
+        for (index in messages.indices) {
+            val call = messages[index] as? ToolCall ?: continue
+            lastCallIndexById[call.id] = index
+        }
         do {
             val previousBoundary = closed
-            messages.subList(closed, messages.size)
-                .filterIsInstance<ToolResult>()
-                .forEach { result ->
-                    val callIndex = messages.indexOfLast {
-                        it is ToolCall && it.id == result.toolCallId
-                    }
-                    if (callIndex in 0 until closed) closed = callIndex
-                }
+            for (index in closed until messages.size) {
+                val result = messages[index] as? ToolResult ?: continue
+                val callIndex = lastCallIndexById[result.toolCallId] ?: continue
+                if (callIndex in 0 until closed) closed = callIndex
+            }
         } while (closed < previousBoundary)
         return closed
     }
