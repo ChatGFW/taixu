@@ -9,15 +9,12 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.PaddingValues
@@ -31,13 +28,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,8 +41,6 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TextFieldDefaults
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeProviderCard
 import androidx.compose.material3.Scaffold
@@ -231,7 +223,7 @@ fun ModelEditorScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ModelEditorContent(
     modifier: Modifier = Modifier, bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
@@ -486,14 +478,6 @@ internal fun ModelEditorContent(
         )
     }
 
-    val compactFieldShape = TextFieldDefaults.shape
-    val fieldColors = TextFieldDefaults.colors(
-        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-        unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
-    )
-
     LazyColumn(
         modifier = modifier.fillMaxSize().imePadding(),
         contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp + bottomPadding),
@@ -544,8 +528,6 @@ internal fun ModelEditorContent(
                         label = { Text("档案名称") },
                         placeholder = { Text(if (selectedModels.isNotEmpty()) selectedModels.first() else provider.name) },
                         singleLine = true,
-                        shape = compactFieldShape,
-                        colors = fieldColors,
                         leadingIcon = {
                             RuntimeIcon(RuntimeIconName.Model, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
                         },
@@ -571,8 +553,6 @@ internal fun ModelEditorContent(
                             { Text("接口地址需以 http:// 或 https:// 开头") }
                         } else null,
                         singleLine = true,
-                        shape = compactFieldShape,
-                        colors = fieldColors,
                         leadingIcon = {
                             RuntimeIcon(RuntimeIconName.Globe, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
                         },
@@ -653,8 +633,6 @@ internal fun ModelEditorContent(
                                 label = { Text("Key ${if (keyList.size > 1) "#${index + 1}" else ""}") },
                                 placeholder = { Text("sk-...") },
                                 singleLine = true,
-                                shape = compactFieldShape,
-                                colors = fieldColors,
                                 visualTransformation = if (isRevealed) VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
                                     if (currentKey.isNotEmpty()) {
@@ -704,29 +682,27 @@ internal fun ModelEditorContent(
                         }
                     }
 
-                    // 添加备用 Key / 批量导入
-                    FlowRow(
+                    // 添加备用 Key / 批量导入：M3 标准按钮并排，主操作 tonal、次操作 outlined
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         RuntimeFilledTonalButton(
                             onClick = { keyList = keyList + "" },
-                            modifier = Modifier.weight(1f).widthIn(min = 140.dp).heightIn(min = 48.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            modifier = Modifier.weight(1f),
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(14.dp), MaterialTheme.colorScheme.primary)
-                                Text("备用 Key", style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(18.dp), MaterialTheme.colorScheme.onSecondaryContainer)
+                                Text("备用 Key", style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                         RuntimeOutlinedButton(
                             onClick = { showBatchImportKeysDialog = true },
-                            modifier = Modifier.weight(1f).widthIn(min = 140.dp).heightIn(min = 48.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            modifier = Modifier.weight(1f),
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                RuntimeIcon(RuntimeIconName.Download, Modifier.size(14.dp), MaterialTheme.colorScheme.primary)
-                                Text("批量导入", style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                RuntimeIcon(RuntimeIconName.Download, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
+                                Text("批量导入", style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -809,8 +785,6 @@ internal fun ModelEditorContent(
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("搜索模型名称或 ID") },
                             singleLine = true,
-                            shape = compactFieldShape,
-                            colors = fieldColors,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                             leadingIcon = {
                                 RuntimeIcon(
@@ -867,8 +841,6 @@ internal fun ModelEditorContent(
                         label = { Text("模型 ID（可选，逗号分隔额外模型）") },
                         placeholder = { Text("例如：gpt-4.5-preview, claude-3-7-sonnet") },
                         singleLine = true,
-                        shape = compactFieldShape,
-                        colors = fieldColors,
                     )
                 }
             }
@@ -964,8 +936,6 @@ internal fun ModelEditorContent(
                                     } else if (tokenWindowInvalid) {
                                         { Text("不能大于上下文上限") }
                                     } else null,
-                                    shape = compactFieldShape,
-                                    colors = fieldColors,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 )
                                 RuntimeFilledTextField(
@@ -985,8 +955,6 @@ internal fun ModelEditorContent(
                                     } else if (contextTokensText.isBlank()) {
                                         { Text("留空使用全局兜底预算") }
                                     } else null,
-                                    shape = compactFieldShape,
-                                    colors = fieldColors,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 )
                             }
@@ -1031,8 +999,6 @@ internal fun ModelEditorContent(
                                     modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                                     readOnly = true,
                                     label = { Text("推理思考模式") },
-                                    shape = compactFieldShape,
-                                    colors = fieldColors,
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(reasoningModeMenu) },
                                 )
                                 ExposedDropdownMenu(
@@ -1106,8 +1072,6 @@ internal fun ModelEditorContent(
                                 label = { Text("单 Key 每分钟请求上限 (RPM)") },
                                 placeholder = { Text("0 表示不限制") },
                                 singleLine = true,
-                                shape = compactFieldShape,
-                                colors = fieldColors,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             )
 
@@ -1125,8 +1089,6 @@ internal fun ModelEditorContent(
                                     label = { Text("压缩保留上限") },
                                     placeholder = { Text("20000") },
                                     singleLine = true,
-                                    shape = compactFieldShape,
-                                    colors = fieldColors,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 )
                                 RuntimeFilledTextField(
@@ -1138,8 +1100,6 @@ internal fun ModelEditorContent(
                                     label = { Text("响应预留 Token") },
                                     placeholder = { Text("16384") },
                                     singleLine = true,
-                                    shape = compactFieldShape,
-                                    colors = fieldColors,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 )
                             }
@@ -1215,8 +1175,6 @@ internal fun ModelEditorContent(
                                 placeholder = { Text("X-Custom-Header: value\nHTTP-Referer: https://taixu.app") },
                                 minLines = 2,
                                 maxLines = 4,
-                                shape = compactFieldShape,
-                                colors = fieldColors,
                                 textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                             )
                         }
