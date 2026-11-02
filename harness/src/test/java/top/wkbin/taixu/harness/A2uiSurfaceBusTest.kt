@@ -285,6 +285,65 @@ class A2uiSurfaceBusTest {
         assertTrue(text.contains("id=root"))
     }
 
+    @Test
+    fun `错误事件回执用裸 surfaceId 而不是引擎 id`() {
+        A2uiSurfaceBus.publishFromTool(validArgs("s1", "看板"), sessionId = "session-9")
+        val engineId = A2uiSurfaceBus.engineSurfaceId("session-9", "s1")
+        val text = A2uiSurfaceBus.formatErrorEvent(
+            A2uiSurfaceBus.A2uiErrorEvent(
+                surfaceId = engineId,
+                surfaceTitle = "看板",
+                sessionId = "session-9",
+                code = "runtime_error",
+                message = "Surface not found.",
+            ),
+        )
+        assertTrue(text.contains("surfaceId=s1）"))
+        assertFalse(text.contains(engineId))
+    }
+
+    @Test
+    fun `用户事件回执同样回裸 surfaceId`() {
+        A2uiSurfaceBus.publishFromTool(validArgs("s1", "看板"), sessionId = "session-9")
+        val text = A2uiSurfaceBus.formatUserEvent(
+            A2uiSurfaceBus.A2uiUserEvent(
+                surfaceId = A2uiSurfaceBus.engineSurfaceId("session-9", "s1"),
+                surfaceTitle = "看板",
+                sessionId = "session-9",
+                componentId = "btn",
+                eventName = "click",
+                context = emptyMap(),
+                timestamp = 1L,
+            ),
+        )
+        assertTrue(text.contains("surfaceId=s1）"))
+        assertFalse(text.contains("session-9:s1"))
+    }
+
+    @Test
+    fun `会话未知时回执按路由反查裸 surfaceId`() {
+        A2uiSurfaceBus.publishFromTool(validArgs("s1", "看板"), sessionId = "session-9")
+        val text = A2uiSurfaceBus.formatUserEvent(
+            A2uiSurfaceBus.A2uiUserEvent(
+                surfaceId = A2uiSurfaceBus.engineSurfaceId("session-9", "s1"),
+                surfaceTitle = "看板",
+                sessionId = "",
+                componentId = "btn",
+                eventName = "click",
+                context = emptyMap(),
+                timestamp = 1L,
+            ),
+        )
+        assertTrue(text.contains("surfaceId=s1）"))
+    }
+
+    @Test
+    fun `engineSurfaceId 对已带本会话前缀的 id 幂等`() {
+        val once = A2uiSurfaceBus.engineSurfaceId("session-9", "s1")
+        assertEquals("session-9:s1", once)
+        assertEquals(once, A2uiSurfaceBus.engineSurfaceId("session-9", once))
+    }
+
     private fun validArgs(surfaceId: String, title: String) = buildJsonObject {
         put("surfaceId", surfaceId)
         put("title", title)
