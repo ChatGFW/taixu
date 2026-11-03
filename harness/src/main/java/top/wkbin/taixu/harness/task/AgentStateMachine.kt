@@ -25,6 +25,8 @@ class AgentStateMachine(
         nowMs: Long = System.currentTimeMillis(),
         groupWorkId: String? = null,
         groupId: String? = null,
+        initiatorKind: String = "person",
+        initiatorId: String? = null,
     ): AgentTaskEntity {
         require(sessionId.isNotBlank()) { "Durable task requires a session id" }
         require(description.isNotBlank()) { "Durable task requires a prompt" }
@@ -40,6 +42,8 @@ class AgentStateMachine(
             autoResume = autoResume,
             statusDetail = "等待执行",
             groupWorkId = groupWorkId, groupId = groupId,
+            initiatorKind = initiatorKind.ifBlank { "person" },
+            initiatorId = initiatorId,
         )
         repository.upsert(task)
         return task
@@ -171,6 +175,8 @@ class AgentStateMachine(
             updatedAt = nowMs,
         ),
     )
+
+    suspend fun find(id: String): AgentTaskEntity? = repository.find(id)
 
     suspend fun activeForSession(sessionId: String): AgentTaskEntity? =
         repository.listForSession(sessionId, AgentTaskStatus.ACTIVE)

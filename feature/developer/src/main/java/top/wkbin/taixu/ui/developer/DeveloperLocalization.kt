@@ -134,6 +134,18 @@ private fun localizedResource(source: String): Int? = when (source) {
         "有帮助" -> R.string.developer_text_0112
         "有问题" -> R.string.developer_text_0113
         "未知会话" -> R.string.developer_text_0114
+        "无人盯着 · 审批旁路" -> R.string.developer_text_0115
+        "排期 / 委派 / 工作流下的放行决策、失败与免审旁路（最多 50 条）" -> R.string.developer_text_0116
+        "暂无无人值守旁路记录" -> R.string.developer_text_0117
+        "排期" -> R.string.developer_text_0118
+        "委派" -> R.string.developer_text_0119
+        "工作流" -> R.string.developer_text_0120
+        "会话授权" -> R.string.developer_text_0121
+        "授权豁免" -> R.string.developer_text_0122
+        "Lane 交接" -> R.string.developer_text_0123
+        "策略否决" -> R.string.developer_text_0124
+        "放行决策" -> R.string.developer_text_0125
+        "执行失败" -> R.string.developer_text_0126
         else -> null
     }
 
@@ -155,6 +167,7 @@ private fun resolveLocalizedString(source: String): String {
         source.startsWith("清理失败：") -> stringResource(R.string.developer_cleanup_failed, source.removePrefix("清理失败："))
         source.startsWith("设备剩余空间 ") -> stringResource(R.string.developer_device_space_available, source.removePrefix("设备剩余空间 "))
         source.endsWith(" 条反馈") -> stringResource(R.string.developer_feedback_count, source.removeSuffix(" 条反馈"))
+        source.endsWith(" 条旁路") -> stringResource(R.string.developer_unattended_audit_count, source.removeSuffix(" 条旁路"))
         source.startsWith("重置失败：") -> stringResource(R.string.developer_reset_failed, source.removePrefix("重置失败："))
         else -> source
     }

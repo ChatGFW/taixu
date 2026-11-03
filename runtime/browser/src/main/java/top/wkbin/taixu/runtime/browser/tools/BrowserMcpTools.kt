@@ -10,6 +10,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.put
 import java.util.UUID
+import top.wkbin.taixu.core.browser.ActionPolicyInitiator
 import top.wkbin.taixu.core.browser.BrowserCapability
 import top.wkbin.taixu.core.browser.BrowserPreferences
 import top.wkbin.taixu.core.browser.BrowserRisk
@@ -55,10 +56,19 @@ class BrowserMcpTools(
         }
     }
 
-    suspend fun invoke(toolName: String, args: JsonObject): InvokeResult {
+    suspend fun invoke(toolName: String, args: JsonObject, initiatorKind: String = ActionPolicyInitiator.PERSON): InvokeResult {
         val spec = TOOLS.firstOrNull { it.name == toolName }
             ?: return InvokeResult.error("未知工具：$toolName")
-        val engine = pickEngine(explicitTokenOf(args)) ?: return InvokeResult.error("无浏览器引擎")
+        val engine = pickEngine(explicitTokenOf(args))
+        admitBrowserTool(
+            toolName = toolName,
+            explicitUrl = sanitizeUrl(args["url"]?.asString()),
+            tabId = args["tab"]?.asString(),
+            initiatorKind = initiatorKind,
+            homeUrl = prefs.homeUrl,
+            engine = engine,
+        )?.let { return it }
+        if (engine == null) return InvokeResult.error("无浏览器引擎")
         return when (toolName) {
             "browser.open" -> {
                 val url = sanitizeUrl(args["url"]?.asString()).ifEmpty { prefs.homeUrl }
@@ -525,22 +535,6 @@ class BrowserMcpTools(
             InvokeResult.okMessage(engine.debugScope(tokenOf(args, engine), frame, scope))
         }
     }
-
-    private fun fmtBytes(n: Long): String = when {
-        n >= 1024 * 1024 -> "${n / (1024 * 1024)}MB"
-        n >= 1024 -> "${n / 1024}KB"
-        else -> "${n}B"
-    }
-
-    private fun JsonElement?.asString(): String? =
-        (this as? JsonPrimitive)?.content?.takeIf { it.isNotEmpty() }
-
-    private fun JsonElement?.asInt(): Int? =
-        (this as? JsonPrimitive)?.content?.toIntOrNull()
-
-    private fun JsonElement?.asBool(): Boolean? =
-        (this as? JsonPrimitive)?.content?.toBooleanStrictOrNull()
-
 
     data class ToolSpec(
         val name: String,

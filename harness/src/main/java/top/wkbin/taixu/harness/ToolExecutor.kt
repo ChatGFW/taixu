@@ -3,7 +3,9 @@ package top.wkbin.taixu.harness
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.harness.approval.ApprovalAuditRecorder
+import top.wkbin.taixu.harness.approval.RunInitiator
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
+import top.wkbin.taixu.harness.approval.currentRunInitiator
 import top.wkbin.taixu.harness.approval.planBlockedResult
 import top.wkbin.taixu.harness.checkpoint.CheckpointStore
 import top.wkbin.taixu.harness.core.ToolCheckpoints
@@ -22,12 +24,6 @@ import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.runtime.LinuxEnvironmentManager
-import top.wkbin.taixu.harness.effects.OutputRetention
-import top.wkbin.taixu.harness.effects.ToolOutputRetention
-import top.wkbin.taixu.harness.effects.TerminalOutputCompressor
-import top.wkbin.taixu.harness.effects.foldOverlongLines
-import top.wkbin.taixu.harness.effects.hasIncompleteCommandOutput
-import top.wkbin.taixu.harness.effects.keepHeadWholeLines
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
@@ -105,10 +101,19 @@ class ToolExecutor(
     private val executionBoundary = ToolExecutionBoundary(toolCheckpoints) { request, output ->
         val redacted = top.wkbin.taixu.harness.environment.redactExecutionOutput(output, secretRedactor,
             environments, linuxEnvironmentManager, settingsDataStore, request.sessionId, request.workspace)
-        truncateOutput(redacted, if (request.call.tool == HarnessTool.HISTORY_READ) "history_read" else request.call.rawToolName ?: HarnessApiMapper.apiName(request.call.tool),
-            request.sessionId, request.workspace,
-            if (environments != null) environments.environment(request.sessionId, request.workspace).artifacts
-            else if (request.workspace.isNotBlank()) top.wkbin.taixu.harness.environment.LocalExecutionArtifacts(fileAccess.withBase(request.workspace)) else null)
+        truncateToolOutput(
+            output = redacted,
+            toolName = if (request.call.tool == HarnessTool.HISTORY_READ) "history_read" else request.call.rawToolName ?: HarnessApiMapper.apiName(request.call.tool),
+            fileAccess = if (environments != null) environments.environment(request.sessionId, request.workspace).artifacts
+            else if (request.workspace.isNotBlank()) top.wkbin.taixu.harness.environment.LocalExecutionArtifacts(fileAccess.withBase(request.workspace)) else null,
+            metadata = null,
+            redactNormalized = { normalized ->
+                top.wkbin.taixu.harness.environment.redactExecutionOutput(
+                    normalized, secretRedactor, environments, linuxEnvironmentManager, settingsDataStore,
+                    request.sessionId, request.workspace,
+                )
+            },
+        )
     }
 
     suspend fun execute(
@@ -153,6 +158,8 @@ class ToolExecutor(
             )
         }
         val toolMetadata = mutableMapOf<String, String>()
+        val toolName = toolCall.rawToolName ?: toolCall.tool.name.lowercase()
+        var auditedRisk = ""
         val outcome = try {
             if (!bypassApproval && sessionId.isNotBlank()) {
                 val repository = approvalRepository
@@ -166,14 +173,17 @@ class ToolExecutor(
                 // 因此这里同样约束后台并行子智能体，无需在 Lane 内重复判定。
                 if (runMode == RunMode.PLAN) {
                     approvalPolicyEngine.planBlock(toolCall.tool, toolCall.args, toolCall.rawToolName)?.let { blocked ->
-                        val blockedName = toolCall.rawToolName ?: toolCall.tool.name.lowercase()
-                        return planBlockedResult(now, toolCall.id, blockedName, blocked)
+                        approvalAuditor?.policyDenied(sessionId, toolCall.id, toolName, "high", blocked)
+                        return planBlockedResult(now, toolCall.id, toolName, blocked)
                     }
                 }
                 val mcpCall = if (toolCall.tool == HarnessTool.MCP) {
                     mcpToolPolicy?.resolve(toolCall.args, toolCall.rawToolName)
                 } else null
-                if (mcpCall?.enabled == false) return mcpCall.disabledResult(toolCall, now)
+                if (mcpCall?.enabled == false) {
+                    approvalAuditor?.policyDenied(sessionId, toolCall.id, toolName, "high", mcpCall.disabledMessage())
+                    return mcpCall.disabledResult(toolCall, now)
+                }
                 val annotations = mcpCall?.tool?.annotations ?: if (toolCall.tool == HarnessTool.MCP) {
                     mcpManager.annotationsForCall(toolCall.args, toolCall.rawToolName)
                 } else null
@@ -182,6 +192,7 @@ class ToolExecutor(
                     mcpCall?.riskOverride,
                     annotations,
                 )
+                auditedRisk = decision.riskLevel
                 // 「本会话内记住」授权表豁免：用户此前对该操作类别批准过并勾选了记住，
                 // 同类后续操作免审批直接执行。表只存内存、随会话销毁，无永久授权；
                 // 只豁免本条 required 判定，策略引擎的其余约束不受影响。
@@ -189,14 +200,12 @@ class ToolExecutor(
                     sessionApprovalGrants != null &&
                     sessionApprovalGrants.isGranted(
                         sessionId = sessionId,
-                        toolName = toolCall.rawToolName ?: toolCall.tool.name.lowercase(),
+                        toolName = toolName,
                         argumentsJson = toolCall.args.toString(),
                         riskLevel = decision.riskLevel,
                     )
                 if (grantedBySession) approvalAuditor?.grantExempted(
-                    sessionId, toolCall.id,
-                    toolCall.rawToolName ?: toolCall.tool.name.lowercase(),
-                    toolCall.args.toString(), decision.riskLevel,
+                    sessionId, toolCall.id, toolName, toolCall.args.toString(), decision.riskLevel,
                 )
                 if (decision.required && !grantedBySession) {
                     if (!allowApprovalRequest) {
@@ -204,9 +213,7 @@ class ToolExecutor(
                         // 由 Lane 收集成待办上交父智能体。若只回一句失败文字，模型下一轮会输出
                         // "已交由主智能体"，而那句话曾被当成完成结论。
                         approvalAuditor?.deferred(
-                            sessionId, toolCall.id,
-                            toolCall.rawToolName ?: toolCall.tool.name.lowercase(),
-                            decision.riskLevel, decision.reason,
+                            sessionId, toolCall.id, toolName, decision.riskLevel, decision.reason,
                         )
                         return ToolResult(
                             id = UUID.randomUUID().toString(),
@@ -245,6 +252,16 @@ class ToolExecutor(
                         approvalRequestId = request.id,
                     )
                 }
+                // OpenBot 双审计第一行：放行决策（grant_exempted 已覆盖会话授权路径）。
+                if (!grantedBySession) {
+                    val unattended = RunInitiator.isUnattended(currentRunInitiator().kind)
+                    if (ApprovalAuditRecorder.shouldDualAudit(toolCall.tool, decision.riskLevel, unattended)) {
+                        approvalAuditor?.decisionForwarded(
+                            sessionId, toolCall.id, toolName, decision.riskLevel,
+                            decision.summary.ifBlank { decision.reason }.ifBlank { "策略放行" },
+                        )
+                    }
+                }
             }
             executeTool(toolCall.tool, toolCall.args, toolCall.rawToolName, toolCall.id, sessionId, workspace, progressReporter, operationId, toolMetadata, allowApprovalRequest)
         } catch (interrupted: ScriptCallInterrupted) {
@@ -255,6 +272,12 @@ class ToolExecutor(
             false to "工具执行异常：${throwable.message ?: throwable::class.simpleName}"
         }
         val (success, rawOutput) = outcome
+        if (!success && sessionId.isNotBlank()) {
+            val unattended = RunInitiator.isUnattended(currentRunInitiator().kind)
+            if (ApprovalAuditRecorder.shouldDualAudit(toolCall.tool, auditedRisk, unattended)) {
+                approvalAuditor?.actionFailed(sessionId, toolCall.id, toolName, auditedRisk, rawOutput)
+            }
+        }
         val finalOutput = if (!success && !rawOutput.contains("【太墟") && !rawOutput.contains("【已强制拦截")) {
             rawOutput + "\n\n【太墟 Harness 调试提示】：本次工具调用未成功。请仔细阅读上方错误信息，分析具体原因并在下一步中调整策略，严禁使用相同参数盲目重试。"
         } else {
@@ -273,66 +296,21 @@ class ToolExecutor(
             createdAt = now,
             toolCallId = toolCall.id,
             success = success,
-            output = truncateOutput(
-                redactedOutput,
-                if (toolCall.tool == HarnessTool.HISTORY_READ) "history_read" else toolCall.rawToolName ?: HarnessApiMapper.apiName(toolCall.tool),
-                sessionId, workspace,
-                if (environments != null) environments.environment(sessionId, workspace).artifacts
+            output = truncateToolOutput(
+                output = redactedOutput,
+                toolName = if (toolCall.tool == HarnessTool.HISTORY_READ) "history_read" else toolCall.rawToolName ?: HarnessApiMapper.apiName(toolCall.tool),
+                fileAccess = if (environments != null) environments.environment(sessionId, workspace).artifacts
                 else if (workspace.isNotBlank()) top.wkbin.taixu.harness.environment.LocalExecutionArtifacts(fileAccess.withBase(workspace)) else null,
-                toolMetadata,
+                metadata = toolMetadata,
+                redactNormalized = { normalized ->
+                    top.wkbin.taixu.harness.environment.redactExecutionOutput(
+                        normalized, secretRedactor, environments, linuxEnvironmentManager, settingsDataStore, sessionId, workspace,
+                    )
+                },
             ),
             metadata = toolMetadata.toMap(),
             imageDataUrl = imagePayload,
         )
-    }
-
-    /**
-     * 读取类输出保留头部；终端输出归一化后再次脱敏并采样首尾。
-     * 已脱敏输入沿 `.taixu-outputs/` 落盘，标记完整性并可用 read 分页回读。
-     */
-    private suspend fun truncateOutput(
-        output: String,
-        toolName: String?,
-        sessionId: String,
-        workspace: String,
-        fileAccess: top.wkbin.taixu.runtime.environment.ExecutionArtifacts?,
-        metadata: MutableMap<String, String>? = null,
-    ): String {
-        // 超长单行先折叠（混淆/压缩文件）：否则单行预算退化成保留 60k 字符的整行，
-        // 一条 tool result 就可能超出单条消息的传输上限导致连接被重置。归档保留脱敏后的未采样文本。
-        val retention = ToolOutputRetention.forTool(toolName)
-        // Removing controls can join fragments into a secret: redact again BEFORE sampling.
-        val archived = if (retention == OutputRetention.TAIL) top.wkbin.taixu.harness.environment.redactExecutionOutput(
-            TerminalOutputCompressor.normalize(output), secretRedactor, environments, linuxEnvironmentManager, settingsDataStore, sessionId, workspace) else output
-        val folded = if (retention == OutputRetention.TAIL) TerminalOutputCompressor.compressNormalized(archived) else if (toolName == "history_read") archived else foldOverlongLines(archived)
-        if (output.length <= MAX_OUTPUT_LENGTH && folded == output) return folded
-        if (retention == OutputRetention.HEAD && output.length <= MAX_OUTPUT_LENGTH) return folded
-        val spillPath = fileAccess?.let { ToolOutputSpillStore.spill(it, toolName, archived) }
-        if (spillPath != null) metadata?.set(ToolOutputArtifact.METADATA_KEY, kotlinx.serialization.json.Json.encodeToString(
-            ToolOutputArtifact.serializer(), ToolOutputArtifact.capture(spillPath, archived).let {
-                if (hasIncompleteCommandOutput(output)) it.copy(complete = false) else it }))
-        val recoverHint = if (spillPath != null) {
-            // 落盘字节量随定位符给出（DSH spill 语义）：模型据此决定 read 分页的步长。
-            "${if (hasIncompleteCommandOutput(output)) "可用输出" else "完整输出"}已保存至 $spillPath（约 ${(archived.toByteArray(Charsets.UTF_8).size + 1023) / 1024}KB），可用 read 工具（offset/limit 分页）查看其余部分。"
-        } else {
-            "需要其余部分请用 grep 过滤关键字、head/tail 取首尾、或 sed -n 'N,Mp' 取指定行段，不要原样重复执行同一命令。"
-        }
-        if (retention == OutputRetention.TAIL) return "$folded\n\n[$recoverHint]"
-        val kept = keepHeadWholeLines(folded, TRUNCATE_KEEP_LENGTH)
-        val totalLines = output.count { it == '\n' } + 1
-        val keptLines = kept.count { it == '\n' } + 1
-        return buildString {
-            append(kept)
-            append("\n\n[输出已截断：完整输出共 ")
-            append(totalLines)
-            append(" 行 / ")
-            append(output.length)
-            append(" 字符，以上仅显示前 ")
-            append(keptLines)
-            append(" 行。")
-            append(recoverHint)
-            append("]")
-        }
     }
 
     private suspend fun executeTool(
@@ -373,8 +351,6 @@ class ToolExecutor(
     companion object {
         /** virtual_screen_* 的默认会话 ID（PhoneAgentServices 与 HostCapabilityToolBackend 共用）。 */
         const val VIRTUAL_SCREEN_DEFAULT_SESSION = "default"
-        const val MAX_OUTPUT_LENGTH = 64 * 1024
-        const val TRUNCATE_KEEP_LENGTH = 60 * 1024
 
         /**
          * host 侧工具输出的字符硬上限（与 runtime EmbeddedAdbManager 的 ADB 路径保持同值）。

@@ -2,6 +2,7 @@ package top.wkbin.taixu.harness.workflow
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -10,6 +11,8 @@ import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.harness.SubagentOrchestrator
+import top.wkbin.taixu.harness.approval.RunInitiator
+import top.wkbin.taixu.harness.approval.RunInitiatorContext
 import top.wkbin.taixu.harness.subagent.SubagentLaneRunner
 
 data class WorkflowAgentRequest(
@@ -52,40 +55,42 @@ class HarnessWorkflowAgentExecutionPort(
 ) : WorkflowAgentExecutionPort {
     private val sessionCreationMutex = Mutex()
 
-    override suspend fun infer(request: WorkflowAgentRequest): WorkflowAgentResult {
-        val session = ensureSession(request)
-        val result = laneRunner.run(
-            sessionId = session.id,
-            laneName = "subagent:workflow-agent:${request.nodeId}",
-            prompt = request.prompt,
-            workspace = request.workspacePath,
-            modelId = request.modelId ?: session.modelId,
-            modelVariant = request.modelVariant ?: session.modelVariant,
-            // 节点声明了写范围才启用闸门；未声明的推理节点维持原有可写行为，
-            // 否则存量工作流里"生成文件"类推理节点会被静默降级成只读。
-            writePaths = request.writePaths.takeIf { it.isNotEmpty() },
-        )
-        return WorkflowAgentResult(result.success, result.summary, result.toolCallCount)
-    }
+    override suspend fun infer(request: WorkflowAgentRequest): WorkflowAgentResult =
+        withContext(RunInitiatorContext(RunInitiator.workflow(request.executionId))) {
+            val session = ensureSession(request)
+            val result = laneRunner.run(
+                sessionId = session.id,
+                laneName = "subagent:workflow-agent:${request.nodeId}",
+                prompt = request.prompt,
+                workspace = request.workspacePath,
+                modelId = request.modelId ?: session.modelId,
+                modelVariant = request.modelVariant ?: session.modelVariant,
+                // 节点声明了写范围才启用闸门；未声明的推理节点维持原有可写行为，
+                // 否则存量工作流里"生成文件"类推理节点会被静默降级成只读。
+                writePaths = request.writePaths.takeIf { it.isNotEmpty() },
+            )
+            WorkflowAgentResult(result.success, result.summary, result.toolCallCount)
+        }
 
-    override suspend fun delegate(request: WorkflowAgentRequest): WorkflowAgentResult {
-        val session = ensureSession(request)
-        val args = JsonObject(
-            buildMap {
-                put("prompt", JsonPrimitive(request.prompt))
-                put("taskName", JsonPrimitive(request.taskName.ifBlank { request.nodeTitle }))
-                request.role.takeIf(String::isNotBlank)?.let { put("role", JsonPrimitive(it)) }
-                request.department.takeIf(String::isNotBlank)?.let { put("department", JsonPrimitive(it)) }
-                request.agentQuery.takeIf(String::isNotBlank)?.let { put("agentQuery", JsonPrimitive(it)) }
-                request.modelId?.takeIf(String::isNotBlank)?.let { put("model", JsonPrimitive(it)) }
-                if (request.writePaths.isNotEmpty()) {
-                    put("writePaths", JsonArray(request.writePaths.map(::JsonPrimitive)))
-                }
-            },
-        )
-        val (success, output) = subagentOrchestrator.executeSubagents(args, session.id)
-        return WorkflowAgentResult(success, output)
-    }
+    override suspend fun delegate(request: WorkflowAgentRequest): WorkflowAgentResult =
+        withContext(RunInitiatorContext(RunInitiator.workflow(request.executionId))) {
+            val session = ensureSession(request)
+            val args = JsonObject(
+                buildMap {
+                    put("prompt", JsonPrimitive(request.prompt))
+                    put("taskName", JsonPrimitive(request.taskName.ifBlank { request.nodeTitle }))
+                    request.role.takeIf(String::isNotBlank)?.let { put("role", JsonPrimitive(it)) }
+                    request.department.takeIf(String::isNotBlank)?.let { put("department", JsonPrimitive(it)) }
+                    request.agentQuery.takeIf(String::isNotBlank)?.let { put("agentQuery", JsonPrimitive(it)) }
+                    request.modelId?.takeIf(String::isNotBlank)?.let { put("model", JsonPrimitive(it)) }
+                    if (request.writePaths.isNotEmpty()) {
+                        put("writePaths", JsonArray(request.writePaths.map(::JsonPrimitive)))
+                    }
+                },
+            )
+            val (success, output) = subagentOrchestrator.executeSubagents(args, session.id)
+            WorkflowAgentResult(success, output)
+        }
 
     private suspend fun ensureSession(request: WorkflowAgentRequest): HarnessSessionEntity {
         val sessionId = "workflow:${request.executionId}:${request.nodeId}"

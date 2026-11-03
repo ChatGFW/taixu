@@ -280,27 +280,30 @@ class ProviderPreferences(private val store: SettingsDataStore) {
     suspend fun removeModelApiKey(secretRef: String) = store.removeModelApiKey(secretRef)
 }
 
-class BrowserPreferences(private val store: SettingsDataStore) {
-    fun defaultFamily() = store.browserDefaultFamily
-    fun homeUrl() = store.browserHomeUrl
-    fun coBrowsingEnabled() = store.browserCoBrowsingEnabled
-    fun allowRemoteConnect() = store.browserAllowRemoteConnect
-    fun allowEvalJs() = store.browserAllowEvalJs
-    fun allowHooks() = store.browserAllowHooks
-    fun allowCdp() = store.browserAllowCdp
-    fun allowVConsole() = store.browserAllowVConsole
-    fun desktopUserAgent() = store.browserDesktopUserAgent
-    fun maxCaptureBytes() = store.browserMaxCaptureBytes
-    suspend fun setDefaultFamily(value: String) = store.setBrowserDefaultFamily(value)
-    suspend fun setHomeUrl(value: String) = store.setBrowserHomeUrl(value)
-    suspend fun setCoBrowsingEnabled(value: Boolean) = store.setBrowserCoBrowsingEnabled(value)
-    suspend fun setAllowRemoteConnect(value: Boolean) = store.setBrowserAllowRemoteConnect(value)
-    suspend fun setAllowEvalJs(value: Boolean) = store.setBrowserAllowEvalJs(value)
-    suspend fun setAllowHooks(value: Boolean) = store.setBrowserAllowHooks(value)
-    suspend fun setAllowCdp(value: Boolean) = store.setBrowserAllowCdp(value)
-    suspend fun setAllowVConsole(value: Boolean) = store.setBrowserAllowVConsole(value)
-    suspend fun setDesktopUserAgent(value: Boolean) = store.setBrowserDesktopUserAgent(value)
-    suspend fun setMaxCaptureBytes(value: Int) = store.setBrowserMaxCaptureBytes(value)
+class BrowserPreferences(store: SettingsDataStore) {
+    private val browser = store.browserSettings
+    fun defaultFamily() = browser.defaultFamily
+    fun homeUrl() = browser.homeUrl
+    fun coBrowsingEnabled() = browser.coBrowsingEnabled
+    fun allowRemoteConnect() = browser.allowRemoteConnect
+    fun allowEvalJs() = browser.allowEvalJs
+    fun allowHooks() = browser.allowHooks
+    fun allowCdp() = browser.allowCdp
+    fun allowVConsole() = browser.allowVConsole
+    fun desktopUserAgent() = browser.desktopUserAgent
+    fun maxCaptureBytes() = browser.maxCaptureBytes
+    fun actionPolicyJson() = browser.actionPolicyJson
+    suspend fun setDefaultFamily(value: String) = browser.setDefaultFamily(value)
+    suspend fun setHomeUrl(value: String) = browser.setHomeUrl(value)
+    suspend fun setCoBrowsingEnabled(value: Boolean) = browser.setCoBrowsingEnabled(value)
+    suspend fun setAllowRemoteConnect(value: Boolean) = browser.setAllowRemoteConnect(value)
+    suspend fun setAllowEvalJs(value: Boolean) = browser.setAllowEvalJs(value)
+    suspend fun setAllowHooks(value: Boolean) = browser.setAllowHooks(value)
+    suspend fun setAllowCdp(value: Boolean) = browser.setAllowCdp(value)
+    suspend fun setAllowVConsole(value: Boolean) = browser.setAllowVConsole(value)
+    suspend fun setDesktopUserAgent(value: Boolean) = browser.setDesktopUserAgent(value)
+    suspend fun setMaxCaptureBytes(value: Int) = browser.setMaxCaptureBytes(value)
+    suspend fun setActionPolicyJson(value: String) = browser.setActionPolicyJson(value)
 }
 
 /** MCP 被控端（外部 AI 客户端通过 MCP 控制本 App）的偏好键。 */

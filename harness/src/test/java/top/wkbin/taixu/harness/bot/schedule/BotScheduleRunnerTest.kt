@@ -38,7 +38,8 @@ class BotScheduleRunnerTest {
         db.botScheduleDao().upsert(BotScheduleEntity("schedule", "bot", null, "* * * * *", "work", true, 100, null, 1))
     }
 
-    private fun runner(submit: suspend (Bot, String, String?) -> Boolean) = BotScheduleRunner(schedules, bots, log, BotScheduledSubmission(submit))
+    private fun runner(submit: suspend (Bot, String, String?, String) -> Boolean) =
+        BotScheduleRunner(schedules, bots, log, BotScheduledSubmission(submit))
 
     private fun status(): String = db.openHelper.readableDatabase.query("SELECT status FROM bot_schedule_deliveries").use {
         assertTrue(it.moveToFirst()); it.getString(0)
@@ -46,14 +47,14 @@ class BotScheduleRunnerTest {
 
     @Test fun `rejection is not counted as accepted`() = runBlocking {
         seed()
-        assertEquals(0, runner { _, _, _ -> false }.runDue(101))
+        assertEquals(0, runner { _, _, _, _ -> false }.runDue(101))
         assertEquals("rejected", status())
     }
 
     @Test fun `accepted occurrence is not submitted a second time`() = runBlocking {
         seed()
         var submissions = 0
-        val runner = runner { _, _, _ -> submissions++; true }
+        val runner = runner { _, _, _, _ -> submissions++; true }
         assertEquals(1, runner.runDue(101))
         assertEquals(0, runner.runDue(102))
         assertEquals(1, submissions)
@@ -64,21 +65,23 @@ class BotScheduleRunnerTest {
         seed()
         db.botScheduleDeliveryDao().stage("schedule", 100, 101, 60_000)
         var submissions = 0
-        assertEquals(1, runner { _, text, _ -> assertEquals("work", text); submissions++; true }.runDue(102))
+        assertEquals(1, runner { _, text, _, scheduleId ->
+            assertEquals("work", text); assertEquals("schedule", scheduleId); submissions++; true
+        }.runDue(102))
         assertEquals(1, submissions)
     }
 
     @Test fun `interrupted admission is recorded and never blindly replayed`() = runBlocking {
         seed()
-        try { runner { _, _, _ -> throw CancellationException("worker stopped") }.runDue(101); fail() }
+        try { runner { _, _, _, _ -> throw CancellationException("worker stopped") }.runDue(101); fail() }
         catch (_: CancellationException) { }
         assertEquals("unknown", status())
-        assertEquals(0, runner { _, _, _ -> fail("must not replay"); true }.runDue(102))
+        assertEquals(0, runner { _, _, _, _ -> fail("must not replay"); true }.runDue(102))
     }
 
     @Test fun `exception after possible acceptance remains unknown`() = runBlocking {
         seed()
-        assertEquals(0, runner { _, _, _ -> error("lost receipt") }.runDue(101))
+        assertEquals(0, runner { _, _, _, _ -> error("lost receipt") }.runDue(101))
         assertEquals("unknown", status())
     }
 
@@ -92,7 +95,7 @@ class BotScheduleRunnerTest {
             db.botScheduleDao().upsert(BotScheduleEntity("leap", "bot", null, "0 0 29 2 *", "leap-day", true, dueAt, null, 1))
             ShadowLog.clear()
             var submissions = 0
-            val runner = runner { _, text, _ -> assertEquals("leap-day", text); submissions++; true }
+            val runner = runner { _, text, _, _ -> assertEquals("leap-day", text); submissions++; true }
             assertEquals(1, runner.runDue(dueAt))
             assertEquals(1, submissions)
             val row = db.botScheduleDao().findById("leap")!!

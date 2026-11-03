@@ -12,7 +12,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import top.wkbin.taixu.harness.approval.RunInitiator
+import top.wkbin.taixu.harness.approval.RunInitiatorContext
 import top.wkbin.taixu.core.model.workflow.FailurePolicy
 import top.wkbin.taixu.core.model.workflow.NodeExecutionOutput
 import top.wkbin.taixu.core.model.workflow.NodeRunStatus
@@ -227,11 +230,14 @@ class WorkflowScheduler(
                         }
                     } else executor.execute(node, context, onProgress)
                 }
-                if (timeoutMs == null) {
-                    action()
-                } else {
-                    withTimeoutOrNull(timeoutMs) { action() }
-                        ?: NodeExecutionOutput(NodeRunStatus.FAILED, exitCode = 124, error = "节点超时（${timeoutMs / 1_000} 秒）")
+                // 工作流节点内的工具/宿主调用继承 workflow initiator（无人盯着集合）。
+                withContext(RunInitiatorContext(RunInitiator.workflow(context.executionId))) {
+                    if (timeoutMs == null) {
+                        action()
+                    } else {
+                        withTimeoutOrNull(timeoutMs) { action() }
+                            ?: NodeExecutionOutput(NodeRunStatus.FAILED, exitCode = 124, error = "节点超时（${timeoutMs / 1_000} 秒）")
+                    }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled

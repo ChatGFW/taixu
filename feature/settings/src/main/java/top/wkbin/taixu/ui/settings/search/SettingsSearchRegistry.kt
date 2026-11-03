@@ -308,16 +308,7 @@ object SettingsSearchRegistry {
             keywords = listOf("mcp", "model context protocol", "server", "sqlite", "git", "fetch", "xieyi"),
             breadcrumb = "智能体与 AI 模型 > MCP 协议生态",
         ),
-        SettingsSearchItem(
-            id = "agent_mcp_builtin_servers",
-            title = "内置 SQLite / Git / Fetch MCP Server",
-            subtitle = "管理沙箱内内置的轻量化数据与网络请求 MCP 服务端",
-            category = SettingsSearchCategory.AGENT,
-            target = SettingsSearchTarget.MCP_SETTINGS,
-            icon = RuntimeIconName.Server,
-            keywords = listOf("sqlite", "git", "fetch", "filesystem", "内置服务", "mcp server"),
-            breadcrumb = "智能体与 AI 模型 > MCP 协议 > 内置服务",
-        ),
+        *mcpProtocolSearchItems.toTypedArray(),
 
         // ==================== 2. Linux 容器沙箱与存储 ====================
         SettingsSearchItem(

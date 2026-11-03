@@ -96,7 +96,15 @@ val botHarnessModule = module {
         }
     }
     single<BotScheduledSubmission> {
-        BotScheduledSubmission { bot, instruction, group -> get<GroupChatDispatcher>().triggerScheduled(bot, instruction, group) }
+        BotScheduledSubmission { bot, instruction, group, scheduleId ->
+            kotlinx.coroutines.withContext(
+                top.wkbin.taixu.harness.approval.RunInitiatorContext(
+                    top.wkbin.taixu.harness.approval.RunInitiator.schedule(scheduleId),
+                ),
+            ) {
+                get<GroupChatDispatcher>().triggerScheduled(bot, instruction, group)
+            }
+        }
     }
     single { BotScheduleRunner(scheduleRepository = get(), botRepository = get(), logger = get(), submit = get()) }
     single { BotPackageService(botRepository = get<PersonaBotRepository>(), orchestrator = get(), memoryManager = get(), json = get(), logger = get()) }

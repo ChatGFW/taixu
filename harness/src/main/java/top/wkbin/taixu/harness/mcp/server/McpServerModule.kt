@@ -2,7 +2,9 @@ package top.wkbin.taixu.harness.mcp.server
 
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import top.wkbin.taixu.core.browser.BrowserHumanControl
 import top.wkbin.taixu.core.browser.BrowserPreferences
+import top.wkbin.taixu.core.browser.HostActionPolicy
 import top.wkbin.taixu.runtime.browser.BrowserRegistry
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpResources
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
@@ -44,6 +46,12 @@ object McpServerModule {
                 )
             }
         }.getOrDefault(BrowserPreferences.DEFAULT)
+        // 与 DataStore 启动快照对齐进程内闸门；之后由 Browser UI / 设置页实时更新。
+        BrowserHumanControl.setCoBrowsingEnabled(prefs.coBrowsingEnabled)
+        val storedPolicy = runCatching {
+            runBlocking { browserPrefs.actionPolicyJson().first() }
+        }.getOrDefault("")
+        HostActionPolicy.installFromStored(storedPolicy)
         return BrowserMcpTools(
             // 引擎不在构造期快照（本构造可能早于 BrowserMcpBootstrap 注册引擎）：
             // engineSelector 在每次工具调用时实时查 registry，先按 family 精确匹配，

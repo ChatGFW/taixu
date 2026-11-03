@@ -555,6 +555,11 @@ class SettingsViewModel(
         viewModelScope.launch { browserPrefs.setAllowVConsole(enabled) }
     }
 
+    private val hostActionPolicy = HostActionPolicySettings(browserPrefs, viewModelScope)
+    val hostActionPolicyJson get() = hostActionPolicy.json
+    suspend fun saveHostActionPolicy(raw: String) = hostActionPolicy.save(raw)
+    fun resetHostActionPolicy() = hostActionPolicy.reset()
+
     /** MCP 被控端（服务端）配置快照：开关 / 端口 / 局域网 / 写入层 / 持久化令牌。 */
     val agentServerState: StateFlow<AgentServerState> = combine(
         agentServerPreferences.enabled,
@@ -1809,15 +1814,6 @@ private fun localLoopbackMcpCandidates(): List<DetectedLocalMcpServer> {
         }
     }
 }
-
-/** 浏览器 MCP 安全门禁状态（默认全部关闭，最小权限）。 */
-data class BrowserGateState(
-    val allowRemoteConnect: Boolean = false,
-    val allowEvalJs: Boolean = false,
-    val allowHooks: Boolean = false,
-    val allowCdp: Boolean = false,
-    val allowVConsole: Boolean = false,
-)
 
 /** MCP 被控端配置快照（运行状态另由 AgentMcpAccess 提供）。 */
 data class AgentServerState(

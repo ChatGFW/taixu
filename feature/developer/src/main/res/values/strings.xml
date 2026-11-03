@@ -129,4 +129,17 @@
     <string name="developer_device_space_available">设备剩余空间 %1$s</string>
     <string name="developer_reset_failed">重置失败：%1$s</string>
     <string name="developer_feedback_count">共 %1$s 条反馈</string>
+    <string name="developer_unattended_audit_count">共 %1$s 条旁路</string>
+    <string name="developer_text_0115" formatted="false">无人盯着 · 审批旁路</string>
+    <string name="developer_text_0116" formatted="false">排期 / 委派 / 工作流下的放行决策、失败与免审旁路（最多 50 条）</string>
+    <string name="developer_text_0117" formatted="false">暂无无人值守旁路记录</string>
+    <string name="developer_text_0118" formatted="false">排期</string>
+    <string name="developer_text_0119" formatted="false">委派</string>
+    <string name="developer_text_0120" formatted="false">工作流</string>
+    <string name="developer_text_0121" formatted="false">会话授权</string>
+    <string name="developer_text_0122" formatted="false">授权豁免</string>
+    <string name="developer_text_0123" formatted="false">Lane 交接</string>
+    <string name="developer_text_0124" formatted="false">策略否决</string>
+    <string name="developer_text_0125" formatted="false">放行决策</string>
+    <string name="developer_text_0126" formatted="false">执行失败</string>
 </resources>

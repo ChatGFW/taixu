@@ -32,8 +32,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
@@ -82,8 +80,6 @@ import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-import java.net.Inet4Address
-import java.net.NetworkInterface
 import kotlinx.coroutines.delay
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -229,6 +225,10 @@ fun McpSettingsScreen(
 
             item(key = "mcp_section_browser_gates") {
                 BrowserGatesCard(gates = browserGates, viewModel = viewModel)
+            }
+
+            item(key = "mcp_section_host_action_policy") {
+                HostActionPolicyCard(viewModel = viewModel)
             }
 
             item(key = "mcp_section_agent_server") {
@@ -746,19 +746,6 @@ private fun CopyableLine(label: String, value: String, context: Context) {
             RuntimeIcon(RuntimeIconName.Copy, Modifier.size(14.dp), MaterialTheme.colorScheme.outline)
         }
     }
-}
-
-/** 探测本机局域网 IPv4（用于展示可被外部设备访问的连接地址）；失败返回 null。 */
-private fun detectLanIp(): String? = try {
-    NetworkInterface.getNetworkInterfaces()
-        ?.asSequence()
-        ?.filter { !it.isLoopback && it.isUp }
-        ?.flatMap { it.inetAddresses.asSequence() }
-        ?.firstOrNull { it is Inet4Address && !it.isLoopbackAddress }
-        ?.hostAddress
-        ?.takeIf { it.isNotBlank() && it != "127.0.0.1" }
-} catch (_: Exception) {
-    null
 }
 
 /** OAuth 列表徽章：非 OAuth 服务不展示；返回 文案 to 是否成功态。 */

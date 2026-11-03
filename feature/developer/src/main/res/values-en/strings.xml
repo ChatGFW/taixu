@@ -129,4 +129,17 @@
     <string name="developer_device_space_available">Device space available: %1$s</string>
     <string name="developer_reset_failed">Reset failed: %1$s</string>
     <string name="developer_feedback_count">%1$s feedback entries</string>
+    <string name="developer_unattended_audit_count">%1$s unattended bypasses</string>
+    <string name="developer_text_0115" formatted="false">Nobody watching · approval bypass</string>
+    <string name="developer_text_0116" formatted="false">Schedule / handoff / workflow forwards, failures, and grant bypasses (up to 50)</string>
+    <string name="developer_text_0117" formatted="false">No unattended bypass records yet</string>
+    <string name="developer_text_0118" formatted="false">Schedule</string>
+    <string name="developer_text_0119" formatted="false">Handoff</string>
+    <string name="developer_text_0120" formatted="false">Workflow</string>
+    <string name="developer_text_0121" formatted="false">Session grant</string>
+    <string name="developer_text_0122" formatted="false">Grant exempted</string>
+    <string name="developer_text_0123" formatted="false">Lane deferred</string>
+    <string name="developer_text_0124" formatted="false">Policy denied</string>
+    <string name="developer_text_0125" formatted="false">Decision forwarded</string>
+    <string name="developer_text_0126" formatted="false">Action failed</string>
 </resources>

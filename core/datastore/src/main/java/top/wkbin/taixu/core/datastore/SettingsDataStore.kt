@@ -43,38 +43,7 @@ class SettingsDataStore(
     private val workshopFlutterScriptKey = stringPreferencesKey("workshop_flutter_script")
     // 工坊 Android 签名（keystore）注册表；整表 JSON 密文存储，口令不落明文。
     private val workshopKeystoresKey = stringPreferencesKey("workshop_keystores_ciphertext")
-    // ===== 内置浏览器偏好：数据源（datastore key 集中放在 BrowserPreferencesKeys） =====
-    private val browserDefaultFamilyKey = BrowserPreferencesKeys.DefaultFamily
-    private val browserHomeUrlKey = BrowserPreferencesKeys.HomeUrl
-    private val browserCoBrowsingEnabledKey = BrowserPreferencesKeys.CoBrowsingEnabled
-    private val browserAllowRemoteConnectKey = BrowserPreferencesKeys.AllowRemoteConnect
-    private val browserAllowEvalJsKey = BrowserPreferencesKeys.AllowEvalJs
-    private val browserAllowHooksKey = BrowserPreferencesKeys.AllowHooks
-    private val browserAllowCdpKey = BrowserPreferencesKeys.AllowCdp
-    private val browserAllowVConsoleKey = BrowserPreferencesKeys.AllowVConsole
-    private val browserDesktopUserAgentKey = BrowserPreferencesKeys.DesktopUserAgent
-    private val browserMaxCaptureBytesKey = BrowserPreferencesKeys.MaxCaptureBytes
-
-    val browserDefaultFamily: Flow<String> = context.settingsDataStore.data.map { it[browserDefaultFamilyKey].orEmpty() }
-    suspend fun setBrowserDefaultFamily(value: String) { context.settingsDataStore.edit { it[browserDefaultFamilyKey] = value } }
-    val browserHomeUrl: Flow<String> = context.settingsDataStore.data.map { it[browserHomeUrlKey].orEmpty() }
-    suspend fun setBrowserHomeUrl(value: String) { context.settingsDataStore.edit { it[browserHomeUrlKey] = value } }
-    val browserCoBrowsingEnabled: Flow<Boolean> = context.settingsDataStore.data.map { it[browserCoBrowsingEnabledKey] ?: true }
-    suspend fun setBrowserCoBrowsingEnabled(value: Boolean) { context.settingsDataStore.edit { it[browserCoBrowsingEnabledKey] = value } }
-    val browserAllowRemoteConnect: Flow<Boolean> = context.settingsDataStore.data.map { it[browserAllowRemoteConnectKey] ?: false }
-    suspend fun setBrowserAllowRemoteConnect(value: Boolean) { context.settingsDataStore.edit { it[browserAllowRemoteConnectKey] = value } }
-    val browserAllowEvalJs: Flow<Boolean> = context.settingsDataStore.data.map { it[browserAllowEvalJsKey] ?: false }
-    suspend fun setBrowserAllowEvalJs(value: Boolean) { context.settingsDataStore.edit { it[browserAllowEvalJsKey] = value } }
-    val browserAllowHooks: Flow<Boolean> = context.settingsDataStore.data.map { it[browserAllowHooksKey] ?: false }
-    suspend fun setBrowserAllowHooks(value: Boolean) { context.settingsDataStore.edit { it[browserAllowHooksKey] = value } }
-    val browserAllowCdp: Flow<Boolean> = context.settingsDataStore.data.map { it[browserAllowCdpKey] ?: false }
-    suspend fun setBrowserAllowCdp(value: Boolean) { context.settingsDataStore.edit { it[browserAllowCdpKey] = value } }
-    val browserAllowVConsole: Flow<Boolean> = context.settingsDataStore.data.map { it[browserAllowVConsoleKey] ?: false }
-    suspend fun setBrowserAllowVConsole(value: Boolean) { context.settingsDataStore.edit { it[browserAllowVConsoleKey] = value } }
-    val browserDesktopUserAgent: Flow<Boolean> = context.settingsDataStore.data.map { it[browserDesktopUserAgentKey] ?: false }
-    suspend fun setBrowserDesktopUserAgent(value: Boolean) { context.settingsDataStore.edit { it[browserDesktopUserAgentKey] = value } }
-    val browserMaxCaptureBytes: Flow<Int> = context.settingsDataStore.data.map { it[browserMaxCaptureBytesKey] ?: (6 * 1024 * 1024) }
-    suspend fun setBrowserMaxCaptureBytes(value: Int) { context.settingsDataStore.edit { it[browserMaxCaptureBytesKey] = value } }
+    internal val browserSettings = BrowserSettingsStore(context.settingsDataStore)
 
     // ===== MCP 被控端（外部 AI 客户端控制本 App）偏好：数据源 =====
     private val agentServerEnabledKey = AgentServerPreferencesKeys.Enabled
