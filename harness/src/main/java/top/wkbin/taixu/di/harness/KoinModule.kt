@@ -21,8 +21,6 @@ import top.wkbin.taixu.harness.approval.ApprovalAuditRecorder
 import top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistry
 import top.wkbin.taixu.harness.approval.ApprovalResumePolicy
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
-import top.wkbin.taixu.harness.browser.BrowserControlAuditBridge
-import top.wkbin.taixu.harness.browser.BrowserMcpBootstrap
 import top.wkbin.taixu.harness.checkpoint.ConversationRewinder
 import top.wkbin.taixu.harness.checkpoint.RewindController
 import top.wkbin.taixu.harness.checkpoint.SessionForkConversationRewinder
@@ -226,17 +224,7 @@ val harnessModule = module {
 
     single<SessionApprovalGrants> { SessionApprovalGrants() }
 
-    single<BrowserControlAuditBridge> { BrowserControlAuditBridge(auditor = get()) }
-
-    single<BrowserMcpBootstrap> {
-        BrowserMcpBootstrap(
-            context = get(),
-            runtime = lazy { get<McpServerRuntime>() },
-            registry = get(),
-            browserPrefs = get(),
-            controlAuditBridge = get(),
-        )
-    }
+    includes(browserHarnessModule)
 
     single<RewindController> { RewindController(
             store = get(),

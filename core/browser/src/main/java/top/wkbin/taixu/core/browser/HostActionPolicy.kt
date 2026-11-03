@@ -85,6 +85,12 @@ object HostActionPolicy {
         document = ActionPolicyDocument.DEFAULT
     }
 
+    /** 现行规则是否引用 page.host。空 host 不能靠「条件不成立」绕过这类 allowlist。 */
+    fun constrainsPageHost(): Boolean {
+        val policy = document
+        return (policy.deny.asSequence() + policy.allow.asSequence()).any { it.contains("page.host") }
+    }
+
     fun evaluate(ctx: ActionContext): PolicyDecision {
         hardDenyReason(ctx.pageHost, ctx.pageUrl)?.let { return PolicyDecision.Deny(it) }
 

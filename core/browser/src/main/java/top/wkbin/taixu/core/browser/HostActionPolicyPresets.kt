@@ -35,7 +35,7 @@ object HostActionPolicyPresets {
     val ALLOWLIST_EXAMPLE = HostActionPolicyPreset(
         id = "allowlist_example",
         title = "仅允许 example.com",
-        description = "无 URL 的观测工具仍放行；带 host 的动作限 example.com",
+        description = "未带 url 的工具按当前标签页 host 评估；无法确定 host 时拒绝",
         document = ActionPolicyDocument(
             deny = listOf(
                 "page.host != '' && page.host != 'example.com' && !contains(page.host, 'example.com')",

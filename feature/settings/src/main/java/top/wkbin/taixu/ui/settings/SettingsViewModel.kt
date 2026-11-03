@@ -555,39 +555,10 @@ class SettingsViewModel(
         viewModelScope.launch { browserPrefs.setAllowVConsole(enabled) }
     }
 
-    /**
-     * 主机动作策略 JSON（CEL-lite）。DataStore 空串时对外展示出厂默认 pretty JSON，
-     * 保存成功会即时 [top.wkbin.taixu.core.browser.HostActionPolicy.install]（无需重启）。
-     */
-    val hostActionPolicyJson: StateFlow<String> = browserPrefs.actionPolicyJson()
-        .map { stored ->
-            stored.trim().ifEmpty {
-                top.wkbin.taixu.core.browser.HostActionPolicy.encodePretty(
-                    top.wkbin.taixu.core.browser.ActionPolicyDocument.DEFAULT,
-                )
-            }
-        }
-        .stateIn(
-            viewModelScope,
-            SharingStarted.Eagerly,
-            top.wkbin.taixu.core.browser.HostActionPolicy.encodePretty(
-                top.wkbin.taixu.core.browser.ActionPolicyDocument.DEFAULT,
-            ),
-        )
-
-    suspend fun saveHostActionPolicy(raw: String): Result<Unit> {
-        val parsed = top.wkbin.taixu.core.browser.HostActionPolicy.validateAndParse(raw)
-        val doc = parsed.getOrElse { return Result.failure(it) }
-        top.wkbin.taixu.core.browser.HostActionPolicy.install(doc)
-        val pretty = top.wkbin.taixu.core.browser.HostActionPolicy.encodePretty(doc)
-        browserPrefs.setActionPolicyJson(pretty)
-        return Result.success(Unit)
-    }
-
-    fun resetHostActionPolicy() {
-        top.wkbin.taixu.core.browser.HostActionPolicy.resetToDefault()
-        viewModelScope.launch { browserPrefs.setActionPolicyJson("") }
-    }
+    private val hostActionPolicy = HostActionPolicySettings(browserPrefs, viewModelScope)
+    val hostActionPolicyJson get() = hostActionPolicy.json
+    suspend fun saveHostActionPolicy(raw: String) = hostActionPolicy.save(raw)
+    fun resetHostActionPolicy() = hostActionPolicy.reset()
 
     /** MCP 被控端（服务端）配置快照：开关 / 端口 / 局域网 / 写入层 / 持久化令牌。 */
     val agentServerState: StateFlow<AgentServerState> = combine(
@@ -1843,15 +1814,6 @@ private fun localLoopbackMcpCandidates(): List<DetectedLocalMcpServer> {
         }
     }
 }
-
-/** 浏览器 MCP 安全门禁状态（默认全部关闭，最小权限）。 */
-data class BrowserGateState(
-    val allowRemoteConnect: Boolean = false,
-    val allowEvalJs: Boolean = false,
-    val allowHooks: Boolean = false,
-    val allowCdp: Boolean = false,
-    val allowVConsole: Boolean = false,
-)
 
 /** MCP 被控端配置快照（运行状态另由 AgentMcpAccess 提供）。 */
 data class AgentServerState(

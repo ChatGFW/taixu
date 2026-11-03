@@ -2,6 +2,7 @@ package top.wkbin.taixu.core.browser
 
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -96,6 +97,16 @@ class HostActionPolicyTest {
         )
         assertTrue(d is PolicyDecision.Deny)
         assertTrue((d as PolicyDecision.Deny).reason.contains("元数据"))
+    }
+
+    @Test
+    fun `constrainsPageHost tracks rules that mention the host`() {
+        HostActionPolicy.resetToDefault()
+        assertFalse(HostActionPolicy.constrainsPageHost())
+        HostActionPolicy.install(HostActionPolicyPresets.BLOCK_UNATTENDED_NAV.document)
+        assertFalse(HostActionPolicy.constrainsPageHost())
+        HostActionPolicy.install(HostActionPolicyPresets.ALLOWLIST_EXAMPLE.document)
+        assertTrue(HostActionPolicy.constrainsPageHost())
     }
 
     @Test

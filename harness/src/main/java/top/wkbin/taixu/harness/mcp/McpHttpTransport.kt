@@ -31,12 +31,10 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import okio.utf8Size
-import top.wkbin.taixu.core.browser.ActionPolicyInitiator
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.model.McpAuthMode
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpToolInfo
-import top.wkbin.taixu.harness.approval.currentRunInitiator
 import top.wkbin.taixu.harness.mcp.oauth.McpOAuthTokenProvider
 import top.wkbin.taixu.harness.mcp.server.BuiltinBrowserMcpAccess
 import kotlin.coroutines.resume
@@ -320,30 +318,23 @@ class McpHttpTransport(
 
     // ---------- 请求执行 ----------
 
-    private suspend fun exchange(session: HttpSession, method: String, params: JsonElement): JsonRpcResponse {
-        // tools/call 按次附带发起因：会话缓存头不含此字段，避免无人值守/有人交互串味。
-        val headers = if (method == "tools/call") {
-            session.headers + (ActionPolicyInitiator.HEADER to currentRunInitiator().kind)
-        } else {
-            session.headers
-        }
-        return when (session.mode) {
+    private suspend fun exchange(session: HttpSession, method: String, params: JsonElement): JsonRpcResponse =
+        when (session.mode) {
             TransportMode.STREAMABLE_HTTP -> postStreamable(
                 endpoint = session.endpoint,
                 sessionId = session.sessionId,
                 method = method,
                 params = params,
                 longRunning = method == "tools/call",
-                headers = headers,
+                headers = mcpCallHeaders(session.headers, method),
             ).response
             TransportMode.LEGACY_SSE -> postViaLegacy(
                 channel = session.legacy ?: error("Legacy SSE 会话已关闭"),
                 method = method,
                 params = params,
-                headers = headers,
+                headers = mcpCallHeaders(session.headers, method),
             )
         }
-    }
 
     private suspend fun postStreamable(
         endpoint: HttpUrl,
