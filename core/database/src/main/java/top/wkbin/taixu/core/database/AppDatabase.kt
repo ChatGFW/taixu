@@ -71,7 +71,7 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         BtwQueryEntity::class,
         AgentMessageFeedbackEntity::class,
     ],
-    version = 85,
+    version = 86,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

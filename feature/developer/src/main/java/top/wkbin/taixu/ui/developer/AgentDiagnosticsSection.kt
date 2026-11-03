@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import org.koin.compose.viewmodel.koinViewModel
+import top.wkbin.taixu.core.database.AgentApprovalAuditEntity
+import top.wkbin.taixu.core.database.AgentApprovalAuditRepository
 import top.wkbin.taixu.core.database.AgentMessageFeedbackEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.database.MessageFeedbackService
@@ -96,7 +98,121 @@ internal fun AgentDiagnosticsSection(
     }
 
     Spacer(Modifier.height(10.dp))
+    UnattendedApprovalDiagnosticsCard(diagnostics)
+    Spacer(Modifier.height(10.dp))
+    BrowserControlDiagnosticsCard(diagnostics)
+    Spacer(Modifier.height(10.dp))
     MessageFeedbackDiagnosticsCard(diagnostics)
+}
+
+@Composable
+private fun UnattendedApprovalDiagnosticsCard(diagnostics: SessionDiagnosticsViewModel?) {
+    val groups by diagnostics?.unattendedGroups?.collectAsStateWithLifecycle()
+        ?: previewStateOf<List<UnattendedAuditSessionGroup>>(emptyList())
+    val formatter = remember { SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()) }
+    RuntimeCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconTile(RuntimeIconName.Shield)
+            Column(Modifier.weight(1f)) {
+                Text("无人盯着 · 审批旁路", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "排期 / 委派 / 工作流下的放行决策、失败与免审旁路（最多 50 条）",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            StatusBadge("${groups.sumOf { it.entries.size }} 条旁路")
+        }
+        if (groups.isEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Text("暂无无人值守旁路记录", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            return@RuntimeCard
+        }
+        groups.forEach { group ->
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(10.dp))
+            Text(
+                group.sessionTitle,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            group.entries.forEach { entry ->
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatusBadge(unattendedInitiatorLabel(entry.initiatorKind), MaterialTheme.colorScheme.tertiary)
+                    StatusBadge(unattendedAuditKindLabel(entry.kind))
+                    Text(
+                        formatter.format(Date(entry.createdAt)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    buildString {
+                        append(entry.toolName)
+                        entry.initiatorId?.takeIf { it.isNotBlank() }?.let { append(" · ").append(it) }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BrowserControlDiagnosticsCard(diagnostics: SessionDiagnosticsViewModel?) {
+    val entries by diagnostics?.controlEntries?.collectAsStateWithLifecycle()
+        ?: previewStateOf<List<AgentApprovalAuditEntity>>(emptyList())
+    val formatter = remember { SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()) }
+    RuntimeCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconTile(RuntimeIconName.Globe)
+            Column(Modifier.weight(1f)) {
+                Text("浏览器接管交接", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "共浏览关闭/恢复与人接管期间 Bot 求助（control_* · help_requested，最多 50 条）",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            StatusBadge("${entries.size} 条交接")
+        }
+        if (entries.isEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Text("暂无接管记录", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            return@RuntimeCard
+        }
+        entries.forEach { entry ->
+            Spacer(Modifier.height(10.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatusBadge(unattendedAuditKindLabel(entry.kind))
+                Text(
+                    formatter.format(Date(entry.createdAt)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                buildString {
+                    append(entry.toolName)
+                    entry.detail?.takeIf { it.isNotBlank() }?.let { append(" · ").append(it) }
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
 }
 
 @Composable
@@ -162,6 +278,13 @@ internal data class FeedbackSessionGroup(
     val entries: List<AgentMessageFeedbackEntity>,
 )
 
+/** 一个会话下的无人盯着审批旁路条目（倒序来自查询）。 */
+internal data class UnattendedAuditSessionGroup(
+    val sessionId: String,
+    val sessionTitle: String,
+    val entries: List<AgentApprovalAuditEntity>,
+)
+
 /**
  * 按会话聚合最近反馈：分组顺序取反馈首次出现顺序（即最近反馈所属会话在前）；
  * 会话已不存在时退回占位标题，不隐藏记录。
@@ -177,10 +300,47 @@ internal fun groupFeedbackBySession(
     )
 }
 
-/** 开发者诊断数据源：最近反馈 × 会话标题。 */
+/** 同 [groupFeedbackBySession]：保查询倒序下的会话首次出现顺序。 */
+internal fun groupUnattendedAuditsBySession(
+    entries: List<AgentApprovalAuditEntity>,
+    sessionTitles: Map<String, String>,
+): List<UnattendedAuditSessionGroup> {
+    val order = entries.map { it.sessionId }.distinct()
+    val bySession = entries.groupBy { it.sessionId }
+    return order.map { sessionId ->
+        UnattendedAuditSessionGroup(
+            sessionId = sessionId,
+            sessionTitle = sessionTitles[sessionId]?.takeIf { it.isNotBlank() } ?: "未知会话",
+            entries = bySession.getValue(sessionId),
+        )
+    }
+}
+
+internal fun unattendedInitiatorLabel(kind: String): String = when (kind) {
+    "schedule" -> "排期"
+    "handoff" -> "委派"
+    "workflow" -> "工作流"
+    else -> kind
+}
+
+internal fun unattendedAuditKindLabel(kind: String): String = when (kind) {
+    AgentApprovalAuditEntity.KIND_GRANT_WRITTEN -> "会话授权"
+    AgentApprovalAuditEntity.KIND_GRANT_EXEMPTED -> "授权豁免"
+    AgentApprovalAuditEntity.KIND_DEFERRED -> "Lane 交接"
+    AgentApprovalAuditEntity.KIND_POLICY_DENIED -> "策略否决"
+    AgentApprovalAuditEntity.KIND_DECISION_FORWARDED -> "放行决策"
+    AgentApprovalAuditEntity.KIND_ACTION_FAILED -> "执行失败"
+    AgentApprovalAuditEntity.KIND_CONTROL_TAKEN -> "人接管"
+    AgentApprovalAuditEntity.KIND_CONTROL_RELEASED -> "人交还"
+    AgentApprovalAuditEntity.KIND_HELP_REQUESTED -> "Bot 求助"
+    else -> kind
+}
+
+/** 开发者诊断数据源：最近反馈 / 无人盯着审批旁路 × 会话标题。 */
 internal class SessionDiagnosticsViewModel(
     feedback: MessageFeedbackService,
     sessions: HarnessSessionRepository,
+    approvalAudits: AgentApprovalAuditRepository,
 ) : ViewModel() {
 
     val groups: StateFlow<List<FeedbackSessionGroup>> = combine(
@@ -189,6 +349,17 @@ internal class SessionDiagnosticsViewModel(
     ) { entries, allSessions ->
         groupFeedbackBySession(entries, allSessions.associate { it.id to it.title })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val unattendedGroups: StateFlow<List<UnattendedAuditSessionGroup>> = combine(
+        approvalAudits.observeUnattendedRecent(),
+        sessions.observeAll(),
+    ) { entries, allSessions ->
+        groupUnattendedAuditsBySession(entries, allSessions.associate { it.id to it.title })
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val controlEntries: StateFlow<List<AgentApprovalAuditEntity>> =
+        approvalAudits.observeControlRecent()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 }
 
 private fun Long.toReadableSize(): String {

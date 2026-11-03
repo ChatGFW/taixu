@@ -27,6 +27,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import top.wkbin.taixu.core.browser.ActionPolicyInitiator
 import top.wkbin.taixu.harness.mcp.MCP_PROTOCOL_VERSION
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -110,7 +111,10 @@ class McpServerRuntime(
                             return@post
                         }
                         val body = call.receiveText()
-                        val payload = handleJsonRpc(body)
+                        val initiatorKind = ActionPolicyInitiator.normalize(
+                            call.request.header(ActionPolicyInitiator.HEADER),
+                        )
+                        val payload = handleJsonRpc(body, initiatorKind = initiatorKind)
                         if (payload == null) {
                             // JSON-RPC notification（无 id）：不返回响应体，仅回 202 Accepted
                             call.respondText("", ContentType.Application.Json, HttpStatusCode.Accepted)
@@ -175,7 +179,10 @@ class McpServerRuntime(
      *
      * @return 序列化的响应体；null 表示这是一条 notification（无 id），调用方不得返回响应体。
      */
-    private suspend fun handleJsonRpc(body: String): String? {
+    private suspend fun handleJsonRpc(
+        body: String,
+        initiatorKind: String = ActionPolicyInitiator.PERSON,
+    ): String? {
         val req = runCatching { Json.parseToJsonElement(body) }.getOrNull() as? JsonObject
             ?: return jsonrpcError(null, -32700, "bad-json")
         val method = (req["method"] as? JsonPrimitive)?.content ?: ""
@@ -204,7 +211,7 @@ class McpServerRuntime(
                 val name = (params?.get("name") as? JsonPrimitive)?.content.orEmpty()
                 val args = (params?.get("arguments") as? JsonObject) ?: JsonObject(emptyMap())
                 try {
-                    jsonrpcOk(id, toolDispatcher.dispatch(name, args))
+                    jsonrpcOk(id, toolDispatcher.dispatch(name, args, initiatorKind = initiatorKind))
                 } catch (c: CancellationException) {
                     throw c
                 } catch (t: Throwable) {

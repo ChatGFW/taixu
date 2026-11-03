@@ -12,7 +12,7 @@ import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotScheduleDelivery
 
 fun interface BotScheduledSubmission {
-    suspend fun submit(bot: Bot, instruction: String, groupId: String?): Boolean
+    suspend fun submit(bot: Bot, instruction: String, groupId: String?, scheduleId: String): Boolean
 }
 
 /** Schedules stage durable occurrences before attempting durable Harness admission. */
@@ -58,7 +58,8 @@ class BotScheduleRunner(
             if (!scheduleRepository.claimDelivery(delivery.id)) return@forEach
             try {
                 val bot = botRepository.getBot(delivery.botId)
-                val accepted = bot != null && submit.submit(bot, delivery.instruction, delivery.groupId)
+                val accepted = bot != null &&
+                    submit.submit(bot, delivery.instruction, delivery.groupId, delivery.scheduleId)
                 scheduleRepository.finishDelivery(
                     delivery.id,
                     if (accepted) BotScheduleDelivery.ADMITTED else BotScheduleDelivery.REJECTED,

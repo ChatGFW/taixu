@@ -171,6 +171,25 @@ class WorkflowSchedulerTest {
         assertEquals(2, calls.get())
     }
 
+    @Test
+    fun nodeExecutionSeesWorkflowRunInitiator() = runBlocking {
+        var seenKind: String? = null
+        var seenId: String? = null
+        val executor = fakeExecutor { _, context ->
+            val initiator = top.wkbin.taixu.harness.approval.currentRunInitiator()
+            seenKind = initiator.kind
+            seenId = initiator.id
+            assertEquals(context.executionId, initiator.id)
+            NodeExecutionOutput(NodeRunStatus.SUCCESS)
+        }
+        val result = WorkflowScheduler(setOf(executor), WorkflowApprovalBroker())
+            .execute(definition(listOf(node("a"))), emptyMap(), "/workspace/test", this)
+            .state.first { it.status in TERMINAL }
+        assertEquals(WorkflowRunStatus.SUCCESS, result.status)
+        assertEquals(top.wkbin.taixu.harness.approval.RunInitiator.WORKFLOW, seenKind)
+        assertEquals(result.executionId, seenId)
+    }
+
     private fun fakeExecutor(block: suspend (WorkflowNode, WorkflowRuntimeContext) -> NodeExecutionOutput) = object : NodeExecutor {
         override val supportedTypes = setOf(WorkflowNodeType.BASH_COMMAND)
         override suspend fun execute(

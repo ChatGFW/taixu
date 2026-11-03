@@ -13,7 +13,10 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.harness.approval.RunInitiator
+import top.wkbin.taixu.harness.approval.RunInitiatorContext
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.SessionRunState
@@ -237,19 +240,22 @@ class GroupChatDispatcher(
         }
         val result = CompletableDeferred<GroupTurnOutcome>()
         val job = replies.launch(group.id, independentSessionId?.let { "assignment:$taskId" } ?: "${target.id}:${group.id}") {
+            // 委派执行：用户未必盯着成员回合（OpenBot handoff / Nobody watching）。
             result.complete(
-                responder.respond(
-                    group = group,
-                    bot = target,
-                    trigger = trigger,
-                    history = formatGroupHistory(group, history),
-                    members = members,
-                    imageUrls = emptyList(),
-                    admission = null,
-                    delegatedTaskId = taskId,
-                    sessionOverride = independentSessionId,
-                    onAdmitted = onAdmitted,
-                ),
+                withContext(RunInitiatorContext(RunInitiator.handoff(taskId))) {
+                    responder.respond(
+                        group = group,
+                        bot = target,
+                        trigger = trigger,
+                        history = formatGroupHistory(group, history),
+                        members = members,
+                        imageUrls = emptyList(),
+                        admission = null,
+                        delegatedTaskId = taskId,
+                        sessionOverride = independentSessionId,
+                        onAdmitted = onAdmitted,
+                    )
+                },
             )
         }
         if (job == null) {

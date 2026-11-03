@@ -33,6 +33,8 @@ import top.wkbin.taixu.harness.metrics.RunMetrics
 import top.wkbin.taixu.harness.task.AgentStateMachine
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.harness.approval.ApprovalResumePolicy
+import top.wkbin.taixu.harness.approval.RunInitiator
+import top.wkbin.taixu.harness.approval.RunInitiatorContext
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
 import top.wkbin.taixu.harness.checkpoint.RewindController
 import top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistry
@@ -443,15 +445,18 @@ class HarnessLoop(
             if (!agentTaskStateMachine.markRecovering(task.id, "应用进程重启，正在从持久化检查点恢复")) continue
             turnCoordinator.withSessionMutex(sessionId) {
                 if (isSessionBusy(sessionId) || tombstonedSessions.contains(sessionId)) return@withSessionMutex
+                val initiator = RunInitiator(task.initiatorKind, task.initiatorId).normalized()
                 launchSessionJobLocked(
                     sessId = sessionId,
                     taskId = task.id,
                     operationId = activeOperation?.id,
                 ) {
-                    if (activeOperation == null) {
-                        runLoop(sessionId, task.description, taskId = task.id)
-                    } else {
-                        runLoopInternal(sessionId, now(), activeOperation.id, task.id)
+                    withContext(RunInitiatorContext(initiator)) {
+                        if (activeOperation == null) {
+                            runLoop(sessionId, task.description, taskId = task.id)
+                        } else {
+                            runLoopInternal(sessionId, now(), activeOperation.id, task.id)
+                        }
                     }
                 }
                 recovered++
@@ -566,8 +571,11 @@ class HarnessLoop(
                 promptQueueManager.enqueue(sessionId, queue, input)
             override suspend fun start(sessionId: String, input: PendingMessage): Boolean = withContext(NonCancellable) {
                 val operationId = acceptUserInput(sessionId, input.text, input.imageUrls, input.taskId, claimTask = true)
+                val initiator = RunInitiator(input.initiatorKind, input.initiatorId).normalized()
                 launchSessionJobLocked(sessionId, input.taskId, operationId, taskAlreadyRunning = true) {
-                    runLoopInternal(sessionId, now(), operationId, input.taskId)
+                    withContext(RunInitiatorContext(initiator)) {
+                        runLoopInternal(sessionId, now(), operationId, input.taskId)
+                    }
                 }
             }
             override suspend fun startNext(sessionId: String) { startNextQueuedLocked(sessionId) }
@@ -863,8 +871,11 @@ class HarnessLoop(
         val userMessage = UserMessage(newId(), now(), next.text, next.imageUrls)
         val operationId = operationCoordinator.acceptQueuedRun(sessId, queueItemId, userMessage, taskId)
         messageProjector.publishPersisted(sessId, userMessage)
+        val initiator = RunInitiator(next.initiatorKind, next.initiatorId).normalized()
         return launchSessionJobLocked(sessId, taskId, operationId = operationId, taskAlreadyRunning = true) {
-            runLoopInternal(sessId, now(), operationId, taskId)
+            withContext(RunInitiatorContext(initiator)) {
+                runLoopInternal(sessId, now(), operationId, taskId)
+            }
         }
     }
 
@@ -961,12 +972,17 @@ class HarnessLoop(
         loopScope.launch {
             turnCoordinator.withSessionMutex(sessId) {
                 if (tombstonedSessions.contains(sessId)) return@withSessionMutex
+                val initiator = taskId?.let { agentTaskStateMachine.find(it) }
+                    ?.let { RunInitiator(it.initiatorKind, it.initiatorId).normalized() }
+                    ?: RunInitiator.person()
                 launchSessionJobLocked(
                     sessId = sessId,
                     taskId = taskId,
                     incrementTaskAttempt = false,
                     priority = TurnPriority.HIGH,
-                    block = block,
+                    block = {
+                        withContext(RunInitiatorContext(initiator)) { block() }
+                    },
                 )
             }
         }

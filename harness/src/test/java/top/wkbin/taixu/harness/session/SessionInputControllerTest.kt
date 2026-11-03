@@ -60,6 +60,22 @@ class SessionInputControllerTest {
         assertNull(runtime.recorded.last().groupId)
     }
 
+    @Test fun `run initiator is captured at admission and defaults to person without context`() = runBlocking {
+        val runtime = Runtime()
+        withContext(
+            top.wkbin.taixu.harness.approval.RunInitiatorContext(
+                top.wkbin.taixu.harness.approval.RunInitiator.schedule("sched-9"),
+            ),
+        ) {
+            controller(runtime).submit("s", "cron work", emptyList(), PromptQueue.NEXT_RUN)
+        }
+        assertEquals("schedule", runtime.recorded.single().initiatorKind)
+        assertEquals("sched-9", runtime.recorded.single().initiatorId)
+        controller(runtime).submit("s", "user typed", emptyList(), PromptQueue.NEXT_RUN)
+        assertEquals("person", runtime.recorded.last().initiatorKind)
+        assertNull(runtime.recorded.last().initiatorId)
+    }
+
     @Test fun emptyInputAndBlankSessionProduceNoSideEffects() = runBlocking {
         val runtime = Runtime(); val controller = controller(runtime)
         assertEquals(Rejected(Rejection.EMPTY_INPUT), controller.submit("s", "  ", emptyList(), PromptQueue.NEXT_RUN))

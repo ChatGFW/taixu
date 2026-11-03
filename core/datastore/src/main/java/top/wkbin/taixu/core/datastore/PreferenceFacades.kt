@@ -291,6 +291,7 @@ class BrowserPreferences(private val store: SettingsDataStore) {
     fun allowVConsole() = store.browserAllowVConsole
     fun desktopUserAgent() = store.browserDesktopUserAgent
     fun maxCaptureBytes() = store.browserMaxCaptureBytes
+    fun actionPolicyJson() = store.browserActionPolicyJson
     suspend fun setDefaultFamily(value: String) = store.setBrowserDefaultFamily(value)
     suspend fun setHomeUrl(value: String) = store.setBrowserHomeUrl(value)
     suspend fun setCoBrowsingEnabled(value: Boolean) = store.setBrowserCoBrowsingEnabled(value)
@@ -301,6 +302,7 @@ class BrowserPreferences(private val store: SettingsDataStore) {
     suspend fun setAllowVConsole(value: Boolean) = store.setBrowserAllowVConsole(value)
     suspend fun setDesktopUserAgent(value: Boolean) = store.setBrowserDesktopUserAgent(value)
     suspend fun setMaxCaptureBytes(value: Int) = store.setBrowserMaxCaptureBytes(value)
+    suspend fun setActionPolicyJson(value: String) = store.setBrowserActionPolicyJson(value)
 }
 
 /** MCP 被控端（外部 AI 客户端通过 MCP 控制本 App）的偏好键。 */

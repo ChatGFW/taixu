@@ -15,6 +15,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.browser.BrowserDescriptor
 import top.wkbin.taixu.core.browser.BrowserFamily
+import top.wkbin.taixu.core.browser.BrowserHelpRequests
 import top.wkbin.taixu.core.browser.PageSnapshot
 import top.wkbin.taixu.core.browser.TaiXuNewTab
 import top.wkbin.taixu.core.datastore.BrowserPreferences
@@ -45,6 +46,10 @@ class BrowserViewModel(
     private val _activityTick = MutableStateFlow(0L)
     // 面板可见性：只有浏览器面板真正被展示时才确保/补建活跃 tab，避免 app 启动即常驻 WebView
     private val _paneVisible = MutableStateFlow(false)
+
+    private val helpListener = BrowserHelpRequests.Listener { toolName, _ ->
+        _toolMessage.value = "Bot 需要你接手：$toolName 已拒绝（共浏览已暂停）"
+    }
 
     private val coreState = combine(
         eventBus.snapshot,
@@ -149,6 +154,7 @@ class BrowserViewModel(
     }
 
     init {
+        BrowserHelpRequests.addListener(helpListener)
         viewModelScope.launch {
             eventBus.url.collect { loadedUrl ->
                 when {
@@ -161,7 +167,10 @@ class BrowserViewModel(
         // 共浏览开关：从 DataStore 读取并保持同步（设置页等其他入口的修改也会生效）
         viewModelScope.launch {
             runCatching {
-                browserPreferences.coBrowsingEnabled().collect { _coBrowsingEnabled.value = it }
+                browserPreferences.coBrowsingEnabled().collect { enabled ->
+                    _coBrowsingEnabled.value = enabled
+                    top.wkbin.taixu.core.browser.BrowserHumanControl.setCoBrowsingEnabled(enabled)
+                }
             }
         }
         // 浏览器活动信号：活跃 tab URL 变化 / tab 切换时递增（聊天页据此显示"浏览器有新动态"）
@@ -265,6 +274,8 @@ class BrowserViewModel(
     fun onCoBrowsingToggle(enabled: Boolean) {
         if (_coBrowsingEnabled.value == enabled) return
         _coBrowsingEnabled.value = enabled
+        // 进程内闸门立即生效，不等待 DataStore；Bot 页面动作随即拒绝/恢复。
+        top.wkbin.taixu.core.browser.BrowserHumanControl.setCoBrowsingEnabled(enabled)
         viewModelScope.launch { runCatching { browserPreferences.setCoBrowsingEnabled(enabled) } }
     }
 
@@ -297,6 +308,11 @@ class BrowserViewModel(
     }
     fun dismissSnapshot() { _snapshotSheet.value = null }
     fun dismissToolMessage() { _toolMessage.value = null }
+
+    override fun onCleared() {
+        BrowserHelpRequests.removeListener(helpListener)
+        super.onCleared()
+    }
 
     fun activeWebView(): WebView? =
         (runCatching { registry.getDefault() }.getOrNull() as? InAppBrowserViewProvider)?.activeWebView()

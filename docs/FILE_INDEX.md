@@ -91,7 +91,7 @@ P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.
 
 | 模块 | 关键文件 | 职责 |
 | --- | --- | --- |
-| `core/browser/...` | `BrowserFamily / Risk / Capability / SelectionPolicy / Preferences / FileOps` | Pure Kotlin 模型 + 策略 |
+| `core/browser/...` | `BrowserFamily / Risk / Capability / SelectionPolicy / Preferences / HostActionPolicy / CelLite / HostActionPolicyPresets / BrowserHelpRequests` | Pure Kotlin 模型 + 策略（CEL-lite 预设；求助信号；DataStore + MCP 设置页） |
 | `runtime/browser/BrowserRegistry.kt` | 浏览器注册中心 interface | 多家族管理 |
 | `runtime/browser/BrowserRegistryImpl.kt` | 单一 in-app WebView 实现 | 注册 / 启动 / 选 family |
 | `runtime/browser/BrowserEngine.kt` | 引擎操作 interface（24 个动作）| 抽象所有浏览器动作 |

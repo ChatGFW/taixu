@@ -54,6 +54,7 @@ class SettingsDataStore(
     private val browserAllowVConsoleKey = BrowserPreferencesKeys.AllowVConsole
     private val browserDesktopUserAgentKey = BrowserPreferencesKeys.DesktopUserAgent
     private val browserMaxCaptureBytesKey = BrowserPreferencesKeys.MaxCaptureBytes
+    private val browserActionPolicyJsonKey = BrowserPreferencesKeys.ActionPolicyJson
 
     val browserDefaultFamily: Flow<String> = context.settingsDataStore.data.map { it[browserDefaultFamilyKey].orEmpty() }
     suspend fun setBrowserDefaultFamily(value: String) { context.settingsDataStore.edit { it[browserDefaultFamilyKey] = value } }
@@ -75,6 +76,10 @@ class SettingsDataStore(
     suspend fun setBrowserDesktopUserAgent(value: Boolean) { context.settingsDataStore.edit { it[browserDesktopUserAgentKey] = value } }
     val browserMaxCaptureBytes: Flow<Int> = context.settingsDataStore.data.map { it[browserMaxCaptureBytesKey] ?: (6 * 1024 * 1024) }
     suspend fun setBrowserMaxCaptureBytes(value: Int) { context.settingsDataStore.edit { it[browserMaxCaptureBytesKey] = value } }
+    val browserActionPolicyJson: Flow<String> = context.settingsDataStore.data.map { it[browserActionPolicyJsonKey].orEmpty() }
+    suspend fun setBrowserActionPolicyJson(value: String) {
+        context.settingsDataStore.edit { it[browserActionPolicyJsonKey] = value }
+    }
 
     // ===== MCP 被控端（外部 AI 客户端控制本 App）偏好：数据源 =====
     private val agentServerEnabledKey = AgentServerPreferencesKeys.Enabled
