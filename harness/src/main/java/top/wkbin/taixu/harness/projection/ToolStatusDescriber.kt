@@ -44,7 +44,16 @@ object ToolStatusDescriber {
         HarnessTool.SEARCH_WEB -> "正在联网搜索：${arg(args, "query")?.take(MAX_STATUS_ARG_LENGTH).orEmpty()}"
         HarnessTool.READ -> arg(args, "path")?.let { "读取文件：${it.takeLast(MAX_STATUS_ARG_LENGTH)}" } ?: "读取文件"
         HarnessTool.WRITE -> arg(args, "path")?.let { "写入文件：${it.takeLast(MAX_STATUS_ARG_LENGTH)}" } ?: "写入文件"
-        HarnessTool.EDIT -> arg(args, "path")?.let { "编辑文件：${it.takeLast(MAX_STATUS_ARG_LENGTH)}" } ?: "编辑文件"
+        HarnessTool.EDIT -> {
+            val path = arg(args, "path")?.takeLast(MAX_STATUS_ARG_LENGTH)
+            val hashline = top.wkbin.taixu.harness.text.HashlineEditArgs.opsLabel(args)
+            when {
+                path != null && hashline != null -> "编辑文件：$path · $hashline"
+                path != null -> "编辑文件：$path"
+                hashline != null -> "编辑文件 · $hashline"
+                else -> "编辑文件"
+            }
+        }
         HarnessTool.MEMORY -> "正在存取长期记忆：${arg(args, "key") ?: arg(args, "action") ?: "memory"}"
         HarnessTool.PLAN -> "正在更新任务执行规划：${arg(args, "goal") ?: arg(args, "action") ?: "plan"}"
         HarnessTool.SCRATCHPAD -> "正在记录工作草稿便签：${arg(args, "key") ?: arg(args, "action") ?: "scratchpad"}"

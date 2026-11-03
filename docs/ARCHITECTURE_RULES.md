@@ -92,6 +92,6 @@
 
 ## 8. 无线 ADB 与 PRoot 守护进程约束 (Wireless ADB & PRoot Daemon Strategy)
 
-- **PRoot ADB 进程隔离**：PRoot 沙箱内无持久 init/systemd 守护进程，后台 `adb fork-server` 无法跨独立命令存活，每次调用后都会销毁。命令行 ADB 操作需在单条执行中完成 `connect + 操作`（沙箱 `/opt/taixu/bin/adb` 封装脚本已内置自动 connect），或优先通过 `HostBridge` (`logcat-grabber` / `taixu-host logcat`) 经由宿主常驻 Kadb 连接。
-- **日志抓取免特权**：抓取日志（logcat）通过内置无线 ADB 协议与 HostBridge 桥接，**完全不依赖 Shizuku 或 Root 权限**。AI Agent 在遇到抓取日志/排查崩溃任务时，应直接使用 `host(action="logcat", ...)` 或 `logcat-grabber <包名> [-P 端口]`，严禁要求用户先开启 Shizuku/Root 或做多余权限排查。
+- **PRoot ADB 进程隔离**：PRoot 沙箱内无持久 init/systemd 守护进程，后台 `adb fork-server` 无法跨独立命令存活，每次调用后都会销毁。若 guest 内存在**可执行**的 adb ELF（解释器非悬空），`/opt/taixu/bin/adb` 会在同一条命令内自动 `connect + 操作`；套件自带的 Termux Bionic `adb` 依赖 `/apex` 上的 `linker64`，宿主绑定时会尽量补上 apex runtime，但仍可能因机型权限不可用。此时包装脚本把 `logcat` / `shell` / `install` / `devices` 回退到 `HostBridge`，完整协议能力仍优先走 `logcat-grabber` / `taixu-host` / `host(action="logcat")` 经由宿主常驻 Kadb。
+- **日志抓取免特权**：抓取日志（logcat）通过内置无线 ADB 协议与 HostBridge 桥接，**完全不依赖 Shizuku 或 Root 权限**，但需要用户已开启系统「无线调试」并完成本机配对。AI Agent 在遇到抓取日志/排查崩溃任务时，应直接使用 `host(action="logcat", ...)` 或 `logcat-grabber <包名> [-P 端口]`，严禁要求用户先开启 Shizuku/Root 或做多余权限排查。
 

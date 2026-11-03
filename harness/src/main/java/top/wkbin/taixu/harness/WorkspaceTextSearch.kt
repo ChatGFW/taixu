@@ -13,6 +13,7 @@ import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.BasicFileAttributes
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import top.wkbin.taixu.runtime.environment.HashlineAnchors
 
 /** App-uid literal search; the caller first resolves the requested path with its normal workspace policy. */
 internal class WorkspaceTextSearch(
@@ -85,7 +86,9 @@ internal class WorkspaceTextSearch(
                             val redacted = redactLine(line)
                             val position = redacted.indexOf(query).takeIf { it >= 0 } ?: line.indexOf(query).coerceAtMost(redacted.length)
                             val excerpt = redacted.substring((position - 80).coerceAtLeast(0)).take(400)
-                            matches += "$relative:${index + 1}: $excerpt"
+                            // 哈希按磁盘原行计算（非 excerpt），便于 edit ops 直接引用。
+                            val anchor = HashlineAnchors.anchorOf(index + 1, line)
+                            matches += "$relative:$anchor|$excerpt"
                             if (!active()) return FileVisitResult.TERMINATE
                         }
                     }

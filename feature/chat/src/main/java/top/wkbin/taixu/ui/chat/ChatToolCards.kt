@@ -500,7 +500,7 @@ internal fun parseDiffStat(call: ToolCall, result: ToolResult?): Pair<Int, Int>?
                 val added = newText?.lines()?.size ?: 0
                 val deleted = oldText?.lines()?.size ?: 0
                 if (added > 0 || deleted > 0) added to deleted else null
-            } else null
+            } else top.wkbin.taixu.harness.text.HashlineEditArgs.opCount(call.args).takeIf { it > 0 }?.to(0)
         }
         else -> null
     }

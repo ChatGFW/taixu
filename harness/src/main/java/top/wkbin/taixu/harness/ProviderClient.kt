@@ -74,8 +74,8 @@ internal class ChatApi(
      * 交给 UI；工具调用参数按 index 分片累积。推理增量通过 [onReasoning] 回调。
      *
      * 默认携带 stream_options.include_usage 请求最终 usage 块；个别严格校验的
-     * Provider 会因此 400，此时自动降级为不带该参数重试一次（请求在流开始前
-     * 即失败，不会有增量重复发送的风险）。
+     * Provider 会因此在流开始前 400。仅捕获 [StreamOptionsRejectedException] 并降级重试一次，
+     * 避免把中途 [IllegalStateException]（如预算超限）误当成可重放的协议拒绝。
      */
     @OptIn(InternalCoroutinesApi::class)
     override suspend fun chatStream(
@@ -86,12 +86,8 @@ internal class ChatApi(
         onDelta: (String) -> Unit,
     ): ChatResult = try {
         executeStream(model, messages, onReasoning, onToolProgress, onDelta, includeUsage = true)
-    } catch (rejected: IllegalStateException) {
-        if (rejected.message?.contains("stream_options", ignoreCase = true) == true) {
-            executeStream(model, messages, onReasoning, onToolProgress, onDelta, includeUsage = false)
-        } else {
-            throw rejected
-        }
+    } catch (_: StreamOptionsRejectedException) {
+        executeStream(model, messages, onReasoning, onToolProgress, onDelta, includeUsage = false)
     }
 
     @OptIn(InternalCoroutinesApi::class)
@@ -122,6 +118,12 @@ internal class ChatApi(
                     }
                     if (response.code in 500..599) {
                         throw ProviderClient.transientHttpException(response.code, rawBody, response.header("Retry-After"))
+                    }
+                    // 仅在流尚未开始、且明确拒绝 stream_options 时抛专用异常，供外层无增量重试。
+                    if (includeUsage && rawBody.contains("stream_options", ignoreCase = true)) {
+                        throw StreamOptionsRejectedException(
+                            ProviderClient.formatHttpErrorMessage(response.code, rawBody),
+                        )
                     }
                     throw ProviderClient.contextOverflowException(response.code, rawBody)
                 }
@@ -157,7 +159,7 @@ internal class ChatApi(
                             trimmed.startsWith("event:") || trimmed.startsWith("id:") ||
                             trimmed.startsWith("retry:") || trimmed.startsWith(":")
                         if (!sawSseData && !sseField) {
-                            nonSseBody = line + "\n" + source.readUtf8()
+                            nonSseBody = ProviderStreamIo.captureNonSseBody(source, line)
                             break
                         }
                         continue
@@ -925,9 +927,9 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "read",
-                    description = "读取 UTF-8 文件（上限 1MB），路径为相对路径或 /workspace/ 路径；offset（1 起始）和 limit 用于分页。历史产物可携带 expected_sha256 核验版本；缺失/变更/无法核验明确失败，不自动重放原操作。可选 query 对文件或目录进行区分大小写的字面文本检索，返回相对路径和行号；max_results 默认50、上限100。检索有深度/文件/字节/时间限制，跳过符号链接、二进制及常见构建/依赖目录；不能与 offset/limit/expected_sha256 混用。远程未支持时改用当前环境 base/grep。",
+                    description = "读取 UTF-8 文件（上限 1MB），路径为相对路径或 /workspace/ 路径；offset（1 起始）和 limit 用于分页。默认每行带 Hashline 锚点 n:h|正文（hash=fnv1a16），供 edit 的 ops 引用；anchors=false 可关闭。历史产物可携带 expected_sha256 核验版本；缺失/变更/无法核验明确失败，不自动重放原操作。可选 query 对文件或目录进行区分大小写的字面文本检索，返回相对路径和行号；max_results 默认50、上限100。检索有深度/文件/字节/时间限制，跳过符号链接、二进制及常见构建/依赖目录；不能与 offset/limit/expected_sha256 混用。远程未支持时改用当前环境 base/grep。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"path":{"type":"string","description":"文件路径；检索时也可为目录"},"offset":{"type":"integer","description":"起始行号（1 起始），可选"},"limit":{"type":"integer","description":"读取的最大行数，可选"},"expected_sha256":{"type":"string","description":"历史产物的64位小写SHA-256；核验读取前后版本，仅限当前执行环境"},"query":{"type":"string","description":"可选，1–256 字符单行字面文本；不解释正则或 Shell"},"max_results":{"type":"integer","minimum":1,"maximum":100,"description":"仅检索使用，默认 50"}},"required":["path"]}""",
+                        """{"type":"object","properties":{"path":{"type":"string","description":"文件路径；检索时也可为目录"},"offset":{"type":"integer","description":"起始行号（1 起始），可选"},"limit":{"type":"integer","description":"读取的最大行数，可选"},"anchors":{"type":"boolean","description":"是否输出 Hashline 行锚，默认 true"},"expected_sha256":{"type":"string","description":"历史产物的64位小写SHA-256；核验读取前后版本，仅限当前执行环境"},"query":{"type":"string","description":"可选，1–256 字符单行字面文本；不解释正则或 Shell"},"max_results":{"type":"integer","minimum":1,"maximum":100,"description":"仅检索使用，默认 50"}},"required":["path"]}""",
                     ).jsonObject,
                 ),
             ),
@@ -943,9 +945,9 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "edit",
-                    description = "在文件中做精确文本替换。oldText 必须与原文逐字匹配且唯一，一次可传多个替换，但每个不能重叠或嵌套。oldText 重复或匹配多处会失败——先 read 确认内容再改。",
+                    description = "修改文件。先 read 拿到 n:h| 行锚，再用 ops（replace/insert_after/delete）按锚点修改，不必复述旧文本；锚点过期会失败，须重新 read。legacy oldText/newText 默认关闭（设置可开），开启时须唯一匹配。ops 与 oldText/newText 互斥。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"path":{"type":"string"},"oldText":{"type":"string"},"newText":{"type":"string"}},"required":["path","oldText","newText"]}""",
+                        """{"type":"object","properties":{"path":{"type":"string"},"oldText":{"type":"string","description":"legacy：须与原文唯一匹配的旧文本"},"newText":{"type":"string","description":"legacy：替换后的新文本"},"ops":{"type":"array","description":"hashline 操作列表，与 oldText/newText 互斥","minItems":1,"maxItems":64,"items":{"type":"object","properties":{"op":{"type":"string","enum":["replace","insert_after","delete"]},"start":{"type":"string","description":"起始锚点 n:h"},"end":{"type":"string","description":"结束锚点（含），默认=start"},"after":{"type":"string","description":"insert_after 锚点；文件开头用 0:00"},"content":{"type":"string","description":"replace/insert_after 的新文本，勿带 n:h| 前缀"}},"required":["op"]}}},"required":["path"]}""",
                     ).jsonObject,
                 ),
             ),
@@ -973,9 +975,9 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "memory",
-                    description = "长期语义与事实记忆管理：持久化记录用户的长期偏好、项目架构规范、稳定事实。支持 action: save, query, list, delete。scope: global, project, session。kind: preference, rule, fact, project_info。",
+                    description = "长期语义与事实记忆管理：持久化用户长期偏好、项目规范与稳定事实。支持 action: save, query, list, delete, verify。scope: global, project, session。kind: preference, rule, fact, project_info。同 subjectKey 会去重升级 revision；expiresAt 过期不召回；召回按年龄降权。save 时务必在 value 中标明来源（用户原话 / 模型推断），避免把推断写成事实。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"action":{"type":"string","enum":["save","query","list","delete"],"description":"操作动作"},"key":{"type":"string","description":"记忆键名"},"value":{"type":"string","description":"记忆内容（save 必需）"},"kind":{"type":"string","enum":["preference","rule","fact","project_info"],"description":"记忆类型"},"scope":{"type":"string","enum":["global","project","session"],"description":"记忆作用域"}},"required":["action"]}""",
+                        """{"type":"object","properties":{"action":{"type":"string","enum":["save","query","list","delete","verify"],"description":"操作动作；verify 刷新新鲜度"},"key":{"type":"string","description":"记忆键名"},"value":{"type":"string","description":"记忆内容（save 必需）；开头注明来源，如 [用户] 或 [推断]"},"kind":{"type":"string","enum":["preference","rule","fact","project_info"],"description":"记忆类型"},"scope":{"type":"string","enum":["global","project","session"],"description":"记忆作用域"},"subjectKey":{"type":"string","description":"主题去重键（如 project.package_manager）；省略则等于 key"},"pinned":{"type":"boolean","description":"是否钉选到 system 前缀（默认 false）"},"expiresAt":{"type":"integer","description":"过期时间戳毫秒；省略表示永不过期"},"volatility":{"type":"string","enum":["reference","project","user"],"description":"新鲜度分级，默认 reference"}},"required":["action"]}""",
                     ).jsonObject,
                 ),
             ),
@@ -1000,7 +1002,7 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "invoke_subagent",
-                    description = "按研发部门和简短专业关键词从本地索引解析角色，并发派发隔离子智能体。用户枚举多个独立子任务时，必须在同一次调用的 subagents 数组中完整提交，禁止逐个派发；结果保持数组顺序。writePaths=[] 表示只读并行，精确路径表示局部写租约，[\"*\"] 表示整工作区独占写入。写租约对 write/edit/download 是强制闸门：writePaths=[] 的子任务调用这些工具会被直接拦截，越界路径同样拦截，需要落盘必须先声明具体路径；base 的 shell 写不受闸门约束，写租约也只在同一次调用内协调。子任务需要审批类操作（后台 Lane 无法暂停审批）时会作为待办上交，必须由你在主会话重新发起。候选目录不会进入主对话。summary 中每个子任务都带有 task_id，把未完结子任务的 task_id 连同新指令再次提交（task_id 字段）可在同一子会话上续跑，而不是从零开始。",
+                    description = "按研发部门和简短专业关键词从本地索引解析角色，并发派发隔离子智能体。用户枚举多个独立子任务时，必须在同一次调用的 subagents 数组中完整提交，禁止逐个派发；结果保持数组顺序。writePaths=[] 表示只读并行，精确路径表示局部写租约，[\"*\"] 表示整工作区独占写入。写租约对 write/edit/download 是强制闸门：writePaths=[] 的子任务调用这些工具会被直接拦截，越界路径同样拦截；只读任务里疑似 shell 写（重定向/sed -i/mv/rm 等）也会拦截。局部写租约下 base/process 的 shell 写仍无法静态核验路径，只做事后提示，写租约也只在同一次调用内协调。子任务需要审批类操作（后台 Lane 无法暂停审批）时会作为待办上交，必须由你在主会话重新发起。候选目录不会进入主对话。summary 中每个子任务都带有 task_id，把未完结子任务的 task_id 连同新指令再次提交（task_id 字段）可在同一子会话上续跑，而不是从零开始。",
                     parameters = Json.parseToJsonElement(
                         """{"type":"object","properties":{"subagents":{"type":"array","description":"一次性提交的完整独立子任务列表；用户枚举 N 项时必须包含全部 N 项","minItems":1,"maxItems":6,"items":{"type":"object","properties":{"taskName":{"type":"string","description":"简短子任务名称"},"department":{"type":"string","enum":["engineering","design","product","project-management","testing","security","game-development","spatial-computing","specialized"],"description":"先选研发部门，匹配严格限制在该部门"},"agentQuery":{"type":"string","minLength":2,"maxLength":80,"description":"2-5 个简短英文专业关键词，如 frontend react、mobile android、test automation；不要复制完整任务"},"role":{"type":"string","description":"可选：仅兼容已知 profile id/name 的精确覆盖；存在时优先于索引匹配"},"prompt":{"type":"string","description":"详细任务指令与交付要求；填写 task_id 时为本轮续跑指令"},"writePaths":{"type":"array","description":"必须声明。纯调研/分析填空数组 []；修改文件时列出精确相对路径；只有整工作区独占写入才填 [\"*\"]","items":{"type":"string"}},"model":{"type":"string","description":"可选：已保存模型档案的 ID/名称，或档案中已配置的具体模型名；优先于角色默认模型。传 inherit 强制继承父会话模型；不填则使用角色默认模型，角色未配置时继承父会话"},"task_id":{"type":"string","description":"可选：续跑已有子任务时填入上次汇总中的 task_id（原样复制），本次在该子会话已有上下文上继续；此时 role/department/agentQuery 会被忽略"}},"required":["taskName","department","agentQuery","prompt","writePaths"]}}},"required":["subagents"]}""",
                     ).jsonObject,
@@ -1122,163 +1124,5 @@ class ProviderClient internal constructor(
             val stripped = unclosedPattern.replace(thinkPattern.replace(content, ""), "").trim()
             return stripped.ifEmpty { null }
         }
-    }
-}
-
-/**
- * 流式 chunk 的 <think> 标签与思考/正文智能分流器。
- * 兼容：原生 reasoning_chunk、在 content 中输出 <think>...</think> 标签以及跨 chunk 标签碎片。
- * 内置思维链死循环/重复自旋检测与保护机制。
- */
-internal class ThinkTagStreamDemuxer(
-    private val onReasoning: (String) -> Unit,
-    private val onDelta: (String) -> Unit,
-    private val maxReasoningChars: Int = ProviderClient.MAX_STREAM_REASONING_CHARS,
-    /** 跨协议流式输出硬失败预算；非空时正文/思考增量计入，超限抛异常终止本轮请求。 */
-    private val budget: StreamBudget? = null,
-) {
-    val fullText = StringBuilder()
-    val fullReasoning = StringBuilder()
-
-    private var inThinkTag = false
-    private val pendingBuffer = StringBuilder()
-    private var reasoningMutedDueToLoop = false
-
-    fun onExplicitReasoningChunk(chunk: String) {
-        if (chunk.isEmpty()) return
-        appendReasoning(chunk)
-    }
-
-    fun onContentChunk(chunk: String) {
-        if (chunk.isEmpty()) return
-        pendingBuffer.append(chunk)
-        processPending()
-    }
-
-    fun flush() {
-        if (pendingBuffer.isNotEmpty()) {
-            val leftover = pendingBuffer.toString()
-            pendingBuffer.clear()
-            if (inThinkTag) {
-                appendReasoning(leftover)
-            } else {
-                appendText(leftover)
-            }
-        }
-    }
-
-    private fun processPending() {
-        while (pendingBuffer.isNotEmpty()) {
-            if (!inThinkTag) {
-                val thinkStartIdx = pendingBuffer.indexOf("<think>")
-                if (thinkStartIdx != -1) {
-                    val before = pendingBuffer.substring(0, thinkStartIdx)
-                    if (before.isNotEmpty()) {
-                        appendText(before)
-                    }
-                    pendingBuffer.delete(0, thinkStartIdx + "<think>".length)
-                    inThinkTag = true
-                } else {
-                    val possiblePrefixLen = matchTrailingPrefix(pendingBuffer, "<think>")
-                    if (possiblePrefixLen > 0) {
-                        val emitLen = pendingBuffer.length - possiblePrefixLen
-                        if (emitLen > 0) {
-                            val toEmit = pendingBuffer.substring(0, emitLen)
-                            appendText(toEmit)
-                            pendingBuffer.delete(0, emitLen)
-                        }
-                        break
-                    } else {
-                        val textToEmit = pendingBuffer.toString()
-                        pendingBuffer.clear()
-                        appendText(textToEmit)
-                    }
-                }
-            } else {
-                val thinkEndIdx = pendingBuffer.indexOf("</think>")
-                if (thinkEndIdx != -1) {
-                    val reasoningContent = pendingBuffer.substring(0, thinkEndIdx)
-                    if (reasoningContent.isNotEmpty()) {
-                        appendReasoning(reasoningContent)
-                    }
-                    pendingBuffer.delete(0, thinkEndIdx + "</think>".length)
-                    inThinkTag = false
-                } else {
-                    val possiblePrefixLen = matchTrailingPrefix(pendingBuffer, "</think>")
-                    if (possiblePrefixLen > 0) {
-                        val emitLen = pendingBuffer.length - possiblePrefixLen
-                        if (emitLen > 0) {
-                            val toEmit = pendingBuffer.substring(0, emitLen)
-                            appendReasoning(toEmit)
-                            pendingBuffer.delete(0, emitLen)
-                        }
-                        break
-                    } else {
-                        val reasoningToEmit = pendingBuffer.toString()
-                        pendingBuffer.clear()
-                        appendReasoning(reasoningToEmit)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun appendText(str: String) {
-        if (str.isEmpty()) return
-        budget?.add(str)
-        fullText.append(str)
-        onDelta(str)
-    }
-
-    private fun appendReasoning(str: String) {
-        if (str.isEmpty()) return
-        // 死循环静默后的重复思考不再计入预算：它已被丢弃、不会继续占用内存。
-        if (reasoningMutedDueToLoop) return
-        budget?.add(str)
-
-        if (detectRepetitionLoop(fullReasoning, str)) {
-            reasoningMutedDueToLoop = true
-            val notice = "\n[太墟提示：检测到思维链重复自旋死循环，已自动截断冗余思考内容并继续执行]\n"
-            if (fullReasoning.length + notice.length <= maxReasoningChars) {
-                fullReasoning.append(notice)
-            }
-            onReasoning(notice)
-            return
-        }
-
-        if (fullReasoning.length < maxReasoningChars) {
-            val takeCount = (maxReasoningChars - fullReasoning.length).coerceAtMost(str.length)
-            fullReasoning.append(str.take(takeCount))
-        }
-        onReasoning(str)
-    }
-
-    private fun matchTrailingPrefix(sb: CharSequence, target: String): Int {
-        for (len in target.length - 1 downTo 1) {
-            if (sb.length >= len) {
-                val sub = sb.subSequence(sb.length - len, sb.length)
-                if (target.startsWith(sub)) {
-                    return len
-                }
-            }
-        }
-        return 0
-    }
-
-    private fun detectRepetitionLoop(history: StringBuilder, newChunk: String): Boolean {
-        if (history.length < 200) return false
-        val recent = history.takeLast(300).toString() + newChunk
-        for (patternLen in 12..40) {
-            if (recent.length >= patternLen * 4) {
-                val p = recent.takeLast(patternLen)
-                val p2 = recent.substring(recent.length - patternLen * 2, recent.length - patternLen)
-                val p3 = recent.substring(recent.length - patternLen * 3, recent.length - patternLen * 2)
-                val p4 = recent.substring(recent.length - patternLen * 4, recent.length - patternLen * 3)
-                if (p == p2 && p2 == p3 && p3 == p4) {
-                    return true
-                }
-            }
-        }
-        return false
     }
 }

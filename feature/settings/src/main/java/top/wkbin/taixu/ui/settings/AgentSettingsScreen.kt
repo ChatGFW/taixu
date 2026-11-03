@@ -135,7 +135,6 @@ fun AgentSettingsScreen(
     val pendingSkillInspection by viewModel?.pendingSkillInspection?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val preparingSkillId by viewModel?.preparingSkillId?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val isCommittingInstallation by viewModel?.isCommittingInstallation?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-
     var showAddSkillDialog by remember { mutableStateOf(false) }
     var viewingSkillPrompt by remember { mutableStateOf<AgentSkill?>(null) }
     var editingSubagent by remember { mutableStateOf<AgentSubagent?>(null) }
@@ -287,6 +286,7 @@ fun AgentSettingsScreen(
                     )
                 }
             }
+            hashlineSettingsItems(agentPrefs)
             item {
                 AgentBlockTitle("工具调用限制")
             }

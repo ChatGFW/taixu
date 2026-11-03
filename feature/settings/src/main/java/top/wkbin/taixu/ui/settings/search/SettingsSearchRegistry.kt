@@ -258,6 +258,7 @@ object SettingsSearchRegistry {
             keywords = listOf("approval", "confirm", "审批", "确认", "危险操作", "shenpi", "steer", "引导", "排队", "运行中发送"),
             breadcrumb = "智能体与 AI 模型 > Agent 执行参数 > 操作审批",
         ),
+        hashlineSearchItem,
         SettingsSearchItem(
             id = "agent_subagents",
             title = "子智能体角色调度",
@@ -867,7 +868,6 @@ object SettingsSearchRegistry {
             breadcrumb = "关于与官方社区 > 赞助开发者",
         ),
     )
-
     /**
      * 多维加权匹配算法：
      * - 标题完全匹配：100分

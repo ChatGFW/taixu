@@ -43,14 +43,32 @@ test -n "$NDK_STRIP" || fail "missing NDK llvm-strip"
 require_executable "$NDK_STRIP"
 require_aarch64 "$NDK_STRIP"
 require_executable /opt/taixu/bin/adb
+adb_elf_interp_ok() {
+    _target=$1
+    _magic=$(head -c 4 "$_target" 2>/dev/null) || return 0
+    [ "$_magic" = "$(printf '\177ELF')" ] || return 0
+    _interp=$(LC_ALL=C grep -a -o -m1 -e '/system/bin/linker[0-9]*' "$_target" 2>/dev/null | head -n 1)
+    [ -n "$_interp" ] || return 0
+    if [ -L "$_interp" ]; then
+        _resolved=$(readlink -f "$_interp" 2>/dev/null || true)
+        [ -n "$_resolved" ] && [ -e "$_resolved" ] && return 0
+        return 1
+    fi
+    [ -e "$_interp" ] || return 1
+    return 0
+}
 if is_aarch64_elf /opt/taixu/bin/adb; then
-    :
+    REAL_ADB=/opt/taixu/bin/adb
 else
     # /opt/taixu/bin/adb 为智能连接包装脚本，校验底层真实 ELF
     REAL_ADB="${TAIXU_TOOL_DIR:-/opt/taixu/tools/android-suite-offline}/bin/adb"
     test -x "$REAL_ADB" || REAL_ADB="/opt/android-sdk/platform-tools/adb"
     require_executable "$REAL_ADB"
     require_aarch64 "$REAL_ADB"
+fi
+# Bionic adb 依赖 apex linker；缺失时包装脚本会走 HostBridge，不算套件损坏。
+if ! adb_elf_interp_ok "$REAL_ADB"; then
+    echo "warning: guest adb ELF interpreter missing ($REAL_ADB); /opt/taixu/bin/adb will use HostBridge fallbacks" >&2
 fi
 require_command /opt/taixu/bin/java -version
 require_command /opt/taixu/bin/gradle --version

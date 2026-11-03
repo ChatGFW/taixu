@@ -1,9 +1,11 @@
 #!/bin/sh
 # TaiXu ADB Wrapper — 解决 PRoot 下 ADB daemon 独立调用重启导致断连的问题
-# 在同一条命令执行周期内自动完成 connect + 目标操作执行
+# 优先使用可执行的本地 adb（同一命令内自动 connect）；本地 ELF 因悬空 linker
+# 不可用时，把 logcat/shell/install/devices 回退到 HostBridge。
 set -u
 
 REAL_ADB=""
+BROKEN_ADB=""
 
 # Android Bionic 二进制在 PRoot 内的解释器（如 /system/bin/linker64）常是悬空链接：
 # 此时 -x 为真，但 exec 必然 ENOENT（报 "not found"）。仅凭 -x 选候选会选中它并 break，
@@ -16,21 +18,66 @@ elf_interp_ok() {
     _interp=$(LC_ALL=C grep -a -o -m1 -e '/system/bin/linker[0-9]*' "$_target" 2>/dev/null | head -n 1)
     # 静态链接或非 Android 解释器的 ELF 无此段，视为可用。
     [ -n "$_interp" ] || return 0
+    # 符号链接本身存在不够：目标必须真实可访问（常见是 /apex/.../linker64）。
+    if [ -L "$_interp" ]; then
+        _resolved=$(readlink -f "$_interp" 2>/dev/null || true)
+        [ -n "$_resolved" ] && [ -e "$_resolved" ] && return 0
+        return 1
+    fi
     [ -e "$_interp" ] || return 1
     return 0
 }
 
-for candidate in     "${TAIXU_TOOL_DIR:-/opt/taixu/tools}/android-suite-offline/bin/adb"     "${ANDROID_HOME:-/opt/android-sdk}/platform-tools/adb"     /usr/bin/adb     /bin/adb; do
+for candidate in \
+    "${TAIXU_TOOL_DIR:-/opt/taixu/tools}/android-suite-offline/bin/adb" \
+    "${ANDROID_HOME:-/opt/android-sdk}/platform-tools/adb" \
+    /usr/bin/adb \
+    /bin/adb
+do
     if [ -x "$candidate" ]; then
         real_target=$(readlink -f "$candidate" 2>/dev/null || echo "$candidate")
-        if [ "$real_target" != "/opt/taixu/bin/adb" ] && [ "$real_target" != "/usr/local/bin/adb" ] && [ -x "$real_target" ] && elf_interp_ok "$real_target"; then
-            REAL_ADB="$candidate"
-            break
+        if [ "$real_target" != "/opt/taixu/bin/adb" ] && [ "$real_target" != "/usr/local/bin/adb" ] && [ -x "$real_target" ]; then
+            if elf_interp_ok "$real_target"; then
+                REAL_ADB="$candidate"
+                break
+            elif [ -z "$BROKEN_ADB" ]; then
+                BROKEN_ADB="$candidate"
+            fi
         fi
     fi
 done
 
-if [ -z "$REAL_ADB" ]; then
+host_devices_status() {
+    HEALTH=$(curl -s "http://127.0.0.1:7980/api/health" 2>/dev/null || true)
+    echo "List of devices attached"
+    if [ -z "$HEALTH" ]; then
+        echo "# HostBridge 不可达（127.0.0.1:7980）；请确认太墟运行时已启动"
+        return 1
+    fi
+    if printf '%s' "$HEALTH" | grep -q '"adb":true'; then
+        PORT=$(printf '%s' "$HEALTH" | grep -o '"adbPort":[0-9]*' | head -n 1 | cut -d: -f2)
+        [ -z "$PORT" ] || [ "$PORT" = "0" ] && PORT="5555"
+        echo "localhost:${PORT}	device # TaiXu HostBridge wireless ADB"
+        return 0
+    fi
+    echo "# 内置无线 ADB 未连接：请在系统开发者选项开启「无线调试」并完成本机配对"
+    echo "# 抓日志请用 host(action=\"logcat\") 或 logcat-grabber / taixu-host logcat"
+    return 1
+}
+
+explain_unavailable() {
+    echo "错误: 沙箱内没有可执行的 adb ELF（Bionic 解释器 /system/bin/linker64 在 PRoot 中不可用）。" >&2
+    if [ -n "$BROKEN_ADB" ]; then
+        echo "已发现但无法 exec：$BROKEN_ADB（解释器悬空，通常因未绑定 /apex）。" >&2
+    fi
+    echo "可用替代：" >&2
+    echo "  - adb logcat / shell / install / devices → 本包装会自动改走 HostBridge" >&2
+    echo "  - host(action=\"logcat\") 或 logcat-grabber / taixu-host logcat" >&2
+    echo "  - taixu-host install-apk <apk>；taixu-host health 查看无线 ADB 状态" >&2
+    echo "完整 adb 协议能力需要宿主无线调试已连接，或安装可在 Linux guest 内执行的 adb。" >&2
+}
+
+host_bridge_fallback() {
     case "${1:-}" in
         logcat)
             shift
@@ -42,13 +89,44 @@ if [ -z "$REAL_ADB" ]; then
             ;;
         install)
             shift
-            exec /opt/taixu/bin/taixu-host install-apk "$@"
+            while [ "$#" -gt 0 ]; do
+                case "$1" in
+                    -*) shift ;;
+                    *) exec /opt/taixu/bin/taixu-host install-apk "$1" ;;
+                esac
+            done
+            echo "Usage: adb install [-r] <apk>" >&2
+            exit 1
+            ;;
+        devices|-l)
+            host_devices_status
+            exit $?
+            ;;
+        version|--version|-v)
+            echo "TaiXu adb wrapper (HostBridge fallback; no runnable guest adb ELF)"
+            host_devices_status >/dev/null 2>&1 || true
+            HEALTH=$(curl -s "http://127.0.0.1:7980/api/health" 2>/dev/null || true)
+            if [ -n "$HEALTH" ]; then
+                echo "$HEALTH"
+            fi
+            exit 0
+            ;;
+        help|--help|-h|"")
+            echo "TaiXu adb wrapper"
+            echo "  本地 adb ELF 可用时：同命令内自动 connect 后转发"
+            echo "  本地不可用时回退：logcat / shell / install / devices / version"
+            echo "  其他子命令需要可执行的 guest adb，或改用 taixu-host / host 工具"
+            exit 0
             ;;
         *)
-            echo "错误: 未找到本地 ARM64 adb 二进制文件，请安装 android-suite-offline 或使用 taixu-host / logcat-grabber" >&2
+            explain_unavailable
             exit 127
             ;;
     esac
+}
+
+if [ -z "$REAL_ADB" ]; then
+    host_bridge_fallback "$@"
 fi
 
 case "${1:-}" in

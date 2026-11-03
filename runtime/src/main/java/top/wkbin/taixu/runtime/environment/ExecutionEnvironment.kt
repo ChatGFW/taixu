@@ -6,7 +6,13 @@ import top.wkbin.taixu.runtime.shell.*
 /** One immutable execution world. Paths are guest paths, never host java.io.File paths. */
 data class ExecutionEnvironmentId(val backend: String, val distribution: String, val workspace: String, val owner: String)
 
-data class WorkspaceEditOutcome(val strategy: String, val replacements: Int, val diff: String?)
+data class WorkspaceEditOutcome(
+    val strategy: String,
+    val replacements: Int,
+    val diff: String?,
+    val linesAdded: Int = 0,
+    val linesRemoved: Int = 0,
+)
 data class ExecutionFileEntry(val name: String, val directory: Boolean, val size: Long, val modifiedAt: Long)
 
 interface ExecutionFiles {
@@ -20,7 +26,18 @@ interface ExecutionFiles {
         top.wkbin.taixu.core.common.result.AppError(top.wkbin.taixu.core.common.result.ErrorCode.IO, "当前环境不支持文件指纹"))
     suspend fun listEntries(path: String): AppResult<List<ExecutionFileEntry>> = AppResult.Failure(
         top.wkbin.taixu.core.common.result.AppError(top.wkbin.taixu.core.common.result.ErrorCode.IO, "当前环境不支持目录浏览"))
-    suspend fun read(path: String, offset: Int? = null, limit: Int? = null): AppResult<String>
+    /**
+     * 读取文本。默认 [anchors]=true 时实现方应输出 Hashline 行锚（见 docs/HASHLINE_PROTOCOL.md）；
+     * false 时返回无锚点正文（兼容旧调用）。分页语义由实现方定义。
+     */
+    suspend fun read(path: String, offset: Int? = null, limit: Int? = null, anchors: Boolean = true): AppResult<String>
+    /** 供 edit/hashline 使用的全文原文（无行号/锚点前缀）；超限或不支持则失败。 */
+    suspend fun readTextForEdit(path: String): AppResult<String> = AppResult.Failure(
+        top.wkbin.taixu.core.common.result.AppError(
+            top.wkbin.taixu.core.common.result.ErrorCode.IO,
+            "当前执行环境不支持 Hashline/全文编辑读取；请改用 legacy oldText/newText，或切换到本地/SSH 等已实现 readTextForEdit 的环境。",
+        ),
+    )
     suspend fun readRawBytes(path: String): AppResult<ByteArray>
     suspend fun write(path: String, content: String): AppResult<Unit>
     suspend fun editDetailed(path: String, oldText: String, newText: String): AppResult<WorkspaceEditOutcome>

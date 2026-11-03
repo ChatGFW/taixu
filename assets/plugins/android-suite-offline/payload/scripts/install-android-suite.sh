@@ -245,6 +245,8 @@ if [ -s "$ARCHIVES/android-tools_aarch64.deb" ]; then
     cp "$ADB_SOURCE" "$TOOL_DIR/bin/adb"
     chmod +x "$TOOL_DIR/bin/adb"
     rm -rf /tmp/taixu-adb
+    # Termux Bionic adb 依赖 /system/bin/linker64 → /apex/...；PRoot 若未绑上 apex runtime，
+    # /opt/taixu/bin/adb 包装会改走 HostBridge（logcat/shell/install/devices），不要假定 guest 内可直接 exec。
 fi
 progress 80 "[VERIFY] ADB ARM64 校验完成"
 

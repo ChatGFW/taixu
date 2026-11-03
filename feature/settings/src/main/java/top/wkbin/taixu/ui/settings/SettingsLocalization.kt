@@ -19,7 +19,7 @@ import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.settings.R
 
 @StringRes
-private fun legacyStringResource(source: String): Int? = when (source) {
+private fun legacyStringResource(source: String): Int? = hashlineLegacyString(source) ?: when (source) {
         "关闭" -> R.string.settings_legacy_0001
         "取消" -> R.string.settings_legacy_0002
         "保存" -> R.string.settings_legacy_0003

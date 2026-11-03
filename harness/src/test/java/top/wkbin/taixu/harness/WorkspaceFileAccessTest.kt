@@ -74,6 +74,24 @@ class WorkspaceFileAccessTest {
         assertTrue(content.contains("line-20000-"))
         assertTrue(content.contains("line-20001-"))
         assertTrue(!content.contains("line-19999-"))
+        assertTrue(content.contains("hash=fnv1a16"))
+        assertTrue(content.contains("20001:"))
+    }
+
+    @Test
+    fun `read defaults to hashline anchors and can disable them`() = runBlocking {
+        val root = temporaryFolder.newFolder("workspace")
+        root.resolve("hello.js").writeText("function hello() {\n  return 1;\n}\n")
+
+        val anchored = WorkspaceFileAccess(root).read("hello.js")
+        assertTrue(anchored.isSuccess)
+        val anchoredText = anchored.getOrNull().orEmpty()
+        assertTrue(anchoredText.contains("hash=fnv1a16"))
+        assertTrue(anchoredText.contains("|function hello() {"))
+
+        val plain = WorkspaceFileAccess(root).read("hello.js", anchors = false)
+        assertTrue(plain.isSuccess)
+        assertEquals("function hello() {\n  return 1;\n}\n", plain.getOrNull())
     }
 
 

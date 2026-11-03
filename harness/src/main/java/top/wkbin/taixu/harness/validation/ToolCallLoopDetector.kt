@@ -3,6 +3,8 @@ package top.wkbin.taixu.harness.validation
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 /**
  * 智能体工具调用死循环与重复调用检测器。
@@ -10,11 +12,13 @@ import kotlinx.serialization.json.JsonElement
  * 专门防御以下异常行为：
  * 1. 同一工具使用完全相同的参数连续失败多次（盲目重试而不纠错）；
  * 2. 相同工具调用序列在多轮对话中反复空转（无论成功与否，没有取得实质性进展）；
- * 3. 参数校验连续失败却不按 Schema 修正。
+ * 3. 参数校验连续失败却不按 Schema 修正；
+ * 4. 同一 path 上连续 Hashline STALE（改 ops 盲试）却不先 read。
  */
 class ToolCallLoopDetector(
     private val maxSameCallFailures: Int = 2,
     private val maxIdenticalCallsStreak: Int = 3,
+    private val maxHashlineStalePerPath: Int = 2,
 ) {
     private val callHistory = mutableListOf<CallRecord>()
 
@@ -29,6 +33,9 @@ class ToolCallLoopDetector(
 
     /** (toolName:argsJson) → 上一次输出的指纹，用于识别"参数相同但结果在变"的合法轮询。 */
     private val lastOutputFingerprints = mutableMapOf<String, Int>()
+
+    /** path → 连续 HASHLINE_STALE 次数；成功 read 同 path 清零。 */
+    private val hashlineStaleByPath = mutableMapOf<String, Int>()
 
     sealed interface LoopVerdict {
         data object Pass : LoopVerdict
@@ -50,6 +57,26 @@ class ToolCallLoopDetector(
         // 小窗口而逃过检测；上限 50 条历史内取 30 是覆盖与噪声的平衡。
         val recentCalls = callHistory.takeLast(30)
 
+        // 0. 同 path 连续 Hashline STALE：即使用不同 ops 盲试也拦截，强制先 read。
+        if (isEditTool(toolName)) {
+            val path = pathOf(args)
+            val staleStreak = path?.let { hashlineStaleByPath[it] } ?: 0
+            if (path != null && staleStreak >= maxHashlineStalePerPath) {
+                val shown = "/$path"
+                return LoopVerdict.Block(
+                    reason = "检测到 Hashline 死循环：`$shown` 已连续 HASHLINE_STALE $staleStreak 次",
+                    guidance = buildString {
+                        append("【已强制拦截过期锚点盲试】\n")
+                        append("文件 `$shown` 的 Hashline 锚点已连续过期 $staleStreak 次；继续改 ops 无效。\n\n")
+                        append("请立即：\n")
+                        append("1. 调用 `read(\"$shown\")`（可带合适 offset/limit）获取最新 `n:h` 锚点；\n")
+                        append("2. 仅使用本次 read 返回的锚点重新构造 ops；\n")
+                        append("3. 禁止改用猜测的 oldText/newText 盲试同一处。")
+                    },
+                )
+            }
+        }
+
         // 1. 检测连续相同调用的失败历史
         val sameFailedStreak = recentCalls.reversed().takeWhile { record ->
             record.toolName.equals(toolName, ignoreCase = true) &&
@@ -68,7 +95,7 @@ class ToolCallLoopDetector(
                     append("1. **定位根因**：仔细阅读前述错误输出，分析上几次失败的具体原因（路径错误？内容不匹配？参数缺失？缺少依赖？）；\n")
                     append("2. **严禁重试**：严禁再次发起完全相同的调用；\n")
                     append("3. **改变策略**：\n")
-                    append("   - 如果是 `edit` 匹配失败：必须先调用 `read` 查看文件的最新精确内容与行号；\n")
+                    append("   - 如果是 `edit` 失败：先 `read` 取最新 `n:h` 锚点，优先用 ops 重试；legacy oldText 须逐字唯一匹配，禁止盲猜；\n")
                     append("   - 如果是 `base` 命令失败：调用 `read`/`base` 检查环境、路径或查看日志，或切换实现方式；\n")
                     append("   - 如果缺少工具或能力：向用户明确说明当前遇到的障碍与已完成的步骤。")
                 },
@@ -138,9 +165,16 @@ class ToolCallLoopDetector(
      *
      * @param output 工具输出正文（可空）。相同 (tool, args) 之间输出发生变化时标记
      *  [CallRecord.outputChanged]，使结果感知的空转检测不再误杀合法轮询。
+     * @param metadata 工具结果元数据；含 `hashline_error=HASHLINE_STALE` 时计入同 path 过期计数。
      */
     @Synchronized
-    fun recordSettled(toolName: String, args: JsonObject, success: Boolean, output: String? = null) {
+    fun recordSettled(
+        toolName: String,
+        args: JsonObject,
+        success: Boolean,
+        output: String? = null,
+        metadata: Map<String, String> = emptyMap(),
+    ) {
         val currentArgsJson = canonical(args).toString()
         val lastRecord = callHistory.lastOrNull {
             it.toolName.equals(toolName, ignoreCase = true) && it.argsJson == currentArgsJson && it.success == null
@@ -159,6 +193,7 @@ class ToolCallLoopDetector(
             )
             if (callHistory.size > 50) callHistory.removeAt(0)
         }
+        trackHashlineStale(toolName, args, success, metadata)
     }
 
     /** 相同 (tool, args) 的输出与上一次相比是否发生变化；同时滚动更新指纹。 */
@@ -170,6 +205,31 @@ class ToolCallLoopDetector(
         return previous != null && previous != fingerprint
     }
 
+    private fun trackHashlineStale(
+        toolName: String,
+        args: JsonObject,
+        success: Boolean,
+        metadata: Map<String, String>,
+    ) {
+        val path = pathOf(args) ?: return
+        if (isReadTool(toolName) && success) {
+            hashlineStaleByPath.remove(path)
+            return
+        }
+        if (!isEditTool(toolName)) return
+        if (success) {
+            hashlineStaleByPath.remove(path)
+            return
+        }
+        val code = metadata["hashline_error"].orEmpty()
+        if (code == "HASHLINE_STALE" || code == "stale") {
+            hashlineStaleByPath[path] = (hashlineStaleByPath[path] ?: 0) + 1
+        } else {
+            // 非 STALE 的 edit 失败打断「连续过期盲试」计数，避免与其它错误混叠。
+            hashlineStaleByPath.remove(path)
+        }
+    }
+
     /**
      * 清空当前检测器的历史（在用户发送新消息或会话重置时调用）。
      */
@@ -177,6 +237,7 @@ class ToolCallLoopDetector(
     fun reset() {
         callHistory.clear()
         lastOutputFingerprints.clear()
+        hashlineStaleByPath.clear()
     }
 
     private fun canonical(value: JsonElement): JsonElement = when (value) {
@@ -184,4 +245,14 @@ class ToolCallLoopDetector(
         is JsonArray -> JsonArray(value.map(::canonical))
         else -> value
     }
+
+    private fun pathOf(args: JsonObject): String? {
+        val raw = (args["path"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+        if (raw.isEmpty()) return null
+        return raw.trimStart('/')
+    }
+
+    private fun isEditTool(name: String): Boolean = name.equals("edit", ignoreCase = true)
+
+    private fun isReadTool(name: String): Boolean = name.equals("read", ignoreCase = true)
 }

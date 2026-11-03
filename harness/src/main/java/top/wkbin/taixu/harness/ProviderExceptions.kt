@@ -31,6 +31,12 @@ class LlmOutputLimitException(message: String) : IllegalStateException(message)
 class LlmEmptyResponseException(message: String) : IOException(message)
 
 /**
+ * Provider rejected `stream_options` before any SSE data arrived.
+ * Safe to retry once without that field; must not be used after deltas were emitted.
+ */
+internal class StreamOptionsRejectedException(message: String) : IllegalStateException(message)
+
+/**
  * 本机在收到任何模型事件或心跳之前主动停止等待。
  * 不是上游 HTTP 错误，也不按断线重试。
  */

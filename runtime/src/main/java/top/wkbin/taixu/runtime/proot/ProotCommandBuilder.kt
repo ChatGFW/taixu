@@ -207,16 +207,22 @@ class ProotCommandBuilder private constructor(
 
     /** Android host paths used by the PRoot tracer and Android linker. */
     private fun MutableList<String>.addHostSystemBindings() {
+        val bound = linkedSetOf<String>()
         val skipped = mutableListOf<String>()
-        ProotMountLayout.hostSystemPaths.forEach { path ->
+        fun tryBind(path: String) {
+            if (path in bound) return
             val hostPath = File(path)
-            if (hostPath.exists() && hostPath.canRead()) {
+            if (ProotMountLayout.isBindableHostPath(hostPath)) {
                 add("-b")
                 add(path)
+                bound += path
             } else {
                 skipped.add(path)
             }
         }
+        ProotMountLayout.hostSystemPaths.forEach(::tryBind)
+        // 在整棵 /apex 被跳过时，仍尽量把 linker 所在的 apex 包根补上，避免 Bionic adb 悬空解释器。
+        ProotMountLayout.androidLinkerBindPaths().forEach(::tryBind)
         // 缺失绑定会导致沙箱内 Android 二进制无法执行；同一进程只告警一次，避免刷屏。
         if (skipped.isNotEmpty() && hostBindingsWarningLogged.compareAndSet(false, true)) {
             logWarning("HostSystemBindings: ${skipped.size} path(s) skipped (not exist/unreadable): $skipped")

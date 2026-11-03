@@ -2,7 +2,9 @@ package top.wkbin.taixu.di.harness
 
 import org.koin.dsl.module
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
+import top.wkbin.taixu.core.datastore.hashlinePreferences
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.AskUserToolBackend
@@ -42,10 +44,44 @@ internal val toolBackendModule = module {
     single { WorkspaceMutationSnapshots(store = get(), events = get()) }
     single {
         val files = get<WorkspaceFileAccess>()
+        val settings = get<top.wkbin.taixu.core.datastore.SettingsDataStore>()
+        val hashline = settings.hashlinePreferences()
+        // 启动时水合累计计数；落盘走 IO scope，避免 edit 热路径阻塞 DataStore。
+        val persistScope = kotlinx.coroutines.CoroutineScope(
+            kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
+        )
+        runCatching {
+            kotlinx.coroutines.runBlocking {
+                val initial = top.wkbin.taixu.harness.text.HashlineEditStatsCodec.decode(
+                    hashline.editStatsJson.first(),
+                )
+                top.wkbin.taixu.harness.text.HashlineEditStats.bind(initial) { snap ->
+                    persistScope.launch {
+                        runCatching {
+                            hashline.setEditStatsJson(
+                                top.wkbin.taixu.harness.text.HashlineEditStatsCodec.encode(snap),
+                            )
+                        }
+                    }
+                }
+            }
+        }
         WorkspaceToolBackend(
             operationsFor = { workspace -> if (workspace.isNotBlank()) files.withBase(workspace) else files },
             snapshots = get(),
             environments = get(),
+            hashlinePolicy = {
+                // 与 LinuxCommandToolBackend 超时读取同型：热路径同步取最新偏好，失败回落默认全开。
+                runCatching {
+                    kotlinx.coroutines.runBlocking {
+                        top.wkbin.taixu.harness.text.HashlinePolicy(
+                            readAnchorsDefault = hashline.readAnchorsDefault.first(),
+                            editOpsEnabled = hashline.editOpsEnabled.first(),
+                            legacyEditEnabled = hashline.legacyEditEnabled.first(),
+                        )
+                    }
+                }.getOrDefault(top.wkbin.taixu.harness.text.HashlinePolicy.DEFAULT)
+            },
         )
     }
     // 领域能力后端：各域独立持有自己的运行时依赖，ToolExecutor 只做管道编排与路由。

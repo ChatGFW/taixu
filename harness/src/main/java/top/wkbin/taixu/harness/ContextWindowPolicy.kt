@@ -851,24 +851,19 @@ object ContextWindowPolicy {
         return closeToolPairs(messages, boundary)
     }
 
-    /**
-     * Keep a tool call/result exchange together: if a kept ToolResult's call sits before
-     * the boundary, pull the boundary back to that call. Repeat because moving back can
-     * reveal another result from the same parallel tool-call group.
-     */
+    /** Keep tool call/result pairs: pull boundary back to any kept result's call. */
     private fun closeToolPairs(messages: List<HarnessMessage>, boundary: Int): Int {
         var closed = boundary.coerceIn(0, messages.size)
+        val lastCallIndexById = HashMap<String, Int>()
+        messages.forEachIndexed { i, m -> if (m is ToolCall) lastCallIndexById[m.id] = i }
         do {
-            val previousBoundary = closed
-            messages.subList(closed, messages.size)
-                .filterIsInstance<ToolResult>()
-                .forEach { result ->
-                    val callIndex = messages.indexOfLast {
-                        it is ToolCall && it.id == result.toolCallId
-                    }
-                    if (callIndex in 0 until closed) closed = callIndex
-                }
-        } while (closed < previousBoundary)
+            val previous = closed
+            for (i in closed until messages.size) {
+                val result = messages[i] as? ToolResult ?: continue
+                val callIndex = lastCallIndexById[result.toolCallId] ?: continue
+                if (callIndex in 0 until closed) closed = callIndex
+            }
+        } while (closed < previous)
         return closed
     }
 

@@ -166,7 +166,7 @@ Bot 模型自助工具 `bot-management.list-models` 允许所有已映射的团�
 - 宿主动作与内置浏览器的风险级别、审批原因集中于编译进应用的 `TrustedToolRiskPolicy`，宿主能力目录的只读/ASSISTED 放行集合由它派生；浏览器工具必须匹配完整编码标识（含服务/工具摘要）或内置服务的完整 legacy 名称，不能仅凭截短服务前缀放行。外部同名工具及前缀碰撞服务不能借用规则。此次统一保持 `FULL_ACCESS` 的显式全权授权语义，PLAN 硬门禁继续独立生效；不把工具风险目录扩展为 HostBridge 的直接 HTTP 审批，也不把 Shell 启发式宣称为完整语法树检查。
 - PLAN 模式：宿主侧硬拦截（`ToolExecutor → ApprovalPolicyEngine.planBlock`），提示词约束只是第二层。
 - 路径边界：`HarnessPathResolver` 与 Lane 写租约约束写入范围；`ToolCheckpoint` 只能观察 / 否决 / 追加脱敏说明，不能授予权限或替换结果状态（`docs/ARCHITECTURE.md`）。
-- 工具入口：主回合与 Lane 先检查工具名称，再解析并校验参数；未知名称不能借映射回退执行命令。Lane 对结构化写工具按执行器的参数视图检查租约，覆盖路径别名与包装参数；`base` 的任意 shell 写入仍不属于结构化路径租约检查范围。
+- 工具入口：主回合与 Lane 先检查工具名称，再解析并校验参数；未知名称不能借映射回退执行命令。Lane 对结构化写工具按执行器的参数视图检查租约，覆盖路径别名与包装参数；`writePaths=[]` 的只读任务还会拦截疑似 shell 写（重定向 / `sed -i` / `mv` / `rm` 等）。非空局部租约下 `base`/`process` 的 shell 写仍无法静态核验目标路径，只做事后软提示，不能当成完整 Shell 隔离。
 - 取消：`PrivilegeManager.cancelShellCommand` 同步终止对应 Shizuku/Root 宿主子进程。
 - MCP：工具 schema 不进 provider 可见面（`use_capability` 统一代理 + 护栏测试 `BuiltinToolContractTest`）；STDIO 服务器进程在 PRoot 沙箱内启动（`McpStdioTransport` → `McpStdioChannelFactory`），其 env 走 2.2 的 provider 通道。
 - STDIO 空闲 TTL 可在 MCP 设置页配置为 1–60 分钟，缺省维持 10 分钟。单调时钟从请求收尾开始计时，握手/等待写锁/在途请求均受连接使用租约保护；清扫每分钟执行一次。只在进程确认关闭后显示休眠，清理失败保留重试资源并显示离线；休眠保留当前绑定环境的工具目录，下一次真实调用重新连接和握手，不重放旧请求。界面初次进入不主动唤醒有有效工具缓存的休眠服务；显式刷新仍可重新连接。HTTP MCP 不采用该进程休眠策略。

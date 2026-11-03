@@ -1,5 +1,7 @@
 package top.wkbin.taixu.harness
 
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
@@ -25,6 +27,39 @@ class ApprovalPolicyEngineTest {
         assertTrue(policy.decide(ApprovalMode.REQUEST, HarnessTool.PROCESS, args("action" to "start", "id" to "server", "command" to "python -m http.server"), workspace).required)
         assertTrue(policy.decide(ApprovalMode.REQUEST, HarnessTool.MCP, args("name" to "search"), workspace).required)
         assertTrue(policy.decide(ApprovalMode.REQUEST, HarnessTool.DOWNLOAD, args("destination" to "a.zip"), workspace).required)
+    }
+
+    @Test
+    fun `edit summary includes Hashline ops count`() {
+        val hashline = policy.decide(
+            ApprovalMode.REQUEST,
+            HarnessTool.EDIT,
+            buildJsonObject {
+                put("path", "/workspace/project/src/Main.kt")
+                put("ops", buildJsonArray {
+                    add(buildJsonObject {
+                        put("op", "replace")
+                        put("start", "1:aa")
+                        put("content", "x")
+                    })
+                    add(buildJsonObject {
+                        put("op", "delete")
+                        put("start", "2:bb")
+                    })
+                })
+            },
+            workspace,
+        )
+        assertTrue(hashline.required)
+        assertEquals("edit /workspace/project/src/Main.kt · Hashline 2 ops", hashline.summary)
+
+        val legacy = policy.decide(
+            ApprovalMode.REQUEST,
+            HarnessTool.EDIT,
+            args("path" to "a.txt", "oldText" to "a", "newText" to "b"),
+            workspace,
+        )
+        assertEquals("edit a.txt", legacy.summary)
     }
 
     @Test

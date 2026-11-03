@@ -282,7 +282,7 @@ class ToolExecutor(
                 toolMetadata,
             ),
             metadata = toolMetadata.toMap(),
-            imageDataUrl = imagePayload,
+            imageDataUrl = imagePayload, errorCode = toolMetadata["hashline_error"]?.takeIf { !success && it.isNotBlank() },
         )
     }
 

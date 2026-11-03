@@ -292,25 +292,22 @@ internal class AnthropicApi(
                                     )
                                 }
                                 message.imageUrls.forEach { url ->
-                                    if (url.startsWith("data:")) {
-                                        val match = Regex("""data:(image/[a-zA-Z+]+);base64,(.+)""").matchEntire(url)
-                                        if (match != null) {
-                                            val mediaType = match.groupValues[1]
-                                            val b64Data = match.groupValues[2]
-                                            add(
-                                                buildJsonObject {
-                                                    put("type", "image")
-                                                    put(
-                                                        "source",
-                                                        buildJsonObject {
-                                                            put("type", "base64")
-                                                            put("media_type", mediaType)
-                                                            put("data", b64Data)
-                                                        },
-                                                    )
-                                                },
-                                            )
-                                        }
+                                    val dataImage = parseDataImageUrl(url)
+                                    if (dataImage != null) {
+                                        val (mediaType, b64Data) = dataImage
+                                        add(
+                                            buildJsonObject {
+                                                put("type", "image")
+                                                put(
+                                                    "source",
+                                                    buildJsonObject {
+                                                        put("type", "base64")
+                                                        put("media_type", mediaType)
+                                                        put("data", b64Data)
+                                                    },
+                                                )
+                                            },
+                                        )
                                     } else if (url.startsWith("https://", ignoreCase = true) ||
                                         url.startsWith("http://", ignoreCase = true)
                                     ) {

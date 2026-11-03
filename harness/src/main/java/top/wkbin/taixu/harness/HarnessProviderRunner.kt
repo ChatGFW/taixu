@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness
 
 import android.content.Context
+import android.os.SystemClock
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
@@ -550,10 +551,9 @@ class HarnessProviderRunner(
             }
         }
     }
-    private fun now(): Long = System.currentTimeMillis()
+    private fun now(): Long = SystemClock.elapsedRealtime() // 单调时钟：耗时与 StreamBuffer 节流
     private fun friendly(throwable: Throwable): String =
         throwable.message?.take(200) ?: throwable::class.simpleName.orEmpty()
-
     /** 首个响应看门狗到点：不按网络中断重试，直接给出与上游错误区分开的说明。 */
     private suspend fun failFirstResponseTimeout(
         sessId: String,

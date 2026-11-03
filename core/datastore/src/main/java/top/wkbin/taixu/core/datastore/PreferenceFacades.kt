@@ -182,6 +182,10 @@ class AgentPreferences(private val store: SettingsDataStore) {
     suspend fun setAutoTitlePrompt(value: String) = store.setAutoTitlePrompt(value)
     suspend fun setAutoTitleModelId(value: String) = store.setAutoTitleModelId(value)
     val commandOutputCompressionEnabled get() = store.commandOutputCompressionEnabled
+    private val hashlinePrefs = HashlinePreferences(store.appearanceDataStore)
+    val hashlineReadAnchorsDefault get() = hashlinePrefs.readAnchorsDefault
+    val hashlineEditOpsEnabled get() = hashlinePrefs.editOpsEnabled
+    val hashlineLegacyEditEnabled get() = hashlinePrefs.legacyEditEnabled
     val baseCommandTimeoutSeconds get() = store.baseCommandTimeoutSeconds
     val firstResponseTimeoutSeconds get() = store.firstResponseTimeoutSeconds
     suspend fun setFirstResponseTimeoutSeconds(value: Int) = store.setFirstResponseTimeoutSeconds(value)
@@ -202,6 +206,11 @@ class AgentPreferences(private val store: SettingsDataStore) {
     suspend fun setThinkingExpanded(value: Boolean) = store.setThinkingExpanded(value)
     suspend fun setThinkingAutoTranslate(value: Boolean) = store.setThinkingAutoTranslate(value)
     suspend fun setCommandOutputCompressionEnabled(value: Boolean) = store.setCommandOutputCompressionEnabled(value)
+    suspend fun setHashlineReadAnchorsDefault(value: Boolean) = hashlinePrefs.setReadAnchorsDefault(value)
+    suspend fun setHashlineEditOpsEnabled(value: Boolean) = hashlinePrefs.setEditOpsEnabled(value)
+    suspend fun setHashlineLegacyEditEnabled(value: Boolean) = hashlinePrefs.setLegacyEditEnabled(value)
+    val hashlineEditStatsJson get() = hashlinePrefs.editStatsJson
+    suspend fun setHashlineEditStatsJson(value: String) = hashlinePrefs.setEditStatsJson(value)
     suspend fun removeModelApiKey(secretRef: String) = store.removeModelApiKey(secretRef)
     suspend fun setEnvironmentPrivacyMode(value: Boolean) = store.setEnvironmentPrivacyMode(value)
     suspend fun setCustomSystemPromptEnabled(value: Boolean) = store.setCustomSystemPromptEnabled(value)

@@ -1,9 +1,12 @@
 package top.wkbin.taixu.ui.components
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextFieldDefaults
@@ -15,8 +18,12 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
-/** Native filled field; keeps focus/error indicators, floating labels and IME behavior. */
+/**
+ * 表单文本输入框：圆角描边（圆框）样式，委托 Material 3 OutlinedTextField。
+ * 保留焦点/错误指示、浮动标签与 IME 行为；名称保留历史叫法，避免全站调用点改名。
+ */
 @Composable
 fun RuntimeFilledTextField(
     value: String,
@@ -40,11 +47,16 @@ fun RuntimeFilledTextField(
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     minLines: Int = 1,
     interactionSource: MutableInteractionSource? = null,
-    shape: Shape = TextFieldDefaults.shape,
-    colors: TextFieldColors = TextFieldDefaults.colors(),
+    shape: Shape = RoundedCornerShape(14.dp),
+    colors: TextFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
+        focusedBorderColor = MaterialTheme.colorScheme.primary,
+        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+    ),
 ) {
     val actualInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    TextField(
+    OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,

@@ -230,6 +230,46 @@ class SubagentLaneContractsTest {
     }
 
     @Test
+    fun `readonly lanes block suspected shell writes but allow read-only commands`() {
+        assertNotNull(
+            subagentWriteScopeRejection(
+                HarnessTool.BASE,
+                buildJsonObject { put("command", "echo hi > docs/out.txt") },
+                emptyList(),
+            ),
+        )
+        assertNotNull(
+            subagentWriteScopeRejection(
+                HarnessTool.BASE,
+                buildJsonObject { put("command", "sed -i 's/a/b/' app/Main.kt") },
+                emptyList(),
+            ),
+        )
+        assertNotNull(
+            subagentWriteScopeRejection(
+                HarnessTool.PROCESS,
+                buildJsonObject { put("command", "rm -rf build/") },
+                emptyList(),
+            ),
+        )
+        assertNull(
+            subagentWriteScopeRejection(
+                HarnessTool.BASE,
+                buildJsonObject { put("command", "rg TODO app/") },
+                emptyList(),
+            ),
+        )
+        // 局部租约下仍无法静态核验 shell 路径，保持放行 + 事后软提示。
+        assertNull(
+            subagentWriteScopeRejection(
+                HarnessTool.BASE,
+                buildJsonObject { put("command", "echo hi > other/out.txt") },
+                listOf("docs"),
+            ),
+        )
+    }
+
+    @Test
     fun `write intent in the task text is detected so the missing lease can be surfaced`() {
         assertTrue(declaresWriteIntent("请把审计结论落盘到 audit/report.md"))
         assertTrue(declaresWriteIntent("生成文件并保存到工作区"))
