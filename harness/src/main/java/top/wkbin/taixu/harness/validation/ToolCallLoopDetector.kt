@@ -62,13 +62,14 @@ class ToolCallLoopDetector(
             val path = pathOf(args)
             val staleStreak = path?.let { hashlineStaleByPath[it] } ?: 0
             if (path != null && staleStreak >= maxHashlineStalePerPath) {
+                val shown = "/$path"
                 return LoopVerdict.Block(
-                    reason = "检测到 Hashline 死循环：`$path` 已连续 HASHLINE_STALE $staleStreak 次",
+                    reason = "检测到 Hashline 死循环：`$shown` 已连续 HASHLINE_STALE $staleStreak 次",
                     guidance = buildString {
                         append("【已强制拦截过期锚点盲试】\n")
-                        append("文件 `$path` 的 Hashline 锚点已连续过期 $staleStreak 次；继续改 ops 无效。\n\n")
+                        append("文件 `$shown` 的 Hashline 锚点已连续过期 $staleStreak 次；继续改 ops 无效。\n\n")
                         append("请立即：\n")
-                        append("1. 调用 `read(\"$path\")`（可带合适 offset/limit）获取最新 `n:h` 锚点；\n")
+                        append("1. 调用 `read(\"$shown\")`（可带合适 offset/limit）获取最新 `n:h` 锚点；\n")
                         append("2. 仅使用本次 read 返回的锚点重新构造 ops；\n")
                         append("3. 禁止改用猜测的 oldText/newText 盲试同一处。")
                     },

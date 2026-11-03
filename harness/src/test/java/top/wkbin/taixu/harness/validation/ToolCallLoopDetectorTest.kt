@@ -138,7 +138,7 @@ class ToolCallLoopDetectorTest {
         assertTrue(blocked is ToolCallLoopDetector.LoopVerdict.Block)
         val block = blocked as ToolCallLoopDetector.LoopVerdict.Block
         assertTrue(block.reason.contains("HASHLINE_STALE"))
-        assertTrue(block.guidance.contains("read(\"workspace/src/Main.kt\")"))
+        assertTrue(block.guidance.contains("read(\"/workspace/src/Main.kt\")"))
 
         // 成功 read 同 path 后解除
         val readArgs = buildJsonObject { put("path", "/workspace/src/Main.kt") }

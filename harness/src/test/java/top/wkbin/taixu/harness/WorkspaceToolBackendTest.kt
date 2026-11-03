@@ -177,6 +177,18 @@ class WorkspaceToolBackendTest {
         assertTrue(memory.calls.isEmpty())
     }
 
+    @Test fun `replace without string content is rejected before write`() = runBlocking {
+        val memory = MemoryOperations().apply { content = "alpha\n" }
+        val missing = WorkspaceToolBackend({ memory }).execute(
+            request(HarnessTool.EDIT, """{"path":"a.txt","ops":[{"op":"replace","start":"1:ab"}]}"""),
+        )
+        assertFalse(missing.success)
+        assertEquals("HASHLINE_INVALID", missing.metadata["hashline_error"])
+        assertTrue(missing.output.contains("content"))
+        assertFalse(memory.calls.any { it.startsWith("write:") })
+        assertEquals("alpha\n", memory.content)
+    }
+
     @Test fun `empty ops array returns HASHLINE_EMPTY_OPS`() = runBlocking {
         val memory = MemoryOperations().apply { content = "a\n" }
         val result = WorkspaceToolBackend({ memory }).execute(

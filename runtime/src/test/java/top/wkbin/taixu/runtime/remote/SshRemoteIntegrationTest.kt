@@ -86,7 +86,9 @@ class SshRemoteIntegrationTest {
             val entries = world.files.listEntries("/workspace").getOrNull()!!
             assertEquals(listOf("example.txt"), entries.map { it.name })
             assertFalse(entries.single().directory)
-            assertEquals("two", world.files.read("/workspace/example.txt", 2, 1).getOrNull())
+            val page = world.files.read("/workspace/example.txt", 2, 1, anchors = false).getOrNull()
+            assertTrue(page!!.contains("当前显示第 2-2 行"))
+            assertEquals("two", page.substringAfter('\n'))
             assertTrue(world.files.editDetailed("example.txt", "two", "changed").isSuccess)
             assertEquals("one\nchanged\nthree", String(world.files.readRawBytes("example.txt").getOrNull()!!))
             assertTrue(world.files.write("../escape", "no").isFailure)
@@ -327,7 +329,7 @@ class SshRemoteIntegrationTest {
             assertEquals(7, world.execute(ShellCommand("fixture", world.workingDirectory())).exitCode)
             assertEquals(1, reconnects.get())
             assertTrue(world.files.write("reconnected.txt", "after restart").isSuccess)
-            assertEquals("after restart", world.files.read("/workspace/reconnected.txt", null, null).getOrNull())
+            assertEquals("after restart", world.files.read("/workspace/reconnected.txt", null, null, anchors = false).getOrNull())
             // An unreachable peer surfaces instead of retrying forever.
             ssh.stop(true)
             try { world.execute(ShellCommand("fixture", world.workingDirectory())); fail("dead peer reported success") }

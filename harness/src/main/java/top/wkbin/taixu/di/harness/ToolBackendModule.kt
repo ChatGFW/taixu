@@ -4,6 +4,7 @@ import org.koin.dsl.module
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
+import top.wkbin.taixu.core.datastore.hashlinePreferences
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.AskUserToolBackend
@@ -44,6 +45,7 @@ internal val toolBackendModule = module {
     single {
         val files = get<WorkspaceFileAccess>()
         val settings = get<top.wkbin.taixu.core.datastore.SettingsDataStore>()
+        val hashline = settings.hashlinePreferences()
         // 启动时水合累计计数；落盘走 IO scope，避免 edit 热路径阻塞 DataStore。
         val persistScope = kotlinx.coroutines.CoroutineScope(
             kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
@@ -51,12 +53,12 @@ internal val toolBackendModule = module {
         runCatching {
             kotlinx.coroutines.runBlocking {
                 val initial = top.wkbin.taixu.harness.text.HashlineEditStatsCodec.decode(
-                    settings.hashlineEditStatsJson.first(),
+                    hashline.editStatsJson.first(),
                 )
                 top.wkbin.taixu.harness.text.HashlineEditStats.bind(initial) { snap ->
                     persistScope.launch {
                         runCatching {
-                            settings.setHashlineEditStatsJson(
+                            hashline.setEditStatsJson(
                                 top.wkbin.taixu.harness.text.HashlineEditStatsCodec.encode(snap),
                             )
                         }
@@ -73,9 +75,9 @@ internal val toolBackendModule = module {
                 runCatching {
                     kotlinx.coroutines.runBlocking {
                         top.wkbin.taixu.harness.text.HashlinePolicy(
-                            readAnchorsDefault = settings.hashlineReadAnchorsDefault.first(),
-                            editOpsEnabled = settings.hashlineEditOpsEnabled.first(),
-                            legacyEditEnabled = settings.hashlineLegacyEditEnabled.first(),
+                            readAnchorsDefault = hashline.readAnchorsDefault.first(),
+                            editOpsEnabled = hashline.editOpsEnabled.first(),
+                            legacyEditEnabled = hashline.legacyEditEnabled.first(),
                         )
                     }
                 }.getOrDefault(top.wkbin.taixu.harness.text.HashlinePolicy.DEFAULT)

@@ -266,12 +266,7 @@ class ApprovalPolicyEngine(
     }
 
     private fun summarize(tool: HarnessTool, args: JsonObject, rawToolName: String? = null): String = when (tool) {
-        HarnessTool.WRITE -> "write ${args["path"]?.jsonPrimitive?.content.orEmpty()}"
-        HarnessTool.EDIT -> {
-            val path = args["path"]?.jsonPrimitive?.content.orEmpty()
-            val hashline = top.wkbin.taixu.harness.text.HashlineEditArgs.opsLabel(args)
-            if (hashline != null) "edit $path · $hashline" else "edit $path"
-        }
+        HarnessTool.WRITE, HarnessTool.EDIT -> top.wkbin.taixu.harness.text.HashlineEditArgs.fileMutationSummary(tool.name, args)
         HarnessTool.BASE -> args["command"]?.jsonPrimitive?.content.orEmpty().lineSequence().firstOrNull().orEmpty()
         HarnessTool.PROCESS -> "process ${processAction(args)} ${args["id"]?.jsonPrimitive?.content.orEmpty()}".trim()
         HarnessTool.DOWNLOAD -> "download ${args["destination"]?.jsonPrimitive?.content.orEmpty()}"

@@ -500,11 +500,7 @@ internal fun parseDiffStat(call: ToolCall, result: ToolResult?): Pair<Int, Int>?
                 val added = newText?.lines()?.size ?: 0
                 val deleted = oldText?.lines()?.size ?: 0
                 if (added > 0 || deleted > 0) added to deleted else null
-            } else {
-                // Hashline：结果未回前无法精确 DIFF_STAT；用 ops 条数作弱提示（+N -0）。
-                val ops = top.wkbin.taixu.harness.text.HashlineEditArgs.opCount(call.args)
-                if (ops > 0) ops to 0 else null
-            }
+            } else top.wkbin.taixu.harness.text.HashlineEditArgs.opCount(call.args).takeIf { it > 0 }?.to(0)
         }
         else -> null
     }

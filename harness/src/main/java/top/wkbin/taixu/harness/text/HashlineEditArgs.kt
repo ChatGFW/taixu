@@ -2,6 +2,7 @@ package top.wkbin.taixu.harness.text
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.runtime.environment.HashlineAnchors
 
@@ -31,9 +32,10 @@ object HashlineEditArgs {
         }
         fun anchor(key: String): HashlineAnchors.Anchor? =
             obj[key]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }?.let { HashlineAnchors.parseAnchor(it) }
-        val contentElement = obj["content"]
-        val content = contentElement?.let {
-            runCatching { it.jsonPrimitive.content }.getOrNull()
+        // replace 缺 content 会在 apply 里变成删行；解析期要求显式字符串（空串仍表示清空该区间）。
+        val content = when (kind) {
+            HashlineAnchors.Kind.REPLACE -> requireStringField(obj, "content", index)
+            else -> if ("content" in obj) requireStringField(obj, "content", index) else null
         }
         return HashlineAnchors.Op(
             op = kind,
@@ -42,6 +44,20 @@ object HashlineEditArgs {
             after = anchor("after"),
             content = content,
         )
+    }
+
+    private fun requireStringField(obj: JsonObject, key: String, index: Int): String {
+        val primitive = obj[key] as? JsonPrimitive
+        require(primitive != null && primitive.isString) { "ops[$index].$key 必须是字符串" }
+        return primitive.content
+    }
+
+    /** 审批摘要：write/edit 路径，edit 带 ops 时追加 `Hashline N ops`。 */
+    fun fileMutationSummary(toolName: String, args: JsonObject): String {
+        val verb = toolName.lowercase()
+        val path = args["path"]?.jsonPrimitive?.content.orEmpty()
+        val hashline = if (verb == "edit") opsLabel(args) else null
+        return if (hashline != null) "$verb $path · $hashline" else "$verb $path"
     }
 
     fun hasOps(args: JsonObject): Boolean = "ops" in args
