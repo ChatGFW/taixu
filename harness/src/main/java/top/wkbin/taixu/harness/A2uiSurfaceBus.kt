@@ -149,9 +149,28 @@ object A2uiSurfaceBus {
         }
     }
 
-    /** 引擎内部 id。空会话保持原 id，便于旧调用方和设置页示例以外的空白路径。 */
-    fun engineSurfaceId(sessionId: String, surfaceId: String): String =
-        if (sessionId.isBlank() || surfaceId.isBlank()) surfaceId else "$sessionId:$surfaceId"
+    /**
+     * 引擎内部 id。空会话保持原 id，便于旧调用方和设置页示例以外的空白路径。
+     *
+     * 幂等：入参已带本会话前缀时原样返回。事件回传的 surfaceId 就是引擎 id，模型照着
+     * 「用相同 surfaceId 重新调用」再把引擎 id 交回来，不加这层会拼成 `会话:会话:界面`，
+     * 渲染器查不到 surface，报 Surface not found。
+     */
+    fun engineSurfaceId(sessionId: String, surfaceId: String): String = when {
+        sessionId.isBlank() || surfaceId.isBlank() -> surfaceId
+        surfaceId.startsWith("$sessionId:") -> surfaceId
+        else -> "$sessionId:$surfaceId"
+    }
+
+    /**
+     * 回传模型时的 surfaceId 口径：引擎 id 去掉本会话前缀，与 render_surface 成功回执的
+     * 裸 id 保持一致。会话未知时用路由表反查，避免把引擎 id 直接暴露给模型。
+     */
+    internal fun displaySurfaceId(sessionId: String, engineId: String): String {
+        val session = sessionId.ifBlank { routeFor(engineId)?.sessionId.orEmpty() }
+        if (session.isBlank()) return engineId
+        return engineId.removePrefix("$session:")
+    }
 
     /** 渲染器注册：会话释放后按 surfaceId 拆掉引擎状态。harness 不依赖 a2ui。 */
     @Volatile
@@ -216,7 +235,7 @@ object A2uiSurfaceBus {
 
     /** 把用户交互事件格式化为注入 agent 会话的消息文本。表单值在 dataModel，不在 context。 */
     fun formatUserEvent(event: A2uiUserEvent): String = buildString {
-        append("[A2UI 界面事件] 用户在界面「${event.surfaceTitle}」（surfaceId=${event.surfaceId}）")
+        append("[A2UI 界面事件] 用户在界面「${event.surfaceTitle}」（surfaceId=${displaySurfaceId(event.sessionId, event.surfaceId)}）")
         append("上触发了交互：组件 componentId=${event.componentId}，事件 eventName=${event.eventName}")
         if (event.context.isNotEmpty()) append("，携带 context=${event.context}")
         val model = event.dataModel
@@ -234,7 +253,7 @@ object A2uiSurfaceBus {
 
     /** 把引擎运行时错误格式化为注入 agent 会话的消息文本（否则界面只会静默转圈）。 */
     fun formatErrorEvent(event: A2uiErrorEvent): String = buildString {
-        append("[A2UI 界面错误] 界面「${event.surfaceTitle}」（surfaceId=${event.surfaceId}）")
+        append("[A2UI 界面错误] 界面「${event.surfaceTitle}」（surfaceId=${displaySurfaceId(event.sessionId, event.surfaceId)}）")
         append("渲染失败：[${event.code}] ${event.message}。")
         append("请修正组件定义（属性名/类型/子组件引用必须符合 Catalog），")
         append("用相同 surfaceId 重新调用 render_surface 并携带完整 components 列表（含 id=root 的顶部组件）。")
