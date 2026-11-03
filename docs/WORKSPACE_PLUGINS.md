@@ -1,14 +1,19 @@
-# Lazygit 与工作区 Local-RAG
+# 工作区 PROCESS 插件（Lazygit / Yazi / Term Devtools / Local-RAG）
 
-这批插件不修改宿主 Kotlin 代码。源码分别在 `assets/plugins/lazygit` 和
-`assets/plugins/local-rag`，生成的包位于 `dist/plugins`，尚需 Android ARM64 真机验收。
-不调用模型 API，不需要 API Key，也不自动提交或发布插件库。
+这批插件不修改宿主 Kotlin 代码。源码分别在 `assets/plugins/lazygit`、
+`assets/plugins/yazi`、`assets/plugins/term-devtools` 和 `assets/plugins/local-rag`，
+生成的包位于 `dist/plugins`，尚需 Android ARM64 真机验收。不调用模型 API，
+不需要 API Key，也不自动提交或发布插件库。
 
 ## 安装与使用
 
-通过插件中心导入并安装两个 PROCESS 包：
+通过插件中心导入并安装 PROCESS 包：
 
 - `lazygit-0.66.2.txplugin`：需事先准备 Linux `git`；安装不联网。
+- `yazi-26.9.1.txplugin`：官方 `aarch64-unknown-linux-musl` 静态包；安装不联网。
+  默认关闭镜像预览（无 Kitty 协议时的 PTY 更稳），文本/目录预览仍可用。
+- `term-devtools-1.0.0.txplugin`：`fx` 40.0.1 + `btop` 1.4.8 官方 Linux ARM64；
+  安装不联网。工具详情默认启动 `btop`。
 - `local-rag-0.1.0.txplugin`：需事先准备 `/usr/bin/python3`（Python ≥3.9，包含
   `sqlite3` 和 FTS5）及 `git`。安装和验证实际探测 FTS5，不使用 Android 平台 SQLite。
   依赖不满足时明确失败，不自动联网安装。这不是自带 Python 的独立运行时包。
@@ -30,6 +35,32 @@ lazygit --github --path=/opt/taixu/data/github/repos/owner/repo
 配置首次复制到 `/opt/taixu/data/lazygit/config/config.yml`，升级不覆盖用户配置。
 插件配置不改全局 Git 配置；`--github` 只影响此次进程及其子进程。
 普通启动沿用终端已有认证环境，`--github` 依赖 GitHub 插件既有配置，不导出 Token。
+
+在原生交互终端启动 Yazi（与 Compose 文件浏览器互补，偏 PTY 三栏导航）：
+
+```sh
+cd /workspace/my-project
+yazi
+# 或者显式指定起始目录
+yazi /workspace/my-project
+ya --version
+```
+
+工具详情启动复用现有 PTY。默认配置关闭 `image/*` 预览与预加载；
+配置首次复制到 `/opt/taixu/data/yazi/config/yazi.toml`，升级不覆盖用户配置。
+`YAZI_CONFIG_HOME` 指向该目录。可选依赖（`file`、`fd`、`fzf` 等）未预装时功能降级，
+安装器不联网拉取。
+
+终端轻量工具合集：
+
+```sh
+btop
+cat response.json | fx
+fx data.json
+```
+
+`btop` 需要交互 PTY；`fx` 支持管道与交互两种用法，不强制 TTY。
+Android 内核上部分资源指标可能缺失或为 0，属预期降级而非安装失败。
 
 Local-RAG 的 CLI：
 
@@ -86,18 +117,42 @@ Linux ARM64 归档，摘要来自同 Release 的 `checksums.txt`：
 79a3161eeb642f0473e23db6341f7baabd4a5933e921a9c1167c5d5c765c41a4
 ```
 
-保留上游 MIT LICENSE，检查归档摘要和 ELF64 AArch64 标识，只取明确文件，不展开任意路径。
+Yazi 固定官方 [v26.9.1](https://github.com/sxyazi/yazi/releases/tag/v26.9.1)
+`yazi-aarch64-unknown-linux-musl.zip`：
+
+```text
+dd569daecaae914185f295634109295ccd25c1b42b02eb89a74f651970024f2e
+```
+
+只抽取 `yazi` / `ya` / `LICENSE`，检查归档摘要和 ELF64 AArch64 标识，不展开任意路径。
+上游 MIT LICENSE 随包保留。
+
+Term Devtools 固定：
+
+- fx [40.0.1](https://github.com/antonmedv/fx/releases/tag/40.0.1) `fx_linux_arm64`
+  `90377fbdbe3a01f791032a289986867ff1f8fe20ce94b45f20ecb399f7b69411`
+- btop [v1.4.8](https://github.com/aristocratos/btop/releases/tag/v1.4.8)
+  `btop-aarch64-unknown-linux-musl.tar.gz`
+  `95328e26ab08f42033af26628e2d169206a5a420f35669ce17459ef85114c14c`
+
+只抽取 `fx` / `btop` 二进制与双方 LICENSE，检查 ELF64 AArch64。
 
 ```powershell
 python tools/package-workspace-plugins.py
-# 已缓存归档时完全离线；也支持 --archive 指定文件
+# 已缓存归档时完全离线；也支持 --lazygit-archive / --yazi-archive / --fx-archive / --btop-archive
 python tools/package-workspace-plugins.py --offline
+python tools/package-workspace-plugins.py --only yazi --offline
+python tools/package-workspace-plugins.py --only term-devtools --offline
 # 只打包 Local-RAG 无需下载
 python tools/package-workspace-plugins.py --only local-rag --offline
 python -m unittest discover -s scripts/tests -p test_workspace_plugins.py -v
 python -m unittest discover -s scripts/tests -p test_lazygit_launcher.py -v
+python -m unittest discover -s scripts/tests -p test_yazi_launcher.py -v
+python -m unittest discover -s scripts/tests -p test_term_devtools_launcher.py -v
 $env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
 plugin/cli/build/install/taixu-plugin/bin/taixu-plugin.bat inspect dist/plugins/lazygit-0.66.2.txplugin
+plugin/cli/build/install/taixu-plugin/bin/taixu-plugin.bat inspect dist/plugins/yazi-26.9.1.txplugin
+plugin/cli/build/install/taixu-plugin/bin/taixu-plugin.bat inspect dist/plugins/term-devtools-1.0.0.txplugin
 plugin/cli/build/install/taixu-plugin/bin/taixu-plugin.bat inspect dist/plugins/local-rag-0.1.0.txplugin
 ```
 
@@ -106,5 +161,16 @@ plugin/cli/build/install/taixu-plugin/bin/taixu-plugin.bat inspect dist/plugins/
 测试包含实际 MCP stdio 进程握手、调用、错误处理与跨进程索引恢复。
 
 手机验收尚待完成：离线安装/升级/卸载、窄屏显示、中文宽度、触屏按键、窗口缩放、
-退出后的终端恢复、GitHub 认证，以及 Harness 中的工具发现/准入/取消与进程回收。
+退出后的终端恢复、GitHub 认证、Yazi 无镜像预览下的文本预览、btop 指标完整性，
+以及 Harness 中的工具发现/准入/取消与进程回收。
 包格式校验与桌面测试不替代这些验收。
+
+## 后续候选（未打包）
+
+- **Repomix（Agent 打包）**：与 `local-rag` 互补（打包 vs 检索）。远程库不接受 Node 大运行时；
+  官方暂无预编译 ARM64 单文件。落地方案优先顺序：
+  ① 发布机用 Bun `--compile --target=bun-linux-arm64`（或 musl）打 standalone，
+  钉版本/摘要后按 lazygit 同构入包（体积需压在远程库约 96 MiB 内）；
+  ② 在已装 Node≥22 的发行版上做薄 CLI/MCP 包装，缺运行时明确失败；
+  ③ 换轻量打包实现。首版至少提供 workspace 路径约束与可选 MCP `pack`，
+  不上架「自带完整 Node」的大包。单独 gum 不作 catalog 条目。

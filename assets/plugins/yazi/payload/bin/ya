@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+tool=/opt/taixu/tools/yazi
+data=/opt/taixu/data/yazi
+case "${1:-}" in
+  --version|-V)
+    exec "$tool/libexec/ya" "$@"
+    ;;
+esac
+umask 077
+mkdir -p "$data/config"
+if [ ! -f "$data/config/yazi.toml" ]; then
+  cp "$tool/config/yazi.toml" "$data/config/yazi.toml"
+fi
+export YAZI_CONFIG_HOME="$data/config"
+exec "$tool/libexec/ya" "$@"

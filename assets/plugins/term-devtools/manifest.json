@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 2,
+  "id": "term-devtools",
+  "name": "Term Devtools · fx + btop",
+  "description": "原生 PTY 中的轻量终端工具合集：交互式 JSON（fx）与资源监控（btop），官方 Linux ARM64 静态包。",
+  "version": "1.0.0",
+  "publisher": "TaiXu Community",
+  "category": "DEVELOPER",
+  "architectures": [
+    "ARM64"
+  ],
+  "launchType": "pty",
+  "source": "LOCAL",
+  "offlineOnly": true,
+  "installMethod": "LOCAL_PACKAGE",
+  "dependencies": [],
+  "permissions": [
+    "WORKSPACE_READ"
+  ],
+  "installSteps": [
+    "/bin/sh \"$TAIXU_PLUGIN_PAYLOAD/scripts/install.sh\""
+  ],
+  "launchCommand": "btop",
+  "verifyCommand": "btop --version",
+  "commandLinks": [
+    "btop",
+    "fx"
+  ],
+  "plugin": {
+    "id": "community.term-devtools",
+    "api": {
+      "minimum": 1,
+      "maximum": 1
+    },
+    "execution": "PROCESS",
+    "extensions": [
+      {
+        "id": "launch",
+        "point": "PROCESS"
+      }
+    ],
+    "capabilities": [
+      {
+        "name": "WORKSPACE_READ",
+        "target": "/workspace"
+      }
+    ],
+    "dependencies": [],
+    "resources": [],
+    "integrity": {
+      "bin/btop": "4b008fd88ab529b1836035dd931685f25c96d00dce3e548720a13682390b429d",
+      "bin/fx": "3e8f52a7f7768c445b2947287e2086cb3bc931c54912fa205081db561154cb0c",
+      "scripts/install.sh": "6019e66a2256b7d03874643d383cdf9b129cd0d3a6c7389a73aef1a9cfb9d58d",
+      "vendor/btop": "697f1f350efdf3b9287265e0b0ff87b2b815a647b07465f5a139a1a62f934069",
+      "vendor/fx": "90377fbdbe3a01f791032a289986867ff1f8fe20ce94b45f20ecb399f7b69411",
+      "vendor/LICENSE-btop": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "vendor/LICENSE-fx": "f2c369e1796dc84c37cf34a966033e8850e535567fde32ef74b672726ed61d23"
+    }
+  },
+  "homepage": "https://github.com/antonmedv/fx"
+}
