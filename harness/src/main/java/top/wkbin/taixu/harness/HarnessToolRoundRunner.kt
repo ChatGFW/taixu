@@ -278,7 +278,13 @@ class HarnessToolRoundRunner(
                         val settledOutcome = outcome.copy(durationMs = duration)
                         operationCoordinator.toolSettled(operationId, settledOutcome, round, toolName = toolCall.rawToolName ?: item.tool.name)
                         messageProjector.publishPersisted(sessId, settledOutcome)
-                        loopDetector.recordSettled(item.toolName, item.args, success = outcome.success, output = outcome.output)
+                        loopDetector.recordSettled(
+                            item.toolName,
+                            item.args,
+                            success = outcome.success,
+                            output = outcome.output,
+                            metadata = outcome.metadata,
+                        )
                         if (outcome.success) roundHadSuccess.set(true)
                         metrics.toolCallRecorded(failed = !outcome.success)
                         sessionDao.touch(sessId, now())

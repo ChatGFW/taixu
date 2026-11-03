@@ -623,6 +623,9 @@ class SettingsDataStore(
         intPreferencesKey("agent_round_limit_auto_continuations")
     private val autoWorkspaceCwdKey = booleanPreferencesKey("agent_auto_workspace_cwd")
     private val commandOutputCompressionEnabledKey = booleanPreferencesKey("agent_command_output_compression_enabled")
+    private val hashlineReadAnchorsDefaultKey = booleanPreferencesKey("agent_hashline_read_anchors_default")
+    private val hashlineEditOpsEnabledKey = booleanPreferencesKey("agent_hashline_edit_ops_enabled")
+    private val hashlineLegacyEditEnabledKey = booleanPreferencesKey("agent_hashline_legacy_edit_enabled")
     private val baseCommandTimeoutSecondsKey = intPreferencesKey("agent_base_command_timeout_seconds")
 
     /** 全局最大并发 Agent 轮次数（默认 2，受移动端性能/API 限流制约） */
@@ -670,6 +673,38 @@ class SettingsDataStore(
     }
     suspend fun setCommandOutputCompressionEnabled(value: Boolean) {
         context.settingsDataStore.edit { it[commandOutputCompressionEnabledKey] = value }
+    }
+
+    /** read 默认是否输出 Hashline 行锚；默认 true。 */
+    val hashlineReadAnchorsDefault: Flow<Boolean> =
+        context.settingsDataStore.data.map { it[hashlineReadAnchorsDefaultKey] ?: true }
+    suspend fun setHashlineReadAnchorsDefault(value: Boolean) {
+        context.settingsDataStore.edit { it[hashlineReadAnchorsDefaultKey] = value }
+    }
+
+    /** 是否允许 edit ops（Hashline）；默认 true。 */
+    val hashlineEditOpsEnabled: Flow<Boolean> =
+        context.settingsDataStore.data.map { it[hashlineEditOpsEnabledKey] ?: true }
+    suspend fun setHashlineEditOpsEnabled(value: Boolean) {
+        context.settingsDataStore.edit { it[hashlineEditOpsEnabledKey] = value }
+    }
+
+    /** 是否允许 legacy oldText/newText；默认 false（Hashline ops 优先；设置可开启）。 */
+    val hashlineLegacyEditEnabled: Flow<Boolean> =
+        context.settingsDataStore.data.map { it[hashlineLegacyEditEnabledKey] ?: false }
+    suspend fun setHashlineLegacyEditEnabled(value: Boolean) {
+        context.settingsDataStore.edit { it[hashlineLegacyEditEnabledKey] = value }
+    }
+
+    private val hashlineEditStatsJsonKey = stringPreferencesKey("hashline_edit_stats_v1")
+
+    /** Hashline 编辑计数 JSON（跨进程）；空串表示全零。 */
+    val hashlineEditStatsJson: Flow<String> =
+        context.settingsDataStore.data.map { it[hashlineEditStatsJsonKey].orEmpty() }
+    suspend fun setHashlineEditStatsJson(value: String) {
+        context.settingsDataStore.edit {
+            if (value.isBlank()) it.remove(hashlineEditStatsJsonKey) else it[hashlineEditStatsJsonKey] = value
+        }
     }
 
     /** Agent base 命令的默认前台等待时间；单次工具调用可在安全范围内覆盖。 */

@@ -927,9 +927,9 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "read",
-                    description = "读取 UTF-8 文件（上限 1MB），路径为相对路径或 /workspace/ 路径；offset（1 起始）和 limit 用于分页。历史产物可携带 expected_sha256 核验版本；缺失/变更/无法核验明确失败，不自动重放原操作。可选 query 对文件或目录进行区分大小写的字面文本检索，返回相对路径和行号；max_results 默认50、上限100。检索有深度/文件/字节/时间限制，跳过符号链接、二进制及常见构建/依赖目录；不能与 offset/limit/expected_sha256 混用。远程未支持时改用当前环境 base/grep。",
+                    description = "读取 UTF-8 文件（上限 1MB），路径为相对路径或 /workspace/ 路径；offset（1 起始）和 limit 用于分页。默认每行带 Hashline 锚点 n:h|正文（hash=fnv1a16），供 edit 的 ops 引用；anchors=false 可关闭。历史产物可携带 expected_sha256 核验版本；缺失/变更/无法核验明确失败，不自动重放原操作。可选 query 对文件或目录进行区分大小写的字面文本检索，返回相对路径和行号；max_results 默认50、上限100。检索有深度/文件/字节/时间限制，跳过符号链接、二进制及常见构建/依赖目录；不能与 offset/limit/expected_sha256 混用。远程未支持时改用当前环境 base/grep。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"path":{"type":"string","description":"文件路径；检索时也可为目录"},"offset":{"type":"integer","description":"起始行号（1 起始），可选"},"limit":{"type":"integer","description":"读取的最大行数，可选"},"expected_sha256":{"type":"string","description":"历史产物的64位小写SHA-256；核验读取前后版本，仅限当前执行环境"},"query":{"type":"string","description":"可选，1–256 字符单行字面文本；不解释正则或 Shell"},"max_results":{"type":"integer","minimum":1,"maximum":100,"description":"仅检索使用，默认 50"}},"required":["path"]}""",
+                        """{"type":"object","properties":{"path":{"type":"string","description":"文件路径；检索时也可为目录"},"offset":{"type":"integer","description":"起始行号（1 起始），可选"},"limit":{"type":"integer","description":"读取的最大行数，可选"},"anchors":{"type":"boolean","description":"是否输出 Hashline 行锚，默认 true"},"expected_sha256":{"type":"string","description":"历史产物的64位小写SHA-256；核验读取前后版本，仅限当前执行环境"},"query":{"type":"string","description":"可选，1–256 字符单行字面文本；不解释正则或 Shell"},"max_results":{"type":"integer","minimum":1,"maximum":100,"description":"仅检索使用，默认 50"}},"required":["path"]}""",
                     ).jsonObject,
                 ),
             ),
@@ -945,9 +945,9 @@ class ProviderClient internal constructor(
             ApiToolDefinition(
                 function = ApiFunctionDefinition(
                     name = "edit",
-                    description = "在文件中做精确文本替换。oldText 必须与原文逐字匹配且唯一，一次可传多个替换，但每个不能重叠或嵌套。oldText 重复或匹配多处会失败——先 read 确认内容再改。",
+                    description = "修改文件。先 read 拿到 n:h| 行锚，再用 ops（replace/insert_after/delete）按锚点修改，不必复述旧文本；锚点过期会失败，须重新 read。legacy oldText/newText 默认关闭（设置可开），开启时须唯一匹配。ops 与 oldText/newText 互斥。",
                     parameters = Json.parseToJsonElement(
-                        """{"type":"object","properties":{"path":{"type":"string"},"oldText":{"type":"string"},"newText":{"type":"string"}},"required":["path","oldText","newText"]}""",
+                        """{"type":"object","properties":{"path":{"type":"string"},"oldText":{"type":"string","description":"legacy：须与原文唯一匹配的旧文本"},"newText":{"type":"string","description":"legacy：替换后的新文本"},"ops":{"type":"array","description":"hashline 操作列表，与 oldText/newText 互斥","minItems":1,"maxItems":64,"items":{"type":"object","properties":{"op":{"type":"string","enum":["replace","insert_after","delete"]},"start":{"type":"string","description":"起始锚点 n:h"},"end":{"type":"string","description":"结束锚点（含），默认=start"},"after":{"type":"string","description":"insert_after 锚点；文件开头用 0:00"},"content":{"type":"string","description":"replace/insert_after 的新文本，勿带 n:h| 前缀"}},"required":["op"]}}},"required":["path"]}""",
                     ).jsonObject,
                 ),
             ),

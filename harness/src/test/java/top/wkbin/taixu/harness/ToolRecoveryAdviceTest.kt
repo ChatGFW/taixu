@@ -62,4 +62,26 @@ class ToolRecoveryAdviceTest {
             assertTrue(result.recovery.nextActions.single().kind.startsWith("respect_"))
         }
     }
+
+    @Test fun hashlineStaleForcesReadAndForbidsSameArgumentReplay() {
+        val result = ToolResult(
+            "r", 1, "c", false, "stale",
+            errorCode = "HASHLINE_STALE",
+            metadata = mapOf("hashline_error" to "HASHLINE_STALE"),
+        ).withRecoveryAdvice(HarnessTool.EDIT)
+        assertTrue(result.recovery!!.recoverable)
+        assertFalse(result.recovery.retrySameArguments)
+        val action = result.recovery.nextActions.single()
+        assertEquals("reread_anchors", action.kind)
+        assertEquals("read", action.tool)
+        assertTrue(action.instruction.contains("禁止改用猜测的 oldText"))
+    }
+
+    @Test fun hashlineCodeFromMetadataAloneStillDrivesAdvice() {
+        val result = ToolResult(
+            "r", 1, "c", false, "mixed",
+            metadata = mapOf("hashline_error" to "HASHLINE_MIXED_MODE"),
+        ).withRecoveryAdvice(HarnessTool.EDIT)
+        assertEquals("fix_hashline_args", result.recovery!!.nextActions.single().kind)
+    }
 }

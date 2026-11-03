@@ -20,7 +20,9 @@ internal class FakeWorld(override val id: ExecutionEnvironmentId) : ExecutionEnv
             if (path in failedDeletes) return false
             contents.remove(path); events += "delete:$path"; return true
         }
-        override suspend fun read(path: String, offset: Int?, limit: Int?) = AppResult.Success(contents[path].orEmpty())
+        override suspend fun read(path: String, offset: Int?, limit: Int?, anchors: Boolean) =
+            AppResult.Success(contents[path].orEmpty())
+        override suspend fun readTextForEdit(path: String) = AppResult.Success(contents[path].orEmpty())
         override suspend fun readRawBytes(path: String) = AppResult.Success(contents[path].orEmpty().toByteArray())
         override suspend fun write(path: String, content: String): AppResult<Unit> {
             contents[path] = content; events += "write:$path"; return AppResult.Success(Unit)

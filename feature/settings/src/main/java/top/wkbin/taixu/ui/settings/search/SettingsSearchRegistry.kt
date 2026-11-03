@@ -259,6 +259,19 @@ object SettingsSearchRegistry {
             breadcrumb = "智能体与 AI 模型 > Agent 执行参数 > 操作审批",
         ),
         SettingsSearchItem(
+            id = "agent_hashline",
+            title = "Hashline 锚点编辑",
+            subtitle = "read 行锚、edit ops、legacy oldText 闸门与跨启动累计计数",
+            category = SettingsSearchCategory.AGENT,
+            target = SettingsSearchTarget.AGENT_EXECUTION,
+            icon = RuntimeIconName.Code,
+            keywords = listOf(
+                "hashline", "anchor", "ops", "oldText", "edit", "str_replace", "legacy",
+                "行锚", "锚点", "哈希编辑", "文本替换", "观测", "maodian", "bianji",
+            ),
+            breadcrumb = "智能体与 AI 模型 > Agent 执行参数 > Hashline 编辑",
+        ),
+        SettingsSearchItem(
             id = "agent_subagents",
             title = "子智能体角色调度",
             subtitle = "配置自动委派策略与可用专业子智能体角色",

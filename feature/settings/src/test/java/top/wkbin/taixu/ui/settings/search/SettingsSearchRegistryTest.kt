@@ -48,6 +48,20 @@ class SettingsSearchRegistryTest {
     }
 
     @Test
+    fun hashlineSettingsAreDiscoverable() {
+        listOf("hashline", "行锚", "oldText", "锚点", "观测", "legacy").forEach { query ->
+            assertTrue(
+                "应可通过 $query 找到 Hashline 设置",
+                SettingsSearchRegistry.search(query).any { it.id == "agent_hashline" },
+            )
+        }
+        val item = SettingsSearchRegistry.allItems.single { it.id == "agent_hashline" }
+        assertEquals(SettingsSearchTarget.AGENT_EXECUTION, item.target)
+        assertTrue(item.breadcrumb.orEmpty().contains("Hashline"))
+        assertTrue(item.subtitle.contains("跨启动"))
+    }
+
+    @Test
     fun testEmptyQueryReturnsAllItems() {
         val resultBlank = SettingsSearchRegistry.search("")
         assertEquals(SettingsSearchRegistry.allItems.size, resultBlank.size)

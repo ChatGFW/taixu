@@ -92,15 +92,36 @@ private fun EditToolDiff(
     val path = call.args["path"]?.jsonPrimitive?.content.orEmpty()
     val oldText = call.args["oldText"]?.jsonPrimitive?.content.orEmpty()
     val newText = call.args["newText"]?.jsonPrimitive?.content.orEmpty()
+    val opsLabel = remember(call.args) { top.wkbin.taixu.harness.text.HashlineEditArgs.opsLabel(call.args) }
+    val opsPreview = remember(call.args) { hashlineOpsPreviewLines(call.args) }
 
     // 顶部路径与在编辑器中打开/产物预览按钮
     FilePathHeader(path = path, workspace = workspace, onOpenFile = onOpenFile, previewContent = newText.ifEmpty { oldText })
+    if (opsLabel != null) {
+        Text(
+            text = opsLabel,
+            style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
 
     // 优先渲染 harness 侧生成的精确 Unified Diff（反映真实命中区间与缩进重排）；
-    // 旧数据或写入失败时回退到按参数粗渲染。
+    // 旧数据或写入失败时回退到按参数粗渲染；Hashline 无 old/new 时展示 ops 预览。
     val unifiedDiff = result?.takeIf { it.success }?.metadata?.get("diff")
     if (!unifiedDiff.isNullOrBlank()) {
         UnifiedDiffLines(unifiedDiff)
+    } else if (opsPreview.isNotEmpty() && oldText.isEmpty() && newText.isEmpty()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF06090F), RoundedCornerShape(6.dp))
+                .heightIn(max = 320.dp)
+                .padding(vertical = 4.dp),
+        ) {
+            itemsIndexed(opsPreview, key = { index, _ -> "op-$index" }) { _, line ->
+                DiffLine(text = line, background = TerminalBoxBg, foreground = DiffAddedText)
+            }
+        }
     } else {
         val oldLines = remember(oldText) { if (oldText.isEmpty()) emptyList() else oldText.split('\n') }
         val newLines = remember(newText) { if (newText.isEmpty()) emptyList() else newText.split('\n') }
@@ -130,6 +151,33 @@ private fun EditToolDiff(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
+        }
+    }
+}
+
+/** Hashline ops 粗预览（无 unified diff / legacy 文本时用）；每行一条，截断 content。 */
+internal fun hashlineOpsPreviewLines(args: kotlinx.serialization.json.JsonObject, maxLines: Int = 32): List<String> {
+    val ops = args["ops"] as? kotlinx.serialization.json.JsonArray ?: return emptyList()
+    return ops.take(maxLines).mapIndexed { index, element ->
+        val obj = element as? kotlinx.serialization.json.JsonObject
+        if (obj == null) return@mapIndexed "ops[$index] (invalid)"
+        val op = obj["op"]?.jsonPrimitive?.content.orEmpty().ifBlank { "?" }
+        val start = obj["start"]?.jsonPrimitive?.content
+        val end = obj["end"]?.jsonPrimitive?.content
+        val after = obj["after"]?.jsonPrimitive?.content
+        val content = obj["content"]?.jsonPrimitive?.content
+        buildString {
+            append("· $op")
+            when {
+                after != null -> append(" after=$after")
+                start != null && end != null && end != start -> append(" $start..$end")
+                start != null -> append(" $start")
+            }
+            if (!content.isNullOrEmpty()) {
+                val oneLine = content.lineSequence().first().take(80)
+                append(" → ").append(oneLine)
+                if (content.contains('\n') || content.length > 80) append("…")
+            }
         }
     }
 }

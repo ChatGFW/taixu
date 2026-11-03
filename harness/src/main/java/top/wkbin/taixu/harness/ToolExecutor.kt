@@ -268,6 +268,9 @@ class ToolExecutor(
                 environments, linuxEnvironmentManager, settingsDataStore, sessionId, workspace)
         }
         val imagePayload = toolMetadata.remove("image_payload")
+        // Hashline 等后端把稳定错误码写入 metadata.hashline_error；提升到 ToolResult.errorCode
+        // 供 FailureMemory / withRecoveryAdvice 识别（正文仍保留完整说明）。
+        val stableErrorCode = toolMetadata["hashline_error"]?.takeIf { !success && it.isNotBlank() }
         return ToolResult(
             id = UUID.randomUUID().toString(),
             createdAt = now,
@@ -283,6 +286,7 @@ class ToolExecutor(
             ),
             metadata = toolMetadata.toMap(),
             imageDataUrl = imagePayload,
+            errorCode = stableErrorCode,
         )
     }
 

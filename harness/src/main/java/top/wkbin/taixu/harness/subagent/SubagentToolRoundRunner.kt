@@ -97,7 +97,13 @@ internal class SubagentToolRoundRunner(
                     "工具执行异常：${throwable.message?.take(200) ?: throwable::class.simpleName}") },
                 commitResult = { outcome ->
                     operations.toolSettled(operationId, outcome, round, toolName = rawName)
-                    loopDetector.recordSettled(rawName, args, outcome.success, output = outcome.output)
+                    loopDetector.recordSettled(
+                        rawName,
+                        args,
+                        outcome.success,
+                        output = outcome.output,
+                        metadata = outcome.metadata,
+                    )
                     if (writeRejection != null) blockedWrites += subagentWriteTargetLabel(rawName, executionArgs)
                     if (outcome.approvalDeferred) {
                         pendingApprovals += SubagentApprovalHandoff(

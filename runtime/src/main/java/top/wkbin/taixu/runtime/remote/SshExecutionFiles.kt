@@ -71,14 +71,38 @@ internal class SshExecutionFiles(private val transport: suspend () -> Session, p
         AppResult.Failure(AppError(ErrorCode.IO, "远程文件操作失败：请检查工作区路径、权限和连接"))
     }
 
-    override suspend fun read(path: String, offset: Int?, limit: Int?): AppResult<String> = result {
+    override suspend fun read(path: String, offset: Int?, limit: Int?, anchors: Boolean): AppResult<String> = result {
         require(offset == null || offset >= 0)
         require(limit == null || limit >= 0)
         access { channel, root ->
             val target = resolve(channel, root, path)
             if (channel.stat(target).isDir) {
                 channel.ls(target).filterIsInstance<ChannelSftp.LsEntry>().take(2000).joinToString("\n") { it.filename }
-            } else String(bytes(channel, target), Charsets.UTF_8).lines().drop(((offset ?: 1) - 1).coerceAtLeast(0)).take((limit ?: 2000).coerceAtMost(2000)).joinToString("\n")
+            } else {
+                val content = String(bytes(channel, target), Charsets.UTF_8)
+                val lines = HashlineAnchors.logicalLines(content)
+                val window = 2000
+                val start = ((offset ?: 1) - 1).coerceIn(0, lines.size)
+                val end = minOf(start + (limit ?: window).coerceIn(1, window), lines.size)
+                val display = if (path.startsWith("/")) path else "$logicalWorkspace/${path.trimStart('/')}"
+                when {
+                    !anchors && offset == null && limit == null && lines.size <= window -> content
+                    anchors -> HashlineAnchors.formatPage(display, lines, start, end)
+                    else -> {
+                        val header = HashlineAnchors.rangeHeader(display, lines.size, start + 1, end, end < lines.size)
+                        header + lines.subList(start, end).joinToString("\n") { HashlineAnchors.normalizeLine(it) }
+                    }
+                }
+            }
+        }
+    }
+
+    override suspend fun readTextForEdit(path: String): AppResult<String> = result {
+        access { channel, root ->
+            val target = resolve(channel, root, path)
+            val text = String(bytes(channel, target), Charsets.UTF_8)
+            require(text.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "文件过大，超过编辑上限" }
+            text
         }
     }
     override suspend fun listEntries(path: String): AppResult<List<ExecutionFileEntry>> = result {

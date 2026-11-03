@@ -1,7 +1,8 @@
 package top.wkbin.taixu.harness.projection
 
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
@@ -33,6 +34,20 @@ class ToolStatusDescriberTest {
         val tail = "p".repeat(ToolStatusDescriber.MAX_STATUS_ARG_LENGTH)
         assertEquals("读取文件：$tail", read)
         assertEquals("写入文件：$tail", write)
+    }
+
+    @Test
+    fun `edit with ops shows Hashline count`() {
+        val status = ToolStatusDescriber.describe(
+            HarnessTool.EDIT,
+            buildJsonObject {
+                put("path", "src/Main.kt")
+                put("ops", buildJsonArray {
+                    add(buildJsonObject { put("op", "delete"); put("start", "1:00") })
+                })
+            },
+        )
+        assertEquals("编辑文件：src/Main.kt · Hashline 1 ops", status)
     }
 
     @Test

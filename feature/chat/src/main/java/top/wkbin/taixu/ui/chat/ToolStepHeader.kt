@@ -96,7 +96,13 @@ internal fun toolStepTarget(call: ToolCall): String? {
         HarnessTool.PROCESS -> "id"
         else -> return null
     }
-    return (call.args[key] as? JsonPrimitive)?.contentOrNull?.take(512)
+    val base = (call.args[key] as? JsonPrimitive)?.contentOrNull?.take(512)
         ?.replace('\\', '/')?.trimEnd('/')?.substringAfterLast('/')
         ?.replace(Regex("[\\r\\n\\t]+"), " ")?.take(100)?.takeIf { it.isNotBlank() }
+    if (call.tool != HarnessTool.EDIT) return base
+    val hashline = top.wkbin.taixu.harness.text.HashlineEditArgs.opsLabel(call.args) ?: return base
+    return when {
+        base != null -> "$base · $hashline"
+        else -> hashline
+    }
 }

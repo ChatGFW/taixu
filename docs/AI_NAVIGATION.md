@@ -34,6 +34,7 @@
 | **已知问题与避坑指南** | [`docs/KNOWN_ISSUES.md`](KNOWN_ISSUES.md) | PRoot 沙箱环境已知限制、架构设计历史考量与规避方案 |
 | **安全边界与凭证暴露面** | [`docs/SECURITY_SURFACE.md`](SECURITY_SURFACE.md) | 权限域总览、密钥流与脱敏边界、PRoot 挂载清单、HostBridge 信任模型与风险登记 |
 | **存储分类与清理边界** | [`docs/STORAGE_MANAGEMENT.md`](STORAGE_MANAGEMENT.md) | 六类空间归属、清理计划、运行时互斥与后续管理建议 |
+| **Hashline 编辑协议（v0 / M12）** | [`docs/HASHLINE_PROTOCOL.md`](HASHLINE_PROTOCOL.md) | 行内容哈希锚点、`read`/`edit` ops、`0:00` 文件头插入、legacy 默认关与观测启发式 |
 
 ---
 

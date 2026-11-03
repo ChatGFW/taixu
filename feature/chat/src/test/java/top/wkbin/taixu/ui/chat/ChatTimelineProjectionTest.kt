@@ -1,5 +1,7 @@
 package top.wkbin.taixu.ui.chat
 
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.*
@@ -69,6 +71,16 @@ class ChatTimelineProjectionTest {
         assertEquals("file.kt", toolStepTarget(path))
         val invalid = path.copy(args = buildJsonObject { put("path", buildJsonObject { put("token", "SECRET") }) })
         assertNull(toolStepTarget(invalid))
+        val hashline = call("edit", HarnessTool.EDIT).copy(
+            args = buildJsonObject {
+                put("path", "/workspace/project/Main.kt")
+                put("ops", buildJsonArray {
+                    add(buildJsonObject { put("op", "replace"); put("start", "1:aa"); put("content", "x") })
+                    add(buildJsonObject { put("op", "delete"); put("start", "2:bb") })
+                })
+            },
+        )
+        assertEquals("Main.kt · Hashline 2 ops", toolStepTarget(hashline))
     }
 
     @Test fun legacyRoundCollapseRemainsCompatibleWithTimelineGrouping() {

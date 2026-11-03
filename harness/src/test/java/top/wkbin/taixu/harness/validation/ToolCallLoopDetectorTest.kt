@@ -111,4 +111,39 @@ class ToolCallLoopDetectorTest {
         val block = verdict as ToolCallLoopDetector.LoopVerdict.Block
         assertTrue(block.reason.contains("交替震荡死循环"))
     }
+
+    @Test
+    fun `consecutive hashline stale on same path blocks even when ops differ`() {
+        val detector = ToolCallLoopDetector(maxHashlineStalePerPath = 2)
+        val stale1 = buildJsonObject {
+            put("path", "/workspace/src/Main.kt")
+            put("ops", "[{op:replace,start:1:aa}]")
+        }
+        val stale2 = buildJsonObject {
+            put("path", "workspace/src/Main.kt")
+            put("ops", "[{op:replace,start:1:bb}]")
+        }
+        val retry = buildJsonObject {
+            put("path", "/workspace/src/Main.kt")
+            put("ops", "[{op:replace,start:1:cc}]")
+        }
+        val meta = mapOf("hashline_error" to "HASHLINE_STALE")
+
+        detector.recordIntent("edit", stale1)
+        detector.recordSettled("edit", stale1, success = false, metadata = meta)
+        detector.recordIntent("edit", stale2)
+        detector.recordSettled("edit", stale2, success = false, metadata = meta)
+
+        val blocked = detector.evaluate("edit", retry)
+        assertTrue(blocked is ToolCallLoopDetector.LoopVerdict.Block)
+        val block = blocked as ToolCallLoopDetector.LoopVerdict.Block
+        assertTrue(block.reason.contains("HASHLINE_STALE"))
+        assertTrue(block.guidance.contains("read(\"workspace/src/Main.kt\")"))
+
+        // 成功 read 同 path 后解除
+        val readArgs = buildJsonObject { put("path", "/workspace/src/Main.kt") }
+        detector.recordIntent("read", readArgs)
+        detector.recordSettled("read", readArgs, success = true)
+        assertEquals(ToolCallLoopDetector.LoopVerdict.Pass, detector.evaluate("edit", retry))
+    }
 }

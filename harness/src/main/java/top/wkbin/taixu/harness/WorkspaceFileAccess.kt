@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness
 import top.wkbin.taixu.core.common.result.AppError
 import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.common.result.ErrorCode
+import top.wkbin.taixu.runtime.environment.HashlineAnchors
 import top.wkbin.taixu.harness.text.TextReplacerEngine
 import top.wkbin.taixu.harness.text.UnifiedDiffGenerator
 import java.io.File
@@ -83,39 +84,51 @@ class WorkspaceFileAccess(
     }
 
     /**
-     * 读取文件内容。支持行级分页（pi 的 read 工具设计）：
-     * [offset] 为 1 起始的行号，[limit] 为最多读取的行数（上限 [DEFAULT_READ_LINES]）；
-     * 分页时在内容前加范围头，让模型知道文件总行数与当前窗口，便于继续翻页或精确定位。
-     * 无参调用对小文件返回全文；超过 [DEFAULT_READ_LINES] 行的大文件自动限窗，
-     * 并在范围头里给出续读偏移，避免模型在不知道截断的情况下基于半份内容做分析。
+     * 读取文件内容。支持行级分页：
+     * [offset] 为 1 起始的行号，[limit] 为最多读取的行数（上限 [DEFAULT_READ_LINES]）。
+     * 默认 [anchors]=true 输出 Hashline 行锚；false 时小文件可回落无前缀原文。
      */
-    override suspend fun read(path: String, offset: Int?, limit: Int?): AppResult<String> = withContext(Dispatchers.IO) {
+    override suspend fun read(path: String, offset: Int?, limit: Int?, anchors: Boolean): AppResult<String> =
+        withContext(Dispatchers.IO) {
+            try {
+                val file = resolveRequired(path)
+                check(file.isFile) { "不是文件：${display(path)}" }
+                val pagedSpillRead = isPagedSpillRead(path, offset, limit)
+                val readLimit = if (pagedSpillRead) MAX_HARNESS_ARTIFACT_BYTES.toLong() else MAX_READ_BYTES
+                check(file.length() <= readLimit) {
+                    "文件过大（${file.length()} 字节，上限 ${if (pagedSpillRead) MAX_HARNESS_ARTIFACT_BYTES else MAX_READ_BYTES}）。" +
+                        "请用 base 执行 grep -n 定位关键行号，再用 read(path, offset, limit) 分段精读。"
+                }
+                if (pagedSpillRead) {
+                    AppResult.Success(readPagedLines(file, path, offset!!, limit!!, anchors))
+                } else {
+                    val content = file.readText(Charsets.UTF_8)
+                    val lines = HashlineAnchors.logicalLines(content)
+                    val windowed = offset != null || limit != null || lines.size > DEFAULT_READ_LINES
+                    if (!windowed && !anchors) AppResult.Success(content)
+                    else {
+                        val effectiveLimit = (limit ?: DEFAULT_READ_LINES).coerceIn(1, DEFAULT_READ_LINES)
+                        val start = ((offset ?: 1) - 1).coerceIn(0, lines.size)
+                        val end = minOf(start + effectiveLimit, lines.size)
+                        AppResult.Success(
+                            if (anchors) HashlineAnchors.formatPage(display(path), lines, start, end)
+                            else plainPage(path, lines, start, end),
+                        )
+                    }
+                }
+            } catch (throwable: Throwable) {
+                failure(path, throwable)
+            }
+        }
+
+    override suspend fun readTextForEdit(path: String): AppResult<String> = withContext(Dispatchers.IO) {
         try {
             val file = resolveRequired(path)
             check(file.isFile) { "不是文件：${display(path)}" }
-            val pagedSpillRead = isPagedSpillRead(path, offset, limit)
-            val readLimit = if (pagedSpillRead) MAX_HARNESS_ARTIFACT_BYTES.toLong() else MAX_READ_BYTES
-            check(file.length() <= readLimit) {
-                "文件过大（${file.length()} 字节，上限 ${if (pagedSpillRead) MAX_HARNESS_ARTIFACT_BYTES else MAX_READ_BYTES}）。" +
-                    "请用 base 执行 grep -n 定位关键行号，再用 read(path, offset, limit) 分段精读。"
+            check(file.length() <= MAX_EDIT_BYTES) {
+                "文件过大（${file.length()} 字节，上限 $MAX_EDIT_BYTES），请使用 base 的流式文本工具进行定点修改"
             }
-            if (pagedSpillRead) {
-                AppResult.Success(readPagedLines(file, path, offset!!, limit!!))
-            } else {
-                val content = file.readText(Charsets.UTF_8)
-                val lines = content.split('\n')
-                val totalLines = if (content.endsWith("\n")) lines.size - 1 else lines.size
-                if (offset == null && limit == null && totalLines <= DEFAULT_READ_LINES) {
-                    AppResult.Success(content)
-                } else {
-                    val effectiveLimit = (limit ?: DEFAULT_READ_LINES).coerceIn(1, DEFAULT_READ_LINES)
-                    val start = ((offset ?: 1) - 1).coerceIn(0, totalLines)
-                    val end = minOf(start + effectiveLimit, totalLines)
-                    val selected = lines.subList(start, end)
-                    val header = rangeHeader(path, totalLines, start, end)
-                    AppResult.Success(header + selected.joinToString("\n"))
-                }
-            }
+            AppResult.Success(file.readText(Charsets.UTF_8))
         } catch (throwable: Throwable) {
             failure(path, throwable)
         }
@@ -334,26 +347,29 @@ class WorkspaceFileAccess(
         return canonical.takeIf { isInside(allowedRoot, it) }
     }
 
-    private fun readPagedLines(file: File, path: String, offset: Int, limit: Int): String {
+    private fun readPagedLines(file: File, path: String, offset: Int, limit: Int, anchors: Boolean): String {
         val effectiveLimit = limit.coerceIn(1, DEFAULT_READ_LINES)
         val requestedStart = (offset - 1).coerceAtLeast(0)
         val selected = ArrayList<String>(effectiveLimit)
         var totalLines = 0
         file.bufferedReader(Charsets.UTF_8).useLines { lines ->
             lines.forEach { line ->
-                if (totalLines >= requestedStart && selected.size < effectiveLimit) selected += line
+                if (totalLines >= requestedStart && selected.size < effectiveLimit) {
+                    selected += HashlineAnchors.normalizeLine(line)
+                }
                 totalLines++
             }
         }
         val start = requestedStart.coerceAtMost(totalLines)
         val end = start + selected.size
-        return rangeHeader(path, totalLines, start, end) + selected.joinToString("\n")
+        val header = HashlineAnchors.rangeHeader(display(path), totalLines, start + 1, end, end < totalLines)
+        val body = if (anchors) HashlineAnchors.formatBody(selected, start + 1) else selected.joinToString("\n")
+        return header + body
     }
 
-    private fun rangeHeader(path: String, totalLines: Int, start: Int, end: Int): String = buildString {
-        append("[文件 ${display(path)} 共 $totalLines 行，当前显示第 ${start + 1}-$end 行")
-        if (end < totalLines) append("；内容未完，继续读取请用 offset=${end + 1}")
-        append("]\n")
+    private fun plainPage(path: String, lines: List<String>, start: Int, end: Int): String {
+        val header = HashlineAnchors.rangeHeader(display(path), lines.size, start + 1, end, end < lines.size)
+        return header + lines.subList(start, end).joinToString("\n") { HashlineAnchors.normalizeLine(it) }
     }
 
     private fun isPagedSpillRead(path: String, offset: Int?, limit: Int?): Boolean =
@@ -375,11 +391,10 @@ class WorkspaceFileAccess(
         internal const val MAX_HARNESS_ARTIFACT_BYTES = 16 * 1024 * 1024
         private const val DIR = ".taixu-outputs"
         const val MAX_EDIT_BYTES = 1 * 1024 * 1024L
-        /** 单张图片多模态直读上限：超过则提示压缩，避免把巨型 Base64 灌进请求体。 */
+        /** 单张图片多模态直读上限：避免巨型 Base64 灌进请求体。 */
         const val MAX_IMAGE_BYTES = 8 * 1024 * 1024L
         const val MAX_LIST_ENTRIES = 5_000
-
-        /** 无参 read 的默认行窗口；单次 limit 也以此为上限，避免单次读取灌爆工具输出。 */
+        /** 无参 read 默认行窗；单次 limit 上限。 */
         const val DEFAULT_READ_LINES = 2000
     }
 }

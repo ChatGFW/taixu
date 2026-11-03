@@ -28,10 +28,13 @@ class WorkspaceTextSearchTest {
         root.put("src/a.kt", "first\n中文 a.* \$(touch injected)\nlast\n")
         val operations = WorkspaceFileAccess(root)
         val result = operations.search("/workspace/src", "a.*", 50).text()
-        assertTrue(result.contains("a.kt:2: 中文 a.*"))
+        val line2 = top.wkbin.taixu.runtime.environment.HashlineAnchors.anchorOf(2, "中文 a.* \$(touch injected)")
+        assertTrue(result.contains("a.kt:$line2|") && result.contains("中文 a.*"))
         assertFalse(result.contains(root.absolutePath))
         assertFalse(File(root, "injected").exists())
-        assertTrue(operations.search("src/a.kt", "last", 50).text().contains("a.kt:3: last"))
+        val lastHit = operations.search("src/a.kt", "last", 50).text()
+        val line3 = top.wkbin.taixu.runtime.environment.HashlineAnchors.anchorOf(3, "last")
+        assertTrue(lastHit.contains("a.kt:$line3|last"))
     }
 
     @Test fun escapePathsAreRejectedAndSymlinkTreesAreNotFollowed() = runBlocking<Unit> {
@@ -110,8 +113,10 @@ class WorkspaceTextSearchTest {
         assertTrue(output.contains("命中 2"))
         assertTrue(output.contains("跳过 1 项"))
         assertTrue(output.contains("结果不完整"))
-        assertTrue(output.contains("first.txt:1: needle first"))
-        assertTrue(output.contains("second.txt:1: needle second"))
+        val firstAnchor = top.wkbin.taixu.runtime.environment.HashlineAnchors.anchorOf(1, "needle first")
+        val secondAnchor = top.wkbin.taixu.runtime.environment.HashlineAnchors.anchorOf(1, "needle second")
+        assertTrue(output.contains("first.txt:$firstAnchor|needle first"))
+        assertTrue(output.contains("second.txt:$secondAnchor|needle second"))
     }
 
     @Test fun readBackendDispatchesQueryAndDoesNotReadAsImageOrPaginatedFile() = runBlocking<Unit> {
@@ -120,7 +125,8 @@ class WorkspaceTextSearchTest {
         val args = Json.parseToJsonElement("""{"path":"image.png","query":"needle","max_results":1}""").jsonObject
         val result = backend.execute(WorkspaceToolRequest(HarnessTool.READ, args, "session", "/workspace"))
         assertTrue(result.success)
-        assertTrue(result.output.contains("image.png:1:"))
+        val hit = top.wkbin.taixu.runtime.environment.HashlineAnchors.anchorOf(1, "literal text needle")
+        assertTrue(result.output.contains("image.png:$hit|"))
         assertFalse(result.metadata.containsKey("image_payload"))
         try {
             backend.execute(WorkspaceToolRequest(HarnessTool.READ,

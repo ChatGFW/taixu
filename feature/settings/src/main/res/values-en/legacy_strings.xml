@@ -491,6 +491,21 @@
     <string name="settings_text_0348" formatted="false">Applies to all conversations immediately (leave blank to restore defaults); the {{char}} / {{user}} macro variables in a custom prompt will also use these values.</string>
     <string name="settings_text_0349" formatted="false">Default system prompt (core.md)</string>
     <string name="settings_text_0350" formatted="false">(Failed to load the default system prompt)</string>
+    <string name="settings_text_0351" formatted="false">Hashline edits</string>
+    <string name="settings_text_0352" formatted="false">Read with line anchors by default</string>
+    <string name="settings_text_0353" formatted="false">When off, read no longer prefixes n:h| by default; tools can still pass anchors=true</string>
+    <string name="settings_text_0354" formatted="false">Allow Hashline ops edits</string>
+    <string name="settings_text_0355" formatted="false">When off, edit rejects ops and only accepts oldText/newText</string>
+    <string name="settings_text_0356" formatted="false">Allow legacy oldText edits</string>
+    <string name="settings_text_0357" formatted="false">When off, only anchor ops are accepted; kept on during observation</string>
+    <string name="settings_text_0358" formatted="false">Cumulative edit counts (kept across restarts)</string>
+    <string name="settings_text_0359" formatted="false">Refresh</string>
+    <string name="settings_text_0360" formatted="false">Reset</string>
+    <string name="settings_text_0361" formatted="false">Observation tip: ops look stable while legacy still fails — consider turning off “Allow legacy oldText edits”</string>
+    <string name="settings_text_0362" formatted="false">Turn off legacy edits</string>
+    <string name="settings_text_0363" formatted="false">Off by default; enable to accept oldText/newText (weaker-model fallback)</string>
+    <string name="settings_text_0364" formatted="false">Observation tip: models still send many rejected oldText edits while ops are not yet solid — consider temporarily enabling “Allow legacy oldText edits”</string>
+    <string name="settings_text_0365" formatted="false">Temporarily enable legacy edits</string>
     <string name="settings_long_001" formatted="false">, target.sizeBytes.toDouble ()/(1024 * 1024)} MB space). The code file in the/workspace workspace will not be affected in any way.</string>
     <string name="settings_long_002" formatted="false">1. Analyze the above PRoot sandbox for failures and errors (such as dpkg dependency corruption, lock residuals, blocked network downloads, missing commandLinks softlinks, or missing environment);</string>
     <string name="settings_long_003" formatted="false">2. Directly call the base tool to execute targeted repair commands (such as cleaning up the/var/lib/dpkg lock, dpkg --configure -a, apt-get --fix-broken install, manually pulling or patching soft links from alternate sources);</string>
