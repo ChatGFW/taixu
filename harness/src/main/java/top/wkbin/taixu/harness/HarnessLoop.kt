@@ -995,35 +995,9 @@ class HarnessLoop(
     ) { id -> messageStore.load(id).any { it is UserMessage } }
 
     /** Resolve a waiting approval as a cancelled tool call before allowing a new run. */
-    private suspend fun rejectPendingApprovalsForCancel(sessId: String) {
-        val pending = approvalRepository.pendingNow(sessId)
-        if (pending.isEmpty()) return
-        val now = now()
-        for (request in pending) {
-            if (!approvalRepository.claimPending(
-                    request.id,
-                    AgentApprovalRequestEntity.STATUS_REJECTED,
-                )
-            ) {
-                continue
-            }
-            val result = ToolResult(
-                id = newId(),
-                createdAt = now,
-                toolCallId = request.toolCallId,
-                success = false,
-                output = "用户已停止本次运行，待审批工具未执行。",
-            )
-            val active = operationCoordinator.active(sessId)
-            if (active != null && (request.operationId == null || request.operationId == active.id)) {
-                operationCoordinator.toolSettled(active.id, result, round = 0, toolName = request.toolName)
-                messageProjector.publishPersisted(sessId, result)
-            } else {
-                messageProjector.append(sessId, result)
-            }
-        }
-        operationCoordinator.finish(sessId, "aborted")
-    }
+    private suspend fun rejectPendingApprovalsForCancel(sessId: String) = cancelPendingApprovalsForSession(
+        sessId, approvalRepository, operationCoordinator, messageProjector, now(), ::newId,
+    )
 
     private suspend fun executeSessionRun(
         sessId: String,

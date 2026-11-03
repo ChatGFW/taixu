@@ -10,15 +10,10 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.put
 import java.util.UUID
-import top.wkbin.taixu.core.browser.ActionContext
 import top.wkbin.taixu.core.browser.ActionPolicyInitiator
 import top.wkbin.taixu.core.browser.BrowserCapability
-import top.wkbin.taixu.core.browser.BrowserHelpRequests
-import top.wkbin.taixu.core.browser.BrowserHumanControl
 import top.wkbin.taixu.core.browser.BrowserPreferences
 import top.wkbin.taixu.core.browser.BrowserRisk
-import top.wkbin.taixu.core.browser.HostActionPolicy
-import top.wkbin.taixu.core.browser.PolicyDecision
 import top.wkbin.taixu.core.model.ToolImageRef
 import top.wkbin.taixu.runtime.browser.BrowserEngine
 import top.wkbin.taixu.runtime.browser.BrowserSessionToken
@@ -61,35 +56,19 @@ class BrowserMcpTools(
         }
     }
 
-    suspend fun invoke(
-        toolName: String,
-        args: JsonObject,
-        initiatorKind: String = ActionPolicyInitiator.PERSON,
-    ): InvokeResult {
+    suspend fun invoke(toolName: String, args: JsonObject, initiatorKind: String = ActionPolicyInitiator.PERSON): InvokeResult {
         val spec = TOOLS.firstOrNull { it.name == toolName }
             ?: return InvokeResult.error("未知工具：$toolName")
-        // OpenBot：人握方向盘时拒绝页面动作（不排队）；只读观测仍放行；并记 help_requested。
-        if (BrowserHumanControl.humanHasControl() && BrowserHumanControl.isPageActingTool(toolName)) {
-            val message = BrowserHumanControl.refuseMessage()
-            BrowserHelpRequests.notifyPageActionRefused(toolName, message)
-            return InvokeResult.error(message)
-        }
-        // CEL-lite 主机策略：deny 优先、失败封闭；云元数据硬拒绝；带上发起因。
-        val policyUrl = sanitizeUrl(args["url"]?.asString()).let { raw ->
-            if (toolName == "browser.open" && raw.isEmpty()) prefs.homeUrl else raw
-        }
-        when (val decision = HostActionPolicy.evaluate(
-            ActionContext(
-                toolName = toolName,
-                pageUrl = policyUrl,
-                pageHost = HostActionPolicy.hostOf(policyUrl),
-                initiatorKind = ActionPolicyInitiator.normalize(initiatorKind),
-            ),
-        )) {
-            is PolicyDecision.Deny -> return InvokeResult.error(HostActionPolicy.refuseMessage(decision))
-            PolicyDecision.Allow -> Unit
-        }
-        val engine = pickEngine(explicitTokenOf(args)) ?: return InvokeResult.error("无浏览器引擎")
+        val engine = pickEngine(explicitTokenOf(args))
+        admitBrowserTool(
+            toolName = toolName,
+            explicitUrl = sanitizeUrl(args["url"]?.asString()),
+            tabId = args["tab"]?.asString(),
+            initiatorKind = initiatorKind,
+            homeUrl = prefs.homeUrl,
+            engine = engine,
+        )?.let { return it }
+        if (engine == null) return InvokeResult.error("无浏览器引擎")
         return when (toolName) {
             "browser.open" -> {
                 val url = sanitizeUrl(args["url"]?.asString()).ifEmpty { prefs.homeUrl }
@@ -556,22 +535,6 @@ class BrowserMcpTools(
             InvokeResult.okMessage(engine.debugScope(tokenOf(args, engine), frame, scope))
         }
     }
-
-    private fun fmtBytes(n: Long): String = when {
-        n >= 1024 * 1024 -> "${n / (1024 * 1024)}MB"
-        n >= 1024 -> "${n / 1024}KB"
-        else -> "${n}B"
-    }
-
-    private fun JsonElement?.asString(): String? =
-        (this as? JsonPrimitive)?.content?.takeIf { it.isNotEmpty() }
-
-    private fun JsonElement?.asInt(): Int? =
-        (this as? JsonPrimitive)?.content?.toIntOrNull()
-
-    private fun JsonElement?.asBool(): Boolean? =
-        (this as? JsonPrimitive)?.content?.toBooleanStrictOrNull()
-
 
     data class ToolSpec(
         val name: String,

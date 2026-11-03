@@ -15,7 +15,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.browser.BrowserDescriptor
 import top.wkbin.taixu.core.browser.BrowserFamily
-import top.wkbin.taixu.core.browser.BrowserHelpRequests
 import top.wkbin.taixu.core.browser.PageSnapshot
 import top.wkbin.taixu.core.browser.TaiXuNewTab
 import top.wkbin.taixu.core.datastore.BrowserPreferences
@@ -46,10 +45,7 @@ class BrowserViewModel(
     private val _activityTick = MutableStateFlow(0L)
     // 面板可见性：只有浏览器面板真正被展示时才确保/补建活跃 tab，避免 app 启动即常驻 WebView
     private val _paneVisible = MutableStateFlow(false)
-
-    private val helpListener = BrowserHelpRequests.Listener { toolName, _ ->
-        _toolMessage.value = "Bot 需要你接手：$toolName 已拒绝（共浏览已暂停）"
-    }
+    private val humanControl = BrowserHumanControlBinder(_toolMessage, _coBrowsingEnabled, browserPreferences, viewModelScope)
 
     private val coreState = combine(
         eventBus.snapshot,
@@ -138,23 +134,7 @@ class BrowserViewModel(
             .onFailure { _toolMessage.value = "恢复失败：${it.message ?: "CDP 未启用"}" }
     }
 
-    /**
-     * native（shouldInterceptRequest，无状态码）与 js（hook 引擎，有状态码/body）
-     * 对同一请求会各出一条：同 method+url 且 2.5s 时间窗内视为重复，隐藏 native 条目。
-     */
-    private fun dedupeNetwork(all: List<CapturedRequest>): List<CapturedRequest> {
-        val jsEntries = all.filter { it.source != "native" }
-        if (jsEntries.isEmpty()) return all
-        return all.filterNot { native ->
-            native.source == "native" && jsEntries.any {
-                it.method == native.method && it.url == native.url &&
-                    kotlin.math.abs(it.startedAt - native.startedAt) < 2_500
-            }
-        }
-    }
-
     init {
-        BrowserHelpRequests.addListener(helpListener)
         viewModelScope.launch {
             eventBus.url.collect { loadedUrl ->
                 when {
@@ -165,14 +145,7 @@ class BrowserViewModel(
             }
         }
         // 共浏览开关：从 DataStore 读取并保持同步（设置页等其他入口的修改也会生效）
-        viewModelScope.launch {
-            runCatching {
-                browserPreferences.coBrowsingEnabled().collect { enabled ->
-                    _coBrowsingEnabled.value = enabled
-                    top.wkbin.taixu.core.browser.BrowserHumanControl.setCoBrowsingEnabled(enabled)
-                }
-            }
-        }
+        humanControl.start()
         // 浏览器活动信号：活跃 tab URL 变化 / tab 切换时递增（聊天页据此显示"浏览器有新动态"）
         viewModelScope.launch {
             var lastUrl = ""
@@ -274,8 +247,7 @@ class BrowserViewModel(
     fun onCoBrowsingToggle(enabled: Boolean) {
         if (_coBrowsingEnabled.value == enabled) return
         _coBrowsingEnabled.value = enabled
-        // 进程内闸门立即生效，不等待 DataStore；Bot 页面动作随即拒绝/恢复。
-        top.wkbin.taixu.core.browser.BrowserHumanControl.setCoBrowsingEnabled(enabled)
+        humanControl.mirror(enabled)
         viewModelScope.launch { runCatching { browserPreferences.setCoBrowsingEnabled(enabled) } }
     }
 
@@ -310,7 +282,7 @@ class BrowserViewModel(
     fun dismissToolMessage() { _toolMessage.value = null }
 
     override fun onCleared() {
-        BrowserHelpRequests.removeListener(helpListener)
+        humanControl.stop()
         super.onCleared()
     }
 
