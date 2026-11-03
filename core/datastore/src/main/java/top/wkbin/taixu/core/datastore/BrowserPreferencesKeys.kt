@@ -18,4 +18,6 @@ object BrowserPreferencesKeys {
     val AllowVConsole = booleanPreferencesKey("browser_allow_v_console")
     val DesktopUserAgent = booleanPreferencesKey("browser_desktop_user_agent")
     val MaxCaptureBytes = intPreferencesKey("browser_max_capture_bytes")
+    /** CEL-lite 主机动作策略 JSON；空串 = 出厂默认 deny:[] / allow:["true"]。 */
+    val ActionPolicyJson = stringPreferencesKey("browser_action_policy_json")
 }

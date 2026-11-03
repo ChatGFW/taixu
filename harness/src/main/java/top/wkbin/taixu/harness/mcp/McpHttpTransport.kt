@@ -31,15 +31,17 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import okio.utf8Size
+import top.wkbin.taixu.core.browser.ActionPolicyInitiator
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.model.McpAuthMode
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpToolInfo
+import top.wkbin.taixu.harness.approval.currentRunInitiator
 import top.wkbin.taixu.harness.mcp.oauth.McpOAuthTokenProvider
 import top.wkbin.taixu.harness.mcp.server.BuiltinBrowserMcpAccess
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import top.wkbin.taixu.core.model.McpAuthMode
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 远程 MCP 传输：同时支持 Streamable HTTP（2025-03-26+）与 legacy HTTP+SSE（2024-11-05）。
@@ -318,23 +320,30 @@ class McpHttpTransport(
 
     // ---------- 请求执行 ----------
 
-    private suspend fun exchange(session: HttpSession, method: String, params: JsonElement): JsonRpcResponse =
-        when (session.mode) {
+    private suspend fun exchange(session: HttpSession, method: String, params: JsonElement): JsonRpcResponse {
+        // tools/call 按次附带发起因：会话缓存头不含此字段，避免无人值守/有人交互串味。
+        val headers = if (method == "tools/call") {
+            session.headers + (ActionPolicyInitiator.HEADER to currentRunInitiator().kind)
+        } else {
+            session.headers
+        }
+        return when (session.mode) {
             TransportMode.STREAMABLE_HTTP -> postStreamable(
                 endpoint = session.endpoint,
                 sessionId = session.sessionId,
                 method = method,
                 params = params,
                 longRunning = method == "tools/call",
-                headers = session.headers,
+                headers = headers,
             ).response
             TransportMode.LEGACY_SSE -> postViaLegacy(
                 channel = session.legacy ?: error("Legacy SSE 会话已关闭"),
                 method = method,
                 params = params,
-                headers = session.headers,
+                headers = headers,
             )
         }
+    }
 
     private suspend fun postStreamable(
         endpoint: HttpUrl,

@@ -46,7 +46,7 @@ import top.wkbin.taixu.harness.WorkspaceFileAccess
 import top.wkbin.taixu.harness.WorkspaceMutationSnapshots
 import top.wkbin.taixu.harness.core.ToolCheckpoints
 import top.wkbin.taixu.harness.directory.CapabilityToolGateway
-import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.harness.websearch.StubSearchProvider
 import top.wkbin.taixu.harness.SearchWebToolBackend
 
@@ -122,6 +122,7 @@ class ApprovalAuditTrailTest {
         assertEquals("write", rows.single().toolName)
         assertEquals(call.id, rows.single().toolCallId)
         assertNotNull(rows.single().grantKey)
+        assertEquals(RunInitiator.PERSON, rows.single().initiatorKind)
     }
 
     @Test
@@ -137,11 +138,83 @@ class ApprovalAuditTrailTest {
     }
 
     @Test
+    fun `schedule initiator is stamped on grant exemption audit`() = runBlocking {
+        seed(ApprovalMode.REQUEST.id)
+        grants.grant("session", "write", call.args.toString(), "normal")
+        kotlinx.coroutines.withContext(RunInitiatorContext(RunInitiator.schedule("cron-1"))) {
+            executor().execute(call, "session")
+        }
+        val row = audits.listForSession("session").single()
+        assertEquals(AgentApprovalAuditEntity.KIND_GRANT_EXEMPTED, row.kind)
+        assertEquals(RunInitiator.SCHEDULE, row.initiatorKind)
+        assertEquals("cron-1", row.initiatorId)
+    }
+
+    @Test
+    fun `plan mode denial leaves policy_denied audit`() = runBlocking {
+        sessions.upsert(HarnessSessionEntity("session", "test", 1, 1, null, approvalMode = ApprovalMode.FULL_ACCESS.id, runMode = "plan"))
+        val result = executor().execute(call, "session")
+        assertFalse(result.success)
+        assertFalse(File(root, "a.txt").exists())
+        val row = audits.listForSession("session").single()
+        assertEquals(AgentApprovalAuditEntity.KIND_POLICY_DENIED, row.kind)
+        assertEquals(call.id, row.toolCallId)
+    }
+
+    @Test
+    fun `unattended computer failure leaves forward and failed dual audit`() = runBlocking {
+        val edit = ToolCall(
+            "call-edit", 2, HarnessTool.EDIT,
+            Json.parseToJsonElement("""{"path":"missing.txt","oldText":"a","newText":"b"}""") as JsonObject,
+            rawToolName = "edit",
+        )
+        kotlinx.coroutines.withContext(RunInitiatorContext(RunInitiator.schedule("cron-dual"))) {
+            val result = executor().execute(edit, "session")
+            assertFalse(result.success)
+        }
+        val rows = audits.listForSession("session").sortedBy { it.createdAt }
+        assertEquals(
+            listOf(
+                AgentApprovalAuditEntity.KIND_DECISION_FORWARDED,
+                AgentApprovalAuditEntity.KIND_ACTION_FAILED,
+            ),
+            rows.map { it.kind },
+        )
+        assertTrue(rows.all { it.initiatorKind == RunInitiator.SCHEDULE && it.initiatorId == "cron-dual" })
+    }
+
+    @Test
     fun `missing approval repository fails closed instead of executing`() = runBlocking {
         seed(ApprovalMode.REQUEST.id)
         val result = executor(approvalRepo = null).execute(call, "session")
         assertFalse(result.success)
         assertFalse(File(root, "a.txt").exists())
+    }
+
+    @Test
+    fun `control taken and released land in browser-control session`() = runBlocking {
+        auditor.controlTaken()
+        auditor.controlReleased()
+        val rows = audits.listForSession(AgentApprovalAuditEntity.SESSION_BROWSER_CONTROL)
+            .sortedBy { it.createdAt }
+        assertEquals(
+            listOf(
+                AgentApprovalAuditEntity.KIND_CONTROL_TAKEN,
+                AgentApprovalAuditEntity.KIND_CONTROL_RELEASED,
+            ),
+            rows.map { it.kind },
+        )
+        assertTrue(rows.all { it.toolName == AgentApprovalAuditEntity.TOOL_BROWSER_CONTROL })
+        assertTrue(rows.all { it.initiatorKind == RunInitiator.PERSON })
+    }
+
+    @Test
+    fun `help requested keeps refused tool name`() = runBlocking {
+        auditor.helpRequested("browser.click", "用户正在接管")
+        val row = audits.listForSession(AgentApprovalAuditEntity.SESSION_BROWSER_CONTROL).single()
+        assertEquals(AgentApprovalAuditEntity.KIND_HELP_REQUESTED, row.kind)
+        assertEquals("browser.click", row.toolName)
+        assertTrue(row.detail.orEmpty().contains("接管"))
     }
 
     @Test
@@ -198,6 +271,8 @@ class ApprovalAuditTrailTest {
         override fun observeForSession(sessionId: String) = kotlinx.coroutines.flow.MutableStateFlow(emptyList<AgentApprovalAuditEntity>())
         override suspend fun listForSession(sessionId: String, limit: Int) = emptyList<AgentApprovalAuditEntity>()
         override suspend fun countForSession(sessionId: String) = 0
+        override fun observeUnattendedRecent(limit: Int) = kotlinx.coroutines.flow.MutableStateFlow(emptyList<AgentApprovalAuditEntity>())
+        override fun observeControlRecent(limit: Int) = kotlinx.coroutines.flow.MutableStateFlow(emptyList<AgentApprovalAuditEntity>())
         override suspend fun deleteForSession(sessionId: String) = Unit
     }
 }

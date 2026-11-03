@@ -2,21 +2,23 @@ package top.wkbin.taixu.harness.browser
 
 import android.content.Context
 import android.util.Log
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import top.wkbin.taixu.core.browser.BrowserFamily
+import top.wkbin.taixu.core.browser.BrowserHumanControl
+import top.wkbin.taixu.core.browser.BrowserPreferences
+import top.wkbin.taixu.core.browser.HostActionPolicy
+import top.wkbin.taixu.core.browser.TaiXuNewTab
+import top.wkbin.taixu.core.datastore.BrowserPreferences as DataStoreBrowserPreferences
 import top.wkbin.taixu.harness.mcp.server.BuiltinBrowserMcpAccess
 import top.wkbin.taixu.harness.mcp.server.McpServerRuntime
 import top.wkbin.taixu.runtime.browser.BrowserRegistry
 import top.wkbin.taixu.runtime.browser.BrowserRegistryImpl
+import top.wkbin.taixu.runtime.browser.cdp.WebViewDebugging
 import top.wkbin.taixu.runtime.browser.engine.AndroidInAppBrowserEngine
 import top.wkbin.taixu.runtime.browser.engine.WebViewTabPool
-import top.wkbin.taixu.runtime.browser.cdp.WebViewDebugging
-import top.wkbin.taixu.core.browser.BrowserFamily
-import java.util.UUID
-import kotlinx.coroutines.CancellationException
-import top.wkbin.taixu.core.browser.BrowserPreferences
-import top.wkbin.taixu.core.browser.TaiXuNewTab
-import top.wkbin.taixu.core.datastore.BrowserPreferences as DataStoreBrowserPreferences
 
 /**
  * 把 in-process 浏览器 MCP server 注入到 harness 流水线，并负责：
@@ -34,9 +36,12 @@ class BrowserMcpBootstrap(
     private val runtime: Lazy<McpServerRuntime>,
     private val registry: BrowserRegistry,
     private val browserPrefs: DataStoreBrowserPreferences,
+    private val controlAuditBridge: BrowserControlAuditBridge,
 ) {
     /** 注册引擎并启动 HTTP server；幂等。按用户偏好（#4）决定绑定面：allowRemote 时绑定 0.0.0.0。 */
     suspend fun bootstrap(): Boolean {
+        // 先挂接管审计，再同步共浏览偏好，避免启动翻转丢失 control_* 行。
+        controlAuditBridge.bind()
         val server = runtime.value
         if (server.isRunning) return true
         val regImpl = registry as? BrowserRegistryImpl ?: return false
@@ -98,7 +103,13 @@ class BrowserMcpBootstrap(
                 maxCaptureBytes = browserPrefs.maxCaptureBytes().first(),
             )
         }
-    }.getOrDefault(BrowserPreferences.DEFAULT)
+    }.getOrDefault(BrowserPreferences.DEFAULT).also { prefs ->
+        BrowserHumanControl.setCoBrowsingEnabled(prefs.coBrowsingEnabled)
+        val storedPolicy = runCatching {
+            runBlocking { browserPrefs.actionPolicyJson().first() }
+        }.getOrDefault("")
+        HostActionPolicy.installFromStored(storedPolicy)
+    }
 
     private fun generateToken(): String = UUID.randomUUID().toString().replace("-", "")
 

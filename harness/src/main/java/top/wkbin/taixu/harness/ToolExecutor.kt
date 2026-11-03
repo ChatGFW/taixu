@@ -3,7 +3,9 @@ package top.wkbin.taixu.harness
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.harness.approval.ApprovalAuditRecorder
+import top.wkbin.taixu.harness.approval.RunInitiator
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
+import top.wkbin.taixu.harness.approval.currentRunInitiator
 import top.wkbin.taixu.harness.approval.planBlockedResult
 import top.wkbin.taixu.harness.checkpoint.CheckpointStore
 import top.wkbin.taixu.harness.core.ToolCheckpoints
@@ -153,6 +155,8 @@ class ToolExecutor(
             )
         }
         val toolMetadata = mutableMapOf<String, String>()
+        val toolName = toolCall.rawToolName ?: toolCall.tool.name.lowercase()
+        var auditedRisk = ""
         val outcome = try {
             if (!bypassApproval && sessionId.isNotBlank()) {
                 val repository = approvalRepository
@@ -166,14 +170,17 @@ class ToolExecutor(
                 // 因此这里同样约束后台并行子智能体，无需在 Lane 内重复判定。
                 if (runMode == RunMode.PLAN) {
                     approvalPolicyEngine.planBlock(toolCall.tool, toolCall.args, toolCall.rawToolName)?.let { blocked ->
-                        val blockedName = toolCall.rawToolName ?: toolCall.tool.name.lowercase()
-                        return planBlockedResult(now, toolCall.id, blockedName, blocked)
+                        approvalAuditor?.policyDenied(sessionId, toolCall.id, toolName, "high", blocked)
+                        return planBlockedResult(now, toolCall.id, toolName, blocked)
                     }
                 }
                 val mcpCall = if (toolCall.tool == HarnessTool.MCP) {
                     mcpToolPolicy?.resolve(toolCall.args, toolCall.rawToolName)
                 } else null
-                if (mcpCall?.enabled == false) return mcpCall.disabledResult(toolCall, now)
+                if (mcpCall?.enabled == false) {
+                    approvalAuditor?.policyDenied(sessionId, toolCall.id, toolName, "high", mcpCall.disabledMessage())
+                    return mcpCall.disabledResult(toolCall, now)
+                }
                 val annotations = mcpCall?.tool?.annotations ?: if (toolCall.tool == HarnessTool.MCP) {
                     mcpManager.annotationsForCall(toolCall.args, toolCall.rawToolName)
                 } else null
@@ -182,6 +189,7 @@ class ToolExecutor(
                     mcpCall?.riskOverride,
                     annotations,
                 )
+                auditedRisk = decision.riskLevel
                 // 「本会话内记住」授权表豁免：用户此前对该操作类别批准过并勾选了记住，
                 // 同类后续操作免审批直接执行。表只存内存、随会话销毁，无永久授权；
                 // 只豁免本条 required 判定，策略引擎的其余约束不受影响。
@@ -189,14 +197,12 @@ class ToolExecutor(
                     sessionApprovalGrants != null &&
                     sessionApprovalGrants.isGranted(
                         sessionId = sessionId,
-                        toolName = toolCall.rawToolName ?: toolCall.tool.name.lowercase(),
+                        toolName = toolName,
                         argumentsJson = toolCall.args.toString(),
                         riskLevel = decision.riskLevel,
                     )
                 if (grantedBySession) approvalAuditor?.grantExempted(
-                    sessionId, toolCall.id,
-                    toolCall.rawToolName ?: toolCall.tool.name.lowercase(),
-                    toolCall.args.toString(), decision.riskLevel,
+                    sessionId, toolCall.id, toolName, toolCall.args.toString(), decision.riskLevel,
                 )
                 if (decision.required && !grantedBySession) {
                     if (!allowApprovalRequest) {
@@ -204,9 +210,7 @@ class ToolExecutor(
                         // 由 Lane 收集成待办上交父智能体。若只回一句失败文字，模型下一轮会输出
                         // "已交由主智能体"，而那句话曾被当成完成结论。
                         approvalAuditor?.deferred(
-                            sessionId, toolCall.id,
-                            toolCall.rawToolName ?: toolCall.tool.name.lowercase(),
-                            decision.riskLevel, decision.reason,
+                            sessionId, toolCall.id, toolName, decision.riskLevel, decision.reason,
                         )
                         return ToolResult(
                             id = UUID.randomUUID().toString(),
@@ -245,6 +249,16 @@ class ToolExecutor(
                         approvalRequestId = request.id,
                     )
                 }
+                // OpenBot 双审计第一行：放行决策（grant_exempted 已覆盖会话授权路径）。
+                if (!grantedBySession) {
+                    val unattended = RunInitiator.isUnattended(currentRunInitiator().kind)
+                    if (ApprovalAuditRecorder.shouldDualAudit(toolCall.tool, decision.riskLevel, unattended)) {
+                        approvalAuditor?.decisionForwarded(
+                            sessionId, toolCall.id, toolName, decision.riskLevel,
+                            decision.summary.ifBlank { decision.reason }.ifBlank { "策略放行" },
+                        )
+                    }
+                }
             }
             executeTool(toolCall.tool, toolCall.args, toolCall.rawToolName, toolCall.id, sessionId, workspace, progressReporter, operationId, toolMetadata, allowApprovalRequest)
         } catch (interrupted: ScriptCallInterrupted) {
@@ -255,6 +269,12 @@ class ToolExecutor(
             false to "工具执行异常：${throwable.message ?: throwable::class.simpleName}"
         }
         val (success, rawOutput) = outcome
+        if (!success && sessionId.isNotBlank()) {
+            val unattended = RunInitiator.isUnattended(currentRunInitiator().kind)
+            if (ApprovalAuditRecorder.shouldDualAudit(toolCall.tool, auditedRisk, unattended)) {
+                approvalAuditor?.actionFailed(sessionId, toolCall.id, toolName, auditedRisk, rawOutput)
+            }
+        }
         val finalOutput = if (!success && !rawOutput.contains("【太墟") && !rawOutput.contains("【已强制拦截")) {
             rawOutput + "\n\n【太墟 Harness 调试提示】：本次工具调用未成功。请仔细阅读上方错误信息，分析具体原因并在下一步中调整策略，严禁使用相同参数盲目重试。"
         } else {

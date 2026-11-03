@@ -13,6 +13,9 @@ data class PendingMessage(
     val taskId: String? = null,
     val groupWorkId: String? = null,
     val groupId: String? = null,
+    /** What started this run (person/schedule/handoff/…); absent in old queue JSON → person. */
+    val initiatorKind: String = "person",
+    val initiatorId: String? = null,
 )
 
 /** Durable prompt plus its delivery semantics, exposed for queue-aware UI. */

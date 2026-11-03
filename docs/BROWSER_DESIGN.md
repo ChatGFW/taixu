@@ -160,9 +160,22 @@ BrowserScreen
                     ├─► SnapshotBuilder → 推给 BrowserEventBus
                     └─► harness 端通过 resource 订阅（如果有）拿到下一次 tool 调用的 refMap
 
-用户点击
-  └─► AndroidInAppBrowser.onUserInteraction
-        └─► 暂停 harness 接管（coBrowsingDisabled=true 时，ref 仍然累积但不再写入）
+用户点击 / 关闭「共浏览」
+  └─► BrowserViewModel.onCoBrowsingToggle(false)
+        └─► BrowserHumanControl.setCoBrowsingEnabled(false)
+              ├─► 监听器 → ApprovalAuditRecorder.controlTaken（OpenBot computer.control_taken）
+              └─► BrowserMcpTools.invoke：页面动作立即拒绝、不排队；
+                  并 BrowserHelpRequests → help_requested（去抖；OpenBot computer.help_requested）
+                    → BrowserViewModel snackbar「Bot 需要你接手」；
+                  snapshot / current_url / title 等只读观测仍放行
+用户重新开启「共浏览」→ control_released
+MCP 设置页主机策略：一键预设（出厂默认 / 拒绝对无人值守导航 / 仅允许 example.com）填入草稿后保存
+
+Bot 工具调用（共浏览开启时）
+  └─► McpHttpTransport tools/call + X-TaiXu-Initiator-Kind
+        └─► McpToolDispatcher → BrowserMcpTools.invoke(initiatorKind)
+              ├─► BrowserHumanControl（人接管则拒页面动作）
+              └─► HostActionPolicy / CelLite（deny→allow；云元数据硬拒；initiator.kind 可参与规则）
 ```
 
 ### 5.3 外接桌面 AI
@@ -186,6 +199,7 @@ BrowserScreen
 | 风险等级 | LOW/MEDIUM/HIGH/CRITICAL 四档；HIGH+ 触发 ApprovalRequestDialog |
 | 外接开关 | `browserPreferences.allowRemoteConnect` 默认 `false`；开启后端口仅绑 `0.0.0.0`，同时要求 User 已设置 `browserRemoteToken`（≥32 字节 base64）|
 | 敏感域白名单 | 主域列表（`localhost`、`127.0.0.1`、用户配置的允许域）允许 `cleartext`；其它强制 HTTPS（Koin Qualifier + NetworkSecurityConfig） |
+| CEL-lite 主机策略 | `HostActionPolicy`：`deny` 优先于 `allow`，失败封闭；`CelLite` 支持 `contains`/`matches`/`==`/`&&`/`||`；云元数据硬拒；默认 `allow:["true"]`；DataStore + MCP 设置页编辑，保存即时生效 |
 | 文件沙箱 | `*file.*` 工具复用现有 `WorkspaceFileService` 路径校验，禁止 `/proc /sys /dev /system /root` |
 | Token | `mcp__browser__*` 内置 server 默认走 loopback 不需要 token；外接强制要求 token；token 通过 SecureRandom 生成、SecretRedactor 加密保存 |
 

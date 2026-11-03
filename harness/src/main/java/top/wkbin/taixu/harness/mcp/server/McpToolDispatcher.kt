@@ -4,6 +4,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import top.wkbin.taixu.core.browser.ActionPolicyInitiator
 import top.wkbin.taixu.runtime.browser.secret.SecretRedactingInterceptor
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
 import kotlinx.serialization.json.JsonArray
@@ -26,13 +27,17 @@ class McpToolDispatcher(
         }
     } + extraProviders.flatMap { it.listTools() }
 
-    suspend fun dispatch(toolName: String, args: JsonObject): JsonObject {
+    suspend fun dispatch(
+        toolName: String,
+        args: JsonObject,
+        initiatorKind: String = ActionPolicyInitiator.PERSON,
+    ): JsonObject {
         // 先让外部 provider 认领（其名称空间与 browser.* 不重叠，命中即转发）
         extraProviders.firstOrNull { provider ->
             provider.listTools().any { (it["name"] as? JsonPrimitive)?.content == toolName }
         }?.let { return it.callTool(toolName, args) }
 
-        val res = browserTools.invoke(toolName, args)
+        val res = browserTools.invoke(toolName, args, initiatorKind = initiatorKind)
         // 统一脱敏出口：cookie/页面源码/console 等可能夹带敏感值，防止直接回灌 LLM
         val text = SecretRedactingInterceptor.apply(
             if (res.imageAttachments.isEmpty()) res.output else buildJsonObject {

@@ -231,6 +231,10 @@ fun McpSettingsScreen(
                 BrowserGatesCard(gates = browserGates, viewModel = viewModel)
             }
 
+            item(key = "mcp_section_host_action_policy") {
+                HostActionPolicyCard(viewModel = viewModel)
+            }
+
             item(key = "mcp_section_agent_server") {
                 AgentServerCard(
                     state = (viewModel?.agentServerState?.collectAsStateWithLifecycle() ?: previewStateOf(AgentServerState())).value,
@@ -530,6 +534,145 @@ private fun BrowserGateRow(
             )
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+/**
+ * CEL-lite 主机动作策略编辑：deny→allow，失败封闭；保存即时生效并写入 DataStore。
+ */
+@Composable
+private fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val stored by viewModel?.hostActionPolicyJson?.collectAsStateWithLifecycle()
+        ?: previewStateOf(
+            top.wkbin.taixu.core.browser.HostActionPolicy.encodePretty(
+                top.wkbin.taixu.core.browser.ActionPolicyDocument.DEFAULT,
+            ),
+        )
+    var draft by remember(stored) { mutableStateOf(stored) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp, bottom = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            "主机动作策略（CEL-lite）",
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            "Bot 浏览器工具在人机接管之后再评估 deny→allow；云元数据始终硬拒。保存后立即生效，无需重启。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    RuntimeCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                "字段：tool.name / page.url / page.host / initiator.kind / intent；" +
+                    "运算：== != && || ! contains matches。示例 deny：contains(page.host, 'evil')",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "常用预设（填入草稿，仍需点保存）",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                top.wkbin.taixu.core.browser.HostActionPolicyPresets.ALL.forEach { preset ->
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            draft = top.wkbin.taixu.core.browser.HostActionPolicy.encodePretty(preset.document)
+                            error = null
+                        },
+                        label = { Text(preset.title) },
+                        colors = FilterChipDefaults.filterChipColors(),
+                    )
+                }
+            }
+            RuntimeFilledTextField(
+                value = draft,
+                onValueChange = {
+                    draft = it
+                    error = null
+                },
+                label = { Text("策略 JSON") },
+                minLines = 6,
+                maxLines = 14,
+                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                isError = error != null,
+                supportingText = {
+                    Text(
+                        error ?: "出厂默认 deny:[] + allow:[\"true\"]；allow 不得为空",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (error != null) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val result = top.wkbin.taixu.core.browser.HostActionPolicy.validateAndParse(draft)
+                        if (result.isSuccess) {
+                            error = null
+                            Toast.makeText(context, "策略语法有效", Toast.LENGTH_SHORT).show()
+                        } else {
+                            error = result.exceptionOrNull()?.message ?: "校验失败"
+                        }
+                    },
+                    enabled = !saving,
+                ) { Text("校验") }
+                OutlinedButton(
+                    onClick = {
+                        viewModel?.resetHostActionPolicy()
+                        error = null
+                        Toast.makeText(context, "已恢复出厂默认", Toast.LENGTH_SHORT).show()
+                    },
+                    enabled = viewModel != null && !saving,
+                ) { Text("恢复默认") }
+                Spacer(Modifier.weight(1f))
+                Button(
+                    onClick = {
+                        val vm = viewModel ?: return@Button
+                        saving = true
+                        scope.launch {
+                            val result = vm.saveHostActionPolicy(draft)
+                            saving = false
+                            if (result.isSuccess) {
+                                error = null
+                                Toast.makeText(context, "策略已保存并生效", Toast.LENGTH_SHORT).show()
+                            } else {
+                                error = result.exceptionOrNull()?.message ?: "保存失败"
+                            }
+                        }
+                    },
+                    enabled = viewModel != null && !saving,
+                ) { Text(if (saving) "保存中…" else "保存") }
+            }
+        }
     }
 }
 

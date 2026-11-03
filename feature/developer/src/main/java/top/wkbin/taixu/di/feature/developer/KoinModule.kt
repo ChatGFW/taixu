@@ -8,7 +8,7 @@ import org.koin.core.module.dsl.viewModel
 /** Dependency registrations owned by the feature:developer module. */
 val featureDeveloperModule = module {
     viewModel<SessionDiagnosticsViewModel> {
-        SessionDiagnosticsViewModel(feedback = get(), sessions = get())
+        SessionDiagnosticsViewModel(feedback = get(), sessions = get(), approvalAudits = get())
     }
     viewModel<DeveloperViewModel> {
         DeveloperViewModel(
