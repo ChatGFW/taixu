@@ -138,8 +138,7 @@ internal fun ChatComposer(
         )
     }
 
-    // @ 艾特精准挂载快捷弹窗 (Skills & MCP)
-    if (matchingMentions.isNotEmpty()) {
+    if (matchingMentions.isNotEmpty() && textFieldValue.selection.collapsed && textFieldValue.selection.end == input.length) {
         MentionPopup(
             mentions = matchingMentions,
             onSelect = onApplyMention,

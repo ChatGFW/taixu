@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
 /** Persistence port used by the harness runtime; feature modules never depend on its DAO. */
-interface HarnessRuntimeRepository {
+interface HarnessRuntimeRepository : HarnessQueueEditingRepository {
     suspend fun ensureLane(sessionId: String, laneName: String, atEntryId: String? = null): HarnessLaneEntity
     suspend fun findLane(sessionId: String, laneName: String): HarnessLaneEntity?
     fun observeLanes(sessionId: String): Flow<List<HarnessLaneEntity>>
@@ -129,7 +129,7 @@ interface HarnessRuntimeRepository {
 class RoomHarnessRuntimeRepository(
     private val dao: HarnessRuntimeDao,
     private val blobStore: HarnessBlobStore? = null,
-) : HarnessRuntimeRepository {
+) : HarnessRuntimeRepository, HarnessQueueEditingRepository by RoomHarnessQueueEditingRepository(dao) {
 
     private fun sanitizeForStorage(entry: HarnessEntryEntity): HarnessEntryEntity {
         val store = blobStore ?: return entry
@@ -237,7 +237,7 @@ class RoomHarnessRuntimeRepository(
     override suspend fun searchMessages(query: String, limit: Int): List<MessageSearchHitRow> {
         val term = query.trim().takeIf { it.isNotEmpty() } ?: return emptyList()
         val escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        return dao.searchMessagesAcrossSessions(escaped, limit)
+        return dao.searchMessagesAcrossSessions(term, escaped, limit.coerceAtLeast(0))
     }
     override suspend fun branchEntryAt(sessionId: String, leafId: String?, index: Int): HarnessEntryEntity? =
         leafId?.let { dao.branchEntryAt(sessionId, it, index)?.let(::restoreFromStorage) }

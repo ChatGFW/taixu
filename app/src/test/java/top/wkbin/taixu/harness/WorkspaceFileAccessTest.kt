@@ -33,7 +33,7 @@ class WorkspaceFileAccessTest {
     fun `write then read round trip`() = runTest {
         val write = access.write("notes.md", "hello world")
         assertTrue(write.isSuccess)
-        val read = access.read("notes.md")
+        val read = access.read("notes.md", anchors = false)
         assertTrue(read.isSuccess)
         assertEquals("hello world", read.getOrNull())
     }
@@ -41,7 +41,7 @@ class WorkspaceFileAccessTest {
     @Test
     fun `accepts workspace-prefixed linux path`() = runTest {
         access.write("/workspace/sub/a.txt", "content")
-        val read = access.read("/workspace/sub/a.txt")
+        val read = access.read("/workspace/sub/a.txt", anchors = false)
         assertEquals("content", read.getOrNull())
     }
 
@@ -81,7 +81,7 @@ class WorkspaceFileAccessTest {
         access.write("a.txt", "one two one")
         val result = access.edit("a.txt", "two", "TWO")
         assertTrue(result.isSuccess)
-        assertEquals("one TWO one", access.read("a.txt").getOrNull())
+        assertEquals("one TWO one", access.read("a.txt", anchors = false).getOrNull())
     }
 
     @Test
@@ -89,7 +89,7 @@ class WorkspaceFileAccessTest {
         access.write("a.txt", "same same")
         val result = access.edit("a.txt", "same", "other")
         assertFalse(result.isSuccess)
-        assertEquals("same same", access.read("a.txt").getOrNull())
+        assertEquals("same same", access.read("a.txt", anchors = false).getOrNull())
     }
 
     @Test
@@ -120,9 +120,15 @@ class WorkspaceFileAccessTest {
     }
 
     @Test
-    fun `read returns full content for small files without header`() = runTest {
-        access.write("small.txt", "alpha\nbravo\ncharlie")
-        assertEquals("alpha\nbravo\ncharlie", access.read("small.txt").getOrNull())
+    fun `read defaults to hashline anchors and supports explicit plain text`() = runTest {
+        val content = "alpha\nbravo\ncharlie"
+        access.write("small.txt", content)
+        assertEquals(
+            "[文件 /workspace/small.txt 共 3 行，当前显示第 1-3 行；hash=fnv1a16]\n" +
+                "1:ab|alpha\n2:43|bravo\n3:41|charlie",
+            access.read("small.txt").getOrNull(),
+        )
+        assertEquals(content, access.read("small.txt", anchors = false).getOrNull())
     }
 
     @Test
@@ -156,6 +162,6 @@ class WorkspaceFileAccessTest {
     fun `write replaces existing file atomically`() = runTest {
         access.write("f.txt", "v1")
         access.write("f.txt", "v2")
-        assertEquals("v2", access.read("f.txt").getOrNull())
+        assertEquals("v2", access.read("f.txt", anchors = false).getOrNull())
     }
 }

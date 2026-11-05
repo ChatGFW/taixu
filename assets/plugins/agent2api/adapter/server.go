@@ -100,7 +100,7 @@ func (a *application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		case "api/status":
 			data, err := a.upstream.read("/api/panel/status")
-			value := map[string]any{"gateway": "http://127.0.0.1:3065/v1", "version": "3.0.8", "adapter": "3.0.9", "ready": err == nil}
+			value := map[string]any{"gateway": "http://127.0.0.1:3065/v1", "version": upstreamVersion, "adapter": adapterVersion, "ready": err == nil}
 			if err == nil {
 				var status map[string]any
 				if json.Unmarshal(data, &status) == nil {

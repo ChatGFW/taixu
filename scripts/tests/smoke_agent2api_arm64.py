@@ -19,6 +19,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--qemu', required=True, type=Path)
     parser.add_argument('--sysroot', required=True, type=Path)
+    parser.add_argument('--previous-vendor', type=Path, help='Initialize the same database with the previous release first')
     args = parser.parse_args()
     vendor = ROOT / 'assets/plugins/agent2api/payload/vendor'
     with socket.socket() as sock:
@@ -42,10 +43,12 @@ def main():
                 return error.code, error.read()
 
         # Restart the same database to exercise empty-state migration and recovery.
-        for run in range(2):
+        releases = ([args.previous_vendor.resolve()] if args.previous_vendor else []) + [vendor, vendor]
+        for run, release in enumerate(releases):
+            env['AGENT2API_UI_DIR'] = str(release / 'ui')
             with open(Path(temp) / f'run-{run}.log', 'wb') as log:
                 process = subprocess.Popen([str(args.qemu.resolve()), '-L', str(args.sysroot.resolve()),
-                                            str(vendor / 'agent2api-server')], env=env, stdout=log, stderr=log)
+                                            str(release / 'agent2api-server')], env=env, stdout=log, stderr=log)
                 try:
                     for _ in range(100):
                         if process.poll() is not None:

@@ -117,6 +117,7 @@ fun ChatScreen(
     onOpenRepository: ((projectName: String) -> Unit)? = null,
     viewModel: ChatViewModel? = previewOrNull { koinViewModel() },
 ) {
+    viewModel?.let { QueuedPromptEditDialog(it.queuedPromptEditor) }
     val messages by viewModel?.messages?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val running by viewModel?.running?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val error by viewModel?.error?.collectAsStateWithLifecycle() ?: previewStateOf(null)
@@ -150,7 +151,7 @@ fun ChatScreen(
     val sendMode by viewModel?.sendMode?.collectAsStateWithLifecycle() ?: previewStateOf(ComposerSendMode.NEXT_RUN)
     val branches by viewModel?.branches?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val runtimeEvents by viewModel?.runtimeEvents?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val currentSessionId by viewModel?.currentSessionId?.collectAsStateWithLifecycle() ?: previewStateOf("")
+    val currentSessionId = (viewModel?.currentSessionId?.collectAsStateWithLifecycle() ?: previewStateOf("")).value
     val sessionRunStates by viewModel?.sessionRunStates?.collectAsStateWithLifecycle() ?: previewStateOf(emptyMap())
     val activeDistroId by viewModel?.activeDistroId?.collectAsStateWithLifecycle() ?: previewStateOf("")
     val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
@@ -182,7 +183,7 @@ fun ChatScreen(
     var showReasoningSlider by rememberSaveable { mutableStateOf(false) }
     var branchFromMessageId by rememberSaveable { mutableStateOf<String?>(null) }
     // 编辑目标消息只保存 id，避免把不可保存的实体放进状态保存器
-    var editTargetMessageId by rememberSaveable { mutableStateOf<String?>(null) }
+    var editTargetMessageId by rememberSaveable(currentSessionId) { mutableStateOf<String?>(null) }
     val editTargetMessage = remember(messages, editTargetMessageId) {
         messages.filterIsInstance<UserMessage>().firstOrNull { it.id == editTargetMessageId }
     }
@@ -231,7 +232,6 @@ fun ChatScreen(
     ) {
         messages.filterIsInstance<AssistantText>().lastOrNull()?.id
     }
-    // 两者语义不同（实时思考高亮 vs 重新生成定位），但取值一致，复用同一计算结果
     val liveThinkingMessageId = lastAssistantMessageId
     val currentBranch = remember(branches) { branches.firstOrNull { it.isCurrent } }
 
@@ -416,7 +416,7 @@ fun ChatScreen(
                     workspaceProject = effectiveWorkspaceProject,
                     onOpenFile = onOpenFile,
                     onEditMessage = { editTargetMessageId = it.id },
-                    onDeleteMessage = { arg0 -> viewModel?.deleteMessage(arg0) },
+                    onDeleteMessage = { arg0 -> viewModel?.deleteMessage(arg0, currentSessionId) },
                     onRewindMessage = { arg0, arg1 -> viewModel?.rewindToMessage(arg0, arg1) }, error = error,
                     onClearError = { viewModel?.clearError() },
                     matchingCommands = matchingCommands, matchingMentions = matchingMentions,
@@ -426,20 +426,20 @@ fun ChatScreen(
                     onRemoveQueuedPrompt = { arg0 -> viewModel?.removeQueuedPrompt(arg0) }, onConvertToSteer = { arg0 -> viewModel?.convertQueuedPromptToSteer(arg0) },
                     sendMode = sendMode,
                     input = input,
-                    onInputChanged = { arg0 -> viewModel?.onInputChanged(arg0) },
+                    onInputChanged = { arg0 -> viewModel?.onInputChanged(arg0, currentSessionId) },
                     onApplyCommand = { arg0 -> viewModel?.applySlashCommand(arg0) },
                     onApplyMention = { arg0 -> viewModel?.applyMention(arg0) },
                     onRemoveMention = { arg0 -> viewModel?.removeMention(arg0) },
                     attachments = pendingAttachments,
                     attachmentsProcessing = attachmentsProcessing,
-                    onAttachmentsPicked = { arg0, arg1 -> viewModel?.onAttachmentsPicked(arg0, arg1) },
-                    onRemoveAttachment = { arg0 -> viewModel?.removeAttachment(arg0) },
-                    onSend = { viewModel?.sendFromComposer() }, onSendWithoutAnswer = { viewModel?.sendFromComposer(answer = false) }, onPasteLongText = { viewModel?.addTextAttachment(it) },
-                    onStop = { viewModel?.stop() },
+                    onAttachmentsPicked = { arg0, arg1 -> viewModel?.onAttachmentsPicked(arg0, arg1, currentSessionId) },
+                    onRemoveAttachment = { arg0 -> viewModel?.removeAttachment(arg0, currentSessionId) },
+                    onSend = { viewModel?.sendFromComposer(sessionId = currentSessionId) }, onSendWithoutAnswer = { viewModel?.sendFromComposer(answer = false, sessionId = currentSessionId) }, onPasteLongText = { viewModel?.addTextAttachment(it, currentSessionId) },
+                    onStop = { viewModel?.stop(currentSessionId) },
                     lastAssistantMessageId = lastAssistantMessageId,
-                    onRegenerate = { viewModel?.regenerateLast() },
+                    onRegenerate = { viewModel?.regenerateLast(currentSessionId, lastAssistantMessageId) },
                     onCreateBranch = { branchFromMessageId = it },
-                    onRetryTool = { arg0 -> viewModel?.retryToolCall(arg0) },
+                    onRetryTool = { arg0 -> viewModel?.retryToolCall(arg0, currentSessionId) },
                     initializing = initializing,
                     pinnedCapabilities = pinnedCapabilities,
                     onOpenSkillsMcp = { showSkillsMcpSheet = true },
@@ -489,7 +489,7 @@ fun ChatScreen(
             originalText = target.text,
             onDismiss = { editTargetMessageId = null },
             onConfirm = { newText ->
-                viewModel?.editAndResend(target.id, newText)
+                viewModel?.editAndResend(target.id, newText, currentSessionId)
                 editTargetMessageId = null
             },
         )

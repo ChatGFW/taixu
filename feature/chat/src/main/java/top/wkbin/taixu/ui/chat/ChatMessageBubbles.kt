@@ -511,7 +511,7 @@ internal fun AssistantBubble(
                     markdown = message.text,
                     modifier = Modifier.fillMaxWidth(),
                     // 缓存键只用 message.id：流式期间每帧 text.length 都会变，把长度编进键会让
-                    // 缓存形同失效。大文本 LRU 在 MarkdownText 内用内容指纹校验，同一 id 换正文不会串味。
+                    // 缓存形同失效。大文本 LRU 在 MarkdownText 内用完整正文校验，同一 id 换正文不会串味。
                     contentCacheKey = "assistant:${message.id}",
                 )
             }

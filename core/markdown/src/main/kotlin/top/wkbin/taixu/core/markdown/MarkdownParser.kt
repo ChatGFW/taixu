@@ -1,17 +1,4 @@
-package top.wkbin.taixu.ui.components
-
-import android.util.LruCache
-
-internal sealed interface MdBlock
-
-internal data class MdParagraph(val text: String) : MdBlock
-internal data class MdHeading(val level: Int, val text: String) : MdBlock
-internal data class MdCodeBlock(val language: String, val code: String) : MdBlock
-internal data class MdList(val ordered: Boolean, val items: List<String>) : MdBlock
-internal data class MdQuote(val lines: List<String>) : MdBlock
-internal data class MdTable(val headers: List<String>, val rows: List<List<String>>) : MdBlock
-internal data class MdRemoteMedia(val url: String, val description: String) : MdBlock
-internal object MdHr : MdBlock
+package top.wkbin.taixu.core.markdown
 
 private val headingRegex = Regex("^\\s*(#{1,6})\\s+(.+?)\\s*#*\\s*$")
 private val orderedListRegex = Regex("^\\s*\\d+\\.\\s+(.*)$")
@@ -26,53 +13,45 @@ private val inlineImageRegex = Regex("""!\[([^]\n]*)]\(((?:https?://|file://|dat
 /** HTML <img> 标签，兼容模型直接输出 img 标签的情况。 */
 private val htmlImgRegex = Regex("""<img[^>]+src\s*=\s*["']((?:https?://|file://|data:image/|/|\./|\\|\.\\)[^"'\s]+)["'][^>]*>""", RegexOption.IGNORE_CASE)
 private val standaloneWebUrlRegex = Regex("^https?://\\S+$", RegexOption.IGNORE_CASE)
-internal val inlineMarkdownLinkRegex = Regex("\\[([^]\\n]+)]\\((https?://[^)\\s]+)\\)", RegexOption.IGNORE_CASE)
-internal val inlineWebUrlRegex = Regex("https?://[^\\s<>\\[\\]{}\"']+", RegexOption.IGNORE_CASE)
+val inlineMarkdownLinkRegex = Regex("\\[([^]\\n]+)]\\((https?://[^)\\s]+)\\)", RegexOption.IGNORE_CASE)
+val inlineWebUrlRegex = Regex("https?://[^\\s<>\\[\\]{}\"']+", RegexOption.IGNORE_CASE)
 /** 视为图片的 URL 后缀（原始 URL 嵌在段落中时，匹配这些后缀则渲染为图片）。 */
 private val imageFileExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "avif", "heic", "heif")
 
-private val markdownBlockCache by lazy { LruCache<String, List<MdBlock>>(300) }
-/** Generated image / oversized markdown is expensive to parse; retain a few by message id + content fingerprint. */
-private val largeMarkdownBlockCache by lazy { LruCache<String, CachedMarkdownBlocks>(4) }
-
-private data class CachedMarkdownBlocks(
-    val fingerprint: Int,
-    val blocks: List<MdBlock>,
-)
-
-private fun markdownContentFingerprint(markdown: String): Int = 31 * markdown.length + markdown.hashCode()
+private val markdownBlockCache = MarkdownTextCache<List<MdBlock>>(300, 512_000)
+private val largeMarkdownBlockCache = MarkdownTextCache<List<MdBlock>>(4, 1_048_576)
 
 /**
  * 解析 markdown。大文本 LRU 以 [contentCacheKey]（通常是 message.id）为槽位，
- * 命中时必须核对内容指纹，避免同一 id 换了正文仍复用旧块。
+ * 命中时必须核对完整正文，避免同一 id 换了正文仍复用旧块。
  *
  * [largeCacheMinChars] 仅测试可覆盖；生产走 [MARKDOWN_CACHE_MAX_CHARS]。
- * 流式短消息不会写入大文本缓存，remember(key, markdown) 仍按正文更新。
+ * 流式短消息不会写入大文本缓存，remember(key, markdown) 仍按正文更新。缓存按条目数及正文总字符数双重限量，超大正文只解析不缓存。
  */
-internal fun resolveMarkdownBlocks(
+fun resolveMarkdownBlocks(
     markdown: String,
     contentCacheKey: String?,
     largeCacheMinChars: Int = MARKDOWN_CACHE_MAX_CHARS,
 ): List<MdBlock> {
     if (contentCacheKey != null && markdown.length > largeCacheMinChars) {
-        val cached = largeMarkdownBlockCache.get(contentCacheKey)
-        if (cached != null && cached.fingerprint == markdownContentFingerprint(markdown)) {
-            return cached.blocks
+        val cached = largeMarkdownBlockCache.get(contentCacheKey, markdown)
+        if (cached != null) {
+            return cached
         }
     }
     val parsed = parseMarkdownBlocks(markdown)
     if (contentCacheKey != null && markdown.length > largeCacheMinChars) {
         largeMarkdownBlockCache.put(
             contentCacheKey,
-            CachedMarkdownBlocks(markdownContentFingerprint(markdown), parsed),
+            markdown, parsed,
         )
     }
     return parsed
 }
 
-internal fun parseMarkdownBlocks(md: String, cache: Boolean = true): List<MdBlock> {
+fun parseMarkdownBlocks(md: String, cache: Boolean = true): List<MdBlock> {
     val cacheable = cache && md.length <= MARKDOWN_CACHE_MAX_CHARS
-    if (cacheable) markdownBlockCache.get(md)?.let { return it }
+    if (cacheable) markdownBlockCache.get(md, md)?.let { return it }
     val raw = parseRawBlocks(md)
     // 段落后处理：把行内的 ![alt](url)、<img src="url">、原始图片 URL 拆成独立图片块，
     // 否则模型带前后文字输出图片时，解析器只当纯文本渲染，Coil 永远不会被调用。
@@ -80,7 +59,7 @@ internal fun parseMarkdownBlocks(md: String, cache: Boolean = true): List<MdBloc
         if (block is MdParagraph) extractInlineMedia(block.text)
         else listOf(block)
     }
-    if (cacheable) markdownBlockCache.put(md, parsed)
+    if (cacheable) markdownBlockCache.put(md, md, parsed)
     return parsed
 }
 
@@ -268,7 +247,7 @@ private fun isTableStart(lines: List<String>, i: Int): Boolean =
     i + 1 < lines.size && lines[i].trimStart().startsWith("|") && isTableSeparator(lines[i + 1])
 
 
-internal fun trimUrlPunctuation(value: String): String {
+fun trimUrlPunctuation(value: String): String {
     var result = value.trimEnd('.', ',', ';', ':', '!', '?')
     while (result.endsWith(')') && result.count { it == ')' } > result.count { it == '(' }) {
         result = result.dropLast(1)
@@ -277,9 +256,9 @@ internal fun trimUrlPunctuation(value: String): String {
 }
 
 
-internal const val MARKDOWN_CACHE_MAX_CHARS = 128_000
+const val MARKDOWN_CACHE_MAX_CHARS = 128_000
 
-internal fun clearParsedMarkdownCaches() {
+fun clearParsedMarkdownCaches() {
     markdownBlockCache.evictAll()
     largeMarkdownBlockCache.evictAll()
 }

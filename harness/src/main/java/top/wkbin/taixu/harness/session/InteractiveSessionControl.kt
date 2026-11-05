@@ -12,7 +12,7 @@ import top.wkbin.taixu.harness.mcp.McpWorkspaceRecommender
 import top.wkbin.taixu.harness.queue.PromptQueue
 
 /** Foreground navigation/editing conveniences layered over the same session runtime. */
-interface InteractiveSessionControl : SessionControl {
+interface InteractiveSessionControl : SessionControl, QueuedPromptEditingControl {
     val messages: StateFlow<List<HarnessMessage>>
     val running: StateFlow<Boolean>
     val workspace: StateFlow<String>

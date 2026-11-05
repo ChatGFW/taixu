@@ -6,6 +6,11 @@
 
 - **Android SDK**：主工程需要 Android SDK Platform 37.1（A2UI alpha 依赖要求）；targetSdk 仍为 37。已接受 SDK 许可证时，Gradle 可自动安装缺失的平台。
 
+- **Shell 语法校验**：部分 JVM 测试通过 `sh -n` 校验生成的 Linux 脚本。Windows 安装 Git for Windows 后，若 `sh` 不在 PATH，可仅为本次终端追加：
+  ```powershell
+  $env:PATH += ";C:\Program Files\Git\usr\bin"
+  ```
+
 - **JDK 环境变量设置（Windows PowerShell）**：
   必须通过设置 `JAVA_HOME` 指向 Android Studio 自带的 JBR（支持 Java 25 / 17+）执行 Gradle 任务：
   ```powershell
@@ -95,3 +100,32 @@ adb logcat -s TaiXu:V HarnessLoop:V ProotProcess:V
 ```
 
 脚本生成 16 KiB 对齐的 Android API 29 原生库及 `pty-native.properties`。C 源码、`app/src/main/jniLibs/arm64-v8a/libpty_native.so` 和清单应一起提交；打包前检查源码哈希、二进制哈希、全部 JNI 声明和 libc 依赖，拒绝未经重编译的源码或被替换的库。源码哈希统一按 LF 计算，不受 Windows/Git 换行转换影响。该检查不能代替真机 PTY 和 Termux 渲染验证。
+
+
+### Markdown 解析与渲染回归
+
+```powershell
+# 纯 JVM 解析、缓存与逐段流式回放，无 Android 和 API Key
+.\gradlew.bat :core:markdown:test --console=plain
+# 默认渲染/代码复制、暗色大字号及原生渲染插槽
+.\gradlew.bat :feature:chat:testDebugUnitTest --tests "*Markdown*RenderTest" --tests "*MarkdownCacheTest" --console=plain
+```
+
+
+### 会话消息搜索回归
+
+```powershell
+.\gradlew.bat :core:database:testDebugUnitTest --tests "*MessageSearch*Test" --console=plain
+.\gradlew.bat :feature:chat:testDebugUnitTest --tests "*SessionMessageSearch*Test" --console=plain
+```
+
+SQL 测试直接复用生产查询常量，在 sqlite-jdbc/JSON1 上覆盖坏 JSON、外置占位、字面通配符与摘要定位。控制器测试覆盖旧请求晚返回、取消、失败重试；原生渲染测试覆盖加载/空结果/错误及暗色大字号高亮和会话选择。
+
+
+### 会话草稿与附件导入回归
+
+```powershell
+.\gradlew.bat :feature:chat:testDebugUnitTest --tests "*ComposerDraft*Test" --tests "*ComposerAttachmentActionsTest" --console=plain
+```
+
+覆盖文字/附件会话归属、旧 UI 回调、并发导入、删除后迟到结果、取消交付清理、系统快照容量与旧格式迁移；原生输入框用例验证会话切换后文字和附件行的恢复。仅使用假附件处理器和本地临时文件。

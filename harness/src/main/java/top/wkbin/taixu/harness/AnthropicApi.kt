@@ -162,98 +162,19 @@ internal class AnthropicApi(
                     throw httpError(response.code, errorBody)
                 }
                 val source = response.body.source()
-                val text = StringBuilder()
-                val reasoningText = StringBuilder()
-                // index -> 工具调用累积器（Claude 以 content block index 标识每个 tool_use）
-                val toolCalls = mutableMapOf<Int, ToolCallAccumulator>()
-                var usage = ChatUsage()
-                var stopReason: String? = null
-                var completed = false
+                val decoder = AnthropicStreamDecoder(json, ProviderClient.estimateApiMessageTokens(messages),
+                    onReasoning, onToolProgress, onDelta, budget)
                 while (true) {
                     val line = source.readUtf8Line() ?: break
                     observeStreamActivity(line, firstEventState, firstEventWatchdog)
                     if (!line.startsWith("data:")) continue
-                    val data = line.removePrefix("data:").trim()
-                    if (data.isEmpty()) continue
-                    val event = runCatching {
-                        json.parseToJsonElement(data) as? JsonObject
-                    }.getOrNull() ?: continue
-                    if (firstEventState.compareAndSet(
-                            ProviderClient.FIRST_EVENT_WAITING,
-                            ProviderClient.FIRST_EVENT_RECEIVED,
-                        )
-                    ) {
-                        firstEventWatchdog.cancel()
-                    }
-                    when (event["type"]?.jsonPrimitive?.contentOrNull) {
-                        "message_start" -> {
-                            val messageUsage = (event["message"] as? JsonObject)?.get("usage") as? JsonObject
-                            if (messageUsage != null) usage = parseUsage(messageUsage)
-                        }
-                        "message_delta" -> {
-                            val messageUsage = event["usage"] as? JsonObject
-                            val outputTokens = messageUsage?.get("output_tokens")?.jsonPrimitive?.longOrNull
-                            if (outputTokens != null) usage = usage.copy(outputTokens = outputTokens)
-                            // pause_turn：服务端长思考/服务端工具暂停，客户端需原样回放续跑
-                            (event["delta"] as? JsonObject)?.get("stop_reason")
-                                ?.jsonPrimitive?.contentOrNull?.let { stopReason = it }
-                        }
-                        "content_block_start" -> {
-                            val index = event["index"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
-                            val block = event["content_block"] as? JsonObject
-                            if (block != null && block["type"]?.jsonPrimitive?.contentOrNull == "tool_use") {
-                                toolCalls.getOrPut(index) { ToolCallAccumulator() }.apply {
-                                    id = block["id"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                                    name = block["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                                    publishProgress(onToolProgress)
-                                }
-                            }
-                        }
-                        "content_block_delta" -> {
-                            val index = event["index"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
-                            val delta = event["delta"] as? JsonObject ?: continue
-                            when (delta["type"]?.jsonPrimitive?.contentOrNull) {
-                                "text_delta" -> delta["text"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotEmpty() }?.let { chunk ->
-                                    budget.add(chunk)
-                                    text.append(chunk)
-                                    onDelta(chunk)
-                                }
-                                "thinking_delta" -> delta["thinking"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotEmpty() }?.let { chunk ->
-                                    budget.add(chunk)
-                                    if (reasoningText.length < ProviderClient.MAX_STREAM_REASONING_CHARS) {
-                                        reasoningText.append(chunk.take(ProviderClient.MAX_STREAM_REASONING_CHARS - reasoningText.length))
-                                    }
-                                    onReasoning(chunk)
-                                }
-                                "input_json_delta" -> delta["partial_json"]?.jsonPrimitive?.contentOrNull?.let { chunk ->
-                                    toolCalls.getOrPut(index) { ToolCallAccumulator() }.apply {
-                                        arguments.append(chunk).also { budget.add(chunk) }
-                                        publishProgress(onToolProgress)
-                                    }
-                                }
-                            }
-                        }
-                        "message_stop" -> {
-                            completed = true
-                            break
-                        }
-                        "error" -> throw providerStreamError(event.toString())
-                        else -> Unit
-                    }
+                    val status = decoder.accept(line.removePrefix("data:").trim())
+                    if (status.recognized && firstEventState.compareAndSet(
+                            ProviderClient.FIRST_EVENT_WAITING, ProviderClient.FIRST_EVENT_RECEIVED)) firstEventWatchdog.cancel()
+                    if (status.terminal) break
                 }
-                requireStreamCompletion(completed, "Anthropic")
-                requireOutputCompletion(stopReason, ProviderClient.estimateApiMessageTokens(messages), text.length + reasoningText.length)
-                toolCalls.values.forEach { it.publishProgress(onToolProgress, force = true) }
-                StreamRound(
-                    content = text.toString().ifEmpty { null },
-                    // 无参数的工具调用（input={}）不会下发 input_json_delta，累积结果为空串，须兜底为 "{}"
-                    toolCalls = toolCalls.values.map {
-                        ApiToolCallSpec(it.id, it.name, it.arguments.toString().ifBlank { "{}" })
-                    },
-                    reasoningContent = reasoningText.toString().ifEmpty { null },
-                    usage = usage,
-                    stopReason = stopReason,
-                )
+                val decoded = decoder.finish()
+                StreamRound(decoded.content, decoded.reasoningContent, decoded.toolCalls, decoded.usage, decoder.stopReason)
             }
         } catch (io: IOException) {
             throw streamFailure(io, firstEventState.get(), firstEventTimeoutMs, okHttpClient.readTimeoutMillis.toLong())

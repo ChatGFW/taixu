@@ -28,9 +28,10 @@ internal fun buildComposerMessage(
                 val guestPath = att.guestFilePath ?: "/attachments/${att.name}"
                 val kind = context.getString(if (att.isImage) R.string.chat_attachment_image else R.string.chat_attachment_file)
                 append(context.getString(R.string.chat_attachment_line, i + 1, kind, att.name, AttachmentHelper.formatFileSize(att.sizeBytes), guestPath))
-            att.extractedTextGuestPath?.let {
-                append(context.getString(R.string.chat_attachment_extracted, it))
-            }
+                att.extractedTextGuestPath?.let {
+                    append(context.getString(R.string.chat_attachment_extracted, it))
+                }
+                att.documentNotice?.let { append(context.getString(R.string.chat_document_notice, it)) }
             }
             append(context.getString(R.string.chat_attachment_access_hint))
         }

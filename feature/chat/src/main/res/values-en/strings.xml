@@ -553,4 +553,10 @@
     <string name="chat_no_matching_models">No matching models</string>
     <string name="chat_manual_model">Enter model ID</string>
     <string name="chat_model_list">Model list</string>
+    <string name="chat_message_search_loading">Searching messages…</string>
+    <string name="chat_message_search_failed">Message search failed</string>
+    <string name="chat_message_search_retry">Retry</string>
+    <string name="chat_message_search_empty">No matching messages</string>
+    <string name="chat_draft_restore_limited">Some drafts exceed system recovery capacity. Current input is intact but may not survive chat page recreation.</string>
+    <string name="chat_session_restore_failed">Could not restore the conversation. Select it again.</string>
 </resources>

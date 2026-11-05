@@ -9,6 +9,7 @@ android {
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:model"))
+    api(project(":core:markdown"))
     implementation(project(":feature:theme"))
     implementation(libs.bundles.compose.ui)
     implementation(libs.androidx.activity.compose)

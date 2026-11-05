@@ -78,7 +78,7 @@ Lane 的取消与异常收尾通过 `SubagentLaneFinalizer` 在不可取消区�
 
 同一进程中的新输入接管也经过 `OperationCoordinator.settleInterruptedTool()`：`acceptRun`、`acceptQueuedRun` 和 `beginRun` 替换挂起运行前，先严格读取当前分支及 pending call 的已提交结果，再补齐未决调用。子 Lane 收尾共用该规则；已有终态保持原样，审批恢复的旧等待结果不算终态。读取、解码或补齐提交失败时，不结束旧 operation，也不提交新输入；排队输入保留供重试。本次接管不执行旧工具，未知副作用的核验指引先进入历史，再追加新的用户消息。
 
-旧运行正常结束事务会先解除 `next_run` 输入与旧 operation 的关联，再清理该运行的 steer / follow_up 指令；后继输入保留原顺序、任务 ID 与图片。结束提交后、新受理前中断时，队列及 QUEUED 任务仍可重读并重试。直接输入与排队输入共用 `acceptRunTakeover`，把旧运行结束、可选队列消费、可选任务 RUNNING、完整输入及新 operation 合并为单个事务，并核对旧运行指针及历史叶子；队列缺失、类型或归属不符、任务缺失/归属错误/已取消、输入写入失败或并发运行/历史变更都会回滚接管，保留现有运行及悬空指针。子 Lane 使用相同受理路径，接管不会改动主 Lane。悬空工具结果的补齐先单独提交，因此受理失败也不会丢掉未知结果说明；重试保持幂等。运行结束/启动事件在接管提交成功后发布。
+旧运行正常结束事务会先解除 `next_run` 输入及正在编辑的输入与旧 operation 的关联，再清理该运行的 steer / follow_up 指令；后继输入保留原顺序、任务 ID 与图片。结束提交后、新受理前中断时，队列及 QUEUED 任务仍可重读并重试。直接输入与排队输入共用 `acceptRunTakeover`，把旧运行结束、可选队列消费、可选任务 RUNNING、完整输入及新 operation 合并为单个事务，并核对旧运行指针及历史叶子；队列缺失、类型或归属不符、任务缺失/归属错误/已取消、输入写入失败或并发运行/历史变更都会回滚接管，保留现有运行及悬空指针。子 Lane 使用相同受理路径，接管不会改动主 Lane。悬空工具结果的补齐先单独提交，因此受理失败也不会丢掉未知结果说明；重试保持幂等。运行结束/启动事件在接管提交成功后发布。
 
 不追加输入的 `beginRun` 也使用同一接管事务，已有运行中或审批等待 operation 直接复用；挂起 operation 才会被替换。新运行创建或旧结束记录提交失败时，旧运行、队列及历史叶子一起保留；工具结果补齐不改变挂起状态，下一次 `beginRun` 仍可重试替换。无输入启动不追加消息，新的 `startLeafId` 与已有历史叶子一致；并发指针或叶子变化拒绝提交。
 
@@ -221,3 +221,14 @@ PRoot 沙箱 /opt/taixu/bin/logcat-grabber & taixu-host logcat
         ├─► POST /api/shell ➔ 内置无线 ADB 回退（无 Shizuku 亦可执行 Shell）
         └─► POST /api/install-apk ➔ 内置无线 ADB 静默安装（连通时免系统弹窗）
 ```
+
+
+## 排队消息原位编辑
+
+`QueuedPromptStack → QueuedPromptEditor → InteractiveSessionControl → QueuedPromptActions → PromptQueueManager → HarnessRuntimeRepository`。UI 用独立草稿弹窗，不改变主输入框和附件草稿。编辑、删除和转换都按队列项 ID 定位；开始编辑/保存/释放与会话准入共用 session mutex，开始编辑和消费共用 lane mutex。
+
+schema 87 为 `harness_queue_items` 添加可空 `editingToken`（86→87 保留全部原记录）。开始编辑仅占用原行；队首占用期间，同队列后继不能越过，下一次运行的受理 SQL 也拒绝编辑中的行。保存按 session/lane/ID/token 比较，在同一 Room 事务里更新正文与 QUEUED 任务的标题/描述，保留任务 ID、队列 ID、createdAt、图片和发起因；任务已启动或队列已移除时不重建记录。群任务和自动触发输入不开放正文编辑。
+
+取消、切换会话及 ViewModel 退出释放占用。原文在保存前始终保留在数据库；进程重建后单例 `PromptQueueManager` 首次使用释放遗留占用，恢复最后已保存的正文。若编辑期间旧运行已结束，占用行及同一输入队列中的后继一起转为 next_run，避免被清理或越过编辑项；遗留的无 operation 占用在释放/保存时也转为 next_run。删除/停止清空会删除占用行，过期编辑 token 不能恢复它。
+
+“转为修正”仅在当前运行可接收修正时执行：同一事务取消原 QUEUED 任务、清除输入中的 taskId，并将同一队列行改为 steer。已有运行承担该修正，保留原时间、附件、来源和队列 ID；无法转换时原输入留在队列。

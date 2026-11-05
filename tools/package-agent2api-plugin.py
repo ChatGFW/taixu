@@ -9,11 +9,11 @@ import urllib.request
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '3.0.8'
-PACKAGE_VERSION = '3.0.9'
+VERSION = '3.4.1'
+PACKAGE_VERSION = '3.4.1'
 ARCHIVE = 'agent2api-server-linux-arm64.tar.gz'
-SHA256 = 'baeaed43636cfa94a597e00510ff3ebc9acec3f7871cdd766d8863a7ae70051f'
-LICENSE_SHA256 = 'dd5d74bc5ada873b6c2bdb93718dbf38d9db3934244c456a19acbc7122018e14'
+SHA256 = 'd494e333a697ca9b48f17fc84cd10abdbe5f113a2900aba372fdac3503971e1c'
+LICENSE_SHA256 = '0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0'
 URL = f'https://github.com/aimod-cc/Agent2API/releases/download/v{VERSION}/{ARCHIVE}'
 LICENSE_URL = f'https://raw.githubusercontent.com/aimod-cc/Agent2API/v{VERSION}/LICENSE'
 
@@ -33,6 +33,10 @@ def fetch(path, url, expected):
 def vendor_release(archive_path, license_path, target):
     # Validate everything before writing; never extract archive-controlled links or paths.
     files = {}
+    seen = set()
+    expanded_size = 0
+    # Native Linux service-manager files are not used or executed inside PRoot.
+    auxiliary = {'install.sh', 'agent2api.service', 'agent2api.env.example'}
     with tarfile.open(archive_path, 'r:gz') as archive:
         for member in archive:
             name = member.name
@@ -41,13 +45,16 @@ def vendor_release(archive_path, license_path, target):
                 raise ValueError('Unsafe upstream archive path')
             if member.isdir():
                 continue
-            if not member.isfile() or not (name == 'agent2api-server' or name.startswith('ui/')):
+            if not member.isfile() or not (name == 'agent2api-server' or name.startswith('ui/') or name in auxiliary):
                 raise ValueError(f'Unexpected upstream member: {name}')
-            if name in files or member.size > 64 * 1024 * 1024 or len(files) >= 2000:
+            if name in seen or member.size > 64 * 1024 * 1024 or len(seen) >= 2000:
                 raise ValueError('Upstream archive exceeds limits or has duplicates')
-            files[name] = archive.extractfile(member).read()
-            if sum(map(len, files.values())) > 128 * 1024 * 1024:
+            seen.add(name)
+            expanded_size += member.size
+            if expanded_size > 128 * 1024 * 1024:
                 raise ValueError('Upstream archive exceeds expanded size limit')
+            if name not in auxiliary:
+                files[name] = archive.extractfile(member).read()
     binary = files.get('agent2api-server', b'')
     if binary[:6] != b'\x7fELF\x02\x01' or binary[18:20] != b'\xb7\x00':
         raise ValueError('Expected Linux ARM64 ELF64')
@@ -83,8 +90,8 @@ def pack(project, output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--archive', type=Path, default=ROOT / 'build/agent2api-download' / ARCHIVE)
-    parser.add_argument('--license', type=Path, default=ROOT / 'build/agent2api-download/LICENSE')
+    parser.add_argument('--archive', type=Path, default=ROOT / f'build/agent2api-download/v{VERSION}' / ARCHIVE)
+    parser.add_argument('--license', type=Path, default=ROOT / f'build/agent2api-download/v{VERSION}/LICENSE')
     parser.add_argument('--output', type=Path, default=ROOT / f'dist/plugins/agent2api-{PACKAGE_VERSION}.txplugin')
     parser.add_argument('--adapter', type=Path, default=ROOT / 'build/agent2api-adapter/agent2api-host')
     parser.add_argument('--go-license', type=Path, default=ROOT / 'build/agent2api-adapter/GO-LICENSE')

@@ -89,6 +89,7 @@ scripts_patch/
 .taixu-subagent/
 
 # Local agent protocol dumps, review exports, and temporary attachments
+/.qoder-input-images/
 /.codex_schema/
 /codex_appserver_schema.json
 /.loomy-pr-review/

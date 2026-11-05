@@ -1,5 +1,6 @@
 package top.wkbin.taixu.core.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -21,4 +22,5 @@ data class HarnessQueueItemEntity(
     val queueType: String,
     val createdAt: Long,
     val payloadJson: String,
+    @ColumnInfo(defaultValue = "NULL") val editingToken: String? = null,
 )

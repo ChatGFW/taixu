@@ -100,12 +100,12 @@ internal fun MentionPopup(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    stringResource(R.string.chat_capability_mount),
+                    stringResource(R.string.chat_mention_picker_title),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    stringResource(R.string.chat_enabled_for_request),
+                    stringResource(R.string.chat_mention_picker_hint),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 )
@@ -158,6 +158,7 @@ internal fun MentionPopup(
                                     "@${item.name}",
                                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 )
                                 Surface(
                                     color = tagBg,
@@ -165,7 +166,12 @@ internal fun MentionPopup(
                                     shape = RoundedCornerShape(4.dp),
                                 ) {
                                     Text(
-                                        if (isSkill) stringResource(R.string.chat_skill_badge) else stringResource(R.string.chat_mcp_badge),
+                                        stringResource(when (item.type) {
+                                            MentionType.SKILL -> R.string.chat_skill_badge
+                                            MentionType.MCP_SERVER -> R.string.chat_mcp_badge
+                                            MentionType.FILE -> R.string.chat_file_badge
+                                            MentionType.DIRECTORY -> R.string.chat_directory_badge
+                                        }),
                                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Medium),
                                         color = tagColor,

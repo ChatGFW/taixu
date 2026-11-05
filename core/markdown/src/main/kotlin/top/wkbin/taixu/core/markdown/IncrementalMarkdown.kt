@@ -1,9 +1,9 @@
-package top.wkbin.taixu.ui.components
+package top.wkbin.taixu.core.markdown
 
 import top.wkbin.taixu.core.model.ChunkedText
 
 /** Commit only blank-line boundaries outside fences, matching the block parser's grammar. */
-internal class IncrementalMarkdown<B>(private val parse: (String) -> List<B>) {
+class IncrementalMarkdown<B>(private val parse: (String) -> List<B>) {
     private var previous: ChunkedText? = null
     private var committed: List<B> = emptyList()
     private val tail = StringBuilder()

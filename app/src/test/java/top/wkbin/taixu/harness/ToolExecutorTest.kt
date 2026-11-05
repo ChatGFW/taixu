@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
@@ -68,7 +69,7 @@ class ToolExecutorTest {
     }
 
     @Test
-    fun `read tool returns file content`() = runBlocking {
+    fun `read tool returns hashline anchors by default`() = runBlocking {
         executor.execute(toolCall(HarnessTool.WRITE, buildJsonObject {
             put("path", "hello.txt")
             put("content", "hi")
@@ -77,24 +78,41 @@ class ToolExecutorTest {
             put("path", "hello.txt")
         }))
         assertTrue(result.success)
-        assertEquals("hi", result.output)
+        assertEquals(
+            "[文件 /workspace/hello.txt 共 1 行，当前显示第 1-1 行；hash=fnv1a16]\n1:9a|hi",
+            result.output,
+        )
     }
 
     @Test
-    fun `edit tool modifies file`() = runBlocking {
+    fun `hashline edit uses the anchor returned by read`() = runBlocking {
         executor.execute(toolCall(HarnessTool.WRITE, buildJsonObject {
             put("path", "a.txt")
             put("content", "one two")
         }))
+        val before = executor.execute(toolCall(HarnessTool.READ, buildJsonObject {
+            put("path", "a.txt")
+        }))
+        assertTrue(before.success)
+        val anchor = Regex("""^(\d+:[0-9a-f]{2})\|one two$""", RegexOption.MULTILINE)
+            .find(before.output)?.groupValues?.get(1)
+        assertTrue("read must expose a usable line anchor", anchor != null)
         val result = executor.execute(toolCall(HarnessTool.EDIT, buildJsonObject {
             put("path", "a.txt")
-            put("oldText", "two")
-            put("newText", "2")
+            put("ops", buildJsonArray {
+                add(buildJsonObject {
+                    put("op", "replace")
+                    put("start", requireNotNull(anchor))
+                    put("content", "one 2")
+                })
+            })
         }))
-        assertTrue(result.success)
+        assertTrue(result.output, result.success)
         val read = executor.execute(toolCall(HarnessTool.READ, buildJsonObject {
             put("path", "a.txt")
+            put("anchors", false)
         }))
+        assertTrue(read.success)
         assertEquals("one 2", read.output)
     }
 

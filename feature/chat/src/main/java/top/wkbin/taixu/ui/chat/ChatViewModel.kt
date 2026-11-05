@@ -76,6 +76,7 @@ import top.wkbin.taixu.runtime.terminal.TerminalSessionManager
 import java.io.File
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import top.wkbin.taixu.core.common.navigation.AppNavigationTarget
@@ -106,7 +107,6 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 
 private const val MAX_RUNTIME_EVENTS = 160
 private const val TAG = "ChatViewModel"
-private const val KEY_INPUT_DRAFT = "chat_input_draft"
 
 data class SubagentResultUiState(
     val sessionId: String,
@@ -163,6 +163,8 @@ class ChatViewModel(
     val globalNavigationBus: GlobalNavigationBus? = null,
     private val workspaceCatalogSource: top.wkbin.taixu.runtime.SessionWorkspaceCatalog,
     val btwController: BtwChatController? = null,
+    private val completionEnvironments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments,
+    private val sessionStartup: ChatSessionStartup,
 ) : ViewModel() {
     val failureMemoryAccess get() = operationCoordinator.failureMemories
     private val _workflowLaunchRequests = MutableSharedFlow<WorkflowLaunchRequest>(extraBufferCapacity = 2)
@@ -477,8 +479,24 @@ class ChatViewModel(
         harnessLoop.resolveQuestion(requestId, answersJson)
     }
 
-    val sessions: StateFlow<List<HarnessSessionEntity>> = sessionDao.observeAll()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice: StateFlow<String?> = _notice.asStateFlow()
+
+    fun clearNotice() {
+        _notice.value = null
+    }
+
+    private val composerDrafts = SessionComposerDrafts<ChatAttachment>(harnessLoop.currentSessionId, viewModelScope,
+        SavedComposerDraftTextState(savedStateHandle, harnessLoop.currentSessionId.value), AttachmentDocumentPreparation::delete,
+        { _notice.value = context.getString(R.string.chat_draft_restore_limited) })
+    private val _input = composerDrafts.text; val input: StateFlow<String> = _input
+    private fun setInput(value: String) = composerDrafts.setText(value)
+
+    private var observedDraftSessions: Set<String>? = null
+    val sessions: StateFlow<List<HarnessSessionEntity>> = sessionDao.observeAll().onEach { rows ->
+        val ids = rows.map { it.id }.toSet()
+        observedDraftSessions?.minus(ids)?.forEach { composerDrafts.discardSession(it) }; observedDraftSessions = ids
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun setCurrentSessionApprovalMode(mode: ApprovalMode) {
         val sessionId = currentSessionId.value
@@ -527,40 +545,20 @@ class ChatViewModel(
 
     fun navigateToAgentSettings() = globalNavigationBus?.navigateTo(AppNavigationTarget.AgentSettings)
 
-    // 输入草稿：同步写入 SavedStateHandle，进程重建 / 旋转后可恢复
-    private val _input = MutableStateFlow(savedStateHandle.get<String>(KEY_INPUT_DRAFT) ?: ""); val input: StateFlow<String> = _input.asStateFlow()
-
-    /** 统一输入写入入口：StateFlow 供组合使用，SavedStateHandle 供状态恢复使用 */
-    private fun setInput(value: String) {
-        _input.value = value
-        savedStateHandle[KEY_INPUT_DRAFT] = value
-    }
-
-    // 系统分享入口：预填文本 + 快捷指令行（UI 见 ChatShareSupport）
-    private val _pendingShare = MutableStateFlow<String?>(null)
-
-    /** 分享快捷指令行状态（null=隐藏）；分享文本只预填输入框，不自动发送。 */
-    val shareActions: StateFlow<ShareQuickActionsState?> = _pendingShare.map { text ->
-        text?.let { ShareQuickActionsState(it, ::resolveShareAction, ::dismissPendingShare) }
+    /** 系统分享快捷动作跟随草稿所属会话；只预填，不自动发送。 */
+    val shareActions: StateFlow<ShareQuickActionsState?> = composerDrafts.sharedText.map { shared ->
+        shared?.let { ShareQuickActionsState(it.text, { action -> resolveShareAction(action, it) }, { composerDrafts.dismissShare(it.sessionId) }) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** 系统分享进入：预填输入框并展示快捷指令行。 */
     fun onSharedTextReceived(text: String) {
-        if (text.isBlank()) return
-        setInput(text)
-        _pendingShare.value = text
+        if (text.isNotBlank()) composerDrafts.share(text)
     }
-
-    private fun resolveShareAction(action: ShareQuickAction) {
-        val text = _pendingShare.value ?: return
-        _pendingShare.value = null
-        send(wrapSharePrompt(action, text))
+    private fun resolveShareAction(action: ShareQuickAction, expected: ComposerSharedText) {
+        if (currentSessionId.value != expected.sessionId || composerDrafts.sharedText.value != expected) return
+        composerDrafts.dismissShare(expected.sessionId)
+        send(wrapSharePrompt(action, expected.text), targetSessionId = expected.sessionId)
     }
-
-    /** 关闭快捷指令行，保留输入框中已预填的文本。 */
-    fun dismissPendingShare() {
-        _pendingShare.value = null
-    }
+    fun dismissPendingShare() = composerDrafts.dismissShare()
 
     val activeSkills: StateFlow<List<AgentSkill>> = agentSkillRepository.activeSkills
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -798,14 +796,18 @@ class ChatViewModel(
         icon = RuntimeIconName.Extension,
     )
 
+    private val fileCompletion = WorkspaceMentionSuggestions(completionEnvironments) { sessionDao.findById(it)?.workspace }
+    private val fileMentions = fileCompletion.observe(_input, harnessLoop.currentSessionId, workspace)
+    val matchingMentions = combine(capabilityMentionFlow(), fileMentions) { capabilities, files -> capabilities + files }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     /** @ 艾特唤醒建议列表（当输入包含 @ 时实时过滤技能与 MCP 插件）。 */
-    val matchingMentions: StateFlow<List<MentionItem>> = combine(
+    private fun capabilityMentionFlow() = combine(
         _input,
         agentSkillRepository.allSkills,
         mcpServerRepository.servers,
     ) { text, skills, mcps ->
-        val atIndex = text.lastIndexOf('@')
-        if (atIndex < 0) return@combine emptyList()
+        val atIndex = trailingMentionStart(text) ?: return@combine emptyList()
         val mentionToken = text.substring(atIndex + 1)
         if (mentionToken.any { it.isWhitespace() }) return@combine emptyList()
         val query = mentionToken.lowercase()
@@ -894,17 +896,12 @@ class ChatViewModel(
     private val _initializing = MutableStateFlow(true); val initializing: StateFlow<Boolean> = _initializing.asStateFlow()
 
     init {
-        viewModelScope.launch(Dispatchers.IO) {
-            // 恢复最近会话；没有则新建
-            val latest = sessionDao.observeAll().first().firstOrNull()
-            if (latest != null) {
-                harnessLoop.loadSession(latest.id)
-            } else {
-                try { harnessLoop.newSession(context.getString(R.string.chat_new_session)) }
-                catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                catch (e: Exception) { _notice.value = e.message ?: "无法创建会话，请明确选择执行环境" }
-            }
-            _initializing.value = false
+        viewModelScope.launch {
+            try {
+                sessionStartup.restore(composerDrafts.snapshot().sessionId, context.getString(R.string.chat_new_session))
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (failure: Exception) { _notice.value = failure.message ?: context.getString(R.string.chat_session_restore_failed) }
+            finally { _initializing.value = false }
         }
         viewModelScope.launch { // 自动标题：开关/提示词/模型档案均可配（生成器内部去重）
             harnessLoop.running.collect { isRunning ->
@@ -915,32 +912,33 @@ class ChatViewModel(
         }
     }
 
-    fun onInputChanged(value: String) = setInput(value)
+    fun onInputChanged(value: String, sessionId: String = composerDrafts.snapshot().sessionId) = composerDrafts.setText(value, sessionId)
 
     fun applySlashCommand(command: SlashCommandItem) {
-        if (command.command == "/clear") { createSession(context.getString(R.string.chat_new_session)); setInput(""); notifyNewSessionCreated() }
+        if (command.command == "/clear") clearIntoNewSession()
         else setInput(command.template)
     }
 
     fun applyQuickPhrase(phrase: QuickPhrase) {
-        if (phrase.content.trim() == "/clear") { createSession(context.getString(R.string.chat_new_session)); setInput(""); notifyNewSessionCreated() }
+        if (phrase.content.trim() == "/clear") clearIntoNewSession()
         else setInput(phrase.content)
+    }
+
+    private fun clearIntoNewSession() {
+        val owner = composerDrafts.snapshot().sessionId
+        createSession(context.getString(R.string.chat_new_session)); composerDrafts.setText("", owner)
+        notifyNewSessionCreated()
     }
 
     private fun notifyNewSessionCreated() = Toast.makeText(context, context.getString(R.string.chat_new_session_created), Toast.LENGTH_SHORT).show()
 
     fun applyMention(item: MentionItem) {
-        val text = _input.value
-        val atIndex = text.lastIndexOf('@')
-        val prefix = if (atIndex >= 0) text.substring(0, atIndex) else text
-        // Persist the stable id so names containing spaces or punctuation cannot be
-        // truncated by the mention parser; the attached chip still shows the friendly name.
-        setInput("${prefix}@${item.id} ")
+        insertMention(composerDrafts.snapshot().draft.text, item, currentSessionId.value, workspace.value)?.let(::setInput)
     }
 
     /** 从输入框中整块移除某个已挂载的 @能力 标签 */
     fun removeMention(item: MentionItem) {
-        val current = _input.value
+        val current = composerDrafts.snapshot().draft.text
         // 正则替换 @name 及其后可能跟随的空格
         val updated = current.replace(Regex("""@${Regex.escape(item.name)}\s*"""), "")
             .replace(Regex("""@${Regex.escape(item.id)}\s*"""), "")
@@ -949,19 +947,19 @@ class ChatViewModel(
     }
 
     fun triggerMentionInput() {
-        val current = _input.value
+        val current = composerDrafts.snapshot().draft.text
         if (!current.endsWith("@")) {
             setInput(if (current.isBlank()) "@" else "$current @")
         }
     }
 
-    private val _pendingAttachments = MutableStateFlow<List<ChatAttachment>>(emptyList())
+    private val _pendingAttachments = composerDrafts.attachments
 
     /** 待发送附件；处理（复制/压缩/编码）在 IO 线程完成 */
-    val pendingAttachments: StateFlow<List<ChatAttachment>> = _pendingAttachments.asStateFlow()
+    val pendingAttachments: StateFlow<List<ChatAttachment>> = _pendingAttachments
 
     /** 附件处理中（复制/压缩/编码期间为 true，UI 据此展示加载指示） */
-    private val _attachmentsProcessing = MutableStateFlow(false); val attachmentsProcessing: StateFlow<Boolean> = _attachmentsProcessing.asStateFlow()
+    val attachmentsProcessing: StateFlow<Boolean> = composerDrafts.processing
 
     /** 需要以 Toast 提示用户的轻量通知（附件失败、模型档案已存在等），展示后调用 clearNotice() */
     /** 手动压缩当前会话历史为结构化摘要（"+" 附件弹窗入口）。 */
@@ -972,62 +970,43 @@ class ChatViewModel(
         }
     }
 
-    private val _notice = MutableStateFlow<String?>(null)
-    val notice: StateFlow<String?> = _notice.asStateFlow()
-
-    fun clearNotice() {
-        _notice.value = null
-    }
-
-    fun onAttachmentsPicked(uris: List<Uri>, isImage: Boolean) {
-        if (uris.isEmpty()) return
-        viewModelScope.launch(Dispatchers.IO) {
-            _attachmentsProcessing.value = true
-            val outcome = AttachmentHelper.processPicked(context, uris, isImage)
-            outcome.notice?.let { _notice.value = it }
-            _pendingAttachments.update { it + outcome.items }
-            _attachmentsProcessing.value = false
-        }
-    }
-
-    fun removeAttachment(attachment: ChatAttachment) {
-        _pendingAttachments.update { list -> list.filter { it.id != attachment.id } }; AttachmentHelper.deleteHostFile(attachment.hostFilePath)
-    }
-
-    /** 粘贴超长文本 → txt 附件，避免大段内容刷屏。 */
-    fun addTextAttachment(text: String) {
-        val file = AttachmentHelper.writePastedText(context, text) ?: return
-        _pendingAttachments.update { it + ChatAttachment(name = file.name, isImage = false, sizeBytes = file.length(),
-            uri = android.net.Uri.fromFile(file), hostFilePath = file.absolutePath, guestFilePath = "/attachments/${file.name}") }
-    }
+    private val attachmentActions by lazy { ComposerAttachmentActions(context, viewModelScope, composerDrafts, notice = { _notice.value = it }) }
+    fun onAttachmentsPicked(uris: List<Uri>, isImage: Boolean, sessionId: String = composerDrafts.snapshot().sessionId) = attachmentActions.picked(uris, isImage, sessionId)
+    fun removeAttachment(attachment: ChatAttachment, sessionId: String = composerDrafts.snapshot().sessionId) = composerDrafts.removeAttachment(attachment, sessionId)
+    fun addTextAttachment(text: String, sessionId: String = composerDrafts.snapshot().sessionId) = attachmentActions.pasted(text, sessionId)
 
     /** 组装附件挂载说明并委托 send() 发送；View 只需在输入框非空或有附件时触发。answer=false = 只发不答 */
-    fun sendFromComposer(answer: Boolean = true) {
-        val trimmedInput = _input.value.trim()
-        val attachments = _pendingAttachments.value
+    fun sendFromComposer(answer: Boolean = true, sessionId: String = currentSessionId.value) {
+        if (sessionId.isBlank() || sessionId != currentSessionId.value) return
+        val snapshot = composerDrafts.snapshot()
+        val trimmedInput = snapshot.draft.text.trim()
+        val attachments = snapshot.draft.attachments
         if (trimmedInput.isBlank() && attachments.isEmpty()) return
         val imageUrls = attachments.mapNotNull { it.base64DataUrl }
         val fullMessage = buildComposerMessage(context, trimmedInput, attachments)
-        _pendingAttachments.value = emptyList()
-        send(fullMessage, imageUrls, answer)
+        composerDrafts.detachAttachments(snapshot.sessionId)
+        send(fullMessage, imageUrls, answer, snapshot.sessionId)
     }
 
-    fun send(customText: String? = null, imageUrls: List<String> = emptyList(), answer: Boolean = true) {
-        val rawText = (customText ?: _input.value).trim()
+    fun send(customText: String? = null, imageUrls: List<String> = emptyList(), answer: Boolean = true, targetSessionId: String? = null) {
+        val draft = composerDrafts.snapshot()
+        val owner = targetSessionId ?: draft.sessionId
+        if (owner.isBlank() || currentSessionId.value.isBlank()) return
+        val rawText = (customText ?: draft.draft.text).trim()
         if (rawText.isBlank() && imageUrls.isEmpty()) return
         WORKFLOW_COMMAND.matchEntire(rawText)?.let { match ->
-            setInput("")
+            composerDrafts.setText("", owner)
             val projectName = workspace.value.trim('/').removePrefix("workspace/").substringBefore('/').takeIf(String::isNotBlank).orEmpty()
             _workflowLaunchRequests.tryEmit(WorkflowLaunchRequest(match.groupValues[1].takeIf(String::isNotBlank), projectName))
             return
         }
         // 旁路问答：基于当前会话进展的"顺便问一句"，不打断回合、不进入模型上下文。
         BtwChatController.COMMAND.matchEntire(rawText)?.let { match ->
-            setInput("")
+            composerDrafts.setText("", owner)
             btwController?.submit(match.groupValues[1])
             return
         }
-        setInput("")
+        composerDrafts.setText("", owner)
 
         val pinnedIds = _pinnedMentionIds.value
         val effectiveText = if (pinnedIds.isNotEmpty()) {
@@ -1046,15 +1025,15 @@ class ChatViewModel(
 
         // 只发不答（长按 answer=false）：仅追加用户消息不触发推理；命令语义保持常规发送，忙时退化为队列。
         val appendOnly = shouldAppendOnly(answer, rawText)
-        if (!running.value) {
-            if (appendOnly) harnessLoop.appendOnly(effectiveText, imageUrls = imageUrls)
-            else harnessLoop.send(effectiveText, imageUrls = imageUrls)
+        if (harnessLoop.sessionRunStates.value[owner] != top.wkbin.taixu.core.model.SessionRunState.RUNNING) {
+            if (appendOnly) harnessLoop.appendOnly(effectiveText, targetSessionId = owner, imageUrls = imageUrls)
+            else harnessLoop.send(effectiveText, targetSessionId = owner, imageUrls = imageUrls)
         } else {
             // 运行中投递语义跟随「运行中发送方式」偏好；send() 非挂起函数，故读 stateIn 快照。
             // STEER 在当前这批工具调用完成后、下一轮推理开始前注入，不打断正在执行的工具调用。
             when (runningSendModePref.value) {
-                RunningSendMode.STEER -> harnessLoop.steer(effectiveText, imageUrls = imageUrls)
-                RunningSendMode.QUEUE -> harnessLoop.send(effectiveText, imageUrls = imageUrls)
+                RunningSendMode.STEER -> harnessLoop.steer(effectiveText, targetSessionId = owner, imageUrls = imageUrls)
+                RunningSendMode.QUEUE -> harnessLoop.send(effectiveText, targetSessionId = owner, imageUrls = imageUrls)
             }
         }
     }
@@ -1065,23 +1044,16 @@ class ChatViewModel(
 
     /** 创建针对工具安装或沙箱异常的专属自愈会话并立即启动诊断 */
     fun startHealingTask(title: String, prompt: String) {
-        viewModelScope.launch {
-            harnessLoop.newSession(title = title)
-            setInput("")
-            harnessLoop.send(prompt)
+        sessionStartup.select(viewModelScope) {
+            val owner = harnessLoop.newSession(title = title)
+            composerDrafts.setText("", owner)
+            harnessLoop.send(prompt, targetSessionId = owner)
         }
     }
 
-    /** 重新生成最后一次回复 */
-    fun regenerateLast() {
-        if (running.value) return
-        harnessLoop.regenerateLast()
-    }
-
-    fun retryToolCall(toolCallId: String) {
-        if (running.value) return
-        harnessLoop.retryToolCall(toolCallId)
-    }
+    private val messageActions by lazy { ChatMessageActions(harnessLoop, viewModelScope) }
+    fun regenerateLast(sessionId: String = currentSessionId.value, expectedAssistantId: String? = null) = messageActions.regenerate(sessionId, expectedAssistantId)
+    fun retryToolCall(toolCallId: String, sessionId: String = currentSessionId.value) = messageActions.retryTool(sessionId, toolCallId)
 
     fun createBranch(messageId: String, displayName: String) {
         val sessionId = currentSessionId.value
@@ -1104,96 +1076,83 @@ class ChatViewModel(
         }
     }
 
-    /** 编辑并重新发送某条用户消息 */
-    fun editAndResend(userMessageId: String, newText: String) {
-        if (running.value || newText.isBlank()) return
-        harnessLoop.truncateAndResend(userMessageId, newText)
-    }
-
-    /** 删除单条消息 */
-    fun deleteMessage(messageId: String) {
-        viewModelScope.launch {
-            harnessLoop.deleteMessage(messageId)
-        }
-    }
-
-    fun stop() = harnessLoop.cancel()
+    fun editAndResend(userMessageId: String, newText: String, sessionId: String = currentSessionId.value) = messageActions.editAndResend(sessionId, userMessageId, newText)
+    fun deleteMessage(messageId: String, sessionId: String = currentSessionId.value) = messageActions.delete(sessionId, messageId)
+    fun stop(sessionId: String = currentSessionId.value) = messageActions.stop(sessionId)
 
     fun removePendingMessage(index: Int) = harnessLoop.removePendingMessage(index)
 
-    fun removeQueuedPrompt(prompt: QueuedPrompt) {
-        val sameQueue = queuedPrompts.value.filter { it.queue == prompt.queue }
-        val index = sameQueue.indexOfFirst { it.id == prompt.id }
-        if (index >= 0) harnessLoop.removeQueuedPrompt(prompt.queue, index)
-    }
+    fun removeQueuedPrompt(prompt: QueuedPrompt) = harnessLoop.removeQueuedPromptById(currentSessionId.value, prompt.id)
 
-    /** 将排队消息转为即时修正（Steer）指令并插入下一轮 */
     fun convertQueuedPromptToSteer(prompt: QueuedPrompt) {
-        removeQueuedPrompt(prompt)
-        harnessLoop.steer(prompt.message.text, imageUrls = prompt.message.imageUrls)
+        val session = currentSessionId.value
+        viewModelScope.launch {
+            try {
+                if (!harnessLoop.convertQueuedPromptToSteer(session, prompt.id)) _notice.value = "当前无法转为修正指令，原消息已保留"
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (_: Exception) { _notice.value = "转换失败，原消息已保留" }
+        }
     }
 
-    /** 编辑排队消息：先移出队列（不发送），把原文回显到输入框，修改后由用户手动发送。 */
-    fun editQueuedPrompt(prompt: QueuedPrompt) {
-        removeQueuedPrompt(prompt)
-        setInput(prompt.message.text)
-    }
+    internal val queuedPromptEditor by lazy { QueuedPromptEditor(viewModelScope, harnessLoop, currentSessionId) { _notice.value = it } }
+    fun editQueuedPrompt(prompt: QueuedPrompt) = queuedPromptEditor.begin(prompt)
 
     fun clearPendingMessages() = harnessLoop.clearPendingMessages()
 
     fun clearError() { sessionDeletionFeedback.clear(); harnessLoop.clearError() }
 
     fun createSession(title: String = "", workspace: String = "", projectType: String = "") {
-        viewModelScope.launch {
+        sessionStartup.select(viewModelScope) {
             try { workspaceCatalogSource.validate(workspaceCatalog.value, workspace); harnessLoop.newSession(title.trim().ifBlank { context.getString(R.string.chat_new_session) }, workspace, projectType) }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (e: Exception) { _notice.value = e.message ?: "会话创建失败，请检查执行环境" }
         }
     }
 
-    fun switchSession(id: String) = viewModelScope.launch { harnessLoop.loadSession(id) }
+    fun switchSession(id: String) = sessionStartup.select(viewModelScope) { harnessLoop.loadSession(id) }
 
     /** 跨会话消息全文搜索（会话侧栏「消息命中」分组，防抖在 UI 层）；空词返回空。 */
-    suspend fun searchMessages(term: String): List<MessageSearchHitRow> = runCatching {
+    suspend fun searchMessages(term: String): List<MessageSearchHitRow> =
         runtimeRepository.searchMessages(term, MESSAGE_SEARCH_LIMIT)
-    }.getOrDefault(emptyList())
 
-    fun deleteSession(id: String) = sessionDeletionFeedback.delete(viewModelScope, harnessLoop, id, context.getString(R.string.chat_request_archive_delete_error))
+    fun deleteSession(id: String) = sessionDeletionFeedback.delete(viewModelScope, harnessLoop, id, context.getString(R.string.chat_request_archive_delete_error)) { composerDrafts.discardSession(id) }
 
     /** 会话置顶（抽屉置顶分区；pinned=false 取消） */
     fun setSessionPinned(id: String, pinned: Boolean) = viewModelScope.launch { sessionDao.setPinned(id, if (pinned) System.currentTimeMillis() else 0L) }
     fun renameSession(id: String, title: String) = viewModelScope.launch { harnessLoop.renameSession(id, title) }
 
     // ---- 撤回到此轮（Checkpoint Rewind） ----
-
     /** 撤回到 [messageId] 所在用户轮：按 checkpoint 锚点定位轮次，prepare/commit 两段式执行；CONVERSATION/BOTH 会派生回退分支并切换过去。 */
     fun rewindToMessage(messageId: String, scope: RewindScope) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val sessionId = harnessLoop.currentSessionId.value
-            val target = harnessLoop.sessionCheckpoints(sessionId)
-                .firstOrNull { it.anchorMessageId == messageId }
-            if (target == null) {
-                _notice.value = context.getString(R.string.chat_rewind_no_checkpoint)
-                return@launch
-            }
-            runCatching {
-                val plan = harnessLoop.prepareRewind(sessionId, target.turn, scope)
-                val result = harnessLoop.commitRewind(plan, workspace.value)
-                val forkedSessionId = result.forkedSessionId
-                if (forkedSessionId != null) {
-                    harnessLoop.loadSession(forkedSessionId)
+        sessionStartup.select(viewModelScope) {
+            kotlinx.coroutines.withContext(Dispatchers.IO) {
+                val sessionId = harnessLoop.currentSessionId.value
+                val target = harnessLoop.sessionCheckpoints(sessionId)
+                    .firstOrNull { it.anchorMessageId == messageId }
+                if (target == null) {
+                    _notice.value = context.getString(R.string.chat_rewind_no_checkpoint)
+                    return@withContext
                 }
-                // 成功的 rewind 走带「撤销回滚」动作的 Snackbar（Toast 无法承载动作）；
-                // 失败/无锚点仍走 _notice Toast。
-                _rewindCompletedEvents.tryEmit(
-                    buildString {
-                        append(context.getString(R.string.chat_rewind_done, result.filesRestored, result.filesDeleted))
-                        if (forkedSessionId != null) append(" · ").append(context.getString(R.string.chat_rewind_switched))
-                        result.note?.let { append("\n").append(it) }
-                    },
-                )
-            }.onFailure { throwable ->
-                _notice.value = context.getString(R.string.chat_rewind_failed, throwable.message ?: "unknown")
+                runCatching {
+                    val plan = harnessLoop.prepareRewind(sessionId, target.turn, scope)
+                    val result = harnessLoop.commitRewind(plan, workspace.value)
+                    val forkedSessionId = result.forkedSessionId
+                    if (forkedSessionId != null) {
+                        harnessLoop.loadSession(forkedSessionId)
+                    }
+                    // 成功的 rewind 走带「撤销回滚」动作的 Snackbar（Toast 无法承载动作）；
+                    // 失败/无锚点仍走 _notice Toast。
+                    _rewindCompletedEvents.tryEmit(
+                        buildString {
+                            append(context.getString(R.string.chat_rewind_done, result.filesRestored, result.filesDeleted))
+                            if (forkedSessionId != null) append(" · ").append(context.getString(R.string.chat_rewind_switched))
+                            result.note?.let { append("\n").append(it) }
+                        },
+                    )
+                }.onFailure { throwable ->
+                    if (throwable is kotlinx.coroutines.CancellationException) throw throwable
+                    _notice.value = context.getString(R.string.chat_rewind_failed, throwable.message ?: "unknown")
+                }
             }
         }
     }
@@ -1523,19 +1482,6 @@ private data class ContextUsageCalculation(
     val compactionEnabled: Boolean,
     val foldingRatioPercent: Int,
 )
-
-data class MentionItem(
-    val id: String,
-    val name: String,
-    val description: String,
-    val category: String,
-    val type: MentionType,
-    val icon: RuntimeIconName,
-)
-
-enum class MentionType {
-    SKILL, MCP_SERVER
-}
 
 /**
  * 分支列表重投影的触发键。

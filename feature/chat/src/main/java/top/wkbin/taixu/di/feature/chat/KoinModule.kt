@@ -8,6 +8,7 @@ import top.wkbin.taixu.ui.chat.ChatBackgroundViewModel
 
 /** Dependency registrations owned by the feature:chat module. */
 val featureChatModule = module {
+    single { top.wkbin.taixu.ui.chat.ChatSessionStartup(get(), get()) }
     viewModel { ChatBackgroundViewModel(get()) }
     factory { top.wkbin.taixu.ui.chat.BtwChatController(getOrNull(), getOrNull()) }
     // 检测走 ToolchainInspector；补齐走进程级 ToolchainRepairer（不跟 ViewModel 取消）
@@ -59,6 +60,8 @@ val featureChatModule = module {
             globalNavigationBus = getOrNull(),
             workspaceCatalogSource = get(),
             btwController = getOrNull(),
+            completionEnvironments = get(),
+            sessionStartup = get(),
         )
     }
 }

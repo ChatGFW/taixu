@@ -92,6 +92,7 @@ class TaiXuApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        if (android.os.Process.isIsolated()) return
         startKoin {
             allowOverride(false)
             androidContext(this@TaiXuApplication)

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 /** Atomic storage primitives for the durable harness interpreter. */
 @Dao
-interface HarnessRuntimeDao : HarnessBranchQueries, HarnessTaskCompletionQueries, HarnessUsageQueries {
+interface HarnessRuntimeDao : HarnessQueueEditQueries, HarnessBranchQueries, HarnessTaskCompletionQueries, HarnessUsageQueries {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertEntry(entry: HarnessEntryEntity): Long
 
@@ -144,7 +144,7 @@ interface HarnessRuntimeDao : HarnessBranchQueries, HarnessTaskCompletionQueries
     @Query("DELETE FROM harness_queue_items WHERE id = :itemId")
     suspend fun deleteQueueItem(itemId: String)
 
-    @Query("DELETE FROM harness_queue_items WHERE id = :itemId AND sessionId = :sessionId AND laneName = :laneName AND queueType = 'next_run'")
+    @Query("DELETE FROM harness_queue_items WHERE id = :itemId AND sessionId = :sessionId AND laneName = :laneName AND queueType = 'next_run' AND editingToken IS NULL")
     suspend fun claimNextRunQueue(itemId: String, sessionId: String, laneName: String): Int
 
     @Query("DELETE FROM harness_queue_items WHERE sessionId = :sessionId AND laneName = :laneName AND queueType = :queueType")
@@ -159,7 +159,7 @@ interface HarnessRuntimeDao : HarnessBranchQueries, HarnessTaskCompletionQueries
     @Query("DELETE FROM harness_queue_items WHERE operationId = :operationId")
     suspend fun deleteOperationQueue(operationId: String)
 
-    @Query("UPDATE harness_queue_items SET operationId = NULL WHERE operationId = :operationId AND queueType = 'next_run'")
+    @Query("UPDATE harness_queue_items SET operationId = NULL WHERE operationId = :operationId AND (queueType = 'next_run' OR editingToken IS NOT NULL)")
     suspend fun detachNextRunQueue(operationId: String)
 
     @Query("UPDATE harness_queue_items SET queueType = 'next_run', operationId = NULL WHERE sessionId = :sessionId AND laneName = :laneName AND operationId = :operationId AND queueType = 'steer'")
@@ -271,6 +271,9 @@ interface HarnessRuntimeDao : HarnessBranchQueries, HarnessTaskCompletionQueries
 
     @Transaction
     suspend fun finishOperation(result: HarnessLaneResultEntity, lane: HarnessLaneEntity) {
+        val heldTypes = listAllQueues(lane.sessionId, lane.name)
+            .filter { it.operationId == result.operationId && it.editingToken != null }.map { it.queueType }.distinct()
+        heldTypes.forEach { preserveEditedOperationQueue(result.operationId, it) }
         detachNextRunQueue(result.operationId)
         if (listQueue(lane.sessionId, lane.name, "next_run").isEmpty()) {
             promoteOperationSteering(lane.sessionId, lane.name, result.operationId)
@@ -283,8 +286,8 @@ interface HarnessRuntimeDao : HarnessBranchQueries, HarnessTaskCompletionQueries
 
     @Transaction
     suspend fun consumeQueueItem(itemId: String, entry: HarnessEntryEntity, lane: HarnessLaneEntity) {
+        check(claimUneditedQueue(itemId, lane.sessionId, lane.name) == 1) { "Queued prompt is no longer available" }
         insertEntryOrThrow(entry)
-        deleteQueueItem(itemId)
         upsertLane(lane)
     }
 

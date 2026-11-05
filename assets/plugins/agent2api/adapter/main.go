@@ -13,6 +13,9 @@ import (
 	"time"
 )
 
+const upstreamVersion = "3.4.1"
+const adapterVersion = "3.4.1"
+
 func run() error {
 	p, err := bootstrap(os.Stdin)
 	if err != nil {
@@ -66,7 +69,7 @@ func run() error {
 
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
-		fmt.Println("TaiXu Agent2API adapter 3.0.9 / upstream 3.0.8")
+		fmt.Printf("TaiXu Agent2API adapter %s / upstream %s\n", adapterVersion, upstreamVersion)
 		return
 	}
 	if len(os.Args) != 1 {
