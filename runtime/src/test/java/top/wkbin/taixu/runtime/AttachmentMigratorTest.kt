@@ -20,7 +20,7 @@ class AttachmentMigratorTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val filesDir: File = context.filesDir
-    private val migrator = AttachmentMigrator(filesDir, AppLogger(context, SensitiveDataRedactor { it }))
+    private val migrator = AttachmentMigrator(context, AppLogger(context, SensitiveDataRedactor { it }))
 
     private fun writeGlobal(name: String, text: String = name) {
         val file = File(AttachmentPaths.global(filesDir), name)

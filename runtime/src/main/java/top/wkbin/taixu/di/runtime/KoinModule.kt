@@ -207,7 +207,7 @@ val runtimeModule = module {
         )
     }
 
-    single { AttachmentMigrator(filesDir = get<android.content.Context>().filesDir, logger = get()) }
+    single { AttachmentMigrator(context = get(), logger = get()) }
 
     single<HostBridge> {
         HostBridge(

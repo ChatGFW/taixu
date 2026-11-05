@@ -21,9 +21,10 @@ import java.io.File
  * 需要回滚时可以把文件搬回原位。
  */
 class AttachmentMigrator(
-    private val filesDir: File,
+    context: android.content.Context,
     private val logger: AppLogger,
 ) {
+    private val filesDir: File = context.filesDir
     data class Summary(val moved: Int, val copied: Int, val orphaned: Int, val skipped: Boolean)
 
     suspend fun migrate(references: List<Pair<String, String>>): Summary = withContext(Dispatchers.IO) {
