@@ -53,6 +53,14 @@ class HostFailureTest {
         assertTrue(script.contains("  doctor)"))
     }
 
+    @Test fun everyShimTargetsASubcommandTheScriptActuallyHandles() {
+        val script = HostBridgeCliScript.TAIXU_HOST_SCRIPT
+        HostBridgeCliScript.SHIMS.forEach { (shim, body) ->
+            val subcommand = body.substringAfter("taixu-host ").trim().substringBefore('"').trim()
+            assertTrue("$shim 指向的 `$subcommand` 在脚本里没有对应分支", script.contains("  $subcommand)"))
+        }
+    }
+
     @Test fun capabilityShimsForwardToTheSameCli() {
         val shims = HostBridgeCliScript.SHIMS
         assertEquals(
