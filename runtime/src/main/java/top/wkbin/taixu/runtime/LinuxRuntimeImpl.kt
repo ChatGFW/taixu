@@ -509,7 +509,7 @@ class LinuxRuntimeImpl(
                 homeDir = pathManager.homeDir(safeDistro),
                 optDir = execution.optDir,
                 tmpDir = pathManager.tmpDir,
-                attachmentsDir = pathManager.attachmentsDir,
+                attachmentsDir = command.sessionId?.let(pathManager::sessionAttachmentsDir) ?: pathManager.attachmentsDir, sharedSkillsDir = pathManager.attachmentsSkillsDir,
                 command = command,
                 mounts = mounts,
                 emulatorBinary = execution.emulatorBinary,
@@ -637,7 +637,7 @@ class LinuxRuntimeImpl(
             homeDir = pathManager.homeDir(safeDistro),
             optDir = pathManager.taixuRootDir(safeDistro),
             tmpDir = pathManager.tmpDir,
-            attachmentsDir = pathManager.attachmentsDir,
+            attachmentsDir = effectiveConfig.sessionId?.let(pathManager::sessionAttachmentsDir) ?: pathManager.attachmentsDir, sharedSkillsDir = pathManager.attachmentsSkillsDir,
             config = effectiveConfig,
             nativePty = true,
             mounts = mounts,
@@ -650,7 +650,7 @@ class LinuxRuntimeImpl(
             homeDir = pathManager.homeDir(safeDistro),
             optDir = pathManager.taixuRootDir(safeDistro),
             tmpDir = pathManager.tmpDir,
-            attachmentsDir = pathManager.attachmentsDir,
+            attachmentsDir = effectiveConfig.sessionId?.let(pathManager::sessionAttachmentsDir) ?: pathManager.attachmentsDir, sharedSkillsDir = pathManager.attachmentsSkillsDir,
             config = effectiveConfig,
             ptyMarker = markerPath,
             mounts = mounts,
@@ -682,7 +682,7 @@ class LinuxRuntimeImpl(
                     homeDir = pathManager.homeDir(distroId),
                     optDir = pathManager.taixuRootDir(distroId),
                     tmpDir = pathManager.tmpDir,
-                    attachmentsDir = pathManager.attachmentsDir,
+                    attachmentsDir = pathManager.attachmentsDir, sharedSkillsDir = pathManager.attachmentsSkillsDir,
                     command = ShellCommand(
                         commandLine = "if test -s '$markerPath'; then " +
                             "stty -F \"\$(cat '$markerPath')\" cols $safeColumns rows $safeRows; " +

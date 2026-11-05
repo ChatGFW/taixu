@@ -37,6 +37,8 @@ interface GuestCommandBuilder {
         optDir: File = File(rootfsDir.parentFile, "opt/taixu"),
         tmpDir: File = File(rootfsDir.parentFile, "tmp"),
         attachmentsDir: File = File(rootfsDir.parentFile, "attachments"),
+        /** 全局技能目录；非空时额外挂到 `/attachments/skills`，不随会话隔离。 */
+        sharedSkillsDir: File? = null,
         command: ShellCommand,
         mounts: List<StorageMountBinding> = emptyList(),
         emulatorBinary: File? = null,
@@ -57,6 +59,8 @@ interface GuestCommandBuilder {
         optDir: File = File(rootfsDir.parentFile, "opt/taixu"),
         tmpDir: File = File(rootfsDir.parentFile, "tmp"),
         attachmentsDir: File = File(rootfsDir.parentFile, "attachments"),
+        /** 全局技能目录；非空时额外挂到 `/attachments/skills`，不随会话隔离。 */
+        sharedSkillsDir: File? = null,
         config: SessionConfig,
         ptyMarker: String? = null,
         nativePty: Boolean = false,

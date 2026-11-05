@@ -46,14 +46,14 @@ class LinuxCommandToolBackend(
         val directory: (String?) -> String = { explicit -> environment?.workingDirectory(explicit)
             ?: pathResolver.resolveWorkingDirectory(explicit, request.workspace) }
         return when (request.tool) {
-            HarnessTool.BASE -> executeBase(request.args, request.workspace, commands, directory, environment, request.metadata)
-            HarnessTool.PROCESS -> executeProcess(request.args, commands, directory)
+            HarnessTool.BASE -> executeBase(request.args, request.workspace, commands, directory, environment, request.metadata, request.sessionId)
+            HarnessTool.PROCESS -> executeProcess(request.args, commands, directory, request.sessionId)
             else -> throw IllegalArgumentException("Unsupported tool: ${request.tool}")
         }
     }
 
     private suspend fun executeBase(args: JsonObject, workspace: String, commands: ExecutionCommands, directory: (String?) -> String,
-        environment: ExecutionEnvironment?, metadata: MutableMap<String, String>?): Pair<Boolean, String> {
+        environment: ExecutionEnvironment?, metadata: MutableMap<String, String>?, sessionId: String = ""): Pair<Boolean, String> {
         val command = JsonArgs.requireString(args, "command")
         require(command.length <= MAX_COMMAND_LENGTH) { "命令过长（${command.length} 字符，上限 $MAX_COMMAND_LENGTH）" }
         val cwd = directory(args["cwd"]?.jsonPrimitive?.content)
@@ -81,7 +81,8 @@ class LinuxCommandToolBackend(
         val result = try {
             CommandOutputCapture().use { capture ->
                 val executed = commands.execute(ShellCommand(preparedCommand.commandLine, cwd, preparedCommand.environment,
-                    timeoutSeconds * 1000L, outputCapture = capture, memoryHeavy = CommandResourcePolicy.isHeavy(command)))
+                    timeoutSeconds * 1000L, outputCapture = capture, memoryHeavy = CommandResourcePolicy.isHeavy(command),
+                    sessionId = sessionId.ifBlank { null }))
                 capture.expand(executed)
             }
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
@@ -134,7 +135,7 @@ class LinuxCommandToolBackend(
         return isSuccess to body
     }
 
-    private suspend fun executeProcess(args: JsonObject, commands: ExecutionCommands, directory: (String?) -> String): Pair<Boolean, String> {
+    private suspend fun executeProcess(args: JsonObject, commands: ExecutionCommands, directory: (String?) -> String, sessionId: String = ""): Pair<Boolean, String> {
         val action = JsonArgs.requireString(args, "action").trim().lowercase()
         return when (action) {
             "start" -> {
@@ -151,6 +152,7 @@ class LinuxCommandToolBackend(
                             commandLine = command,
                             workingDirectory = cwd,
                             timeoutMs = Long.MAX_VALUE,
+                            sessionId = sessionId.ifBlank { null },
                         ),
                     )
                 } catch (cancelled: kotlinx.coroutines.CancellationException) {

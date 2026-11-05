@@ -66,6 +66,7 @@ P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.
 | `runtime/environment/FileFingerprint.kt` / `harness/environment/LocalFileFingerprint.kt` / `runtime/remote/SshExecutionFiles.kt` | 当前执行环境的流式二进制指纹、容量与并发变化检查；缺少能力不回退 | 文件指纹 |
 | `harness/ToolExecutionBoundary.kt` / `ToolExecutionRequest.kt` | 检查点观察快照、否决及说明脱敏；保留结果标识与审批状态 | 扩展控制边界 |
 | `harness/WorkspaceToolBackend.kt` / `WorkspaceToolOperations.kt` | read/write/edit 语义与可替换工作区操作接口；本地实现为 `WorkspaceFileAccess` | 文件工具后端 |
+| `runtime/AttachmentPaths.kt` / `runtime/AttachmentMigrator.kt` | 附件目录布局（`/attachments` 绑定到会话私有目录、skills 保持全局）与一次性历史迁移（单会话移动 / 多会话复制 / 无引用入 legacy），带 marker 与 manifest | 会话级附件隔离 |
 | `runtime/environment/HashlineAnchors.kt` · `harness/text/HashlineEditArgs.kt` · `HashlinePolicy.kt` · `HashlineEditStats.kt` · `HashlineEditStatsCodec.kt` · `core/datastore/HashlinePreferences.kt` | Hashline 行锚算法、工具参数解析、闸门与跨启动累计计数；协议见 [`HASHLINE_PROTOCOL.md`](HASHLINE_PROTOCOL.md) | Hashline 编辑 |
 | `harness/validation/ToolCallLoopDetector.kt` · `ToolRecoveryAdvice.kt` | 同参连败 / 同参同输出 / 周期震荡拦截；同 path 连续 STALE；未知工具名按次数升级提示 | 死循环与 Hashline 纠错 |
 | `harness/BashismDetector.kt` | 命令失败后识别 bash 专有语法（`[[ ]]`、here-string、数组、`==` 等）并给出 POSIX 改写提示；显式 `bash -c` 时不介入 | Shell 方言 |

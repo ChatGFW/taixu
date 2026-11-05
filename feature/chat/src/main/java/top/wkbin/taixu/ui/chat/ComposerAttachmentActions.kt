@@ -20,7 +20,7 @@ internal class ComposerAttachmentActions(
     private val drafts: SessionComposerDrafts<ChatAttachment>,
     private val notice: (String) -> Unit,
     private val importFiles: suspend (List<Uri>, Boolean) -> AttachmentProcessOutcome = { uris, image ->
-        AttachmentHelper.processPicked(context, uris, image)
+        AttachmentHelper.processPicked(context, uris, image, drafts.snapshot().sessionId)
     },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
@@ -44,7 +44,7 @@ internal class ComposerAttachmentActions(
         }
     }
     fun pasted(text: String, sessionId: String = drafts.snapshot().sessionId) {
-        val file = AttachmentHelper.writePastedText(context, text) ?: return
+        val file = AttachmentHelper.writePastedText(context, text, sessionId) ?: return
         drafts.addAttachments(listOf(ChatAttachment(name = file.name, isImage = false, sizeBytes = file.length(),
             uri = Uri.fromFile(file), hostFilePath = file.absolutePath, guestFilePath = "/attachments/${file.name}")), sessionId)
     }

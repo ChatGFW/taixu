@@ -7,6 +7,9 @@ import androidx.room.Query
 import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
+/** 迁移期只读投影：会话 + 含 `/attachments/` 引用的正文。 */
+data class HarnessAttachmentReferenceRow(val sessionId: String, val payloadJson: String)
+
 /** Atomic storage primitives for the durable harness interpreter. */
 @Dao
 interface HarnessRuntimeDao : HarnessQueueEditQueries, HarnessBranchQueries, HarnessTaskCompletionQueries, HarnessUsageQueries {
@@ -57,6 +60,10 @@ interface HarnessRuntimeDao : HarnessQueueEditQueries, HarnessBranchQueries, Har
 
     @Query("SELECT * FROM harness_entries WHERE (:start IS NULL OR createdAt >= :start) AND (:end IS NULL OR createdAt < :end) ORDER BY sequence")
     suspend fun listEntriesInRange(start: Long?, end: Long?): List<HarnessEntryEntity>
+
+    /** 仅取引用了 `/attachments/` 的会话与正文，供一次性附件归属迁移使用。 */
+    @Query("SELECT sessionId, payloadJson FROM harness_entries WHERE instr(payloadJson, '/attachments/') > 0")
+    suspend fun attachmentReferenceRows(): List<HarnessAttachmentReferenceRow>
 
     @Query("SELECT COUNT(*) FROM harness_entries WHERE (:start IS NULL OR createdAt >= :start) AND (:end IS NULL OR createdAt < :end)")
     suspend fun countEntriesInRange(start: Long?, end: Long?): Int

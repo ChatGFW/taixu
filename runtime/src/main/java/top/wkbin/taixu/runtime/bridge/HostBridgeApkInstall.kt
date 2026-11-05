@@ -8,6 +8,7 @@ import androidx.core.content.FileProvider
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.runtime.AttachmentPaths
 import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.runtime.bridge.HostBridgeHttp.HttpResponse
 import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
@@ -127,7 +128,7 @@ internal class HostBridgeApkInstall(
             trimmed == "/workspace" ->
                 pathManager.workspaceDir.absolutePath
             trimmed.startsWith("/attachments/") ->
-                File(pathManager.attachmentsDir, trimmed.removePrefix("/attachments/")).absolutePath
+                resolveAttachment(trimmed.removePrefix("/attachments/")).absolutePath
             trimmed == "/attachments" ->
                 pathManager.attachmentsDir.absolutePath
             else -> {
@@ -140,6 +141,20 @@ internal class HostBridgeApkInstall(
                 }
             }
         }
+    }
+
+    /**
+     * `/attachments/<path>` 现在属于会话私有目录，而安装端点没有会话上下文：
+     * 先看全局根（skills/legacy），再按相对路径扫各会话目录，最后回落到全局路径。
+     */
+    private fun resolveAttachment(relative: String): File {
+        val global = File(pathManager.attachmentsDir, relative)
+        if (global.exists()) return global
+        return AttachmentPaths.sessionsRoot(context.filesDir).listFiles().orEmpty()
+            .asSequence()
+            .map { File(File(it, "attachments"), relative) }
+            .firstOrNull { it.exists() }
+            ?: global
     }
 
     private fun errorJson(message: String, failure: HostFailure): String = buildJsonObject {

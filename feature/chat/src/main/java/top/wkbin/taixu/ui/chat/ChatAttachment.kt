@@ -48,6 +48,7 @@ import androidx.exifinterface.media.ExifInterface
 import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
+import top.wkbin.taixu.runtime.AttachmentPaths
 import java.io.ByteArrayOutputStream
 
 /**
@@ -86,7 +87,12 @@ data class AttachmentProcessOutcome(
 object AttachmentHelper {
     private const val TAG = "AttachmentHelper"
 
-    suspend fun processUri(context: Context, uri: Uri, isImage: Boolean): AttachmentProcessResult {
+    suspend fun processUri(
+        context: Context,
+        uri: Uri,
+        isImage: Boolean,
+        sessionId: String? = null,
+    ): AttachmentProcessResult {
         val contentResolver = context.contentResolver
         var name = if (isImage) "image_${System.currentTimeMillis()}.jpg" else "file_${System.currentTimeMillis()}"
         var size = 0L
@@ -108,8 +114,8 @@ object AttachmentHelper {
             return AttachmentProcessResult.TooLarge(name, size, limit)
         }
 
-        // 统一复制到所有发行版共用的 Runtime 目录，PRoot 固定挂载为 /attachments。
-        val attachmentsDir = File(context.filesDir, "linux-runtime/attachments").apply { mkdirs() }
+        // 落到发起会话的私有目录；PRoot 把该目录挂成 /attachments，guest 路径保持不变。
+        val attachmentsDir = AttachmentPaths.session(context.filesDir, sessionId).apply { mkdirs() }
         val safeName = name.replace(Regex("[^a-zA-Z0-9._-]"), "_").takeLast(160).ifBlank { "attachment" }
         val targetFile = File(attachmentsDir, "${UUID.randomUUID()}_$safeName")
 
@@ -217,8 +223,8 @@ object AttachmentHelper {
      * （linux-runtime/attachments，PRoot 挂 /attachments），guest 路径由调用方拼装。
      * 写入失败返回 null（调用方放行原文插入输入框）。
      */
-    fun writePastedText(context: Context, text: String): File? = runCatching {
-        val attachmentsDir = File(context.filesDir, "linux-runtime/attachments").apply { mkdirs() }
+    fun writePastedText(context: Context, text: String, sessionId: String? = null): File? = runCatching {
+        val attachmentsDir = AttachmentPaths.session(context.filesDir, sessionId).apply { mkdirs() }
         File(attachmentsDir, "${System.currentTimeMillis()}_paste.txt").apply { writeText(text) }
     }.onFailure { Log.w(TAG, "粘贴文本落盘失败", it) }.getOrNull()
 
@@ -238,9 +244,14 @@ object AttachmentHelper {
     }
 
     /** 批量处理附件并聚合超限/失败提示；通知文案在此拼装，保持 ViewModel 精简 */
-    suspend fun processPicked(context: Context, uris: List<Uri>, isImage: Boolean): AttachmentProcessOutcome {
+    suspend fun processPicked(
+        context: Context,
+        uris: List<Uri>,
+        isImage: Boolean,
+        sessionId: String? = null,
+    ): AttachmentProcessOutcome {
         val results = mutableListOf<AttachmentProcessResult>()
-        try { uris.forEach { results += processUri(context, it, isImage) } }
+        try { uris.forEach { results += processUri(context, it, isImage, sessionId) } }
         catch (e: CancellationException) {
             results.filterIsInstance<AttachmentProcessResult.Success>().forEach { AttachmentDocumentPreparation.delete(it.attachment) }
             throw e

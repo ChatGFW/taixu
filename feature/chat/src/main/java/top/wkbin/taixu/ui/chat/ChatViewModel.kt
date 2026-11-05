@@ -172,10 +172,7 @@ class ChatViewModel(
     private val _workflowSuggestions = MutableStateFlow<List<ProactiveWorkflowSuggestion>>(emptyList()); val workflowSuggestions: StateFlow<List<ProactiveWorkflowSuggestion>> = _workflowSuggestions.asStateFlow()
 
     /** 模型回复里引用的沙箱绝对路径（如 /workspace/xxx.jpg）到宿主真实目录的映射，供聊天媒体渲染把 PRoot 内路径翻译成 Android 可读文件。 */
-    val sandboxHostRoots: Map<String, File> = mapOf(
-        "workspace" to pathManager.workspaceDir,
-        "attachments" to pathManager.attachmentsDir,
-    )
+    val sandboxHostRoots: Map<String, File> get() = mapOf("workspace" to pathManager.workspaceDir, "attachments" to pathManager.sessionAttachmentsDir(currentSessionId.value))
 
     /** 空会话首屏权限感知引导：按实际特权状态给出不同玩法提示。 */
     val privilegeOnboarding: StateFlow<OnboardingPrivilege?> =
