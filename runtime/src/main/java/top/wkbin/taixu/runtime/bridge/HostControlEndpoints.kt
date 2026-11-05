@@ -61,9 +61,10 @@ internal class HostControlEndpoints(
                     durationMs = obj.int("duration_ms")?.toLong() ?: 300L,
                 ),
             )
+            "shot" -> respond(capabilities.screenShot(obj.text("name").ifBlank { null }))
             "text" -> respond(capabilities.screenText(obj.text("text")))
             "key" -> respond(capabilities.screenKey(obj.text("key")))
-            else -> usage("op 仅支持 observe / tap / swipe / text / key")
+            else -> usage("op 仅支持 observe / tap / swipe / shot / text / key")
         }
     }
 

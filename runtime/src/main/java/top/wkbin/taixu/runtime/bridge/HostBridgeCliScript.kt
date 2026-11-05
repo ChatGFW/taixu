@@ -16,7 +16,7 @@ internal object HostBridgeCliScript {
 # Usage: taixu-host install-apk <path> | shell <cmd> | logcat [pkg] [tag] [prio] [kw] [lines]
 #        taixu-host open <url> | clipboard set <text> | notify <title> [body]
 #        taixu-host setting get|put ... | app start|stop|freeze|unfreeze <pkg>
-#        taixu-host screen observe|tap|swipe|text|key ... | health
+#        taixu-host screen observe|tap|swipe|shot|text|key ... | health
 # Exit: 0 ok / 1 internal / 2 usage / 66 not_found / 69 unavailable / 124 timeout / 126 permission_denied
 BRIDGE_URL="http://127.0.0.1:7980"
 
@@ -180,6 +180,13 @@ case "@@1" in
         [ @@# -lt 6 ] && die usage "Usage: taixu-host screen swipe <x1> <y1> <x2> <y2> [duration_ms]" 2
         post /api/screen "{\"op\":\"swipe\",\"x1\":@@3,\"y1\":@@4,\"x2\":@@5,\"y2\":@@6,\"duration_ms\":@@{7:-300}}"
         ;;
+      shot)
+        if [ -n "@@{3:-}" ]; then
+          post /api/screen "{\"op\":\"shot\",\"name\":\"@@3\"}"
+        else
+          post /api/screen '{"op":"shot"}'
+        fi
+        ;;
       text)
         shift
         shift
@@ -206,7 +213,7 @@ case "@@1" in
     echo "  taixu-host notify <title> [body] Post a host notification"
     echo "  taixu-host setting get|put <ns> <key> [value]   Read/write system settings"
     echo "  taixu-host app start|stop|freeze|unfreeze <pkg> Control an app"
-    echo "  taixu-host screen observe|tap|swipe|text|key    Inspect or drive the screen"
+    echo "  taixu-host screen observe|tap|swipe|shot|text|key  Inspect or drive the screen"
     echo "  taixu-host health               Bridge health and ADB status"
     exit 2
     ;;

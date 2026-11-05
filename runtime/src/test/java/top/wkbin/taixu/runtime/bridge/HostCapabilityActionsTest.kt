@@ -57,6 +57,17 @@ class HostCapabilityActionsTest {
         assertEquals(false, HostCapabilityActions.inScreenBounds(10_001))
     }
 
+    @Test fun screenshotNamesStaySingleSegmentUnderTheWorkspace() {
+        assertEquals("shot-1700000000000.png", HostCapabilityActions.sanitizeShotName(null, 1_700_000_000_000L))
+        assertEquals("login.png", HostCapabilityActions.sanitizeShotName(" login "))
+        assertEquals("login.png", HostCapabilityActions.sanitizeShotName("login.png"))
+        assertEquals("login.png", HostCapabilityActions.sanitizeShotName("login.PNG"))
+        assertNull(HostCapabilityActions.sanitizeShotName("../etc/passwd"))
+        assertNull(HostCapabilityActions.sanitizeShotName("a/b"))
+        assertNull(HostCapabilityActions.sanitizeShotName("."))
+        assertNull(HostCapabilityActions.sanitizeShotName("a".repeat(65)))
+    }
+
     @Test fun notificationRequiresATitleAndBoundedBody() {
         assertEquals(
             "构建完成" to "APK 已产出",

@@ -16,6 +16,7 @@ import top.wkbin.taixu.runtime.gui.GuiKey
 import top.wkbin.taixu.runtime.gui.HostGuiController
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.runtime.privilege.ShellExecResult
+import java.io.File
 
 /**
  * 沙箱可调用的宿主能力。
@@ -29,6 +30,7 @@ internal class HostCapabilityActions(
     private val context: Context,
     private val privilegeManager: PrivilegeManager,
     private val gui: HostGuiController? = null,
+    private val workspaceDir: File? = null,
 ) {
 
     sealed interface Outcome {
@@ -195,6 +197,25 @@ internal class HostCapabilityActions(
         )
     }
 
+    /**
+     * 截图只落在工作区的 screenshots/ 下并回传沙箱可见路径：
+     * 不给 agent 指定任意宿主路径的能力，避免把截图写成任意文件写入原语。
+     */
+    suspend fun screenShot(name: String?): Outcome {
+        val controller = gui ?: return rejected(HostFailure.UNAVAILABLE, "宿主 GUI 控制器不可用")
+        val root = workspaceDir ?: return rejected(HostFailure.UNAVAILABLE, "工作区不可用")
+        requireShell()?.let { return it }
+        val safeName = sanitizeShotName(name) ?: return rejected(
+            HostFailure.USAGE,
+            "截图名需为 1..64 位字母、数字、点、下划线或连字符，可省略 .png 后缀",
+        )
+        val dir = File(root, "screenshots").apply { mkdirs() }
+        return controller.captureScreenshot(File(dir, safeName).absolutePath).fold(
+            onSuccess = { Outcome.Ok("/workspace/screenshots/$safeName") },
+            onFailure = { rejected(HostFailure.INTERNAL, it.message ?: "截图失败") },
+        )
+    }
+
     suspend fun screenText(text: String): Outcome {
         val controller = gui ?: return rejected(HostFailure.UNAVAILABLE, "宿主 GUI 控制器不可用")
         if (text.isEmpty() || text.length > MAX_SCREEN_TEXT_CHARS) {
@@ -253,6 +274,7 @@ internal class HostCapabilityActions(
         private const val USAGE_COORDINATES = "坐标需在 0..$MAX_SCREEN_COORDINATE"
         private val PACKAGE_NAME = Regex("^[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+$")
         private val SETTING_KEY = Regex("^[A-Za-z0-9._-]{1,160}$")
+        private val SHOT_NAME = Regex("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
         private val NAMESPACES = setOf("system", "secure", "global")
 
         /** 只放行用户可预期、不会隐式触发特权页面的 scheme；`intent://` 等一律拒绝。 */
@@ -284,6 +306,15 @@ internal class HostCapabilityActions(
         fun sanitizePackage(raw: String): String? = raw.trim().takeIf { PACKAGE_NAME.matches(it) }
 
         fun inScreenBounds(value: Int): Boolean = value in 0..MAX_SCREEN_COORDINATE
+
+        /** 纯函数：截图名只能是单段文件名，缺省补时间戳与 .png 后缀。 */
+        fun sanitizeShotName(raw: String?, now: Long = System.currentTimeMillis()): String? {
+            val candidate = raw?.trim().orEmpty().ifEmpty { "shot-$now" }
+            val stem = if (candidate.endsWith(".png", ignoreCase = true)) candidate.dropLast(4) else candidate
+            if (stem.isEmpty() || stem.length > 64) return null
+            if (!SHOT_NAME.matches(stem)) return null
+            return "$stem.png"
+        }
 
         /** 单引号包裹并按 POSIX 规则转义，供 secure/global 的 shell 写入使用。 */
         fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"

@@ -155,7 +155,7 @@ GitHub 外部插件 1.0.1 使用官方 gh，Token 明文 0600、数据目录 070
 | `POST /api/notify` | 宿主凭据 | `host.notify` | 发一条应用通知（标题 ≤80、正文 ≤500，固定通知位覆盖） | 可向通知栏投放任意文案；应用通知关闭时返回 `permission_denied` |
 | `POST /api/settings` | 宿主凭据 | `host.settings` | `settings get/put`；system 优先 ContentResolver，secure/global 走特权 shell | **可改写系统设置**（亮度、超时、网络等）；仅全权模式签发，键与值都有格式与长度校验 |
 | `POST /api/app` | 宿主凭据 | `host.app` | 启动 / 停止 / 冻结 / 恢复应用 | **可禁用或强停任意应用**；仅全权模式签发，包名白名单正则校验 |
-| `POST /api/screen` | 宿主凭据 | `host.screen` | 无障碍/Shizuku 感知 UI 树、点击、滑动、输入、按键 | **可代用户操作任意界面**（含支付与授权页）；仅全权模式签发，坐标有界 |
+| `POST /api/screen` | 宿主凭据 | `host.screen` | 无障碍/Shizuku 感知 UI 树、点击、滑动、输入、按键；截图固定落 `workspace/screenshots` | **可代用户操作任意界面**（含支付与授权页）；仅全权模式签发，坐标有界；截图不接受任意宿主路径 |
 
 - 凭据：由 `HostCredentialAuthority` 统一签发，唯一校验路径为 `authorize(token, 所需动作)`；HTTP 面**没有**签发/续期端点，磁盘上**不再有** `.bridge-key`。
 - 沙箱注入：`SandboxCredentialStore` 按发行版、插件身份和安装版本缓存最长 8 小时的可复用、可撤销凭据（实际可用期受确认快照约束），经 `ProotCommandBuilder.build()/buildInteractive()` 的 `hostCredential` 参数在 Provider 环境**之后**叠加导出（`TAIXU_BRIDGE_TOKEN` / `TAIXU_BRIDGE_ACTIONS`，凭据覆盖 Provider 同名键）。发行版卸载/重置调 `revoke(distroId)`，`HostBridge.stop()` 调 `revokeAll()` 推进代次，缓存层随后自愈。默认动作集 `SANDBOX_ACTIONS` 含 `host.install-apk` / `host.logcat` / `host.open` / `host.clipboard` / `host.notify`（后三者是用户可见、可撤销的打开链接、剪贴板写入与通知）；开发者模式仅开放原生确认入口。`FullAccessGrant` 在内存中保存最长 30 分钟、绑定发行版/插件/版本的确认；外部插件未确认时注入空令牌覆盖同名 Provider 环境。每次鉴权复核授权代次，撤销、超时、关闭开关及安装/卸载立即拒绝旧令牌，关闭再开启不能使旧令牌复活。

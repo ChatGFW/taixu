@@ -65,7 +65,7 @@ class HostBridge(
 
     private val apkInstall = HostBridgeApkInstall(context, logger, embeddedAdbManager, pathManager)
 
-    private val capabilities = HostCapabilityActions(context, privilegeManager, guiController)
+    private val capabilities = HostCapabilityActions(context, privilegeManager, guiController, pathManager.workspaceDir)
 
     private val controlEndpoints = HostControlEndpoints(json, capabilities)
 
