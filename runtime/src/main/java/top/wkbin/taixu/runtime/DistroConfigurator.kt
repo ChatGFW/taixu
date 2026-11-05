@@ -4,6 +4,7 @@ import android.system.Os
 import java.io.File
 import java.nio.file.Files
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.runtime.bridge.HostBridgeCliScript
 import top.wkbin.taixu.runtime.scripts.RuntimeAssetSynchronizer
 
 /**
@@ -355,7 +356,7 @@ class DistroConfigurator(
 
         // taixu-host — 宿主桥接 CLI
         val hostScript = File(binDir, "taixu-host")
-        hostScript.writeText(TAIXU_HOST_SCRIPT)
+        hostScript.writeText(HostBridgeCliScript.TAIXU_HOST_SCRIPT)
         runCatching { Os.chmod(hostScript.absolutePath, 0x1ED) } // 0755
 
         // taixu-android-exec — Android 二进制执行包装器
@@ -370,103 +371,6 @@ class DistroConfigurator(
     }
 
     companion object {
-        val TAIXU_HOST_SCRIPT = listOf(
-            "#!/bin/sh",
-            "# TaiXu Host Bridge CLI",
-            "# Usage: taixu-host install-apk <path> | taixu-host shell <cmd> | taixu-host logcat [pkg] [tag] [prio] [kw] [lines] | taixu-host health",
-            "",
-            "BRIDGE_URL=\"http://127.0.0.1:7980\"",
-            "",
-            "# 桥接凭据由宿主签发并经 PRoot 命令环境注入（宿主可撤销）；沙箱内不再有共享密钥文件。",
-            "if [ -z \"\${TAIXU_BRIDGE_TOKEN:-}\" ] && [ \"\${1:-}\" != \"health\" ] && [ \"\${1:-}\" != \"status\" ]; then",
-            "  echo '{\"success\":false,\"error\":\"missing host credential: restart the TaiXu session to refresh it\"}' >&2",
-            "  exit 1",
-            "fi",
-            "",
-            "if ! command -v curl >/dev/null 2>&1; then",
-            "  echo '{\"success\":false,\"error\":\"curl not installed\"}' >&2; exit 1",
-            "fi",
-            "",
-            "AUTH=\"Authorization: Bearer \${TAIXU_BRIDGE_TOKEN:-}\"",
-            "",
-            "case \"\$1\" in",
-            "  install-apk)",
-            "    [ -z \"\$2\" ] && { echo 'Usage: taixu-host install-apk <path>' >&2; exit 1; }",
-            "    TARGET=\"\$2\"",
-            "    if [ ! -f \"\${TARGET}\" ]; then",
-            "      STRIPPED=\"\${TARGET#/}\"",
-            "      if [ -f \"\${STRIPPED}\" ]; then",
-            "        TARGET=\"\${STRIPPED}\"",
-            "      elif [ -f \"./\$STRIPPED\" ]; then",
-            "        TARGET=\"./\$STRIPPED\"",
-            "      elif [ -f \"build/\$STRIPPED\" ]; then",
-            "        TARGET=\"build/\$STRIPPED\"",
-            "      else",
-            "        BN=\"\$(basename \"\$TARGET\")\"",
-            "        FOUND=\"\$(find . -maxdepth 6 -name \"\$BN\" -type f 2>/dev/null | head -n 1)\"",
-            "        if [ -z \"\$FOUND\" ] && [ -d /workspace ]; then",
-            "          FOUND=\"\$(find /workspace -maxdepth 7 -name \"\$BN\" -type f 2>/dev/null | head -n 1)\"",
-            "        fi",
-            "        if [ -z \"\$FOUND\" ]; then",
-            "          FOUND=\"\$(find . -maxdepth 6 -name \"*.apk\" -type f 2>/dev/null | head -n 1)\"",
-            "        fi",
-            "        if [ -n \"\$FOUND\" ] && [ -f \"\$FOUND\" ]; then",
-            "          TARGET=\"\$FOUND\"",
-            "        fi",
-            "      fi",
-            "    fi",
-            "    [ ! -f \"\${TARGET}\" ] && { echo \"{\\\"success\\\":false,\\\"error\\\":\\\"Not found: \$2\\\"}\" >&2; exit 1; }",
-            "    if command -v realpath >/dev/null 2>&1; then",
-            "      ABS_TARGET=\"\$(realpath \"\$TARGET\")\"",
-            "    elif command -v readlink >/dev/null 2>&1; then",
-            "      ABS_TARGET=\"\$(readlink -f \"\$TARGET\" 2>/dev/null || echo \"\$TARGET\")\"",
-            "    else",
-            "      ABS_TARGET=\"\$TARGET\"",
-            "    fi",
-            "    curl -s -X POST \"\${BRIDGE_URL}/api/install-apk\" -H 'Content-Type: application/json' -H \"\${AUTH}\" -d \"{\\\"path\\\":\\\"\${ABS_TARGET}\\\"}\"",
-            "    echo \"\"",
-            "    ;;",
-            "  shell)",
-            "    [ -z \"\$2\" ] && { echo 'Usage: taixu-host shell <command>' >&2; exit 1; }",
-            "    shift; CMD=\"\$*\"",
-            "    if command -v jq >/dev/null 2>&1; then",
-            "      BODY=\$(jq -nc --arg c \"\${CMD}\" '{command:\$c}')",
-            "    else",
-            "      ESC=\$(printf '%s' \"\${CMD}\" | sed 's/\\\\/\\\\\\\\/g; s/\"/\\\\\"/g' | tr '\\n' ' ')",
-            "      BODY=\"{\\\"command\\\":\\\"\${ESC}\\\"}\"",
-            "    fi",
-            "    curl -s -X POST \"\${BRIDGE_URL}/api/shell\" -H 'Content-Type: application/json' -H \"\${AUTH}\" -d \"\${BODY}\"",
-            "    echo \"\"",
-            "    ;;",
-            "  logcat)",
-            "    shift",
-            "    PKG=\"\${1:-}\"",
-            "    TAG=\"\${2:-}\"",
-            "    PRIO=\"\${3:-V}\"",
-            "    KW=\"\${4:-}\"",
-            "    LINES=\"\${5:-200}\"",
-            "    if command -v jq >/dev/null 2>&1; then",
-            "      BODY=\$(jq -nc --arg p \"\$PKG\" --arg t \"\$TAG\" --arg pr \"\$PRIO\" --arg k \"\$KW\" --arg l \"\$LINES\" '{package:\$p, tag:\$t, priority:\$pr, keyword:\$k, lines:(\$l|tonumber)}')",
-            "    else",
-            "      BODY=\"{\\\"package\\\":\\\"\$PKG\\\",\\\"tag\\\":\\\"\$TAG\\\",\\\"priority\\\":\\\"\$PRIO\\\",\\\"keyword\\\":\\\"\$KW\\\",\\\"lines\\\":\$LINES}\"",
-            "    fi",
-            "    curl -s -X POST \"\${BRIDGE_URL}/api/logcat\" -H 'Content-Type: application/json' -H \"\${AUTH}\" -d \"\${BODY}\"",
-            "    echo \"\"",
-            "    ;;",
-            "  health|status)",
-            "    curl -s \"\${BRIDGE_URL}/api/health\"",
-            "    echo \"\"",
-            "    ;;",
-            "  *)",
-            "    echo \"TaiXu Host Bridge CLI\"",
-            "    echo \"  taixu-host install-apk <path>   Install APK on host (wireless ADB or system dialog)\"",
-            "    echo \"  taixu-host shell <command>      Run host shell (wireless ADB or Shizuku/root)\"",
-            "    echo \"  taixu-host logcat [pkg] [tag] [prio] [kw] [lines] Capture logcat via wireless ADB\"",
-            "    echo \"  taixu-host health               Bridge health and ADB status\"",
-            "    exit 1;;",
-            "esac",
-        ).joinToString("\n") + "\n"
-
         val TAIXU_ANDROID_EXEC_SCRIPT = listOf(
             "#!/bin/sh",
             "# TaiXu Android Binary Executor",

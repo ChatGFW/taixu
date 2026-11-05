@@ -16,6 +16,7 @@ import top.wkbin.taixu.harness.core.ToolBackend
 import top.wkbin.taixu.harness.events.HarnessEvent
 import top.wkbin.taixu.harness.events.HarnessEventBus
 import top.wkbin.taixu.runtime.apps.AndroidAppManager
+import top.wkbin.taixu.runtime.bridge.HostFailure
 import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
 import top.wkbin.taixu.runtime.gui.HostGuiController
 import top.wkbin.taixu.runtime.gui.ScrollDirection
@@ -300,8 +301,10 @@ class HostCapabilityToolBackend(
                             "cmd=$command\nstdout=${result.stdout.take(500)}\nstderr=${result.stderr.take(300)}",
                     ),
                 )
+                val failure = if (result.success) null else HostFailure.ofShellExit(result.exitCode, result.stderr)
                 val body = buildString {
                     append("mode ").append(info.mode.shortLabel).append(" · exit ").append(result.exitCode)
+                    failure?.let { append(" · failure=").append(it.wire).append("（").append(it.hint).append("）") }
                     if (result.stdout.isNotBlank()) append("\n").append(result.stdout.trim())
                     if (result.stderr.isNotBlank()) append("\n").append(result.stderr.trim())
                 }

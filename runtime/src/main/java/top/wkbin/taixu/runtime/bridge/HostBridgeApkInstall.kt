@@ -43,11 +43,17 @@ internal class HostBridgeApkInstall(
                 logger.i("HostBridge: APK 在 '$hostPath' 未找到，通过工作区扫描智能匹配到 '${fallback.absolutePath}'")
                 apkFile = fallback
             } else {
-                return HttpResponse(404, errorJson("APK file not found: $apkPath (resolved: $hostPath)"))
+                return HttpResponse(
+                    404,
+                    errorJson("APK file not found: $apkPath (resolved: $hostPath)", HostFailure.NOT_FOUND),
+                )
             }
         }
         if (!apkFile.name.endsWith(".apk", ignoreCase = true)) {
-            return HttpResponse(400, errorJson("File does not have .apk extension: ${apkFile.name}"))
+            return HttpResponse(
+                400,
+                errorJson("File does not have .apk extension: ${apkFile.name}", HostFailure.USAGE),
+            )
         }
 
         // 优先通过内置无线 ADB 静默安装（无需点击系统弹窗确认）
@@ -71,7 +77,7 @@ internal class HostBridgeApkInstall(
         try {
             apkFile.copyTo(cachedApk, overwrite = true)
         } catch (e: Exception) {
-            return HttpResponse(500, errorJson("Failed to copy APK: ${e.message}"))
+            return HttpResponse(500, errorJson("Failed to copy APK: ${e.message}", HostFailure.INTERNAL))
         }
 
         // 通过 FileProvider + Intent 调起系统安装器
@@ -97,7 +103,7 @@ internal class HostBridgeApkInstall(
             }.toString())
         } catch (e: Exception) {
             cachedApk.delete()
-            return HttpResponse(500, errorJson("Failed to launch installer: ${e.message}"))
+            return HttpResponse(500, errorJson("Failed to launch installer: ${e.message}", HostFailure.INTERNAL))
         }
     }
 
@@ -136,8 +142,9 @@ internal class HostBridgeApkInstall(
         }
     }
 
-    private fun errorJson(message: String): String = buildJsonObject {
+    private fun errorJson(message: String, failure: HostFailure): String = buildJsonObject {
         put("success", false)
+        put("failure", failure.wire)
         put("error", message)
     }.toString()
 }

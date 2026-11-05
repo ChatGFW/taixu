@@ -177,7 +177,10 @@ class HostBridge(
             else -> null
         }
         if (!credentialAuthority.authorize(bearerToken(request.headers), action)) {
-            return HttpResponse(401, errorJson("Unauthorized: missing or invalid bridge credential"))
+            return HttpResponse(
+                401,
+                errorJson("Unauthorized: missing or invalid bridge credential", HostFailure.PERMISSION_DENIED),
+            )
         }
         return when (action) {
             "host.install-apk" -> handleInstallApk(request.body)
@@ -241,25 +244,19 @@ class HostBridge(
         val info = privilegeManager.getPrivilegeInfo()
         val responseJson = if (info.modeActive && (info.shizukuAvailable || info.rootAvailable)) {
             val result = privilegeManager.executeShellCommand(command)
-            buildJsonObject {
-                put("success", result.success)
-                put("exitCode", result.exitCode)
-                put("stdout", result.stdout)
-                put("stderr", result.stderr)
-                put("channel", "privilege")
-            }
+            hostShellJson(result.success, result.exitCode, result.stdout, result.stderr, "privilege")
         } else {
             // 端口固定由内置无线 ADB 管理器持有；沙箱不得传入任意端口作为回退通道。
             val adbResult = embeddedAdbManager.executeShell(command, null)
-            buildJsonObject {
-                put("success", adbResult.success)
-                put("exitCode", adbResult.exitCode ?: if (adbResult.success) 0 else 1)
-                put("stdout", if (adbResult.success) adbResult.output else "")
-                put("stderr", if (!adbResult.success) adbResult.output else "")
-                put("channel", "wireless-adb")
-            }
+            hostShellJson(
+                success = adbResult.success,
+                exitCode = adbResult.exitCode ?: if (adbResult.success) 0 else 1,
+                stdout = if (adbResult.success) adbResult.output else "",
+                stderr = if (adbResult.success) "" else adbResult.output,
+                channel = "wireless-adb",
+            )
         }
-        return HttpResponse(200, responseJson.toString())
+        return HttpResponse(200, responseJson)
     }
 
     private suspend fun handleLogcat(body: String): HttpResponse {
@@ -295,17 +292,38 @@ class HostBridge(
             explicitPort = null,
         )
 
+        val exitCode = result.exitCode ?: if (result.success) 0 else 1
         return HttpResponse(200, buildJsonObject {
             put("success", result.success)
-            put("exitCode", result.exitCode ?: if (result.success) 0 else 1)
+            put("exitCode", exitCode)
+            if (!result.success) {
+                HostFailure.ofShellExit(exitCode, result.output)?.let { put("failure", it.wire) }
+            }
             put("output", result.output)
         }.toString())
     }
 
     // ============================ 工具方法 ============================
 
-    private fun errorJson(message: String): String = buildJsonObject {
+    /** shell 通道的统一回包：失败时把退出码翻译成 agent 可据以决策的失败分类。 */
+    private fun hostShellJson(
+        success: Boolean,
+        exitCode: Int,
+        stdout: String,
+        stderr: String,
+        channel: String,
+    ): String = buildJsonObject {
+        put("success", success)
+        put("exitCode", exitCode)
+        if (!success) HostFailure.ofShellExit(exitCode, stderr)?.let { put("failure", it.wire) }
+        put("stdout", stdout)
+        put("stderr", stderr)
+        put("channel", channel)
+    }.toString()
+
+    private fun errorJson(message: String, failure: HostFailure? = null): String = buildJsonObject {
         put("success", false)
+        failure?.let { put("failure", it.wire) }
         put("error", message)
     }.toString()
 }
