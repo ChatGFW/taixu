@@ -151,13 +151,13 @@ class HostBridge(
         try {
             client.soTimeout = READ_TIMEOUT_MS
             val request = parseHttpRequest(client.getInputStream()) ?: run {
-                writeResponse(client, 400, errorJson("Failed to parse HTTP request"))
+                writeResponse(client, 400, errorJson("Failed to parse HTTP request", HostFailure.USAGE))
                 return
             }
             val response = route(request)
             writeResponse(client, response.status, response.body)
         } catch (e: Exception) {
-            runCatching { writeResponse(client, 500, errorJson("Internal error: ${e.message}")) }
+            runCatching { writeResponse(client, 500, errorJson("Internal error: ${e.message}", HostFailure.INTERNAL)) }
         } finally {
             runCatching { client.close() }
         }
@@ -186,7 +186,7 @@ class HostBridge(
             "host.install-apk" -> handleInstallApk(request.body)
             "host.shell" -> handleShell(request.body)
             "host.logcat" -> handleLogcat(request.body)
-            else -> HttpResponse(404, errorJson("Not found: ${request.method} ${request.path}"))
+            else -> HttpResponse(404, errorJson("Not found: ${request.method} ${request.path}", HostFailure.NOT_FOUND))
         }
     }
 
@@ -220,11 +220,11 @@ class HostBridge(
             val obj = json.parseToJsonElement(body).jsonObject
             obj["path"]?.jsonPrimitive?.content
         } catch (e: Exception) {
-            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}"))
+            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}", HostFailure.USAGE))
         }
 
         if (apkPath.isNullOrBlank()) {
-            return HttpResponse(400, errorJson("Missing 'path' field"))
+            return HttpResponse(400, errorJson("Missing 'path' field", HostFailure.USAGE))
         }
         return apkInstall.installAt(apkPath)
     }
@@ -233,12 +233,12 @@ class HostBridge(
         val obj = try {
             json.parseToJsonElement(body).jsonObject
         } catch (e: Exception) {
-            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}"))
+            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}", HostFailure.USAGE))
         }
 
         val command = obj["command"]?.jsonPrimitive?.content
         if (command.isNullOrBlank()) {
-            return HttpResponse(400, errorJson("Missing 'command' field"))
+            return HttpResponse(400, errorJson("Missing 'command' field", HostFailure.USAGE))
         }
 
         val info = privilegeManager.getPrivilegeInfo()
@@ -263,7 +263,7 @@ class HostBridge(
         val obj = try {
             json.parseToJsonElement(body).jsonObject
         } catch (e: Exception) {
-            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}"))
+            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}", HostFailure.USAGE))
         }
 
         val clear = obj["clear"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false

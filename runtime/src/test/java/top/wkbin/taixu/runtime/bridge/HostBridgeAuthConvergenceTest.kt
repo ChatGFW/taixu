@@ -9,6 +9,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -106,6 +107,26 @@ class HostBridgeAuthConvergenceTest {
     @Test fun unknownPathsAuthenticateBefore404() = runBlocking {
         assertEquals(401, bridge.route(request("/api/other")).status)
         assertEquals(404, bridge.route(request("/api/other", "Bearer ${sandboxToken()}")).status)
+    }
+
+    @Test fun failureClassificationIsExposedOnTheWire() = runBlocking {
+        val unauthorized = bridge.route(request("/api/shell"))
+        assertEquals(401, unauthorized.status)
+        assertTrue(unauthorized.body.contains("\"failure\":\"permission_denied\""))
+
+        val usage = bridge.route(request("/api/install-apk", "Bearer ${sandboxToken()}", body = "{"))
+        assertEquals(400, usage.status)
+        assertTrue(usage.body.contains("\"failure\":\"usage\""))
+
+        val missingField = bridge.route(
+            request("/api/shell", "Bearer ${sandboxToken(SandboxCredentialStore.FULL_ACCESS_ACTIONS)}", body = "{}"),
+        )
+        assertEquals(400, missingField.status)
+        assertTrue(missingField.body.contains("\"failure\":\"usage\""))
+
+        val notFound = bridge.route(request("/api/other", "Bearer ${sandboxToken()}"))
+        assertEquals(404, notFound.status)
+        assertTrue(notFound.body.contains("\"failure\":\"not_found\""))
     }
 
     @Test fun healthStaysUnauthenticatedAndLeaksNoCredential() = runBlocking {
