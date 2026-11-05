@@ -1,12 +1,17 @@
 package top.wkbin.taixu.runtime.bridge
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.PersistableBundle
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 
 /**
  * 沙箱可调用的宿主能力。
@@ -60,9 +65,56 @@ internal class HostCapabilityActions(private val context: Context) {
         }
     }
 
+    /** 单一通知位：重复调用覆盖上一条，避免长任务刷出一串待清理的通知。 */
+    fun notify(title: String, body: String): Outcome {
+        val (safeTitle, safeBody) = sanitizeNotification(title, body) ?: return Outcome.Rejected(
+            HostFailure.USAGE,
+            "通知标题需为 1..$MAX_NOTIFICATION_TITLE 字符，正文不超过 $MAX_NOTIFICATION_BODY 字符且不含 NUL",
+        )
+        val manager = context.getSystemService(NotificationManager::class.java)
+            ?: return Outcome.Rejected(HostFailure.UNAVAILABLE, "通知服务不可用")
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            return Outcome.Rejected(HostFailure.PERMISSION_DENIED, "应用通知已关闭：请在系统设置中允许太墟发送通知")
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(NOTIFICATION_CHANNEL_ID, "太墟 Agent 通知", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    description = "Agent 经沙箱能力命令发出的提醒"
+                },
+            )
+        }
+        val notification = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setContentTitle(safeTitle)
+            .setContentText(safeBody)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(safeBody))
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        return try {
+            manager.notify(NOTIFICATION_ID, notification)
+            Outcome.Ok
+        } catch (denied: SecurityException) {
+            Outcome.Rejected(HostFailure.PERMISSION_DENIED, denied.message ?: "宿主拒绝发送通知")
+        }
+    }
+
     companion object {
         const val MAX_CLIPBOARD_CHARS = 16_384
+        const val MAX_NOTIFICATION_TITLE = 80
+        const val MAX_NOTIFICATION_BODY = 500
+        private const val NOTIFICATION_CHANNEL_ID = "taixu_agent_capability"
+        private const val NOTIFICATION_ID = 8898
         private const val MAX_URI_CHARS = 2_048
+
+        /** 纯函数，便于单测：空白标题与超长正文直接拒绝，不进入通知栈。 */
+        fun sanitizeNotification(title: String, body: String): Pair<String, String>? {
+            val trimmed = title.trim()
+            if (trimmed.isEmpty() || trimmed.length > MAX_NOTIFICATION_TITLE) return null
+            if (body.length > MAX_NOTIFICATION_BODY) return null
+            if ('\u0000' in trimmed || '\u0000' in body) return null
+            return trimmed to body.trim()
+        }
 
         /** 只放行用户可预期、不会隐式触发特权页面的 scheme；`intent://` 等一律拒绝。 */
         private val ALLOWED_SCHEMES = setOf("http", "https", "mailto", "tel")

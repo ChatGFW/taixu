@@ -14,7 +14,7 @@ internal object HostBridgeCliScript {
 #!/bin/sh
 # TaiXu Host Bridge CLI
 # Usage: taixu-host install-apk <path> | shell <cmd> | logcat [pkg] [tag] [prio] [kw] [lines]
-#        taixu-host open <url> | clipboard set <text> | health
+#        taixu-host open <url> | clipboard set <text> | notify <title> [body] | health
 # Exit: 0 ok / 1 internal / 2 usage / 66 not_found / 69 unavailable / 124 timeout / 126 permission_denied
 BRIDGE_URL="http://127.0.0.1:7980"
 
@@ -55,16 +55,12 @@ finish() {
 }
 
 post() {
+  # 先让各子命令完成参数校验，再检查凭据：缺参数应报用法，而不是先报未授权。
+  [ -z "@@{TAIXU_BRIDGE_TOKEN:-}" ] && \
+    die permission_denied "missing host credential: restart the TaiXu session to refresh it" 126
   RESP=@@(curl -s -m 120 -w '\n%{http_code}' -X POST "@@{BRIDGE_URL}@@1" -H 'Content-Type: application/json' -H "@@AUTH" -d "@@2")
   finish "@@RESP"
 }
-
-case "@@{1:-}" in
-  install-apk|shell|logcat|open|clipboard)
-    [ -z "@@{TAIXU_BRIDGE_TOKEN:-}" ] && \
-      die permission_denied "missing host credential: restart the TaiXu session to refresh it" 126
-    ;;
-esac
 
 command -v curl >/dev/null 2>&1 || die unavailable "curl not installed" 69
 
@@ -144,6 +140,14 @@ case "@@1" in
     TEXT=@@(printf '%s' "@@*" | sed 's/\\/\\\\/g; s/"/\\"/g')
     post /api/clipboard "{\"text\":\"@@{TEXT}\"}"
     ;;
+  notify)
+    [ -z "@@2" ] && die usage "Usage: taixu-host notify <title> [body]" 2
+    TITLE=@@(printf '%s' "@@2" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    shift
+    shift
+    BODY=@@(printf '%s' "@@*" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    post /api/notify "{\"title\":\"@@{TITLE}\",\"body\":\"@@{BODY}\"}"
+    ;;
   health|status)
     finish @@(curl -s -m 15 -w '\n%{http_code}' "@@{BRIDGE_URL}/api/health")
     ;;
@@ -154,6 +158,7 @@ case "@@1" in
     echo "  taixu-host logcat [pkg] [tag] [prio] [kw] [lines] Capture logcat via wireless ADB"
     echo "  taixu-host open <url>           Open http/https/mailto/tel link on the host"
     echo "  taixu-host clipboard set <text> Copy text to the host clipboard"
+    echo "  taixu-host notify <title> [body] Post a host notification"
     echo "  taixu-host health               Bridge health and ADB status"
     exit 2
     ;;
@@ -169,5 +174,6 @@ esac
     val SHIMS: Map<String, String> = mapOf(
         "taixu-open" to "#!/bin/sh\nexec /opt/taixu/bin/taixu-host open \"\$@\"\n",
         "taixu-clipboard" to "#!/bin/sh\nexec /opt/taixu/bin/taixu-host clipboard \"\$@\"\n",
+        "taixu-notify" to "#!/bin/sh\nexec /opt/taixu/bin/taixu-host notify \"\$@\"\n",
     )
 }

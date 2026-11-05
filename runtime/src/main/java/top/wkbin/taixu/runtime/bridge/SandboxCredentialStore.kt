@@ -102,6 +102,7 @@ class SandboxCredentialStore(
             "host.logcat",
             "host.open",
             "host.clipboard",
+            "host.notify",
         )
 
         /** 开发者全权模式下的动作集：默认沙箱子集加上宿主 shell。 */

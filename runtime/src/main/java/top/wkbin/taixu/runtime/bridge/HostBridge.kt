@@ -178,6 +178,7 @@ class HostBridge(
             request.method == "POST" && request.path.startsWith("/api/logcat") -> "host.logcat"
             request.method == "POST" && request.path.startsWith("/api/open") -> "host.open"
             request.method == "POST" && request.path.startsWith("/api/clipboard") -> "host.clipboard"
+            request.method == "POST" && request.path.startsWith("/api/notify") -> "host.notify"
             else -> null
         }
         if (!credentialAuthority.authorize(bearerToken(request.headers), action)) {
@@ -192,6 +193,7 @@ class HostBridge(
             "host.logcat" -> handleLogcat(request.body)
             "host.open" -> handleOpen(request.body)
             "host.clipboard" -> handleClipboard(request.body)
+            "host.notify" -> handleNotify(request.body)
             else -> HttpResponse(404, errorJson("Not found: ${request.method} ${request.path}", HostFailure.NOT_FOUND))
         }
     }
@@ -327,6 +329,17 @@ class HostBridge(
         }
         if (text.isNullOrEmpty()) return HttpResponse(400, errorJson("Missing 'text' field", HostFailure.USAGE))
         return capabilityResponse(capabilities.writeClipboard(text))
+    }
+
+    private fun handleNotify(body: String): HttpResponse {
+        val (title, text) = try {
+            val obj = json.parseToJsonElement(body).jsonObject
+            obj["title"]?.jsonPrimitive?.content to (obj["body"]?.jsonPrimitive?.content.orEmpty())
+        } catch (e: Exception) {
+            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}", HostFailure.USAGE))
+        }
+        if (title.isNullOrBlank()) return HttpResponse(400, errorJson("Missing 'title' field", HostFailure.USAGE))
+        return capabilityResponse(capabilities.notify(title, text))
     }
 
     /** 能力动作失败仍走 200 + success=false，与 shell 端点一致；失败类别由 failure 字段表达。 */

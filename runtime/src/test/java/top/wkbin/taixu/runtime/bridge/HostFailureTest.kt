@@ -46,11 +46,12 @@ class HostFailureTest {
         assertTrue(script.contains("timeout) echo 124"))
         assertTrue(script.contains("  open)"))
         assertTrue(script.contains("  clipboard)"))
+        assertTrue(script.contains("  notify)"))
     }
 
     @Test fun capabilityShimsForwardToTheSameCli() {
         val shims = HostBridgeCliScript.SHIMS
-        assertEquals(setOf("taixu-open", "taixu-clipboard"), shims.keys)
+        assertEquals(setOf("taixu-open", "taixu-clipboard", "taixu-notify"), shims.keys)
         shims.forEach { (_, body) ->
             assertTrue(body.startsWith("#!/bin/sh"))
             assertTrue(body.contains("/opt/taixu/bin/taixu-host"))

@@ -32,4 +32,16 @@ class HostCapabilityActionsTest {
     @Test fun schemelessInputIsNotTreatedAsAWebLink() {
         assertNull(HostCapabilityActions.parseAllowedUri("example.com"))
     }
+
+    @Test fun notificationRequiresATitleAndBoundedBody() {
+        assertEquals(
+            "构建完成" to "APK 已产出",
+            HostCapabilityActions.sanitizeNotification(" 构建完成 ", " APK 已产出 "),
+        )
+        assertEquals("只有标题" to "", HostCapabilityActions.sanitizeNotification("只有标题", ""))
+        assertNull(HostCapabilityActions.sanitizeNotification("   ", "body"))
+        assertNull(HostCapabilityActions.sanitizeNotification("t".repeat(81), "body"))
+        assertNull(HostCapabilityActions.sanitizeNotification("标题", "b".repeat(501)))
+        assertNull(HostCapabilityActions.sanitizeNotification("标\u0000题", "body"))
+    }
 }

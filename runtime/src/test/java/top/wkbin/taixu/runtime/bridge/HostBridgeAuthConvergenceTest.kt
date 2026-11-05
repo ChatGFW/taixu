@@ -67,7 +67,7 @@ class HostBridgeAuthConvergenceTest {
             .getValue(SandboxCredentialStore.BRIDGE_TOKEN_ENV)
 
     @Test fun unauthenticatedHostWritesAreRefusedWith401() = runBlocking {
-        listOf("/api/install-apk", "/api/shell", "/api/logcat", "/api/open", "/api/clipboard").forEach { path ->
+        listOf("/api/install-apk", "/api/shell", "/api/logcat", "/api/open", "/api/clipboard", "/api/notify").forEach { path ->
             assertEquals(401, bridge.route(request(path)).status)
         }
     }
@@ -82,6 +82,10 @@ class HostBridgeAuthConvergenceTest {
         val emptyText = bridge.route(request("/api/clipboard", "Bearer $token", body = """{"text":""}"""))
         assertEquals(400, emptyText.status)
         assertTrue(emptyText.body.contains("\"failure\":\"usage\""))
+
+        val emptyTitle = bridge.route(request("/api/notify", "Bearer $token", body = """{"body":"x"}"""))
+        assertEquals(400, emptyTitle.status)
+        assertTrue(emptyTitle.body.contains("\"failure\":\"usage\""))
     }
 
     @Test fun legacySharedKeyCannotAuthenticateAnything() = runBlocking {
