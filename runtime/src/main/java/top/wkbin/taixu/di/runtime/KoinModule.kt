@@ -214,6 +214,7 @@ val runtimeModule = module {
             embeddedAdbManager = get(),
             pathManager = get(),
             credentialAuthority = get(),
+            guiController = get(),
         )
     }
 

@@ -47,11 +47,17 @@ class HostFailureTest {
         assertTrue(script.contains("  open)"))
         assertTrue(script.contains("  clipboard)"))
         assertTrue(script.contains("  notify)"))
+        assertTrue(script.contains("  setting)"))
+        assertTrue(script.contains("  app)"))
+        assertTrue(script.contains("  screen)"))
     }
 
     @Test fun capabilityShimsForwardToTheSameCli() {
         val shims = HostBridgeCliScript.SHIMS
-        assertEquals(setOf("taixu-open", "taixu-clipboard", "taixu-notify"), shims.keys)
+        assertEquals(
+            setOf("taixu-open", "taixu-clipboard", "taixu-notify", "taixu-setting", "taixu-app", "taixu-screen"),
+            shims.keys,
+        )
         shims.forEach { (_, body) ->
             assertTrue(body.startsWith("#!/bin/sh"))
             assertTrue(body.contains("/opt/taixu/bin/taixu-host"))

@@ -153,11 +153,16 @@ GitHub 外部插件 1.0.1 使用官方 gh，Token 明文 0600、数据目录 070
 | `POST /api/open` | 宿主凭据 | `host.open` | `ACTION_VIEW`，仅 http/https/mailto/tel | 可在前台打开白名单协议链接；`intent://`、`file://`、`content://` 等可触发特权页面或读本地文件的 scheme 一律拒绝 |
 | `POST /api/clipboard` | 宿主凭据 | `host.clipboard` | 写入纯文本（≤16K，标 `IS_SENSITIVE`） | 覆盖用户剪贴板；**不读取**旧值 |
 | `POST /api/notify` | 宿主凭据 | `host.notify` | 发一条应用通知（标题 ≤80、正文 ≤500，固定通知位覆盖） | 可向通知栏投放任意文案；应用通知关闭时返回 `permission_denied` |
+| `POST /api/settings` | 宿主凭据 | `host.settings` | `settings get/put`；system 优先 ContentResolver，secure/global 走特权 shell | **可改写系统设置**（亮度、超时、网络等）；仅全权模式签发，键与值都有格式与长度校验 |
+| `POST /api/app` | 宿主凭据 | `host.app` | 启动 / 停止 / 冻结 / 恢复应用 | **可禁用或强停任意应用**；仅全权模式签发，包名白名单正则校验 |
+| `POST /api/screen` | 宿主凭据 | `host.screen` | 无障碍/Shizuku 感知 UI 树、点击、滑动、输入、按键 | **可代用户操作任意界面**（含支付与授权页）；仅全权模式签发，坐标有界 |
 
 - 凭据：由 `HostCredentialAuthority` 统一签发，唯一校验路径为 `authorize(token, 所需动作)`；HTTP 面**没有**签发/续期端点，磁盘上**不再有** `.bridge-key`。
 - 沙箱注入：`SandboxCredentialStore` 按发行版、插件身份和安装版本缓存最长 8 小时的可复用、可撤销凭据（实际可用期受确认快照约束），经 `ProotCommandBuilder.build()/buildInteractive()` 的 `hostCredential` 参数在 Provider 环境**之后**叠加导出（`TAIXU_BRIDGE_TOKEN` / `TAIXU_BRIDGE_ACTIONS`，凭据覆盖 Provider 同名键）。发行版卸载/重置调 `revoke(distroId)`，`HostBridge.stop()` 调 `revokeAll()` 推进代次，缓存层随后自愈。默认动作集 `SANDBOX_ACTIONS` 含 `host.install-apk` / `host.logcat` / `host.open` / `host.clipboard` / `host.notify`（后三者是用户可见、可撤销的打开链接、剪贴板写入与通知）；开发者模式仅开放原生确认入口。`FullAccessGrant` 在内存中保存最长 30 分钟、绑定发行版/插件/版本的确认；外部插件未确认时注入空令牌覆盖同名 Provider 环境。每次鉴权复核授权代次，撤销、超时、关闭开关及安装/卸载立即拒绝旧令牌，关闭再开启不能使旧令牌复活。
 - 端点按绑定动作放行：未知路径也先要求"持有有效凭据"再返回 404；写入端点不再接受沙箱传入的自由 `port`，端口固定由内置无线 ADB 管理器持有。旧版无凭据的 `taixu-host` / 硬编码 `.bridge-key` 的脚本一律 401，需重启终端会话刷新凭据（无兼容窗口）。
-- 沙箱内 `taixu-open` / `taixu-clipboard` / `taixu-notify` 只是 `taixu-host` 的 PATH 封装；`ApprovalPolicyEngine` 的 `taixu-(host|open|clipboard|notify)` 启发式把它们与其它高危命令同等对待，封装不会绕过审批。
+- 设备控制动作 `CONTROL_ACTIONS`（`host.settings` / `host.app` / `host.screen`）只随 `FULL_ACCESS_ACTIONS` 签发，默认沙箱凭据拿不到；即使签发，命令层面仍要过审批启发式，不存在"拿到凭据即静默执行"的路径。
+- 沙箱内 `taixu-open` / `taixu-clipboard` / `taixu-notify` / `taixu-setting` / `taixu-app` / `taixu-screen` 只是 `taixu-host` 的 PATH 封装；`ApprovalPolicyEngine` 的 `taixu-(host|open|clipboard|notify|setting|app|screen)` 启发式把它们与其它高危命令同等对待，封装不会绕过审批。
+- **屏幕控制的额外风险**：点击可穿过系统同意对话框，一旦全权模式开启，等价于把当前前台界面的操作权交给 agent；关闭全权模式会在下次签发时立刻收回该动作集。
 - `taixu-host` 退出码：`0` 成功 / `1` 内部错 / `2` 用法 / `66` 目标不存在 / `69` 通道不可用 / `124` 超时 / `126` 未授权。回包同时带 `failure` 字段；退出码只表达失败类别，不改变鉴权语义——401 仍表示凭据缺失或动作未绑定。
 - **信任模型必须写明**：PRoot guest 仍以 App uid 运行，凭据可被沙箱内任意进程读取，所以沙箱内容物依旧是「可触发宿主特权动作的半信任方」。本机制是**应用层代理门控**（短寿命、收敛动作、可撤销、跨进程共用同一权威），**不是**对同 uid 恶意代码的强隔离；`host.shell` 已收紧为开发者全权授权：默认不下发，必须在开发者模式中另作限时原生确认，撤销时每次鉴权立即拒绝旧令牌（见 §7 待办 #8）。
 - `resolveSandboxPath` 兜底分支（`HostBridgeApkInstall.kt:110-138`）：路径非 `/sdcard`、`/workspace`、`/attachments` 前缀时先在工作区试一次，否则**原样返回宿主绝对路径**——`install-apk` 因此可读取任意宿主路径下的 `.apk`（有后缀校验，无目录白名单）；另有工作区全树按文件名的模糊兜底扫描（maxDepth 8）。该逻辑已从 `HostBridge.kt` 抽出到 `HostBridgeApkInstall`（guest 端点与插件网关共用同一实例）。

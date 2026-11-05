@@ -33,6 +33,30 @@ class HostCapabilityActionsTest {
         assertNull(HostCapabilityActions.parseAllowedUri("example.com"))
     }
 
+    @Test fun settingsInputsAreValidatedBeforeReachingShell() {
+        assertEquals("system", HostCapabilityActions.parseNamespace(" System "))
+        assertNull(HostCapabilityActions.parseNamespace("settings"))
+        assertNull(HostCapabilityActions.parseNamespace("system; rm -rf /"))
+
+        assertEquals("screen_brightness", HostCapabilityActions.sanitizeKey(" screen_brightness "))
+        assertNull(HostCapabilityActions.sanitizeKey("brightness; reboot"))
+        assertNull(HostCapabilityActions.sanitizeKey(""))
+
+        assertEquals("'a'\\''b'", HostCapabilityActions.shellQuote("a'b"))
+        assertEquals("'hello world'", HostCapabilityActions.shellQuote("hello world"))
+    }
+
+    @Test fun packagesAndScreenBoundsAreValidated() {
+        assertEquals("com.example.app", HostCapabilityActions.sanitizePackage(" com.example.app "))
+        assertNull(HostCapabilityActions.sanitizePackage("com"))
+        assertNull(HostCapabilityActions.sanitizePackage("com.example.app; reboot"))
+
+        assertEquals(true, HostCapabilityActions.inScreenBounds(0))
+        assertEquals(true, HostCapabilityActions.inScreenBounds(10_000))
+        assertEquals(false, HostCapabilityActions.inScreenBounds(-1))
+        assertEquals(false, HostCapabilityActions.inScreenBounds(10_001))
+    }
+
     @Test fun notificationRequiresATitleAndBoundedBody() {
         assertEquals(
             "构建完成" to "APK 已产出",

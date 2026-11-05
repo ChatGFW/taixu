@@ -17,6 +17,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.runtime.RuntimePathManager
+import top.wkbin.taixu.runtime.gui.HostGuiController
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import java.net.InetAddress
 import java.net.ServerSocket
@@ -48,6 +49,7 @@ class HostBridge(
     private val embeddedAdbManager: EmbeddedAdbManager,
     private val pathManager: RuntimePathManager,
     private val credentialAuthority: HostCredentialAuthority,
+    private val guiController: HostGuiController? = null,
 ) {
     companion object {
         const val BRIDGE_PORT = 7980
@@ -63,7 +65,9 @@ class HostBridge(
 
     private val apkInstall = HostBridgeApkInstall(context, logger, embeddedAdbManager, pathManager)
 
-    private val capabilities = HostCapabilityActions(context)
+    private val capabilities = HostCapabilityActions(context, privilegeManager, guiController)
+
+    private val controlEndpoints = HostControlEndpoints(json, capabilities)
 
     private val pluginGateway = PluginHostGateway(
         appInfo = {
@@ -179,6 +183,9 @@ class HostBridge(
             request.method == "POST" && request.path.startsWith("/api/open") -> "host.open"
             request.method == "POST" && request.path.startsWith("/api/clipboard") -> "host.clipboard"
             request.method == "POST" && request.path.startsWith("/api/notify") -> "host.notify"
+            request.method == "POST" && request.path.startsWith("/api/settings") -> "host.settings"
+            request.method == "POST" && request.path.startsWith("/api/app") -> "host.app"
+            request.method == "POST" && request.path.startsWith("/api/screen") -> "host.screen"
             else -> null
         }
         if (!credentialAuthority.authorize(bearerToken(request.headers), action)) {
@@ -194,6 +201,7 @@ class HostBridge(
             "host.open" -> handleOpen(request.body)
             "host.clipboard" -> handleClipboard(request.body)
             "host.notify" -> handleNotify(request.body)
+            "host.settings", "host.app", "host.screen" -> controlEndpoints.handle(action, request.body)
             else -> HttpResponse(404, errorJson("Not found: ${request.method} ${request.path}", HostFailure.NOT_FOUND))
         }
     }
@@ -344,7 +352,7 @@ class HostBridge(
 
     /** 能力动作失败仍走 200 + success=false，与 shell 端点一致；失败类别由 failure 字段表达。 */
     private fun capabilityResponse(outcome: HostCapabilityActions.Outcome): HttpResponse = when (outcome) {
-        HostCapabilityActions.Outcome.Ok -> HttpResponse(200, buildJsonObject { put("success", true) }.toString())
+        is HostCapabilityActions.Outcome.Ok -> HttpResponse(200, HostJson.ok(outcome.output))
         is HostCapabilityActions.Outcome.Rejected -> HttpResponse(200, errorJson(outcome.message, outcome.failure))
     }
 
@@ -366,9 +374,5 @@ class HostBridge(
         put("channel", channel)
     }.toString()
 
-    private fun errorJson(message: String, failure: HostFailure? = null): String = buildJsonObject {
-        put("success", false)
-        failure?.let { put("failure", it.wire) }
-        put("error", message)
-    }.toString()
+    private fun errorJson(message: String, failure: HostFailure? = null): String = HostJson.error(message, failure)
 }

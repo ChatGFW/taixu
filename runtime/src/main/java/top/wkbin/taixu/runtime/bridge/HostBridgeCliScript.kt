@@ -14,7 +14,9 @@ internal object HostBridgeCliScript {
 #!/bin/sh
 # TaiXu Host Bridge CLI
 # Usage: taixu-host install-apk <path> | shell <cmd> | logcat [pkg] [tag] [prio] [kw] [lines]
-#        taixu-host open <url> | clipboard set <text> | notify <title> [body] | health
+#        taixu-host open <url> | clipboard set <text> | notify <title> [body]
+#        taixu-host setting get|put ... | app start|stop|freeze|unfreeze <pkg>
+#        taixu-host screen observe|tap|swipe|text|key ... | health
 # Exit: 0 ok / 1 internal / 2 usage / 66 not_found / 69 unavailable / 124 timeout / 126 permission_denied
 BRIDGE_URL="http://127.0.0.1:7980"
 
@@ -61,6 +63,8 @@ post() {
   RESP=@@(curl -s -m 120 -w '\n%{http_code}' -X POST "@@{BRIDGE_URL}@@1" -H 'Content-Type: application/json' -H "@@AUTH" -d "@@2")
   finish "@@RESP"
 }
+
+jesc() { printf '%s' "@@1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 
 command -v curl >/dev/null 2>&1 || die unavailable "curl not installed" 69
 
@@ -148,6 +152,47 @@ case "@@1" in
     BODY=@@(printf '%s' "@@*" | sed 's/\\/\\\\/g; s/"/\\"/g')
     post /api/notify "{\"title\":\"@@{TITLE}\",\"body\":\"@@{BODY}\"}"
     ;;
+  setting)
+    case "@@{2:-}" in
+      get)
+        [ @@# -lt 4 ] && die usage "Usage: taixu-host setting get <system|secure|global> <key>" 2
+        post /api/settings "{\"op\":\"get\",\"namespace\":\"@@3\",\"key\":\"@@4\"}"
+        ;;
+      put)
+        [ @@# -lt 5 ] && die usage "Usage: taixu-host setting put <namespace> <key> <value>" 2
+        post /api/settings "{\"op\":\"put\",\"namespace\":\"@@3\",\"key\":\"@@4\",\"value\":\"@@(jesc "@@5")\"}"
+        ;;
+      *) die usage "Usage: taixu-host setting get|put <namespace> <key> [value]" 2 ;;
+    esac
+    ;;
+  app)
+    [ @@# -lt 3 ] && die usage "Usage: taixu-host app start|stop|freeze|unfreeze <package>" 2
+    post /api/app "{\"op\":\"@@2\",\"package\":\"@@3\"}"
+    ;;
+  screen)
+    case "@@{2:-}" in
+      observe) post /api/screen '{"op":"observe"}' ;;
+      tap)
+        [ @@# -lt 4 ] && die usage "Usage: taixu-host screen tap <x> <y>" 2
+        post /api/screen "{\"op\":\"tap\",\"x\":@@3,\"y\":@@4}"
+        ;;
+      swipe)
+        [ @@# -lt 6 ] && die usage "Usage: taixu-host screen swipe <x1> <y1> <x2> <y2> [duration_ms]" 2
+        post /api/screen "{\"op\":\"swipe\",\"x1\":@@3,\"y1\":@@4,\"x2\":@@5,\"y2\":@@6,\"duration_ms\":@@{7:-300}}"
+        ;;
+      text)
+        shift
+        shift
+        [ -z "@@*" ] && die usage "Usage: taixu-host screen text <text>" 2
+        post /api/screen "{\"op\":\"text\",\"text\":\"@@(jesc "@@*")\"}"
+        ;;
+      key)
+        [ -z "@@{3:-}" ] && die usage "Usage: taixu-host screen key <back|home|recents|enter|delete|paste|power>" 2
+        post /api/screen "{\"op\":\"key\",\"key\":\"@@3\"}"
+        ;;
+      *) die usage "Usage: taixu-host screen observe|tap|swipe|text|key ..." 2 ;;
+    esac
+    ;;
   health|status)
     finish @@(curl -s -m 15 -w '\n%{http_code}' "@@{BRIDGE_URL}/api/health")
     ;;
@@ -159,6 +204,9 @@ case "@@1" in
     echo "  taixu-host open <url>           Open http/https/mailto/tel link on the host"
     echo "  taixu-host clipboard set <text> Copy text to the host clipboard"
     echo "  taixu-host notify <title> [body] Post a host notification"
+    echo "  taixu-host setting get|put <ns> <key> [value]   Read/write system settings"
+    echo "  taixu-host app start|stop|freeze|unfreeze <pkg> Control an app"
+    echo "  taixu-host screen observe|tap|swipe|text|key    Inspect or drive the screen"
     echo "  taixu-host health               Bridge health and ADB status"
     exit 2
     ;;
@@ -175,5 +223,8 @@ esac
         "taixu-open" to "#!/bin/sh\nexec /opt/taixu/bin/taixu-host open \"\$@\"\n",
         "taixu-clipboard" to "#!/bin/sh\nexec /opt/taixu/bin/taixu-host clipboard \"\$@\"\n",
         "taixu-notify" to "#!/bin/sh\nexec /opt/taixu/bin/taixu-host notify \"\$@\"\n",
+        "taixu-setting" to "#!/bin/sh\nexec /opt/taixu/bin/taixu-host setting \"\$@\"\n",
+        "taixu-app" to "#!/bin/sh\nexec /opt/taixu/bin/taixu-host app \"\$@\"\n",
+        "taixu-screen" to "#!/bin/sh\nexec /opt/taixu/bin/taixu-host screen \"\$@\"\n",
     )
 }

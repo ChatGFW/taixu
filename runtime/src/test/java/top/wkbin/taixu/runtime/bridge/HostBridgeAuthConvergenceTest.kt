@@ -67,9 +67,29 @@ class HostBridgeAuthConvergenceTest {
             .getValue(SandboxCredentialStore.BRIDGE_TOKEN_ENV)
 
     @Test fun unauthenticatedHostWritesAreRefusedWith401() = runBlocking {
-        listOf("/api/install-apk", "/api/shell", "/api/logcat", "/api/open", "/api/clipboard", "/api/notify").forEach { path ->
-            assertEquals(401, bridge.route(request(path)).status)
+        controlPaths.forEach { path -> assertEquals(401, bridge.route(request(path)).status) }
+        listOf("/api/install-apk", "/api/shell", "/api/logcat", "/api/open", "/api/clipboard", "/api/notify")
+            .forEach { path -> assertEquals(401, bridge.route(request(path)).status) }
+    }
+
+    private val controlPaths = listOf("/api/settings", "/api/app", "/api/screen")
+
+    @Test fun deviceControlStaysOutOfTheDefaultSandboxGrant() = runBlocking {
+        val sandbox = sandboxToken()
+        controlPaths.forEach { path ->
+            assertEquals("$path must not be granted to a default sandbox", 401, bridge.route(request(path, "Bearer $sandbox")).status)
         }
+    }
+
+    @Test fun fullAccessGrantReachesControlEndpointsAndStillValidatesInput() = runBlocking {
+        val token = sandboxToken(SandboxCredentialStore.FULL_ACCESS_ACTIONS)
+        val missingCoords = bridge.route(request("/api/screen", "Bearer $token", body = """{"op":"tap"}"""))
+        assertEquals(400, missingCoords.status)
+        assertTrue(missingCoords.body.contains("\"failure\":\"usage\""))
+
+        val badPackage = bridge.route(request("/api/app", "Bearer $token", body = """{"op":"freeze","package":"a;b"}"""))
+        assertEquals(200, badPackage.status)
+        assertTrue(badPackage.body.contains("\"failure\":\"usage\""))
     }
 
     @Test fun capabilityEndpointsAreGrantedToSandboxButValidateBeforeActing() = runBlocking {
