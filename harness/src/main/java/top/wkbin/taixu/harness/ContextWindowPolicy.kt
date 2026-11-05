@@ -790,7 +790,7 @@ object ContextWindowPolicy {
                 jsonTextBytes(call.function.name) + jsonTextBytes(call.function.arguments) + JSON_FRAMING_PER_MESSAGE
             }
 
-    private fun compactActiveToolOutput(
+    internal fun compactActiveToolOutput(
         toolName: String?,
         args: JsonObject?,
         output: String,
