@@ -128,6 +128,7 @@ class LinuxCommandToolBackend(
                 append("\n1. 严禁原样重复执行失败命令；")
                 append("\n2. 分析是参数拼写错误、路径不存在、沙箱缺少系统依赖还是语法错误；")
                 append("\n3. 修正命令、使用包管理器安装依赖或改用其他工具后再继续。")
+                BashismDetector.explain(command)?.let { append("\n\n").append(it) }
             }
         }
         return isSuccess to body

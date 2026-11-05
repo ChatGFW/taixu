@@ -68,6 +68,7 @@ P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.
 | `harness/WorkspaceToolBackend.kt` / `WorkspaceToolOperations.kt` | read/write/edit 语义与可替换工作区操作接口；本地实现为 `WorkspaceFileAccess` | 文件工具后端 |
 | `runtime/environment/HashlineAnchors.kt` · `harness/text/HashlineEditArgs.kt` · `HashlinePolicy.kt` · `HashlineEditStats.kt` · `HashlineEditStatsCodec.kt` · `core/datastore/HashlinePreferences.kt` | Hashline 行锚算法、工具参数解析、闸门与跨启动累计计数；协议见 [`HASHLINE_PROTOCOL.md`](HASHLINE_PROTOCOL.md) | Hashline 编辑 |
 | `harness/validation/ToolCallLoopDetector.kt` · `ToolRecoveryAdvice.kt` | 同参连败 / 同参同输出 / 周期震荡拦截；同 path 连续 STALE；未知工具名按次数升级提示 | 死循环与 Hashline 纠错 |
+| `harness/BashismDetector.kt` | 命令失败后识别 bash 专有语法（`[[ ]]`、here-string、数组、`==` 等）并给出 POSIX 改写提示；显式 `bash -c` 时不介入 | Shell 方言 |
 | `feature/settings/.../HashlineSettingsBlock.kt` | Agent 执行设置：三开关、累计计数、关/临时开 legacy 观测提示 | Hashline 设置 UI |
 | `harness/WorkspaceMutationSnapshots.kt` | 写入前后快照与大小保护，文件后端和下载工具复用 | 写入恢复证据 |
 | `harness/di/harness/ToolBackendModule.kt` | 工具门面、默认检查点、工作区后端与快照的 Koin 装配 | 工具依赖装配 |
