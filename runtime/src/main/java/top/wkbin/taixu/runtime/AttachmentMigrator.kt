@@ -120,6 +120,21 @@ class AttachmentMigrator(
         /** `/attachments/<name>` 里的一级名字；`skills` 是全局技能根，永远不算附件。 */
         private val REFERENCE = Regex("""/attachments/([A-Za-z0-9][A-Za-z0-9._-]{0,159})""")
 
+        /**
+         * 一行式布局摘要，供 `taixu-host doctor` 显示：迁移是否执行、文件分布在哪。
+         * 只读统计，不改动任何文件。
+         */
+        fun inspect(filesDir: File): String {
+            val global = AttachmentPaths.global(filesDir)
+            val legacy = AttachmentPaths.orphan(filesDir)
+            val globalFiles = global.listFiles().orEmpty().count { it.isFile && !it.name.startsWith(".") }
+            val legacyFiles = legacy.listFiles().orEmpty().count { it.isFile }
+            val sessions = AttachmentPaths.sessionsRoot(filesDir).listFiles().orEmpty()
+                .count { File(it, "attachments").isDirectory }
+            val migrated = File(global, MARKER_NAME).exists()
+            return "global=$globalFiles legacy=$legacyFiles sessions=$sessions migrated=${if (migrated) "yes" else "no"}"
+        }
+
         fun referencedAttachmentNames(payload: String): Set<String> =
             REFERENCE.findAll(payload)
                 .map { it.groupValues[1] }

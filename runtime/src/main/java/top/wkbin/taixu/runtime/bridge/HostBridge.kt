@@ -16,6 +16,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.runtime.AttachmentMigrator
 import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.runtime.gui.HostGuiController
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
@@ -235,7 +236,8 @@ class HostBridge(
     private suspend fun handleDoctor(): HttpResponse {
         val info = privilegeManager.getPrivilegeInfo()
         val adb = embeddedAdbManager.state.value is EmbeddedAdbManager.ConnectionState.Connected
-        return HttpResponse(200, hostDoctorReport(info, adb, guiController != null, BRIDGE_PORT))
+        val attachments = AttachmentMigrator.inspect(context.filesDir)
+        return HttpResponse(200, hostDoctorReport(info, adb, guiController != null, BRIDGE_PORT, attachments))
     }
 
     private suspend fun handleInstallApk(body: String): HttpResponse {

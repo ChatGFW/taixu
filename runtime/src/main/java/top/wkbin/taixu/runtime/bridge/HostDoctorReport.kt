@@ -12,6 +12,7 @@ internal fun hostDoctorReport(
     adbConnected: Boolean,
     guiPresent: Boolean,
     port: Int,
+    attachments: String = "",
 ): String = buildString {
     appendLine("TaiXu host bridge doctor")
     appendLine("bridge            : ok (127.0.0.1:$port)")
@@ -21,4 +22,5 @@ internal fun hostDoctorReport(
     appendLine("gui-controller    : ${if (guiPresent) "present" else "absent"}")
     appendLine("default-actions   : ${SandboxCredentialStore.SANDBOX_ACTIONS.sorted().joinToString(",")}")
     appendLine("control-actions   : ${SandboxCredentialStore.CONTROL_ACTIONS.sorted().joinToString(",")} (full access only)")
+    if (attachments.isNotEmpty()) appendLine("attachments       : $attachments")
 }

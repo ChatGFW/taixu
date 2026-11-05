@@ -71,6 +71,18 @@ class AttachmentMigratorTest {
         assertTrue(sessionFile("s1", "a.png").isFile)
     }
 
+    @Test fun inspectReportsWhereFilesEndedUp() = runBlocking {
+        writeGlobal("a.png")
+        writeGlobal("skills/keep.md", "skill")
+        migrator.migrate(listOf("s1" to """{"t":"/attachments/a.png"}"""))
+
+        val stats = AttachmentMigrator.inspect(filesDir)
+
+        assertTrue(stats.contains("sessions=1"))
+        assertTrue(stats.contains("migrated=yes"))
+        assertTrue(stats.contains("global=0"))
+    }
+
     @Test fun alreadyMigratedFilesAreNotDuplicated() = runBlocking {
         writeGlobal("a.png")
         sessionFile("s1", "a.png").parentFile?.mkdirs()
