@@ -37,6 +37,9 @@ class ToolCallLoopDetector(
     /** path → 连续 HASHLINE_STALE 次数；成功 read 同 path 清零。 */
     private val hashlineStaleByPath = mutableMapOf<String, Int>()
 
+    /** 最近编造的工具名；名称每次都换时，按"同名同参失败"的规则抓不到。 */
+    private val unknownToolAttempts = mutableListOf<String>()
+
     sealed interface LoopVerdict {
         data object Pass : LoopVerdict
         data class Warn(val message: String) : LoopVerdict
@@ -149,6 +152,23 @@ class ToolCallLoopDetector(
     }
 
     /**
+     * 未知工具名的累计升级。
+     *
+     * 模型编造工具名时往往每次换一个（bash → shell → sh），同名同参的失败规则抓不到，
+     * 整轮预算会被耗在猜名字上。连续第 [MAX_UNKNOWN_TOOL_ATTEMPTS] 次起返回升级提示，
+     * 由调用方拼在常规的"未知工具"清单之后。
+     */
+    @Synchronized
+    fun unknownToolEscalation(toolName: String): String? {
+        unknownToolAttempts.add(toolName)
+        while (unknownToolAttempts.size > MAX_UNKNOWN_TOOL_ATTEMPTS) unknownToolAttempts.removeAt(0)
+        if (unknownToolAttempts.size < MAX_UNKNOWN_TOOL_ATTEMPTS) return null
+        return "【已连续 $MAX_UNKNOWN_TOOL_ATTEMPTS 次调用不存在的工具】最近尝试：" +
+            unknownToolAttempts.joinToString("、") +
+            "。不要再猜工具名：从上方清单中原样复制一个名称重新发起；若确实缺少所需能力，直接向用户说明。"
+    }
+
+    /**
      * 登记单次工具调用的开始。
      */
     @Synchronized
@@ -175,6 +195,8 @@ class ToolCallLoopDetector(
         output: String? = null,
         metadata: Map<String, String> = emptyMap(),
     ) {
+        // 任何一个真实工具的调用成功，都说明模型已从"猜名字"里恢复，累计清零。
+        if (success) unknownToolAttempts.clear()
         val currentArgsJson = canonical(args).toString()
         val lastRecord = callHistory.lastOrNull {
             it.toolName.equals(toolName, ignoreCase = true) && it.argsJson == currentArgsJson && it.success == null
@@ -238,6 +260,7 @@ class ToolCallLoopDetector(
         callHistory.clear()
         lastOutputFingerprints.clear()
         hashlineStaleByPath.clear()
+        unknownToolAttempts.clear()
     }
 
     private fun canonical(value: JsonElement): JsonElement = when (value) {
@@ -255,4 +278,8 @@ class ToolCallLoopDetector(
     private fun isEditTool(name: String): Boolean = name.equals("edit", ignoreCase = true)
 
     private fun isReadTool(name: String): Boolean = name.equals("read", ignoreCase = true)
+
+    private companion object {
+        const val MAX_UNKNOWN_TOOL_ATTEMPTS = 3
+    }
 }

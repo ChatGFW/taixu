@@ -132,7 +132,10 @@ class HarnessToolRoundRunner(
                     args = buildJsonObject {},
                     reasoning = reasoning,
                     rawToolName = toolNameTrimmed,
-                    output = ToolCallContract.unknownGuidance(toolNameTrimmed, effectiveModel),
+                    output = buildString {
+                        append(ToolCallContract.unknownGuidance(toolNameTrimmed, effectiveModel))
+                        loopDetector.unknownToolEscalation(toolNameTrimmed)?.let { append("\n\n").append(it) }
+                    },
                 )
                 loopDetector.recordSettled(toolNameTrimmed, buildJsonObject {}, success = false)
                 metrics.toolCallRecorded(failed = true)
