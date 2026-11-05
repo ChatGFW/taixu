@@ -154,6 +154,7 @@ GitHub 外部插件 1.0.1 使用官方 gh，Token 明文 0600、数据目录 070
 - 凭据：由 `HostCredentialAuthority` 统一签发，唯一校验路径为 `authorize(token, 所需动作)`；HTTP 面**没有**签发/续期端点，磁盘上**不再有** `.bridge-key`。
 - 沙箱注入：`SandboxCredentialStore` 按发行版、插件身份和安装版本缓存最长 8 小时的可复用、可撤销凭据（实际可用期受确认快照约束），经 `ProotCommandBuilder.build()/buildInteractive()` 的 `hostCredential` 参数在 Provider 环境**之后**叠加导出（`TAIXU_BRIDGE_TOKEN` / `TAIXU_BRIDGE_ACTIONS`，凭据覆盖 Provider 同名键）。发行版卸载/重置调 `revoke(distroId)`，`HostBridge.stop()` 调 `revokeAll()` 推进代次，缓存层随后自愈。默认动作集 `SANDBOX_ACTIONS` 仅含 `host.install-apk` / `host.logcat`；开发者模式仅开放原生确认入口。`FullAccessGrant` 在内存中保存最长 30 分钟、绑定发行版/插件/版本的确认；外部插件未确认时注入空令牌覆盖同名 Provider 环境。每次鉴权复核授权代次，撤销、超时、关闭开关及安装/卸载立即拒绝旧令牌，关闭再开启不能使旧令牌复活。
 - 端点按绑定动作放行：未知路径也先要求"持有有效凭据"再返回 404；写入端点不再接受沙箱传入的自由 `port`，端口固定由内置无线 ADB 管理器持有。旧版无凭据的 `taixu-host` / 硬编码 `.bridge-key` 的脚本一律 401，需重启终端会话刷新凭据（无兼容窗口）。
+- `taixu-host` 退出码：`0` 成功 / `1` 内部错 / `2` 用法 / `66` 目标不存在 / `69` 通道不可用 / `124` 超时 / `126` 未授权。回包同时带 `failure` 字段；退出码只表达失败类别，不改变鉴权语义——401 仍表示凭据缺失或动作未绑定。
 - **信任模型必须写明**：PRoot guest 仍以 App uid 运行，凭据可被沙箱内任意进程读取，所以沙箱内容物依旧是「可触发宿主特权动作的半信任方」。本机制是**应用层代理门控**（短寿命、收敛动作、可撤销、跨进程共用同一权威），**不是**对同 uid 恶意代码的强隔离；`host.shell` 已收紧为开发者全权授权：默认不下发，必须在开发者模式中另作限时原生确认，撤销时每次鉴权立即拒绝旧令牌（见 §7 待办 #8）。
 - `resolveSandboxPath` 兜底分支（`HostBridgeApkInstall.kt:110-138`）：路径非 `/sdcard`、`/workspace`、`/attachments` 前缀时先在工作区试一次，否则**原样返回宿主绝对路径**——`install-apk` 因此可读取任意宿主路径下的 `.apk`（有后缀校验，无目录白名单）；另有工作区全树按文件名的模糊兜底扫描（maxDepth 8）。该逻辑已从 `HostBridge.kt` 抽出到 `HostBridgeApkInstall`（guest 端点与插件网关共用同一实例）。
 - 日志只记录路径与结果，不记录凭据（`HostBridge.kt` 各 `logger.i`）。

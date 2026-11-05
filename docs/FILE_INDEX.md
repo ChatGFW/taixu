@@ -45,6 +45,7 @@ P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.
 | `harness/core/.../SessionProjection.kt` | 存储无关的保留消息、并发补回、摘要与召回贡献规则；来源和诊断类型 | 纯 Kotlin 会话投影 |
 | `harness/session/SessionContextProjector.kt` | 捕获 Lane 叶子，解码快照并选择分支窗口；检查与模型上下文共用来源 | 可检查上下文 |
 | `harness/compaction/CompactionManager.kt` | 压缩持久化、`inspect` / `project` 入口与轻量摘要横幅快照 | 压缩编排 |
+| `harness/CurrentTurnToolResultBudget.kt` | 当前轮结果越过折叠线时先按头尾口径压缩并附 `history_read` 指针，把整段压缩降为最后手段 | 当前轮预算 |
 | `harness/TurnRunner.kt` | 将 Provider 响应与文本工具协议适配到轮次核心 | 协议适配 |
 | `harness/core/.../ModelDescriptor.kt` / `harness/ModelConfig.kt` | 协议标识、无凭证能力描述；兼容现有模型档案字段 | 模型能力 |
 | `harness/ProviderModelResolver.kt` | 档案/variant 选择、密钥读取、上下文容量和全局推理偏好 | 模型解析 |
@@ -66,13 +67,13 @@ P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.
 | `harness/ToolExecutionBoundary.kt` / `ToolExecutionRequest.kt` | 检查点观察快照、否决及说明脱敏；保留结果标识与审批状态 | 扩展控制边界 |
 | `harness/WorkspaceToolBackend.kt` / `WorkspaceToolOperations.kt` | read/write/edit 语义与可替换工作区操作接口；本地实现为 `WorkspaceFileAccess` | 文件工具后端 |
 | `runtime/environment/HashlineAnchors.kt` · `harness/text/HashlineEditArgs.kt` · `HashlinePolicy.kt` · `HashlineEditStats.kt` · `HashlineEditStatsCodec.kt` · `core/datastore/HashlinePreferences.kt` | Hashline 行锚算法、工具参数解析、闸门与跨启动累计计数；协议见 [`HASHLINE_PROTOCOL.md`](HASHLINE_PROTOCOL.md) | Hashline 编辑 |
-| `harness/validation/ToolCallLoopDetector.kt` · `ToolRecoveryAdvice.kt` | 同 path 连续 STALE 拦截；`hashline_error` → errorCode 与专用恢复建议 | Hashline 纠错 |
+| `harness/validation/ToolCallLoopDetector.kt` · `ToolRecoveryAdvice.kt` | 同参连败 / 同参同输出 / 周期震荡拦截；同 path 连续 STALE；未知工具名按次数升级提示 | 死循环与 Hashline 纠错 |
 | `feature/settings/.../HashlineSettingsBlock.kt` | Agent 执行设置：三开关、累计计数、关/临时开 legacy 观测提示 | Hashline 设置 UI |
 | `harness/WorkspaceMutationSnapshots.kt` | 写入前后快照与大小保护，文件后端和下载工具复用 | 写入恢复证据 |
 | `harness/di/harness/ToolBackendModule.kt` | 工具门面、默认检查点、工作区后端与快照的 Koin 装配 | 工具依赖装配 |
 | `harness/ApprovalPolicyEngine.kt` | 工具调用的审批策略（normal / high / critical 三档） |
 | `harness/ToolRoundDispatcher.kt` | 单回合多工具并发调度（mutation 互斥 / read-only 4 并发） |
-| `harness/SubagentOrchestrator.kt` | 子智能体 Lane 编排 |
+| `harness/SubagentOrchestrator.kt` · `harness/SubagentTimeBudget.kt` | 子智能体 Lane 编排；剩余 2 分钟进入收尾窗口（撤工具、强制交付），到点以 TIMEOUT 收场，硬超时留 90 秒宽限 |
 | `harness/mcp/*` | MCP 协议：`McpManager` / `McpHttpTransport` / `McpJsonRpc` |
 | `harness/browser/BrowserMcpBootstrap.kt` | 内置 Browser MCP Server 启动 + 注册引擎 |
 | `harness/mcp/server/*` | in-process MCP Server：`McpServerRuntime` / Auth / Tool+Resource Dispatcher |
@@ -141,7 +142,7 @@ P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.
 | 模块 | 关键文件 | 职责 |
 | --- | --- | --- |
 | `runtime/.../bridge/adb/EmbeddedAdbManager.kt` | Kadb 客户端 + mDNS 发现 + 持久密钥 | 自动发现 `_adb-tls-pairing` / `_adb-tls-connect`、一次配对、自动重连、Logcat 抓取 |
-| `runtime/.../bridge/HostBridge.kt` | 沙箱 HTTP 桥接 (127.0.0.1:7980) | 提供 `/api/logcat`、`/api/shell`（内置无线 ADB 回退）与静默 APK 安装 |
+| `runtime/.../bridge/HostBridge.kt` · `HostFailure.kt` · `HostBridgeCliScript.kt` | 沙箱 HTTP 桥接 (127.0.0.1:7980) | `/api/logcat`、`/api/shell`（内置无线 ADB 回退）与静默 APK 安装；失败回包带 `failure` 分类，`taixu-host` 据此以 2/66/69/124/126 退出 |
 | `app/src/main/assets/bin/logcat-grabber` | 沙箱内置 CLI 日志工具 | `logcat-grabber` / `logcat-tail` / `logcat-export` 脚本资产 |
 | `feature/developer/.../AdbLogcatScreen.kt` | 独立无线 ADB 与日志工作台 | 系统保活与诊断一级直达：配对码输入、mDNS 探测、多维 Logcat 过滤与复制 |
 | `feature/developer/.../DeveloperScreen.kt` | 开发者控制台 | 包含底层健康监控、无线 ADB 状态卡片、工具源更新等 |
