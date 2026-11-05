@@ -51,6 +51,9 @@ class DistroConfigurator(
      */
     suspend fun syncAssets(distroId: String) {
         assetSynchronizer.syncAssetsToDistro(distroId)
+        // 桥接 CLI 与能力封装同样属于"随 APK 升级"的资产：已有 rootfs 不会再走
+        // configureRootfs，不同步的话沙箱里会一直停在上一个版本的命令集。
+        installHostBridgeScripts(distroId)
     }
 
     /**
