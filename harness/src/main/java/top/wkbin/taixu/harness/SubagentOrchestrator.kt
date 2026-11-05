@@ -308,14 +308,14 @@ class SubagentOrchestrator(
             )
         }
         val laneResult = try {
-            withTimeoutOrNull(SUBAGENT_TIMEOUT_MS) {
+            withTimeoutOrNull(SUBAGENT_TIMEOUT_MS + SubagentTimeBudget.GRACE_MS) {
                 laneRunner.run(
                     parentSessionId,
                     laneName,
                     prompt,
                     workspace,
                     modelConfig = targetModel,
-                    writePaths = spec.writePaths,
+                    writePaths = spec.writePaths, deadlineAtMs = System.currentTimeMillis() + SUBAGENT_TIMEOUT_MS,
                 )
             }
         } finally {
