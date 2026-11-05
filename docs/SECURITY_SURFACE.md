@@ -147,6 +147,7 @@ GitHub 外部插件 1.0.1 使用官方 gh，Token 明文 0600、数据目录 070
 | 端点 | 认证 | 绑定动作 | 动作 | 暴露面 |
 | --- | --- | --- | --- | --- |
 | `GET /api/health` | **免认证** | — | 特权模式、Shizuku/Root/ADB 可用性、ADB 端口 | localhost 内信息泄露（低危）：沙箱内任意进程可探测权限状态 |
+| `GET /api/doctor` | **免认证** | — | 特权模式、ADB、GUI 控制器与动作集摘要（纯文本） | 与 health 同级；只含设备状态，不含任何凭据内容 |
 | `POST /api/install-apk` | 宿主凭据 | `host.install-apk` | 解析路径 → 无线 ADB 静默安装 / 系统安装器 | 持有该动作绑定的凭据即可安装任意可达的 APK |
 | `POST /api/shell` | 宿主凭据 | `host.shell` | Shizuku/Root 优先，否则无线 ADB | **持 `host.shell` 绑定 = 在宿主执行任意 shell（shell uid 或 root）**；该动作默认不下发，仅开发者全权模式签发 |
 | `POST /api/logcat` | 宿主凭据 | `host.logcat` | 抓取 / 清除日志 | 日志可能含其他应用的敏感信息 |

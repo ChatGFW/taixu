@@ -165,6 +165,15 @@ class HostBridgeAuthConvergenceTest {
         assertTrue(notFound.body.contains("\"failure\":\"not_found\""))
     }
 
+    @Test fun doctorExplainsAvailabilityWithoutLeakingTheCredential() = runBlocking {
+        val token = sandboxToken()
+        val response = bridge.route(request("/api/doctor", "Bearer $token", method = "GET", body = ""))
+        assertEquals(200, response.status)
+        assertTrue(response.body.contains("bridge"))
+        assertTrue(response.body.contains("gui-controller"))
+        assertFalse(response.body.contains(token))
+    }
+
     @Test fun healthStaysUnauthenticatedAndLeaksNoCredential() = runBlocking {
         val token = sandboxToken()
         val response = bridge.route(request("/api/health", "Bearer $token", method = "GET", body = ""))

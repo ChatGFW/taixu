@@ -16,7 +16,7 @@ internal object HostBridgeCliScript {
 # Usage: taixu-host install-apk <path> | shell <cmd> | logcat [pkg] [tag] [prio] [kw] [lines]
 #        taixu-host open <url> | clipboard set <text> | notify <title> [body]
 #        taixu-host setting get|put ... | app start|stop|freeze|unfreeze <pkg>
-#        taixu-host screen observe|tap|swipe|shot|text|key ... | health
+#        taixu-host screen observe|tap|swipe|shot|text|key ... | doctor | health
 # Exit: 0 ok / 1 internal / 2 usage / 66 not_found / 69 unavailable / 124 timeout / 126 permission_denied
 BRIDGE_URL="http://127.0.0.1:7980"
 
@@ -200,6 +200,10 @@ case "@@1" in
       *) die usage "Usage: taixu-host screen observe|tap|swipe|text|key ..." 2 ;;
     esac
     ;;
+  doctor)
+    echo "granted-actions   : @@{TAIXU_BRIDGE_ACTIONS:-unknown}"
+    finish @@(curl -s -m 15 -w '\n%{http_code}' "@@{BRIDGE_URL}/api/doctor")
+    ;;
   health|status)
     finish @@(curl -s -m 15 -w '\n%{http_code}' "@@{BRIDGE_URL}/api/health")
     ;;
@@ -215,6 +219,7 @@ case "@@1" in
     echo "  taixu-host app start|stop|freeze|unfreeze <pkg> Control an app"
     echo "  taixu-host screen observe|tap|swipe|shot|text|key  Inspect or drive the screen"
     echo "  taixu-host health               Bridge health and ADB status"
+    echo "  taixu-host doctor               Explain why capability commands are unavailable"
     exit 2
     ;;
 esac

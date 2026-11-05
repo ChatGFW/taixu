@@ -142,7 +142,7 @@ P5 静态 Web 页面入口：[`PLUGIN_WEB_EXTENSIONS.md`](PLUGIN_WEB_EXTENSIONS.
 | 模块 | 关键文件 | 职责 |
 | --- | --- | --- |
 | `runtime/.../bridge/adb/EmbeddedAdbManager.kt` | Kadb 客户端 + mDNS 发现 + 持久密钥 | 自动发现 `_adb-tls-pairing` / `_adb-tls-connect`、一次配对、自动重连、Logcat 抓取 |
-| `runtime/.../bridge/HostBridge.kt` · `HostFailure.kt` · `HostBridgeCliScript.kt` · `HostCapabilityActions.kt` | 沙箱 HTTP 桥接 (127.0.0.1:7980) | `/api/logcat`、`/api/shell`（内置无线 ADB 回退）、静默 APK 安装，低危能力 `host.open` / `host.clipboard` / `host.notify`（默认签发）与设备控制 `host.settings` / `host.app` / `host.screen`（仅全权模式，`HostControlEndpoints.kt` 解析；截图只写 `workspace/screenshots`）；失败信封统一由 `HostJson.kt` 产出，`taixu-host` 及 `taixu-open|clipboard|notify|setting|app|screen` 封装据此以 2/66/69/124/126 退出 |
+| `runtime/.../bridge/HostBridge.kt` · `HostFailure.kt` · `HostBridgeCliScript.kt` · `HostCapabilityActions.kt` · `HostDoctorReport.kt` | 沙箱 HTTP 桥接 (127.0.0.1:7980) | `/api/logcat`、`/api/shell`（内置无线 ADB 回退）、静默 APK 安装，低危能力 `host.open` / `host.clipboard` / `host.notify`（默认签发）与设备控制 `host.settings` / `host.app` / `host.screen`（仅全权模式，`HostControlEndpoints.kt` 解析；截图只写 `workspace/screenshots`）；失败信封统一由 `HostJson.kt` 产出，`taixu-host` 及 `taixu-open|clipboard|notify|setting|app|screen` 封装据此以 2/66/69/124/126 退出 |
 | `app/src/main/assets/bin/logcat-grabber` | 沙箱内置 CLI 日志工具 | `logcat-grabber` / `logcat-tail` / `logcat-export` 脚本资产 |
 | `feature/developer/.../AdbLogcatScreen.kt` | 独立无线 ADB 与日志工作台 | 系统保活与诊断一级直达：配对码输入、mDNS 探测、多维 Logcat 过滤与复制 |
 | `feature/developer/.../DeveloperScreen.kt` | 开发者控制台 | 包含底层健康监控、无线 ADB 状态卡片、工具源更新等 |

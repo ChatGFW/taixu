@@ -174,6 +174,7 @@ class HostBridge(
         pluginGateway.route(request)?.let { return HttpResponse(it.status, it.body) }
         // health 端点免认证（只暴露特权/ADB 状态，无凭证）
         if (request.method == "GET" && request.path.startsWith("/api/health")) return handleHealth()
+        if (request.method == "GET" && request.path.startsWith("/api/doctor")) return handleDoctor()
 
         // 每个写端点绑定一个结构化动作；未知路径也先过"有效凭据"这一关再 404，避免未认证探测面。
         val action = when {
@@ -229,6 +230,12 @@ class HostBridge(
             put("shellSupported", info.shizukuAvailable || info.rootAvailable || adbConnected)
         }.toString()
         return HttpResponse(200, body)
+    }
+
+    private suspend fun handleDoctor(): HttpResponse {
+        val info = privilegeManager.getPrivilegeInfo()
+        val adb = embeddedAdbManager.state.value is EmbeddedAdbManager.ConnectionState.Connected
+        return HttpResponse(200, hostDoctorReport(info, adb, guiController != null, BRIDGE_PORT))
     }
 
     private suspend fun handleInstallApk(body: String): HttpResponse {

@@ -50,6 +50,7 @@ class HostFailureTest {
         assertTrue(script.contains("  setting)"))
         assertTrue(script.contains("  app)"))
         assertTrue(script.contains("  screen)"))
+        assertTrue(script.contains("  doctor)"))
     }
 
     @Test fun capabilityShimsForwardToTheSameCli() {
