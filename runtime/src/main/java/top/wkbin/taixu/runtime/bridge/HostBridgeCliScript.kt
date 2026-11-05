@@ -104,7 +104,7 @@ case "@@1" in
     else
       ABS_TARGET="@@TARGET"
     fi
-    post /api/install-apk "{\"path\":\"@@{ABS_TARGET}\"}"
+    post /api/install-apk "{\"path\":\"@@(jesc "@@{ABS_TARGET}")\"}"
     ;;
   shell)
     [ -z "@@2" ] && die usage "Usage: taixu-host shell <command>" 2
@@ -128,13 +128,13 @@ case "@@1" in
     if command -v jq >/dev/null 2>&1; then
       BODY=@@(jq -nc --arg p "@@PKG" --arg t "@@TAG" --arg pr "@@PRIO" --arg k "@@KW" --arg l "@@LINES" '{package:@@p, tag:@@t, priority:@@pr, keyword:@@k, lines:(@@l|tonumber)}')
     else
-      BODY="{\"package\":\"@@PKG\",\"tag\":\"@@TAG\",\"priority\":\"@@PRIO\",\"keyword\":\"@@KW\",\"lines\":@@LINES}"
+      BODY="{\"package\":\"@@(jesc "@@PKG")\",\"tag\":\"@@(jesc "@@TAG")\",\"priority\":\"@@(jesc "@@PRIO")\",\"keyword\":\"@@(jesc "@@KW")\",\"lines\":@@LINES}"
     fi
     post /api/logcat "@@BODY"
     ;;
   open)
     [ -z "@@2" ] && die usage "Usage: taixu-host open <http|https|mailto|tel url>" 2
-    post /api/open "{\"uri\":\"@@2\"}"
+    post /api/open "{\"uri\":\"@@(jesc "@@2")\"}"
     ;;
   clipboard)
     [ "@@{2:-}" = "set" ] || die usage "Usage: taixu-host clipboard set <text>" 2
@@ -156,18 +156,18 @@ case "@@1" in
     case "@@{2:-}" in
       get)
         [ @@# -lt 4 ] && die usage "Usage: taixu-host setting get <system|secure|global> <key>" 2
-        post /api/settings "{\"op\":\"get\",\"namespace\":\"@@3\",\"key\":\"@@4\"}"
+        post /api/settings "{\"op\":\"get\",\"namespace\":\"@@(jesc "@@3")\",\"key\":\"@@(jesc "@@4")\"}"
         ;;
       put)
         [ @@# -lt 5 ] && die usage "Usage: taixu-host setting put <namespace> <key> <value>" 2
-        post /api/settings "{\"op\":\"put\",\"namespace\":\"@@3\",\"key\":\"@@4\",\"value\":\"@@(jesc "@@5")\"}"
+        post /api/settings "{\"op\":\"put\",\"namespace\":\"@@(jesc "@@3")\",\"key\":\"@@(jesc "@@4")\",\"value\":\"@@(jesc "@@5")\"}"
         ;;
       *) die usage "Usage: taixu-host setting get|put <namespace> <key> [value]" 2 ;;
     esac
     ;;
   app)
     [ @@# -lt 3 ] && die usage "Usage: taixu-host app start|stop|freeze|unfreeze <package>" 2
-    post /api/app "{\"op\":\"@@2\",\"package\":\"@@3\"}"
+    post /api/app "{\"op\":\"@@(jesc "@@2")\",\"package\":\"@@(jesc "@@3")\"}"
     ;;
   screen)
     case "@@{2:-}" in
@@ -182,7 +182,7 @@ case "@@1" in
         ;;
       shot)
         if [ -n "@@{3:-}" ]; then
-          post /api/screen "{\"op\":\"shot\",\"name\":\"@@3\"}"
+          post /api/screen "{\"op\":\"shot\",\"name\":\"@@(jesc "@@3")\"}"
         else
           post /api/screen '{"op":"shot"}'
         fi
@@ -195,7 +195,7 @@ case "@@1" in
         ;;
       key)
         [ -z "@@{3:-}" ] && die usage "Usage: taixu-host screen key <back|home|recents|enter|delete|paste|power>" 2
-        post /api/screen "{\"op\":\"key\",\"key\":\"@@3\"}"
+        post /api/screen "{\"op\":\"key\",\"key\":\"@@(jesc "@@3")\"}"
         ;;
       *) die usage "Usage: taixu-host screen observe|tap|swipe|text|key ..." 2 ;;
     esac
