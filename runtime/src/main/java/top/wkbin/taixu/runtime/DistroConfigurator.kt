@@ -364,6 +364,11 @@ class DistroConfigurator(
         androidExecScript.writeText(TAIXU_ANDROID_EXEC_SCRIPT)
         runCatching { Os.chmod(androidExecScript.absolutePath, 0x1ED) }
 
+        // 能力命令封装：统一转发到 taixu-host，PATH 上不出现第二份协议实现
+        HostBridgeCliScript.SHIMS.forEach { (name, body) ->
+            File(binDir, name).apply { writeText(body); runCatching { Os.chmod(absolutePath, 0x1ED) } }
+        }
+
         // 迁移收尾：清理历史版本写入的共享密钥文件（旧脚本会因此失效，需重启会话刷新凭据）
         File(pathManager.taixuRootDir(distroId), ".bridge-key").takeIf { it.exists() }?.delete()
 

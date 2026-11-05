@@ -44,5 +44,17 @@ class HostFailureTest {
         assertTrue(script.contains("unavailable) echo 69"))
         assertTrue(script.contains("not_found) echo 66"))
         assertTrue(script.contains("timeout) echo 124"))
+        assertTrue(script.contains("  open)"))
+        assertTrue(script.contains("  clipboard)"))
+    }
+
+    @Test fun capabilityShimsForwardToTheSameCli() {
+        val shims = HostBridgeCliScript.SHIMS
+        assertEquals(setOf("taixu-open", "taixu-clipboard"), shims.keys)
+        shims.forEach { (_, body) ->
+            assertTrue(body.startsWith("#!/bin/sh"))
+            assertTrue(body.contains("/opt/taixu/bin/taixu-host"))
+            assertFalse(body.contains("@@"))
+        }
     }
 }

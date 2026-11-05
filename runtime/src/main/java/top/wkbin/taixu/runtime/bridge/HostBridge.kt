@@ -63,6 +63,8 @@ class HostBridge(
 
     private val apkInstall = HostBridgeApkInstall(context, logger, embeddedAdbManager, pathManager)
 
+    private val capabilities = HostCapabilityActions(context)
+
     private val pluginGateway = PluginHostGateway(
         appInfo = {
             buildJsonObject {
@@ -174,6 +176,8 @@ class HostBridge(
             request.method == "POST" && request.path.startsWith("/api/install-apk") -> "host.install-apk"
             request.method == "POST" && request.path.startsWith("/api/shell") -> "host.shell"
             request.method == "POST" && request.path.startsWith("/api/logcat") -> "host.logcat"
+            request.method == "POST" && request.path.startsWith("/api/open") -> "host.open"
+            request.method == "POST" && request.path.startsWith("/api/clipboard") -> "host.clipboard"
             else -> null
         }
         if (!credentialAuthority.authorize(bearerToken(request.headers), action)) {
@@ -186,6 +190,8 @@ class HostBridge(
             "host.install-apk" -> handleInstallApk(request.body)
             "host.shell" -> handleShell(request.body)
             "host.logcat" -> handleLogcat(request.body)
+            "host.open" -> handleOpen(request.body)
+            "host.clipboard" -> handleClipboard(request.body)
             else -> HttpResponse(404, errorJson("Not found: ${request.method} ${request.path}", HostFailure.NOT_FOUND))
         }
     }
@@ -301,6 +307,32 @@ class HostBridge(
             }
             put("output", result.output)
         }.toString())
+    }
+
+    private fun handleOpen(body: String): HttpResponse {
+        val uri = try {
+            json.parseToJsonElement(body).jsonObject["uri"]?.jsonPrimitive?.content
+        } catch (e: Exception) {
+            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}", HostFailure.USAGE))
+        }
+        if (uri.isNullOrBlank()) return HttpResponse(400, errorJson("Missing 'uri' field", HostFailure.USAGE))
+        return capabilityResponse(capabilities.open(uri))
+    }
+
+    private fun handleClipboard(body: String): HttpResponse {
+        val text = try {
+            json.parseToJsonElement(body).jsonObject["text"]?.jsonPrimitive?.content
+        } catch (e: Exception) {
+            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}", HostFailure.USAGE))
+        }
+        if (text.isNullOrEmpty()) return HttpResponse(400, errorJson("Missing 'text' field", HostFailure.USAGE))
+        return capabilityResponse(capabilities.writeClipboard(text))
+    }
+
+    /** 能力动作失败仍走 200 + success=false，与 shell 端点一致；失败类别由 failure 字段表达。 */
+    private fun capabilityResponse(outcome: HostCapabilityActions.Outcome): HttpResponse = when (outcome) {
+        HostCapabilityActions.Outcome.Ok -> HttpResponse(200, buildJsonObject { put("success", true) }.toString())
+        is HostCapabilityActions.Outcome.Rejected -> HttpResponse(200, errorJson(outcome.message, outcome.failure))
     }
 
     // ============================ 工具方法 ============================

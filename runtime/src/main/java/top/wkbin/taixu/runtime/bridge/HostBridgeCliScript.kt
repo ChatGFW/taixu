@@ -13,7 +13,8 @@ internal object HostBridgeCliScript {
     private val RAW = """
 #!/bin/sh
 # TaiXu Host Bridge CLI
-# Usage: taixu-host install-apk <path> | shell <cmd> | logcat [pkg] [tag] [prio] [kw] [lines] | health
+# Usage: taixu-host install-apk <path> | shell <cmd> | logcat [pkg] [tag] [prio] [kw] [lines]
+#        taixu-host open <url> | clipboard set <text> | health
 # Exit: 0 ok / 1 internal / 2 usage / 66 not_found / 69 unavailable / 124 timeout / 126 permission_denied
 BRIDGE_URL="http://127.0.0.1:7980"
 
@@ -59,7 +60,7 @@ post() {
 }
 
 case "@@{1:-}" in
-  install-apk|shell|logcat)
+  install-apk|shell|logcat|open|clipboard)
     [ -z "@@{TAIXU_BRIDGE_TOKEN:-}" ] && \
       die permission_denied "missing host credential: restart the TaiXu session to refresh it" 126
     ;;
@@ -131,6 +132,18 @@ case "@@1" in
     fi
     post /api/logcat "@@BODY"
     ;;
+  open)
+    [ -z "@@2" ] && die usage "Usage: taixu-host open <http|https|mailto|tel url>" 2
+    post /api/open "{\"uri\":\"@@2\"}"
+    ;;
+  clipboard)
+    [ "@@{2:-}" = "set" ] || die usage "Usage: taixu-host clipboard set <text>" 2
+    shift
+    shift
+    [ -z "@@*" ] && die usage "Usage: taixu-host clipboard set <text>" 2
+    TEXT=@@(printf '%s' "@@*" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    post /api/clipboard "{\"text\":\"@@{TEXT}\"}"
+    ;;
   health|status)
     finish @@(curl -s -m 15 -w '\n%{http_code}' "@@{BRIDGE_URL}/api/health")
     ;;
@@ -139,6 +152,8 @@ case "@@1" in
     echo "  taixu-host install-apk <path>   Install APK on host (wireless ADB or system dialog)"
     echo "  taixu-host shell <command>      Run host shell (wireless ADB or Shizuku/root)"
     echo "  taixu-host logcat [pkg] [tag] [prio] [kw] [lines] Capture logcat via wireless ADB"
+    echo "  taixu-host open <url>           Open http/https/mailto/tel link on the host"
+    echo "  taixu-host clipboard set <text> Copy text to the host clipboard"
     echo "  taixu-host health               Bridge health and ADB status"
     exit 2
     ;;
@@ -146,4 +161,13 @@ esac
 """.trimIndent()
 
     val TAIXU_HOST_SCRIPT: String = RAW.replace("@@", "$") + "\n"
+
+    /**
+     * 能力命令的薄封装：让沙箱里能像普通命令一样调用宿主能力，
+     * 又不必在 PATH 上维护多份协议实现（统一落到 taixu-host）。
+     */
+    val SHIMS: Map<String, String> = mapOf(
+        "taixu-open" to "#!/bin/sh\nexec /opt/taixu/bin/taixu-host open \"\$@\"\n",
+        "taixu-clipboard" to "#!/bin/sh\nexec /opt/taixu/bin/taixu-host clipboard \"\$@\"\n",
+    )
 }

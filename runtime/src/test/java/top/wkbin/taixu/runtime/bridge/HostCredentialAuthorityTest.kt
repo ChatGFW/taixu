@@ -97,7 +97,10 @@ class HostCredentialAuthorityTest {
         val env = store.environment("ubuntu")
         val token = env.getValue(SandboxCredentialStore.BRIDGE_TOKEN_ENV)
         // 默认动作集不含任意宿主 shell
-        assertEquals("host.install-apk,host.logcat", env.getValue(SandboxCredentialStore.BRIDGE_ACTIONS_ENV))
+        assertEquals(
+            SandboxCredentialStore.SANDBOX_ACTIONS.sorted().joinToString(","),
+            env.getValue(SandboxCredentialStore.BRIDGE_ACTIONS_ENV),
+        )
         assertFalse(authority.authorize(token, "host.shell"))
         assertTrue(authority.authorize(token, "host.install-apk"))
         assertFalse(authority.authorize(token, "host.app-info"))
@@ -140,7 +143,10 @@ class HostCredentialAuthorityTest {
         val store = SandboxCredentialStore(authority, { SandboxCredentialStore.FULL_ACCESS_ACTIONS }, now = { time })
         val env = store.environment("ubuntu")
         val token = env.getValue(SandboxCredentialStore.BRIDGE_TOKEN_ENV)
-        assertEquals("host.install-apk,host.logcat,host.shell", env.getValue(SandboxCredentialStore.BRIDGE_ACTIONS_ENV))
+        assertEquals(
+            SandboxCredentialStore.FULL_ACCESS_ACTIONS.sorted().joinToString(","),
+            env.getValue(SandboxCredentialStore.BRIDGE_ACTIONS_ENV),
+        )
         assertTrue(authority.authorize(token, "host.shell"))
     }
 }
