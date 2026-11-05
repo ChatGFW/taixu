@@ -13,6 +13,8 @@ import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.datastore.BackupPreferenceStore
 import top.wkbin.taixu.core.model.*
 import top.wkbin.taixu.core.tools.AiProfileTransferFormat
+import top.wkbin.taixu.runtime.AttachmentMigrator
+import top.wkbin.taixu.runtime.AttachmentPaths
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
@@ -101,13 +103,17 @@ class LocalBackupService(
             withContext(NonCancellable) {
                 repository.merge(prepared.expected, adjusted, operation) {
                     check(root.mkdirs()) { "无法创建恢复目录" }
+                    val liveAttachments = AttachmentPaths.global(locations.files)
                     prepared.manifest.assets.forEach { asset ->
                         val source = File(prepared.stage, "assets/${asset.path}")
                         check(source.length() == asset.bytes && BackupArchive.digest(source) == asset.sha256) { "恢复暂存文件校验失败" }
-                        val target = File(root, asset.path)
+                        val target = restoreTargetFor(asset.path, root, liveAttachments)
                         check(target.parentFile!!.mkdirs() || target.parentFile!!.isDirectory)
-                        source.inputStream().use { input -> target.outputStream().use { output -> input.copyTo(output) } }
+                        if (!target.exists()) {
+                            source.inputStream().use { input -> target.outputStream().use { output -> input.copyTo(output) } }
+                        }
                     }
+                    attributeLegacyAttachments(records, liveAttachments)
                     resources.rewriteBlobs(root, prepared.manifest)
                     if (restorePreferences) preferences.replace(prepared.expectedPreferences, applied, operation)
                 }.also { recoverLocked() }
@@ -122,6 +128,47 @@ class LocalBackupService(
 
     fun discard(prepared: PreparedBackup?) {
         if (prepared != null && prepared.stage.canonicalFile.parentFile == locations.cache.canonicalFile) prepared.stage.deleteRecursively()
+    }
+
+    /**
+     * 附件按会话落盘后的落点：
+     * - `attachments/sessions/<sid>/...` 直接回会话目录（guest 路径不变）；
+     * - skills / legacy 回到全局根；
+     * - 旧备份的扁平 `attachments/<name>` 先放 legacy，随后按消息引用复制到会话；
+     * - 其余（技能快照、超长载荷）仍落在 `restored_<op>` 恢复根下。
+     */
+    private fun restoreTargetFor(path: String, root: File, liveAttachments: File): File = when {
+        path.startsWith("attachments/sessions/") ->
+            File(AttachmentPaths.sessionsRoot(locations.files), path.removePrefix("attachments/sessions/"))
+        path.startsWith("attachments/skills/") || path.startsWith("attachments/legacy/") ->
+            File(liveAttachments, path.removePrefix("attachments/"))
+        path.startsWith("attachments/") && '/' !in path.removePrefix("attachments/") ->
+            File(AttachmentPaths.orphan(locations.files), path.removePrefix("attachments/"))
+        else -> File(root, path)
+    }
+
+    /** 旧格式备份没有会话归属：按恢复出的消息引用把文件复制进各自会话目录。 */
+    private fun attributeLegacyAttachments(records: BackupRecords, liveAttachments: File) {
+        val owners = linkedMapOf<String, MutableSet<String>>()
+        records.tables["harness_entries"].orEmpty().forEach { row ->
+            val sessionId = row["sessionId"]?.jsonPrimitive?.contentOrNull ?: return@forEach
+            val payload = row["payloadJson"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            AttachmentMigrator.referencedAttachmentNames(payload).forEach { name ->
+                owners.getOrPut(name) { linkedSetOf() }.add(sessionId)
+            }
+        }
+        val orphanRoot = AttachmentPaths.orphan(locations.files)
+        owners.forEach { (name, sessions) ->
+            val source = File(orphanRoot, name)
+            if (!source.isFile) return@forEach
+            sessions.forEach { sessionId ->
+                val target = File(AttachmentPaths.session(locations.files, sessionId), name)
+                if (!target.exists()) runCatching {
+                    target.parentFile?.mkdirs()
+                    source.copyTo(target)
+                }
+            }
+        }
     }
 
     private suspend fun recoverLocked() {

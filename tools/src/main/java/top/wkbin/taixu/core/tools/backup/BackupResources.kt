@@ -3,6 +3,7 @@ package top.wkbin.taixu.core.tools.backup
 import kotlinx.serialization.json.*
 import top.wkbin.taixu.core.database.HarnessBlobStore
 import top.wkbin.taixu.core.model.*
+import top.wkbin.taixu.runtime.AttachmentPaths
 import java.io.File
 import java.nio.file.Files
 import java.security.MessageDigest
@@ -69,10 +70,10 @@ internal class BackupResources(private val locations: BackupLocations) {
         fun rewrite(text: String): String = text
             .replace("/attachments/__backup__/", "__BACKUP_SKILLS__/")
             .replace(manifest.sourceAttachments, "__BACKUP_ATTACHMENT_ROOT__")
-            .replace("/attachments/", "__BACKUP_GUEST_ATTACHMENTS__/")
             .replace(manifest.sourceWorkspace, locations.workspace.absolutePath)
-            .replace("__BACKUP_ATTACHMENT_ROOT__", File(root, "attachments").absolutePath)
-            .replace("__BACKUP_GUEST_ATTACHMENTS__", "$guest/attachments")
+            // 附件按会话落盘后，guest 路径 /attachments/<name> 保持不变即可解析到会话目录，
+            // 因此不再加 restored_<op> 前缀；只有备份出来的技能目录仍放在恢复根下。
+            .replace("__BACKUP_ATTACHMENT_ROOT__", AttachmentPaths.global(locations.files).absolutePath)
             .replace("__BACKUP_SKILLS__", guest)
         return BackupRecords(records.tables.mapValues { (table, rows) -> rows.map { row ->
             JsonObject(row.mapValues { (_, value) -> if (value is JsonPrimitive && value.isString) JsonPrimitive(rewrite(value.content)) else value }
@@ -107,8 +108,7 @@ internal class BackupResources(private val locations: BackupLocations) {
         // Referenced large payload files contain the same absolute/guest attachment paths as inline messages.
         manifest.assets.filter { it.path.startsWith("harness_blobs/") }.forEach {
             val file = File(root, it.path)
-            val text = file.readText().replace(manifest.sourceAttachments, File(root, "attachments").absolutePath)
-                .replace("/attachments/", "/attachments/${root.name}/attachments/")
+            val text = file.readText().replace(manifest.sourceAttachments, AttachmentPaths.global(locations.files).absolutePath)
             file.writeText(text)
         }
     }

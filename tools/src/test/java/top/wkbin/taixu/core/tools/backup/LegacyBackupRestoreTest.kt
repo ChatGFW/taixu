@@ -11,6 +11,7 @@ import top.wkbin.taixu.core.database.BackupRecordPolicy
 import top.wkbin.taixu.core.database.DatabaseBackupRepository
 import top.wkbin.taixu.core.datastore.BackupPreferenceStore
 import top.wkbin.taixu.core.model.*
+import top.wkbin.taixu.runtime.AttachmentPaths
 import java.io.File
 import java.nio.file.Files
 
@@ -42,6 +43,53 @@ class LegacyBackupRestoreTest {
             assertEquals("旧会话", restored.getValue("title").jsonPrimitive.content)
             assertNotNull(repository.committedOperation)
             assertFalse(File(locations.files, "backup-state/pending.json").exists())
+        } finally {
+            service.discard(prepared)
+            temp.deleteRecursively()
+        }
+    }
+
+    @Test fun `legacy flat attachments land in the referencing session directory`() = runBlocking {
+        val temp = Files.createTempDirectory("legacy-attach").toFile()
+        var prepared: PreparedBackup? = null
+        val filesDir = File(temp, "files")
+        val locations = BackupLocations(filesDir, AttachmentPaths.global(filesDir),
+            File(filesDir, "workspace"), File(temp, "cache"))
+        val repository = MemoryRepository()
+        val service = LocalBackupService(repository, EmptyPreferences, locations)
+        try {
+            val records = repository.records.copy(tables = repository.records.tables + mapOf(
+                "harness_sessions" to listOf(buildJsonObject {
+                    put("id", "s1"); put("title", "会话"); put("approvalMode", "assisted")
+                }),
+                "harness_entries" to listOf(buildJsonObject {
+                    put("id", "e1"); put("sessionId", "s1"); put("parentId", JsonNull)
+                    put("createdAt", 1L); put("entryType", "message"); put("customType", "user")
+                    put("payloadJson", """{"text":"see /attachments/a.png"}""")
+                }),
+            ))
+            val assetsDir = File(temp, "assets").apply { mkdirs() }
+            val source = File(assetsDir, "attachments/a.png").apply {
+                parentFile?.mkdirs()
+                writeText("img")
+            }
+            val archive = File(temp, "legacy-attach.zip")
+            BackupArchive.write(
+                archive,
+                LocalBackupManifest(
+                    createdAt = 1L, records = records, preferences = JsonObject(emptyMap()),
+                    assets = listOf(BackupAsset("attachments/a.png", source.length(), BackupArchive.digest(source))),
+                    sourceFiles = locations.files.absolutePath,
+                    sourceAttachments = locations.attachments.absolutePath,
+                    sourceWorkspace = locations.workspace.absolutePath,
+                ),
+                assetsDir,
+            )
+            val preview = archive.inputStream().use { service.preview(it) }
+            prepared = preview
+            service.restore(preview, restorePreferences = false)
+
+            assertTrue(File(AttachmentPaths.session(filesDir, "s1"), "a.png").isFile)
         } finally {
             service.discard(prepared)
             temp.deleteRecursively()

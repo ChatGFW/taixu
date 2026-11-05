@@ -29,6 +29,7 @@ class AttachmentMigrator(
 
     suspend fun migrate(references: List<Pair<String, String>>): Summary = withContext(Dispatchers.IO) {
         val global = AttachmentPaths.global(filesDir)
+        relocateLegacySessionRoots()
         val marker = File(global, MARKER_NAME)
         if (marker.exists()) return@withContext Summary(0, 0, 0, skipped = true)
         global.mkdirs()
@@ -92,6 +93,29 @@ class AttachmentMigrator(
         Summary(moved, copied, orphaned, skipped = false)
     }
 
+    /**
+     * v2 曾把会话目录放在 `linux-runtime/sessions/<sid>/attachments`；
+     * v3 起统一收进 `attachments/sessions/<sid>`，让本地备份能覆盖到。
+     * 在 marker 判断之前执行，保证已经迁移过的设备也能完成这次搬迁。
+     */
+    private fun relocateLegacySessionRoots() {
+        val legacyRoot = File(AttachmentPaths.base(filesDir), "sessions")
+        if (!legacyRoot.isDirectory) return
+        var moved = 0
+        legacyRoot.listFiles().orEmpty().forEach { sessionDir ->
+            val source = File(sessionDir, "attachments")
+            if (!source.isDirectory) return@forEach
+            val target = AttachmentPaths.session(filesDir, sessionDir.name)
+            source.listFiles().orEmpty().forEach { file ->
+                if (moveInto(file, target)) moved++
+            }
+            runCatching { source.delete() }
+            runCatching { sessionDir.delete() }
+        }
+        runCatching { legacyRoot.delete() }
+        if (moved > 0) logger.i("附件会话目录已迁移到 attachments/sessions：$moved 个文件")
+    }
+
     private fun action(name: String, action: String, targets: List<String>): Map<String, String> =
         mapOf("name" to name, "action" to action, "targets" to targets.joinToString(","))
 
@@ -131,7 +155,7 @@ class AttachmentMigrator(
             val globalFiles = global.listFiles().orEmpty().count { it.isFile && !it.name.startsWith(".") }
             val legacyFiles = legacy.listFiles().orEmpty().count { it.isFile }
             val sessions = AttachmentPaths.sessionsRoot(filesDir).listFiles().orEmpty()
-                .count { File(it, "attachments").isDirectory }
+                .count { it.isDirectory && !it.name.startsWith(".") }
             val migrated = File(global, MARKER_NAME).exists()
             return "global=$globalFiles legacy=$legacyFiles sessions=$sessions migrated=${if (migrated) "yes" else "no"}"
         }

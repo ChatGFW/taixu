@@ -20,7 +20,8 @@ object AttachmentPaths {
 
     fun orphan(filesDir: File): File = File(global(filesDir), "legacy")
 
-    fun sessionsRoot(filesDir: File): File = File(base(filesDir), "sessions")
+    /** 会话目录放在全局附件根下，本地备份的递归收集与恢复路径才能自然覆盖。 */
+    fun sessionsRoot(filesDir: File): File = File(global(filesDir), "sessions")
 
     /**
      * 会话私有附件目录；`sessionId` 为空时回退到全局目录，
@@ -28,7 +29,7 @@ object AttachmentPaths {
      */
     fun session(filesDir: File, sessionId: String?): File =
         sessionId?.takeIf { it.isNotBlank() }
-            ?.let { File(File(File(base(filesDir), "sessions"), segment(it)), "attachments") }
+            ?.let { File(sessionsRoot(filesDir), segment(it)) }
             ?: global(filesDir)
 
     /** 会话 ID 只作为单段目录名使用，防路径穿越。 */

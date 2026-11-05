@@ -71,6 +71,17 @@ class AttachmentMigratorTest {
         assertTrue(sessionFile("s1", "a.png").isFile)
     }
 
+    @Test fun relocatesV2SessionRootsIntoTheAttachmentsTree() = runBlocking {
+        val legacy = File(AttachmentPaths.base(filesDir), "sessions/s1/attachments")
+        legacy.mkdirs()
+        File(legacy, "x.png").writeText("x")
+
+        migrator.migrate(emptyList())
+
+        assertTrue(File(AttachmentPaths.session(filesDir, "s1"), "x.png").isFile)
+        assertFalse(legacy.exists())
+    }
+
     @Test fun inspectReportsWhereFilesEndedUp() = runBlocking {
         writeGlobal("a.png")
         writeGlobal("skills/keep.md", "skill")
