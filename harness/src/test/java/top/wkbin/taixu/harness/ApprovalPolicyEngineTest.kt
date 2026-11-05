@@ -81,6 +81,27 @@ class ApprovalPolicyEngineTest {
         assertTrue(policy.decide(ApprovalMode.ASSISTED, HarnessTool.WRITE, args("path" to "../other/file.txt", "content" to "x"), workspace).required)
 
         assertTrue(policy.decide(ApprovalMode.ASSISTED, HarnessTool.BASE, args("command" to "rm -rf /"), workspace).required)
+    }
+
+    @Test
+    fun `capability commands never auto approve under assisted mode`() {
+        listOf(
+            "taixu-open https://example.com",
+            "taixu-clipboard set hello",
+            "taixu-notify 构建完成",
+            "taixu-setting put system screen_brightness 120",
+            "taixu-app start com.example.app",
+            "taixu-screen tap 540 1200",
+            "taixu-screen shot",
+            "taixu-host shell ls",
+        ).forEach { command ->
+            assertTrue(
+                "$command 必须要求审批",
+                policy.decide(ApprovalMode.ASSISTED, HarnessTool.BASE, args("command" to command), workspace).required,
+            )
+        }
+        // 对照组：普通只读命令仍自动放行，说明上面不是因为整类 BASE 被一刀切。
+        assertFalse(policy.decide(ApprovalMode.ASSISTED, HarnessTool.BASE, args("command" to "ls -la"), workspace).required)
         assertEquals("critical", policy.decide(ApprovalMode.ASSISTED, HarnessTool.BASE, args("command" to "rm -rf /"), workspace).riskLevel)
         assertTrue(policy.decide(ApprovalMode.ASSISTED, HarnessTool.BASE, args("command" to "curl https://example.com"), workspace).required)
         assertTrue(policy.decide(ApprovalMode.ASSISTED, HarnessTool.BASE, args("command" to "apt-get install ripgrep"), workspace).required)
