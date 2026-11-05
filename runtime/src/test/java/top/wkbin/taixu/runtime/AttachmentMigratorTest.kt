@@ -30,6 +30,16 @@ class AttachmentMigratorTest {
 
     private fun sessionFile(sessionId: String, name: String) = File(AttachmentPaths.session(filesDir, sessionId), name)
 
+    @Test fun sessionSegmentsCannotEscapeTheAttachmentsTree() {
+        val root = AttachmentPaths.sessionsRoot(filesDir).canonicalPath
+        listOf("../../etc", "a/b", "..", ".", "___", "s-1").forEach { raw ->
+            val dir = AttachmentPaths.session(filesDir, raw).canonicalPath
+            assertTrue("$raw -> $dir", dir.startsWith(root))
+        }
+        // 空会话是"无会话上下文"的显式回退，落到共享根而不是任何会话目录。
+        assertEquals(AttachmentPaths.global(filesDir).canonicalPath, AttachmentPaths.session(filesDir, "").canonicalPath)
+    }
+
     @Test fun extractsOnlyAttachmentNames() {
         assertEquals(
             setOf("a.png", "b.txt"),

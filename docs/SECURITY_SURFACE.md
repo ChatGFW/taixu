@@ -133,12 +133,15 @@ GitHub 外部插件 1.0.1 使用官方 gh，Token 明文 0600、数据目录 070
 | workspace 目录 | `/workspace` | Agent 工作区 |
 | home 目录 | `/root` | guest HOME |
 | opt 目录（含 `bin/taixu-host`、`bin/taixu-android-exec`） | `/opt/taixu` | 桥接脚本；**不含任何密钥文件**，凭据由宿主经环境注入 |
-| attachments 目录 | `/attachments` | 会话附件 |
+| 会话附件目录 `attachments/sessions/<sid>` | `/attachments` | 按发起会话绑定；其它会话的文件在 guest 内不可见 |
+| 全局技能目录 `attachments/skills` | `/attachments/skills` | 覆盖在会话附件之上，不随会话隔离 |
 | link2symlink 后备存储 | 同名绝对路径 | `rootfs/.l2s` 硬链接代理 |
 | 用户配置存储挂载 | `/sdcard/*` 等自定义 guest 路径 | `StorageMountBinding.validationError` 校验 + `require` 硬门槛，DB 被篡改也不放行越界绑定（`ProotCommandBuilder.kt:236-255`） |
 
 要点：
 
+- **附件隔离的边界**：`/attachments` 只挂发起会话的私有目录，`/workspace`、`/root` 仍是跨会话共享——这条隔离解决的是"会话之间读不到彼此上传的文件"，不是完整的多租户边界。
+- 没有会话上下文的命令（workflow、插件、PTY 几何调整）绑定共享根 `attachments/`，因此看不到任何会话附件；历史附件由启动期迁移按消息引用搬入会话目录，本地备份递归覆盖 `attachments/` 并在恢复时按会话落盘。
 - guest 内进程对上述挂载的读写权限等于 App 对这些目录的权限；rootfs 本身就在 App 私有目录里。
 - guest「root」是 PRoot 虚拟身份，不能越过 Android 对 App uid 的限制；setuid 位不生效（`DistroConfigurator` 的 apt hook 主动清除 setuid，避免 dpkg 卡死）。
 

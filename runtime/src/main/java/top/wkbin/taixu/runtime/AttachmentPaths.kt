@@ -32,7 +32,13 @@ object AttachmentPaths {
             ?.let { File(sessionsRoot(filesDir), segment(it)) }
             ?: global(filesDir)
 
-    /** 会话 ID 只作为单段目录名使用，防路径穿越。 */
-    fun segment(raw: String): String =
-        raw.replace(Regex("[^A-Za-z0-9._-]"), "_").take(120).ifBlank { "unknown" }
+    /**
+     * 会话 ID 只作为单段目录名使用，防路径穿越。
+     * 必须至少含一个字母或数字：`.`、`..`、`___` 这类名字会被整段替换成 `unknown`，
+     * 否则 `File(root, "..")` 会指到会话根之外。
+     */
+    fun segment(raw: String): String {
+        val sanitized = raw.replace(Regex("[^A-Za-z0-9._-]"), "_").take(120)
+        return sanitized.takeIf { it.any { ch -> ch.isLetterOrDigit() } } ?: "unknown"
+    }
 }
