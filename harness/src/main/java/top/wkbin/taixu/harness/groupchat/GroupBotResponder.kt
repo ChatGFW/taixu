@@ -36,6 +36,7 @@ internal class GroupBotResponder(
     private val workGraceMs: Long = WORK_GRACE_MS,
     private val taskTracker: GroupReplyTaskTracker? = null,
     private val contextScope: GroupContextScope? = null,
+    private val bindAttachments: suspend (String, String) -> Unit = { _, _ -> },
 ) {
     private val observer = GroupReplyObserver(sessionControl, logger, taskTracker)
     private val lateReplyWatcher = GroupLateReplyWatcher(
@@ -101,6 +102,7 @@ internal class GroupBotResponder(
             val resolvedHistory = if (promptHistory != null) contextScope?.history(group, bot.id, sessionId, true) ?: promptHistory
                 else contextBinding?.history ?: contextScope?.history(group, bot.id, sessionId, false) ?: history
             val prompt = buildGroupPrompt(group, bot, trigger, resolvedHistory, members, groupRepository.getTeam(group.id), groupRepository.getGovernance(group.id))
+            bindAttachments(sessionId, prompt)
             if (deliveryId != null) {
                 check(groupRepository.prepareDelivery(deliveryId, sessionId)) { "收件已停止、成员已移出或来源已清除" }
             }

@@ -16,7 +16,9 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.runtime.AttachmentMigrator
 import top.wkbin.taixu.runtime.RuntimePathManager
+import top.wkbin.taixu.runtime.gui.HostGuiController
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import java.net.InetAddress
 import java.net.ServerSocket
@@ -48,6 +50,7 @@ class HostBridge(
     private val embeddedAdbManager: EmbeddedAdbManager,
     private val pathManager: RuntimePathManager,
     private val credentialAuthority: HostCredentialAuthority,
+    private val guiController: HostGuiController? = null,
 ) {
     companion object {
         const val BRIDGE_PORT = 7980
@@ -62,6 +65,10 @@ class HostBridge(
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     private val apkInstall = HostBridgeApkInstall(context, logger, embeddedAdbManager, pathManager)
+
+    private val capabilities = HostCapabilityActions(context, privilegeManager, guiController, pathManager.workspaceDir)
+
+    private val controlEndpoints = HostControlEndpoints(json, capabilities)
 
     private val pluginGateway = PluginHostGateway(
         appInfo = {
@@ -151,13 +158,13 @@ class HostBridge(
         try {
             client.soTimeout = READ_TIMEOUT_MS
             val request = parseHttpRequest(client.getInputStream()) ?: run {
-                writeResponse(client, 400, errorJson("Failed to parse HTTP request"))
+                writeResponse(client, 400, errorJson("Failed to parse HTTP request", HostFailure.USAGE))
                 return
             }
             val response = route(request)
             writeResponse(client, response.status, response.body)
         } catch (e: Exception) {
-            runCatching { writeResponse(client, 500, errorJson("Internal error: ${e.message}")) }
+            runCatching { writeResponse(client, 500, errorJson("Internal error: ${e.message}", HostFailure.INTERNAL)) }
         } finally {
             runCatching { client.close() }
         }
@@ -168,22 +175,36 @@ class HostBridge(
         pluginGateway.route(request)?.let { return HttpResponse(it.status, it.body) }
         // health 端点免认证（只暴露特权/ADB 状态，无凭证）
         if (request.method == "GET" && request.path.startsWith("/api/health")) return handleHealth()
+        if (request.method == "GET" && request.path.startsWith("/api/doctor")) return handleDoctor()
 
         // 每个写端点绑定一个结构化动作；未知路径也先过"有效凭据"这一关再 404，避免未认证探测面。
         val action = when {
             request.method == "POST" && request.path.startsWith("/api/install-apk") -> "host.install-apk"
             request.method == "POST" && request.path.startsWith("/api/shell") -> "host.shell"
             request.method == "POST" && request.path.startsWith("/api/logcat") -> "host.logcat"
+            request.method == "POST" && request.path.startsWith("/api/open") -> "host.open"
+            request.method == "POST" && request.path.startsWith("/api/clipboard") -> "host.clipboard"
+            request.method == "POST" && request.path.startsWith("/api/notify") -> "host.notify"
+            request.method == "POST" && request.path.startsWith("/api/settings") -> "host.settings"
+            request.method == "POST" && request.path.startsWith("/api/app") -> "host.app"
+            request.method == "POST" && request.path.startsWith("/api/screen") -> "host.screen"
             else -> null
         }
         if (!credentialAuthority.authorize(bearerToken(request.headers), action)) {
-            return HttpResponse(401, errorJson("Unauthorized: missing or invalid bridge credential"))
+            return HttpResponse(
+                401,
+                errorJson("Unauthorized: missing or invalid bridge credential", HostFailure.PERMISSION_DENIED),
+            )
         }
         return when (action) {
             "host.install-apk" -> handleInstallApk(request.body)
             "host.shell" -> handleShell(request.body)
             "host.logcat" -> handleLogcat(request.body)
-            else -> HttpResponse(404, errorJson("Not found: ${request.method} ${request.path}"))
+            "host.open" -> handleOpen(request.body)
+            "host.clipboard" -> handleClipboard(request.body)
+            "host.notify" -> handleNotify(request.body)
+            "host.settings", "host.app", "host.screen" -> controlEndpoints.handle(action, request.body)
+            else -> HttpResponse(404, errorJson("Not found: ${request.method} ${request.path}", HostFailure.NOT_FOUND))
         }
     }
 
@@ -212,16 +233,23 @@ class HostBridge(
         return HttpResponse(200, body)
     }
 
+    private suspend fun handleDoctor(): HttpResponse {
+        val info = privilegeManager.getPrivilegeInfo()
+        val adb = embeddedAdbManager.state.value is EmbeddedAdbManager.ConnectionState.Connected
+        val attachments = AttachmentMigrator.inspect(context.filesDir)
+        return HttpResponse(200, hostDoctorReport(info, adb, guiController != null, BRIDGE_PORT, attachments))
+    }
+
     private suspend fun handleInstallApk(body: String): HttpResponse {
         val apkPath = try {
             val obj = json.parseToJsonElement(body).jsonObject
             obj["path"]?.jsonPrimitive?.content
         } catch (e: Exception) {
-            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}"))
+            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}", HostFailure.USAGE))
         }
 
         if (apkPath.isNullOrBlank()) {
-            return HttpResponse(400, errorJson("Missing 'path' field"))
+            return HttpResponse(400, errorJson("Missing 'path' field", HostFailure.USAGE))
         }
         return apkInstall.installAt(apkPath)
     }
@@ -230,43 +258,37 @@ class HostBridge(
         val obj = try {
             json.parseToJsonElement(body).jsonObject
         } catch (e: Exception) {
-            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}"))
+            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}", HostFailure.USAGE))
         }
 
         val command = obj["command"]?.jsonPrimitive?.content
         if (command.isNullOrBlank()) {
-            return HttpResponse(400, errorJson("Missing 'command' field"))
+            return HttpResponse(400, errorJson("Missing 'command' field", HostFailure.USAGE))
         }
 
         val info = privilegeManager.getPrivilegeInfo()
         val responseJson = if (info.modeActive && (info.shizukuAvailable || info.rootAvailable)) {
             val result = privilegeManager.executeShellCommand(command)
-            buildJsonObject {
-                put("success", result.success)
-                put("exitCode", result.exitCode)
-                put("stdout", result.stdout)
-                put("stderr", result.stderr)
-                put("channel", "privilege")
-            }
+            hostShellJson(result.success, result.exitCode, result.stdout, result.stderr, "privilege")
         } else {
             // 端口固定由内置无线 ADB 管理器持有；沙箱不得传入任意端口作为回退通道。
             val adbResult = embeddedAdbManager.executeShell(command, null)
-            buildJsonObject {
-                put("success", adbResult.success)
-                put("exitCode", adbResult.exitCode ?: if (adbResult.success) 0 else 1)
-                put("stdout", if (adbResult.success) adbResult.output else "")
-                put("stderr", if (!adbResult.success) adbResult.output else "")
-                put("channel", "wireless-adb")
-            }
+            hostShellJson(
+                success = adbResult.success,
+                exitCode = adbResult.exitCode ?: if (adbResult.success) 0 else 1,
+                stdout = if (adbResult.success) adbResult.output else "",
+                stderr = if (adbResult.success) "" else adbResult.output,
+                channel = "wireless-adb",
+            )
         }
-        return HttpResponse(200, responseJson.toString())
+        return HttpResponse(200, responseJson)
     }
 
     private suspend fun handleLogcat(body: String): HttpResponse {
         val obj = try {
             json.parseToJsonElement(body).jsonObject
         } catch (e: Exception) {
-            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}"))
+            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}", HostFailure.USAGE))
         }
 
         val clear = obj["clear"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: false
@@ -295,17 +317,71 @@ class HostBridge(
             explicitPort = null,
         )
 
+        val exitCode = result.exitCode ?: if (result.success) 0 else 1
         return HttpResponse(200, buildJsonObject {
             put("success", result.success)
-            put("exitCode", result.exitCode ?: if (result.success) 0 else 1)
+            put("exitCode", exitCode)
+            if (!result.success) {
+                HostFailure.ofShellExit(exitCode, result.output)?.let { put("failure", it.wire) }
+            }
             put("output", result.output)
         }.toString())
     }
 
+    private fun handleOpen(body: String): HttpResponse {
+        val uri = try {
+            json.parseToJsonElement(body).jsonObject["uri"]?.jsonPrimitive?.content
+        } catch (e: Exception) {
+            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}", HostFailure.USAGE))
+        }
+        if (uri.isNullOrBlank()) return HttpResponse(400, errorJson("Missing 'uri' field", HostFailure.USAGE))
+        return capabilityResponse(capabilities.open(uri))
+    }
+
+    private fun handleClipboard(body: String): HttpResponse {
+        val text = try {
+            json.parseToJsonElement(body).jsonObject["text"]?.jsonPrimitive?.content
+        } catch (e: Exception) {
+            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}", HostFailure.USAGE))
+        }
+        if (text.isNullOrEmpty()) return HttpResponse(400, errorJson("Missing 'text' field", HostFailure.USAGE))
+        return capabilityResponse(capabilities.writeClipboard(text))
+    }
+
+    private fun handleNotify(body: String): HttpResponse {
+        val (title, text) = try {
+            val obj = json.parseToJsonElement(body).jsonObject
+            obj["title"]?.jsonPrimitive?.content to (obj["body"]?.jsonPrimitive?.content.orEmpty())
+        } catch (e: Exception) {
+            return HttpResponse(400, errorJson("Invalid JSON body: ${e.message}", HostFailure.USAGE))
+        }
+        if (title.isNullOrBlank()) return HttpResponse(400, errorJson("Missing 'title' field", HostFailure.USAGE))
+        return capabilityResponse(capabilities.notify(title, text))
+    }
+
+    /** 能力动作失败仍走 200 + success=false，与 shell 端点一致；失败类别由 failure 字段表达。 */
+    private fun capabilityResponse(outcome: HostCapabilityActions.Outcome): HttpResponse = when (outcome) {
+        is HostCapabilityActions.Outcome.Ok -> HttpResponse(200, HostJson.ok(outcome.output))
+        is HostCapabilityActions.Outcome.Rejected -> HttpResponse(200, errorJson(outcome.message, outcome.failure))
+    }
+
     // ============================ 工具方法 ============================
 
-    private fun errorJson(message: String): String = buildJsonObject {
-        put("success", false)
-        put("error", message)
+    /** shell 通道的统一回包：失败时把退出码翻译成 agent 可据以决策的失败分类。 */
+    private fun hostShellJson(
+        success: Boolean,
+        exitCode: Int,
+        stdout: String,
+        stderr: String,
+        channel: String,
+    ): String = buildJsonObject {
+        put("success", success)
+        put("exitCode", exitCode)
+        if (!success) HostFailure.ofShellExit(exitCode, stderr)?.let { put("failure", it.wire) }
+        put("stdout", stdout)
+        put("stderr", stderr)
+        put("channel", channel)
     }.toString()
+
+    private fun errorJson(message: String, failure: HostFailure? = null): String = HostJson.error(message, failure)
 }

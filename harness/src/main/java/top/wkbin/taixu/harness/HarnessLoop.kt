@@ -122,7 +122,6 @@ class HarnessLoop(
 
     private val sessionJobs = ConcurrentHashMap<String, Job>()
     private val sessionCancelEpochs = ConcurrentHashMap<String, AtomicLong>()
-    private val foregroundLoadGeneration = AtomicLong()
     private val cancellingSessions = CancellingFlags()
     private val sessionLoopDetectors = ConcurrentHashMap<String, ToolCallLoopDetector>()
     /** Sessions being deleted; reject new runs and skip pending drainage. */
@@ -290,14 +289,11 @@ class HarnessLoop(
 
     /** 新建会话。workspace 为关联的工作区 Linux 路径（如 /workspace/proj），空串表示不关联。 */
     override suspend fun newSession(title: String, workspace: String, projectType: String): String {
+        val selection = sessionTracker.reserveSelection()
         val id = UUID.randomUUID().toString()
         val executionTarget = executionEnvironments?.captureTarget(workspace)
         val defaultModel = modelRepository.activeModel()
-        foregroundLoadGeneration.incrementAndGet()
         tombstonedSessions.remove(id)
-        sessionTracker.setCurrent(id)
-        _workspace.value = workspace
-        _projectType.value = projectType
         sessionDao.upsert(
             HarnessSessionEntity(
                 id = id,
@@ -313,12 +309,16 @@ class HarnessLoop(
             ),
         )
         executionEnvironments?.bindSession(id, workspace)
+        currentCoroutineContext().ensureActive()
         messageProjector.seedEmpty(id)
-        messageProjector.resetForegroundProjection(emptyList())
         _sessionPendingMessages[id] = MutableStateFlow(emptyList())
         stateMirrors.ensureFlows(id)
         stateMirrors.setRunState(id, SessionRunState.IDLE)
         stateMirrors.setStatus(id, null)
+        if (!sessionTracker.selectIfLatest(selection, id)) return id
+        _workspace.value = workspace
+        _projectType.value = projectType
+        messageProjector.resetForegroundProjection(emptyList())
         stateMirrors.resetForeground()
         _pendingMessages.value = emptyList()
         _queuedPrompts.value = emptyList()
@@ -328,16 +328,15 @@ class HarnessLoop(
 
     /** 恢复已有会话的历史消息与工作区关联，不中断正在后台运行的任何会话。 */
     override suspend fun loadSession(id: String) {
-        val generation = foregroundLoadGeneration.incrementAndGet()
-        sessionTracker.setCurrent(id)
+        val generation = sessionTracker.select(id)
         val sessionEntity = withContext(Dispatchers.IO) { sessionDao.findById(id) }
-        if (foregroundLoadGeneration.get() != generation || sessionTracker.currentSessionId.value != id) return
+        if (!sessionTracker.isSelectionCurrent(generation, id)) return
         _workspace.value = sessionEntity?.workspace.orEmpty()
         _projectType.value = sessionEntity?.projectType.orEmpty()
         refreshMcpRecommendations(_workspace.value)
 
         val liveFlow = messageProjector.preparedForLoad(id)
-        if (foregroundLoadGeneration.get() != generation || sessionTracker.currentSessionId.value != id) return
+        if (!sessionTracker.isSelectionCurrent(generation, id)) return
 
         messageProjector.resetForegroundProjection(liveFlow.value)
         stateMirrors.setForegroundRunning(sessionJobs[id]?.isActive == true)
@@ -347,7 +346,7 @@ class HarnessLoop(
         refreshPendingProjection(id)
 
         val hasPendingApprovals = withContext(Dispatchers.IO) { approvalRepository.pendingNow(id).isNotEmpty() }
-        if (foregroundLoadGeneration.get() != generation || sessionTracker.currentSessionId.value != id) return
+        if (!sessionTracker.isSelectionCurrent(generation, id)) return
         if (hasPendingApprovals) {
             stateMirrors.setRunState(id, SessionRunState.WAITING_APPROVAL)
             stateMirrors.setStatus(id, "等待用户批准")
@@ -565,7 +564,7 @@ class HarnessLoop(
                 !tombstonedSessions.contains(sessionId) && sessionDao.findById(sessionId) != null
             override fun busy(sessionId: String) = isSessionBusy(sessionId)
             override suspend fun settleExpiredApprovals(sessionId: String) { checkAndSettleExpiredApprovalsLocked(sessionId) }
-            override suspend fun hasNextRun(sessionId: String) = promptQueueManager.first(sessionId, PromptQueue.NEXT_RUN) != null
+            override suspend fun hasNextRun(sessionId: String) = promptQueueManager.list(sessionId, PromptQueue.NEXT_RUN).isNotEmpty()
             override suspend fun record(sessionId: String, input: PendingMessage) { queuedInstructions.record(sessionId, input) }
             override suspend fun enqueue(sessionId: String, queue: PromptQueue, input: PendingMessage) =
                 promptQueueManager.enqueue(sessionId, queue, input)
@@ -695,10 +694,8 @@ class HarnessLoop(
 
         startSessionRun(sessId) {
             val current = messageProjector.messagesFlow(sessId).value
-            val targetIndex = current.indexOfFirst { it.id == userMessageId }
-            if (targetIndex < 0) {
-                return@startSessionRun runLoop(sessId, trimmed)
-            }
+            val targetIndex = current.indexOfFirst { it.id == userMessageId && it is UserMessage }
+            if (targetIndex < 0) return@startSessionRun RunResult.Completed
             val targetMessage = current[targetIndex]
             val toKeep = current.subList(0, targetIndex)
             messageProjector.replaceAll(sessId, toKeep)
@@ -800,45 +797,42 @@ class HarnessLoop(
         }
     }
 
-    /** 移除某会话排队中的消息 */
-    override fun removePendingMessage(index: Int, targetSessionId: String?) {
-        val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
-        if (sessId.isBlank()) return
-        loopScope.launch {
-            val taskId = promptQueueManager.list(sessId, PromptQueue.NEXT_RUN)
-                .getOrNull(index)?.second?.taskId
-            promptQueueManager.cancel(sessId, PromptQueue.NEXT_RUN, index)
-            taskId?.let { agentTaskStateMachine.markCancelled(it, "已从等待队列移除") }
-            refreshPendingProjection(sessId)
-        }
-    }
+    override fun removePendingMessage(index: Int, targetSessionId: String?) =
+        removeQueuedPrompt(PromptQueue.NEXT_RUN, index, targetSessionId)
 
     override fun removeQueuedPrompt(queue: PromptQueue, index: Int, targetSessionId: String?) {
-        val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
-        if (sessId.isBlank()) return
-        loopScope.launch {
-            val taskId = if (queue == PromptQueue.NEXT_RUN) {
-                promptQueueManager.list(sessId, queue).getOrNull(index)?.second?.taskId
-            } else {
-                null
-            }
-            promptQueueManager.cancel(sessId, queue, index)
-            taskId?.let { agentTaskStateMachine.markCancelled(it, "已从等待队列移除") }
+        val sessId = targetSessionId?.ifBlank { null } ?: currentSessionId.value
+        loopScope.launch { turnCoordinator.withSessionMutex(sessId) {
+            val item = promptQueueManager.list(sessId, queue).getOrNull(index)
+            val removed = item?.let { promptQueueManager.removeById(sessId, it.first) }
+            removed?.message?.taskId?.let { agentTaskStateMachine.markCancelled(it, "已从等待队列移除") }
             refreshPendingProjection(sessId)
-        }
+        } }
     }
+
+    private val queueActions by lazy {
+        top.wkbin.taixu.harness.queue.QueuedPromptActions(promptQueueManager, turnCoordinator, loopScope,
+            ::isSessionBusy, { startNextQueuedLocked(it) }, ::refreshPendingProjection,
+            { agentTaskStateMachine.markCancelled(it, "已从等待队列移除") },
+            { sessionId, error -> logger.e("Queue update failed for $sessionId", error); stateMirrors.setError(sessionId, "队列操作失败，请重试") })
+    }
+    override fun removeQueuedPromptById(sessionId: String, itemId: String) = queueActions.removeQueuedPromptById(sessionId, itemId)
+    override suspend fun convertQueuedPromptToSteer(sessionId: String, itemId: String) = queueActions.convertQueuedPromptToSteer(sessionId, itemId)
+    override suspend fun beginQueuedPromptEdit(sessionId: String, itemId: String, token: String) = queueActions.beginQueuedPromptEdit(sessionId, itemId, token)
+    override suspend fun saveQueuedPromptEdit(sessionId: String, itemId: String, token: String, text: String) = queueActions.saveQueuedPromptEdit(sessionId, itemId, token, text)
+    override fun cancelQueuedPromptEdit(sessionId: String, itemId: String, token: String) = queueActions.cancelQueuedPromptEdit(sessionId, itemId, token)
 
     /** 清空某会话全部排队消息 */
     override fun clearPendingMessages(targetSessionId: String?) {
         val sessId = targetSessionId?.ifBlank { null } ?: sessionTracker.currentSessionId.value
         if (sessId.isBlank()) return
-        loopScope.launch {
+        loopScope.launch { turnCoordinator.withSessionMutex(sessId) {
             val queuedTaskIds = promptQueueManager.list(sessId, PromptQueue.NEXT_RUN)
                 .mapNotNull { it.second.taskId }
             promptQueueManager.clear(sessId, PromptQueue.NEXT_RUN)
             queuedTaskIds.forEach { agentTaskStateMachine.markCancelled(it, "等待队列已清空") }
             refreshPendingProjection(sessId)
-        }
+        } }
     }
 
     private suspend fun refreshPendingProjection(sessId: String) {

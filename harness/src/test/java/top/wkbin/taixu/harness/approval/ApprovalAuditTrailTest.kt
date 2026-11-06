@@ -196,13 +196,14 @@ class ApprovalAuditTrailTest {
         auditor.controlTaken()
         auditor.controlReleased()
         val rows = audits.listForSession(AgentApprovalAuditEntity.SESSION_BROWSER_CONTROL)
-            .sortedBy { it.createdAt }
+        // Both events may share a millisecond; timestamps do not define a total order.
+        assertEquals(2, rows.size)
         assertEquals(
-            listOf(
+            setOf(
                 AgentApprovalAuditEntity.KIND_CONTROL_TAKEN,
                 AgentApprovalAuditEntity.KIND_CONTROL_RELEASED,
             ),
-            rows.map { it.kind },
+            rows.map { it.kind }.toSet(),
         )
         assertTrue(rows.all { it.toolName == AgentApprovalAuditEntity.TOOL_BROWSER_CONTROL })
         assertTrue(rows.all { it.initiatorKind == RunInitiator.PERSON })

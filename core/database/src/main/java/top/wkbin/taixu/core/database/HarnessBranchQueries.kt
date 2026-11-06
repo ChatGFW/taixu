@@ -101,20 +101,7 @@ interface HarnessBranchQueries {
      * LIKE + ESCAPE 的通配符转义由仓储层负责；excerpt 以命中点为中心截窗，避免大 payload 进内存。
      * payloadJson 被大载荷 blob 化的消息不参与搜索（与 [searchBranch] 同口径）。
      */
-    @Query("""
-        SELECT sessionId, sessionTitle, messageId, isUser, createdAt,
-               substr(fullText, MAX(1, instr(fullText, :query) - 48), 220) AS excerpt
-        FROM (
-            SELECT e.sessionId AS sessionId, s.title AS sessionTitle, e.id AS messageId,
-                   e.customType = 'user' AS isUser, e.createdAt AS createdAt,
-                   json_extract(e.payloadJson, '$.text') AS fullText
-            FROM harness_entries e
-            LEFT JOIN harness_sessions s ON s.id = e.sessionId
-            WHERE e.entryType = 'message' AND e.customType IN ('user', 'assistant')
-              AND json_extract(e.payloadJson, '$.text') LIKE '%' || :query || '%' ESCAPE '\'
-            ORDER BY e.createdAt DESC LIMIT :limit
-        )
-    """)
-    suspend fun searchMessagesAcrossSessions(query: String, limit: Int): List<MessageSearchHitRow>
+    @Query(MESSAGE_SEARCH_SQL)
+    suspend fun searchMessagesAcrossSessions(query: String, pattern: String, limit: Int): List<MessageSearchHitRow>
 
 }

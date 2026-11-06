@@ -49,6 +49,24 @@ class Agent2ApiPackageTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'ARM64'):
                 package.vendor_release(archive, root / 'LICENSE', root / 'vendor')
 
+    def test_upstream_service_manager_files_are_not_bundled_or_executed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            binary = bytearray(64)
+            binary[:6] = b'\x7fELF\x02\x01'
+            binary[18:20] = b'\xb7\x00'
+            entries = [('agent2api-server', bytes(binary), None), ('ui/index.html', b'<html></html>', None)]
+            entries += [(name, b'not executed', None) for name in ('install.sh', 'agent2api.service', 'agent2api.env.example')]
+            archive = self.make_archive(root, entries)
+            (root / 'LICENSE').write_bytes(b'test license')
+            package.vendor_release(archive, root / 'LICENSE', root / 'vendor')
+            self.assertEqual({'agent2api-server', 'ui/index.html', 'LICENSE'},
+                             {p.relative_to(root / 'vendor').as_posix() for p in (root / 'vendor').rglob('*') if p.is_file()})
+            for extra in ([('install.sh', b'', '/etc/passwd')],
+                          [('install.sh', b'x', None), ('install.sh', b'x', None)]):
+                with self.assertRaises(ValueError):
+                    package.vendor_release(self.make_archive(root, entries[:2] + extra), root / 'LICENSE', root / 'other')
+
     def test_existing_download_must_match_pin_without_network_fallback(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / 'archive'

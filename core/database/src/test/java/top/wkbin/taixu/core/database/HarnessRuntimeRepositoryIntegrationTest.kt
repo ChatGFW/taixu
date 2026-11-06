@@ -35,6 +35,20 @@ class HarnessRuntimeRepositoryIntegrationTest {
             status = status, createdAt = 1, updatedAt = 1))
     }
 
+    @Test fun `attachment migration includes blob backed message references`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val blobs = HarnessBlobStore(context)
+        val payload = """{"text":"/attachments/photo.png","image":"${"x".repeat(50_000)}"}"""
+        val stored = blobs.storeIfLarge("blob-session", "photo-entry", payload)
+        assertTrue(stored.startsWith(HarnessBlobStore.BLOB_PREFIX))
+        dao.insertEntry(entry("photo-entry", "blob-session", null).copy(payloadJson = stored))
+        dao.insertEntry(entry("plain-entry", "plain-session", null).copy(payloadJson = """{"text":"hello"}"""))
+        val references = dao.attachmentReferenceRows()
+        assertEquals(1, references.size)
+        assertEquals("blob-session", references.single().sessionId)
+        assertEquals(payload, blobs.read(references.single().payloadJson))
+    }
+
     @Test fun `task admission commits recovery state with input and operation`() = runBlocking {
         queuedTask()
         repository.acceptTaskOperation("task", entry("input", "s", null),

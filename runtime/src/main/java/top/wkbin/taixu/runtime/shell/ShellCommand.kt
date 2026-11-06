@@ -19,6 +19,8 @@ data class ShellCommand(
     /** Trusted callers may escalate arbitrary build scripts; this never disables inferred admission. */
     val memoryHeavy: Boolean = false,
     val pluginIdentity: top.wkbin.taixu.core.model.PluginExecutionIdentity? = null,
+    /** 发起方会话；决定 `/attachments` 绑定到哪个会话私有目录。null = 共享目录（非会话调用）。 */
+    val sessionId: String? = null,
 ) {
     companion object {
         const val DEFAULT_TIMEOUT_MS = 30_000L

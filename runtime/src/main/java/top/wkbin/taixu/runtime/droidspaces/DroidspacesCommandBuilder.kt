@@ -44,6 +44,7 @@ class DroidspacesCommandBuilder private constructor(
         optDir: File,
         tmpDir: File,
         attachmentsDir: File,
+        sharedSkillsDir: File?,
         command: ShellCommand,
         mounts: List<StorageMountBinding>,
         emulatorBinary: File?,
@@ -67,6 +68,7 @@ class DroidspacesCommandBuilder private constructor(
             optDir = optDir,
             tmpDir = tmpDir,
             attachmentsDir = attachmentsDir,
+            sharedSkillsDir = sharedSkillsDir,
             mounts = mounts,
             inner = inner,
         )
@@ -80,6 +82,7 @@ class DroidspacesCommandBuilder private constructor(
         optDir: File,
         tmpDir: File,
         attachmentsDir: File,
+        sharedSkillsDir: File?,
         config: SessionConfig,
         ptyMarker: String?,
         nativePty: Boolean,
@@ -119,6 +122,7 @@ class DroidspacesCommandBuilder private constructor(
             optDir = optDir,
             tmpDir = tmpDir,
             attachmentsDir = attachmentsDir,
+            sharedSkillsDir = sharedSkillsDir,
             mounts = mounts,
             inner = inner,
         )
@@ -177,13 +181,14 @@ class DroidspacesCommandBuilder private constructor(
         optDir: File,
         tmpDir: File,
         attachmentsDir: File,
+        sharedSkillsDir: File?,
         mounts: List<StorageMountBinding>,
         inner: String,
     ): List<String> {
         val container = config.containerName
         val script = lifecyclePrelude(
             container = container,
-            binds = bindArguments(workspaceDir, homeDir, optDir, tmpDir, attachmentsDir, mounts),
+            binds = bindArguments(workspaceDir, homeDir, optDir, tmpDir, attachmentsDir, sharedSkillsDir, mounts),
         ) +
             "exec " + ShellQuote.of(config.cliPath) +
             " --name=" + ShellQuote.of(container) +
@@ -218,6 +223,7 @@ class DroidspacesCommandBuilder private constructor(
         optDir: File,
         tmpDir: File,
         attachmentsDir: File,
+        sharedSkillsDir: File?,
         mounts: List<StorageMountBinding>,
     ): List<String> {
         // PRoot 后端绑定了 `${homeDir}:/root`，此处必须逐项对齐：否则客态的 HOME、
@@ -232,7 +238,13 @@ class DroidspacesCommandBuilder private constructor(
             "${optDir.absolutePath}:/opt/taixu",
             "${tmpDir.absolutePath}:/tmp",
             "${attachmentsDir.absolutePath}:/attachments",
-        )
+        ).apply {
+            // 与 PRoot 对齐：全局技能目录覆盖在会话附件之上。
+            if (sharedSkillsDir != null) {
+                sharedSkillsDir.mkdirs()
+                add("${sharedSkillsDir.absolutePath}:/attachments/skills")
+            }
+        }
         mounts.filter { it.enabled }.forEach { binding ->
             val error = StorageMountBinding.validationError(binding)
             if (error != null) {

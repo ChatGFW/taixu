@@ -253,7 +253,7 @@ class ApprovalPolicyEngine(
             "\\bfind\\b.*\\s(-delete|-exec|-execdir|-ok|-okdir|-fprint|-fprint0|-fprintf|-fls)\\b",
         )
         private val BLOCKED_NETWORK_OR_MUTATION = Regex(
-            """\b(curl|wget|nc|ssh|scp|adb|taixu-host|mount|umount|kill|pkill|chmod|chown|rm|mv|cp|tee|apt(-get)?|apk|dnf|pacman|npm\s+(install|publish)|pip\s+install|git\s+(push|reset|clean))\b""",
+            """\b(curl|wget|nc|ssh|scp|adb|taixu-(host|open|clipboard|notify|setting|app|screen)|mount|umount|kill|pkill|chmod|chown|rm|mv|cp|tee|apt(-get)?|apk|dnf|pacman|npm\s+(install|publish)|pip\s+install|git\s+(push|reset|clean))\b""",
         )
         private val ROUTINE_PRIMARY = Regex(
             """^(pwd|ls|find|rg|grep|head|tail|cat|git\s+(status|diff|log|show)|gradle(w)?\b.*(test|check|assemble)|npm\s+(test|run\s+(test|lint|build))|flutter\s+(test|analyze|build)|pytest\b|kotlinc\b|\./gradlew\b.*(test|check|assemble))""",

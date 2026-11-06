@@ -35,6 +35,7 @@ LinuxAIRuntime/
 │   ├── common/          # 协程调度器、日志、通用工具类
 │   ├── database/        # Room 数据库：Harness 对话记录、会话、工具执行历史
 │   ├── datastore/       # Jetpack DataStore：用户偏好、存储挂载、激活模型、Agent 命令超时
+│   ├── document/        # 有界文档正文提取、旁路文本与 Android 15+ 隔离 PDF 解析
 │   ├── network/         # OkHttp 网络客户端、SSE 流式解析器、超时策略
 │   └── security/        # API Key 本地安全加解密
 ├── runtime/              # Linux 沙箱与 PRoot 核心：命令/进程注册、PTY、工作区导入导出与构建
@@ -102,3 +103,57 @@ LinuxAIRuntime/
 - DI 使用经典 DSL，不引入 Koin 编译插件；KSP 仅用于 Room。依赖完整性由图测试保障，不能把 Kotlin 编译通过等同于 DI 图验证通过。
 
 P5 受管理静态来源由 navigation 装配 runtime 的 loopback 资源服务与 plugin/ui 的页面租约；navigation 显式依赖 runtime，已登记架构依赖白名单。服务不在注册或启用阶段启动，外部包不能声明此来源。
+
+
+## 5. 聊天引用、工具展示与协议解码
+
+- 工作区文件补全由 `feature/chat/WorkspaceMentionSuggestions` 经 `SessionExecutionEnvironments.activity` 读取会话已绑定的 `ExecutionFiles`，不读取当前手机目录作为远端兜底。仅输入末尾的 `@` token 触发；选择文件插入 guest 绝对路径，含空格路径使用引号，选择目录可继续补全，不自动附加正文。已有 Skills/MCP 挂载语义保留。
+- `WorkspaceFileCompletion` 采用有界广度扫描：最多 512 条索引、20 条建议、8 层；本地最多 64 个目录/2 秒，远端最多 24 个目录/4 秒；缓存按执行环境身份隔离，本地 5 秒、远端 20 秒。排除常见生成目录，并处理分层 `.gitignore` 的常用 `*`、`**`、`?`、根路径及否定规则；不宣称完整 Git ignore 语法兼容。大项目只提供有界候选，不保证穷举。浏览失败不回退其他环境。
+- 本地目录浏览实现 `WorkspaceFileAccess.listEntries`，省略符号链接和无法读取的条目；严格产物枚举继续独立使用 `listArtifactEntries`，不把不完整浏览当成完整产物观察。
+- 工具过程行与详情共用 `LocalToolUiRegistry` / `ToolUiRenderer`。受信任的原生代码可按精确扩展工具名注册图标、标题、目标、Diff 统计和预览；未知工具使用通用详情，文件工具保留现有 Diff。展示注册不参与工具执行、审批或重试决策，也不加载外部原生代码。
+- Chat Completions、Responses、Anthropic 的每条响应分别持有独立 `ProviderStreamDecoder`。HTTP 适配层继续负责请求、取消、首事件超时与非 SSE 兜底，解码器负责增量、工具参数、usage 和完成校验；`finish()` 幂等，缺少协议完成事件时拒绝返回可执行工具结果。Anthropic `pause_turn` 的多轮续跑及共享预算继续由适配层管理。
+
+
+## 6. 文档附件正文提取
+
+`:core:document` 独立承载 DOCX 主正文、PPTX 演示关系顺序和 EPUB spine 顺序解析，以及 Android 15+ 系统 PDF 正文提取；不引入第三方 PDF 引擎、不调用模型或 OCR。旧版 Android 对 PDF 返回明确状态并保留原文件。
+
+输入上限 32 MiB，ZIP 最多 2048 条目、单条解压 8 MiB、累计读取解压数据 64 MiB、256 个幻灯片/章节，XML 深度最多 64；正文最多 256 Ki UTF-16 字符，超长正文附截断标记。PDF 最多读取 200 页。ZIP 读取按实际流量计费，禁止重复条目和越界路径，不展开到磁盘、不解析外部 DTD/实体、不访问网络。XML/ZIP 解析在可中断 IO 线程中按步骤检查 10 秒期限；这些检查不构成恶意代码隔离。
+
+PDF 通过 `bindIsolatedService` 为每次请求创建独立的 `:document_parser` 实例，只传入原文件只读 FD、临时输出写 FD 和状态回信通道；正文不经过 Binder 大消息。宿主串行准入，并限制等待 10 秒；取消或超时解除本次绑定，专用服务销毁时终止自身进程。Application 对这些实例跳过 Koin、Room、凭据及 Harness 初始化。系统调度或服务销毁延迟不提供硬实时终止保证。
+
+聊天仍通过原文件挂载路径和 `.txt` 旁路路径交付，提取全文不自动加入模型输入。旁路在同目录临时写入后原子发布；失败、无正文、容量限制和旧系统不支持通过附件提示及固定状态说明展示，原文件保留。移除待发送附件会清理宿主副本及其已登记的旁路文本。正文内容与提示均不授予工具权限。
+
+
+### 排队消息编辑
+
+排队消息通过 `QueuedPromptActions` 复用会话调度锁，由 `PromptQueueManager` 管理持久化编辑占用；`HarnessQueueEditQueries` 提供 Room 比较更新与任务描述同步事务。Compose 的 `QueuedPromptEditor` 保管独立草稿，取消/切换/退出释放占用，保存保留队列顺序、任务身份和附件。数据库版本 87，迁移为 `MIGRATION_86_87`；重启释放占用后恢复原已保存内容。详见 [执行时序](EXECUTION_TRACES.md#排队消息原位编辑)。
+
+
+### Markdown 解析与渲染
+
+`:core:markdown` 是只依赖纯 Kotlin `core:model` 的 JVM 模块，提供块模型、解析器、完整正文校验的有界 LRU，以及基于 `ChunkedText` 的增量解析。语法解析不读取文件、网络、Android Context 或 Compose；块语法与原渲染器一致，流式输出只重解析尚未完成的尾部。
+
+`feature:components` 的 `MarkdownText` / `StreamingMarkdownText` 保留已有入口；`LocalMarkdownComponents` 提供受信任原生代码的代码块、表格和媒体渲染插槽。默认实现分别放在 `MarkdownContentBlocks`、`MarkdownInlineText`、`MarkdownMediaBlock`、`MarkdownImagePreview`、`MarkdownMediaAccess`；沙箱路径映射、图片加载/预览/保存及代码复制由宿主 UI 负责。聊天、群聊、设置和应用提示继续共用该入口，替换插槽仅改变展示，不改变模型消息和工具权限。
+
+正文块缓存按条目数及源正文总字符数限量：普通缓存最多 300 项/512000 字符，大文本缓存最多 4 项/1048576 字符，超预算正文直接解析；大文本同 ID 命中时核对完整正文。行内 AnnotatedString 缓存按键与结果的总字符数限制在 512000，超过 128000 字符的单段不缓存；流式渲染不写入全局缓存。这些字符额度用于限制缓存保留量，不是解析输入上限或精确堆内存配额。
+
+
+### 本地会话消息搜索
+
+侧栏 `SessionMessageHits` 通过 `SessionMessageSearch` 串行维护当前关键词的加载/命中/空结果/失败状态，默认防抖 250ms；每次关键词变更立即清空旧结果并取消旧任务，发布前核对请求代次。关闭侧栏释放查询，失败可按当前关键词重试；搜索和重试仅查询本地消息，不调用模型。命中摘要按字面关键词高亮，点击仍打开对应会话。
+
+`RoomHarnessRuntimeRepository.searchMessages` 向共享 SQL 常量 `MESSAGE_SEARCH_SQL` 分别传递原始关键词和转义后的 LIKE 模式。摘要按原始关键词定位并兼容 ASCII 大小写，命中前保留 16 字符，摘要最多 220 字符；结果按时间和消息 ID 倒序排列。JSON 有效性与 text 类型在 CASE 内检查，坏 JSON、外置正文占位、空值及非文本字段安全跳过；用户/助手之外的消息不检索。外置正文继续不参与这一 SQL 搜索，也不据此自动读文件、切换历史分支或授予工具权限；数据库 schema 无变化。
+
+
+### 按会话管理输入草稿
+
+`ChatSessionStartup` 在主聊天页和悬浮聊天之间共用初始化锁。启动优先沿用已选会话，其次恢复文字草稿所属会话，再按更新时间选择最近会话，空库创建默认会话。手动新建、切换和回退取得选择权并取消初始化。`CurrentSessionTracker` 分开记录选择请求和已发布选择，新会话完成落库与环境绑定后按请求顺序发布前台 ID。
+
+`ChatMessageActions` 为重新生成、工具重试、编辑重发、删除和停止携带界面渲染时的会话 ID。切换后的过期回调会被忽略，消息修改核对目标消息及运行状态，编辑弹窗随会话切换关闭。Harness 在执行编辑重发时再次核对用户消息，目标已失效则结束本次操作。
+
+`SessionComposerDrafts` 在聊天 ViewModel 生命周期内按 session ID 保留完整文字、待发附件、系统分享快捷动作和导入状态。切换会话加载该会话草稿，UI 输入/移除/发送回调携带显示时的 session ID；发送委托 Harness 时也固定该 ID。`/clear` 继续清空发起会话的输入文字并新建会话，普通新建/切换保留原草稿。
+
+`ComposerAttachmentActions` 在附件处理开始时取得归属租约。多个导入分别计数；会话切换后仍交回原草稿，会话删除后的迟到结果释放本次新文件。取消在 IO 完成、主线程接收之前发生时也清理已准备的副本；已交给消息的附件从草稿移出但不删除 backing 文件。删除回执及既有会话列表的移除观察共同清理旧草稿，不再额外订阅一条数据库查询。系统分享行同样绑定原会话，过期快捷动作不提交到其他会话。
+
+`SavedComposerDraftTextState` 用 SavedStateHandle 保存最多 64 个近期文字草稿，文字与会话键合计最多 32768 个 UTF-16 字符。完整内容留在 ViewModel 内存，超出快照容量时明确提示，不截断当前输入。旧单份 `chat_input_draft` 迁移到初始会话；附件、URI 和 base64 不写入状态包，页面/进程重建只恢复容量内文字，不承诺附件恢复或强制停止后的持久恢复。本轮不新增数据库表或模型调用，也不改变既有发送受理协议。

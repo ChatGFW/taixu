@@ -9,6 +9,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -66,9 +67,45 @@ class HostBridgeAuthConvergenceTest {
             .getValue(SandboxCredentialStore.BRIDGE_TOKEN_ENV)
 
     @Test fun unauthenticatedHostWritesAreRefusedWith401() = runBlocking {
-        listOf("/api/install-apk", "/api/shell", "/api/logcat").forEach { path ->
-            assertEquals(401, bridge.route(request(path)).status)
+        controlPaths.forEach { path -> assertEquals(401, bridge.route(request(path)).status) }
+        listOf("/api/install-apk", "/api/shell", "/api/logcat", "/api/open", "/api/clipboard", "/api/notify")
+            .forEach { path -> assertEquals(401, bridge.route(request(path)).status) }
+    }
+
+    private val controlPaths = listOf("/api/settings", "/api/app", "/api/screen")
+
+    @Test fun deviceControlStaysOutOfTheDefaultSandboxGrant() = runBlocking {
+        val sandbox = sandboxToken()
+        controlPaths.forEach { path ->
+            assertEquals("$path must not be granted to a default sandbox", 401, bridge.route(request(path, "Bearer $sandbox")).status)
         }
+    }
+
+    @Test fun fullAccessGrantReachesControlEndpointsAndStillValidatesInput() = runBlocking {
+        val token = sandboxToken(SandboxCredentialStore.FULL_ACCESS_ACTIONS)
+        val missingCoords = bridge.route(request("/api/screen", "Bearer $token", body = """{"op":"tap"}"""))
+        assertEquals(400, missingCoords.status)
+        assertTrue(missingCoords.body.contains("\"failure\":\"usage\""))
+
+        val badPackage = bridge.route(request("/api/app", "Bearer $token", body = """{"op":"freeze","package":"a;b"}"""))
+        assertEquals(200, badPackage.status)
+        assertTrue(badPackage.body.contains("\"failure\":\"usage\""))
+    }
+
+    @Test fun capabilityEndpointsAreGrantedToSandboxButValidateBeforeActing() = runBlocking {
+        val token = sandboxToken()
+        // 动作已签发，但非法 scheme 在触达 Activity 之前就被拒绝。
+        val unsafe = bridge.route(request("/api/open", "Bearer $token", body = """{"uri":"javascript:alert(1)"}"""))
+        assertEquals(200, unsafe.status)
+        assertTrue(unsafe.body.contains("\"failure\":\"usage\""))
+
+        val emptyText = bridge.route(request("/api/clipboard", "Bearer $token", body = """{"text":""}"""))
+        assertEquals(400, emptyText.status)
+        assertTrue(emptyText.body.contains("\"failure\":\"usage\""))
+
+        val emptyTitle = bridge.route(request("/api/notify", "Bearer $token", body = """{"body":"x"}"""))
+        assertEquals(400, emptyTitle.status)
+        assertTrue(emptyTitle.body.contains("\"failure\":\"usage\""))
     }
 
     @Test fun legacySharedKeyCannotAuthenticateAnything() = runBlocking {
@@ -106,6 +143,35 @@ class HostBridgeAuthConvergenceTest {
     @Test fun unknownPathsAuthenticateBefore404() = runBlocking {
         assertEquals(401, bridge.route(request("/api/other")).status)
         assertEquals(404, bridge.route(request("/api/other", "Bearer ${sandboxToken()}")).status)
+    }
+
+    @Test fun failureClassificationIsExposedOnTheWire() = runBlocking {
+        val unauthorized = bridge.route(request("/api/shell"))
+        assertEquals(401, unauthorized.status)
+        assertTrue(unauthorized.body.contains("\"failure\":\"permission_denied\""))
+
+        val usage = bridge.route(request("/api/install-apk", "Bearer ${sandboxToken()}", body = "{"))
+        assertEquals(400, usage.status)
+        assertTrue(usage.body.contains("\"failure\":\"usage\""))
+
+        val missingField = bridge.route(
+            request("/api/shell", "Bearer ${sandboxToken(SandboxCredentialStore.FULL_ACCESS_ACTIONS)}", body = "{}"),
+        )
+        assertEquals(400, missingField.status)
+        assertTrue(missingField.body.contains("\"failure\":\"usage\""))
+
+        val notFound = bridge.route(request("/api/other", "Bearer ${sandboxToken()}"))
+        assertEquals(404, notFound.status)
+        assertTrue(notFound.body.contains("\"failure\":\"not_found\""))
+    }
+
+    @Test fun doctorExplainsAvailabilityWithoutLeakingTheCredential() = runBlocking {
+        val token = sandboxToken()
+        val response = bridge.route(request("/api/doctor", "Bearer $token", method = "GET", body = ""))
+        assertEquals(200, response.status)
+        assertTrue(response.body.contains("bridge"))
+        assertTrue(response.body.contains("gui-controller"))
+        assertFalse(response.body.contains(token))
     }
 
     @Test fun healthStaysUnauthenticatedAndLeaksNoCredential() = runBlocking {

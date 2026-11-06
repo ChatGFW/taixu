@@ -1,11 +1,28 @@
 # Agent2API 本地插件
 
-本适配使用上游 Agent2API **v3.0.8** 的 Linux ARM64 无界面服务端及原版 Web 管理界面，
+本适配使用上游 Agent2API **v3.4.1** 的 Linux ARM64 无界面服务端及原版 Web 管理界面，
 外加一个太墟专用适配器（`agent2api-host`，Go 静态编译）。不运行 Docker、Tauri 或 Node.js。
 离线导入、安装不下载依赖；实际调用模型需要联网。
 
-交付物为单个可本地导入的包：`dist/plugins/agent2api-3.0.9.txplugin`（PROCESS 后端：ARM64 服务端 + 适配器 + 原版 UI）。
+交付物为单个可本地导入的包：`dist/plugins/agent2api-3.4.1.txplugin`（PROCESS 后端：ARM64 服务端 + 适配器 + 原版 UI）。
 专用管理页不需要额外包——它是宿主内置页面（`taixu.tool-service`），页面字节在运行时从服务的 `/taixu/` 读取。
+
+## 3.4.1 更新
+
+2026-11-04：更新官方 ARM64 服务端与原版网页资源至 3.4.1，重建适配器，同步版本显示。包含上游工具服务页、登录脚本拆分和网页 gzip 更新，继续使用单包及现有详情页入口。
+
+已通过包摘要/完整性和可复现性检查、Go 单元测试、适配器签名与重设冒烟；
+WSL/QEMU 中从 3.4.0 空数据库升级后启动、原版 UI、无 Key 拒绝推理及再次重启正常。
+仍未对真实账号数据库进行迁移验收，不调用真实模型 API。
+
+## 3.4.0 更新
+
+2026-11-04：插件与上游版本统一为 3.4.0，替换官方 ARM64 服务端、原版 UI 和 LICENSE，重建太墟适配器并同步版本显示。继续使用同一数据目录、插件身份和详情页管理入口。
+
+已验证官方归档摘要、包完整性和可复现性；通过适配器单元测试、签名/重设冒烟，以及
+WSL/QEMU 中从 3.0.8 初始化的空数据库升级到 3.4.0 后重启、原版 UI 和无 Key 拒绝推理。
+未使用真实模型账号，未对真实账号数据库进行迁移验收。上游归档新增的 `install.sh`、
+`agent2api.service`、`agent2api.env.example` 仅验证条目形态，不执行或打入 PRoot 插件。
 
 ## 为什么需要适配器
 
@@ -27,7 +44,7 @@
 
 1. 安装本次构建的太墟 APK。旧版可以导入 PROCESS 包，但没有本次补齐的持续运行调度与专用页面。
 2. 确保本地 Linux 发行版已就绪，使用兼容 glibc 2.36+ 的 ARM64 RootFS，保留标准 CA 证书库。
-3. 在工具中心导入 `agent2api-3.0.9.txplugin`，确认包信息并等待安装验证完成。
+3. 在工具中心导入 `agent2api-3.4.1.txplugin`，确认包信息并等待安装验证完成。
 4. 在 Agent2API 详情点击启动。之后有两个入口：
    - **打开插件管理页面**（详情卡片按钮）：服务状态、模型列表、创建／重设管理员。重设需逐次确认。
    - **外部浏览器打开**：`http://127.0.0.1:3065/` 打开原版完整面板，用于添加服务商账号、创建网关 Key。
@@ -84,8 +101,8 @@
   更新需重新制作递增版本的插件，走太墟安装事务，避免绕过包完整性和安装收据。
 - 上游自行保存的账号凭证不经过太墟 SecretManager；不要分享数据目录或包含账号的导出文件。
 
-上游完整 LICENSE（包含其附加使用声明）与 Go 标准库 LICENSE 原样随包保留。参见
-[v3.0.8 LICENSE](https://github.com/aimod-cc/Agent2API/blob/v3.0.8/LICENSE)。
+上游 AGPL-3.0 LICENSE 与 Go 标准库 LICENSE 原样随包保留。参见
+[v3.4.1 LICENSE](https://github.com/aimod-cc/Agent2API/blob/v3.4.1/LICENSE)。
 
 ## 可复现打包
 
@@ -103,7 +120,7 @@ python scripts/tests/test_agent2api_plugin.py
 ```
 
 打包器只访问固定上游 Release 和 tag 的 LICENSE，分别核对写死的 SHA-256；也可以事先把下载文件放入
-`build/agent2api-download/` 后离线打包。`payload/vendor/` 为可重建产物，不纳入源码版本控制。
+`build/agent2api-download/v3.4.1/` 后离线打包。`payload/vendor/` 为可重建产物，不纳入源码版本控制。
 ZIP 文件排序、时间戳、清单和各文件摘要固定。同一输入得到同一输出（`-buildid=` 保证适配器也可复现）。
 
 ## 验证边界

@@ -95,7 +95,9 @@ class ProcessRegistryImpl internal constructor(
                     homeDir = pathManager.homeDir(safeDistro),
                     optDir = pathManager.taixuRootDir(safeDistro),
                     tmpDir = pathManager.tmpDir,
-                    attachmentsDir = pathManager.attachmentsDir,
+                    // 空 sessionId 落到 shared。全局根含 sessions/，不能当挂载源。
+                    attachmentsDir = pathManager.sessionAttachmentsDir(command.sessionId),
+                    sharedSkillsDir = pathManager.attachmentsSkillsDir,
                     command = command,
                     mounts = mounts,
                     hostCredential = sandboxCredentials?.environment(safeDistro).orEmpty(),

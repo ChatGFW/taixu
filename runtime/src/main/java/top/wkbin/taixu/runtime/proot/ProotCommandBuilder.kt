@@ -32,6 +32,7 @@ class ProotCommandBuilder private constructor(
         optDir: File,
         tmpDir: File,
         attachmentsDir: File,
+        sharedSkillsDir: File?,
         command: ShellCommand,
         mounts: List<StorageMountBinding>,
         emulatorBinary: File?,
@@ -65,6 +66,7 @@ class ProotCommandBuilder private constructor(
         attachmentsDir.mkdirs()
         add("-b")
         add("${attachmentsDir.absolutePath}:/attachments")
+        addSharedSkillsBinding(sharedSkillsDir)
         addHostSystemBindings()
         addStorageMountBindings(mounts)
         add("-w")
@@ -87,6 +89,7 @@ class ProotCommandBuilder private constructor(
         optDir: File,
         tmpDir: File,
         attachmentsDir: File,
+        sharedSkillsDir: File?,
         config: SessionConfig,
         ptyMarker: String?,
         nativePty: Boolean,
@@ -124,6 +127,7 @@ class ProotCommandBuilder private constructor(
         attachmentsDir.mkdirs()
         add("-b")
         add("${attachmentsDir.absolutePath}:/attachments")
+        addSharedSkillsBinding(sharedSkillsDir)
         addHostSystemBindings()
         addStorageMountBindings(mounts)
         add("-w")
@@ -206,6 +210,14 @@ class ProotCommandBuilder private constructor(
     }
 
     /** Android host paths used by the PRoot tracer and Android linker. */
+    /** 全局技能目录覆盖在会话附件之上：`/attachments/skills` 不随会话隔离。 */
+    private fun MutableList<String>.addSharedSkillsBinding(sharedSkillsDir: File?) {
+        if (sharedSkillsDir == null) return
+        sharedSkillsDir.mkdirs()
+        add("-b")
+        add("${sharedSkillsDir.absolutePath}:/attachments/skills")
+    }
+
     private fun MutableList<String>.addHostSystemBindings() {
         val bound = linkedSetOf<String>()
         val skipped = mutableListOf<String>()

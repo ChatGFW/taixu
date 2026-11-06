@@ -1,4 +1,4 @@
-package top.wkbin.taixu.ui.components
+package top.wkbin.taixu.core.markdown
 
 import org.junit.Assert.*
 import org.junit.Test

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -40,12 +41,14 @@ import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import java.io.File
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import java.util.UUID
 import android.graphics.Bitmap
 import androidx.exifinterface.media.ExifInterface
 import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
+import top.wkbin.taixu.runtime.AttachmentPaths
 import java.io.ByteArrayOutputStream
 
 /**
@@ -59,8 +62,10 @@ data class ChatAttachment(
     val uri: Uri,
     val hostFilePath: String? = null,
     val guestFilePath: String? = null,
-    /** 文档类附件（.docx）的抽取文本挂载路径（/attachments/xxx.txt）；Agent 可 read */
+    /** 有界正文旁路文件；仅把路径交给 Agent 按需 read。 */
     val extractedTextGuestPath: String? = null,
+    val extractedTextHostPath: String? = null,
+    val documentNotice: String? = null,
     val base64DataUrl: String? = null,
 ) {
     val localFilePath: String get() = guestFilePath ?: hostFilePath.orEmpty()
@@ -82,7 +87,12 @@ data class AttachmentProcessOutcome(
 object AttachmentHelper {
     private const val TAG = "AttachmentHelper"
 
-    fun processUri(context: Context, uri: Uri, isImage: Boolean): AttachmentProcessResult {
+    suspend fun processUri(
+        context: Context,
+        uri: Uri,
+        isImage: Boolean,
+        sessionId: String? = null,
+    ): AttachmentProcessResult {
         val contentResolver = context.contentResolver
         var name = if (isImage) "image_${System.currentTimeMillis()}.jpg" else "file_${System.currentTimeMillis()}"
         var size = 0L
@@ -104,10 +114,10 @@ object AttachmentHelper {
             return AttachmentProcessResult.TooLarge(name, size, limit)
         }
 
-        // 统一复制到所有发行版共用的 Runtime 目录，PRoot 固定挂载为 /attachments。
-        val attachmentsDir = File(context.filesDir, "linux-runtime/attachments").apply { mkdirs() }
-        val safeName = name.replace(Regex("[^a-zA-Z0-9._-]"), "_")
-        val targetFile = File(attachmentsDir, "${System.currentTimeMillis()}_$safeName")
+        // 落到发起会话的私有目录；PRoot 把该目录挂成 /attachments，guest 路径保持不变。
+        val attachmentsDir = AttachmentPaths.session(context.filesDir, sessionId).apply { mkdirs() }
+        val safeName = name.replace(Regex("[^a-zA-Z0-9._-]"), "_").takeLast(160).ifBlank { "attachment" }
+        val targetFile = File(attachmentsDir, "${UUID.randomUUID()}_$safeName")
 
         return try {
             contentResolver.openInputStream(uri)?.use { input ->
@@ -118,12 +128,10 @@ object AttachmentHelper {
                     policy = BoundedStreamCopy.OverflowPolicy.ABORT,
                 )
             } ?: return AttachmentProcessResult.Failed(name)
-            if (size == 0L) size = targetFile.length()
+            size = targetFile.length()
 
             val guestPath = "/attachments/${targetFile.name}"
-            val sourceMimeType = contentResolver.getType(uri)
-                ?.takeIf { it.startsWith("image/", ignoreCase = true) }
-                ?: "image/jpeg"
+            val sourceMimeType = runCatching { contentResolver.getType(uri) }.getOrNull()
             val base64 = if (isImage) {
                 runCatching {
                     // 与 ImagePayloadCompressor 对齐：长边 1280、JPEG 80，避免相册原图把请求体顶到 413。
@@ -161,17 +169,15 @@ object AttachmentHelper {
                     } else if (targetFile.length() <= 4L * 1024 * 1024) {
                         val bytes = targetFile.readBytes()
                         val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                        "data:$sourceMimeType;base64,$encoded"
+                        "data:${sourceMimeType?.takeIf { it.startsWith("image/") } ?: "image/jpeg"};base64,$encoded"
                     } else {
                         null
                     }
                 }.getOrNull()
             } else null
 
-            // 文档类附件（.docx）挂载即抽取正文为同名 .txt：Agent read 二进制 OOXML 全是乱码
-            val extractedTextGuestPath = if (!isImage && name.endsWith(".docx", ignoreCase = true)) {
-                DocxTextExtractor.writeSidecarText(targetFile)?.let { "/attachments/${it.name}" }
-            } else null
+            val document = if (isImage) PreparedAttachmentText()
+                else AttachmentDocumentPreparation.prepare(context, targetFile, name, sourceMimeType)
             AttachmentProcessResult.Success(
                 ChatAttachment(
                     name = name,
@@ -180,10 +186,16 @@ object AttachmentHelper {
                     uri = uri,
                     hostFilePath = targetFile.absolutePath,
                     guestFilePath = guestPath,
-                    extractedTextGuestPath = extractedTextGuestPath,
+                    extractedTextGuestPath = document.file?.let { "/attachments/${it.name}" },
+                    extractedTextHostPath = document.file?.absolutePath,
+                    documentNotice = document.notice,
                     base64DataUrl = base64,
                 ),
             )
+        } catch (e: CancellationException) {
+            targetFile.delete()
+            File(targetFile.parentFile, targetFile.name + ".txt").delete()
+            throw e
         } catch (e: PayloadTooLargeException) {
             // 流式拷贝中触发超限：以实际观测大小构造提示，保证"大小范围"信息完整
             Log.w(TAG, "附件超限 uri=$uri size=${e.actualBytesObserved} max=${e.maxBytes}")
@@ -211,8 +223,8 @@ object AttachmentHelper {
      * （linux-runtime/attachments，PRoot 挂 /attachments），guest 路径由调用方拼装。
      * 写入失败返回 null（调用方放行原文插入输入框）。
      */
-    fun writePastedText(context: Context, text: String): File? = runCatching {
-        val attachmentsDir = File(context.filesDir, "linux-runtime/attachments").apply { mkdirs() }
+    fun writePastedText(context: Context, text: String, sessionId: String? = null): File? = runCatching {
+        val attachmentsDir = AttachmentPaths.session(context.filesDir, sessionId).apply { mkdirs() }
         File(attachmentsDir, "${System.currentTimeMillis()}_paste.txt").apply { writeText(text) }
     }.onFailure { Log.w(TAG, "粘贴文本落盘失败", it) }.getOrNull()
 
@@ -232,8 +244,18 @@ object AttachmentHelper {
     }
 
     /** 批量处理附件并聚合超限/失败提示；通知文案在此拼装，保持 ViewModel 精简 */
-    fun processPicked(context: Context, uris: List<Uri>, isImage: Boolean): AttachmentProcessOutcome {
-        val results = uris.map { processUri(context, it, isImage) }
+    suspend fun processPicked(
+        context: Context,
+        uris: List<Uri>,
+        isImage: Boolean,
+        sessionId: String? = null,
+    ): AttachmentProcessOutcome {
+        val results = mutableListOf<AttachmentProcessResult>()
+        try { uris.forEach { results += processUri(context, it, isImage, sessionId) } }
+        catch (e: CancellationException) {
+            results.filterIsInstance<AttachmentProcessResult.Success>().forEach { AttachmentDocumentPreparation.delete(it.attachment) }
+            throw e
+        }
         val items = results.mapNotNull { (it as? AttachmentProcessResult.Success)?.attachment }
         val tooLargeCount = results.count { it is AttachmentProcessResult.TooLarge }
         val failedCount = results.count { it is AttachmentProcessResult.Failed }
@@ -244,7 +266,7 @@ object AttachmentHelper {
             tooLargeMessage = { count, label -> context.getString(R.string.chat_attachment_too_large, count, label) },
             failedMessage = { count -> context.getString(R.string.chat_attachment_process_failed, count) },
         )
-        return AttachmentProcessOutcome(items, notice)
+        return AttachmentProcessOutcome(items, (listOfNotNull(notice) + items.mapNotNull { it.documentNotice }).distinct().joinToString("；").ifEmpty { null })
     }
 
     fun formatFileSize(bytes: Long): String {
@@ -326,7 +348,7 @@ fun AttachmentPreviewRow(
                         )
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Column(modifier = Modifier.widthIn(max = 180.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
                             text = item.name,
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
@@ -335,7 +357,8 @@ fun AttachmentPreviewRow(
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = AttachmentHelper.formatFileSize(item.sizeBytes),
+                            text = listOfNotNull(AttachmentHelper.formatFileSize(item.sizeBytes), item.documentNotice).joinToString(" · "),
+                            maxLines = 2, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

@@ -8,6 +8,7 @@ import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.harness.ApiMessage
 import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.harness.ContextBudgetPlanner
+import top.wkbin.taixu.harness.CurrentTurnToolResultBudget
 import top.wkbin.taixu.harness.ImagePayloadCompressor
 import top.wkbin.taixu.harness.HarnessApiMapper
 import top.wkbin.taixu.harness.HarnessMessage
@@ -185,6 +186,23 @@ class ApiContextAssembler(
             // （一次额外 LLM 调用 + 历史永久降级为摘要）。
             if (compactionEnabled) {
                 msgs = ContextWindowPolicy.projectForUsage(msgs, compactionEnabled = true).also { trace?.messages(ContextStage.HISTORY, msgs, it) }
+                // 当前轮结果此前只在 4MB 物理上限才收缩：越过折叠线时先按同一口径收一轮，
+                // 避免为"只差一轮体积"触发一次 LLM 整段压缩。
+                msgs = CurrentTurnToolResultBudget.apply(
+                    messages = msgs,
+                    toolCallDetails = msgs.filterIsInstance<ToolCall>().associate {
+                        it.id to ((it.rawToolName ?: HarnessApiMapper.apiName(it.tool)) to it.args)
+                    },
+                    budgetTokens = ContextWindowPolicy.foldingLimitFor(
+                        budget = budgetTokens,
+                        ratioPercent = foldingRatioPercent,
+                        systemTokens = ContextWindowPolicy.estimateTokens(systemPrompt) +
+                            ContextWindowPolicy.estimateTokens(compactedContext.summaryLayer) +
+                            recallTokens(),
+                        reserveTokens = model.compactionReserveTokens,
+                        toolSchemaReserveTokens = toolSchemaReserveTokens,
+                    ),
+                )
             }
 
             // 预算驱动的滑动窗口：从最近一轮往回累加 token，超出预算则更早的历史进入压缩态。

@@ -1,6 +1,9 @@
 package top.wkbin.taixu.harness.queue
 
 import java.util.UUID
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import top.wkbin.taixu.harness.session.DefaultSessionTitle
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.HarnessEntryEntity
@@ -36,8 +39,72 @@ class PromptQueueManager(
     private val sessionStore: SessionTreeStore,
     private val logger: AppLogger? = null,
 ) {
+    private val recoveryMutex = Mutex()
+    private var recovered = false
+    private suspend fun ready() = recoveryMutex.withLock {
+        if (!recovered) { repository.resetQueueEdits(); recovered = true }
+    }
+
+    suspend fun beginEdit(sessionId: String, itemId: String, token: String): QueuedPrompt? {
+        ready()
+        return sessionStore.withLaneLock(sessionId, SessionTreeStore.MAIN_LANE) {
+            val prompt = listAll(sessionId).firstOrNull { it.id == itemId } ?: return@withLaneLock null
+            // Governed group/scheduled instructions retain their original authority and content.
+            if (prompt.message.initiatorKind != "person" || prompt.message.groupWorkId != null ||
+                prompt.message.groupId != null) return@withLaneLock null
+            if (repository.holdQueueEdit(itemId, sessionId, SessionTreeStore.MAIN_LANE, token))
+                prompt.copy(isEditing = true) else null
+        }
+    }
+
+    suspend fun saveEdit(sessionId: String, itemId: String, token: String, text: String): Boolean {
+        ready()
+        val item = repository.listAllQueues(sessionId, SessionTreeStore.MAIN_LANE)
+            .firstOrNull { it.id == itemId && it.editingToken == token } ?: return false
+        val original = decodeOrCancel(item) ?: return false
+        val updated = original.copy(text = text.trim())
+        if (updated.text.isBlank() && updated.imageUrls.isEmpty()) return false
+        val description = updated.text.ifBlank { "用户发送了 ${updated.imageUrls.size} 张图片" }
+        return repository.saveQueueEdit(itemId, sessionId, SessionTreeStore.MAIN_LANE, token,
+            json.encodeToString(PendingMessage.serializer(), updated), updated.taskId,
+            DefaultSessionTitle.fromInstruction(description), description, System.currentTimeMillis())
+    }
+
+    suspend fun cancelEdit(sessionId: String, itemId: String, token: String) {
+        ready()
+        repository.releaseQueueEdit(itemId, sessionId, SessionTreeStore.MAIN_LANE, token)
+    }
+
+    suspend fun removeById(sessionId: String, itemId: String): QueuedPrompt? =
+        sessionStore.withLaneLock(sessionId, SessionTreeStore.MAIN_LANE) {
+            val prompt = listAll(sessionId).firstOrNull { it.id == itemId } ?: return@withLaneLock null
+            repository.cancelQueued(itemId)
+            prompt
+        }
+
+    suspend fun convertToSteer(sessionId: String, itemId: String): Boolean =
+        sessionStore.withLaneLock(sessionId, SessionTreeStore.MAIN_LANE) {
+            ready()
+            val item = repository.listAllQueues(sessionId, SessionTreeStore.MAIN_LANE)
+                .firstOrNull { it.id == itemId && it.queueType == PromptQueue.NEXT_RUN.id && it.editingToken == null }
+                ?: return@withLaneLock false
+            val operation = repository.findLane(sessionId, SessionTreeStore.MAIN_LANE)?.currentOperationId
+                ?: return@withLaneLock false
+            val original = decodeOrCancel(item) ?: return@withLaneLock false
+            if (original.initiatorKind != "person" || original.groupWorkId != null || original.groupId != null) return@withLaneLock false
+            repository.convertQueueToSteer(item, json.encodeToString(PendingMessage.serializer(), original.copy(taskId = null)),
+                original.taskId, operation, System.currentTimeMillis())
+        }
+
+    private suspend fun rows(sessionId: String, laneName: String, queue: PromptQueue): List<HarnessQueueItemEntity> {
+        ready()
+        return repository.listQueue(sessionId, laneName, queue.id)
+    }
+
     private suspend fun decodeOrCancel(item: HarnessQueueItemEntity): PendingMessage? =
-        runCatching { json.decodeFromString(PendingMessage.serializer(), item.payloadJson) }
+        runCatching {
+            json.decodeFromString(PendingMessage.serializer(), item.payloadJson).copy(createdAt = item.createdAt)
+        }
             .onFailure { failure ->
                 logger?.w("Removing invalid queued prompt ${item.id}: ${failure.message}")
                 repository.cancelQueued(item.id)
@@ -49,6 +116,7 @@ class PromptQueueManager(
         prompt: PendingMessage,
         laneName: String = SessionTreeStore.MAIN_LANE,
     ): String {
+        ready()
         val operationId = repository.ensureLane(sessionId, laneName).currentOperationId
         val id = UUID.randomUUID().toString()
         repository.enqueue(
@@ -70,7 +138,7 @@ class PromptQueueManager(
         queue: PromptQueue,
         laneName: String = SessionTreeStore.MAIN_LANE,
     ): List<Pair<String, PendingMessage>> =
-        repository.listQueue(sessionId, laneName, queue.id).mapNotNull { item ->
+        rows(sessionId, laneName, queue).mapNotNull { item ->
             decodeOrCancel(item)?.let { item.id to it }
         }
 
@@ -78,19 +146,28 @@ class PromptQueueManager(
         sessionId: String,
         queue: PromptQueue,
         laneName: String = SessionTreeStore.MAIN_LANE,
-    ): Pair<String, PendingMessage>? = list(sessionId, queue, laneName).firstOrNull()
+    ): Pair<String, PendingMessage>? {
+        for (head in rows(sessionId, laneName, queue)) {
+            if (head.editingToken != null) return null
+            decodeOrCancel(head)?.let { return head.id to it }
+        }
+        return null
+    }
 
     suspend fun listAll(
         sessionId: String,
         laneName: String = SessionTreeStore.MAIN_LANE,
-    ): List<QueuedPrompt> = repository.listAllQueues(sessionId, laneName).mapNotNull { item ->
-        val queue = PromptQueue.entries.firstOrNull { it.id == item.queueType }
-        if (queue == null) {
-            logger?.w("Removing queued prompt ${item.id} with unknown queue type ${item.queueType}")
-            repository.cancelQueued(item.id)
-            return@mapNotNull null
+    ): List<QueuedPrompt> {
+        ready()
+        return repository.listAllQueues(sessionId, laneName).mapNotNull { item ->
+            val queue = PromptQueue.entries.firstOrNull { it.id == item.queueType }
+            if (queue == null) {
+                logger?.w("Removing queued prompt ${item.id} with unknown queue type ${item.queueType}")
+                repository.cancelQueued(item.id)
+                return@mapNotNull null
+            }
+            decodeOrCancel(item)?.let { QueuedPrompt(item.id, queue, it, item.editingToken != null) }
         }
-        decodeOrCancel(item)?.let { QueuedPrompt(item.id, queue, it) }
     }
 
     suspend fun cancel(sessionId: String, queue: PromptQueue, index: Int, laneName: String = SessionTreeStore.MAIN_LANE) {
@@ -123,7 +200,7 @@ class PromptQueueManager(
         sessionId: String,
         laneName: String = SessionTreeStore.MAIN_LANE,
     ): Int {
-        if (first(sessionId, PromptQueue.NEXT_RUN, laneName) != null) return 0
+        if (list(sessionId, PromptQueue.NEXT_RUN, laneName).isNotEmpty()) return 0
         return repository.retargetQueue(sessionId, laneName, PromptQueue.STEER.id, PromptQueue.NEXT_RUN.id)
     }
 
@@ -132,7 +209,7 @@ class PromptQueueManager(
         sessionId: String,
         laneName: String = SessionTreeStore.MAIN_LANE,
     ): Pair<String, PendingMessage>? {
-        if (first(sessionId, PromptQueue.NEXT_RUN, laneName) == null) {
+        if (list(sessionId, PromptQueue.NEXT_RUN, laneName).isEmpty()) {
             promoteSteeringToNextRun(sessionId, laneName)
         }
         return first(sessionId, PromptQueue.NEXT_RUN, laneName)
@@ -155,7 +232,7 @@ class PromptQueueManager(
         // 与 SessionTreeStore.append 同一把 per-lane 锁：consume 会把队列项转成 lane 上的
         // message entry（读 leafId → 写 entry → 移动叶子），不持锁时与并发 append 只靠
         // DAO 的乐观校验兜底。锁内只有本地 DB 读写，无长耗时挂起。
-        val items = repository.listQueue(sessionId, laneName, queue.id).take(limit)
+        val items = rows(sessionId, laneName, queue).takeWhile { it.editingToken == null }.take(limit)
         val consumed = ArrayList<UserMessage>(items.size)
         for (item in items) {
             val prompt = decodeOrCancel(item) ?: continue

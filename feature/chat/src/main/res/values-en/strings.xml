@@ -45,6 +45,7 @@
     <string name="chat_attachment_file">File</string>
     <string name="chat_attachment_line">%1$d. [%2$s] %3$s (%4$s) -> Linux sandbox absolute path: %5$s\n</string>
     <string name="chat_attachment_access_hint">When tool access is needed, use base to read the absolute paths above. Do not use Android content:// URIs or host paths.</string>
+    <string name="chat_attachment_vision_hint">Images are attached to this message as visual input. First inspect the images directly and answer the user. Perform pixel, color, or image-processing statistics only when explicitly requested. If no image is visible in the current request or you cannot interpret it, state that visual input is unavailable. Do not guess image content from file headers, pixel statistics, or character grids. The file paths above are for operations that require the original files.</string>
     <string name="chat_thinking">Thinking…</string>
     <string name="chat_close">Close</string>
     <string name="chat_enable">Enable</string>
@@ -553,4 +554,10 @@
     <string name="chat_no_matching_models">No matching models</string>
     <string name="chat_manual_model">Enter model ID</string>
     <string name="chat_model_list">Model list</string>
+    <string name="chat_message_search_loading">Searching messages…</string>
+    <string name="chat_message_search_failed">Message search failed</string>
+    <string name="chat_message_search_retry">Retry</string>
+    <string name="chat_message_search_empty">No matching messages</string>
+    <string name="chat_draft_restore_limited">Some drafts exceed system recovery capacity. Current input is intact but may not survive chat page recreation.</string>
+    <string name="chat_session_restore_failed">Could not restore the conversation. Select it again.</string>
 </resources>

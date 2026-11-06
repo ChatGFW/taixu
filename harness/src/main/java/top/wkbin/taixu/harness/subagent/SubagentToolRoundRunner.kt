@@ -50,7 +50,10 @@ internal class SubagentToolRoundRunner(
             val tool = HarnessApiMapper.toolByName(rawName)
             if (!ToolCallContract.isKnownName(rawName)) {
                 reject(operationId, round, ToolCall(callId, now(), tool, JsonObject(emptyMap()), reasoning, rawName),
-                    spec.argumentsJson, ToolCallContract.unknownGuidance(rawName, model))
+                    spec.argumentsJson, buildString {
+                        append(ToolCallContract.unknownGuidance(rawName, model))
+                        loopDetector.unknownToolEscalation(rawName)?.let { append("\n\n").append(it) }
+                    })
                 continue
             }
             val args = try {

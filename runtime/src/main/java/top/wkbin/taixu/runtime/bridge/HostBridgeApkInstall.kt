@@ -8,6 +8,7 @@ import androidx.core.content.FileProvider
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.runtime.AttachmentPaths
 import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.runtime.bridge.HostBridgeHttp.HttpResponse
 import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
@@ -43,11 +44,17 @@ internal class HostBridgeApkInstall(
                 logger.i("HostBridge: APK 在 '$hostPath' 未找到，通过工作区扫描智能匹配到 '${fallback.absolutePath}'")
                 apkFile = fallback
             } else {
-                return HttpResponse(404, errorJson("APK file not found: $apkPath (resolved: $hostPath)"))
+                return HttpResponse(
+                    404,
+                    errorJson("APK file not found: $apkPath (resolved: $hostPath)", HostFailure.NOT_FOUND),
+                )
             }
         }
         if (!apkFile.name.endsWith(".apk", ignoreCase = true)) {
-            return HttpResponse(400, errorJson("File does not have .apk extension: ${apkFile.name}"))
+            return HttpResponse(
+                400,
+                errorJson("File does not have .apk extension: ${apkFile.name}", HostFailure.USAGE),
+            )
         }
 
         // 优先通过内置无线 ADB 静默安装（无需点击系统弹窗确认）
@@ -71,7 +78,7 @@ internal class HostBridgeApkInstall(
         try {
             apkFile.copyTo(cachedApk, overwrite = true)
         } catch (e: Exception) {
-            return HttpResponse(500, errorJson("Failed to copy APK: ${e.message}"))
+            return HttpResponse(500, errorJson("Failed to copy APK: ${e.message}", HostFailure.INTERNAL))
         }
 
         // 通过 FileProvider + Intent 调起系统安装器
@@ -97,7 +104,7 @@ internal class HostBridgeApkInstall(
             }.toString())
         } catch (e: Exception) {
             cachedApk.delete()
-            return HttpResponse(500, errorJson("Failed to launch installer: ${e.message}"))
+            return HttpResponse(500, errorJson("Failed to launch installer: ${e.message}", HostFailure.INTERNAL))
         }
     }
 
@@ -121,7 +128,7 @@ internal class HostBridgeApkInstall(
             trimmed == "/workspace" ->
                 pathManager.workspaceDir.absolutePath
             trimmed.startsWith("/attachments/") ->
-                File(pathManager.attachmentsDir, trimmed.removePrefix("/attachments/")).absolutePath
+                resolveAttachment(trimmed.removePrefix("/attachments/")).absolutePath
             trimmed == "/attachments" ->
                 pathManager.attachmentsDir.absolutePath
             else -> {
@@ -136,8 +143,23 @@ internal class HostBridgeApkInstall(
         }
     }
 
-    private fun errorJson(message: String): String = buildJsonObject {
+    /**
+     * `/attachments/<path>` 现在属于会话私有目录，而安装端点没有会话上下文：
+     * 先看全局根（skills/legacy），再按相对路径扫各会话目录，最后回落到全局路径。
+     */
+    private fun resolveAttachment(relative: String): File {
+        val global = File(pathManager.attachmentsDir, relative)
+        if (global.exists()) return global
+        return AttachmentPaths.sessionsRoot(context.filesDir).listFiles().orEmpty()
+            .asSequence()
+            .map { File(File(it, "attachments"), relative) }
+            .firstOrNull { it.exists() }
+            ?: global
+    }
+
+    private fun errorJson(message: String, failure: HostFailure): String = buildJsonObject {
         put("success", false)
+        put("failure", failure.wire)
         put("error", message)
     }.toString()
 }

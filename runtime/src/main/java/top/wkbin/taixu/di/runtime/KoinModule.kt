@@ -7,6 +7,7 @@ import top.wkbin.taixu.runtime.backend.ModeBackendSelector
 import top.wkbin.taixu.runtime.droidspaces.DroidspacesCommandBuilder
 import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
 import top.wkbin.taixu.core.database.BuildScriptRepository
+import top.wkbin.taixu.runtime.AttachmentMigrator
 import top.wkbin.taixu.runtime.BackgroundTaskRegistry
 import top.wkbin.taixu.runtime.DistroConfigurator
 import top.wkbin.taixu.runtime.ElfInspector
@@ -206,6 +207,8 @@ val runtimeModule = module {
         )
     }
 
+    single { AttachmentMigrator(context = get(), logger = get()) }
+
     single<HostBridge> {
         HostBridge(
             context = get(),
@@ -214,6 +217,7 @@ val runtimeModule = module {
             embeddedAdbManager = get(),
             pathManager = get(),
             credentialAuthority = get(),
+            guiController = get(),
         )
     }
 

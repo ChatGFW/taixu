@@ -29,9 +29,25 @@ class RuntimePathManager(
     }
     val optDir: File = File(baseDir, "opt")
     val workspaceDir: File = File(baseDir, "workspace")
-    /** Host-side shared attachment directory, mounted into every distro at /attachments. */
-    val attachmentsDir: File = File(baseDir, "attachments")
+    /**
+     * 宿主侧附件全局根（含 `sessions/`、`skills/`、`legacy/`、`shared/`）。
+     * 只给迁移、备份和技能扫描用，禁止作为 guest 的 `/attachments` 挂载源——
+     * 挂进去就能 `ls sessions/<其他会话>`。
+     */
+    val attachmentsDir: File = AttachmentPaths.global(appFilesDir)
     private val legacyAttachmentsDir: File = File(appFilesDir, "attachments")
+
+    /** 会话私有附件目录；单会话挂到 guest 的 `/attachments`；空 id 落到共享目录。 */
+    fun sessionAttachmentsDir(sessionId: String?): File = AttachmentPaths.session(appFilesDir, sessionId)
+
+    /** 无会话上下文时的挂载源：只含共享文件，不含任何会话目录。 */
+    val sharedAttachmentsDir: File = AttachmentPaths.shared(appFilesDir)
+
+    /** 全局技能根：不随会话隔离，额外挂到 `/attachments/skills`。 */
+    val attachmentsSkillsDir: File = AttachmentPaths.skills(appFilesDir)
+
+    /** 迁移后已无任何会话引用的历史附件。 */
+    val orphanAttachmentsDir: File = AttachmentPaths.orphan(appFilesDir)
     val cacheDir: File = File(baseDir, "cache")
     /** Raw command spools are outside guest mounts and Android backup. */
     val commandOutputCacheDir: File by lazy { File(context.cacheDir, "command-output") }

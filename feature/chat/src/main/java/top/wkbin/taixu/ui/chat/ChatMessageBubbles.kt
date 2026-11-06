@@ -114,6 +114,9 @@ internal fun UserBubble(
     onRewind: (RewindScope) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val displayText = remember(message.text, message.imageUrls.isNotEmpty()) {
+        userMessageDisplayText(message.text, message.imageUrls.isNotEmpty())
+    }
     var showMenu by remember { mutableStateOf(false) }
     // 删除消息为破坏性操作，先经确认对话框
     var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
@@ -122,7 +125,7 @@ internal fun UserBubble(
 
     val copyText = {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(context.getString(R.string.chat_user_request_clipboard), message.text))
+        clipboard.setPrimaryClip(ClipData.newPlainText(context.getString(R.string.chat_user_request_clipboard), displayText))
         Toast.makeText(context, context.getString(R.string.chat_request_copied), Toast.LENGTH_SHORT).show()
     }
 
@@ -131,7 +134,6 @@ internal fun UserBubble(
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            // 🌟 1. 多模态图片预览卡片
             if (message.imageUrls.isNotEmpty()) {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -150,9 +152,7 @@ internal fun UserBubble(
                 }
             }
 
-            // 🌟 2. 用户文字气泡（clipBubbleShape 只裁绘制：四角异径的 Surface 会在图层轮廓里
-            // 生成 Path，超长消息下半部分触摸判定会因 float 精度失效）
-            if (message.text.isNotBlank()) {
+            if (displayText.isNotBlank()) {
                 Box(
                     modifier = Modifier
                         .widthIn(max = 560.dp)
@@ -162,8 +162,8 @@ internal fun UserBubble(
                 ) {
                     val mentionColor = MaterialTheme.colorScheme.primary
                     val mentionBg = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                    val annotatedText = remember(message.text, knownMentionNames, mentionColor, mentionBg) {
-                        formatMentionText(message.text, knownMentionNames, mentionColor, mentionBg)
+                    val annotatedText = remember(displayText, knownMentionNames, mentionColor, mentionBg) {
+                        formatMentionText(displayText, knownMentionNames, mentionColor, mentionBg)
                     }
                     SelectionContainer {
                         Text(
@@ -511,7 +511,7 @@ internal fun AssistantBubble(
                     markdown = message.text,
                     modifier = Modifier.fillMaxWidth(),
                     // 缓存键只用 message.id：流式期间每帧 text.length 都会变，把长度编进键会让
-                    // 缓存形同失效。大文本 LRU 在 MarkdownText 内用内容指纹校验，同一 id 换正文不会串味。
+                    // 缓存形同失效。大文本 LRU 在 MarkdownText 内用完整正文校验，同一 id 换正文不会串味。
                     contentCacheKey = "assistant:${message.id}",
                 )
             }

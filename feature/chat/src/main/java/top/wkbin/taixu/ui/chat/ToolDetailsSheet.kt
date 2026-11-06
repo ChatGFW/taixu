@@ -35,9 +35,12 @@ internal fun ToolDetailsSheet(call: ToolCall, result: ToolResult?, workspace: St
     onOpenFile: ((String, String) -> Unit)?, executing: Boolean, canRetry: Boolean,
     onRetry: () -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val fileTool = call.tool in setOf(HarnessTool.READ, HarnessTool.WRITE, HarnessTool.EDIT)
+    val renderer = LocalToolUiRegistry.current.resolve(call)
+    val ui = ToolUiContext(call, result, workspace, executing)
+    val previewLabel = renderer.previewLabel
+    val fileTool = previewLabel != null
     var selectedTab by rememberSaveable(call.id) { mutableIntStateOf(if (fileTool) 2 else 0) }
-    val input = remember(call.args) { toolDetailInput(call) }
+    val input = remember(renderer, ui) { renderer.input(ui) }
     val currentText = if (selectedTab == 1) result?.output.orEmpty() else input
     val copied = stringResource(R.string.chat_tool_details_copied)
     ChatBottomSheet(
@@ -45,10 +48,10 @@ internal fun ToolDetailsSheet(call: ToolCall, result: ToolResult?, workspace: St
         title = {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(toolIcon(call.tool), Modifier.size(22.dp), MaterialTheme.colorScheme.primary)
+                RuntimeIcon(renderer.icon(ui), Modifier.size(22.dp), MaterialTheme.colorScheme.primary)
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.chat_tool_details_title), style = MaterialTheme.typography.titleMedium)
-                    Text(toolDisplayName(call), style = MaterialTheme.typography.bodySmall,
+                    Text(renderer.title(ui), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 RuntimeIconButton(onClick = onDismiss, contentDescription = stringResource(R.string.chat_close)) {
@@ -64,14 +67,14 @@ internal fun ToolDetailsSheet(call: ToolCall, result: ToolResult?, workspace: St
                     Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 },
                         text = { Text(stringResource(R.string.chat_tool_details_output)) })
                     if (fileTool) Tab(selected = selectedTab == 2, onClick = { selectedTab = 2 },
-                        text = { Text(stringResource(R.string.chat_tool_details_file)) })
+                        text = { Text(stringResource(previewLabel)) })
                 }
                 Text(stringResource(toolStateLabel(toolStepState(result, executing))),
                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (selectedTab == 2 && fileTool) {
-                        ToolDiffView(call, result, workspace, onOpenFile?.let { open -> { project, path -> onDismiss(); open(project, path) } })
+                        renderer.Preview(ui, onOpenFile?.let { open -> { project, path -> onDismiss(); open(project, path) } })
                     } else if (currentText.isNotEmpty()) {
                         SelectionContainer {
                             Text(currentText.take(64_000), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))

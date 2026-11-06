@@ -25,6 +25,8 @@ data class SessionConfig(
     /** Protocol subprocesses use pipes; terminal sessions keep PTY semantics. */
     val usePty: Boolean = true,
     val pluginIdentity: top.wkbin.taixu.core.model.PluginExecutionIdentity? = null,
+    /** 终端所属会话；决定 `/attachments` 绑定的会话私有目录。null = 共享目录。 */
+    val sessionId: String? = null,
 )
 
 interface LinuxSession {

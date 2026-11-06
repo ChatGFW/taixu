@@ -29,7 +29,7 @@ buildscript {
         }
     }
     dependencies {
-        classpath("org.apache.groovy:groovy-json:4.0.27")
+        classpath(libs.groovy.json)
     }
 }
 
@@ -70,7 +70,7 @@ subprojects {
 // 基线维护：运行 architectureBaselineSync（收缩下调 / 拒绝上涨 / 清理失效条目）。
 val architecturePolicyFile = rootProject.file("architecture-policy.json")
 
-fun parseJsonMap(file: java.io.File): Map<*, *> =
+fun parseJsonMap(file: File): Map<*, *> =
     JsonSlurper().parseText(file.readText().trim().removePrefix("\uFEFF")) as Map<*, *>
 
 fun policyModules(policy: Map<*, *>): List<Map<*, *>> =
@@ -80,7 +80,7 @@ fun policyModules(policy: Map<*, *>): List<Map<*, *>> =
 fun moduleGradlePath(module: Map<*, *>): String =
     ":${(module["path"] as String).replace('/', ':')}"
 
-fun moduleSourceRoot(module: Map<*, *>): java.io.File =
+fun moduleSourceRoot(module: Map<*, *>): File =
     rootDir.resolve(module["path"] as String).resolve("src/main")
 
 // 配置期解析一次 policy，供两个验证任务登记精确输入。
@@ -150,12 +150,13 @@ tasks.register("architectureCheck") {
             val allowed = (module["requires"] as List<*>).map { it as String }.toSet()
             val deps = mutableListOf<String>()
             projectDepRegex.findAll(buildText).forEach { match ->
-                val depId = idByGradlePath[":${match.groupValues[1]}"]
-                when {
-                    depId == null ->
+                when (val depId = idByGradlePath[":${match.groupValues[1]}"]) {
+                    null ->
                         violations += "模块 $id 依赖了未登记的模块 :${match.groupValues[1]}（请同步 architecture-policy.json）"
-                    depId !in allowed ->
+
+                    !in allowed ->
                         violations += "模块 $id 依赖 $depId，不在其 requires 白名单中"
+
                     else -> deps += depId
                 }
             }

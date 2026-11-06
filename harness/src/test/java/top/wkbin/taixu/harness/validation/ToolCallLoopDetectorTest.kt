@@ -5,6 +5,8 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -145,5 +147,39 @@ class ToolCallLoopDetectorTest {
         detector.recordIntent("read", readArgs)
         detector.recordSettled("read", readArgs, success = true)
         assertEquals(ToolCallLoopDetector.LoopVerdict.Pass, detector.evaluate("edit", retry))
+    }
+
+    @Test
+    fun `unknown tool names escalate once the model keeps guessing`() {
+        val detector = ToolCallLoopDetector()
+
+        assertNull(detector.unknownToolEscalation("bash"))
+        assertNull(detector.unknownToolEscalation("shell"))
+        val escalated = detector.unknownToolEscalation("sh")
+
+        assertNotNull(escalated)
+        assertTrue(escalated!!.contains("bash"))
+        assertTrue(escalated.contains("sh"))
+        assertTrue(escalated.contains("不要再猜"))
+    }
+
+    @Test
+    fun `a successful call clears the unknown tool streak`() {
+        val detector = ToolCallLoopDetector()
+        detector.unknownToolEscalation("bash")
+        detector.unknownToolEscalation("shell")
+        detector.recordSettled("read", buildJsonObject { put("path", "a.txt") }, success = true)
+
+        assertNull(detector.unknownToolEscalation("sh"))
+    }
+
+    @Test
+    fun `reset clears the unknown tool streak`() {
+        val detector = ToolCallLoopDetector()
+        detector.unknownToolEscalation("bash")
+        detector.unknownToolEscalation("shell")
+        detector.reset()
+
+        assertNull(detector.unknownToolEscalation("sh"))
     }
 }

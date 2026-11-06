@@ -23,4 +23,5 @@ data class QueuedPrompt(
     val id: String,
     val queue: PromptQueue,
     val message: PendingMessage,
+    val isEditing: Boolean = false,
 )

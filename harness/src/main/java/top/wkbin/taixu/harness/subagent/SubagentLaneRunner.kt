@@ -21,6 +21,7 @@ import top.wkbin.taixu.harness.R
 import kotlinx.coroutines.CancellationException
 import top.wkbin.taixu.harness.ApiToolCallSpec
 import top.wkbin.taixu.harness.ModelConfig
+import top.wkbin.taixu.harness.SubagentTimeBudget
 import top.wkbin.taixu.harness.messagePromptTokens
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.session.ApiMessageProjector
@@ -73,6 +74,8 @@ class SubagentLaneRunner(
          * 闸门会把所有写入误拦成"未声明 write_paths 的只读任务"。
          */
         writePaths: List<String>? = null,
+        /** 编排层给出的绝对截止时刻；进入收尾窗口后停止派工具，用剩余时间交付结论。 */
+        deadlineAtMs: Long? = null,
     ): SubagentLaneResult {
         val user = UserMessage(UUID.randomUUID().toString(), now(), prompt)
         val operationId = operations.acceptRun(sessionId, user, laneName)
@@ -109,7 +112,20 @@ class SubagentLaneRunner(
             val totalRounds = toolRounds + 1
             val historyBudgetTokens = laneHistoryBudget(configuredModel)
             repeat(totalRounds) { round ->
-                val forceFinalAnswer = shouldForceSubagentFinalAnswer(round, totalRounds)
+                if (SubagentTimeBudget.exhausted(deadlineAtMs, now())) {
+                    finalizer.finish(sessionId, "failed", details = "time budget exhausted", laneName = laneName)
+                    return SubagentLaneResult(
+                        success = false,
+                        summary = SubagentTimeBudget.exhaustedSummary(finalText),
+                        toolCallCount = toolRoundRunner.toolCallCount,
+                        termination = SubagentTermination.TIMEOUT,
+                        pendingApprovals = deferredApprovals.toList(),
+                        blockedWrites = blockedWrites.toList(),
+                    )
+                }
+                // 时间预算进入收尾窗口后即使轮数未到也停止派工具：轮数上限看不出口袋里还剩多少时间。
+                val forceFinalAnswer = shouldForceSubagentFinalAnswer(round, totalRounds) ||
+                    SubagentTimeBudget.shouldWrapUp(deadlineAtMs, now())
                 val model = if (forceFinalAnswer) configuredModel.copy(pureChatMode = true) else configuredModel
                 val responseId = UUID.randomUUID().toString()
                 operations.providerIntent(operationId, responseId, round, 1, NETWORK_ATTEMPTS)

@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <service android:name="top.wkbin.taixu.core.document.PdfTextService"
+            android:exported="false" android:isolatedProcess="true" android:process=":document_parser" />
+    </application>
+</manifest>

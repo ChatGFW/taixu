@@ -92,6 +92,7 @@ class TaiXuApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        if (android.os.Process.isIsolated()) return
         startKoin {
             allowOverride(false)
             androidContext(this@TaiXuApplication)
@@ -100,6 +101,7 @@ class TaiXuApplication : Application(), Configuration.Provider {
         configureCursorWindowSize()
         crashReporter.install()
         recoverPendingDataBackup()
+        migrateLegacyAttachments()
         installMemoryWatchdog()
         appScope.launch(Dispatchers.IO) {
             // 并发执行互不依赖的启动任务（crash 导出 / 特权恢复 / 浏览器 MCP bootstrap /

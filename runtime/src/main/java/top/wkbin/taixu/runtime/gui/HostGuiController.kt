@@ -213,10 +213,7 @@ class HostGuiController(
      * 截取当前屏幕并保存至指定路径
      */
     suspend fun captureScreenshot(targetPath: String): Result<String> = withContext(Dispatchers.IO) {
-        runCatching {
-            val res = privilegeManager.executeShellCommand("/system/bin/screencap -p ${ShellQuote.of(targetPath)}")
-            if (res.success) "屏幕截图已保存至 $targetPath" else error(res.stderr.ifBlank { "截图失败" })
-        }
+        captureHostScreenshot(targetPath) { privilegeManager.executeShellCommand(it) }
     }
 
     /** 通过 Context 发送广播；失败时由调用方决定是否回退特权 am broadcast。 */

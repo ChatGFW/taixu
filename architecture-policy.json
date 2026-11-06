@@ -58,8 +58,8 @@
     {
       "id": "model-purity",
       "pattern": "^import\\s+(android|androidx)\\.",
-      "modules": ["core.model"],
-      "message": "core:model 必须保持 Pure Kotlin，严禁引入 android/androidx（详见 ARCHITECTURE_RULES.md 第 1 节）"
+      "modules": ["core.model", "core.markdown"],
+      "message": "core:model / core:markdown 必须保持 Pure Kotlin，严禁引入 android/androidx（详见 ARCHITECTURE_RULES.md 第 1 节）"
     },
     {
       "id": "dao-direct-access",
@@ -113,6 +113,7 @@
     { "id": "core.datastore", "path": "core/datastore", "requires": ["core.model", "core.security"] },
     { "id": "core.network", "path": "core/network", "requires": ["core.model"] },
     { "id": "core.security", "path": "core/security", "requires": ["core.common"] },
+    { "id": "core.document", "path": "core/document", "requires": [] },
     { "id": "core.browser", "path": "core/browser", "requires": ["core.model"] },
     {
       "id": "runtime", "path": "runtime", "requires": [
@@ -154,16 +155,20 @@
       "id": "termux-terminal-emulator", "path": "termux-terminal-emulator", "requires": [],
       "_doc": "Termux terminal-emulator v0.118.0 fork（GPL-3.0）：新增 TerminalSessionBackend 缝隙以支持远程 PTY 渲染；保持 com.termux.terminal 公共 API 与 terminal-view AAR 二进制兼容"
     },
+    {
+      "id": "core.markdown", "path": "core/markdown", "requires": ["core.model"],
+      "forbidBuildScript": ["android.library", "koin.android", "androidx.core"]
+    },
     { "id": "feature.theme", "path": "feature/theme", "requires": ["core.common", "core.model"] },
     {
       "id": "feature.components", "path": "feature/components",
-      "requires": ["core.common", "core.model", "feature.theme"]
+      "requires": ["core.common", "core.model", "core.markdown", "feature.theme"]
     },
     { "id": "feature.home", "path": "feature/home", "requires": ["core.datastore", "core.database", "harness", "runtime", "feature.theme"] },
     {
       "id": "feature.chat",
       "path": "feature/chat",
-      "requires": ["core.common", "core.database", "core.datastore", "runtime", "harness", "tools", "feature.theme", "feature.a2uipoc"]
+      "requires": ["core.common", "core.document", "core.database", "core.datastore", "runtime", "harness", "tools", "feature.theme", "feature.a2uipoc"]
     },
     { "id": "feature.terminal", "path": "feature/terminal", "requires": ["core.datastore", "runtime", "plugin.ui", "feature.theme"] },
     {

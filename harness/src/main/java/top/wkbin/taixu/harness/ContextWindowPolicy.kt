@@ -8,7 +8,7 @@ import kotlinx.serialization.json.jsonPrimitive
 object ContextWindowPolicy {
     internal const val RESERVED_OUTPUT_TOKENS = 8_192
     /** Provider tools schema 预留；以 estimateToolDefinitionTokens 实测校准，工具变更后运行一致性测试。 */
-    internal const val TOOL_SCHEMA_RESERVE_TOKENS = 7_200
+    internal const val TOOL_SCHEMA_RESERVE_TOKENS = 7_300
     private const val MAX_SYSTEM_PROMPT_FRACTION = 0.60
     private const val MIN_SYSTEM_PROMPT_TOKENS = 512
     /** 超过此 token 数的用户消息才参与巨型消息截断（普通消息交给折叠线，避免误伤）。 */
@@ -790,7 +790,7 @@ object ContextWindowPolicy {
                 jsonTextBytes(call.function.name) + jsonTextBytes(call.function.arguments) + JSON_FRAMING_PER_MESSAGE
             }
 
-    private fun compactActiveToolOutput(
+    internal fun compactActiveToolOutput(
         toolName: String?,
         args: JsonObject?,
         output: String,

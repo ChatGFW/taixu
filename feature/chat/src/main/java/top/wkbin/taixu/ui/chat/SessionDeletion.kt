@@ -20,10 +20,11 @@ internal class SessionDeletionFeedback {
 
     fun clear() { deletionError.value = null }
 
-    fun delete(scope: CoroutineScope, control: SessionControl, sessionId: String, failureMessage: String) = scope.launch {
+    fun delete(scope: CoroutineScope, control: SessionControl, sessionId: String, failureMessage: String, onDeleted: () -> Unit = {}) = scope.launch {
         try {
             A2uiChatBridge.releaseSession(sessionId)
             control.deleteSession(sessionId)
+            onDeleted()
             deletionError.value = null
         } catch (_: RequestDiagnosticsPersistenceException) {
             deletionError.value = failureMessage

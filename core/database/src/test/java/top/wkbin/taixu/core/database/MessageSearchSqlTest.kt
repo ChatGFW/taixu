@@ -9,7 +9,7 @@ import org.junit.Test
  * 跨会话消息全文搜索的 SQL 契约。与 [HarnessDailyAggregateSqlTest] 同因：
  * Robolectric 自带 SQLite 未编 JSON1，无法执行 Room 的 json_extract 查询，
  * 这里用带 JSON1 的 sqlite-jdbc 执行与 `HarnessBranchQueries.searchMessagesAcrossSessions`
- * 相同的 SQL 文本（改 DAO 的 SQL 时必须同步本文件，反之亦然）。
+ * 同一个 SQL 常量，避免测试副本与生产查询漂移。
  */
 class MessageSearchSqlTest {
 
@@ -36,9 +36,9 @@ class MessageSearchSqlTest {
         connection().use { conn ->
             insert(conn, "m1", "s", "user", """{"type":"user","text":"一百分之百匹配任意词"}""", 1)
             // 转义约定与 RoomHarnessRuntimeRepository.searchMessages 相同
-            assertEquals(0, search(conn, ESCAPE("%")).size)
-            assertEquals(0, search(conn, ESCAPE("_")).size)
-            assertEquals(1, search(conn, ESCAPE("百分之百")).size)
+            assertEquals(0, search(conn, "%").size)
+            assertEquals(0, search(conn, "_").size)
+            assertEquals(1, search(conn, "百分之百").size)
         }
     }
 
@@ -63,6 +63,45 @@ class MessageSearchSqlTest {
             assertEquals(3, hits.size)
             assertEquals(10L, (hits[0][4] as Number).toLong())
             assertEquals(8L, (hits[2][4] as Number).toLong())
+        }
+    }
+
+    @Test fun `blob placeholders malformed json and non text fields do not hide valid hits`() {
+        connection().use { conn ->
+            insert(conn, "valid", "s", "assistant", """{"text":"valid target"}""", 1)
+            for ((index, body) in listOf("@@TAIXU_BLOB@@:harness_blobs/a", "{bad", "null", "{\"text\":123}", "{\"text\":null}").withIndex()) {
+                insert(conn, "bad-$index", "s", "user", body, 2L + index)
+            }
+            assertEquals("valid", search(conn, "target").single()[2])
+            assertTrue(search(conn, "123").isEmpty())
+        }
+    }
+
+    @Test fun `literal percent underscore and backslash locate excerpt around actual match`() {
+        connection().use { conn ->
+            val text = "前".repeat(500) + "100%_done\\path" + "后".repeat(500)
+            val body = "{\"text\":\"" + text.replace("\\", "\\\\") + "\"}"
+            insert(conn, "literal", "s", "user", body, 1)
+            for (query in listOf("100%", "_done", "\\path")) {
+                val excerpt = search(conn, query).single()[5] as String
+                assertTrue(query, excerpt.contains(query))
+                assertTrue(excerpt.length <= 220)
+            }
+        }
+    }
+
+    @Test fun `ascii case insensitive match has correctly centered excerpt`() {
+        connection().use { conn ->
+            insert(conn, "case", "s", "assistant", """{"text":"${"x".repeat(500)}UPPERCASE target${"y".repeat(500)}"}""", 1)
+            assertTrue((search(conn, "uppercase").single()[5] as String).contains("UPPERCASE"))
+        }
+    }
+
+    @Test fun `equal timestamps have stable order and zero limit returns no hits`() {
+        connection().use { conn ->
+            for (id in listOf("a", "c", "b")) insert(conn, id, "s", "user", """{"text":"same"}""", 1)
+            assertEquals(listOf("c", "b", "a"), search(conn, "same").map { it[2] })
+            assertTrue(search(conn, "same", 0).isEmpty())
         }
     }
 
@@ -97,7 +136,7 @@ class MessageSearchSqlTest {
 
     private fun search(conn: java.sql.Connection, query: String, limit: Int = 30): List<List<Any?>> =
         conn.prepareStatement(SEARCH_SQL).use { stmt ->
-            stmt.setString(1, query); stmt.setString(2, query); stmt.setInt(3, limit)
+            stmt.setString(1, query); stmt.setString(2, ESCAPE(query)); stmt.setInt(3, limit)
             stmt.executeQuery().use { rs ->
                 buildList {
                     while (rs.next()) add((1..6).map { rs.getObject(it) })
@@ -125,20 +164,7 @@ class MessageSearchSqlTest {
             CREATE TABLE harness_sessions (id TEXT PRIMARY KEY, title TEXT);
         """.trimIndent()
 
-        /** 与 HarnessBranchQueries.searchMessagesAcrossSessions 的 @Query 保持逐字一致。 */
-        private val SEARCH_SQL = """
-            SELECT sessionId, sessionTitle, messageId, isUser, createdAt,
-                   substr(fullText, MAX(1, instr(fullText, ?) - 48), 220) AS excerpt
-            FROM (
-                SELECT e.sessionId AS sessionId, s.title AS sessionTitle, e.id AS messageId,
-                       e.customType = 'user' AS isUser, e.createdAt AS createdAt,
-                       json_extract(e.payloadJson, '${'$'}.text') AS fullText
-                FROM harness_entries e
-                LEFT JOIN harness_sessions s ON s.id = e.sessionId
-                WHERE e.entryType = 'message' AND e.customType IN ('user', 'assistant')
-                  AND json_extract(e.payloadJson, '${'$'}.text') LIKE '%' || ? || '%' ESCAPE '\'
-                ORDER BY e.createdAt DESC LIMIT ?
-            )
-        """.trimIndent()
+        private val SEARCH_SQL = MESSAGE_SEARCH_SQL
+            .replace(":query", "?").replace(":pattern", "?").replace(":limit", "?")
     }
 }

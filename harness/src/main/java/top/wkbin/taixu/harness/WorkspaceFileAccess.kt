@@ -13,7 +13,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import top.wkbin.taixu.runtime.environment.*
 import top.wkbin.taixu.harness.environment.fingerprintLocalFile
-
 data class WorkspaceEntry(
     val name: String,
     val isDirectory: Boolean,
@@ -22,7 +21,6 @@ data class WorkspaceEntry(
 
 /**
  * Harness 文件工具的受控访问层。
- *
  * 只允许在工作区根目录内操作：
  * - 拒绝 `..` 段、绝对路径逃逸、符号链接逃逸（canonical 校验）
  * - 写入使用临时文件 + 原子 rename，避免半写文件
@@ -62,6 +60,8 @@ class WorkspaceFileAccess(
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (throwable: Exception) { failure(path, throwable) }
     }
+
+    override suspend fun listEntries(path: String) = listWorkspaceEntries(rootCanonical) { resolveRequired(path) }
 
     suspend fun list(path: String): AppResult<List<WorkspaceEntry>> = withContext(Dispatchers.IO) {
         try {

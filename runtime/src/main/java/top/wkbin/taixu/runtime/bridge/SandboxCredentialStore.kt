@@ -96,11 +96,20 @@ class SandboxCredentialStore(
 
         const val SHELL_ACTION = "host.shell"
 
-        /** 默认沙箱子集：APK 安装与 logcat 抓取；任意宿主 shell 不在其中。 */
-        val SANDBOX_ACTIONS: Set<String> = setOf("host.install-apk", "host.logcat")
+        /** 默认沙箱子集：APK 安装、logcat 抓取与两个用户可见动作（打开链接 / 写剪贴板）；宿主 shell 不在其中。 */
+        val SANDBOX_ACTIONS: Set<String> = setOf(
+            "host.install-apk",
+            "host.logcat",
+            "host.open",
+            "host.clipboard",
+            "host.notify",
+        )
 
-        /** 开发者全权模式下的动作集：默认沙箱子集加上宿主 shell。 */
-        val FULL_ACCESS_ACTIONS: Set<String> = SANDBOX_ACTIONS + SHELL_ACTION
+        /** 设备控制动作：改设置 / 控制应用 / 模拟屏幕；只在全权模式下签发。 */
+        val CONTROL_ACTIONS: Set<String> = setOf("host.settings", "host.app", "host.screen")
+
+        /** 开发者全权模式下的动作集：默认沙箱子集加上宿主 shell 与设备控制。 */
+        val FULL_ACCESS_ACTIONS: Set<String> = SANDBOX_ACTIONS + SHELL_ACTION + CONTROL_ACTIONS
 
         private const val TTL_MILLIS = 8L * 60 * 60 * 1000
         private const val SANDBOX_ORIGIN = "taixu:proot"

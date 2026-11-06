@@ -32,7 +32,7 @@ case "${1:-}" in
             echo 'Agent2API startup failed; requires compatible Linux ARM64/glibc (2.36+) and free port 13065' >&2
             exit 1
         fi
-        echo 'Agent2API 3.0.8 (Linux ARM64) startup verified'
+        echo 'Agent2API 3.4.1 (Linux ARM64) startup verified'
         ;;
     '')
         mkdir -p "$data_dir/home"

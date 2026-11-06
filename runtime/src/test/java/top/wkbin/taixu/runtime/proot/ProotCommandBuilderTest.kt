@@ -216,6 +216,44 @@ class ProotCommandBuilderTest {
         assertEquals("-b", args[index - 1])
     }
 
+    private fun bindingIndex(args: List<String>, binding: String): Int {
+        val index = args.indexOf(binding)
+        assert(index > 0 && args[index - 1] == "-b")
+        return index
+    }
+
+    @Test
+    fun bindsSessionAttachmentsAndOverlaysGlobalSkillsAfterwards() {
+        val sessionAttachments = File("/data/data/app/attachments/sessions/s1")
+        val sharedSkills = File("/data/data/app/attachments/skills")
+        val args = ProotCommandBuilder(EnvironmentResolver()).build(
+            prootBinary = File("/p"),
+            rootfsDir = File("/r"),
+            workspaceDir = File("/w"),
+            attachmentsDir = sessionAttachments,
+            sharedSkillsDir = sharedSkills,
+            command = ShellCommand(commandLine = "true"),
+        )
+
+        assertBinding(args, "${sessionAttachments.absolutePath}:/attachments")
+        assertBinding(args, "${sharedSkills.absolutePath}:/attachments/skills")
+        // 技能必须覆盖在会话附件之后，否则会被父级 bind 挡住。
+        assert(bindingIndex(args, "${sharedSkills.absolutePath}:/attachments/skills") >
+            bindingIndex(args, "${sessionAttachments.absolutePath}:/attachments"))
+    }
+
+    @Test
+    fun omitsSkillsOverlayWhenNoSharedSkillsDirIsGiven() {
+        val args = ProotCommandBuilder(EnvironmentResolver()).build(
+            prootBinary = File("/p"),
+            rootfsDir = File("/r"),
+            workspaceDir = File("/w"),
+            command = ShellCommand(commandLine = "true"),
+        )
+
+        assert(args.none { it.endsWith(":/attachments/skills") })
+    }
+
     @Test
     fun hostCredentialIsInjectedLastAndOverridesProviderEnvironment() {
         val args = ProotCommandBuilder(EnvironmentResolver()).build(
