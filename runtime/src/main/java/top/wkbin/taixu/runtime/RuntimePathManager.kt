@@ -29,7 +29,11 @@ class RuntimePathManager(
     }
     val optDir: File = File(baseDir, "opt")
     val workspaceDir: File = File(baseDir, "workspace")
-    /** Host-side shared attachment directory, mounted into every distro at /attachments. */
+    /**
+     * 宿主侧附件全局根（含 `sessions/`、`skills/`、`legacy/`、`shared/`）。
+     * 只给迁移、备份和技能扫描用，禁止作为 guest 的 `/attachments` 挂载源——
+     * 挂进去就能 `ls sessions/<其他会话>`。
+     */
     val attachmentsDir: File = AttachmentPaths.global(appFilesDir)
     private val legacyAttachmentsDir: File = File(appFilesDir, "attachments")
 

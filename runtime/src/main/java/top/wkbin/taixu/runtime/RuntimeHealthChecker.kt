@@ -91,7 +91,8 @@ class RuntimeHealthChecker(
             rootfsDir = pathManager.rootfsDir,
             workspaceDir = pathManager.workspaceDir,
             tmpDir = pathManager.tmpDir,
-            attachmentsDir = pathManager.attachmentsDir,
+            // 探针没有会话上下文，只挂 shared，避免把 sessions/ 暴露给这次 guest 进程。
+            attachmentsDir = pathManager.sharedAttachmentsDir,
             command = command,
         ),
         timeoutMs = command.timeoutMs,
