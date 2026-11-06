@@ -24,13 +24,19 @@ object AttachmentPaths {
     fun sessionsRoot(filesDir: File): File = File(global(filesDir), "sessions")
 
     /**
-     * 会话私有附件目录；`sessionId` 为空时回退到全局目录，
+     * 无会话上下文的挂载源。**绝不能回退到 [global]**：全局根下含 `sessions/`，
+     * 挂进 guest 就等于把所有会话的私有附件公开。这里只给一个共享空目录。
+     */
+    fun shared(filesDir: File): File = File(global(filesDir), "shared")
+
+    /**
+     * 会话私有附件目录；`sessionId` 为空时落到 [shared]，
      * 兼容 workflow / 插件等没有会话上下文的调用方。
      */
     fun session(filesDir: File, sessionId: String?): File =
         sessionId?.takeIf { it.isNotBlank() }
             ?.let { File(sessionsRoot(filesDir), segment(it)) }
-            ?: global(filesDir)
+            ?: shared(filesDir)
 
     /**
      * 会话 ID 只作为单段目录名使用，防路径穿越。

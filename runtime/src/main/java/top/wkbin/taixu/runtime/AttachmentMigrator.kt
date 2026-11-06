@@ -63,7 +63,12 @@ class AttachmentMigrator(
                     }
                 }
                 else -> {
-                    sessions.forEach { sessionId -> copyInto(source, AttachmentPaths.session(filesDir, sessionId)) }
+                    val allCopied = sessions.all { sessionId ->
+                        copyInto(source, AttachmentPaths.session(filesDir, sessionId))
+                    }
+                    // 全部副本就绪后删源，否则末尾的"无引用清理"会把它再挪进 legacy，
+                    // 形成 N 份会话副本 + 1 份孤儿，doctor 的 legacy 计数也会误导。
+                    if (allCopied) source.delete()
                     copied++
                     manifest += action(name, "copy", sessions.map { "sessions/${AttachmentPaths.segment(it)}" })
                 }

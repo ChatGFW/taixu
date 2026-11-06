@@ -36,8 +36,28 @@ class AttachmentMigratorTest {
             val dir = AttachmentPaths.session(filesDir, raw).canonicalPath
             assertTrue("$raw -> $dir", dir.startsWith(root))
         }
-        // 空会话是"无会话上下文"的显式回退，落到共享根而不是任何会话目录。
-        assertEquals(AttachmentPaths.global(filesDir).canonicalPath, AttachmentPaths.session(filesDir, "").canonicalPath)
+        // 空会话是"无会话上下文"的显式回退：必须落到 shared，绝不能是含 sessions/ 的全局根。
+        assertEquals(AttachmentPaths.shared(filesDir).canonicalPath, AttachmentPaths.session(filesDir, "").canonicalPath)
+        assertFalse(File(AttachmentPaths.shared(filesDir), "sessions").exists())
+    }
+
+    @Test fun mountSourcesNeverExposeTheSessionTree() {
+        val sources = listOf(
+            AttachmentPaths.session(filesDir, "s1"),
+            AttachmentPaths.session(filesDir, null),
+            AttachmentPaths.session(filesDir, ""),
+        )
+        sources.forEach { dir ->
+            assertFalse("$dir 不应把 sessions/ 暴露给 guest", File(dir, "sessions").exists())
+            assertFalse(
+                "$dir 不应是含 sessions/ 的全局根",
+                dir.canonicalPath == AttachmentPaths.global(filesDir).canonicalPath,
+            )
+        }
+        assertEquals(
+            AttachmentPaths.session(filesDir, null).canonicalPath,
+            AttachmentPaths.session(filesDir, "").canonicalPath,
+        )
     }
 
     @Test fun extractsOnlyAttachmentNames() {
@@ -68,6 +88,8 @@ class AttachmentMigratorTest {
         assertTrue(sessionFile("s2", "b.png").isFile)
         assertFalse(File(AttachmentPaths.global(filesDir), "a.png").exists())
         assertTrue(File(AttachmentPaths.orphan(filesDir), "unused.bin").isFile)
+        // 多会话引用完成后源文件已删，不应再被清进 legacy。
+        assertFalse(File(AttachmentPaths.orphan(filesDir), "b.png").exists())
         assertTrue(File(AttachmentPaths.skills(filesDir), "keep.md").isFile)
     }
 

@@ -33,8 +33,11 @@ class RuntimePathManager(
     val attachmentsDir: File = AttachmentPaths.global(appFilesDir)
     private val legacyAttachmentsDir: File = File(appFilesDir, "attachments")
 
-    /** 会话私有附件目录；单会话挂到 guest 的 `/attachments`。 */
-    fun sessionAttachmentsDir(sessionId: String): File = AttachmentPaths.session(appFilesDir, sessionId)
+    /** 会话私有附件目录；单会话挂到 guest 的 `/attachments`；空 id 落到共享目录。 */
+    fun sessionAttachmentsDir(sessionId: String?): File = AttachmentPaths.session(appFilesDir, sessionId)
+
+    /** 无会话上下文时的挂载源：只含共享文件，不含任何会话目录。 */
+    val sharedAttachmentsDir: File = AttachmentPaths.shared(appFilesDir)
 
     /** 全局技能根：不随会话隔离，额外挂到 `/attachments/skills`。 */
     val attachmentsSkillsDir: File = AttachmentPaths.skills(appFilesDir)

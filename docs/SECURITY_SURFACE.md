@@ -141,7 +141,7 @@ GitHub 外部插件 1.0.1 使用官方 gh，Token 明文 0600、数据目录 070
 要点：
 
 - **附件隔离的边界**：`/attachments` 只挂发起会话的私有目录，`/workspace`、`/root` 仍是跨会话共享——这条隔离解决的是"会话之间读不到彼此上传的文件"，不是完整的多租户边界。
-- 没有会话上下文的命令（workflow、插件、PTY 几何调整）绑定共享根 `attachments/`，因此看不到任何会话附件；历史附件由启动期迁移按消息引用搬入会话目录，本地备份递归覆盖 `attachments/` 并在恢复时按会话落盘。
+- 没有会话上下文的命令（workflow、插件、PTY 几何调整）只绑定 `attachments/shared/`——**绝不绑定全局根**，因为全局根下含 `sessions/`，挂进 guest 等于公开所有会话附件；历史附件由启动期迁移按消息引用搬入会话目录，本地备份递归覆盖 `attachments/` 并在恢复时按会话落盘。
 - guest 内进程对上述挂载的读写权限等于 App 对这些目录的权限；rootfs 本身就在 App 私有目录里。
 - guest「root」是 PRoot 虚拟身份，不能越过 Android 对 App uid 的限制；setuid 位不生效（`DistroConfigurator` 的 apt hook 主动清除 setuid，避免 dpkg 卡死）。
 
