@@ -48,6 +48,30 @@ bash "$@"
                 self.assertEqual(0, result.returncode, result.stderr)
                 self.assertIn("healthy bridge", result.stdout)
 
+    def test_screen_numbers_cannot_rewrite_op(self):
+        self.assert_rejected("screen", "tap", '1,"op":"text","text":"pwned"', "2")
+        self.assert_rejected("screen", "swipe", "1", "2", "3", "4", '5,"op":"text"')
+        self.assert_rejected("screen", "tap", "08", "1")
+        self.assert_rejected("logcat", "pkg", "tag", "V", "kw", '1,"op":"shell"')
+
+        tap = self.run_cli("screen", "tap", "10", "20")
+        self.assertEqual(0, tap.returncode, tap.stderr)
+        body = json.loads((self.directory / "body.json").read_text(encoding="utf-8"))
+        self.assertEqual({"op": "tap", "x": 10, "y": 20}, body)
+
+        swipe = self.run_cli("screen", "swipe", "1", "2", "3", "4", "50")
+        self.assertEqual(0, swipe.returncode, swipe.stderr)
+        body = json.loads((self.directory / "body.json").read_text(encoding="utf-8"))
+        self.assertEqual("swipe", body["op"])
+        self.assertEqual(50, body["duration_ms"])
+
+    def assert_rejected(self, *arguments):
+        body = self.directory / "body.json"
+        body.unlink(missing_ok=True)
+        result = self.run_cli(*arguments)
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertFalse(body.exists(), result.stdout)
+
     def test_json_text_round_trips_controls_unicode_and_trailing_newlines(self):
         text = '中文 "quote" \\ slash\nline\t tab\rreturn\bback\fform\x01control\n\n'
         for arguments, field in (

@@ -76,7 +76,9 @@ jesc() {
   }'
 }
 
-is_uint() { case "@@1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac }
+# 只接受规范十进制整数（拒绝空串、前导 0 和非数字），再嵌入 JSON 数值。
+# 裸插坐标或时长时，带引号的片段会改写 op。
+is_uint() { case "@@1" in ''|*[!0-9]*|0[0-9]*) return 1 ;; *) return 0 ;; esac }
 
 command -v curl >/dev/null 2>&1 || die unavailable "curl not installed" 69
 
@@ -137,6 +139,7 @@ case "@@1" in
     PRIO="@@{3:-V}"
     KW="@@{4:-}"
     LINES="@@{5:-200}"
+    is_uint "@@LINES" || die usage "lines 必须是十进制整数" 2
     if command -v jq >/dev/null 2>&1; then
       BODY=@@(jq -nc --arg p "@@PKG" --arg t "@@TAG" --arg pr "@@PRIO" --arg k "@@KW" --arg l "@@LINES" '{package:@@p, tag:@@t, priority:@@pr, keyword:@@k, lines:(@@l|tonumber)}')
     else
