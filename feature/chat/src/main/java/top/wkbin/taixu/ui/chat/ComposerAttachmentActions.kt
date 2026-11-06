@@ -19,8 +19,9 @@ internal class ComposerAttachmentActions(
     private val scope: CoroutineScope,
     private val drafts: SessionComposerDrafts<ChatAttachment>,
     private val notice: (String) -> Unit,
-    private val importFiles: suspend (List<Uri>, Boolean) -> AttachmentProcessOutcome = { uris, image ->
-        AttachmentHelper.processPicked(context, uris, image, drafts.snapshot().sessionId)
+    /** 第三参是发起导入时捕获的会话：中途切换会话不能让文件落进另一个会话目录。 */
+    private val importFiles: suspend (List<Uri>, Boolean, String) -> AttachmentProcessOutcome = { uris, image, sessionId ->
+        AttachmentHelper.processPicked(context, uris, image, sessionId)
     },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
@@ -30,7 +31,7 @@ internal class ComposerAttachmentActions(
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             var prepared = emptyList<ChatAttachment>()
             try {
-                val outcome = withContext(ioDispatcher) { importFiles(uris, isImage).also { prepared = it.items } }
+                val outcome = withContext(ioDispatcher) { importFiles(uris, isImage, sessionId).also { prepared = it.items } }
                 currentCoroutineContext().ensureActive()
                 prepared = emptyList()
                 val accepted = drafts.finishImport(lease, outcome.items)
