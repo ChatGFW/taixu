@@ -66,7 +66,7 @@ internal class BackupResources(private val locations: BackupLocations) {
     }
 
     fun materialize(records: BackupRecords, manifest: LocalBackupManifest, root: File): BackupRecords {
-        val guest = "/attachments/${root.name}"
+        val guest = "/attachments/skills/${root.name}"
         fun rewrite(text: String): String = text
             .replace("/attachments/__backup__/", "__BACKUP_SKILLS__/")
             .replace(manifest.sourceAttachments, "__BACKUP_ATTACHMENT_ROOT__")
@@ -83,8 +83,9 @@ internal class BackupResources(private val locations: BackupLocations) {
                             val relative = path.removePrefix("backup:")
                             BackupArchive.safePath(relative)
                             require(manifest.assets.any { it.path.startsWith("$relative/") }) { "技能资源清单不完整" }
-                            put("resourcePath", JsonPrimitive(File(root, relative).absolutePath))
-                            put("systemPrompt", JsonPrimitive(getValue("systemPrompt").jsonPrimitive.content.replace(path, File(root, relative).absolutePath)))
+                            val resource = File(File(AttachmentPaths.skills(locations.files), root.name), relative)
+                            put("resourcePath", JsonPrimitive(resource.absolutePath))
+                            put("systemPrompt", JsonPrimitive(getValue("systemPrompt").jsonPrimitive.content.replace(path, resource.absolutePath)))
                         } else require(path.isBlank()) { "技能资源引用无效" }
                     }
                     if (table == "harness_entries") {

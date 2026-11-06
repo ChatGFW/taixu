@@ -30,6 +30,15 @@ class AttachmentMigrator(
     suspend fun migrate(references: List<Pair<String, String>>): Summary = withContext(Dispatchers.IO) {
         val global = AttachmentPaths.global(filesDir)
         relocateLegacySessionRoots()
+        // Repair files orphaned by the earlier migration, including blob-backed messages.
+        references.forEach { (sessionId, payload) ->
+            referencedAttachmentNames(payload).forEach { name ->
+                val source = File(AttachmentPaths.orphan(filesDir), name)
+                if (source.isFile) check(copyInto(source, AttachmentPaths.session(filesDir, sessionId))) {
+                    "无法恢复会话附件：$name"
+                }
+            }
+        }
         val marker = File(global, MARKER_NAME)
         if (marker.exists()) return@withContext Summary(0, 0, 0, skipped = true)
         global.mkdirs()
@@ -148,7 +157,7 @@ class AttachmentMigrator(
         private const val MANIFEST_NAME = ".attachments-v2.manifest.json"
 
         /** `/attachments/<name>` 里的一级名字；`skills` 是全局技能根，永远不算附件。 */
-        private val REFERENCE = Regex("""/attachments/([A-Za-z0-9][A-Za-z0-9._-]{0,159})""")
+        private val REFERENCE = Regex("""/attachments/([A-Za-z0-9][A-Za-z0-9._-]{0,254})(?![A-Za-z0-9._-])""")
 
         /**
          * 一行式布局摘要，供 `taixu-host doctor` 显示：迁移是否执行、文件分布在哪。

@@ -61,8 +61,8 @@ interface HarnessRuntimeDao : HarnessQueueEditQueries, HarnessBranchQueries, Har
     @Query("SELECT * FROM harness_entries WHERE (:start IS NULL OR createdAt >= :start) AND (:end IS NULL OR createdAt < :end) ORDER BY sequence")
     suspend fun listEntriesInRange(start: Long?, end: Long?): List<HarnessEntryEntity>
 
-    /** 仅取引用了 `/attachments/` 的会话与正文，供一次性附件归属迁移使用。 */
-    @Query("SELECT sessionId, payloadJson FROM harness_entries WHERE instr(payloadJson, '/attachments/') > 0")
+    /** 附件引用候选，包括必须由调用方解引用的外置正文。 */
+    @Query("SELECT sessionId, payloadJson FROM harness_entries WHERE instr(payloadJson, '/attachments/') > 0 OR payloadJson LIKE '@@TAIXU_BLOB@@:%'")
     suspend fun attachmentReferenceRows(): List<HarnessAttachmentReferenceRow>
 
     @Query("SELECT COUNT(*) FROM harness_entries WHERE (:start IS NULL OR createdAt >= :start) AND (:end IS NULL OR createdAt < :end)")

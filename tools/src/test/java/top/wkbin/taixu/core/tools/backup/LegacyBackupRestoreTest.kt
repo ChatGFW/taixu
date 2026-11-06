@@ -9,6 +9,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.BackupRecordPolicy
 import top.wkbin.taixu.core.database.DatabaseBackupRepository
+import top.wkbin.taixu.core.database.HarnessBlobStore
 import top.wkbin.taixu.core.datastore.BackupPreferenceStore
 import top.wkbin.taixu.core.model.*
 import top.wkbin.taixu.runtime.AttachmentPaths
@@ -96,7 +97,77 @@ class LegacyBackupRestoreTest {
         }
     }
 
+    @Test fun `blob attachment references and shared skill resources survive restore`() = runBlocking {
+        val temp = Files.createTempDirectory("blob-skill-restore").toFile()
+        val files = File(temp, "files")
+        val locations = BackupLocations(files, AttachmentPaths.global(files), File(files, "workspace"), File(temp, "cache"))
+        val repository = MemoryRepository()
+        val service = LocalBackupService(repository, EmptyPreferences, locations)
+        try {
+            val records = repository.records.copy(tables = repository.records.tables + mapOf(
+                "harness_sessions" to listOf(buildJsonObject { put("id", "s1"); put("title", "session") }),
+                "harness_entries" to listOf(buildJsonObject {
+                    put("id", "e1"); put("sessionId", "s1")
+                    put("payloadJson", HarnessBlobStore.BLOB_PREFIX + "backup:harness_blobs/e1.json")
+                }),
+                "agent_skills" to listOf(buildJsonObject {
+                    put("id", "skill1"); put("isBuiltin", 0)
+                    put("resourcePath", "backup:skills/skill1")
+                    put("systemPrompt", "run /attachments/__backup__/skills/skill1/run.sh")
+                }),
+            ))
+            val archive = archive(temp, locations, records, mapOf(
+                "attachments/photo.png" to "image",
+                "harness_blobs/e1.json" to """{"text":"/attachments/photo.png"}""",
+                "skills/skill1/run.sh" to "echo skill",
+            ))
+            service.restore(archive.inputStream().use { service.preview(it) }, false)
+            assertEquals("image", File(AttachmentPaths.session(files, "s1"), "photo.png").readText())
+            val skill = repository.records.tables.getValue("agent_skills").single()
+            val host = File(skill.getValue("resourcePath").jsonPrimitive.content, "run.sh")
+            assertEquals("echo skill", host.readText())
+            val guest = skill.getValue("systemPrompt").jsonPrimitive.content.removePrefix("run /attachments/skills/")
+            assertEquals(host.canonicalFile, File(AttachmentPaths.skills(files), guest).canonicalFile)
+        } finally { temp.deleteRecursively() }
+    }
+
+    @Test fun `failed restore rolls back published attachments and retry restores complete bytes`() = runBlocking {
+        val temp = Files.createTempDirectory("restore-rollback").toFile()
+        val files = File(temp, "files")
+        val locations = BackupLocations(files, AttachmentPaths.global(files), File(files, "workspace"), File(temp, "cache"))
+        val repository = MemoryRepository()
+        val service = LocalBackupService(repository, EmptyPreferences, locations)
+        try {
+            val archive = archive(temp, locations, repository.records, mapOf("attachments/sessions/s1/file.txt" to "complete"))
+            repository.failAfterPrepare = true
+            val first = archive.inputStream().use { service.preview(it) }
+            assertTrue(runCatching { service.restore(first, false) }.isFailure)
+            val target = File(AttachmentPaths.session(files, "s1"), "file.txt")
+            assertFalse(target.exists())
+            repository.failAfterPrepare = false
+            service.restore(archive.inputStream().use { service.preview(it) }, false)
+            assertEquals("complete", target.readText())
+            target.writeText("damaged")
+            assertTrue(runCatching { service.restore(archive.inputStream().use { service.preview(it) }, false) }.isFailure)
+            assertEquals("damaged", target.readText())
+        } finally { temp.deleteRecursively() }
+    }
+
+    private fun archive(temp: File, locations: BackupLocations, records: BackupRecords, contents: Map<String, String>): File {
+        val assets = File(temp, "archive-assets").apply { mkdirs() }
+        val manifestAssets = contents.map { (path, text) ->
+            val source = File(assets, path).apply { parentFile!!.mkdirs(); writeText(text) }
+            BackupAsset(path, source.length(), BackupArchive.digest(source))
+        }
+        return File(temp, "backup.zip").also { archive ->
+            BackupArchive.write(archive, LocalBackupManifest(createdAt = 1L, records = records,
+                preferences = JsonObject(emptyMap()), assets = manifestAssets, sourceFiles = locations.files.absolutePath,
+                sourceAttachments = locations.attachments.absolutePath, sourceWorkspace = locations.workspace.absolutePath), assets)
+        }
+    }
+
     private class MemoryRepository : DatabaseBackupRepository {
+        var failAfterPrepare = false
         var records = BackupRecords(BackupRecordPolicy.tables.associateWith { emptyList<JsonObject>() })
         var committedOperation: String? = null
         override suspend fun snapshot() = records
@@ -111,6 +182,7 @@ class LegacyBackupRestoreTest {
             check(this.records == expected)
             validate(records)
             prepare()
+            check(!failAfterPrepare) { "simulated database commit failure" }
             this.records = records
             committedOperation = operationId
             return records.tables.values.sumOf { it.size }

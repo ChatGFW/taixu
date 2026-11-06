@@ -75,6 +75,7 @@ class GroupChatDispatcher(
     private val responder = GroupBotResponder(
         groupRepository, orchestrator::ensureGroupSession, sessionControl, logger, liveReplies, freshness, scope,
         taskTracker = taskTracker, contextScope = contextScope,
+        bindAttachments = { session, prompt -> attachmentPreparer?.bindToSession(session, prompt) },
     )
     private val roundCoordinator = GroupRoundCoordinator(
         groups = groupRepository,

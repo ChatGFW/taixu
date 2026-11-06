@@ -103,6 +103,16 @@ class AttachmentMigratorTest {
         assertTrue(sessionFile("s1", "a.png").isFile)
     }
 
+    @Test fun repairsPreviouslyOrphanedBlobAttachmentsAfterTheMarkerWasWritten() = runBlocking {
+        val name = "image-" + "a".repeat(180) + ".png"
+        writeGlobal(name)
+        migrator.migrate(emptyList())
+        assertFalse(sessionFile("s1", name).exists())
+        val repaired = migrator.migrate(listOf("s1" to "Read /attachments/$name"))
+        assertTrue(repaired.skipped)
+        assertEquals(name, sessionFile("s1", name).readText())
+    }
+
     @Test fun relocatesV2SessionRootsIntoTheAttachmentsTree() = runBlocking {
         val legacy = File(AttachmentPaths.base(filesDir), "sessions/s1/attachments")
         legacy.mkdirs()

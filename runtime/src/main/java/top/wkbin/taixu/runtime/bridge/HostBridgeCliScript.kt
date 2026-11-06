@@ -64,8 +64,17 @@ post() {
   finish "@@RESP"
 }
 
-# JSON 字符串转义；换行折叠成空格——裸换行会直接把请求体拼坏。
-jesc() { printf '%s' "@@1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' '; }
+# Encode control bytes while preserving UTF-8 and trailing newlines, without requiring jq.
+jesc() {
+  printf '%s' "@@1" | od -An -v -tu1 | LC_ALL=C awk '{
+    for (i = 1; i <= NF; i++) {
+      n = @@i
+      if (n == 34 || n == 92) printf "\\%c", n
+      else if (n < 32) printf "\\u%04x", n
+      else printf "%c", n
+    }
+  }'
+}
 
 is_uint() { case "@@1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac }
 
@@ -116,7 +125,7 @@ case "@@1" in
     if command -v jq >/dev/null 2>&1; then
       BODY=@@(jq -nc --arg c "@@{CMD}" '{command:@@c}')
     else
-      ESC=@@(printf '%s' "@@{CMD}" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')
+      ESC=@@(jesc "@@{CMD}")
       BODY="{\"command\":\"@@{ESC}\"}"
     fi
     post /api/shell "@@BODY"
@@ -216,10 +225,10 @@ case "@@1" in
     ;;
   doctor)
     echo "granted-actions   : @@{TAIXU_BRIDGE_ACTIONS:-unknown}"
-    finish @@(curl -s -m 15 -w '\n%{http_code}' "@@{BRIDGE_URL}/api/doctor")
+    finish "@@(curl -s -m 15 -w '\n%{http_code}' "@@{BRIDGE_URL}/api/doctor")"
     ;;
   health|status)
-    finish @@(curl -s -m 15 -w '\n%{http_code}' "@@{BRIDGE_URL}/api/health")
+    finish "@@(curl -s -m 15 -w '\n%{http_code}' "@@{BRIDGE_URL}/api/health")"
     ;;
   *)
     echo "TaiXu Host Bridge CLI"

@@ -104,17 +104,15 @@ class LocalBackupService(
                 repository.merge(prepared.expected, adjusted, operation) {
                     check(root.mkdirs()) { "无法创建恢复目录" }
                     val liveAttachments = AttachmentPaths.global(locations.files)
+                    val files = BackupRestoreFiles(locations, root)
                     prepared.manifest.assets.forEach { asset ->
                         val source = File(prepared.stage, "assets/${asset.path}")
                         check(source.length() == asset.bytes && BackupArchive.digest(source) == asset.sha256) { "恢复暂存文件校验失败" }
                         val target = restoreTargetFor(asset.path, root, liveAttachments)
-                        check(target.parentFile!!.mkdirs() || target.parentFile!!.isDirectory)
-                        if (!target.exists()) {
-                            source.inputStream().use { input -> target.outputStream().use { output -> input.copyTo(output) } }
-                        }
+                        files.install(source, target)
                     }
-                    attributeLegacyAttachments(records, liveAttachments)
                     resources.rewriteBlobs(root, prepared.manifest)
+                    attributeLegacyAttachments(records, root, files)
                     if (restorePreferences) preferences.replace(prepared.expectedPreferences, applied, operation)
                 }.also { recoverLocked() }
             }
@@ -135,9 +133,10 @@ class LocalBackupService(
      * - `attachments/sessions/<sid>/...` 直接回会话目录（guest 路径不变）；
      * - skills / legacy 回到全局根；
      * - 旧备份的扁平 `attachments/<name>` 先放 legacy，随后按消息引用复制到会话；
-     * - 其余（技能快照、超长载荷）仍落在 `restored_<op>` 恢复根下。
+     * - 技能快照放进共享 skills 下的独立恢复目录，超长载荷留在恢复根。
      */
     private fun restoreTargetFor(path: String, root: File, liveAttachments: File): File = when {
+        path.startsWith("skills/") -> File(File(AttachmentPaths.skills(locations.files), root.name), path)
         path.startsWith("attachments/sessions/") ->
             File(AttachmentPaths.sessionsRoot(locations.files), path.removePrefix("attachments/sessions/"))
         path.startsWith("attachments/skills/") || path.startsWith("attachments/legacy/") ->
@@ -148,11 +147,16 @@ class LocalBackupService(
     }
 
     /** 旧格式备份没有会话归属：按恢复出的消息引用把文件复制进各自会话目录。 */
-    private fun attributeLegacyAttachments(records: BackupRecords, liveAttachments: File) {
+    private fun attributeLegacyAttachments(records: BackupRecords, root: File, files: BackupRestoreFiles) {
         val owners = linkedMapOf<String, MutableSet<String>>()
         records.tables["harness_entries"].orEmpty().forEach { row ->
             val sessionId = row["sessionId"]?.jsonPrimitive?.contentOrNull ?: return@forEach
-            val payload = row["payloadJson"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            val stored = row["payloadJson"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            val payload = if (stored.startsWith(HarnessBlobStore.BLOB_PREFIX)) {
+                val blob = File(locations.files, stored.removePrefix(HarnessBlobStore.BLOB_PREFIX)).canonicalFile
+                check(blob.toPath().startsWith(root.canonicalFile.toPath()) && blob.isFile) { "聊天载荷资源无效" }
+                blob.readText()
+            } else stored
             AttachmentMigrator.referencedAttachmentNames(payload).forEach { name ->
                 owners.getOrPut(name) { linkedSetOf() }.add(sessionId)
             }
@@ -163,10 +167,7 @@ class LocalBackupService(
             if (!source.isFile) return@forEach
             sessions.forEach { sessionId ->
                 val target = File(AttachmentPaths.session(locations.files, sessionId), name)
-                if (!target.exists()) runCatching {
-                    target.parentFile?.mkdirs()
-                    source.copyTo(target)
-                }
+                files.install(source, target)
             }
         }
     }
@@ -188,7 +189,10 @@ class LocalBackupService(
             preferences.rollback(journal.operationId, journal.applied, journal.previous)
             val root = File(locations.attachments, journal.rootName)
             check(root.canonicalFile.parentFile == locations.attachments.canonicalFile) { "恢复目录无效" }
+            BackupRestoreFiles(locations, root).rollback()
             check(!root.exists() || root.deleteRecursively()) { "无法清理未提交的恢复资源" }
+        } else {
+            BackupRestoreFiles(locations, File(locations.attachments, journal.rootName)).complete()
         }
         atomic.delete()
         check(!journalFile.exists()) { "无法清理恢复日志" }

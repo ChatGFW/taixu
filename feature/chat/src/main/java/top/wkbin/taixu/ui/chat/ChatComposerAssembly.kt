@@ -33,6 +33,10 @@ internal fun buildComposerMessage(
                 }
                 att.documentNotice?.let { append(context.getString(R.string.chat_document_notice, it)) }
             }
+            if (imageUrls.isNotEmpty()) {
+                append(context.getString(R.string.chat_attachment_vision_hint))
+                append('\n')
+            }
             append(context.getString(R.string.chat_attachment_access_hint))
         }
     }

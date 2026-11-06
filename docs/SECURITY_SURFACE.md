@@ -283,7 +283,7 @@ MCP catalog 升级完成事件只携带本地发行版、服务 ID 和进程内�
 
 - `BotOrchestrator.sessionEntity()` 新建的私聊与群维度会话采用 `ASSISTED`，不因缺少审批界面隐式授予完全访问。旧会话保留其已存储模式；群内审批/提问经 `GroupApprovalDialog` 调用同一个 `SessionControl` broker，等待期间不释放群回复队列。后台 Lane 仍沿用原有禁止自行批准及写租约约束。
 - `PersonaBotDao.findBySessionId()` 同时识别私聊和 `bot_group_sessions`，模型参数不能指定另一个 Bot 身份。群维度映射保持历史隔离，但同一个 Bot 的长期记忆仍是共享的，不能视为群间秘密隔离。
-- `BotAttachmentPreparer` 仅读取文件选择器授权的 `content:` URI，按实际流量限制单文件 20 MiB、总计 32 MiB、图片 4 MiB。副本进入既有 `/attachments/bot-input/` 挂载，支持的图片经 `imageUrls` 发给所选 Provider。该共享挂载不构成每 Bot 的文件权限隔离。
+- `BotAttachmentPreparer` 仅读取文件选择器授权的 `content:` URI，按实际流量限制单文件 20 MiB、总计 32 MiB、图片 4 MiB。附件先暂存于全局 `bot-input/`，提交前按实际提示词中的引用复制到接收 Bot 的会话目录，沿会话的 `/attachments/bot-input/` 挂载访问。支持的图片经 `imageUrls` 发给所选 Provider。
 - Bot 记忆的写入、提交、读取、恢复和导出按 Bot 串行。写入使用同目录临时文件与原子替换；上下文分区限量读取。手动编辑另用完整 UTF-8 正文与内容版本，在锁内拒绝旧草稿覆盖并发修改；保存只提交目标文件。历史恢复先验证路径与容量，保存包含未提交及忽略文件的当前快照，再创建恢复提交，保留原历史。多文件替换若中途失败，可从已提交快照恢复。Bot ID、根目录及文件路径校验拒绝越界、符号链接与 Git 元数据路径；正文编辑上限 1 MiB，差异预览上限 64 KiB 并标注截断。
 - 数据库 60→61 新增 `bot_schedule_deliveries`，创建本次投递与推进排期处于同一事务。`admitted` 仅代表 Harness 已持久化受理，不代表任务完成。明确拒绝记为 `rejected`；提交期间中断或异常记为 `unknown` 并显示待核对，不自动重复有副作用的执行。尚未开始投递的 `pending` 可恢复。
 - 群思考内容单独持久化；模型输出及会话状态变化驱动内存投影，StateFlow 合并积压的中间快照，Compose 按帧绘制；群转发没有固定刷新间隔或空转轮询；上游 SSE 完整文本快照按 16 ms 采样以限制复制分配，约 2 秒保存一次恢复检查点，最终落盘。思考文本与正文一样属于模型输出，不参与身份判断或权限授予。

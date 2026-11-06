@@ -16,6 +16,9 @@ internal data class PreparedGroupAttachments(val description: String = "", val i
 
 /** Copies SAF inputs to the existing /attachments mount; URI labels alone are not model inputs. */
 class BotAttachmentPreparer(private val context: Context, private val paths: RuntimePathManager) {
+    internal suspend fun bindToSession(sessionId: String, prompt: String) =
+        bindGroupAttachments(paths.attachmentsDir, paths.sessionAttachmentsDir(sessionId), prompt)
+
     internal suspend fun prepare(attachments: List<GroupAttachment>): PreparedGroupAttachments = withContext(Dispatchers.IO) {
         require(attachments.size <= 5) { "最多发送 5 个附件" }
         if (attachments.isEmpty()) return@withContext PreparedGroupAttachments()

@@ -52,6 +52,7 @@
     <string name="chat_attachment_file">文件</string>
     <string name="chat_attachment_line">%1$d. [%2$s] %3$s (%4$s) -> Linux 沙箱绝对路径: %5$s\n</string>
     <string name="chat_attachment_access_hint">需要通过工具访问时，请使用 base 在上述绝对路径读取；不要使用 Android content:// URI 或宿主机路径。</string>
+    <string name="chat_attachment_vision_hint">图片已随本消息作为视觉输入提供。请优先直接观察图片并回答用户问题；仅在用户明确要求像素、色彩或图像处理分析时执行相应统计。若当前请求未包含可见图片或无法识别图片，请明确说明缺少视觉输入，不要通过文件头、像素统计或字符网格猜测画面内容。上面的文件路径供需要原文件的操作使用。</string>
     <string name="chat_thinking">思考中…</string>
     <string name="chat_close">关闭</string>
     <string name="chat_enable">启用</string>

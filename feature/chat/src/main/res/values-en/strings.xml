@@ -45,6 +45,7 @@
     <string name="chat_attachment_file">File</string>
     <string name="chat_attachment_line">%1$d. [%2$s] %3$s (%4$s) -> Linux sandbox absolute path: %5$s\n</string>
     <string name="chat_attachment_access_hint">When tool access is needed, use base to read the absolute paths above. Do not use Android content:// URIs or host paths.</string>
+    <string name="chat_attachment_vision_hint">Images are attached to this message as visual input. First inspect the images directly and answer the user. Perform pixel, color, or image-processing statistics only when explicitly requested. If no image is visible in the current request or you cannot interpret it, state that visual input is unavailable. Do not guess image content from file headers, pixel statistics, or character grids. The file paths above are for operations that require the original files.</string>
     <string name="chat_thinking">Thinking…</string>
     <string name="chat_close">Close</string>
     <string name="chat_enable">Enable</string>

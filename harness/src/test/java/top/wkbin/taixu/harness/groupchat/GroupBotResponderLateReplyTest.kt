@@ -95,6 +95,26 @@ class GroupBotResponderLateReplyTest {
         assertFalse(message.isStreaming)
     }
 
+    @Test fun `attachments bind to the prepared recipient before submission`() = runBlocking {
+        val bot = seed()
+        val group = groups.getGroup("group")!!
+        control.replyOnSubmit = "done"
+        var bound = false
+        val responder = GroupBotResponder(
+            groups, { _, _ -> "session" }, control, logger, liveReplies,
+            bindAttachments = { session, prompt ->
+                assertEquals("session", session)
+                assertEquals("", control.submittedPrompt)
+                assertTrue(prompt.contains("/attachments/bot-input/source/report.txt"))
+                bound = true
+            },
+        )
+        val result = responder.respond(group, bot, "Read /attachments/bot-input/source/report.txt",
+            "", listOf(bot), emptyList(), null)
+        assertTrue(bound)
+        assertFalse(result.failed)
+    }
+
     @Test fun `waiting for approval yields and posts the result later`() = runBlocking {
         val bot = seed()
         val group = groups.getGroup("group")!!
