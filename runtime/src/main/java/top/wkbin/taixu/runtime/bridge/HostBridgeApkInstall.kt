@@ -27,8 +27,12 @@ internal class HostBridgeApkInstall(
     private val pathManager: RuntimePathManager,
 ) {
     suspend fun installAt(apkPath: String): HttpResponse {
-        // 将沙箱路径映射到宿主路径
+        // 将沙箱路径映射到宿主路径；落在允许根目录之外的路径直接拒绝，不再原样放行。
         val hostPath = resolveSandboxPath(apkPath)
+            ?: return HttpResponse(
+                403,
+                errorJson("APK path is outside the allowed roots: $apkPath", HostFailure.PERMISSION_DENIED),
+            )
         var apkFile = File(hostPath)
         if (!apkFile.isFile) {
             // 智能容错：如果在指定路径未找到，尝试在工作区目录中按文件名模糊搜索匹配的最新 APK
@@ -114,9 +118,10 @@ internal class HostBridgeApkInstall(
      * /workspace/... → pathManager.workspaceDir/...
      * /attachments/... → pathManager.attachmentsDir/...
      */
-    private fun resolveSandboxPath(sandboxPath: String): String {
+    private fun resolveSandboxPath(sandboxPath: String): String? {
         val trimmed = sandboxPath.trim()
-        return when {
+        if (trimmed.isEmpty()) return null
+        val mapped = when {
             trimmed.startsWith("/sdcard/") ->
                 "/storage/emulated/0/${trimmed.removePrefix("/sdcard/")}"
             trimmed == "/sdcard" ->
@@ -134,12 +139,23 @@ internal class HostBridgeApkInstall(
             else -> {
                 // 若为相对路径或去除了开头的斜杠，先在工作区内检查是否存在
                 val wsRelative = File(pathManager.workspaceDir, trimmed.removePrefix("/"))
-                if (wsRelative.exists()) {
-                    wsRelative.absolutePath
-                } else {
-                    trimmed // 原样返回（可能是宿主绝对路径）
-                }
+                if (wsRelative.exists()) wsRelative.absolutePath else null
             }
+        } ?: return null
+        // 未知前缀不再原样放行；归一化后仍须落在允许根目录内，防止 ../ 穿越。
+        return mapped.takeIf { isUnderAllowedRoot(it) }
+    }
+
+    private fun allowedRoots(): List<File> = listOfNotNull(
+        runCatching { pathManager.workspaceDir.canonicalFile }.getOrNull(),
+        runCatching { pathManager.attachmentsDir.canonicalFile }.getOrNull(),
+        runCatching { File("/storage/emulated/0").canonicalFile }.getOrNull(),
+    )
+
+    private fun isUnderAllowedRoot(path: String): Boolean {
+        val candidate = runCatching { File(path).canonicalFile }.getOrNull() ?: return false
+        return allowedRoots().any { root ->
+            candidate == root || candidate.path.startsWith(root.path + File.separator)
         }
     }
 
