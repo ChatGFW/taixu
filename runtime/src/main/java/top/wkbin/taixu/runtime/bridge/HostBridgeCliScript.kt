@@ -64,7 +64,10 @@ post() {
   finish "@@RESP"
 }
 
-jesc() { printf '%s' "@@1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+# JSON 字符串转义；换行折叠成空格——裸换行会直接把请求体拼坏。
+jesc() { printf '%s' "@@1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' '; }
+
+is_uint() { case "@@1" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac }
 
 command -v curl >/dev/null 2>&1 || die unavailable "curl not installed" 69
 
@@ -141,15 +144,15 @@ case "@@1" in
     shift
     shift
     [ -z "@@*" ] && die usage "Usage: taixu-host clipboard set <text>" 2
-    TEXT=@@(printf '%s' "@@*" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    TEXT=@@(jesc "@@*")
     post /api/clipboard "{\"text\":\"@@{TEXT}\"}"
     ;;
   notify)
     [ -z "@@2" ] && die usage "Usage: taixu-host notify <title> [body]" 2
-    TITLE=@@(printf '%s' "@@2" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    TITLE=@@(jesc "@@2")
     shift
     shift
-    BODY=@@(printf '%s' "@@*" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    BODY=@@(jesc "@@*")
     post /api/notify "{\"title\":\"@@{TITLE}\",\"body\":\"@@{BODY}\"}"
     ;;
   setting)
@@ -160,7 +163,14 @@ case "@@1" in
         ;;
       put)
         [ @@# -lt 5 ] && die usage "Usage: taixu-host setting put <namespace> <key> <value>" 2
-        post /api/settings "{\"op\":\"put\",\"namespace\":\"@@(jesc "@@3")\",\"key\":\"@@(jesc "@@4")\",\"value\":\"@@(jesc "@@5")\"}"
+        SET_NS=@@(jesc "@@3")
+        SET_KEY=@@(jesc "@@4")
+        shift
+        shift
+        shift
+        shift
+        SET_VALUE=@@(jesc "@@*")
+        post /api/settings "{\"op\":\"put\",\"namespace\":\"@@{SET_NS}\",\"key\":\"@@{SET_KEY}\",\"value\":\"@@{SET_VALUE}\"}"
         ;;
       *) die usage "Usage: taixu-host setting get|put <namespace> <key> [value]" 2 ;;
     esac
@@ -174,11 +184,15 @@ case "@@1" in
       observe) post /api/screen '{"op":"observe"}' ;;
       tap)
         [ @@# -lt 4 ] && die usage "Usage: taixu-host screen tap <x> <y>" 2
+        is_uint "@@3" && is_uint "@@4" || die usage "x/y 必须是十进制整数" 2
         post /api/screen "{\"op\":\"tap\",\"x\":@@3,\"y\":@@4}"
         ;;
       swipe)
         [ @@# -lt 6 ] && die usage "Usage: taixu-host screen swipe <x1> <y1> <x2> <y2> [duration_ms]" 2
-        post /api/screen "{\"op\":\"swipe\",\"x1\":@@3,\"y1\":@@4,\"x2\":@@5,\"y2\":@@6,\"duration_ms\":@@{7:-300}}"
+        is_uint "@@3" && is_uint "@@4" && is_uint "@@5" && is_uint "@@6" || die usage "坐标必须是十进制整数" 2
+        SWIPE_MS="@@{7:-300}"
+        is_uint "@@SWIPE_MS" || die usage "duration_ms 必须是十进制整数" 2
+        post /api/screen "{\"op\":\"swipe\",\"x1\":@@3,\"y1\":@@4,\"x2\":@@5,\"y2\":@@6,\"duration_ms\":@@SWIPE_MS}"
         ;;
       shot)
         if [ -n "@@{3:-}" ]; then
