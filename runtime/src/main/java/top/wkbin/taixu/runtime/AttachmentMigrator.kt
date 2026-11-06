@@ -30,6 +30,7 @@ class AttachmentMigrator(
     suspend fun migrate(references: List<Pair<String, String>>): Summary = withContext(Dispatchers.IO) {
         val global = AttachmentPaths.global(filesDir)
         relocateLegacySessionRoots()
+        sweepStagedBotInputs()
         // Repair files orphaned by the earlier migration, including blob-backed messages.
         references.forEach { (sessionId, payload) ->
             referencedAttachmentNames(payload).forEach { name ->
@@ -130,6 +131,23 @@ class AttachmentMigrator(
         if (moved > 0) logger.i("附件会话目录已迁移到 attachments/sessions：$moved 个文件")
     }
 
+    /**
+     * 群聊附件先暂存在全局 `bot-input/<uuid>/`，再由各接收方复制进自己的会话目录。
+     * 暂存目录此前没有任何回收路径，每发一次带附件的群消息就永久占一份磁盘（上限 32 MiB），
+     * 而全局根已不挂进 guest，问题完全不可见。这里按 24 小时保留期清扫。
+     */
+    private fun sweepStagedBotInputs(now: Long = System.currentTimeMillis()) {
+        val root = File(AttachmentPaths.global(filesDir), "bot-input")
+        if (!root.isDirectory) return
+        root.listFiles().orEmpty().forEach { stage ->
+            if (!stage.isDirectory) return@forEach
+            if (now - stage.lastModified() > STAGED_TTL_MS) {
+                runCatching { stage.deleteRecursively() }
+            }
+        }
+        runCatching { if (root.listFiles().isNullOrEmpty()) root.delete() }
+    }
+
     private fun action(name: String, action: String, targets: List<String>): Map<String, String> =
         mapOf("name" to name, "action" to action, "targets" to targets.joinToString(","))
 
@@ -155,6 +173,7 @@ class AttachmentMigrator(
     companion object {
         private const val MARKER_NAME = ".attachments-v2.done"
         private const val MANIFEST_NAME = ".attachments-v2.manifest.json"
+        private const val STAGED_TTL_MS = 24L * 60 * 60 * 1000
 
         /** `/attachments/<name>` 里的一级名字；`skills` 是全局技能根，永远不算附件。 */
         private val REFERENCE = Regex("""/attachments/([A-Za-z0-9][A-Za-z0-9._-]{0,254})(?![A-Za-z0-9._-])""")

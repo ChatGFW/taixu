@@ -60,6 +60,24 @@ class AttachmentMigratorTest {
         )
     }
 
+    @Test fun sweepsStaleBotInputStagesAndKeepsFreshOnes() = runBlocking {
+        val root = File(AttachmentPaths.global(filesDir), "bot-input")
+        val stale = File(root, "11111111-1111-1111-1111-111111111111").apply {
+            mkdirs()
+            File(this, "a.txt").writeText("x")
+            setLastModified(System.currentTimeMillis() - 48L * 60 * 60 * 1000)
+        }
+        val fresh = File(root, "22222222-2222-2222-2222-222222222222").apply {
+            mkdirs()
+            File(this, "b.txt").writeText("y")
+        }
+
+        migrator.migrate(emptyList())
+
+        assertFalse(stale.exists())
+        assertTrue(fresh.isDirectory)
+    }
+
     @Test fun extractsOnlyAttachmentNames() {
         assertEquals(
             setOf("a.png", "b.txt"),
