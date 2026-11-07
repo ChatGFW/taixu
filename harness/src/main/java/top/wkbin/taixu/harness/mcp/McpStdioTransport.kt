@@ -293,9 +293,9 @@ class McpStdioTransport(
         internal const val REQUEST_TIMEOUT_MS = 120_000L
         internal const val CALL_REQUEST_TIMEOUT_MS = 600_000L
         internal const val MAX_BUFFERED_LINES = 64
-        internal const val MAX_FRAME_CHARS = 1 * 1024 * 1024
+        internal const val MAX_FRAME_CHARS = 5 * 1024 * 1024
         /** STDIO 超长行落盘转存硬顶：8MB（超过则回退熔断跳过），与 McpResponseSizeLimiter 的 SSE 硬顶对齐。 */
-        internal const val MAX_SPILL_FRAME_CHARS = 8L * 1024 * 1024
+        internal const val MAX_SPILL_FRAME_CHARS = 16L * 1024 * 1024
         internal const val MAX_IGNORED_FRAMES = 256
         internal const val IDLE_TIMEOUT_MS = 10L * 60L * 1000L
         internal const val SWEEP_INTERVAL_MS = 60L * 1000L

@@ -1,0 +1,14 @@
+#!/bin/sh -e
+# TAIXU_DYN_PATH — baksmali 包装器（动态版本，不写死版本号）
+#
+# 与 smali 同一套扫描规则：取 $TAIXU_TOOLS_DIR 下版本号最高的 baksmali-<版本>-fat.jar。
+TOOLS="${TAIXU_TOOLS_DIR:-/opt/taixu/tools}"
+JAR=$(
+    for d in "$TOOLS"/smali-[0-9]*/ ; do
+        [ -d "$d" ] || continue
+        _v="${d%/}"; _v="${_v##*/smali-}"
+        [ -f "$d/baksmali-$_v-fat.jar" ] && printf '%s|%s\n' "$_v" "$d/baksmali-$_v-fat.jar"
+    done | sort -V | tail -n 1 | cut -d'|' -f2
+)
+[ -n "$JAR" ] || { echo "baksmali: 未找到 $TOOLS/smali-<版本>/baksmali-<版本>-fat.jar" >&2; exit 127; }
+exec java -jar "$JAR" "$@"

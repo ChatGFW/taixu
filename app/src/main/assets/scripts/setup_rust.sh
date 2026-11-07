@@ -10,7 +10,13 @@ echo "==> [TaiXu] 正在初始化 Rust & Android JNI 交叉编译开发环境...
 RUST_HOME="/opt/taixu/toolchains/rust"
 mkdir -p "$RUST_HOME" /usr/local/bin /usr/bin /tmp /root/.cargo 2>/dev/null || true
 
-RUST_VERSION="1.85.0"
+# 版本号不写死：查官方 stable 通道的当前版本
+RUST_VERSION="${TAIXU_RUST_VERSION:-}"
+if [ -z "$RUST_VERSION" ]; then
+    RUST_VERSION="$(curl -fsSL --connect-timeout 8 --max-time 20 https://static.rust-lang.org/dist/channel-rust-stable.toml 2>/dev/null \
+        | grep -A3 '^\[pkg\.rust\]' | sed -n 's/^version = "\([0-9][0-9.]*\) .*/\1/p' | head -n 1)"
+fi
+[ -n "$RUST_VERSION" ] || RUST_VERSION="1.85.0"   # 离线兜底
 RUST_DIST_URLS="
 https://mirrors.tuna.tsinghua.edu.cn/rustup/dist/rust-${RUST_VERSION}-aarch64-unknown-linux-gnu.tar.gz
 https://static.rust-lang.org/dist/rust-${RUST_VERSION}-aarch64-unknown-linux-gnu.tar.gz
@@ -76,8 +82,8 @@ fi
 # 配置 Cargo 镜像源与 Android NDK Linker
 cat << 'EOF' > /root/.cargo/config.toml
 [target.aarch64-linux-android]
-linker = "/opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
-ar = "/opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+linker = "/opt/taixu/toolchains/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
+ar = "/opt/taixu/toolchains/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
 
 [source.crates-io]
 replace-with = 'tuna'

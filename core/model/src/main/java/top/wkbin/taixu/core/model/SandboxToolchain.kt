@@ -209,7 +209,11 @@ object SandboxToolchainCatalog {
             displayName = "aapt2",
             purpose = "资源打包与解析，资源表（arsc）分析必用",
             commands = listOf("aapt2", "aapt"),
-            candidatePaths = listOf("/opt/android-sdk/build-tools/35.0.0/aapt2"),
+            // 动态探测：取 build-tools 下最高正式版（跳过 rc/beta/alpha），不写死版本号
+            candidatePaths = listOf(
+                "\$(_tx_latest_dir /opt/android-sdk/build-tools '')/aapt2",
+                "/opt/taixu/bin/aapt2",
+            ),
             versionCommand = "{cmd} version",
             group = ToolchainGroup.NATIVE_BUILD,
             repair = RepairStrategy.ByBundleComponents(
@@ -223,7 +227,7 @@ object SandboxToolchainCatalog {
             purpose = "APK 签名与重签名，自改包安装前必须过这一关",
             commands = listOf("apksigner"),
             candidatePaths = listOf(
-                "/opt/android-sdk/build-tools/35.0.0/apksigner",
+                "\$(_tx_latest_dir /opt/android-sdk/build-tools '')/apksigner",
                 "/usr/bin/apksigner",
             ),
             // apksigner version 输出的是内部工具版本（0.9），不是 build-tools 版本，比较无意义；

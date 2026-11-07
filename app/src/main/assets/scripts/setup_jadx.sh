@@ -16,7 +16,13 @@ if ! command -v unzip >/dev/null 2>&1 && [ -x "${TAIXU_TOOL_DIR:-/opt/taixu/tool
     export PATH="/usr/local/bin:/usr/bin:$PATH"
 fi
 
-JADX_VERSION="v1.5.0"
+# 版本号不写死：查 skylot/jadx 最新 release tag
+JADX_VERSION="${TAIXU_JADX_VERSION:-}"
+if [ -z "$JADX_VERSION" ]; then
+    JADX_VERSION="$(curl -fsSL --connect-timeout 8 --max-time 20 https://api.github.com/repos/skylot/jadx/releases/latest 2>/dev/null \
+        | sed -n 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+fi
+[ -n "$JADX_VERSION" ] || JADX_VERSION="v1.5.0"   # 离线兜底
 JADX_URLS="
 https://mirror.ghproxy.com/https://github.com/skylot/jadx/releases/download/${JADX_VERSION}/jadx-${JADX_VERSION}.zip
 https://gh-proxy.com/https://github.com/skylot/jadx/releases/download/${JADX_VERSION}/jadx-${JADX_VERSION}.zip

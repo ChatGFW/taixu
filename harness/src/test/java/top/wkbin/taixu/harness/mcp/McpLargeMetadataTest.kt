@@ -28,43 +28,43 @@ import top.wkbin.taixu.core.model.McpTransportType
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class McpLargeMetadataTest {
-    @Test fun `tool results still spill above 512 KiB`() {
+    @Test fun `tool results still spill above 5 MiB`() {
         val directory = Files.createTempDirectory("mcp-tool-result-test").toFile()
         try {
             Response.Builder().request(Request.Builder().url("https://example.test/mcp").build())
                 .protocol(Protocol.HTTP_1_1).code(200).message("OK")
-                .body("a".repeat(560 * 1024).toResponseBody()).build().use { response ->
+                .body("a".repeat(5 * 1024 * 1024 + 64 * 1024).toResponseBody()).build().use { response ->
                     val payload = readMcpHttpPayload(response, isToolCall = true, directory)
                     assertTrue(payload is McpResponseSizeLimiter.Payload.Spilled)
-                    assertEquals(560L * 1024, (payload as McpResponseSizeLimiter.Payload.Spilled).file.length())
+                    assertEquals(5L * 1024 * 1024 + 64 * 1024, (payload as McpResponseSizeLimiter.Payload.Spilled).file.length())
                 }
         } finally {
             directory.deleteRecursively()
         }
     }
 
-    @Test fun `tool directory above 512 KiB loads without spilling`() = runBlocking {
-        exercise(560 * 1024, chunked = false) { transport, config ->
+    @Test fun `tool directory above 5 MiB loads without spilling`() = runBlocking {
+        exercise(6 * 1024 * 1024, chunked = false) { transport, config ->
             assertEquals(listOf("large_tool"), transport.discover(config).map { it.name })
         }
     }
 
-    @Test fun `chunked tool directory above 512 KiB loads`() = runBlocking {
-        exercise(560 * 1024, chunked = true) { transport, config ->
+    @Test fun `chunked tool directory above 5 MiB loads`() = runBlocking {
+        exercise(6 * 1024 * 1024, chunked = true) { transport, config ->
             assertEquals(1, transport.discover(config).size)
         }
     }
 
     @Test fun `oversize metadata with declared length is rejected`() = runBlocking {
-        exercise(4 * 1024 * 1024 + 1, chunked = false) { transport, config ->
+        exercise(16 * 1024 * 1024 + 1, chunked = false) { transport, config ->
             val failure = runCatching { transport.discover(config) }.exceptionOrNull()
             assertNotNull(failure)
-            assertTrue(failure!!.message.orEmpty().contains("4096KB"))
+            assertTrue(failure!!.message.orEmpty().contains("16384KB"))
         }
     }
 
     @Test fun `chunked metadata still has a hard limit`() = runBlocking {
-        exercise(4 * 1024 * 1024 + 1, chunked = true) { transport, config ->
+        exercise(16 * 1024 * 1024 + 1, chunked = true) { transport, config ->
             val failure = runCatching { transport.discover(config) }.exceptionOrNull()
             assertNotNull(failure)
             assertTrue(failure!!.message.orEmpty().contains("熔断"))

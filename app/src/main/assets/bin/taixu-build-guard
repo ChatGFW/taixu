@@ -1,13 +1,27 @@
 #!/bin/sh
+# TAIXU_DYN_PATH：本脚本不含旧版本字面量，Gradle/JDK/AAPT2/NDK 全部走 load_android_environment
+# 末尾的动态探测；登录期补丁以本标记作为「已剥离」判据。
 # Lightweight console/Agent guard. The authoritative preflight is
 # /opt/taixu/scripts/taixu-build.sh.
 set -u
 command_name="${1:-help}"
 [ "$#" -gt 0 ] && shift
-GRADLE_HOME="${GRADLE_HOME:-/opt/gradle-8.14.2}"
+# 不设旧版默认值：留空则交给 load_android_environment 末尾的动态探测（否则会覆盖 profile 里的新版本）
+GRADLE_HOME="${GRADLE_HOME:-}"
 BUILD_ENGINE=/opt/taixu/scripts/taixu-build.sh
 fail() { printf '%s\n' "==> [TaiXu Guard] ❌ $*" >&2; exit "${2:-125}"; }
 load_android_environment() {
+    # ---- 动态版本探测（与 ToolchainPathResolver.SHELL_PRELUDE 同款；勿改成具体版本号）----
+    # _tx_latest_dir <父目录> [名字前缀]：取版本号最高的子目录，跳过预发布版
+    _tx_latest_dir() {
+        _tx_parent="$1"
+        _tx_prefix="${2:-}"
+        ls -d "$_tx_parent"/"$_tx_prefix"*/ 2>/dev/null \
+            | sed 's#/$##' \
+            | grep -Eiv 'rc[0-9]*$|[-._]?(alpha|beta|preview|snapshot|canary)' \
+            | sort -V \
+            | tail -n 1
+    }
     requested_java_home="${JAVA_HOME:-}"
     requested_android_home="${ANDROID_HOME:-}"
     requested_android_sdk_root="${ANDROID_SDK_ROOT:-}"
@@ -37,14 +51,16 @@ load_android_environment() {
     [ -z "$requested_tool_dir" ] || TAIXU_TOOL_DIR="$requested_tool_dir"
     export ANDROID_HOME="${ANDROID_HOME:-/opt/android-sdk}"
     export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-    export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${TAIXU_NDK_PATH:-/opt/taixu/toolchains/android/ndk}}"
+    export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${TAIXU_NDK_PATH:-/opt/taixu/toolchains/ndk}}"
     export ANDROID_NDK_ROOT="${ANDROID_NDK_ROOT:-$ANDROID_NDK_HOME}"
     export TAIXU_NDK_PATH="${TAIXU_NDK_PATH:-$ANDROID_NDK_HOME}"
     export FLUTTER_HOME="${FLUTTER_HOME:-/opt/flutter}"
     export TAIXU_CMAKE_HOME="${TAIXU_CMAKE_HOME:-/opt/taixu/tools/android-suite-offline/cmake}"
     export TAIXU_NINJA_HOME="${TAIXU_NINJA_HOME:-/opt/taixu/tools/android-suite-offline/bin}"
     export TAIXU_TOOL_DIR="${TAIXU_TOOL_DIR:-/opt/taixu/tools}"
-    export TAIXU_AAPT2_PATH="${TAIXU_AAPT2_PATH:-$ANDROID_HOME/build-tools/35.0.0/aapt2}"
+    # Gradle：优先已有值，否则探测 /opt/gradle-<ver> 取最高正式版
+    export GRADLE_HOME="${GRADLE_HOME:-$(_tx_latest_dir /opt gradle-)}"
+    export TAIXU_AAPT2_PATH="${TAIXU_AAPT2_PATH:-$(_tx_latest_dir "$ANDROID_HOME/build-tools" '')/aapt2}"
 }
 is_android_project() {
     [ -f pubspec.yaml ] && [ -d android ] && return 0

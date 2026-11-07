@@ -31,11 +31,11 @@ test -z "$workshop_tool_dir" || TAIXU_TOOL_DIR="$workshop_tool_dir"
 if test -z "${JAVA_HOME:-}" && test -x /opt/taixu/toolchains/android/jdk/bin/java; then
     JAVA_HOME=/opt/taixu/toolchains/android/jdk
 elif test -z "${JAVA_HOME:-}"; then
-    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
+    JAVA_HOME=$(ls -d /opt/taixu/toolchains/jdk* 2>/dev/null | sort -V | tail -n 1); test -x "$JAVA_HOME/bin/java" || JAVA_HOME=$(ls -d /usr/lib/jvm/java-* 2>/dev/null | sort -V | tail -n 1)
 fi
 ANDROID_HOME="${ANDROID_HOME:-/opt/android-sdk}"
 ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-GRADLE_HOME="${GRADLE_HOME:-/opt/gradle-8.14.2}"
+GRADLE_HOME="${GRADLE_HOME:-$(ls -d /opt/gradle-*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')}"
 FLUTTER_HOME="${FLUTTER_HOME:-/opt/flutter}"
 if [ -z "${TAIXU_CMAKE_HOME:-}" ] || [ ! -x "$TAIXU_CMAKE_HOME/bin/cmake" ]; then
     if [ -x /opt/taixu/tools/android-ndk/cmake/bin/cmake ]; then
@@ -135,7 +135,7 @@ keep_project_arm64_only() {
 
 check_project_toolchain_declarations() {
     project="$1"
-    ndk_home="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}}"
+    ndk_home="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/toolchains/ndk}}"
     expected_ndk=$(sed -n 's/^[[:space:]]*Pkg\.Revision[[:space:]]*=[[:space:]]*//p' "$ndk_home/source.properties" 2>/dev/null | head -n 1 || true)
     declared_ndk=$(grep -RhsE 'ndkVersion[^0-9]*[0-9]+(\.[0-9]+)+' "$project"/*.gradle "$project"/*.gradle.kts "$project"/app/*.gradle "$project"/app/*.gradle.kts "$project"/android/app/*.gradle "$project"/android/app/*.gradle.kts 2>/dev/null |
         sed -n 's/.*ndkVersion[^0-9]*\([0-9][0-9.]*\).*/\1/p' | head -n 1 || true)
@@ -162,7 +162,7 @@ doctor() {
     check_project_toolchain_declarations "$project"
     analyze_args=""
     test "${TAIXU_OFFLINE:-0}" = 1 && analyze_args="--offline"
-    need_file "$ANDROID_HOME/platforms/android-34/android.jar" "Android Platform 34"
+    need_file "$(ls -d "$ANDROID_HOME"/platforms/android-*/ 2>/dev/null | sort -V | tail -n 1 | sed 's#/$##')/android.jar" "Android Platform 34"
     has_native=0
     if test -f "$project/CMakeLists.txt" || test -f "$project/app/CMakeLists.txt" || test -d "$project/app/src/main/cpp" || test -d "$project/app/src/main/jni"; then
         has_native=1
@@ -174,13 +174,13 @@ doctor() {
         need_exec "$TAIXU_CMAKE_HOME/bin/cmake" "CMake"
         need_exec "$TAIXU_NINJA_HOME/ninja" "Ninja"
     fi
-    aapt2="${TAIXU_AAPT2_PATH:-$ANDROID_HOME/build-tools/35.0.0/aapt2}"
+    aapt2="${TAIXU_AAPT2_PATH:-$(ls -d "$ANDROID_HOME"/build-tools/*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')/aapt2}"
     need_exec "$aapt2" "ARM64 AAPT2"
     check_java_arch "$JAVA_HOME/bin/java" b700 "JDK 17"
     check_elf_machine "$aapt2" b700 "AAPT2"
     TAIXU_AAPT2_PATH="$aapt2"
     export TAIXU_AAPT2_PATH
-    ndk="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}}"
+    ndk="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/toolchains/ndk}}"
     if [ "$has_native" = 1 ] || [ -f "$ndk/source.properties" ]; then
         need_file "$ndk/source.properties" "固定 ARM64 NDK"
         ndk_clang=$(find "$ndk/toolchains/llvm/prebuilt" \( -type f -o -type l \) -name clang -print -quit 2>/dev/null)
@@ -214,21 +214,21 @@ doctor() {
     if test -f "$wrapper_project/gradlew" || test -d "$wrapper_project/gradle/wrapper"; then
         test -f "$wrapper_project/gradlew" -a -f "$wrapper_project/gradle/wrapper/gradle-wrapper.jar" -a \
             -f "$wrapper_project/gradle/wrapper/gradle-wrapper.properties" ||
-            warn "项目 Gradle Wrapper 不完整，将使用本地 Gradle 8.14.2"
+            warn "项目 Gradle Wrapper 不完整，将使用本地 Gradle $(ls -d /opt/gradle-* 2>/dev/null | sed 's|^/opt/gradle-||' | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -V | tail -n 1)"
     fi
     test -x "$GRADLE_HOME/bin/gradle" -o -d "$GRADLE_HOME/lib" -o -x "$wrapper_project/gradlew" -o -n "$(command -v gradle 2>/dev/null || true)" ||
-        fail "未找到 Gradle 8.14.2 或项目 Gradle Wrapper"
+        fail "未找到本地 Gradle 或项目 Gradle Wrapper"
     test "$kind" != android || test -f "$project/settings.gradle" -o -f "$project/settings.gradle.kts" ||
         fail "不是可识别的 Android Gradle 工程 (缺少 settings.gradle/settings.gradle.kts)"
     wrapper="$wrapper_project/gradle/wrapper/gradle-wrapper.properties"
     if test -f "$wrapper"; then
         wrapper_version=$(sed -n 's#.*gradle-\([0-9][0-9.]*\)-bin\.zip.*#\1#p' "$wrapper" | head -n 1)
-        if test -n "$wrapper_version" && test "$wrapper_version" != "8.14.2"; then
-            warn "项目 Gradle Wrapper=$wrapper_version，本地基准=8.14.2；太墟构建入口将优先使用本地 Gradle"
+        if test -n "$wrapper_version" && test "$wrapper_version" != "$(ls -d /opt/gradle-* 2>/dev/null | sed 's|^/opt/gradle-||' | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -V | tail -n 1)"; then
+            warn "项目 Gradle Wrapper=$wrapper_version，本地基准=$(ls -d /opt/gradle-* 2>/dev/null | sed 's|^/opt/gradle-||' | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -V | tail -n 1)；太墟构建入口将优先使用本地 Gradle"
         fi
     fi
     compile_sdk=$(grep -RhsE 'compileSdk(Version)?[[:space:]]*[=( ]+[0-9]+' "$project"/*.gradle "$project"/*.gradle.kts "$project"/app/*.gradle "$project"/app/*.gradle.kts 2>/dev/null | grep -Eo '[0-9]+' | head -n 1)
-    if test -n "$compile_sdk" && test "$compile_sdk" -gt 34; then
+    if test -n "$compile_sdk" && test "$compile_sdk" -gt 37; then   # TAIXU_DECOUPLE
         fail "项目 compileSdk=$compile_sdk，高于本地 Android Platform 34；请先由 Agent 对齐项目或安装对应 ARM64 平台资源"
     fi
     if test "$kind" = flutter; then
@@ -300,7 +300,7 @@ qemu_doctor() {
         fail "无法识别项目类型"
     fi
     compile_sdk=$(grep -RhsE 'compileSdk(Version)?[[:space:]]*[=( ]+[0-9]+' "$project"/*.gradle "$project"/*.gradle.kts "$project"/app/*.gradle "$project"/app/*.gradle.kts "$project"/android/app/*.gradle "$project"/android/app/*.gradle.kts 2>/dev/null | grep -Eo '[0-9]+' | head -n 1)
-    if test -n "$compile_sdk" && test "$compile_sdk" -gt 34; then
+    if test -n "$compile_sdk" && test "$compile_sdk" -gt 37; then   # TAIXU_DECOUPLE
         fail "项目 compileSdk=$compile_sdk，高于 QEMU 环境 Android Platform 34；请先由 Agent 对齐项目或安装对应平台资源"
     fi
     echo "[TaiXu Build] OK: QEMU x86_64 隔离构建环境已就绪"
@@ -388,3 +388,4 @@ case "$command" in
     flutter) test "$#" -ge 1 || fail "用法: taixu-build flutter <项目目录> [Flutter参数] [--qemu]"; run_flutter "$@" ;;
     *) fail "用法: taixu-build {doctor|android|flutter} ..." ;;
 esac
+# TAIXU_DYN_PATH: 旧版本字面量剥离，改为动态探测

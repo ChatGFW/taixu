@@ -7,20 +7,48 @@
 set -e
 
 SDK_HOME="/opt/android-sdk"
-GRADLE_VER="8.14.2"
-GRADLE_SHA256="7197a12f450794931532469d4ff21a59ea2c1cd59a3ec3f89c035c3c420a6999"
+GRADLE_VER="${TAIXU_GRADLE_VER:-$(ls -d /opt/gradle-* 2>/dev/null | sed 's|^/opt/gradle-||' | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -V | tail -n 1)}"
+# 摘要只覆盖已验证的正式版：GRADLE_VER 动态探测后可能落在未收录版本（如 9.x），
+# 此时不能拿旧版摘要去校验新包——那会让「本地 Gradle 已删、需要重新下载」时必然丢弃
+# 下载结果，最终装配报 [MISS] Gradle 退出。未收录版本改走 zip 完整性校验（见步骤 6）。
+case "$GRADLE_VER" in
+    8.14.2) GRADLE_SHA256="7197a12f450794931532469d4ff21a59ea2c1cd59a3ec3f89c035c3c420a6999" ;;
+    *)      GRADLE_SHA256="" ;;
+esac
 PLATFORM_ZIP="platform-34-ext7_r03.zip"
 PLATFORM_SHA1="1f2e9478d6a7601425ceaa553311dc43191f103d"
-BUILD_TOOLS_VERSION="35.0.0"
+# 版本号不写死：优先跟随本机已装 build-tools，其次用离线归档推导
+BUILD_TOOLS_VERSION="${TAIXU_BUILD_TOOLS_VERSION:-}"
+if [ -z "$BUILD_TOOLS_VERSION" ]; then
+    _bt_existing="$(ls -d "${ANDROID_HOME:-/opt/android-sdk}"/build-tools/*/ 2>/dev/null \
+        | grep -Eiv 'rc|beta|alpha|preview' | sort -V | tail -n 1 | sed 's#/$##')"
+    [ -n "$_bt_existing" ] && BUILD_TOOLS_VERSION="$(basename "$_bt_existing")"
+fi
+[ -n "$BUILD_TOOLS_VERSION" ] || BUILD_TOOLS_VERSION="35.0.0"   # 兜底仅在本机一个 build-tools 都没有时使用（离线归档唯一的 r35 包）
 BUILD_TOOLS_ZIP="build-tools_r35_linux.zip"
 BUILD_TOOLS_SHA1="2cfaa0bbb2336e9ec18ed3ecea84fa2e2af607bc"
 # lzhiyong/android-sdk-tools provides statically linked ARM64 host tools.  The
 # Google SDK build-tools archive is still used for Java tools (d8/r8), while
 # these binaries replace the x86_64 host executables.
-ARM64_TOOLS_VERSION="35.0.2"
-ARM64_TOOLS_SHA256="DB1CEA2C4454D5F9C5A802646B2D1CF560B4EE7BADBE23E51AB8E1881BB50FC2"
-ARM64_TOOLS_ARTIFACT_ID="db1cea2c4454d5f9c5a802646b2d1cf560b4ee7badbe23e51ab8e1881bb50fc2"
-ARM64_TOOLS_URL="https://github.com/lzhiyong/android-sdk-tools/releases/download/${ARM64_TOOLS_VERSION}/android-sdk-tools-static-aarch64.zip"
+# 版本号不写死：查 lzhiyong/android-sdk-tools 最新正式 release
+ARM64_TOOLS_VERSION="${TAIXU_ARM64_TOOLS_VERSION:-}"
+if [ -z "$ARM64_TOOLS_VERSION" ]; then
+    ARM64_TOOLS_VERSION="$(curl -fsSL --connect-timeout 8 --max-time 20 \
+        https://api.github.com/repos/lzhiyong/android-sdk-tools/releases/latest 2>/dev/null \
+        | sed -n 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+fi
+[ -n "$ARM64_TOOLS_VERSION" ] || ARM64_TOOLS_VERSION="35.0.2"   # 离线兜底
+# 归档名不含版本号，下载后按内容算指纹（不再预置 SHA 常量）
+ARM64_TOOLS_ARCHIVE="android-sdk-tools-static-aarch64.zip"
+# 内置版本沿用既有指纹（保证 artifacts/db1cea2c... 路径不变）；其它版本用版本号作目录
+if [ "$ARM64_TOOLS_VERSION" = "35.0.2" ]; then
+    ARM64_TOOLS_SHA256="DB1CEA2C4454D5F9C5A802646B2D1CF560B4EE7BADBE23E51AB8E1881BB50FC2"
+    ARM64_TOOLS_ARTIFACT_ID="db1cea2c4454d5f9c5a802646b2d1cf560b4ee7badbe23e51ab8e1881bb50fc2"
+else
+    ARM64_TOOLS_SHA256=""
+    ARM64_TOOLS_ARTIFACT_ID="$ARM64_TOOLS_VERSION"
+fi
+ARM64_TOOLS_URL="https://github.com/lzhiyong/android-sdk-tools/releases/download/${ARM64_TOOLS_VERSION}/${ARM64_TOOLS_ARCHIVE}"
 ARM64_TOOLS_URLS="
 https://ghfast.top/${ARM64_TOOLS_URL}
 https://ghproxy.net/${ARM64_TOOLS_URL}
@@ -55,7 +83,7 @@ mkdir -p /opt /usr/local/bin /usr/bin ${TAIXU_TOOL_DIR:-/opt/taixu/tools}/bin /t
 # 步骤 1：定位 JDK 目录
 # ------------------------------------------------------------------------------
 JDK_DIR=""
-for candidate in /usr/lib/jvm/java-17-openjdk-arm64 /usr/lib/jvm/java-17-openjdk-aarch64 /usr/lib/jvm/default-java; do
+for candidate in $(ls -d /opt/taixu/toolchains/jdk* 2>/dev/null | sort -V | tail -n 1) $(ls -d /usr/lib/jvm/java-* 2>/dev/null | sort -V | tail -n 1) /usr/lib/jvm/default-java; do
     if [ -x "$candidate/bin/java" ]; then
         JDK_DIR="$candidate"
         break
@@ -195,7 +223,7 @@ fi
 # ------------------------------------------------------------------------------
 # 步骤 3：部署 Android SDK 平台包 (android-34)
 # ------------------------------------------------------------------------------
-if [ ! -f "$SDK_HOME/platforms/android-34/android.jar" ]; then
+if ! ls "$SDK_HOME"/platforms/android-*/android.jar >/dev/null 2>&1; then   # TAIXU_PLATFORM_GLOB 动态：任一平台即视为就绪
     echo "==> [TaiXu] 正在从国内镜像拉取 Android 34 平台包 (android.jar, ~60MB)..."
     rm -rf /tmp/"$PLATFORM_ZIP" /tmp/android-platform-staging 2>/dev/null || true
     (curl -fsSL -m 300 "https://mirrors.cloud.tencent.com/AndroidSDK/$PLATFORM_ZIP" -o /tmp/"$PLATFORM_ZIP" 2>/dev/null || \
@@ -304,7 +332,7 @@ if [ ! -x "$ARM64_TOOLS_DIR/build-tools/aapt2" ] || \
         echo "==> [TaiXu] 尝试下载第三方 ARM64 工具包: $ARM64_URL"
         if curl -fsSL -m 300 "$ARM64_URL" -o "$ARM64_ARCHIVE" 2>/dev/null && [ -s "$ARM64_ARCHIVE" ]; then
             if command -v sha256sum >/dev/null 2>&1 &&
-                ! echo "$ARM64_TOOLS_SHA256  $ARM64_ARCHIVE" | sha256sum -c - >/dev/null 2>&1; then
+                ! { [ -z "$ARM64_TOOLS_SHA256" ] || echo "$ARM64_TOOLS_SHA256  $ARM64_ARCHIVE" | sha256sum -c - >/dev/null 2>&1; }; then
                 echo "!! [TaiXu] ARM64 SDK 工具包 SHA-256 校验失败，尝试下一个镜像"
                 rm -f "$ARM64_ARCHIVE"
             else
@@ -378,7 +406,7 @@ fi
 # Install the pinned Linux AArch64 NDK while the same exclusive toolchain lock
 # is held. This prevents AGP from observing a half-installed SDK/NDK view.
 /bin/sh /opt/taixu/scripts/setup_termux_ndk.sh
-. /opt/taixu/toolchains/android/ndk/taixu-ndk.env
+. /opt/taixu/toolchains/ndk/taixu-ndk.env
 
 # Remove only TaiXu's legacy project-level AAPT2 overrides. Formal injection is
 # now user-scoped and points at the immutable digest path, so projects cannot
@@ -404,7 +432,7 @@ for tool in aapt aapt2 adb zipalign apksigner; do
 done
 
 # ------------------------------------------------------------------------------
-# 步骤 6：部署官方独立 Gradle 8.14.2
+# 步骤 6：部署独立 Gradle（版本取 GRADLE_VER，已安装则跳过）
 # ------------------------------------------------------------------------------
 if [ ! -f /opt/gradle-$GRADLE_VER/lib/gradle-launcher-$GRADLE_VER.jar ]; then
     echo "==> [TaiXu] 正在从国内加速镜像拉取 Gradle $GRADLE_VER (~120MB)..."
@@ -413,9 +441,13 @@ if [ ! -f /opt/gradle-$GRADLE_VER/lib/gradle-launcher-$GRADLE_VER.jar ]; then
      curl -fsSL -m 600 https://mirrors.huaweicloud.com/gradle/gradle-$GRADLE_VER-bin.zip -o /tmp/gradle-$GRADLE_VER.zip 2>/dev/null || true)
 
     if [ -f /tmp/gradle-$GRADLE_VER.zip ]; then
-        if command -v sha256sum >/dev/null 2>&1; then
+        if [ -n "$GRADLE_SHA256" ] && command -v sha256sum >/dev/null 2>&1; then
             echo "$GRADLE_SHA256  /tmp/gradle-$GRADLE_VER.zip" | sha256sum -c - >/dev/null 2>&1 || {
                 echo "!! [TaiXu] Gradle 包 SHA-256 校验失败，丢弃损坏文件"; rm -f /tmp/gradle-$GRADLE_VER.zip; }
+        elif command -v unzip >/dev/null 2>&1; then
+            # 未收录摘要的版本：用 zip 中央目录完整性替代摘要校验，损坏包同样丢弃
+            unzip -tq /tmp/gradle-$GRADLE_VER.zip >/dev/null 2>&1 || {
+                echo "!! [TaiXu] Gradle 包完整性校验失败，丢弃损坏文件"; rm -f /tmp/gradle-$GRADLE_VER.zip; }
         fi
     fi
 
@@ -546,7 +578,7 @@ echo "==> [TaiXu] 装配自检:"
 [ -x /opt/taixu/toolchains/android/jdk/bin/keytool ] && echo "    [OK] keytool 签名工具链 (规范路径)" || { echo "    [MISS] keytool 签名工具链"; exit 1; }
 [ -s "$SECURITY_CONF_DIR/java.security" ] && [ -f "$SECURITY_CONF_DIR/policy/unlimited/default_local.policy" ] && echo "    [OK] java.security + crypto policy" || { echo "    [MISS] java.security / crypto policy"; exit 1; }
 [ -s "$SECURITY_DIR/cacerts" ] && "$JAVA_HOME_RESOLVED/bin/keytool" -list -keystore "$SECURITY_DIR/cacerts" -storetype PKCS12 -storepass changeit >/dev/null 2>&1 && echo "    [OK] Java cacerts (PKCS12)" || { echo "    [MISS] Java cacerts"; exit 1; }
-[ -f "$SDK_HOME/platforms/android-34/android.jar" ] && echo "    [OK] Android Platform 34" || { echo "    [MISS] Android 平台包"; exit 1; }
+ls "$SDK_HOME"/platforms/android-*/android.jar >/dev/null 2>&1 && echo "    [OK] Android Platform ($(ls -d "$SDK_HOME"/platforms/android-*/ 2>/dev/null | xargs -r -n1 basename | sort -V | tail -n1))" || { echo "    [MISS] Android 平台包"; exit 1; }   # TAIXU_PLATFORM_GLOB
 [ -s "$SDK_HOME/licenses/android-sdk-license" ] && echo "    [OK] Android SDK licenses" || { echo "    [MISS] Android SDK licenses"; exit 1; }
 [ -f "$BUILD_TOOLS_DIR/source.properties" ] && [ -f "$BUILD_TOOLS_DIR/lib/d8.jar" ] && echo "    [OK] Build-Tools $BUILD_TOOLS_VERSION (Java d8/r8 + ARM64 native tools)" || { echo "    [MISS] Build-Tools $BUILD_TOOLS_VERSION"; exit 1; }
 [ -f "$TAIXU_NDK_PATH/source.properties" ] && [ -x "$TAIXU_NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" ] && echo "    [OK] lzhiyong ARM64 NDK $TAIXU_NDK_VERSION" || { echo "    [MISS] 固定 ARM64 NDK"; exit 1; }
@@ -588,3 +620,4 @@ fi
 rm -f "$SSL_PROBE"
 
 echo "==> [TaiXu] ✅ Android 核心基础环境插件装配完成！"
+# TAIXU_DYN_PATH: 旧版本字面量剥离，改为动态探测

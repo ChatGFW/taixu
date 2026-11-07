@@ -21,24 +21,22 @@ else
     JAVA_EXEC=$(which java 2>/dev/null || echo "java")
 fi
 
+# TAIXU_GRADLEW_DYNAMIC：指向旧版固定目录的分支已移除，
+# 版本只由下一行动态探测决定；若被 APK 覆盖还原，登录期补丁会按本标记重新剥离。
+# 动态探测本机 Gradle 安装目录（取 /opt/gradle-* 最高正式版），不写死版本号
+TX_GRADLE_DIR="$(ls -d /opt/gradle-*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')"
+
 if [ -f "$DIR/gradle/wrapper/gradle-wrapper.jar" ]; then
     exec "$JAVA_EXEC" -jar "$DIR/gradle/wrapper/gradle-wrapper.jar" "$@"
-elif [ -d /opt/gradle-8.14.2/lib ]; then
+elif [ -n "$TX_GRADLE_DIR" ] && [ -d "$TX_GRADLE_DIR/lib" ]; then
     exec "$JAVA_EXEC" -Xmx1024m -XX:MaxMetaspaceSize=384m -XX:+UseSerialGC \
         -Dorg.gradle.appname=gradle \
-        -Dorg.gradle.installation.dir=/opt/gradle-8.14.2 \
+        -Dorg.gradle.installation.dir="$TX_GRADLE_DIR" \
         -Dorg.gradle.native=false \
-        -classpath "/opt/gradle-8.14.2/lib/*" \
+        -classpath "$TX_GRADLE_DIR/lib/*" \
         org.gradle.launcher.GradleMain "$@"
-elif [ -d /opt/gradle-8.7/lib ]; then
-    exec "$JAVA_EXEC" -Xmx1024m -XX:MaxMetaspaceSize=384m -XX:+UseSerialGC \
-        -Dorg.gradle.appname=gradle \
-        -Dorg.gradle.installation.dir=/opt/gradle-8.7 \
-        -Dorg.gradle.native=false \
-        -classpath "/opt/gradle-8.7/lib/*" \
-        org.gradle.launcher.GradleMain "$@"
-elif [ -x /opt/gradle-8.14.2/bin/gradle ]; then
-    exec /opt/gradle-8.14.2/bin/gradle "$@"
+elif [ -n "$TX_GRADLE_DIR" ] && [ -x "$TX_GRADLE_DIR/bin/gradle" ]; then
+    exec "$TX_GRADLE_DIR/bin/gradle" "$@"
 elif [ -x /usr/local/bin/gradle ]; then
     exec /usr/local/bin/gradle "$@"
 elif command -v gradle >/dev/null 2>&1; then

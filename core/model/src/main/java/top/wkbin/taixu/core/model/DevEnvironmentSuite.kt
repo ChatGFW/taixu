@@ -59,15 +59,15 @@ object BuiltinPluginBundles {
         PluginBundle(
             id = "android-suite",
             name = "Android & 移动全栈开发套件",
-            summary = "Gradle 8.14、ARM64 AAPT2/NDK 与可选 Flutter、逆向审计",
-            description = "集成 OpenJDK 17、Gradle 8.14.2、固定摘要的 ARM64 AAPT2 与 lzhiyong/termux-ndk，并提供可选 Flutter、C/C++ 和 JADX/APKTool 工具链。构建期禁止自动下载官方 x86_64 主机工具。",
+            summary = "Gradle、ARM64 AAPT2/NDK 与可选 Flutter、逆向审计",
+            description = "集成 OpenJDK、Gradle、固定摘要的 ARM64 AAPT2 与 lzhiyong/termux-ndk，并提供可选 Flutter、C/C++ 和 JADX/APKTool 工具链。构建期禁止自动下载官方 x86_64 主机工具。具体版本由 ToolchainPathResolver 动态探测。",
             iconName = "Android",
             category = "移动开发",
             components = listOf(
                 PluginComponent(
                     id = "android-core",
                     name = "Android 核心基础环境",
-                    description = "OpenJDK 17、Android 34、Build Tools 35、Gradle 8.14.2、不可变 ARM64 AAPT2、lzhiyong NDK r29、ADB 与国内 Maven 镜像，全部在装配期一次性就位",
+                    description = "OpenJDK、Android Platform、Build Tools、Gradle、不可变 ARM64 AAPT2、lzhiyong NDK、ADB 与国内 Maven 镜像，全部在装配期一次性就位（版本动态探测，不写死）",
                     isRequired = true,
                     // aapt/zipalign/apksigner come from the downloaded Google
                     // Build-Tools archive. Installing Ubuntu's similarly named
@@ -77,9 +77,10 @@ object BuiltinPluginBundles {
                     postInstallSteps = listOf(
                         "/bin/sh /opt/taixu/scripts/setup_android_core.sh",
                     ),
-                    checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; JAVA_BIN=\"\${JAVA_HOME:-/opt/taixu/toolchains/android/jdk}/bin/java\"; (test -x \"\$JAVA_BIN\" || test -x /opt/taixu/bin/java || command -v java >/dev/null 2>&1) && test -f /opt/android-sdk/platforms/android-34/android.jar && test -f /opt/android-sdk/build-tools/35.0.0/lib/d8.jar && (test -f /opt/gradle-8.14.2/lib/gradle-launcher-8.14.2.jar || test -x /opt/taixu/bin/gradle || command -v gradle >/dev/null 2>&1) && (test -x \"\${TAIXU_AAPT2_PATH:-/opt/android-sdk/build-tools/35.0.0/aapt2}\" || test -x /opt/android-sdk/build-tools/35.0.0/aapt2 || test -x /opt/taixu/bin/aapt2) && (test -f \"\${TAIXU_NDK_PATH:-/opt/taixu/toolchains/android/ndk}/source.properties\" || test -f /opt/taixu/toolchains/android/ndk/source.properties)",
+                    checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; JAVA_BIN=\"\${JAVA_HOME:-/opt/taixu/toolchains/android/jdk}/bin/java\"; PLATFORM_DIR=\$(ls -d /opt/android-sdk/platforms/android-*/ 2>/dev/null | sort -V | tail -n 1); BT_DIR=\$(ls -d /opt/android-sdk/build-tools/*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1); (test -x \"\$JAVA_BIN\" || test -x /opt/taixu/bin/java || command -v java >/dev/null 2>&1) && test -f \"\${PLATFORM_DIR}android.jar\" && test -f \"\${BT_DIR}lib/d8.jar\" && (test -x \"\${TAIXU_AAPT2_PATH:-\${BT_DIR}aapt2}\" || test -x /opt/taixu/bin/aapt2) && (test -f \"\${TAIXU_NDK_PATH:-/opt/taixu/toolchains/android/ndk}/source.properties\" || test -f /opt/taixu/toolchains/android/ndk/source.properties) && (test -n \"\${GRADLE_HOME:-}\" || test -x /opt/taixu/bin/gradle || command -v gradle >/dev/null 2>&1)",
                     purgePaths = listOf(
                         "/opt/android-sdk",
+                        // 卸载路径故意写死单版本：卸载是危险操作，不做通配扫描，避免误删用户新装的 Gradle
                         "/opt/gradle-8.14.2",
                         "/opt/taixu/android-sdk-tools",
                         "/opt/taixu/toolchains/android/sdk-tools",
@@ -117,7 +118,7 @@ object BuiltinPluginBundles {
                     postInstallSteps = listOf(
                         "/bin/sh /opt/taixu/scripts/setup_flutter.sh",
                     ),
-                    checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; (test -x /opt/flutter/bin/flutter || test -x /opt/taixu/bin/flutter || command -v flutter >/dev/null 2>&1) && test -f /opt/android-sdk/platforms/android-34/android.jar && test -f /opt/android-sdk/build-tools/35.0.0/lib/d8.jar",
+                    checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; PLATFORM_DIR=\$(ls -d /opt/android-sdk/platforms/android-*/ 2>/dev/null | sort -V | tail -n 1); BT_DIR=\$(ls -d /opt/android-sdk/build-tools/*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1); (test -x /opt/flutter/bin/flutter || test -x /opt/taixu/bin/flutter || command -v flutter >/dev/null 2>&1) && test -f \"\${PLATFORM_DIR}android.jar\" && test -f \"\${BT_DIR}lib/d8.jar\"",
                     purgePaths = listOf("/opt/flutter"),
                     purgeLinks = listOf(
                         "/opt/taixu/bin/flutter",
@@ -133,7 +134,7 @@ object BuiltinPluginBundles {
                 PluginComponent(
                     id = "android-ndk",
                     name = "C/C++ & NDK 原生构建链",
-                    description = "lzhiyong/termux-ndk r29 Linux AArch64 工具链，以及 CMake、Ninja、GCC/G++、Clang 等原生构建辅助工具",
+                    description = "lzhiyong/termux-ndk Linux AArch64 工具链，以及 CMake、Ninja、GCC/G++、Clang 等原生构建辅助工具（NDK 版本动态探测）",
                     isRequired = false,
                     aptPackages = listOf("cmake", "ninja-build", "gcc", "g++", "clang", "make", "pkg-config", "util-linux"),
                     postInstallSteps = listOf(

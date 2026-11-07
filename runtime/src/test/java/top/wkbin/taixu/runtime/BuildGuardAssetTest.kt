@@ -135,9 +135,9 @@ class BuildGuardAssetTest {
         assertFalse(offlineAndroidVerifier.readText().contains('\r'))
         assertTrue(script.contains("extract_zip()"))
         assertTrue(script.contains("\"${'$'}JDK_HOME/bin/jar\" xf \"${'$'}archive\""))
-        assertTrue(script.contains("extract_zip \"${'$'}ARCHIVES/gradle-${'$'}GRADLE_VERSION-bin.zip\""))
-        assertTrue(script.contains("extract_zip \"${'$'}ARCHIVES/platform-34-ext7_r03.zip\""))
-        assertTrue(script.contains("extract_zip \"${'$'}ARCHIVES/build-tools_r35_linux.zip\""))
+        assertTrue(script.contains("pick_archive \"${'$'}ARCHIVES\" 'gradle-*-bin.zip'"))
+        assertTrue(script.contains("pick_archive \"${'$'}ARCHIVES\" 'platform-*.zip'"))
+        assertTrue(script.contains("pick_archive \"${'$'}ARCHIVES\" 'build-tools_*_linux.zip'"))
         assertTrue(script.contains("extract_zip \"${'$'}ARCHIVES/android-sdk-tools-static-aarch64.zip\""))
         assertTrue(script.contains("extract_zip \"${'$'}ARCHIVES/ninja-linux-aarch64.zip\""))
     }
@@ -198,7 +198,7 @@ class BuildGuardAssetTest {
             assertFalse(optionalFileCommand.containsMatchIn(script))
         }
         assertFalse(installer.contains("tar -xJ"))
-        assertTrue(installer.contains("android-ndk-r29-aarch64.tar.gz"))
+        assertTrue(installer.contains("android-ndk-*-aarch64.tar.gz"))
         assertTrue(installer.contains("tar -xzf"))
     }
 

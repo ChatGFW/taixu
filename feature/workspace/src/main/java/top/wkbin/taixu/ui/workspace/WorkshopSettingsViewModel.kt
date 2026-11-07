@@ -75,10 +75,10 @@ class WorkshopSettingsViewModel(
         ndkPath = "/opt/taixu/toolchains/android/ndk",
         flutterSdkPath = "/opt/flutter",
         javaPath = "/opt/taixu/toolchains/android/jdk",
-        gradlePath = "/opt/gradle-8.14.2",
+        gradlePath = "", // 不写死版本：留空则由 /etc/profile.d/taixu-android.sh 的 _tx_latest_dir 动态探测
         cmakePath = "/opt/taixu/tools/android-suite-offline/cmake",
         ninjaPath = "/opt/taixu/tools/android-suite-offline/bin",
-        aapt2Path = "/opt/android-sdk/build-tools/35.0.0/aapt2",
+        aapt2Path = "", // 不写死版本：留空则由动态探测取 build-tools 下最高正式版的 aapt2
         gradleUserHome = "/root/.gradle",
         pubCache = "/opt/taixu/cache/flutter-pub",
         toolDir = "/opt/taixu/tools",
@@ -173,7 +173,7 @@ class WorkshopSettingsViewModel(
                     else "JDK ${path.substringAfterLast('/')}"
                 },
                 ndkOptions = toOptions(detectedNdk) { path ->
-                    if (path.contains("taixu/toolchains/android/ndk")) "固定 ARM64 NDK r29 (内置)"
+                    if (path.contains("taixu/toolchains/android/ndk")) "内置 ARM64 NDK"
                     else "NDK ${path.substringAfterLast('/')}"
                 },
                 aapt2Options = toOptions(detectedAapt2) { path ->
@@ -249,7 +249,7 @@ class WorkshopSettingsViewModel(
                 else "JDK ${path.substringAfterLast('/')}"
             },
             ndkOptions = toOptions(ndkPaths) { path ->
-                if (path.contains("taixu/toolchains/android/ndk")) "固定 ARM64 NDK r29 (内置)"
+                if (path.contains("taixu/toolchains/android/ndk")) "内置 ARM64 NDK"
                 else "NDK ${path.substringAfterLast('/')}"
             },
             aapt2Options = toOptions(aapt2Paths) { path ->
