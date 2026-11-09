@@ -13,9 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,7 +85,7 @@ internal fun PixelOfficeComposer(
                         border = trim,
                     ) {
                         Text("@${bot.name}", color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelMedium)
+                            style = RuntimeTheme.typography.labelMedium)
                     }
                 }
             }
@@ -98,7 +98,7 @@ internal fun PixelOfficeComposer(
                 attachments.forEach { attachment ->
                     PixelNote(onClick = { onRemoveAttachment(attachment) }, container = paper, border = trim) {
                         Text(attachment.name, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelMedium)
+                            style = RuntimeTheme.typography.labelMedium)
                     }
                 }
             }
@@ -122,7 +122,7 @@ internal fun PixelOfficeComposer(
                 BasicTextField(
                     value = value,
                     onValueChange = onValueChange,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = ink),
+                    textStyle = RuntimeTheme.typography.bodyMedium.copy(color = ink),
                     cursorBrush = SolidColor(ink),
                     maxLines = 4,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp),
@@ -131,7 +131,7 @@ internal fun PixelOfficeComposer(
                             if (value.text.isEmpty()) {
                                 Text(
                                     stringResource(R.string.fbot_pixel_office_say),
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    style = RuntimeTheme.typography.bodyMedium,
                                     color = ink.copy(alpha = 0.45f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,

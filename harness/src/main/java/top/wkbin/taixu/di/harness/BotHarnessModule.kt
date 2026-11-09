@@ -25,6 +25,7 @@ import top.wkbin.taixu.harness.plugins.botSchedulePlugin
 
 /** PersonaBot：独立会话、Git 记忆、群聊调度与定时唤醒。 */
 val botHarnessModule = module {
+    single { top.wkbin.taixu.harness.bot.ExternalAgentRuntimeService(get(), get(), get()) }
     single { top.wkbin.taixu.harness.bot.GroupGovernanceGuard(get(), get(), get()) }
     single { top.wkbin.taixu.harness.bot.market.GroupTeamImporter(get(), get(), get()) }
     single { top.wkbin.taixu.harness.bot.BotModelManager(get(), get(), get(), get(), get()) }
@@ -76,6 +77,7 @@ val botHarnessModule = module {
             taskUsage = get(),
             nativeTasks = get(),
             runtimeRepository = get(),
+            capabilityScope = get(),
         )
     }
     single<BotAssignmentExecutor> {

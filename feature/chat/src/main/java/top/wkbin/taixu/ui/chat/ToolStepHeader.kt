@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,7 +25,7 @@ internal fun ToolStepHeader(call: ToolCall, result: ToolResult?, running: Boolea
     val state = toolStepState(result, running)
     val stateText = stringResource(toolStateLabel(state))
     val tint = when (state) {
-        ToolStepState.FAILED, ToolStepState.UNKNOWN -> MaterialTheme.colorScheme.error
+        ToolStepState.FAILED, ToolStepState.UNKNOWN -> RuntimeTheme.colorScheme.error
         ToolStepState.WAITING, ToolStepState.DEFERRED -> semanticColors().warning
         ToolStepState.SUCCEEDED, ToolStepState.RUNNING, ToolStepState.INCOMPLETE -> chatProcessColor()
     }
@@ -36,10 +36,10 @@ internal fun ToolStepHeader(call: ToolCall, result: ToolResult?, running: Boolea
         val target = renderer.target(ui)
         val title = renderer.title(ui)
         Text(if (target == null) title else "$title · $target", Modifier.weight(1f).then(chatProcessPulse(state == ToolStepState.RUNNING)),
-            style = MaterialTheme.typography.bodySmall, color = chatProcessColor(),
+            style = RuntimeTheme.typography.bodySmall, color = chatProcessColor(),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (state != ToolStepState.SUCCEEDED && state != ToolStepState.RUNNING) Text(stateText,
-            style = MaterialTheme.typography.labelSmall, color = tint, maxLines = 1)
+            style = RuntimeTheme.typography.labelSmall, color = tint, maxLines = 1)
         val diff = remember(renderer, call, result) {
             renderer.diffStat(ui)
         }

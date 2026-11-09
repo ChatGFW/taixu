@@ -1,18 +1,14 @@
 package top.wkbin.taixu.ui.components
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -27,21 +23,22 @@ fun RuntimePluginListRow(title: String, subtitle: String, icon: RuntimeIconName,
     val interaction = if (onClick != null || onLongClick != null) {
         Modifier.combinedClickable(role = Role.Button, onClick = { onClick?.invoke() }, onLongClick = onLongClick)
     } else Modifier
-    Row(modifier.heightIn(min = 76.dp)
-        .then(interaction)
-        .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.secondaryContainer) {
-            RuntimeIcon(icon, Modifier.padding(10.dp).size(20.dp), MaterialTheme.colorScheme.onSecondaryContainer)
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (detail.isNotBlank()) Text(detail, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        }
-        if (status.isNotBlank()) Text(status, Modifier.widthIn(max = 76.dp), style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (onClick != null) RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+    BasicComponent(
+        modifier = modifier.then(interaction),
+        startAction = {
+            RuntimeIcon(icon, Modifier.padding(end = RuntimeSpacing.rowIconEnd).size(RuntimeSpacing.rowIconSize),
+                MiuixTheme.colorScheme.onSurface)
+        },
+        endActions = {
+            if (status.isNotBlank()) Text(status, Modifier.widthIn(max = 76.dp), style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantActions, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (onClick != null) RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(18.dp), MiuixTheme.colorScheme.onSurfaceVariantActions)
+        },
+    ) {
+        Text(title, style = MiuixTheme.textStyles.headline1, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(subtitle, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (detail.isNotBlank()) Text(detail, style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }

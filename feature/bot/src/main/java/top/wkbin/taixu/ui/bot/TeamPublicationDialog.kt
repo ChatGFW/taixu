@@ -3,8 +3,8 @@ package top.wkbin.taixu.ui.bot
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -45,10 +45,10 @@ internal fun TeamPublicationDialog(group: BotMemberGroup, onDismiss: () -> Unit,
                 val after = group.memberIds.toSet()
                 val oldRules = latest?.definition?.governance?.rules.orEmpty().associateBy { it.id }
                 val newRules = group.definition?.governance?.rules.orEmpty().associateBy { it.id }
-                Text("成员新增 ${(after - before).size}、移除 ${(before - after).size}；审议规则变更 ${(oldRules.keys + newRules.keys).count { oldRules[it] != newRules[it] }} 条。", style = MaterialTheme.typography.bodySmall)
+                Text("成员新增 ${(after - before).size}、移除 ${(before - after).size}；审议规则变更 ${(oldRules.keys + newRules.keys).count { oldRules[it] != newRules[it] }} 条。", style = RuntimeTheme.typography.bodySmall)
             }
-            Text("选择本次升级范围。未选中的群保持原版本；有未结束任务、待核对结果或待处理消息的群，请结束工作后刷新再升级。", style = MaterialTheme.typography.bodySmall)
-            Text("升级后，旧方案须在新团队版本下重新提交审核；历史结果保留，旧任务不跨版本续办。", style = MaterialTheme.typography.bodySmall)
+            Text("选择本次升级范围。未选中的群保持原版本；有未结束任务、待核对结果或待处理消息的群，请结束工作后刷新再升级。", style = RuntimeTheme.typography.bodySmall)
+            Text("升级后，旧方案须在新团队版本下重新提交审核；历史结果保留，旧任务不跨版本续办。", style = RuntimeTheme.typography.bodySmall)
             Text("引用 ${impact.size} 个群 · 未结束任务 ${impact.sumOf { it.unfinishedTasks }} 项 · 本次选择 ${selected.size} 个群")
             if (!loaded) Text("正在读取发布影响…")
             impact.forEach { row ->
@@ -56,7 +56,7 @@ internal fun TeamPublicationDialog(group: BotMemberGroup, onDismiss: () -> Unit,
                     Row {
                         Column(Modifier.weight(1f)) {
                             Text("${row.name} · v${row.version ?: 0}")
-                            Text(if (row.canUpgrade) "可升级到 v$target" else "保留旧版：${row.unfinishedTasks} 项未结束任务，${row.pendingWork} 项待处理工作", style = MaterialTheme.typography.bodySmall)
+                            Text(if (row.canUpgrade) "可升级到 v$target" else "保留旧版：${row.unfinishedTasks} 项未结束任务，${row.pendingWork} 项待处理工作", style = RuntimeTheme.typography.bodySmall)
                         }
                         RuntimeSwitch(modifier = Modifier.testTag("upgrade-${row.groupId}").semantics { contentDescription = "升级${row.name}" }, checked = row.groupId in selected && row.canUpgrade,
                             enabled = loaded && !saving && row.canUpgrade && row.version != target,
@@ -66,10 +66,10 @@ internal fun TeamPublicationDialog(group: BotMemberGroup, onDismiss: () -> Unit,
             }
             RuntimeTextButton(enabled = !saving, onClick = { selected = emptySet(); refresh++ }) { Text("刷新影响范围") }
             if (versions.isNotEmpty()) {
-                Text("发布历史", style = MaterialTheme.typography.titleSmall)
-                versions.forEach { Text("v${it.version} · ${it.memberIds.size} 名成员 · ${it.definition.governance.rules.size} 条审议规则", style = MaterialTheme.typography.bodySmall) }
+                Text("发布历史", style = RuntimeTheme.typography.titleSmall)
+                versions.forEach { Text("v${it.version} · ${it.memberIds.size} 名成员 · ${it.definition.governance.rules.size} 条审议规则", style = RuntimeTheme.typography.bodySmall) }
             }
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
         }
     }, confirmButton = { RuntimeButton(enabled = loaded && !saving && group.definition != null && (changed || selected.isNotEmpty()), onClick = {
         saving = true

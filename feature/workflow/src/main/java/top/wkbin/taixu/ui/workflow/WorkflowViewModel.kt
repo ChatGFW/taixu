@@ -36,10 +36,14 @@ import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
 import top.wkbin.taixu.core.model.workflow.WorkflowTrigger
 import top.wkbin.taixu.harness.workflow.WorkflowRunManager
 import top.wkbin.taixu.harness.workflow.WorkflowScheduleRepository
+import top.wkbin.taixu.harness.workflow.SentinelState
+import top.wkbin.taixu.harness.workflow.disableSentinelSchedule
+import top.wkbin.taixu.harness.workflow.enableSentinelSchedule
+import top.wkbin.taixu.harness.workflow.observeSentinelState
+import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.runtime.gui.WorkflowGuiHudBridge
 import top.wkbin.taixu.ui.workflow.hud.WorkflowHudService
-import java.io.File
 import top.wkbin.taixu.core.model.workflow.WorkflowLayout
 
 class WorkflowViewModel(
@@ -51,6 +55,7 @@ class WorkflowViewModel(
     aiModelRepository: AiModelRepository,
     private val pathManager: RuntimePathManager,
     private val json: Json,
+    private val logger: AppLogger,
 ) : ViewModel() {
     val definitions: StateFlow<List<WorkflowDefinition>> = repository.observeDefinitions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BuiltinWorkflows.all)
@@ -74,6 +79,27 @@ class WorkflowViewModel(
 
     fun toggleSchedule(id: String, enabled: Boolean) {
         viewModelScope.launch { runCatching { scheduleRepository.setEnabled(id, enabled) } }
+    }
+
+    private val _sentinelState = MutableStateFlow(SentinelState())
+    val sentinelState: StateFlow<SentinelState> = _sentinelState.asStateFlow()
+
+    init {
+        viewModelScope.observeSentinelState(scheduleRepository) { _sentinelState.value = it }
+    }
+
+    fun enableSentinel(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            runCatching { enableSentinelSchedule(scheduleRepository, repository, hour, minute) }
+                .onFailure { logger.w("WorkflowViewModel: enableSentinel failed: ${it.message}", it) }
+        }
+    }
+
+    fun disableSentinel() {
+        viewModelScope.launch {
+            runCatching { disableSentinelSchedule(scheduleRepository) }
+                .onFailure { logger.w("WorkflowViewModel: disableSentinel failed: ${it.message}", it) }
+        }
     }
     private val _error = MutableStateFlow<String?>(null)
     val error = combine(_error, runManager.historyErrors, ::workflowHistoryError)
@@ -395,51 +421,4 @@ class WorkflowViewModel(
             ?: return null
         return WorkflowHistoryEntry(state = state, triggerSource = log.triggerSource, scheduleId = log.scheduleId)
     }
-}
-
-internal fun scanApksInWorkspace(workspaceDir: File, projectName: String): List<DiscoveredApk> {
-    val safeProject = projectName.trim().trim('/').takeIf { it.isNotEmpty() }
-    val projectDir = if (safeProject != null) File(workspaceDir, safeProject) else null
-
-    // 优先在当前工程目录搜索，如果当前工程下未找到，再扩大至整个工作区根目录
-    val targetDirs = listOfNotNull(
-        projectDir?.takeIf { it.isDirectory },
-        workspaceDir.takeIf { it.isDirectory },
-    ).distinct()
-
-    val results = mutableListOf<DiscoveredApk>()
-    val seenPaths = mutableSetOf<String>()
-
-    for (dir in targetDirs) {
-        val isProjectScope = dir == projectDir
-        runCatching {
-            dir.walkTopDown()
-                .maxDepth(8)
-                .filter { it.isFile && it.extension.equals("apk", ignoreCase = true) }
-                .forEach { file ->
-                    val relPath = file.relativeTo(dir).path.replace('\\', '/')
-                    val sandboxPath = if (isProjectScope && safeProject != null) {
-                        "/workspace/$safeProject/$relPath"
-                    } else {
-                        val relToWorkspace = file.relativeTo(workspaceDir).path.replace('\\', '/')
-                        "/workspace/$relToWorkspace"
-                    }
-                    if (seenPaths.add(file.absolutePath)) {
-                        results.add(
-                            DiscoveredApk(
-                                file = file,
-                                name = file.name,
-                                relativePath = if (isProjectScope) relPath else file.relativeTo(workspaceDir).path.replace('\\', '/'),
-                                sandboxPath = sandboxPath,
-                                sizeBytes = file.length(),
-                                lastModified = file.lastModified(),
-                            ),
-                        )
-                    }
-                }
-        }
-        if (results.isNotEmpty()) break
-    }
-
-    return results.sortedByDescending { it.lastModified }
 }

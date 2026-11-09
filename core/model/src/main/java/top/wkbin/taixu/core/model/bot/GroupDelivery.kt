@@ -11,6 +11,8 @@ data class GroupDelivery(
     val sessionId: String? = null,
     val taskId: String? = null,
     val error: String? = null,
+    /** Set on successful claim; prepare/admit/finish must present the same value. */
+    val claimNonce: String? = null,
 ) {
     companion object {
         const val PENDING = "pending"

@@ -4,8 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -69,8 +69,8 @@ internal fun ModelDialog(
         LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (filtered.isEmpty()) item {
                 Text(stringResource(if (models.isEmpty()) R.string.chat_no_models else R.string.chat_no_matching_models),
-                    Modifier.padding(vertical = 24.dp), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Modifier.padding(vertical = 24.dp), style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
             items(filtered, key = { it.id }) { profile ->
                 val current = profile.id == selectedProfileId
@@ -87,7 +87,7 @@ internal fun ModelDialog(
                         trailingContent = {
                             RuntimeIconButton({ deleteTargetId = profile.id },
                                 contentDescription = stringResource(R.string.chat_delete_model_profile)) {
-                                RuntimeIcon(RuntimeIconName.Trash, Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                                RuntimeIcon(RuntimeIconName.Trash, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
                             }
                         },
                     )
@@ -98,13 +98,13 @@ internal fun ModelDialog(
                                 items(options) { modelId ->
                                     RuntimeFilterChip(selected = current && modelId == selectedModelVariant,
                                         onClick = { onSelectSubModel(profile.id, modelId); onDismiss() },
-                                        shape = MaterialTheme.shapes.small,
+                                        shape = RuntimeTheme.shapes.small,
                                         label = { Text(modelId, Modifier.widthIn(max = 200.dp), maxLines = 1, overflow = TextOverflow.Ellipsis) })
                                 }
                             }
                         } else Text(options.firstOrNull().orEmpty().ifBlank { stringResource(R.string.chat_model_not_set) },
-                            Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Modifier.weight(1f), style = RuntimeTheme.typography.bodyMedium,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         RuntimeTextButton({ onOpenModelPicker(profile.id) }) { Text(stringResource(R.string.chat_switch_model)) }
                     }
                 }
@@ -118,7 +118,7 @@ internal fun ModelDialog(
             text = { Text(stringResource(R.string.chat_delete_model_message)) },
             confirmButton = {
                 RuntimeTextButton(onClick = { deleteTargetId = null; onDelete(targetId) }) {
-                    Text(stringResource(R.string.chat_confirm_delete), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.chat_confirm_delete))
                 }
             },
             dismissButton = { RuntimeTextButton({ deleteTargetId = null }) { Text(stringResource(R.string.chat_cancel)) } },

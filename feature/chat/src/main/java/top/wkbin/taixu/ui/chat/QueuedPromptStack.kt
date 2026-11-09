@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,18 +30,18 @@ internal fun QueuedPromptStack(
         prompts.forEach { prompt ->
             val (label, tint) = when (prompt.queue) {
                 PromptQueue.STEER -> stringResource(R.string.chat_label_steer) to semanticColors().agent
-                PromptQueue.FOLLOW_UP -> stringResource(R.string.chat_label_follow_up) to MaterialTheme.colorScheme.tertiary
-                PromptQueue.NEXT_RUN -> stringResource(R.string.chat_label_queued) to MaterialTheme.colorScheme.secondary
+                PromptQueue.FOLLOW_UP -> stringResource(R.string.chat_label_follow_up) to RuntimeTheme.colorScheme.tertiary
+                PromptQueue.NEXT_RUN -> stringResource(R.string.chat_label_queued) to RuntimeTheme.colorScheme.secondary
             }
             val editable = !prompt.isEditing && prompt.message.initiatorKind == "person" &&
                 prompt.message.groupWorkId == null && prompt.message.groupId == null
             RuntimeCard(containerColor = tint.copy(alpha = 0.08f), contentPadding = PaddingValues(start = 8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(if (prompt.isEditing) stringResource(R.string.chat_queue_editing) else label,
-                        style = MaterialTheme.typography.labelSmall, color = tint)
+                        style = RuntimeTheme.typography.labelSmall, color = tint)
                     Spacer(Modifier.width(8.dp))
                     Text(prompt.message.text.ifBlank { stringResource(R.string.chat_attachment_message) },
-                        style = MaterialTheme.typography.labelMedium, maxLines = 1,
+                        style = RuntimeTheme.typography.labelMedium, maxLines = 1,
                         overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     if (prompt.queue == PromptQueue.NEXT_RUN && onConvertToSteer != null) {
                         RuntimeIconButton(onClick = { onConvertToSteer(prompt) }, enabled = editable,

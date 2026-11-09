@@ -390,5 +390,9 @@ val runtimeModule = module {
         )
     }
 
+    single {
+        top.wkbin.taixu.runtime.webchat.ExternalAgentRuntimeServer(gateway = get(), logger = get())
+    }
+
     single<TarStreamExtractor> { TarStreamExtractor(logger = get()) }
 }

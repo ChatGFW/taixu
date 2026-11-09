@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.home
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -20,8 +23,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,27 +33,19 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.material3.ButtonDefaults
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -78,7 +71,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import top.wkbin.taixu.ui.components.RuntimeSwitch
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.home.R
@@ -97,7 +89,6 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.distroIconFor
-import top.wkbin.taixu.ui.components.StatusBadge
 import android.os.SystemClock
 import top.wkbin.taixu.core.model.InstalledDistro
 /** 自动体检防抖间隔：ON_RESUME 触发时距上次不足该间隔则跳过。 */
@@ -118,7 +109,6 @@ private fun warningStatusColor(): Color =
  * 太墟 · 运行仪表盘 (TaiXu Linux Runtime Dashboard)
  * 集成沙箱引擎状态、运行环境体检自愈中心、实时内存/存储监控与规格信息
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun LocalHomeScreen(
     onNavigate: (MainDestination) -> Unit,
@@ -201,10 +191,10 @@ internal fun LocalHomeScreen(
         }
     }
 
-    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = RuntimeTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
                 title = stringResource(R.string.home_dashboard_title), onBack = onBack,
@@ -224,13 +214,13 @@ internal fun LocalHomeScreen(
                             RuntimeCircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = RuntimeTheme.colorScheme.primary,
                             )
                         } else {
                             RuntimeIcon(
                                 name = RuntimeIconName.Refresh,
                                 modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -243,9 +233,9 @@ internal fun LocalHomeScreen(
                 .fillMaxSize()
                 .padding(top = innerPadding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
-                .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 12.dp, bottom = 12.dp))
-                .padding(bottom = innerPadding.calculateBottomPadding() + 16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+                .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom))
+                .padding(bottom = innerPadding.calculateBottomPadding()),
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             // 1. 运行时引擎主状态卡片 (Status Banner)
             RuntimeEngineStatusCard(
@@ -297,7 +287,7 @@ internal fun LocalHomeScreen(
                     progress = (metrics.memoryUsagePercent / 100f).coerceIn(0f, 1f),
                     progressText = stringResource(R.string.home_memory_used, metrics.memoryUsagePercent),
                     extraInfo = stringResource(R.string.home_app_heap, metrics.appHeapUsedMb),
-                    accentColor = MaterialTheme.colorScheme.primary,
+                    accentColor = RuntimeTheme.colorScheme.primary,
                     icon = RuntimeIconName.Cpu,
                 )
 
@@ -312,7 +302,7 @@ internal fun LocalHomeScreen(
                     progress = (metrics.storageUsagePercent / 100f).coerceIn(0f, 1f),
                     progressText = stringResource(R.string.home_storage_used, metrics.storageUsagePercent),
                     extraInfo = stringResource(R.string.home_device_storage_note),
-                    accentColor = MaterialTheme.colorScheme.secondary,
+                    accentColor = RuntimeTheme.colorScheme.secondary,
                     icon = RuntimeIconName.Storage,
                 )
             }
@@ -353,9 +343,9 @@ private fun EnvironmentDoctorCard(
 
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = RuntimeTheme.shapes.extraLarge,
         onClick = { isCardExpanded = !isCardExpanded },
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainer,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
     ) {
         Column(
@@ -375,13 +365,13 @@ private fun EnvironmentDoctorCard(
                     IconTile(
                         icon = if (report?.isAllHealthy == true) RuntimeIconName.Check else RuntimeIconName.Shield,
                         size = 36.dp,
-                        color = if (report?.isAllHealthy == true) healthyStatusColor() else MaterialTheme.colorScheme.primary,
+                        color = if (report?.isAllHealthy == true) healthyStatusColor() else RuntimeTheme.colorScheme.primary,
                     )
                     Column(Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.home_doctor_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = RuntimeTheme.typography.titleMedium,
+                            color = RuntimeTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = when {
@@ -392,8 +382,8 @@ private fun EnvironmentDoctorCard(
                                 report.needsFix -> stringResource(R.string.home_doctor_pending, report.warningCount + report.errorCount)
                                 else -> stringResource(R.string.home_doctor_complete)
                             },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (report?.needsFix == true && !isCardExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = if (report?.needsFix == true && !isCardExpanded) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -408,7 +398,7 @@ private fun EnvironmentDoctorCard(
                         RuntimeCircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = RuntimeTheme.colorScheme.primary,
                         )
                     }
 
@@ -417,7 +407,7 @@ private fun EnvironmentDoctorCard(
                         modifier = Modifier
                             .size(20.dp)
                             .rotate(if (isCardExpanded) 180f else 0f),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        tint = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     )
                 }
             }
@@ -434,8 +424,8 @@ private fun EnvironmentDoctorCard(
                         // 去嵌套：卡内区块改用平面 Surface，避免玻璃主题下多层卡片材质冲突
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            shape = RuntimeTheme.shapes.small,
+                            color = RuntimeTheme.colorScheme.surfaceContainerHighest,
                         ) {
                             Column(
                                 modifier = Modifier.padding(14.dp),
@@ -448,16 +438,16 @@ private fun EnvironmentDoctorCard(
                                 ) {
                                     Text(
                                         text = stringResource(R.string.home_repair_step, repairProgress.stepIndex, repairProgress.totalSteps, repairProgress.stepTitle),
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                        color = RuntimeTheme.colorScheme.onSurface,
                                         modifier = Modifier.weight(1f),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                     Text(
                                         text = "${(repairProgress.progress * 100).toInt()}%",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.primary,
+                                        style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                        color = RuntimeTheme.colorScheme.primary,
                                         modifier = Modifier.padding(start = 8.dp),
                                         maxLines = 1,
                                         softWrap = false,
@@ -466,31 +456,24 @@ private fun EnvironmentDoctorCard(
 
                                 RuntimeLinearProgressIndicator(
                                     progress = { repairProgress.progress },
-                                    modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(4.dp)),
-                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.fillMaxWidth().height(10.dp).clip(RuntimeTheme.shapes.tiny),
+                                    color = RuntimeTheme.colorScheme.primary,
                                     wavy = true,
                                 )
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
+                                top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                                     TextButton(
                                         onClick = { showLogs = !showLogs },
-                                        contentPadding = PaddingValues(horizontal = 4.dp),
                                     ) {
                                         Text(
                                             text = if (showLogs) stringResource(R.string.home_hide_logs) else stringResource(R.string.home_view_live_logs, repairProgress.logs.size),
-                                            style = MaterialTheme.typography.labelSmall,
                                         )
                                     }
 
                                     TextButton(
                                         onClick = onCancelRepair,
-                                        contentPadding = PaddingValues(horizontal = 4.dp),
                                     ) {
-                                        Text(stringResource(R.string.home_cancel_repair), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                                        Text(stringResource(R.string.home_cancel_repair), color = RuntimeTheme.colorScheme.error)
                                     }
                                 }
 
@@ -499,8 +482,8 @@ private fun EnvironmentDoctorCard(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .heightIn(max = 140.dp),
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                        shape = RuntimeTheme.shapes.chip,
+                                        color = RuntimeTheme.colorScheme.surfaceContainerLowest,
                                     ) {
                                         Column(
                                             modifier = Modifier
@@ -511,11 +494,11 @@ private fun EnvironmentDoctorCard(
                                             repairProgress.logs.takeLast(20).forEach { logLine ->
                                                 Text(
                                                     text = logLine,
-                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                    style = RuntimeTheme.typography.labelSmall.copy(
                                                         fontFamily = FontFamily.Monospace,
                                                         fontSize = 11.sp,
                                                     ),
-                                                    color = if (logLine.startsWith("ERR:")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    color = if (logLine.startsWith("ERR:")) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurfaceVariant,
                                                 )
                                             }
                                         }
@@ -544,7 +527,7 @@ private fun EnvironmentDoctorCard(
                                 ) {
                                     Text(
                                         text = if (expandedDetails) stringResource(R.string.home_hide_details) else stringResource(R.string.home_view_checks, report.items.size),
-                                        style = MaterialTheme.typography.labelSmall,
+                                        style = RuntimeTheme.typography.labelSmall,
                                     )
                                 }
                             }
@@ -577,14 +560,14 @@ private fun EnvironmentDoctorCard(
                                 Spacer(Modifier.width(8.dp))
                                 Text(
                                     text = stringResource(R.string.home_repair),
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = FontWeight.Medium,
                                 )
                             }
                         } else if (report.isAllHealthy) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .clip(RuntimeTheme.shapes.small)
                                     .background(healthyStatusColor().copy(alpha = 0.1f))
                                     .padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -597,7 +580,7 @@ private fun EnvironmentDoctorCard(
                                 )
                                 Text(
                                     text = stringResource(R.string.home_environment_ready_description),
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = RuntimeTheme.typography.labelSmall,
                                     color = healthyStatusColor(),
                                 )
                             }
@@ -605,8 +588,8 @@ private fun EnvironmentDoctorCard(
                     } else if (!runtimeReady) {
                         Text(
                             text = stringResource(R.string.home_initialize_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -624,9 +607,9 @@ private fun DoctorItemRow(
     val statusColor = when (item.status) {
         DoctorStatus.HEALTHY -> healthyStatusColor()
         DoctorStatus.WARNING -> warningStatusColor()
-        DoctorStatus.ERROR -> MaterialTheme.colorScheme.error
-        DoctorStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
-        DoctorStatus.CHECKING -> MaterialTheme.colorScheme.tertiary
+        DoctorStatus.ERROR -> RuntimeTheme.colorScheme.error
+        DoctorStatus.UNKNOWN -> RuntimeTheme.colorScheme.onSurfaceVariant
+        DoctorStatus.CHECKING -> RuntimeTheme.colorScheme.tertiary
     }
 
     val statusIcon = when (item.status) {
@@ -640,8 +623,8 @@ private fun DoctorItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .clip(RuntimeTheme.shapes.small)
+            .background(RuntimeTheme.colorScheme.surfaceContainerLow)
             .then(
                 if (isAllFilesIssue) Modifier.clickable { onRequestAllFilesAccess() }
                 else Modifier
@@ -676,24 +659,24 @@ private fun DoctorItemRow(
                 ) {
                     Text(
                         text = item.title,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f, fill = false),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = "· ${item.category.displayName}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         softWrap = false,
                     )
                 }
                 Text(
                     text = item.summary,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (item.status != DoctorStatus.HEALTHY) statusColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = if (item.status != DoctorStatus.HEALTHY) statusColor else RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -701,8 +684,8 @@ private fun DoctorItemRow(
                 if (!detail.isNullOrBlank() && item.status != DoctorStatus.HEALTHY) {
                     Text(
                         text = detail,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.outline,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -715,9 +698,9 @@ private fun DoctorItemRow(
             FilledTonalButton(
                 onClick = onRequestAllFilesAccess,
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                modifier = Modifier.height(30.dp),
+                modifier = Modifier,
             ) {
-                Text(stringResource(R.string.home_grant_access), style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                Text(stringResource(R.string.home_grant_access), style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium))
             }
         }
     }
@@ -732,8 +715,8 @@ private fun AndroidEnvAcquisitionCard(
     // 去嵌套：本卡嵌在体检卡展开区内，改用平面 Surface + 淡主色底，去掉描边
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+        shape = RuntimeTheme.shapes.small,
+        color = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
@@ -746,50 +729,43 @@ private fun AndroidEnvAcquisitionCard(
                 IconTile(
                     icon = RuntimeIconName.Android,
                     size = 36.dp,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = RuntimeTheme.colorScheme.primary,
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = stringResource(R.string.home_android_env_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.titleSmall,
+                        color = RuntimeTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = stringResource(R.string.home_android_env_desc),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
+            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 RuntimeButton(
                     onClick = onJoinQqGroup,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    modifier = Modifier,
                 ) {
                     RuntimeIcon(RuntimeIconName.Qq, Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = stringResource(R.string.home_android_env_qq),
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
                 FilledTonalButton(
                     onClick = onOpenToolCenter,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    modifier = Modifier,
                 ) {
                     RuntimeIcon(RuntimeIconName.Extension, Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = stringResource(R.string.home_android_env_tool_center),
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -840,16 +816,16 @@ private fun RuntimeEngineStatusCard(
 
     val statusColor = when {
         ready -> healthyStatusColor()
-        error -> MaterialTheme.colorScheme.error
-        initializing != null -> MaterialTheme.colorScheme.tertiary
-        else -> MaterialTheme.colorScheme.outline
+        error -> RuntimeTheme.colorScheme.error
+        initializing != null -> RuntimeTheme.colorScheme.tertiary
+        else -> RuntimeTheme.colorScheme.outline
     }
 
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        contentPadding = PaddingValues(18.dp),
+        shape = RuntimeTheme.shapes.extraLarge,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainer,
+        contentPadding = PaddingValues(16.dp),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -873,15 +849,15 @@ private fun RuntimeEngineStatusCard(
                                 initializing != null -> stringResource(R.string.home_runtime_initializing)
                                 else -> stringResource(R.string.home_runtime_uninitialized)
                             },
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = RuntimeTheme.typography.titleMedium,
+                            color = RuntimeTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = metrics.linuxDistro,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -890,8 +866,8 @@ private fun RuntimeEngineStatusCard(
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                        .clip(RuntimeTheme.shapes.small)
+                        .background(RuntimeTheme.colorScheme.surfaceContainerHigh),
                     contentAlignment = Alignment.Center,
                 ) {
                     RuntimeIcon(
@@ -916,12 +892,12 @@ private fun RuntimeEngineStatusCard(
                 RuntimeIcon(
                     name = RuntimeIconName.List,
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = "${stringResource(R.string.home_active_processes, metrics.activeProcessCount)} · ${stringResource(R.string.home_uptime, metrics.uptimeFormatted)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -936,8 +912,8 @@ private fun RuntimeEngineStatusCard(
                 ) {
                     Text(
                         text = stringResource(R.string.home_switch_system),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
                             .padding(end = 2.dp)
                             .align(androidx.compose.ui.Alignment.CenterVertically),
@@ -948,17 +924,17 @@ private fun RuntimeEngineStatusCard(
                                 .size(12.dp)
                                 .align(androidx.compose.ui.Alignment.CenterVertically),
                             strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = RuntimeTheme.colorScheme.primary,
                         )
                     }
                     installedDistros.forEach { d ->
                         val isSelected = d.id.equals(activeDistroId, ignoreCase = true)
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            shape = RuntimeTheme.shapes.extraSmall,
+                            color = if (isSelected) RuntimeTheme.colorScheme.primaryContainer else RuntimeTheme.colorScheme.surfaceContainerHigh,
                             border = BorderStroke(
                                 1.dp,
-                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else Color.Transparent,
+                                if (isSelected) RuntimeTheme.colorScheme.primary.copy(alpha = 0.5f) else Color.Transparent,
                             ),
                             modifier = Modifier.clickable(enabled = !switchingDistro) {
                                 if (!isSelected) onSwitchDistro(d.id)
@@ -972,8 +948,8 @@ private fun RuntimeEngineStatusCard(
                                 RuntimeIcon(distroIconFor(d.id), Modifier.size(13.dp))
                                 Text(
                                     text = if (isSelected && switchingDistro) stringResource(R.string.home_switching) else d.displayName,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal),
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.labelSmall.copy(fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal),
+                                    color = if (isSelected) RuntimeTheme.colorScheme.onPrimaryContainer else RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -985,8 +961,8 @@ private fun RuntimeEngineStatusCard(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     RuntimeLinearProgressIndicator(
                         progress = { initializing.progress },
-                        modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(4.dp)),
-                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxWidth().height(10.dp).clip(RuntimeTheme.shapes.tiny),
+                        color = RuntimeTheme.colorScheme.primary,
                         wavy = true,
                     )
                     Row(
@@ -996,8 +972,8 @@ private fun RuntimeEngineStatusCard(
                     ) {
                         Text(
                             text = initializing.step,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -1006,7 +982,7 @@ private fun RuntimeEngineStatusCard(
                             onClick = onCancel,
                             modifier = Modifier.padding(start = 8.dp),
                         ) {
-                            Text(stringResource(R.string.home_cancel), style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.home_cancel), style = RuntimeTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -1020,35 +996,30 @@ private fun RuntimeEngineStatusCard(
             }
 
             // 快捷控制操作区
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
+            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 if (ready) {
                     RuntimeButton(
                         onClick = onOpenTerminal,
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(vertical = 10.dp),
+                        modifier = Modifier,
                     ) {
                         RuntimeIcon(
                             name = RuntimeIconName.Terminal,
                             modifier = Modifier.size(18.dp),
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.home_open_console), fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.home_open_console), fontWeight = FontWeight.Medium)
                     }
                 } else if (initializing == null) {
                     RuntimeButton(
                         onClick = onInitialize,
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(vertical = 10.dp),
+                        modifier = Modifier,
                     ) {
                         RuntimeIcon(
                             name = RuntimeIconName.Play,
                             modifier = Modifier.size(18.dp),
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(if (error) R.string.home_retry_initialization else R.string.home_initialize_now), fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(if (error) R.string.home_retry_initialization else R.string.home_initialize_now), fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -1066,7 +1037,7 @@ private fun ExecutionModeBadge(
 ) {
     // 状态色：生效=绿色 / 探测中=主题色 / 未生效=琥珀警示
     val statusColor = when {
-        modeStatus.checking -> MaterialTheme.colorScheme.primary
+        modeStatus.checking -> RuntimeTheme.colorScheme.primary
         modeStatus.active -> healthyStatusColor()
         else -> warningStatusColor()
     }
@@ -1078,12 +1049,12 @@ private fun ExecutionModeBadge(
     }
 
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.small,
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, statusColor.copy(alpha = 0.35f)),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RuntimeTheme.shapes.small)
             .clickable(onClick = onClick),
     ) {
         Row(
@@ -1094,7 +1065,7 @@ private fun ExecutionModeBadge(
             Box(
                 modifier = Modifier
                     .size(28.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RuntimeTheme.shapes.chip)
                     .background(statusColor.copy(alpha = 0.14f)),
                 contentAlignment = Alignment.Center,
             ) {
@@ -1107,8 +1078,8 @@ private fun ExecutionModeBadge(
             Column(Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.home_current_mode, modeStatus.mode.shortLabel),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = if (modeStatus.degraded) {
@@ -1116,8 +1087,8 @@ private fun ExecutionModeBadge(
                     } else {
                         modeStatus.mode.summary
                     },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -1138,7 +1109,7 @@ private fun ExecutionModeBadge(
             }
             Text(
                 text = statusText,
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                 color = statusColor,
             )
         }
@@ -1152,8 +1123,8 @@ private fun SystemSpecsCard(metrics: SystemResourceMetrics, modeStatus: Executio
     var expanded by rememberSaveable { mutableStateOf(false) }
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.extraLarge,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
         contentPadding = PaddingValues(16.dp),
     ) {
         Column(
@@ -1168,15 +1139,15 @@ private fun SystemSpecsCard(metrics: SystemResourceMetrics, modeStatus: Executio
             ) {
                 Text(
                     text = stringResource(R.string.home_environment_details),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = RuntimeTheme.typography.titleSmall,
+                    color = RuntimeTheme.colorScheme.onSurface,
                 )
                 RuntimeIcon(
                     name = RuntimeIconName.ChevronDown,
                     modifier = Modifier
                         .size(20.dp)
                         .rotate(if (expanded) 180f else 0f),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 )
             }
 
@@ -1206,8 +1177,8 @@ private fun SpecRow(label: String, value: String) {
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(0.42f, fill = false),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -1215,11 +1186,11 @@ private fun SpecRow(label: String, value: String) {
         Spacer(Modifier.width(8.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontWeight = FontWeight.SemiBold,
+            style = RuntimeTheme.typography.bodySmall.copy(
+                fontWeight = FontWeight.Medium,
                 fontFamily = FontFamily.Monospace,
             ),
-            color = MaterialTheme.colorScheme.onSurface,
+            color = RuntimeTheme.colorScheme.onSurface,
             textAlign = androidx.compose.ui.text.style.TextAlign.End,
             modifier = Modifier.weight(0.58f, fill = false),
             maxLines = 1,

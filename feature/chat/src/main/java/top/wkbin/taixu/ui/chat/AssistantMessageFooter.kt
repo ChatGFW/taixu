@@ -1,7 +1,7 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,16 +21,16 @@ internal fun AssistantMessageFooter(message: AssistantText, prominent: Boolean, 
             if (!prominent) Spacer(Modifier.weight(1f))
             RuntimeIconButton(onClick = onCopy, modifier = Modifier.size(if (prominent) 32.dp else 24.dp),
                 contentDescription = stringResource(R.string.chat_copy)) {
-                RuntimeIcon(RuntimeIconName.Copy, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                RuntimeIcon(RuntimeIconName.Copy, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
             }
             RuntimeIconButton(onClick = onCreateBranch, modifier = Modifier.size(if (prominent) 32.dp else 24.dp),
                 contentDescription = stringResource(R.string.chat_branch_from_here)) {
-                RuntimeIcon(RuntimeIconName.GitBranch, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                RuntimeIcon(RuntimeIconName.GitBranch, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
             }
             if (prominent) {
                 if (showRegenerate) RuntimeIconButton(onClick = onRegenerate, modifier = Modifier.size(32.dp),
                     contentDescription = stringResource(R.string.chat_regenerate)) {
-                    RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                    RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
                 MessageFeedbackAction(message.id)
             }

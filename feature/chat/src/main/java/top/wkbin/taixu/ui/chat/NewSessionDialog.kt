@@ -2,11 +2,11 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,16 +16,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.components.RuntimeDropdownField
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -55,7 +53,6 @@ internal fun NewSessionDialog(
     var selected by rememberSaveable(catalog.selectionId, catalog.server) { mutableStateOf("") }
     var selectedTypeName by rememberSaveable(catalog.selectionId, catalog.server) { mutableStateOf(ProjectType.GENERAL.name) }
     val selectedType = ProjectType.valueOf(selectedTypeName)
-    var typeMenuExpanded by rememberSaveable { mutableStateOf(false) }
     val quickTags = listOf(
         defaultTitle,
         stringResource(R.string.chat_quick_bug),
@@ -68,8 +65,8 @@ internal fun NewSessionDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                Text(stringResource(R.string.chat_new_agent_session), fontWeight = FontWeight.Bold)
+                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.primary)
+                Text(stringResource(R.string.chat_new_agent_session), fontWeight = FontWeight.Medium)
             }
         },
         text = {
@@ -79,13 +76,13 @@ internal fun NewSessionDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(stringResource(R.string.chat_session_title), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.chat_session_title), style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
                 RuntimeFilledTextField(
                     value = title,
                     onValueChange = { title = it },
                     placeholder = { Text(stringResource(R.string.chat_session_name_hint)) },
                     singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RuntimeTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth(),
                 )
 
@@ -98,30 +95,30 @@ internal fun NewSessionDialog(
                 ) {
                     quickTags.forEach { tag ->
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (title == tag) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            shape = RuntimeTheme.shapes.extraSmall,
+                            color = if (title == tag) RuntimeTheme.colorScheme.primary.copy(alpha = 0.15f) else RuntimeTheme.colorScheme.surfaceContainerHigh,
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (title == tag) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.Transparent,
+                                if (title == tag) RuntimeTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.Transparent,
                             ),
                             modifier = Modifier.clickable { title = tag },
                         ) {
                             Text(
                                 tag,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (title == tag) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = if (title == tag) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
                     }
                 }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
 
                 Text(
                     stringResource(R.string.chat_link_workspace),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
                 )
 
                 LazyColumn(
@@ -135,7 +132,7 @@ internal fun NewSessionDialog(
                             selectedTypeName = ProjectType.GENERAL.name
                         })
                     }
-                    item { if (catalog.loading) CircularProgressIndicator(); catalog.error?.let { Text(it, color = MaterialTheme.colorScheme.error) } }
+                    item { if (catalog.loading) CircularProgressIndicator(); catalog.error?.let { Text(it, color = RuntimeTheme.colorScheme.error) } }
                     items(workspaces.size, key = { workspaces[it].linuxPath }) { index ->
                         val ws = workspaces[index]
                         WorkspaceOption(ws.name, ws.linuxPath, selected == ws.linuxPath) {
@@ -154,46 +151,27 @@ internal fun NewSessionDialog(
                     } else {
                         stringResource(R.string.chat_project_type_detected)
                     },
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
                 )
-                Box {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth().clickable { typeMenuExpanded = true },
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                selectedType.displayName,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(stringResource(R.string.chat_select), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                RuntimeDropdownField(
+                    title = stringResource(R.string.chat_select),
+                    items = ProjectType.entries.map { it.displayName },
+                    selectedIndex = ProjectType.entries.indexOf(selectedType),
+                    onSelectedIndexChange = { index ->
+                        ProjectType.entries.getOrNull(index)?.let { type ->
+                            selectedTypeName = type.name
                         }
-                    }
-                    DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
-                        ProjectType.entries.forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text(type.displayName) },
-                                onClick = {
-                                    selectedTypeName = type.name
-                                    typeMenuExpanded = false
-                                },
-                            )
-                        }
-                    }
-                }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         },
         confirmButton = {
             Button(
                 onClick = { onCreate(title.ifBlank { defaultTitle }, selected, selectedType) },
                 enabled = !catalog.loading && (selected.isBlank() || catalog.error == null),
-                shape = RoundedCornerShape(8.dp),
+                shape = RuntimeTheme.shapes.medium,
             ) {
                 Text(stringResource(R.string.chat_create_session))
             }

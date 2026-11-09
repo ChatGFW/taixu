@@ -61,6 +61,7 @@ data class BotAssignmentEntity(
     @ColumnInfo(defaultValue = "NULL") val rootWorkId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val stageId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val workItemId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val capabilityGrantJson: String? = null,
 )
 
 @Dao

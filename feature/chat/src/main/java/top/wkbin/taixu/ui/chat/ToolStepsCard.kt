@@ -3,8 +3,8 @@ package top.wkbin.taixu.ui.chat
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -22,7 +22,6 @@ import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.theme.semanticColors
 
 @Composable
-@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 internal fun ToolStepsCard(item: ToolStepsItem, results: Map<String, ToolResult>, messages: List<HarnessMessage>,
     workspace: String, onOpenFile: ((String, String) -> Unit)?, running: Boolean, liveStatus: String?,
     defaultExpanded: Boolean, onRetry: (String) -> Unit, executing: Boolean = running,
@@ -39,33 +38,33 @@ internal fun ToolStepsCard(item: ToolStepsItem, results: Map<String, ToolResult>
     }
     val hidden = item.steps.size - visible.size
     val stateLabel = stringResource(if (expanded) R.string.chat_drawer_section_expanded else R.string.chat_drawer_section_collapsed)
-    val lineColor = MaterialTheme.colorScheme.outlineVariant
+    val lineColor = RuntimeTheme.colorScheme.outlineVariant
     val attention = item.steps.count { step ->
         val id = step.toolCallId ?: return@count false
         toolStepState(results[id], executing) in
             setOf(ToolStepState.FAILED, ToolStepState.UNKNOWN, ToolStepState.WAITING, ToolStepState.DEFERRED)
     }
-    Column(Modifier.fillMaxWidth().then(chatGreetingModifier()).animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())) {
+    Column(Modifier.fillMaxWidth().then(chatGreetingModifier()).animateContentSize(RuntimeTheme.motionScheme.defaultSpatialSpec())) {
         Row(Modifier.fillMaxWidth().heightIn(min = 28.dp).clickable {
             expanded = !expanded
             if (!expanded) focus?.value = null
         }.semantics { stateDescription = stateLabel }.padding(horizontal = 2.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.chat_tool_chain_title, item.toolCount), modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (attention > 0) Text(stringResource(R.string.chat_tool_chain_attention, attention),
-                style = MaterialTheme.typography.labelSmall, color = semanticColors().warning, maxLines = 1)
+                style = RuntimeTheme.typography.labelSmall, color = semanticColors().warning, maxLines = 1)
             RuntimeIcon(if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                Modifier.size(12.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                Modifier.size(12.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
         }
         if (expanded) Column(Modifier.fillMaxWidth().padding(start = 8.dp).drawBehind {
             drawLine(lineColor, Offset.Zero, Offset(0f, size.height), strokeWidth = 1.dp.toPx())
         }.padding(start = 12.dp)) {
-            if (hidden > 0) RuntimeTextButton(onClick = { visibleCount += 8 }, modifier = Modifier.height(28.dp),
+            if (hidden > 0) RuntimeTextButton(onClick = { visibleCount += 8 }, modifier = Modifier,
                 contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
-                Text(stringResource(R.string.chat_steps_show_more, hidden), style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(stringResource(R.string.chat_steps_show_more, hidden), style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             visible.forEach { step ->
                 key(step.stableKey) {

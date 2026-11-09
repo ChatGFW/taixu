@@ -1,4 +1,8 @@
 package top.wkbin.taixu.ui.developer
+
+import top.wkbin.taixu.ui.miuix.*
+import androidx.compose.runtime.*
+
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -21,16 +25,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -91,7 +87,7 @@ fun AdbLogcatScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RuntimeTheme.colorScheme.background,
         topBar = { RuntimeTopBar("无线 ADB 与日志抓取", onBack) },
     ) { innerPadding ->
         Column(
@@ -99,8 +95,8 @@ fun AdbLogcatScreen(
                 .fillMaxSize()
                 .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding))
                 .verticalScroll(rememberScrollState()).padding(bottom = innerPadding.calculateBottomPadding())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             // ── 1. 连接状态与概览 ──────────────────────────────────────────
             RuntimeCard(Modifier.fillMaxWidth()) {
@@ -111,10 +107,10 @@ fun AdbLogcatScreen(
                 ) {
                     IconTile(
                         icon = RuntimeIconName.Terminal,
-                        color = if (connected != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (connected != null) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("内置无线 ADB 客户端", style = MaterialTheme.typography.titleMedium)
+                        Text("内置无线 ADB 客户端", style = RuntimeTheme.typography.titleMedium)
                         Text(
                             when (val current = adbState) {
                                 EmbeddedAdbManager.ConnectionState.Disconnected -> "未连接"
@@ -124,11 +120,11 @@ fun AdbLogcatScreen(
                                 is EmbeddedAdbManager.ConnectionState.Connected -> "已连接：${current.host}:${current.port}"
                                 is EmbeddedAdbManager.ConnectionState.Failed -> current.message
                             },
-                            style = MaterialTheme.typography.bodySmall,
+                            style = RuntimeTheme.typography.bodySmall,
                             color = if (adbState is EmbeddedAdbManager.ConnectionState.Failed) {
-                                MaterialTheme.colorScheme.error
+                                RuntimeTheme.colorScheme.error
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                RuntimeTheme.colorScheme.onSurfaceVariant
                             },
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
@@ -144,9 +140,9 @@ fun AdbLogcatScreen(
                             EmbeddedAdbManager.ConnectionState.Disconnected -> "未就绪"
                         },
                         color = when (adbState) {
-                            is EmbeddedAdbManager.ConnectionState.Connected -> MaterialTheme.colorScheme.secondary
-                            is EmbeddedAdbManager.ConnectionState.Failed -> MaterialTheme.colorScheme.error
-                            else -> MaterialTheme.colorScheme.primary
+                            is EmbeddedAdbManager.ConnectionState.Connected -> RuntimeTheme.colorScheme.secondary
+                            is EmbeddedAdbManager.ConnectionState.Failed -> RuntimeTheme.colorScheme.error
+                            else -> RuntimeTheme.colorScheme.primary
                         },
                     )
                 }
@@ -159,8 +155,8 @@ fun AdbLogcatScreen(
                 Spacer(Modifier.height(10.dp))
                 Text(
                     "mDNS 自动探测：发现配对端点 ${adbDiscovery.pairingEndpoints.size} 个 · 连接端点 ${adbDiscovery.connectEndpoints.size} 个",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -172,12 +168,12 @@ fun AdbLogcatScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "通知栏配对助手",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                            style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
                         )
                         Text(
                             "在系统通知栏常驻展示配对码输入框，支持免切屏快捷输入",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Switch(
@@ -218,7 +214,7 @@ fun AdbLogcatScreen(
                         value = pairingCode,
                         onValueChange = { value -> pairingCode = value.filter(Char::isDigit).take(6) },
                         modifier = Modifier.weight(1.1f),
-                        label = { Text("6 位配对码") },
+                        labelText = resolveLocalizedString("6 位配对码"),
                         placeholder = { Text("例如：123456") },
                         supportingText = { Text("首次配对时填入") },
                         singleLine = true,
@@ -227,7 +223,7 @@ fun AdbLogcatScreen(
                         value = explicitPort,
                         onValueChange = { value -> explicitPort = value.filter(Char::isDigit).take(5) },
                         modifier = Modifier.weight(0.9f),
-                        label = { Text("连接端口（可选）") },
+                        labelText = resolveLocalizedString("连接端口（可选）"),
                         placeholder = { Text("如：41235") },
                         supportingText = { Text("留空由 mDNS 探测") },
                         singleLine = true,
@@ -235,18 +231,18 @@ fun AdbLogcatScreen(
                 }
                 Spacer(Modifier.height(8.dp))
 
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = { viewModel?.pairWirelessAdb(pairingCode, explicitPort.toIntOrNull()) },
                         enabled = !adbBusy && pairingCode.length == 6 && (adbDiscovery.pairingEndpoints.isNotEmpty() || explicitPort.isNotBlank()),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                     ) {
                         Text("完成配对并连接")
                     }
                     OutlinedButton(
                         onClick = { viewModel?.connectWirelessAdb(explicitPort.toIntOrNull()) },
                         enabled = !adbBusy && (adbDiscovery.connectEndpoints.isNotEmpty() || explicitPort.isNotBlank() || adbState is EmbeddedAdbManager.ConnectionState.Connected),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                     ) {
                         Text(if (explicitPort.isNotBlank()) "连接指定端口" else "重新连接")
                     }
@@ -259,7 +255,7 @@ fun AdbLogcatScreen(
                         enabled = !adbBusy,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     ) {
-                        Text("重新探测端口", style = MaterialTheme.typography.labelSmall)
+                        Text("重新探测端口", style = RuntimeTheme.typography.labelSmall)
                     }
                 }
 
@@ -267,8 +263,8 @@ fun AdbLogcatScreen(
                     Spacer(Modifier.height(8.dp))
                     Text(
                         it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -280,22 +276,20 @@ fun AdbLogcatScreen(
                     value = logcatPackage,
                     onValueChange = { logcatPackage = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("目标应用包名（留空抓取全系统）") },
+                    labelText = resolveLocalizedString("目标应用包名（留空抓取全系统）"),
                     singleLine = true,
                 )
                 Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                top.wkbin.taixu.ui.components.RuntimeActionRow() {
                     FilledTonalButton(
                         onClick = { logcatPackage = "top.wkbin.taixu" },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                     ) {
-                        Text("填入太墟", style = MaterialTheme.typography.labelSmall)
+                        Text("填入太墟")
                     }
                     OutlinedButton(
                         onClick = { logcatPackage = "" },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                     ) {
-                        Text("全系统日志", style = MaterialTheme.typography.labelSmall)
+                        Text("全系统日志")
                     }
                 }
                 Spacer(Modifier.height(10.dp))
@@ -305,14 +299,14 @@ fun AdbLogcatScreen(
                         value = logcatTag,
                         onValueChange = { logcatTag = it },
                         modifier = Modifier.weight(1f),
-                        label = { Text("Tag 过滤（可选）") },
+                        labelText = resolveLocalizedString("Tag 过滤（可选）"),
                         singleLine = true,
                     )
                     RuntimeFilledTextField(
                         value = logcatLines,
                         onValueChange = { logcatLines = it.filter(Char::isDigit).take(4) },
                         modifier = Modifier.weight(0.6f),
-                        label = { Text("行数") },
+                        labelText = resolveLocalizedString("行数"),
                         singleLine = true,
                     )
                 }
@@ -322,12 +316,12 @@ fun AdbLogcatScreen(
                     value = logcatKeyword,
                     onValueChange = { logcatKeyword = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("关键词过滤（可选，忽略大小写）") },
+                    labelText = resolveLocalizedString("关键词过滤（可选，忽略大小写）"),
                     singleLine = true,
                 )
                 Spacer(Modifier.height(10.dp))
 
-                Text("日志等级", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("日志等级", style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(4.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf('V' to "Verbose", 'D' to "Debug", 'I' to "Info", 'W' to "Warn", 'E' to "Error", 'F' to "Fatal").forEach { (priority, _) ->
@@ -352,7 +346,7 @@ fun AdbLogcatScreen(
                 }
                 Spacer(Modifier.height(12.dp))
 
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = {
                             viewModel?.captureLogcat(
@@ -364,7 +358,7 @@ fun AdbLogcatScreen(
                             )
                         },
                         enabled = connected != null && !adbBusy,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                     ) {
                         Text("抓取日志")
                     }
@@ -378,14 +372,14 @@ fun AdbLogcatScreen(
 
                 if (logcatOutput.isNotBlank()) {
                     Spacer(Modifier.height(14.dp))
-                    Text("抓取结果", style = MaterialTheme.typography.labelLarge)
+                    Text("抓取结果", style = RuntimeTheme.typography.labelLarge)
                     Spacer(Modifier.height(6.dp))
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = 360.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                        shape = MaterialTheme.shapes.medium,
+                        color = RuntimeTheme.colorScheme.surfaceContainerLowest,
+                        shape = RuntimeTheme.shapes.medium,
                     ) {
                         SelectionContainer {
                             Column(
@@ -395,7 +389,7 @@ fun AdbLogcatScreen(
                             ) {
                                 Text(
                                     logcatOutput,
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = RuntimeTheme.typography.bodySmall,
                                     fontFamily = FontFamily.Monospace,
                                 )
                             }
@@ -422,8 +416,8 @@ fun AdbLogcatScreen(
                     "• 终端命令：已预置 logcat-grabber <包名>、logcat-tail <包名> 与 logcat-export <包名> <路径>\n" +
                     "• 宿主接口：通过 taixu-host logcat 跨沙箱直接调用\n" +
                     "• AI 协同：在智枢对话中直接吩咐 Agent“帮我抓取崩溃日志”，将自动调用 host.logcat 工具分析排查",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

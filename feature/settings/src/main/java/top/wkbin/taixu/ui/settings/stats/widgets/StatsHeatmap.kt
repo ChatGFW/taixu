@@ -13,25 +13,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.core.model.StatsHeatmapDay
-import java.time.DayOfWeek
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 private val CellSize = 11.dp
 private val CellPadding = 1.5.dp
@@ -91,10 +85,10 @@ fun StatsHeatmap(
                                 if (firstOfMonth != null) {
                                     Text(
                                         text = "${firstOfMonth.date.monthValue}月",
-                                        style = MaterialTheme.typography.bodySmall.copy(
+                                        style = RuntimeTheme.typography.bodySmall.copy(
                                             fontSize = 9.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                            color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                         ),
                                         softWrap = false,
                                     )
@@ -131,9 +125,9 @@ fun StatsHeatmap(
         ) {
             Text(
                 text = "少",
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 ),
             )
             Spacer(modifier = Modifier.width(4.dp))
@@ -143,9 +137,9 @@ fun StatsHeatmap(
             }
             Text(
                 text = "多",
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 ),
             )
         }
@@ -170,10 +164,10 @@ private fun WeekdayLabels() {
                 if (i == 1 || i == 3 || i == 5) {
                     Text(
                         text = days[i],
-                        style = MaterialTheme.typography.bodySmall.copy(
+                        style = RuntimeTheme.typography.bodySmall.copy(
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         ),
                     )
                 }
@@ -187,8 +181,8 @@ private fun HeatCell(
     level: Int,
     size: Dp = CellSize,
 ) {
-    val primary = MaterialTheme.colorScheme.primary
-    val onSurface = MaterialTheme.colorScheme.onSurface
+    val primary = RuntimeTheme.colorScheme.primary
+    val onSurface = RuntimeTheme.colorScheme.onSurface
 
     val color = when (level) {
         0 -> onSurface.copy(alpha = 0.08f)
@@ -201,7 +195,7 @@ private fun HeatCell(
     Box(
         modifier = Modifier
             .size(size)
-            .clip(RoundedCornerShape(2.dp))
+            .clip(RuntimeTheme.shapes.hairline)
             .background(color),
     )
 }

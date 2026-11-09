@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.components
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -18,12 +22,11 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -150,14 +153,14 @@ fun RuntimeRevealNavigationDrawer(
             Box(
                 Modifier.fillMaxSize().graphicsLayer {
                     translationX = state.offset.takeIf { it.isFinite() }?.times(direction) ?: 0f
-                }.background(MaterialTheme.colorScheme.background),
+                }.background(RuntimeTheme.colorScheme.background),
             ) {
                 Box(
                     Modifier.fillMaxSize()
                         .then(if (revealed) Modifier.clearAndSetSemantics {} else Modifier),
                 ) { content() }
                 if (revealed) {
-                    val scrim = MaterialTheme.colorScheme.onSurface
+                    val scrim = RuntimeTheme.colorScheme.onSurface
                     Box(
                         Modifier.fillMaxSize()
                             .drawBehind { drawRect(scrim.copy(alpha = 0.12f * progress())) }

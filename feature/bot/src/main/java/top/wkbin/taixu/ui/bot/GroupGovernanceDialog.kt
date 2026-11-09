@@ -4,7 +4,8 @@ import java.util.UUID
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -30,12 +31,12 @@ internal fun GroupGovernanceDialog(policy: GroupGovernance, team: GroupTeam, mem
         title = { Text(stringResource(R.string.fbot_governance_title)) },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.fbot_governance_hint), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.fbot_governance_hint), style = RuntimeTheme.typography.bodySmall)
                 draft.forEach { rule ->
                     RuntimeCard(modifier = Modifier.fillMaxWidth()) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             RuntimeFilledTextField(value = rule.name, onValueChange = { value -> change(rule.id) { it.copy(name = value.take(60)) } },
-                                label = { Text(stringResource(R.string.fbot_rule_name)) }, enabled = !saving, modifier = Modifier.fillMaxWidth())
+                                labelText = stringResource(R.string.fbot_rule_name), enabled = !saving, modifier = Modifier.fillMaxWidth())
                             listOf(rule.authorId, rule.reviewerId, rule.executorId).forEachIndexed { role, id ->
                                 RuntimeTextButton(enabled = !saving, onClick = { selecting = rule.id to role }) {
                                     Text(stringResource(listOf(R.string.fbot_rule_author, R.string.fbot_rule_reviewer, R.string.fbot_rule_executor)[role], names[id] ?: "?"))
@@ -53,16 +54,16 @@ internal fun GroupGovernanceDialog(policy: GroupGovernance, team: GroupTeam, mem
                 RuntimeTextButton(enabled = !saving && members.size >= 3 && draft.size < 20, onClick = {
                     draft = draft + GroupReviewRule(UUID.randomUUID().toString(), "审议规则", members[0].id, members[1].id, members[2].id)
                 }) { Text(stringResource(R.string.fbot_rule_add)) }
-                if (proposals.isNotEmpty()) Text(stringResource(R.string.fbot_proposals_title), style = MaterialTheme.typography.titleSmall)
+                if (proposals.isNotEmpty()) Text(stringResource(R.string.fbot_proposals_title), style = RuntimeTheme.typography.titleSmall)
                 proposals.take(40).forEach { proposal ->
                     RuntimeCard(modifier = Modifier.fillMaxWidth()) {
                         Column {
-                            Text("${proposal.rule.name} · v${proposal.version} · ${proposal.decision}", style = MaterialTheme.typography.titleSmall)
-                            Text(proposal.reason.ifBlank { proposal.content.take(500) }, style = MaterialTheme.typography.bodySmall)
+                            Text("${proposal.rule.name} · v${proposal.version} · ${proposal.decision}", style = RuntimeTheme.typography.titleSmall)
+                            Text(proposal.reason.ifBlank { proposal.content.take(500) }, style = RuntimeTheme.typography.bodySmall)
                         }
                     }
                 }
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
             }
         },
         confirmButton = { RuntimeButton(enabled = !saving, onClick = {

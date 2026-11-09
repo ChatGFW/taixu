@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.settings
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -11,26 +14,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.*
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -153,8 +150,8 @@ fun FtpSettingsScreen(
                                 checked = settings.enabled,
                                 onCheckedChange = { arg0 -> viewModel?.toggleEnabled(arg0) },
                                 colors = SwitchDefaults.colors(
-                                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                    checkedThumbColor = RuntimeTheme.colorScheme.onPrimary,
+                                    checkedTrackColor = RuntimeTheme.colorScheme.primary,
                                 ),
                             )
                         }
@@ -164,10 +161,10 @@ fun FtpSettingsScreen(
             (serviceState as? FtpServiceState.Failed)?.let { failed ->
                 SettingsDetailCard(
                     modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
-                    borderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.25f),
+                    containerColor = RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+                    borderColor = RuntimeTheme.colorScheme.error,
                 ) {
-                    Text(failed.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(failed.message, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall)
                 }
             }
         }
@@ -176,14 +173,14 @@ fun FtpSettingsScreen(
             SectionLabel("连接地址与客户端配置参数")
             SettingsDetailCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+                borderColor = Color.Transparent,
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         text = "外部 App 连接参数 (分项填入)：",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.onSurface,
                     )
                     ParamRow(
                         label = "服务端口 (Port)",
@@ -208,12 +205,11 @@ fun FtpSettingsScreen(
                         onCopy = { copyText(context, settings.username, "用户名 (${settings.username}) 已复制") },
                     )
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
                     Text(
                         text = "快速连接 URL：",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.onSurface,
                     )
                     ParamRow(
                         label = "局域网 / 电脑访问 URL",
@@ -228,8 +224,8 @@ fun FtpSettingsScreen(
 
                     Text(
                         text = "使用提示：在手机第三方文件管理器 (如 MT管理器/Solid Explorer/CX文件管理器) 中添加 FTP 时，主机填写 127.0.0.1，端口填 ${settings.port}；同一 Wi-Fi 下电脑连接主机填 ${settings.connectionHost}。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -254,7 +250,6 @@ fun FtpSettingsScreen(
                     value = settings.username,
                     onClick = { showUsernameDialog = true },
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 val passwordSubtitle = if (settings.passwordConfigured) {
                     "密码已单独配置并加密保存，点击修改或清除"
                 } else if (settings.sshPasswordConfigured) {
@@ -276,7 +271,6 @@ fun FtpSettingsScreen(
                     value = passwordValue,
                     onClick = { showPasswordDialog = true },
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 SettingsRow(
                     icon = RuntimeIconName.Shield,
                     title = "允许匿名访问",
@@ -289,7 +283,6 @@ fun FtpSettingsScreen(
                         )
                     },
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 SettingsRow(
                     icon = RuntimeIconName.Storage,
                     title = "只读保护模式",
@@ -338,13 +331,13 @@ fun FtpSettingsScreen(
                 SectionLabel("最近访问日志")
                 SettingsDetailCard(
                     modifier = Modifier.fillMaxWidth(),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                    borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    containerColor = RuntimeTheme.colorScheme.surfaceContainerLowest,
+                    borderColor = Color.Transparent,
                 ) {
                     Text(
                         logs.takeLast(12).joinToString("\n"),
-                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -356,8 +349,8 @@ fun FtpSettingsScreen(
 private fun SectionLabel(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-        color = MaterialTheme.colorScheme.primary,
+        style = RuntimeTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+        color = RuntimeTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
     )
 }
@@ -390,13 +383,13 @@ private fun FtpPasswordDialog(
             ) {
                 Text(
                     "密码将通过 Android Keystore 加密保存，外部客户端连接时需输入此密码。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 RuntimeFilledTextField(
                     value = password,
                     onValueChange = { password = it.take(128) },
-                    label = { Text("新密码") },
+                    labelText = resolveLegacyString("新密码"),
                     supportingText = { Text("至少 4 个字符") },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -406,7 +399,7 @@ private fun FtpPasswordDialog(
                 RuntimeFilledTextField(
                     value = confirmation,
                     onValueChange = { confirmation = it.take(128) },
-                    label = { Text("再次输入密码") },
+                    labelText = resolveLegacyString("再次输入密码"),
                     isError = confirmation.isNotEmpty() && !matches,
                     supportingText = {
                         if (confirmation.isNotEmpty() && !matches) Text("两次输入的密码不一致")
@@ -425,12 +418,12 @@ private fun FtpPasswordDialog(
             ) { Text("保存") }
         },
         dismissButton = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+
                 if (passwordConfigured) {
                     RuntimeTextButton(onClick = onClear) { Text("清除密码") }
                 }
                 RuntimeTextButton(onClick = onDismiss) { Text("取消") }
-            }
+
         },
     )
 }
@@ -449,7 +442,7 @@ private fun FtpUsernameDialog(
             RuntimeFilledTextField(
                 value = username,
                 onValueChange = { username = it.take(32) },
-                label = { Text("用户名") },
+                labelText = resolveLegacyString("用户名"),
                 supportingText = { Text("默认为 root") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -483,26 +476,26 @@ private fun ParamRow(
         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = value,
-                style = MaterialTheme.typography.bodyMedium.copy(
+                style = RuntimeTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                 ),
-                color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                color = if (highlight) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurface,
             )
         }
         RuntimeOutlinedButton(
             onClick = onCopy,
-            modifier = Modifier.height(32.dp),
+            modifier = Modifier,
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
         ) {
             RuntimeIcon(RuntimeIconName.Copy, Modifier.size(13.dp))
             Spacer(Modifier.size(4.dp))
-            Text("复制", style = MaterialTheme.typography.labelSmall)
+            Text("复制", style = RuntimeTheme.typography.labelSmall)
         }
     }
 }

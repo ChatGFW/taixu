@@ -3,8 +3,8 @@ package top.wkbin.taixu.ui.settings
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme
+import top.yukonga.miuix.kmp.basic.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,15 +46,15 @@ internal fun SelfManagedServiceAccessCard(port: Int?, running: Boolean, nativePa
     if (port == null || port !in 1..65535) return
     SettingsDetailCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(stringResource(R.string.service_panel_title), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.service_panel_auth), style = MaterialTheme.typography.bodyMedium)
-            SelectionContainer { Text("http://127.0.0.1:$port/", style = MaterialTheme.typography.bodyMedium) }
-            Text(stringResource(R.string.service_panel_loopback), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.service_panel_title), style = RuntimeTheme.typography.titleMedium)
+            Text(stringResource(R.string.service_panel_auth), style = RuntimeTheme.typography.bodyMedium)
+            SelectionContainer { Text("http://127.0.0.1:$port/", style = RuntimeTheme.typography.bodyMedium) }
+            Text(stringResource(R.string.service_panel_loopback), style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant)
             RuntimeFilledTonalButton(enabled = running && nativePanel, onClick = onOpen) {
                 Text(stringResource(R.string.service_panel_open))
             }
-            if (!nativePanel) Text(stringResource(R.string.service_panel_upgrade), style = MaterialTheme.typography.bodySmall)
+            if (!nativePanel) Text(stringResource(R.string.service_panel_upgrade), style = RuntimeTheme.typography.bodySmall)
             ServiceBrowserButton(port, running)
         }
     }

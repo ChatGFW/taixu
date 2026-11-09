@@ -1,11 +1,14 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+
 import androidx.compose.runtime.getValue
+
+import androidx.compose.foundation.layout.*
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -21,9 +24,9 @@ internal fun LocalSettingsGate(title: String, onBack: () -> Unit, unavailableCon
     val active by repository.activeId.collectAsStateWithLifecycle()
     if (active == null) content()
     else Scaffold(topBar = { RuntimeTopBar(title = title, onBack = onBack) }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.fillMaxSize().padding(padding).padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = 12.dp, bottom = 24.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             NoticeBanner(text = "此功能管理手机上的 Linux、插件和配置，当前主系统无法使用。请先在「Linux 系统管理」中切回本地系统。")
-            Text("服务器工具链可通过智枢命令管理；手机目录不会自动挂载或同步到服务器。", style = MaterialTheme.typography.bodyMedium)
+            Text("服务器工具链可通过智枢命令管理；手机目录不会自动挂载或同步到服务器。", style = RuntimeTheme.typography.bodyMedium)
             unavailableContent()
             RuntimeTextButton(onClick = onBack) { Text("返回") }
         }

@@ -121,6 +121,10 @@ val coreDatabaseModule = module {
 
     factory<PersonaBotRepository> { get<RoomPersonaBotRepository>() }
 
+    single<top.wkbin.taixu.core.database.repository.ExternalAgentRuntimeTokenRepository> {
+        top.wkbin.taixu.core.database.repository.RoomExternalAgentRuntimeTokenRepository(dao = get())
+    }
+
     single<RoomGroupChatRepository> { RoomGroupChatRepository(dao = get(), json = get()) }
 
     factory<GroupChatRepository> { get<RoomGroupChatRepository>() }

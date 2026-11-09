@@ -62,7 +62,8 @@ class CapabilityScriptPolicyTest {
         HarnessSessionEntity("session", "test", 1, 1, null, approvalMode = mode.id, runMode = runMode),
     )
 
-    private fun executor(hooks: List<ToolCheckpoint<ToolExecutionRequest, ToolResult>> = emptyList(), mcp: McpManager? = null): ToolExecutor {
+    private fun executor(hooks: List<ToolCheckpoint<ToolExecutionRequest, ToolResult>> = emptyList(), mcp: McpManager? = null,
+        capabilityScope: top.wkbin.taixu.harness.bot.BotCapabilityScope? = null): ToolExecutor {
         val paths = HarnessPathResolver()
         return ToolExecutor(WorkspaceFileAccess(context.cacheDir), paths,
             ApprovalPolicyEngine(paths), SecretRedactor(),
@@ -76,7 +77,7 @@ class CapabilityScriptPolicyTest {
             promptAssetToolBackend = PromptAssetToolBackend(),
             harnessServiceToolBackend = HarnessServiceToolBackend(),
             searchWebToolBackend = SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(StubSearchProvider()))),
-            capabilityToolGateway = CapabilityToolGateway(mcp) { _, _, _, _ -> error("unexpected host dispatch") },
+            capabilityToolGateway = CapabilityToolGateway(mcp, capabilityScope = capabilityScope) { _, _, _, _ -> error("unexpected host dispatch") },
             approvalRepository = approvals, sessionDao = sessions, toolCheckpoints = ToolCheckpoints(hooks), mcpManager = mcp)
     }
 
@@ -243,7 +244,87 @@ class CapabilityScriptPolicyTest {
         }
     }
 
-    private suspend fun withMcp(test: suspend (McpManager, AtomicInteger) -> Unit) {
+    @Test fun `revoked bot tool scope blocks direct encoded script and approval replay calls`() = runBlocking {
+        seed(ApprovalMode.FULL_ACCESS)
+        var allowed = setOf("write_record")
+        val scope = object : top.wkbin.taixu.harness.bot.BotCapabilityScope {
+            override suspend fun allowedMcpServers(sessionId: String) = setOf("remote")
+            override suspend fun allowedMcpTools(sessionId: String, serverId: String) = allowed
+        }
+        withMcp { manager, calls ->
+            val runner = executor(mcp = manager, capabilityScope = scope)
+            val args = buildJsonObject {
+                put("action", "call"); put("server", "remote"); put("tool", "write_record")
+                put("arguments", buildJsonObject { put("input", "value") })
+            }
+            val call = ToolCall("call", 1, HarnessTool.MCP, args, rawToolName = "use_capability")
+            assertTrue(runner.execute(call, "session").success)
+            assertEquals(1, calls.get())
+            allowed = emptySet()
+            assertFalse(runner.execute(call, "session", bypassApproval = true).success)
+            val info = manager.cachedToolsOf("remote").single()
+            listOf(McpToolApiName.encode(info), McpToolApiName.legacy(info)).forEach { name ->
+                val direct = call.copy(rawToolName = name, args = buildJsonObject { put("input", "value") })
+                assertFalse(runner.execute(direct, "session").success)
+            }
+            val scripted = runner.execute(script("capability.call('remote','write_record',{input:'value'}).ok;"), "session")
+            assertEquals(NestedCalls.STATUS_BLOCKED, NestedCalls.read(scripted.metadata)!!.calls.single().status)
+            val router = CapabilityToolRouter(manager, capabilityScope = scope) { _, _, _, _ -> error("host") }
+            val inspect = router.execute(buildJsonObject { put("action", "inspect"); put("server", "remote") },
+                "", "inspect", null, "session", mutableMapOf())
+            assertFalse(inspect.first)
+            assertFalse(inspect.second.contains("write_record"))
+            assertEquals(1, calls.get())
+        }
+    }
+
+    @Test fun `approval replay checks the expired scope instead of trusting the old request`() = runBlocking {
+        seed()
+        var valid = true
+        val scope = top.wkbin.taixu.harness.bot.BotCapabilityScope { if (valid) setOf("remote") else emptySet() }
+        withMcp { manager, calls ->
+            val runner = executor(mcp = manager, capabilityScope = scope)
+            val waiting = runner.execute(script("capability.call('remote','write_record',{input:'value'});"), "session")
+            assertTrue(waiting.awaitingApproval)
+            val request = approvals.pendingNow("session").single()
+            valid = false
+            val replay = ToolCall(request.toolCallId, 1, HarnessTool.MCP,
+                Json.parseToJsonElement(request.argumentsJson).jsonObject, rawToolName = request.toolName)
+            assertFalse(runner.execute(replay, "session", bypassApproval = true).success)
+            assertEquals(0, calls.get())
+        }
+    }
+
+    @Test fun `expired scope blocks cold direct and script discovery`() = runBlocking {
+        seed(ApprovalMode.FULL_ACCESS)
+        var discoveries = 0
+        val scope = top.wkbin.taixu.harness.bot.BotCapabilityScope { emptySet() }
+        withMcp(onDiscover = { discoveries++ }) { manager, calls ->
+            val runner = executor(mcp = manager, capabilityScope = scope)
+            val direct = ToolCall("direct", 1, HarnessTool.MCP, buildJsonObject { put("input", "value") },
+                rawToolName = "mcp__remote__write_record")
+            assertFalse(runner.execute(direct, "session").success)
+            val result = runner.execute(script("capability.call('remote','write_record',{input:'value'});"), "session")
+            assertEquals(NestedCalls.STATUS_BLOCKED, NestedCalls.read(result.metadata)!!.calls.single().status)
+            assertEquals(0, discoveries)
+            assertEquals(0, calls.get())
+        }
+    }
+
+    @Test fun `cold discovery rechecks tool authorization immediately before transport`() = runBlocking {
+        var permitted = true
+        withMcp(onDiscover = { permitted = false }) { manager, calls ->
+            val result = manager.executeCapabilityTool("remote", "write_record", buildJsonObject { put("input", "value") }) {
+                permitted
+            }
+            assertFalse(result.first)
+            assertEquals(0, calls.get())
+            val missing = manager.executeCapabilityTool("remote", "missing", buildJsonObject { }) { false }
+            assertFalse(missing.second.contains("write_record"))
+        }
+    }
+
+    private suspend fun withMcp(onDiscover: () -> Unit = {}, test: suspend (McpManager, AtomicInteger) -> Unit) {
         val server = MockWebServer()
         val calls = AtomicInteger()
         server.dispatcher = object : Dispatcher() {
@@ -252,7 +333,10 @@ class CapabilityScriptPolicyTest {
                 val result = when (payload["method"]!!.jsonPrimitive.content) {
                     "initialize" -> """{"protocolVersion":"$MCP_PROTOCOL_VERSION"}"""
                     "notifications/initialized" -> return MockResponse().setResponseCode(202)
-                    "tools/list" -> """{"tools":[{"name":"write_record","description":"fake write","inputSchema":{"type":"object","properties":{"input":{"type":"string"}},"required":["input"]},"annotations":{"destructiveHint":true}}]}"""
+                    "tools/list" -> {
+                        onDiscover()
+                        """{"tools":[{"name":"write_record","description":"fake write","inputSchema":{"type":"object","properties":{"input":{"type":"string"}},"required":["input"]},"annotations":{"destructiveHint":true}}]}"""
+                    }
                     "tools/call" -> {
                         calls.incrementAndGet()
                         val args = payload["params"]!!.jsonObject["arguments"]!!.jsonObject

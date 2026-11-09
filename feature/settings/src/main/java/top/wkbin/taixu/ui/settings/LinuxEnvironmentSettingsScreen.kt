@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.settings
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -6,27 +9,21 @@ import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.settings.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,7 +33,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
@@ -88,11 +84,11 @@ fun LinuxEnvironmentSettingsScreen(
             onDismissRequest = { privilegeResultMessage = null },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RuntimeIcon(RuntimeIconName.Alert, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.error)
+                    RuntimeIcon(RuntimeIconName.Alert, Modifier.size(22.dp), tint = RuntimeTheme.colorScheme.error)
                     Text("运行模式授权未通过")
                 }
             },
-            text = { Text(errorMsg, style = MaterialTheme.typography.bodyMedium) },
+            text = { Text(errorMsg, style = RuntimeTheme.typography.bodyMedium) },
             confirmButton = {
                 TextButton(onClick = { privilegeResultMessage = null }) {
                     Text("知道了")
@@ -224,8 +220,8 @@ private fun ExecutionModeDialog(
         onDismissRequest = { if (!switching) onDismiss() },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(RuntimeIconName.Shield, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                Text("选择系统运行模式", fontWeight = FontWeight.Bold)
+                RuntimeIcon(RuntimeIconName.Shield, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
+                Text("选择系统运行模式", fontWeight = FontWeight.Medium)
             }
         },
         text = {
@@ -235,8 +231,8 @@ private fun ExecutionModeDialog(
             ) {
                 Text(
                     "切换特权模式将自动发起授权检测；授权成功后即刻释放对应的高级系统与硬件能力。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 if (switching) {
                     Row(
@@ -246,7 +242,7 @@ private fun ExecutionModeDialog(
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.size(12.dp))
-                        Text("正在进行特权探测与授权申请…", style = MaterialTheme.typography.bodyMedium)
+                        Text("正在进行特权探测与授权申请…", style = RuntimeTheme.typography.bodyMedium)
                     }
                 }
                 ExecutionMode.entries.forEach { mode ->
@@ -275,31 +271,31 @@ private fun ExecutionModeOptionItem(
     onClick: () -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = if (selected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
+        shape = RuntimeTheme.shapes.small,
+        color = if (selected) RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else RuntimeTheme.colorScheme.surfaceContainerHigh,
+        border = if (selected) androidx.compose.foundation.BorderStroke(1.dp, RuntimeTheme.colorScheme.primary) else null,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RuntimeTheme.shapes.small)
             .clickable(enabled = enabled, onClick = onClick),
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = mode.title,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = if (selected) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f),
                 )
                 if (selected) {
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.primary,
+                        shape = RuntimeTheme.shapes.extraSmall,
+                        color = RuntimeTheme.colorScheme.primary,
                     ) {
                         Text(
                             "当前激活",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.onPrimary,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
@@ -307,13 +303,13 @@ private fun ExecutionModeOptionItem(
             }
             Text(
                 text = mode.summary,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = "要求: ${mode.requiredPrivilege}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.secondary,
+                style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.secondary,
             )
         }
     }

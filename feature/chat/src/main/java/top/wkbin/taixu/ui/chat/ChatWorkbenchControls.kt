@@ -1,10 +1,9 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -86,23 +85,24 @@ private fun WorkbenchActionGrid(actions: List<WorkbenchAction>) {
 
 @Composable
 private fun WorkbenchActionTile(action: WorkbenchAction, modifier: Modifier = Modifier) {
-    val colors = MaterialTheme.colorScheme
+    val colors = RuntimeTheme.colorScheme
+    val accent = action.highlighted
     RuntimeCard(
         modifier = modifier,
-        containerColor = if (action.highlighted) colors.secondaryContainer else colors.surfaceContainerLow,
+        containerColor = if (accent) colors.tertiaryContainer else colors.surfaceContainerLow,
         onClick = action.onClick,
         contentPadding = PaddingValues(16.dp),
     ) {
         Column(Modifier.fillMaxWidth().heightIn(min = 64.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             RuntimeIcon(action.icon, Modifier.size(22.dp),
-                if (action.highlighted) colors.onSecondaryContainer else colors.primary)
+                if (accent) colors.onTertiaryContainer else colors.onSurface.copy(alpha = 0.8f))
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(action.label, style = MaterialTheme.typography.labelLarge,
-                    color = if (action.highlighted) colors.onSecondaryContainer else colors.onSurface,
+                Text(action.label, style = RuntimeTheme.typography.labelLarge,
+                    color = if (accent) colors.onTertiaryContainer else colors.onSurface,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                 action.detail?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall,
-                        color = if (action.highlighted) colors.onSecondaryContainer else colors.onSurfaceVariant,
+                    Text(it, style = RuntimeTheme.typography.bodySmall,
+                        color = if (accent) colors.onTertiaryContainer else colors.onSurfaceVariant,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }

@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.terminal
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -11,15 +14,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -56,7 +57,7 @@ internal fun CreateTerminalDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
                 Text(stringResource(R.string.terminal_new_session), fontWeight = FontWeight.Bold)
             }
         },
@@ -68,7 +69,7 @@ internal fun CreateTerminalDialog(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 if (installedDistros.size > 1) {
-                    Text(stringResource(R.string.terminal_target_distribution), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.terminal_target_distribution), style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -79,16 +80,16 @@ internal fun CreateTerminalDialog(
                             TerminalChoiceChip(d.displayName, selectedDistroId == d.id) { selectedDistroId = d.id }
                         }
                     }
-                    androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    top.wkbin.taixu.ui.miuix.HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 }
 
-                Text(stringResource(R.string.terminal_label), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.terminal_label), style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 RuntimeFilledTextField(
                     value = label,
                     onValueChange = { label = it },
                     placeholder = { Text(stringResource(R.string.terminal_label_hint)) },
                     singleLine = true,
-                    shape = MaterialTheme.shapes.large,
+                    shape = RuntimeTheme.shapes.large,
                     modifier = Modifier.fillMaxWidth(),
                 )
 
@@ -104,9 +105,9 @@ internal fun CreateTerminalDialog(
                     }
                 }
 
-                androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                top.wkbin.taixu.ui.miuix.HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
 
-                Text(stringResource(R.string.terminal_initial_cwd), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.terminal_initial_cwd), style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TerminalDirOption(
@@ -124,7 +125,7 @@ internal fun CreateTerminalDialog(
         confirmButton = {
             Button(
                 onClick = { onCreate(label.ifBlank { defaultLabel }, selectedDir, selectedDistroId) },
-                shape = MaterialTheme.shapes.extraLarge,
+                shape = RuntimeTheme.shapes.medium,
             ) {
                 Text(stringResource(R.string.terminal_create))
             }
@@ -138,15 +139,15 @@ internal fun CreateTerminalDialog(
 @Composable
 private fun TerminalDirOption(name: String, path: String, selected: Boolean, onSelect: () -> Unit) {
     top.wkbin.taixu.ui.components.RuntimeCard(
-        modifier = Modifier.fillMaxWidth(), onClick = onSelect, shape = MaterialTheme.shapes.large,
-        containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth(), onClick = onSelect, shape = RuntimeTheme.shapes.large,
+        containerColor = if (selected) RuntimeTheme.colorScheme.secondaryContainer else RuntimeTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             RuntimeIcon(if (selected) RuntimeIconName.Check else RuntimeIconName.Folder, Modifier.size(24.dp),
-                if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                if (selected) RuntimeTheme.colorScheme.onSecondaryContainer else RuntimeTheme.colorScheme.onSurfaceVariant)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text(name, style = RuntimeTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(path, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -157,11 +158,11 @@ private fun TerminalDirOption(name: String, path: String, selected: Boolean, onS
 private fun TerminalChoiceChip(label: String, selected: Boolean, onClick: () -> Unit) {
     top.wkbin.taixu.ui.components.RuntimeFilledTonalButton(
         onClick = onClick, shape = CircleShape, modifier = Modifier.heightIn(min = 48.dp),
-        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        colors = top.wkbin.taixu.ui.miuix.ButtonDefaults.filledTonalButtonColors(
+            containerColor = if (selected) RuntimeTheme.colorScheme.secondaryContainer else RuntimeTheme.colorScheme.surfaceContainerHigh,
+            contentColor = if (selected) RuntimeTheme.colorScheme.onSecondaryContainer else RuntimeTheme.colorScheme.onSurfaceVariant,
         ),
     ) {
-        Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, style = RuntimeTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

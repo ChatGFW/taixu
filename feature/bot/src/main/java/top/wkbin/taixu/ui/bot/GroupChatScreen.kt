@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -7,7 +10,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,21 +19,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.miuix.ScaffoldDefaults
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,7 +48,6 @@ import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.EmptyPanel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -168,7 +167,7 @@ fun GroupChatScreen(
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = if (studio) Color(PixelOfficeRoom.FLOOR) else MaterialTheme.colorScheme.surface,
+        containerColor = if (studio) Color(PixelOfficeRoom.FLOOR) else RuntimeTheme.colorScheme.surface,
     ) { padding ->
         Column(
             Modifier
@@ -262,7 +261,7 @@ fun GroupChatScreen(
                             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 14.dp, bottom = 10.dp),
                         ) {
                             Surface(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                color = RuntimeTheme.colorScheme.surfaceContainerHigh,
                                 shape = CircleShape,
                                 shadowElevation = 2.dp,
                             ) {
@@ -283,14 +282,14 @@ fun GroupChatScreen(
                             }
                             if (unseen > 0) {
                                 Surface(
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = RuntimeTheme.colorScheme.primary,
                                     shape = CircleShape,
                                     modifier = Modifier.align(Alignment.TopEnd),
                                 ) {
                                     Text(
                                         text = if (unseen > 99) "99+" else "$unseen",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        style = RuntimeTheme.typography.labelSmall,
+                                        color = RuntimeTheme.colorScheme.onPrimary,
                                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                                     )
                                 }

@@ -7,7 +7,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -42,7 +42,7 @@ fun RuntimeChatBackground(style: ChatBackgroundStyle, modifier: Modifier = Modif
         catch (_: Exception) { value = null }
     }
     val bitmap = rendered?.takeIf { it.first == name }?.second
-    Box(modifier.background(MaterialTheme.colorScheme.background)) {
+    Box(modifier.background(RuntimeTheme.colorScheme.background)) {
         if (bitmap != null) {
             Image(
                 bitmap = bitmap.asImageBitmap(), contentDescription = null,

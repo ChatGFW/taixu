@@ -1,4 +1,8 @@
 package top.wkbin.taixu.ui.workspace
+
+import top.wkbin.taixu.ui.miuix.*
+import androidx.compose.runtime.*
+
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -23,17 +27,8 @@ import top.wkbin.taixu.ui.components.fullWidthItem
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,14 +49,12 @@ import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.SectionHeader
 import top.wkbin.taixu.ui.components.SpotlightGuideOverlay
 import top.wkbin.taixu.ui.components.rememberSpotlightAnchor
-import top.wkbin.taixu.ui.components.spotlightAnchor
 /**
  * 太墟 · 工坊空间 (Workspace Space)
  * 管理 Linux 隔离工作区、代码工程与文件项目。
@@ -101,8 +94,6 @@ internal fun LocalWorkspaceScreen(
     var showImport by rememberSaveable { mutableStateOf(false) }
     var showTemplateManager by rememberSaveable { mutableStateOf(false) }
     var showTemplateSpec by rememberSaveable { mutableStateOf(false) }
-    var actionsExpanded by rememberSaveable { mutableStateOf(false) }
-
     // 向导状态屏幕级持有：字段全部 rememberSaveable，与拆分前语义一致
     val createWizard = rememberCreateProjectWizardState()
     val importWizard = rememberImportProjectWizardState()
@@ -168,30 +159,22 @@ internal fun LocalWorkspaceScreen(
     // 引导遮罩与 Scaffold 放在同一 Box 下（同层兄弟节点），保证聚光灯坐标与按钮 boundsInRoot 同一参照系
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            containerColor = MaterialTheme.colorScheme.background,
+            containerColor = RuntimeTheme.colorScheme.background,
             topBar = {
                 RuntimeTopBar(
                     title = stringResource(R.string.workspace_title), onBack = onBack,
                     statusText = stringResource(R.string.workspace_active_projects, projects.size),
                 ) {
-                    Box {
-                        IconButton(
-                            onClick = { actionsExpanded = true },
-                            enabled = !busy,
-                            modifier = Modifier.spotlightAnchor(moreAnchor),
-                            contentDescription = stringResource(R.string.workspace_cd_more),
-                        ) {
-                            RuntimeIcon(RuntimeIconName.More, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                        }
-                        DropdownMenu(expanded = actionsExpanded, onDismissRequest = { actionsExpanded = false }) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.workspace_menu_create)) }, leadingIcon = { RuntimeIcon(RuntimeIconName.Plus, Modifier.size(18.dp)) }, onClick = { actionsExpanded = false; showCreate = true })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.workspace_menu_import)) }, leadingIcon = { RuntimeIcon(RuntimeIconName.FolderDownload, Modifier.size(18.dp)) }, onClick = { actionsExpanded = false; showImport = true })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.workspace_menu_templates)) }, leadingIcon = { RuntimeIcon(RuntimeIconName.Package, Modifier.size(18.dp)) }, onClick = { actionsExpanded = false; showTemplateManager = true })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.workspace_menu_plugins)) }, leadingIcon = { RuntimeIcon(RuntimeIconName.Package, Modifier.size(18.dp)) }, onClick = { actionsExpanded = false; onOpenToolCenter() })
-                            DropdownMenuItem(text = { Text("工作流") }, leadingIcon = { RuntimeIcon(RuntimeIconName.Hub, Modifier.size(18.dp)) }, onClick = { actionsExpanded = false; onOpenWorkflows("") })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.workspace_menu_settings)) }, leadingIcon = { RuntimeIcon(RuntimeIconName.Settings, Modifier.size(18.dp)) }, onClick = { actionsExpanded = false; onOpenWorkshopSettings() })
-                        }
-                    }
+                    WorkspaceMoreMenu(
+                        enabled = !busy,
+                        moreAnchor = moreAnchor,
+                        onCreate = { showCreate = true },
+                        onImport = { showImport = true },
+                        onTemplates = { showTemplateManager = true },
+                        onPlugins = onOpenToolCenter,
+                        onWorkflows = { onOpenWorkflows("") },
+                        onSettings = onOpenWorkshopSettings,
+                    )
                 }
             },
         ) { padding ->
@@ -199,8 +182,8 @@ internal fun LocalWorkspaceScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
-                contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 6.dp, bottom = 24.dp)),
-                verticalArrangement = Arrangement.spacedBy(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap), horizontalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
             ) {
                 fullWidthItem {
                     message?.let { notice ->
@@ -225,9 +208,8 @@ internal fun LocalWorkspaceScreen(
                     // 宿主外部存储快速访问入口
                     RuntimeCard(
                         modifier = Modifier.fillMaxWidth(),
-                        borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
                         onClick = { onOpenExplorer("sdcard") },
-                        contentPadding = PaddingValues(14.dp),
+                        contentPadding = PaddingValues(16.dp),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -238,13 +220,13 @@ internal fun LocalWorkspaceScreen(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                    .background(RuntimeTheme.colorScheme.primaryContainer),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 RuntimeIcon(
                                     RuntimeIconName.Folder,
                                     Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    tint = RuntimeTheme.colorScheme.onPrimaryContainer,
                                 )
                             }
 
@@ -254,20 +236,20 @@ internal fun LocalWorkspaceScreen(
                             ) {
                                 Text(
                                     text = stringResource(R.string.workspace_shared_storage),
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                    color = RuntimeTheme.colorScheme.onSurface,
                                 )
                                 Text(
                                     text = stringResource(R.string.workspace_shared_storage_description),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.labelSmall,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
 
                             RuntimeIcon(
                                 RuntimeIconName.ChevronRight,
                                 Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -375,13 +357,13 @@ internal fun LocalWorkspaceScreen(
     templateScriptPreview?.let { preview ->
         RuntimeAlertDialog(
             onDismissRequest = { viewModel?.dismissTemplateScripts() },
-            title = { Text(stringResource(R.string.workspace_template_scripts_title), fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.workspace_template_scripts_title), fontWeight = FontWeight.Medium) },
             text = {
                 Text(
                     preview,
                     modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
                     fontFamily = FontFamily.Monospace,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = RuntimeTheme.typography.bodySmall,
                 )
             },
             confirmButton = { TextButton(onClick = { viewModel?.dismissTemplateScripts() }) { Text(stringResource(R.string.workspace_action_close)) } },
@@ -397,7 +379,7 @@ internal fun LocalWorkspaceScreen(
                 TextButton(onClick = {
                     viewModel?.deleteProjectTemplate(template.manifest.id)
                     deleteTemplateTarget = null
-                }) { Text(stringResource(R.string.workspace_confirm_delete), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.workspace_confirm_delete)) }
             },
             dismissButton = { TextButton(onClick = { deleteTemplateTarget = null }) { Text(stringResource(R.string.workspace_cancel)) } },
         )
@@ -431,7 +413,7 @@ internal fun LocalWorkspaceScreen(
     deleteTarget?.let { project ->
         RuntimeAlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text(stringResource(R.string.workspace_delete_project_title, project.name), fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.workspace_delete_project_title, project.name), fontWeight = FontWeight.Medium) },
             text = {
                 Text(
                     if (project.ownsDirectory) stringResource(R.string.workspace_delete_owned_project, project.linuxPath)
@@ -446,7 +428,7 @@ internal fun LocalWorkspaceScreen(
                     if (busy) {
                         RuntimeCircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                     } else {
-                        Text(stringResource(R.string.workspace_confirm_delete), color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.workspace_confirm_delete))
                     }
                 }
             },

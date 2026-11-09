@@ -4,8 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -33,17 +33,17 @@ internal fun ProviderPickerDialog(
         RuntimeSearchBar(query, { query = it }, Modifier.fillMaxWidth(), placeholder = "搜索服务商名称或端点")
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
-                RuntimeFilterChip(group == null, { group = null }, label = { Text("全部") }, shape = MaterialTheme.shapes.small)
+                RuntimeFilterChip(group == null, { group = null }, label = { Text("全部") }, shape = RuntimeTheme.shapes.small)
             }
             items(ProviderGroup.entries) { option ->
                 RuntimeFilterChip(group == option, { group = option }, label = { Text(providerGroupLabel(option)) },
-                    shape = MaterialTheme.shapes.small)
+                    shape = RuntimeTheme.shapes.small)
             }
         }
         LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (filtered.isEmpty()) item {
-                Text("未找到匹配的服务商", Modifier.padding(vertical = 24.dp), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("未找到匹配的服务商", Modifier.padding(vertical = 24.dp), style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
             items(filtered, key = { it.id }) { option ->
                 RuntimeSelectionRow(headline = option.name, selected = option.id == currentProviderId,

@@ -22,6 +22,7 @@ import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.GroupAttachment
+import top.wkbin.taixu.core.model.bot.BotRuntimeMode
 import top.wkbin.taixu.core.model.bot.GroupDelivery
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupMessage
@@ -105,7 +106,11 @@ class GroupChatDispatcher(
         prepare = { requireNotNull(attachmentPreparer) { "附件读取服务尚未就绪" }.prepare(it) },
         notify = { id, text -> postSystemNotification(id, text) },
     )
-    private val deliveryPump = GroupDeliveryPump(groupRepository, replies, scope, logger, ::deliver)
+    private val deliveryPump = GroupDeliveryPump(
+        groupRepository, replies, scope, logger,
+        isExternalRuntime = { botId -> botRepository.getBot(botId)?.runtimeMode == BotRuntimeMode.EXTERNAL },
+        deliver = ::deliver,
+    )
 
     private val recoveryLock = Mutex()
     private var recovered = false
@@ -136,7 +141,7 @@ class GroupChatDispatcher(
         val members = groupRepository.getMembers(delivery.groupId)
         if (source == null || group == null || bot == null || members.none { it.id == bot.id }) {
             groupRepository.finishDelivery(delivery.id,
-                GroupDelivery.REJECTED, "来源、群聊或成员已不可用，未执行")
+                GroupDelivery.REJECTED, "来源、群聊或成员已不可用，未执行", delivery.claimNonce)
             return GroupTurnOutcome("来源或成员已不可用", true)
         }
         val prepared = if (source.attachments.isEmpty()) PreparedGroupAttachments() else
@@ -148,7 +153,7 @@ class GroupChatDispatcher(
         // Read after acquiring the recipient lock so queued work sees recently committed peer replies.
         val history = formatGroupHistory(group, groupRepository.observeMessages(group.id).first())
         return responder.respond(group, bot, trigger, history, members, prepared.imageUrls, null,
-            deliveryId = delivery.id, workReceiptId = source.delegatedTaskId)
+            deliveryId = delivery.id, claimNonce = delivery.claimNonce, workReceiptId = source.delegatedTaskId)
     }
 
     fun observeMessages(groupId: String): Flow<List<GroupMessage>> =

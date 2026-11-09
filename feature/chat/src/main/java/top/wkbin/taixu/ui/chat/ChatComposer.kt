@@ -2,10 +2,10 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+
 import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.FlowRow
@@ -19,10 +19,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -52,14 +51,13 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.text.BasicTextField
 import top.wkbin.taixu.harness.QueuedPrompt
 
 /**
  * 输入区：斜杠/@ 弹窗、排队指令、附件预览、推理强度滑块、工具状态胶囊与一体化输入胶囊。
  */
 @Composable
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 internal fun ChatComposer(
     listState: LazyListState,
     running: Boolean,
@@ -99,7 +97,6 @@ internal fun ChatComposer(
     contextUsage: ContextUsage,
 ) {
     val focusRequester = remember { FocusRequester() }
-    val blurEnabled = rememberChatInputBlurEnabled(); val chatHazeState = LocalChatHazeState.current
     val pasteLongTextReceiver = rememberPasteLongTextReceiver(onPasteLongText)
     var showAttachSheet by remember { mutableStateOf(false) }; var showSketchSheet by remember { mutableStateOf(false) }
     var textFieldValue by remember {
@@ -173,8 +170,8 @@ internal fun ChatComposer(
             )
             Text(
                 stringResource(R.string.chat_attachment_processing),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -182,15 +179,12 @@ internal fun ChatComposer(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp, bottom = 4.dp)
-            .clip(MaterialTheme.shapes.extraLarge)
-            .chatInputHaze(chatHazeState, blurEnabled),
-        shape = MaterialTheme.shapes.extraLarge, contentPadding = PaddingValues(0.dp),
-        // 毛玻璃开启时容器透明，铺底与着色由效果负责
-        containerColor = if (blurEnabled) Color.Transparent
-            else top.wkbin.taixu.ui.theme.chatBackdropSurface(MaterialTheme.colorScheme.surfaceContainer),
+            .clip(RuntimeTheme.shapes.extraLarge),
+        shape = RuntimeTheme.shapes.extraLarge, contentPadding = PaddingValues(0.dp),
+        containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(RuntimeTheme.colorScheme.surfaceContainer),
         // 全包裹描边：常态 outlineVariant，运行中主色
-        borderColor = if (running) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        borderColor = if (running) RuntimeTheme.colorScheme.primary.copy(alpha = 0.5f)
+            else RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
     ) {
         Column(
             modifier = Modifier
@@ -215,13 +209,13 @@ internal fun ChatComposer(
                         val isSkill = item.type == MentionType.SKILL
                         val isAttached = attachedMentions.any { it.id == item.id }
                         val isPinned = pinnedCapabilities.any { it.id == item.id }
-                        val tagBg = if (isSkill) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.tertiaryContainer
-                        val tagColor = if (isSkill) MaterialTheme.colorScheme.onPrimaryContainer
-                                       else MaterialTheme.colorScheme.onTertiaryContainer
+                        val tagBg = if (isSkill) RuntimeTheme.colorScheme.primaryContainer
+                                    else RuntimeTheme.colorScheme.tertiaryContainer
+                        val tagColor = if (isSkill) RuntimeTheme.colorScheme.onPrimaryContainer
+                                       else RuntimeTheme.colorScheme.onTertiaryContainer
 
                         Surface(
-                            shape = MaterialTheme.shapes.medium,
+                            shape = RuntimeTheme.shapes.medium,
                             color = tagBg,
                             modifier = Modifier.clickable {
                                 if (isAttached) {
@@ -232,7 +226,7 @@ internal fun ChatComposer(
                             },
                         ) {
                             Row(
-                                modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.heightIn(min = 40.dp).padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
@@ -243,18 +237,18 @@ internal fun ChatComposer(
                                 )
                                 Text(
                                     item.name,
-                                    style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    style = RuntimeTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     color = tagColor,
                                 )
                                 if (isPinned) {
                                     Surface(
                                         color = tagColor.copy(alpha = 0.18f),
-                                        shape = MaterialTheme.shapes.extraSmall,
+                                        shape = RuntimeTheme.shapes.extraSmall,
                                     ) {
                                         Text(
                                             stringResource(R.string.chat_pinned_badge),
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                            style = MaterialTheme.typography.labelSmall,
+                                            style = RuntimeTheme.typography.labelSmall,
                                             color = tagColor,
                                         )
                                     }
@@ -269,24 +263,24 @@ internal fun ChatComposer(
                     }
                     item {
                         Surface(
-                            shape = MaterialTheme.shapes.medium,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            shape = RuntimeTheme.shapes.medium,
+                            color = RuntimeTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.clickable { onOpenSkillsMcp() },
                         ) {
                             Row(
-                                modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.heightIn(min = 40.dp).padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 RuntimeIcon(
                                     RuntimeIconName.Plus,
                                     Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
                                     stringResource(R.string.chat_attach_button),
-                                    style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -327,8 +321,8 @@ internal fun ChatComposer(
                         }
                     },
                     visualTransformation = run {
-                        val mentionColor = MaterialTheme.colorScheme.primary
-                        val mentionBg = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        val mentionColor = RuntimeTheme.colorScheme.primary
+                        val mentionBg = RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f)
                         remember(knownMentionNames, mentionColor, mentionBg) {
                             MentionVisualTransformation(knownMentionNames, mentionColor, mentionBg)
                         }
@@ -364,7 +358,7 @@ internal fun ChatComposer(
                         if (canSend) {
                             val (sendContainer, sendContent) = when (sendMode) {
                                 ComposerSendMode.STEER -> semanticColors().agent to semanticColors().onAgent
-                                ComposerSendMode.NEXT_RUN -> MaterialTheme.colorScheme.secondary to MaterialTheme.colorScheme.onSecondary
+                                ComposerSendMode.NEXT_RUN -> RuntimeTheme.colorScheme.secondary to RuntimeTheme.colorScheme.onSecondary
                             }
                             ComposerSendButton(
                                 onClick = { doSend(onSend) },
@@ -385,8 +379,8 @@ internal fun ChatComposer(
                         ComposerSendButton(
                             onClick = { doSend(onSend) },
                             enabled = canSend,
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            containerColor = RuntimeTheme.colorScheme.primary,
+                            contentColor = RuntimeTheme.colorScheme.onPrimary,
                             onLongClick = { doSend(onSendWithoutAnswer) },
                         )
                     }

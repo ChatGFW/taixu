@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.bot
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,15 +13,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -52,7 +54,10 @@ internal fun BotPersonaPanel(
         avatarSeed: String,
         allowModelSelection: Boolean,
         capabilityServerNames: List<String>?,
+        capabilityToolNames: Map<String, List<String>>,
+        capabilityExpiresAt: Long?,
     ) -> Unit,
+    externalRuntime: (@Composable () -> Unit)? = null,
 ) {
     var name by androidx.compose.runtime.saveable.rememberSaveable(bot.id) { mutableStateOf(bot.name) }
     var role by androidx.compose.runtime.saveable.rememberSaveable(bot.id) { mutableStateOf(bot.role) }
@@ -64,19 +69,22 @@ internal fun BotPersonaPanel(
     var avatarSeed by remember { mutableStateOf(bot.avatarSeed) }
     var avatarLoading by remember { mutableStateOf(false) }
     var capabilities by remember(bot.id) { mutableStateOf(bot.capabilityServerNames) }
-    LaunchedEffect(bot.modelId, bot.modelVariant, bot.allowModelSelection, bot.capabilityServerNames) {
+    var capabilityTools by remember(bot.id) { mutableStateOf(bot.capabilityToolNames) }
+    var capabilityExpiry by remember(bot.id, bot.capabilityExpiresAt) { mutableStateOf(bot.capabilityExpiresAt) }
+    LaunchedEffect(bot.modelId, bot.modelVariant, bot.allowModelSelection, bot.capabilityServerNames, bot.capabilityToolNames) {
         modelId = bot.modelId.orEmpty()
         modelVariant = bot.modelVariant
         allowModelSelection = bot.allowModelSelection
         capabilities = bot.capabilityServerNames
+        capabilityTools = bot.capabilityToolNames
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+        verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -89,7 +97,7 @@ internal fun BotPersonaPanel(
                 ) {
                     Text(
                         bot.name,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = RuntimeTheme.typography.titleLarge,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
@@ -99,8 +107,8 @@ internal fun BotPersonaPanel(
                 Text(
                     profiles.firstOrNull { it.id == bot.modelId }?.let { "${it.name} / ${bot.modelVariant ?: it.model.substringBefore(',')}" }
                         ?: bot.modelId ?: stringResource(R.string.fbot_model_default),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -111,21 +119,21 @@ internal fun BotPersonaPanel(
         RuntimeFilledTextField(
             value = name,
             onValueChange = { name = it.take(40) },
-            label = { Text(stringResource(R.string.fbot_name)) },
+            labelText = stringResource(R.string.fbot_name),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
         RuntimeFilledTextField(
             value = role,
             onValueChange = { role = it.take(40) },
-            label = { Text(stringResource(R.string.fbot_role)) },
+            labelText = stringResource(R.string.fbot_role),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
         RuntimeFilledTextField(
             value = persona,
             onValueChange = { persona = it },
-            label = { Text(stringResource(R.string.fbot_persona)) },
+            labelText = stringResource(R.string.fbot_persona),
             placeholder = { Text(stringResource(R.string.fbot_persona_placeholder)) },
             minLines = 6,
             maxLines = 14,
@@ -137,23 +145,26 @@ internal fun BotPersonaPanel(
         }
         BotModelPolicySwitch(allowModelSelection, !busy) { allowModelSelection = it }
         BotCapabilityChips(mcpServers, capabilities, !busy) { capabilities = it }
+        BotToolCapabilitiesPanel(mcpServers, capabilities, capabilityTools, !busy) { capabilityTools = it }
+        BotCapabilityExpiryPanel(capabilityExpiry, !busy) { capabilityExpiry = it }
+        externalRuntime?.invoke()
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.fbot_main_switch), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.fbot_main_switch), style = RuntimeTheme.typography.bodyMedium)
                 Text(
                     stringResource(R.string.fbot_main_bot),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             RuntimeSwitch(checked = isMain, onCheckedChange = { isMain = it }, enabled = !busy)
         }
         RuntimeButton(
-            onClick = { onSave(name, role, persona, modelId, modelVariant, isMain, avatarSeed, allowModelSelection, capabilities) },
+            onClick = { onSave(name, role, persona, modelId, modelVariant, isMain, avatarSeed, allowModelSelection, capabilities, capabilityTools, capabilityExpiry) },
             enabled = !busy && !avatarLoading && name.isNotBlank() && role.isNotBlank() && persona.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         ) { Text(stringResource(R.string.fbot_save)) }
@@ -184,12 +195,12 @@ private fun BotCapabilityChips(
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             "能力库（MCP 白名单）",
-            style = MaterialTheme.typography.bodyMedium,
+            style = RuntimeTheme.typography.bodyMedium,
         )
         Text(
-            "不勾选任何服务 = 团队共享库全量可用；勾选后仅所选服务可被该 Bot 挂载与调用，下一条消息生效。",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            "不勾选任何服务 = 允许全部服务；勾选后仅所选服务可被该 Bot 挂载与调用。保存后生效。",
+            style = RuntimeTheme.typography.labelSmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),

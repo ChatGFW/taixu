@@ -32,6 +32,13 @@
   },
   "importBans": [
     {
+      "id": "miuix-design-system",
+      "pattern": "^import\\s+androidx\\.compose\\.material3\\.",
+      "groups": ["feature"],
+      "modules": ["app", "plugin.ui"],
+      "message": "应用 UI 统一使用 Miuix 与 Runtime 公共组件，禁止重新引入 Material 3 控件或主题"
+    },
+    {
       "id": "plugin-package-purity",
       "pattern": "^import\\s+(android|androidx|org\\.koin|okhttp3|io\\.ktor|top\\.wkbin\\.taixu\\.(runtime|harness|ui|core\\.(database|datastore|network|security|tools)))\\.",
       "modules": ["plugin.packages"],
@@ -214,8 +221,8 @@
     },
     {
       "id": "feature.bot", "path": "feature/bot",
-      "_doc": "PersonaBot 团队与群聊：只依赖仓储接口与 harness 编排，不直接触 DAO",
-      "requires": ["harness", "core.database", "feature.theme"]
+      "_doc": "PersonaBot 团队与群聊：只依赖仓储接口与 harness 编排，不直接触 DAO；外部运行时面板可启停 runtime HTTP",
+      "requires": ["harness", "core.database", "runtime", "feature.theme"]
     },
     {
       "id": "feature.a2uipoc",

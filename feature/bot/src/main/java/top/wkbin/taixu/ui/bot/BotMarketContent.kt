@@ -1,26 +1,26 @@
 package top.wkbin.taixu.ui.bot
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -60,7 +60,7 @@ internal fun MarketList(
         }
     }
     LazyColumn(
-        contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 32.dp),
+        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
@@ -96,20 +96,20 @@ internal fun MarketList(
                 }
             }
         }
-        if (templates.isNotEmpty()) item { Text(stringResource(R.string.fbot_market_team_templates), style = MaterialTheme.typography.titleSmall) }
+        if (templates.isNotEmpty()) item { Text(stringResource(R.string.fbot_market_team_templates), style = RuntimeTheme.typography.titleSmall) }
         items(templates, key = { "team:${it.id}" }) { template ->
             RuntimeCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(template.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(template.description, style = MaterialTheme.typography.bodySmall)
-                    Text(stringResource(R.string.fbot_market_team_meta, template.members.size), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(template.name, style = RuntimeTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(template.description, style = RuntimeTheme.typography.bodySmall)
+                    Text(stringResource(R.string.fbot_market_team_meta, template.members.size), style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.primary)
                     RuntimeFilledTonalButton(onClick = { onImportTeam(template.id) }, enabled = installingId == null) {
                         Text(stringResource(R.string.fbot_market_import_whole_team))
                     }
                 }
             }
         }
-        if (filtered.isNotEmpty()) item { Text(stringResource(R.string.fbot_market_individual_members), style = MaterialTheme.typography.titleSmall) }
+        if (filtered.isNotEmpty()) item { Text(stringResource(R.string.fbot_market_individual_members), style = RuntimeTheme.typography.titleSmall) }
         if (filtered.isEmpty() && templates.isEmpty()) {
             item {
                 EmptyPanel(
@@ -125,31 +125,31 @@ internal fun MarketList(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     BotAvatar(seed = item.avatarSeed ?: item.name, colorHex = item.colorHex, size = 48.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(item.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                        Text(item.name, style = RuntimeTheme.typography.titleMedium, maxLines = 1)
                         Text(
                             item.role,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                            style = RuntimeTheme.typography.labelMedium,
+                            color = RuntimeTheme.colorScheme.primary,
                             maxLines = 1,
                         )
                         Text(
                             item.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
                         )
                         if (item.stars > 0 || item.downloadCount > 0) {
                             Text(
                                 stringResource(R.string.fbot_market_stats, item.stars, item.downloadCount),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         } else {
                             Text(
                                 item.author,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -161,8 +161,8 @@ internal fun MarketList(
                 ) {
                     Text(
                         stringResource(R.string.fbot_market_install_hint),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
                         maxLines = 2,
                     )

@@ -15,8 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
  * 宿主自实现的 A2UI Basic Catalog「List」组件。
  *
  * 背景（为什么必须覆写）：
- * 官方 [androidx.compose.material3.a2ui.catalog.MaterialA2uiBasicCatalogV1List] 在
+ * 官方 [top.wkbin.taixu.ui.miuix.a2ui.catalog.MaterialA2uiBasicCatalogV1List] 在
  * direction=Vertical 时使用 LazyColumn、Horizontal 时使用 LazyRow。而 render_surface
  * 生成的界面是「内嵌在聊天流的 LazyColumn 项里」渲染的，聊天项在纵向上拿到的约束是
  * maxHeight = Infinity。垂直懒列表一旦测得无限高约束，foundation 会直接断言失败：
@@ -141,8 +141,8 @@ internal object TaiXuNonLazyList : A2uiBasicCatalogV1.List {
             is A2uiComponentState.Error ->
                 Text(
                     text = "子组件渲染失败：" + (state.exception.message ?: "未知错误"),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.error,
+                    style = RuntimeTheme.typography.bodySmall,
                     modifier = modifier,
                 )
 

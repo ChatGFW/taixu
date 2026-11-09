@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -24,16 +24,16 @@ internal fun GroupBudgetDialog(defaultTokens: Long, budgets: List<TaskBudgetStat
     RuntimeAlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.fbot_budget_title)) },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.fbot_budget_hint), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.fbot_budget_hint), style = RuntimeTheme.typography.bodySmall)
                 RuntimeTextButton(onClick = { editDefault = true }) {
                     Text(stringResource(R.string.fbot_budget_default, defaultTokens))
                 }
                 budgets.forEach { state ->
                     RuntimeCard(modifier = Modifier.fillMaxWidth()) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(state.title, style = MaterialTheme.typography.titleSmall)
+                            Text(state.title, style = RuntimeTheme.typography.titleSmall)
                             Text(stringResource(R.string.fbot_budget_state, state.limitTokens, state.usedTokens, state.heldTokens))
-                            if (state.unknownRequests > 0) Text(stringResource(R.string.fbot_budget_unknown, state.unknownRequests), color = MaterialTheme.colorScheme.error)
+                            if (state.unknownRequests > 0) Text(stringResource(R.string.fbot_budget_unknown, state.unknownRequests), color = RuntimeTheme.colorScheme.error)
                             RuntimeTextButton(onClick = { editing = state }) { Text(stringResource(R.string.fbot_budget_adjust)) }
                         }
                     }
@@ -54,9 +54,9 @@ private fun BudgetLimitEditor(id: String?, initial: Long, onDismiss: () -> Unit,
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 RuntimeFilledTextField(value = value, onValueChange = { value = it.take(13) },
-                    label = { Text(stringResource(R.string.fbot_budget_limit)) }, isError = error != null, singleLine = true)
-                Text(stringResource(R.string.fbot_budget_edit_hint), style = MaterialTheme.typography.bodySmall)
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    labelText = stringResource(R.string.fbot_budget_limit), isError = error != null, singleLine = true)
+                Text(stringResource(R.string.fbot_budget_edit_hint), style = RuntimeTheme.typography.bodySmall)
+                error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
             }
         }, confirmButton = {
             RuntimeButton(enabled = !saving, onClick = {

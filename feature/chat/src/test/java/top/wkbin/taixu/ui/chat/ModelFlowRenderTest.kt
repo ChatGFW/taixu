@@ -9,8 +9,8 @@ import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
@@ -53,9 +53,13 @@ abstract class ModelFlowRenderSupport {
         controller.setup()
         try {
             activity.setContent {
-                TaiXuTheme(darkTheme = dark, dynamicColor = false) {
-                    CompositionLocalProvider(LocalInspectionMode provides true) {
-                        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { content() }
+                androidx.compose.runtime.CompositionLocalProvider(
+                    top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled provides false,
+                ) {
+                    TaiXuTheme(darkTheme = dark, dynamicColor = false) {
+                        CompositionLocalProvider(LocalInspectionMode provides true) {
+                            Surface(Modifier.fillMaxSize(), color = RuntimeTheme.colorScheme.background) { content() }
+                        }
                     }
                 }
             }

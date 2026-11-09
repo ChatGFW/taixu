@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.content.pm.ApplicationInfo
 import android.os.SystemClock
 import androidx.compose.foundation.Canvas
@@ -7,17 +10,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -235,14 +236,14 @@ internal fun GroupPixelOffice(
             if (actors.isEmpty() && !emptyHint.isNullOrBlank()) {
                 Surface(
                     modifier = Modifier.align(Alignment.Center).padding(24.dp).testTag("pixel-office-empty"),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surface,
+                    shape = RuntimeTheme.shapes.large,
+                    color = RuntimeTheme.colorScheme.surface,
                     shadowElevation = 6.dp,
                 ) {
                     Text(
                         text = emptyHint,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     )

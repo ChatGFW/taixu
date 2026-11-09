@@ -59,13 +59,13 @@ class GroupDeliveryPumpTest {
     @Test fun `restart delivers only pending sources once and preserves uncertain native admission`() = runBlocking {
         seed()
         stage("before-crash")
-        groups.claimDelivery("before-crash:bot")
-        groups.admitDelivery("before-crash:bot", "session", "native-task")
+        val crashedNonce = groups.claimDelivery("before-crash:bot")!!
+        groups.admitDelivery("before-crash:bot", "session", "native-task", crashedNonce)
         stage("pending")
         val executions = mutableListOf<String>()
         val pump = GroupDeliveryPump(groups, replies, scope, logger) { receipt ->
             synchronized(executions) { executions += receipt.sourceMessageId }
-            groups.admitDelivery(receipt.id, "session", "new-task")
+            groups.admitDelivery(receipt.id, "session", "new-task", receipt.claimNonce!!)
             GroupTurnOutcome("done", false)
         }
         pump.start()
@@ -80,13 +80,13 @@ class GroupDeliveryPumpTest {
         seed()
         stage("source")
         val pump = GroupDeliveryPump(groups, replies, scope, logger) { receipt ->
-            groups.admitDelivery(receipt.id, "session", "accepted-task")
+            groups.admitDelivery(receipt.id, "session", "accepted-task", receipt.claimNonce!!)
             error("crash after native admission")
         }
         pump.start()
         awaitStatus("source", GroupDelivery.UNKNOWN)
         assertEquals("accepted-task", db.groupChatDao().findGroupDelivery("source:bot")!!.taskId)
-        assertFalse(groups.claimDelivery("source:bot"))
+        assertNull(groups.claimDelivery("source:bot"))
     }
 
     @Test fun `stop cancels running and queued durable work without affecting future messages`() = runBlocking {
@@ -122,7 +122,7 @@ class GroupDeliveryPumpTest {
         val responder = GroupBotResponder(groups, { _, _ -> "session" }, control, logger, MutableStateFlow(emptyMap()))
         val pump = GroupDeliveryPump(groups, replies, scope, logger) { receipt ->
             responder.respond(groups.getGroup("group")!!, bot, "source", "", listOf(bot), emptyList(), null,
-                deliveryId = receipt.id)
+                deliveryId = receipt.id, claimNonce = receipt.claimNonce)
         }
         pump.start()
         awaitStatus("source", GroupDelivery.ADMITTED)
@@ -144,11 +144,11 @@ class GroupDeliveryPumpTest {
         val responder = GroupBotResponder(groups, { _, _ -> "session" }, control, logger, MutableStateFlow(emptyMap()))
         val pump = GroupDeliveryPump(groups, replies, scope, logger) { receipt ->
             responder.respond(groups.getGroup("group")!!, bot, "source", "", listOf(bot), emptyList(), null,
-                deliveryId = receipt.id)
+                deliveryId = receipt.id, claimNonce = receipt.claimNonce)
         }
         pump.start()
         awaitStatus("source", GroupDelivery.UNKNOWN)
-        assertFalse(groups.claimDelivery("source:bot"))
+        assertNull(groups.claimDelivery("source:bot"))
         assertEquals(1, control.submissions)
         assertTrue(groups.observeMessages("group").first().any { it.content.contains("待核对") })
     }
@@ -181,7 +181,7 @@ class GroupDeliveryPumpTest {
         var executions = 0
         val pump = GroupDeliveryPump(groups, replies, scope, logger) { receipt ->
             executions++
-            groups.admitDelivery(receipt.id, "session", "accepted-task")
+            groups.admitDelivery(receipt.id, "session", "accepted-task", receipt.claimNonce!!)
             GroupTurnOutcome("模型等待超时，结果待核对", failed = true, uncertain = true)
         }
         pump.start()
@@ -214,7 +214,7 @@ class GroupDeliveryPumpTest {
         }
         override fun send(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
         override fun steer(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
-        override fun followUp(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
+        override fun followUp(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
         override fun appendOnly(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
         override fun cancel(targetSessionId: String?) { cancellations += targetSessionId; sessionRunStates.value = mapOf("session" to SessionRunState.IDLE) }
         override fun resolveQuestion(requestId: String, answersJson: String) = Unit

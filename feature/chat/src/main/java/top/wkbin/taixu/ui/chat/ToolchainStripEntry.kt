@@ -1,11 +1,14 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import top.wkbin.taixu.feature.chat.R
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -36,7 +39,7 @@ internal fun ToolchainStripEntry(
         } else {
             stringResource(R.string.toolchain_entry)
         },
-        tint = if (toolchainHighlight || hasGap) Color(0xFFC62828) else MaterialTheme.colorScheme.onSurfaceVariant,
+        tint = if (toolchainHighlight || hasGap) Color(0xFFC62828) else RuntimeTheme.colorScheme.onSurfaceVariant,
         highlight = toolchainHighlight || hasGap,
         onClick = onOpenToolchain,
     )

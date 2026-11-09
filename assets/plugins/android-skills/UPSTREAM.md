@@ -4,7 +4,7 @@
 
 | 内容 | 来源 | 固定版本 | 许可证 |
 | --- | --- | --- | --- |
-| 官方 Android Skills（33 个技能目录） | https://github.com/android/skills | 提交 `95ea931a1ad8f9b2be132ae0cfb2aad964d71118`（上游 `android-skills` 插件版本 `1.0.16`） | Apache-2.0，原文见 `payload/licenses/android-skills-LICENSE.txt` |
+| 官方 Android Skills（36 个技能目录） | https://github.com/android/skills | 提交 `bf68e2d66a992a1e6aeb7e9263293cc23fcbf475`（上游 `android-skills` 插件版本 `1.0.20`） | Apache-2.0，原文见 `payload/licenses/android-skills-LICENSE.txt` |
 | Android CLI 引导器 | `https://dl.google.com/android/cli/1.0.16625370/linux_arm64/android` | 版本 `1.0.16625370`，SHA-256 `c56de0230dbbea470f13f1bf8f4d983584248c401eb5365bbbde6555949954cf` | Google 发布物（随 Android SDK 条款） |
 | Android CLI 真身（`android-cli`） | `https://dl.google.com/android/cli/1.0.16625370/linux_arm64/android-cli` | 版本 `1.0.16625370`，SHA-256 `72d8ab31a3d7bab92793c37c7a72b5c854c09027c7975120e2c1413df983bcb4` | 同上 |
 
@@ -27,7 +27,7 @@
 ## 刷新方式
 
 ```powershell
-# 只更新技能（技能目录可读可 diff，随仓库入库）
+# 强制重新下载固定输入（含 CLI 二进制）
 python tools/vendor-android-skills-plugin.py --force
 
 # 只重打包（payload 已就绪时）

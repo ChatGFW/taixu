@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.settings
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -8,10 +12,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,7 +46,7 @@ internal fun PackagedPluginDiagnosticsDialog(
                 Text(
                     text = report,
                     modifier = Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = RuntimeTheme.typography.bodySmall,
                     fontFamily = FontFamily.Monospace,
                 )
             }

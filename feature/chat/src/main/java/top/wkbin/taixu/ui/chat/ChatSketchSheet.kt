@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.Canvas
@@ -10,16 +13,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -37,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import java.io.File
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 
 private data class SketchStroke(val points: List<Offset>)
 
@@ -55,14 +54,14 @@ internal fun ChatSketchSheet(
 
     ChatBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("草图", fontWeight = FontWeight.Bold) },
+        title = { Text("草图", fontWeight = FontWeight.Medium) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Canvas(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(3f / 4f)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RuntimeTheme.shapes.medium)
                         .background(Color.White)
                         .onSizeChanged { canvasSize = it }
                         .pointerInput(Unit) {
@@ -94,10 +93,10 @@ internal fun ChatSketchSheet(
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                top.wkbin.taixu.ui.components.RuntimeActionRow() {
                     RuntimeTextButton(
                         onClick = { strokes.clear() },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                     ) {
                         Text("清空")
                     }
@@ -108,7 +107,7 @@ internal fun ChatSketchSheet(
                             onConfirm(uri)
                         },
                         enabled = strokes.isNotEmpty() && canvasSize.width > 0,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                     ) {
                         Text("添加为附件")
                     }

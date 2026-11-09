@@ -1,14 +1,15 @@
 package top.wkbin.taixu.ui.settings
+
+import top.wkbin.taixu.ui.miuix.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.compose.koinInject
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,56 +20,40 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.material3.HorizontalDivider
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.material3.MaterialTheme
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Scaffold
 import top.wkbin.taixu.ui.components.RuntimeSlider as Slider
-import androidx.compose.material3.Surface
 import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
-import androidx.compose.material3.SwitchDefaults
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.core.model.AgentPlugin
 import top.wkbin.taixu.harness.ContextWindowPolicy
-import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.model.AgentSkill
 import top.wkbin.taixu.core.model.AgentSubagent
 import top.wkbin.taixu.core.model.AgentDepartments
@@ -85,7 +70,6 @@ import top.wkbin.taixu.core.datastore.AgentPreferences
 
 enum class AgentSettingsCategory { EXECUTION, SUBAGENTS, SKILLS }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AgentSettingsScreen(
     onBack: () -> Unit,
@@ -175,10 +159,10 @@ fun AgentSettingsScreen(
     }
     val skillDirPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> if (uri != null) viewModel?.importSkillsFromTree(uri) }
 
-    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = RuntimeTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
                 title = when (category) {
@@ -195,8 +179,8 @@ fun AgentSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
-            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp)),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             if (category == AgentSettingsCategory.EXECUTION) {
             // ---- 模块 1：模型思考与交互表现 ----
@@ -218,7 +202,6 @@ fun AgentSettingsScreen(
                         checked = thinkingExpanded,
                         onCheckedChange = { arg0 -> viewModel?.setThinkingExpanded(arg0) },
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     AgentToggleRow(
                         icon = RuntimeIconName.Globe,
                         title = "展开时自动翻译英文思考为中文",
@@ -226,7 +209,6 @@ fun AgentSettingsScreen(
                         checked = thinkingAutoTranslate,
                         onCheckedChange = { arg0 -> viewModel?.setThinkingAutoTranslate(arg0) },
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     AgentToggleRow(
                         icon = RuntimeIconName.Compress,
                         title = "自动收拢历史轮次的思考与工具过程",
@@ -261,7 +243,6 @@ fun AgentSettingsScreen(
                         checked = autoWorkspaceCwd,
                         onCheckedChange = { arg0 -> viewModel?.setAutoWorkspaceCwd(arg0) },
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     AgentToggleRow(
                         icon = RuntimeIconName.Compress,
                         title = "智能压缩 Agent 命令输出",
@@ -269,17 +250,14 @@ fun AgentSettingsScreen(
                         checked = commandOutputCompressionEnabled,
                         onCheckedChange = { arg0 -> viewModel?.setCommandOutputCompressionEnabled(arg0) },
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     ApprovalModeSelectorRow(
                         mode = approvalMode,
                         onModeChange = { arg0 -> viewModel?.setApprovalMode(arg0) },
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     RunModeSelectorRow(
                         mode = runMode,
                         onModeChange = { arg0 -> viewModel?.setRunMode(arg0) },
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     RunningSendModeSelectorRow(
                         mode = runningSendMode,
                         onModeChange = { arg0 -> viewModel?.setRunningSendMode(arg0) },
@@ -296,25 +274,20 @@ fun AgentSettingsScreen(
                         currentValue = baseCommandTimeoutSeconds,
                         onValueChange = { arg0 -> viewModel?.setBaseCommandTimeoutSeconds(arg0) },
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     FirstResponseTimeoutRow()
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     RoundsSliderRow(
                         currentValue = maxToolRounds,
                         onValueChange = { arg0 -> viewModel?.setMaxToolRounds(arg0) },
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     AutoContinuationSliderRow(
                         currentValue = roundLimitAutoContinuations,
                         roundsPerSegment = maxToolRounds,
                         onValueChange = { arg0 -> viewModel?.setRoundLimitAutoContinuations(arg0) },
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     ToolsPerRoundSliderRow(
                         currentValue = maxToolsPerRound,
                         onValueChange = { arg0 -> viewModel?.setMaxToolsPerRound(arg0) },
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     ConsecutiveFailuresSliderRow(
                         currentValue = maxConsecutiveFailures,
                         onValueChange = { arg0 -> viewModel?.setMaxConsecutiveFailures(arg0) },
@@ -383,13 +356,11 @@ fun AgentSettingsScreen(
                         onCheckedChange = { arg0 -> viewModel?.setContextCompactionEnabled(arg0) },
                     )
                     if (compactionEnabled) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         ContextBudgetSliderRow(
                             currentValue = contextBudgetTokens,
                             declaredTokens = activeModelDeclaredTokens,
                             onValueChange = { arg0 -> viewModel?.setContextBudgetTokens(arg0) },
                         )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         ContextFoldingRatioSliderRow(
                             currentValue = contextFoldingRatioPercent,
                             budget = effectiveContextBudget,
@@ -436,7 +407,7 @@ fun AgentSettingsScreen(
                     value = subagentQuery,
                     onValueChange = { subagentQuery = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("搜索 Agent") },
+                    labelText = resolveLegacyString("搜索 Agent"),
                     placeholder = { Text("名称、角色标识或职责") },
                     leadingIcon = { RuntimeIcon(RuntimeIconName.Search, Modifier.size(18.dp)) },
                     singleLine = true,
@@ -448,13 +419,13 @@ fun AgentSettingsScreen(
                         editingSubagent = null
                         showSubagentDialog = true
                     },
-                    modifier = Modifier.fillMaxWidth().height(44.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RuntimeTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(containerColor = RuntimeTheme.colorScheme.primaryContainer),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(16.dp), MaterialTheme.colorScheme.onPrimaryContainer)
-                        Text("新增子智能体角色", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(16.dp), RuntimeTheme.colorScheme.onPrimaryContainer)
+                        Text("新增子智能体角色", color = RuntimeTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -535,7 +506,7 @@ fun AgentSettingsScreen(
                 AgentBlockTitle("技能管理")
             }
             item {
-                OutlinedButton(onClick = { skillArchivePicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth().height(44.dp)) {
+                OutlinedButton(onClick = { skillArchivePicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         RuntimeIcon(RuntimeIconName.FolderDownload, Modifier.size(16.dp))
                         Text("从 ZIP 导入 Skill（支持批量多选）")
@@ -543,7 +514,7 @@ fun AgentSettingsScreen(
                 }
             }
             item {
-                OutlinedButton(onClick = { viewModel?.scanSkillDirectories() }, modifier = Modifier.fillMaxWidth().height(44.dp)) {
+                OutlinedButton(onClick = { viewModel?.scanSkillDirectories() }, modifier = Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         RuntimeIcon(RuntimeIconName.FolderOpen, Modifier.size(16.dp))
                         Text("扫描 Skill 目录批量导入")
@@ -551,13 +522,13 @@ fun AgentSettingsScreen(
                 }
                 Text(
                     text = "可将 rikkahub、aicode 等工具的 skills 目录整体复制到 attachments/skills 或工作区 skills 目录，重启应用即自动批量导入；运行中复制可点击上方按钮立即扫描，已导入的不会重复注册",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp, start = 4.dp),
                 )
             }
             item {
-                OutlinedButton(onClick = { skillDirPicker.launch(null) }, modifier = Modifier.fillMaxWidth().height(44.dp)) {
+                OutlinedButton(onClick = { skillDirPicker.launch(null) }, modifier = Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         RuntimeIcon(RuntimeIconName.Search, Modifier.size(16.dp))
                         Text("从自选目录导入（任意位置）")
@@ -565,21 +536,21 @@ fun AgentSettingsScreen(
                 }
                 Text(
                     text = "可选择单个 Skill 或技能集合目录。包含 SKILL.md 的目录作为一个完整 Skill 导入，内部子文档和脚本保留为资源，不单独列出",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp, start = 4.dp),
                 )
             }
             item {
                 Button(
                     onClick = { showAddSkillDialog = true },
-                    modifier = Modifier.fillMaxWidth().height(44.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RuntimeTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(containerColor = RuntimeTheme.colorScheme.primaryContainer),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        RuntimeIcon(RuntimeIconName.Sparkles, Modifier.size(16.dp), MaterialTheme.colorScheme.onPrimaryContainer)
-                        Text("新增自定义 Skill 技能", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                        RuntimeIcon(RuntimeIconName.Sparkles, Modifier.size(16.dp), RuntimeTheme.colorScheme.onPrimaryContainer)
+                        Text("新增自定义 Skill 技能", color = RuntimeTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -589,7 +560,7 @@ fun AgentSettingsScreen(
                     value = skillQuery,
                     onValueChange = { skillQuery = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("搜索 Skill") },
+                    labelText = resolveLegacyString("搜索 Skill"),
                     placeholder = { Text("名称、标识、分类或描述") },
                     leadingIcon = { RuntimeIcon(RuntimeIconName.Search, Modifier.size(18.dp)) },
                     singleLine = true,
@@ -608,8 +579,8 @@ fun AgentSettingsScreen(
                 item {
                     Text(
                         text = "没有匹配 \"${skillQuery.trim()}\" 的技能",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                         textAlign = TextAlign.Center,
                     )
@@ -682,7 +653,7 @@ fun AgentSettingsScreen(
     skillArchiveMessage?.let { message ->
         RuntimeAlertDialog(
             onDismissRequest = { viewModel?.clearSkillArchiveMessage() },
-            title = { Text(if (!skillArchiveMessageIsError) "Skill 导入完成" else "Skill 导入失败", fontWeight = FontWeight.Bold) },
+            title = { Text(if (!skillArchiveMessageIsError) "Skill 导入完成" else "Skill 导入失败", fontWeight = FontWeight.Medium) },
             text = { Text(message) },
             confirmButton = { TextButton(onClick = { viewModel?.clearSkillArchiveMessage() }) { Text("知道了") } },
         )
@@ -694,7 +665,7 @@ fun AgentSettingsScreen(
             onDismissRequest = { viewingSkillPrompt = null },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(skill.name, fontWeight = FontWeight.Bold)
+                    Text(skill.name, fontWeight = FontWeight.Medium)
                 }
             },
             text = {
@@ -705,18 +676,17 @@ fun AgentSettingsScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(skill.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Text("注入系统的指导提示词 (System Prompt)：", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Text(skill.description, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                    Text("注入系统的指导提示词 (System Prompt)：", style = RuntimeTheme.typography.labelSmall, fontWeight = FontWeight.Medium)
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = RoundedCornerShape(8.dp),
+                        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
+                        shape = RuntimeTheme.shapes.chip,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
                             skill.systemPrompt,
                             modifier = Modifier.padding(10.dp),
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                         )
                     }
                 }
@@ -768,7 +738,7 @@ fun AgentSettingsScreen(
     deletingSkill?.let { skill ->
         RuntimeAlertDialog(
             onDismissRequest = { deletingSkill = null },
-            title = { Text("删除 Skill", fontWeight = FontWeight.Bold) },
+            title = { Text("删除 Skill", fontWeight = FontWeight.Medium) },
             text = { Text("确定删除“${skill.name}”吗？其脚本资源目录将一并清理，删除后不可恢复。") },
             confirmButton = {
                 TextButton(
@@ -777,7 +747,7 @@ fun AgentSettingsScreen(
                         deletingSkill = null
                     },
                 ) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text("删除")
                 }
             },
             dismissButton = {
@@ -789,7 +759,7 @@ fun AgentSettingsScreen(
     deletingSubagent?.let { profile ->
         RuntimeAlertDialog(
             onDismissRequest = { deletingSubagent = null },
-            title = { Text("删除子智能体", fontWeight = FontWeight.Bold) },
+            title = { Text("删除子智能体", fontWeight = FontWeight.Medium) },
             text = { Text("确定删除“${profile.name}”吗？删除后该角色不会再参与任务委派。") },
             confirmButton = {
                 TextButton(
@@ -798,7 +768,7 @@ fun AgentSettingsScreen(
                         deletingSubagent = null
                     },
                 ) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text("删除")
                 }
             },
             dismissButton = {
@@ -827,11 +797,11 @@ private fun AutoContinuationSliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("轮次用尽后自动续跑", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+            Text("轮次用尽后自动续跑", style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
             Text(
                 if (continuations == 0) "关闭" else "$continuations 次",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.primary,
+                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
+                color = RuntimeTheme.colorScheme.primary,
             )
         }
         Text(
@@ -841,8 +811,8 @@ private fun AutoContinuationSliderRow(
                 "轮次用尽时先让模型收束并记录进度，再自动续跑，无需用户点击继续；" +
                     "总预算上限 ${roundsPerSegment * (continuations + 1)} 轮"
             },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         Slider(
             value = sliderVal,
@@ -872,11 +842,11 @@ private fun ContextBudgetSliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("上下文 Token 预算上限", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+            Text("上下文 Token 预算上限", style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
             Text(
                 "${sliderVal.toInt()} tok",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.primary,
+                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
+                color = RuntimeTheme.colorScheme.primary,
             )
         }
         Text(
@@ -887,8 +857,8 @@ private fun ContextBudgetSliderRow(
                 "当前未识别到激活模型上下文上限，本值即实际生效预算；" +
                     "长会话历史超出预算将自动折叠早期内容。"
             },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         Slider(
             value = sliderVal,
@@ -939,11 +909,11 @@ private fun ContextFoldingRatioSliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("历史折叠线比例", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+            Text("历史折叠线比例", style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
             Text(
                 "${sliderVal.toInt()}%",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.primary,
+                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
+                color = RuntimeTheme.colorScheme.primary,
             )
         }
         Text(
@@ -951,13 +921,13 @@ private fun ContextFoldingRatioSliderRow(
                 " contextWindow - reserveTokens - toolSchemaReserve - systemTokens。" +
                 "调低比例可让历史更早进入摘要、节省 input token；大窗口模型不再被 96K 封顶。" +
                 "走 Nginx/中转时请把 client_max_body_size 调到 20m 以上，否则可能 HTTP 413。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             "按当前设置，折叠线约为 ${previewLimit / 1000}K tok",
-            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-            color = MaterialTheme.colorScheme.primary,
+            style = RuntimeTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+            color = RuntimeTheme.colorScheme.primary,
         )
         // 说明这个预览数按什么预算折算，避免用户误以为它基于「上下文预算上限」滑块。
         Text(
@@ -974,8 +944,8 @@ private fun ContextFoldingRatioSliderRow(
                 "以上按上方「上下文预算上限」滑块的值计算（当前未识别到模型上下文上限）。" +
                     "预览已扣除系统提示/输出/工具 schema 预留。"
             },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         Slider(
             value = sliderVal,
@@ -1005,17 +975,17 @@ private fun ToolsPerRoundSliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("单轮最大工具调用数", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+            Text("单轮最大工具调用数", style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
             Text(
                 "${sliderVal.toInt()} 个",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.primary,
+                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
+                color = RuntimeTheme.colorScheme.primary,
             )
         }
         Text(
             "防止模型一次性爆发大量工具调用耗尽上下文或失控循环",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         Slider(
             value = sliderVal,
@@ -1044,17 +1014,17 @@ private fun ConsecutiveFailuresSliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("连续失败熔断阈值", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+            Text("连续失败熔断阈值", style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
             Text(
                 "${sliderVal.toInt()} 轮",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.primary,
+                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
+                color = RuntimeTheme.colorScheme.primary,
             )
         }
         Text(
             "连续多轮工具调用全部失败时主动终止，避免陷入死循环空转",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         Slider(
             value = sliderVal,
@@ -1076,8 +1046,8 @@ private fun SkillCard(
 ) {
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = if (skill.isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+        borderColor = if (skill.isEnabled) RuntimeTheme.colorScheme.primary else Color.Transparent,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FlowRow(
@@ -1087,58 +1057,58 @@ private fun SkillCard(
             ) {
                 Text(
                     skill.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = RuntimeTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    shape = RoundedCornerShape(4.dp),
+                    color = RuntimeTheme.colorScheme.surfaceContainerHighest,
+                    shape = RuntimeTheme.shapes.tiny,
                 ) {
                     Text(
                         skill.category,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = RuntimeTheme.typography.labelSmall,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 val cmd = skill.triggerCommand
                 if (cmd != null) {
                     Surface(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(4.dp),
+                        color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        shape = RuntimeTheme.shapes.tiny,
                     ) {
                         Text(
                             cmd,
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold),
+                            style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium),
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = RuntimeTheme.colorScheme.primary,
                         )
                     }
                 }
             }
 
-            Text(skill.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(skill.description, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TextButton(onClick = onViewPrompt, contentPadding = PaddingValues(0.dp)) {
-                    Text("查看指导词 (Prompt)", style = MaterialTheme.typography.labelMedium)
+                    Text("查看指导词 (Prompt)", style = RuntimeTheme.typography.labelMedium)
                 }
                 Spacer(Modifier.weight(1f))
                 if (skill.isImmutable) {
                     Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                        shape = RoundedCornerShape(4.dp),
+                        color = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                        shape = RuntimeTheme.shapes.tiny,
                     ) {
                         Text(
                             "系统核心常驻",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            color = RuntimeTheme.colorScheme.onPrimaryContainer,
                         )
                     }
                 } else {
@@ -1150,15 +1120,15 @@ private fun SkillCard(
                                 .size(32.dp),
                             contentDescription = "删除 Skill",
                         ) {
-                            RuntimeIcon(RuntimeIconName.Trash, Modifier.size(16.dp), MaterialTheme.colorScheme.error)
+                            RuntimeIcon(RuntimeIconName.Trash, Modifier.size(16.dp), RuntimeTheme.colorScheme.error)
                         }
                     }
                     Switch(
                         checked = skill.isEnabled,
                         onCheckedChange = onToggle,
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary,
+                            checkedThumbColor = RuntimeTheme.colorScheme.onPrimary,
+                            checkedTrackColor = RuntimeTheme.colorScheme.primary,
                         ),
                     )
                 }
@@ -1176,8 +1146,8 @@ private fun ClawHubMarketSkillCard(
 ) {
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = MaterialTheme.colorScheme.outlineVariant,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+        borderColor = Color.Transparent,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FlowRow(
@@ -1187,35 +1157,35 @@ private fun ClawHubMarketSkillCard(
             ) {
                 Text(
                     item.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = RuntimeTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    shape = RoundedCornerShape(4.dp),
+                    color = RuntimeTheme.colorScheme.surfaceContainerHighest,
+                    shape = RuntimeTheme.shapes.tiny,
                 ) {
                     Text(
                         item.category,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = RuntimeTheme.typography.labelSmall,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(4.dp),
+                    color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    shape = RuntimeTheme.shapes.tiny,
                 ) {
                     Text(
                         "v${item.version}",
-                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                        style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = RuntimeTheme.colorScheme.primary,
                     )
                 }
             }
-            Text(item.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(item.description, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1224,8 +1194,8 @@ private fun ClawHubMarketSkillCard(
             ) {
                 Text(
                     "作者: ${item.author} · ★ ${item.stars}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
@@ -1235,12 +1205,12 @@ private fun ClawHubMarketSkillCard(
                         Button(
                             onClick = {},
                             enabled = false,
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RuntimeTheme.shapes.medium,
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
-                                Text("审查中…", style = MaterialTheme.typography.labelSmall)
+                                Text("审查中…", style = RuntimeTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -1248,23 +1218,23 @@ private fun ClawHubMarketSkillCard(
                         OutlinedButton(
                             onClick = {},
                             enabled = false,
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RuntimeTheme.shapes.medium,
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                         ) {
-                            Text("已安装", style = MaterialTheme.typography.labelSmall)
+                            Text("已安装", style = RuntimeTheme.typography.labelSmall)
                         }
                     }
                     else -> {
                         Button(
                             onClick = onInstall,
                             enabled = !isPreparing,
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            shape = RuntimeTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(containerColor = RuntimeTheme.colorScheme.primary),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 RuntimeIcon(name = RuntimeIconName.Shield, modifier = Modifier.size(14.dp))
-                                Text("审查并安装", style = MaterialTheme.typography.labelSmall)
+                                Text("审查并安装", style = RuntimeTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -1282,8 +1252,8 @@ private fun PluginCard(
 ) {
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = if (plugin.isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+        borderColor = if (plugin.isEnabled) RuntimeTheme.colorScheme.primary else Color.Transparent,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
@@ -1298,17 +1268,17 @@ private fun PluginCard(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             plugin.name,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = RuntimeTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false),
                         )
-                        Text("v${plugin.version}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("v${plugin.version}", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                     }
                     Text(
                         "作者: ${plugin.author}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1317,13 +1287,13 @@ private fun PluginCard(
                     checked = plugin.isEnabled,
                     onCheckedChange = onToggle,
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        checkedThumbColor = RuntimeTheme.colorScheme.onPrimary,
+                        checkedTrackColor = RuntimeTheme.colorScheme.primary,
                     ),
                 )
             }
 
-            Text(plugin.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(plugin.description, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
 
             if (plugin.permissions.isNotEmpty()) {
                 val visiblePermissions = plugin.permissions.take(4)
@@ -1335,34 +1305,34 @@ private fun PluginCard(
                 ) {
                     Text(
                         "权限:",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     visiblePermissions.forEach { perm ->
                         Surface(
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            shape = RoundedCornerShape(4.dp),
+                            color = RuntimeTheme.colorScheme.surfaceContainerHighest,
+                            shape = RuntimeTheme.shapes.tiny,
                         ) {
                             Text(
                                 perm,
-                                style = MaterialTheme.typography.labelSmall,
+                                style = RuntimeTheme.typography.labelSmall,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.widthIn(max = 140.dp).padding(horizontal = 4.dp, vertical = 2.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                     if (hiddenCount > 0) {
                         Surface(
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            shape = RoundedCornerShape(4.dp),
+                            color = RuntimeTheme.colorScheme.surfaceContainerHighest,
+                            shape = RuntimeTheme.shapes.tiny,
                         ) {
                             Text(
                                 "等 ${plugin.permissions.size} 项权限",
-                                style = MaterialTheme.typography.labelSmall,
+                                style = RuntimeTheme.typography.labelSmall,
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }

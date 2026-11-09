@@ -1,7 +1,6 @@
-@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
-
 package top.wkbin.taixu.ui.components
 
+import top.wkbin.taixu.ui.miuix.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -18,47 +17,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.FloatingActionButtonElevation
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.ButtonColors
-import androidx.compose.material3.SwitchColors
-import androidx.compose.material3.CheckboxColors
-import androidx.compose.material3.RadioButtonColors
-import androidx.compose.material3.SliderColors
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import top.yukonga.miuix.kmp.squircle.squircleBackground
+import top.yukonga.miuix.kmp.icon.extended.Home
+import top.yukonga.miuix.kmp.basic.NavigationBarItem
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,10 +47,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -107,97 +76,18 @@ fun RuntimeBottomBar(
     modifier: Modifier = Modifier,
 ) {
     val haptic = LocalHapticFeedback.current
-    NavigationBar(
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 3.dp,
-    ) {
+    top.yukonga.miuix.kmp.basic.NavigationBar(modifier = modifier) {
         MainDestination.entries.forEach { destination ->
-            val isSelected = destination == selected
             NavigationBarItem(
-                selected = isSelected,
+                selected = destination == selected,
                 onClick = {
-                    if (!isSelected) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (destination != selected) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onNavigate(destination)
                 },
-                icon = { RuntimeIcon(destination.icon, Modifier.size(24.dp)) },
-                label = {
-                    Text(
-                        text = stringResource(destination.labelRes),
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        ),
-                    )
-                },
-                alwaysShowLabel = true,
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
+                icon = runtimeIconImageVector(destination.icon),
+                label = stringResource(destination.labelRes),
             )
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun RuntimeTopBar(
-    title: String,
-    onBack: (() -> Unit)? = null,
-    statusText: String? = null,
-    modifier: Modifier = Modifier,
-    actions: @Composable RowScope.() -> Unit = {},
-) {
-    val openNavigation = LocalAppNavigation.current
-    Box(modifier = modifier.fillMaxWidth()) {
-        TopAppBar(
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    if (onBack == null) TaiXuBrandBadge(30.dp)
-                    Column {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 17.sp,
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (statusText != null) {
-                            Text(
-                                text = statusText,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-            },
-            navigationIcon = {
-                if (onBack != null) {
-                    RuntimeIconButton(onClick = onBack, contentDescription = stringResource(R.string.components_back)) {
-                        RuntimeIcon(RuntimeIconName.Back, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                } else if (openNavigation != null) RuntimeIconButton(onClick = openNavigation, contentDescription = stringResource(R.string.components_open_navigation)) {
-                    RuntimeIcon(RuntimeIconName.Menu, Modifier.size(24.dp))
-                }
-            },
-            actions = actions,
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.background,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-            ),
-        )
     }
 }
 
@@ -231,23 +121,17 @@ fun SectionHeader(
     trailing: @Composable (() -> Unit)? = null,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().padding(horizontal = RuntimeSpacing.cardContent),
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Column(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                ),
-            )
+            top.yukonga.miuix.kmp.basic.SmallTitle(text = title, insideMargin = PaddingValues(0.dp))
             if (subtitle != null) {
                 Text(
                     subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -261,20 +145,18 @@ fun SectionHeader(
 @Composable
 fun RuntimeCard(
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    containerColor: Color = RuntimeTheme.colorScheme.surfaceContainerLow,
     borderColor: Color = Color.Transparent,
-    shape: Shape = MaterialTheme.shapes.large,
+    shape: Shape = RuntimeTheme.shapes.medium,
     onClick: (() -> Unit)? = null,
-    contentPadding: PaddingValues = PaddingValues(16.dp),
+    contentPadding: PaddingValues = PaddingValues(RuntimeSpacing.cardContent),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = CardDefaults.cardColors(containerColor = containerColor)
     val border = borderColor.takeIf { it.alpha > 0f }?.let { BorderStroke(1.dp, it) }
-
     if (onClick == null) {
         Card(
-            modifier = modifier,
-            shape = shape,
+            modifier = modifier, shape = shape.atMostCardRadius(),
             colors = colors,
             border = border,
         ) {
@@ -283,8 +165,7 @@ fun RuntimeCard(
     } else {
         Card(
             onClick = onClick,
-            modifier = modifier,
-            shape = shape,
+            modifier = modifier, shape = shape.atMostCardRadius(),
             colors = colors,
             border = border,
         ) {
@@ -302,33 +183,28 @@ fun RuntimeSwitch(
     colors: SwitchColors = SwitchDefaults.colors(),
     thumbContent: (@Composable (() -> Unit))? = null,
 ) {
-    androidx.compose.material3.Switch(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, enabled = enabled, colors = colors, thumbContent = thumbContent)
+    top.wkbin.taixu.ui.miuix.Switch(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, enabled = enabled, colors = colors, thumbContent = thumbContent)
 }
 
 @Composable
 fun RuntimeLinearProgressIndicator(
     progress: (() -> Float)? = null,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary,
-    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+    color: Color = RuntimeTheme.colorScheme.primary,
+    trackColor: Color = RuntimeTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
     wavy: Boolean = false,
 ) {
-    // 无确定进度即走 Expressive 波浪；确定进度默认回落经典样式，wavy 显式开启波浪
-    if (progress == null) androidx.compose.material3.LinearWavyProgressIndicator(modifier = modifier, color = color, trackColor = trackColor)
-    else if (wavy) androidx.compose.material3.LinearWavyProgressIndicator(progress = progress, modifier = modifier, color = color, trackColor = trackColor)
-    else androidx.compose.material3.LinearProgressIndicator(progress = progress, modifier = modifier, color = color, trackColor = trackColor)
+    top.wkbin.taixu.ui.miuix.LinearProgressIndicator(progress = progress, modifier = modifier, color = color, trackColor = trackColor)
 }
 
 @Composable
 fun RuntimeCircularProgressIndicator(
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary,
+    color: Color = top.yukonga.miuix.kmp.theme.LocalContentColor.current,
     trackColor: Color = Color.Transparent,
     strokeWidth: Dp = 4.5.dp,
 ) {
-    // 默认参数走 Expressive 形变加载指示器；显式描边/轨道参数保留经典圆环（小尺寸定制场景）
-    if (strokeWidth == 4.5.dp && trackColor == Color.Transparent) androidx.compose.material3.LoadingIndicator(modifier = modifier, color = color)
-    else androidx.compose.material3.CircularProgressIndicator(modifier = modifier, color = color, trackColor = trackColor, strokeWidth = strokeWidth)
+    top.wkbin.taixu.ui.miuix.CircularProgressIndicator(modifier = modifier, color = color, trackColor = trackColor, strokeWidth = strokeWidth)
 }
 
 @Composable
@@ -339,7 +215,7 @@ fun RuntimeCheckbox(
     enabled: Boolean = true,
     colors: CheckboxColors = CheckboxDefaults.colors(),
 ) {
-    androidx.compose.material3.Checkbox(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, enabled = enabled, colors = colors)
+    top.wkbin.taixu.ui.miuix.Checkbox(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, enabled = enabled, colors = colors)
 }
 
 @Composable
@@ -350,7 +226,7 @@ fun RuntimeRadioButton(
     enabled: Boolean = true,
     colors: RadioButtonColors = RadioButtonDefaults.colors(),
 ) {
-    androidx.compose.material3.RadioButton(selected = selected, onClick = onClick, modifier = modifier, enabled = enabled, colors = colors)
+    top.wkbin.taixu.ui.miuix.RadioButton(selected = selected, onClick = onClick, modifier = modifier, enabled = enabled, colors = colors)
 }
 
 @Composable
@@ -364,7 +240,7 @@ fun RuntimeSlider(
     onValueChangeFinished: (() -> Unit)? = null,
     colors: SliderColors = SliderDefaults.colors(),
 ) {
-    androidx.compose.material3.Slider(
+    top.wkbin.taixu.ui.miuix.Slider(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
@@ -399,19 +275,20 @@ fun RuntimeAlertDialog(
 
 
 /**
- * 呼吸状态指示药丸
+ * 状态标签：委托 miuix [top.yukonga.miuix.kmp.basic.Badge]。
+ * [pulsing] 时对容器透明度做轻呼吸，避免再手搓 Surface 药丸。
  */
 @Composable
 fun StatusBadge(
     text: String,
-    color: Color = MaterialTheme.colorScheme.primary,
+    color: Color = RuntimeTheme.colorScheme.primary,
     modifier: Modifier = Modifier,
     pulsing: Boolean = false,
 ) {
-    val alphaAnim = if (pulsing) {
+    val pulseAlpha = if (pulsing) {
         val infiniteTransition = rememberInfiniteTransition(label = "pulse")
         infiniteTransition.animateFloat(
-            initialValue = 0.4f,
+            initialValue = 0.55f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
                 animation = tween(800, easing = FastOutSlowInEasing),
@@ -420,32 +297,12 @@ fun StatusBadge(
             label = "pulseAlpha",
         ).value
     } else 1f
-
-    Surface(
-        modifier = modifier,
-        color = color.copy(alpha = 0.12f),
-        shape = CircleShape,
-        border = BorderStroke(1.dp, color.copy(alpha = 0.35f)),
+    top.yukonga.miuix.kmp.basic.Badge(
+        modifier = modifier.alpha(pulseAlpha),
+        containerColor = color.copy(alpha = 0.16f),
+        contentColor = color,
     ) {
-        Row(
-            Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Box(
-                Modifier
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(color.copy(alpha = alphaAnim)),
-            )
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = color,
-                maxLines = 1,
-                softWrap = false,
-            )
-        }
+        Text(text = text, maxLines = 1, softWrap = false)
     }
 }
 
@@ -453,15 +310,13 @@ fun StatusBadge(
 fun IconTile(
     icon: RuntimeIconName,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary,
+    color: Color = RuntimeTheme.colorScheme.primary,
     size: Dp = 42.dp,
 ) {
-    val shape = RoundedCornerShape(12.dp)
     Box(
         modifier = modifier
             .size(size)
-            .clip(shape)
-            .background(color.copy(alpha = 0.12f)),
+            .squircleBackground(color.copy(alpha = 0.12f), size * 0.3f),
         contentAlignment = Alignment.Center,
     ) {
         RuntimeIcon(icon, Modifier.size(size * 0.48f), tint = color)
@@ -482,18 +337,18 @@ fun InfoRow(
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(0.38f, fill = false),
         )
         Spacer(Modifier.width(8.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.bodySmall.copy(
+            style = RuntimeTheme.typography.bodySmall.copy(
                 fontWeight = FontWeight.Medium,
                 fontFamily = if (isCode) FontFamily.Monospace else FontFamily.Default,
             ),
-            color = MaterialTheme.colorScheme.onSurface,
+            color = RuntimeTheme.colorScheme.onSurface,
             textAlign = androidx.compose.ui.text.style.TextAlign.End,
             modifier = Modifier.weight(0.62f, fill = false),
         )
@@ -512,23 +367,23 @@ fun CodeBlockRow(
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.labelSmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         val shape = RoundedCornerShape(8.dp)
         val codeModifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f))
+            .background(RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f))
             .padding(horizontal = 10.dp, vertical = 6.dp)
         Box(modifier = codeModifier) {
             Text(
                 text = code,
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
                 ),
-                color = MaterialTheme.colorScheme.primary,
+                color = RuntimeTheme.colorScheme.primary,
             )
         }
     }
@@ -543,7 +398,7 @@ fun EmptyPanel(
 ) {
     RuntimeCard(
         modifier = modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
         borderColor = Color.Transparent,
     ) {
         Column(
@@ -553,16 +408,16 @@ fun EmptyPanel(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            IconTile(icon, color = MaterialTheme.colorScheme.primary, size = 48.dp)
+            IconTile(icon, color = RuntimeTheme.colorScheme.primary, size = 48.dp)
             Text(
                 title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = RuntimeTheme.typography.titleMedium,
+                color = RuntimeTheme.colorScheme.onSurface,
             )
             Text(
                 description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
         }
@@ -576,14 +431,11 @@ fun NoticeBanner(
     isError: Boolean = false,
     onDismiss: (() -> Unit)? = null,
 ) {
-    val color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-    val shape = RoundedCornerShape(12.dp)
+    val color = if (isError) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.primary
     val bannerModifier = modifier
         .fillMaxWidth()
-        .clip(shape)
-        .background(color.copy(alpha = 0.08f))
-        .border(1.dp, color.copy(alpha = 0.25f), shape)
-        .padding(horizontal = 12.dp, vertical = 10.dp)
+        .squircleBackground(color.copy(alpha = if (isError) 0.10f else 0.08f), 16.dp)
+        .padding(horizontal = 16.dp, vertical = 12.dp)
     Row(
         modifier = bannerModifier,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -592,8 +444,8 @@ fun NoticeBanner(
         RuntimeIcon(if (isError) RuntimeIconName.Alert else RuntimeIconName.Check, Modifier.size(17.dp), color)
         Text(
             text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
         if (onDismiss != null) {
@@ -603,7 +455,7 @@ fun NoticeBanner(
                 modifier = Modifier.size(24.dp),
                 contentDescription = dismissLabel,
             ) {
-                RuntimeIcon(RuntimeIconName.Close, Modifier.size(14.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                RuntimeIcon(RuntimeIconName.Close, Modifier.size(14.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -674,7 +526,7 @@ fun ScrollFadeOverlay(
     modifier: Modifier = Modifier,
     top: Dp = 14.dp,
     bottom: Dp = 14.dp,
-    color: Color = MaterialTheme.colorScheme.surface,
+    color: Color = RuntimeTheme.colorScheme.surface,
 ) {
     Box(modifier.fillMaxSize()) {
         if (top > 0.dp) {
@@ -703,23 +555,48 @@ fun ScrollFadeOverlay(
 }
 
 /**
- * 悬浮操作按钮 (M3 Floating Action Button)：尺寸 56dp，形状 RoundedCornerShape(16.dp)，
- * 默认 primaryContainer / onPrimaryContainer 配色与 3dp 色调海拔。
+ * 实心圆形操作钮：对齐 miuix [IconButton] 的 40dp，不再使用库默认 60dp FAB。
+ * 新增入口优先放顶栏 actions；仅在确实需要浮层动作时调用本组件。
  */
 @Composable
 fun RuntimeFloatingActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp),
-    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
-    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    shape: Shape = CircleShape,
+    containerColor: Color = RuntimeTheme.colorScheme.primary,
+    contentColor: Color = RuntimeTheme.colorScheme.onPrimary,
     elevation: FloatingActionButtonElevation = FloatingActionButtonDefaults.elevation(
-        defaultElevation = 3.dp,
-        pressedElevation = 6.dp,
+        defaultElevation = 0.dp,
+        pressedElevation = 0.dp,
     ),
     content: @Composable () -> Unit,
 ) {
     FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier.size(40.dp),
+        shape = shape,
+        containerColor = containerColor,
+        contentColor = contentColor,
+        elevation = elevation,
+        content = content,
+    )
+}
+
+/** @see RuntimeFloatingActionButton */
+@Composable
+fun RuntimeSmallFloatingActionButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    shape: Shape = CircleShape,
+    containerColor: Color = RuntimeTheme.colorScheme.primary,
+    contentColor: Color = RuntimeTheme.colorScheme.onPrimary,
+    elevation: FloatingActionButtonElevation = FloatingActionButtonDefaults.elevation(
+        defaultElevation = 0.dp,
+        pressedElevation = 0.dp,
+    ),
+    content: @Composable () -> Unit,
+) {
+    RuntimeFloatingActionButton(
         onClick = onClick,
         modifier = modifier,
         shape = shape,
@@ -731,35 +608,7 @@ fun RuntimeFloatingActionButton(
 }
 
 /**
- * 主题自适应小型悬浮操作按钮 (M3 Small Floating Action Button)：
- * 遵循 M3 规范：尺寸 40dp，形状 RoundedCornerShape(12.dp)。
- */
-@Composable
-fun RuntimeSmallFloatingActionButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(12.dp),
-    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
-    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
-    elevation: FloatingActionButtonElevation = FloatingActionButtonDefaults.elevation(
-        defaultElevation = 3.dp,
-        pressedElevation = 6.dp,
-    ),
-    content: @Composable () -> Unit,
-) {
-    RuntimeFloatingActionButton(
-        onClick = onClick,
-        modifier = modifier.size(40.dp),
-        shape = shape,
-        containerColor = containerColor,
-        contentColor = contentColor,
-        elevation = elevation,
-        content = content,
-    )
-}
-
-/**
- * 主题自适应过滤标签 (M3 Filter Chip)：
+ * 主题自适应过滤标签 (Miuix selection chip)：
  * - 遵循 M3 规范：高度 32dp，形状 RoundedCornerShape(8.dp)，文字 labelMedium；
  * - 包含 minimumInteractiveComponentSize() 满足 48dp 触控标准；
  */
@@ -772,7 +621,7 @@ fun RuntimeFilterChip(
     enabled: Boolean = true,
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
-    shape: Shape = RoundedCornerShape(8.dp),
+    shape: Shape = RuntimeTheme.shapes.small,
 ) {
     FilterChip(
         selected = selected,
@@ -783,13 +632,7 @@ fun RuntimeFilterChip(
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
         shape = shape,
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            selectedLeadingIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        ),
+        colors = FilterChipDefaults.filterChipColors(),
     )
 }
 

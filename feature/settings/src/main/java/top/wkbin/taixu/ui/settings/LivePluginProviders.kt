@@ -1,12 +1,15 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+
 import androidx.compose.runtime.getValue
+
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.feature.settings.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
@@ -29,6 +32,6 @@ internal fun livePluginProviders(preview: List<AgentProviderDefinition>, saved: 
 
 @Composable
 internal fun LocalPluginProviderNotice() {
-    Text(stringResource(R.string.package_provider_local_notice), style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(stringResource(R.string.package_provider_local_notice), style = RuntimeTheme.typography.bodyMedium,
+        color = RuntimeTheme.colorScheme.onSurfaceVariant)
 }

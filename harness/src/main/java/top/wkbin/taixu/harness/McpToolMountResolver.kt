@@ -39,9 +39,10 @@ class McpToolMountResolver(
         val candidates = if (mentioned.isEmpty()) emptyList() else scoped
             .filter { it.isEnabled && (it.id.lowercase() in mentioned || it.name.lowercase() in mentioned) }
         val toolsByServer = candidates.associate { server ->
-            server.id to runCatching { mcpManager.cachedToolsOf(server.id) }.getOrDefault(emptyList())
+            server.id to mcpManager.cachedToolsOf(server.id)
         }
-        val mounted = selectMountedTools(candidates, policies.snapshot(), toolsByServer)
+        val allowedTools = candidates.associate { it.id to capabilityScope?.allowedMcpTools(sessionId, it.id) }
+        val mounted = selectMountedTools(candidates, policies.snapshot(), toolsByServer, allowedTools)
         val mountedModel = model.copy(dynamicMcpTools = mounted)
         capabilityWriter.writeIfMentioned(sessionId, latest.id, latestMentions, mountedModel)
         return mountedModel
@@ -53,11 +54,13 @@ internal fun selectMountedTools(
     servers: List<McpServerConfig>,
     policies: McpToolPolicyMap,
     toolsByServer: Map<String, List<McpToolInfo>>,
+    allowedToolsByServer: Map<String, Set<String>?> = emptyMap(),
 ): List<McpToolInfo> {
     val mounted = mutableListOf<McpToolInfo>()
     loop@ for (server in servers.sortedBy { it.id }.take(MAX_MOUNTED_SERVERS)) {
         val tools = toolsByServer[server.id].orEmpty()
             .filterEnabledBy(policies[server.id])
+            .filter { allowedToolsByServer[server.id]?.contains(it.name) != false }
             .sortedBy { it.name }
             .take(MAX_TOOLS_PER_SERVER)
         for (tool in tools) {

@@ -5,7 +5,4 @@
     <string name="settings_material_plugins_summary">安装、更新与管理扩展</string>
     <string name="settings_material_backup_summary">导出或恢复会话、模型与配置</string>
     <string name="settings_material_features_intro">创作、协作与自动化</string>
-    <string name="settings_material_creation">创作与协作</string>
-    <string name="settings_material_automation">每日自动化</string>
-    <string name="settings_material_connection">跨设备连接</string>
 </resources>

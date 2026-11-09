@@ -1,11 +1,13 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.minimumInteractiveComponentSize
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -15,8 +17,11 @@ import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.*
 
-/** 输入区右侧控件共用视觉直径，外层仍保留 Material 的最小触控范围。 */
-internal val ComposerActionSize = 30.dp
+/**
+ * 输入区操作钮视觉直径：对齐 miuix [IconButtonDefaults] 的 40dp，
+ * 不再叠 Material 的 48dp minimumInteractive，避免实心底被撑成 FAB。
+ */
+internal val ComposerActionSize = 40.dp
 
 @Composable
 internal fun ComposerSendButton(
@@ -31,18 +36,27 @@ internal fun ComposerSendButton(
     val longPressModifier = if (onLongClick != null) {
         Modifier.pointerInput(Unit) { detectTapGestures(onLongPress = { latestLongClick?.invoke() }) }
     } else Modifier
-    RuntimeFilledIconButton(onClick, Modifier.minimumInteractiveComponentSize().size(ComposerActionSize).then(longPressModifier), enabled, containerColor = containerColor, contentColor = contentColor,
-        contentDescription = stringResource(R.string.chat_send)) {
-        RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(16.dp))
+    RuntimeFilledIconButton(
+        onClick = onClick,
+        modifier = Modifier.size(ComposerActionSize).then(longPressModifier),
+        enabled = enabled,
+        containerColor = containerColor,
+        contentColor = contentColor,
+        contentDescription = stringResource(R.string.chat_send),
+    ) {
+        RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(20.dp))
     }
 }
 
 @Composable
 internal fun ComposerStopButton(onClick: () -> Unit) {
-    RuntimeFilledIconButton(onClick, Modifier.minimumInteractiveComponentSize().size(ComposerActionSize),
-        containerColor = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        contentDescription = stringResource(R.string.chat_stop_generation)) {
-        RuntimeIcon(RuntimeIconName.Stop, Modifier.size(16.dp))
+    RuntimeFilledIconButton(
+        onClick = onClick,
+        modifier = Modifier.size(ComposerActionSize),
+        containerColor = RuntimeTheme.colorScheme.errorContainer,
+        contentColor = RuntimeTheme.colorScheme.onErrorContainer,
+        contentDescription = stringResource(R.string.chat_stop_generation),
+    ) {
+        RuntimeIcon(RuntimeIconName.Stop, Modifier.size(20.dp))
     }
 }

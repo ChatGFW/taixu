@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.theme
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import top.wkbin.taixu.core.model.ThemePaletteStyle
 
 import android.app.WallpaperColors
@@ -11,13 +14,11 @@ import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import androidx.compose.material3.ColorScheme
+import top.wkbin.taixu.ui.miuix.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -135,7 +136,7 @@ private fun extractColorFromDrawable(drawable: Drawable): Color? {
  * 取色优先级：
  * 1. 系统 Monet 色板（正常 ROM 直接透传，含系统对比度偏好，最「原汁原味」）；
  * 2. 检测到 ROM 把动态色锁死为预置色（系统主色与壁纸种子色相脱节）或系统不支持时，
- *    用官方 HCT 算法从壁纸种子派生 [generateM3ColorScheme]；
+ *    用官方 HCT 算法从壁纸种子派生 [generatePaletteColorScheme]；
  * 3. 均不可得时回退玄同静态色板 [fallback]。
  */
 @Composable
@@ -193,14 +194,14 @@ fun rememberWallpaperDynamicColorScheme(
     return remember(currentSeed, darkTheme, systemScheme, fallback, style) {
         when {
             style != ThemePaletteStyle.TONAL_SPOT ->
-                generateM3ColorScheme(currentSeed ?: systemScheme?.primary ?: fallback.primary, darkTheme, style)
+                generatePaletteColorScheme(currentSeed ?: systemScheme?.primary ?: fallback.primary, darkTheme, style)
             // 壁纸不可读：优先系统 Monet，其次玄同静态色板
             currentSeed == null -> systemScheme ?: fallback
             // 系统不支持动态取色（API < 31）：HCT 从种子派生
-            systemScheme == null -> generateM3ColorScheme(currentSeed, darkTheme)
+            systemScheme == null -> generatePaletteColorScheme(currentSeed, darkTheme)
             // 系统色板被 ROM 锁死为预置色：HCT 从种子派生
             isSystemSchemeColorLocked(systemScheme.primary, currentSeed) ->
-                generateM3ColorScheme(currentSeed, darkTheme)
+                generatePaletteColorScheme(currentSeed, darkTheme)
             else -> systemScheme
         }
     }

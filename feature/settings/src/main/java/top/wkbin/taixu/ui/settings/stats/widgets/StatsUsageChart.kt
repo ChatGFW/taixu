@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.settings.stats.widgets
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -7,9 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,18 +18,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,8 +47,8 @@ fun StatsUsageChart(
         ) {
             Text(
                 text = "暂无用量数据",
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                style = RuntimeTheme.typography.bodySmall.copy(
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 ),
             )
         }
@@ -84,8 +82,8 @@ fun StatsUsageChart(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+                    .clip(RuntimeTheme.shapes.chip)
+                    .background(RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -95,16 +93,16 @@ fun StatsUsageChart(
                     ) {
                         Text(
                             text = selectedDay.date.toString(),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                            style = RuntimeTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Medium,
+                                color = RuntimeTheme.colorScheme.onSurface,
                             ),
                         )
                         Text(
                             text = "总计: ${formatTokens(totalTokens)}",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
+                            style = RuntimeTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Medium,
+                                color = RuntimeTheme.colorScheme.primary,
                             ),
                         )
                     }
@@ -117,9 +115,9 @@ fun StatsUsageChart(
                             ) {
                                 Text(
                                     text = "• $provider",
-                                    style = MaterialTheme.typography.bodySmall.copy(
+                                    style = RuntimeTheme.typography.bodySmall.copy(
                                         fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                     ),
                                     modifier = Modifier.weight(1f).padding(end = 8.dp),
                                     maxLines = 1,
@@ -127,10 +125,10 @@ fun StatsUsageChart(
                                 )
                                 Text(
                                     text = formatTokens(bucket.totalTokens),
-                                    style = MaterialTheme.typography.bodySmall.copy(
+                                    style = RuntimeTheme.typography.bodySmall.copy(
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        color = RuntimeTheme.colorScheme.onSurface,
                                     ),
                                 )
                             }
@@ -176,9 +174,9 @@ fun StatsUsageChart(
                                 .fillMaxHeight(heightFactor)
                                 .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
                                 .background(
-                                    if (isSelected) MaterialTheme.colorScheme.primary
-                                    else if (dayTotal > 0) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                                    if (isSelected) RuntimeTheme.colorScheme.primary
+                                    else if (dayTotal > 0) RuntimeTheme.colorScheme.primary.copy(alpha = 0.55f)
+                                    else RuntimeTheme.colorScheme.onSurface.copy(alpha = 0.08f)
                                 ),
                         )
                     }

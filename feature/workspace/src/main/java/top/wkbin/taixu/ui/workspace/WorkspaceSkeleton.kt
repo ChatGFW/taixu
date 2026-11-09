@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.workspace
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import android.graphics.BitmapFactory
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -19,10 +23,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,9 +71,9 @@ private fun shimmerBrush(): Brush {
         label = "shimmerTranslate",
     )
     val shimmerColors = listOf(
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-        MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.3f),
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
+        RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
+        RuntimeTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.3f),
+        RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
     )
     return Brush.linearGradient(
         colors = shimmerColors,
@@ -94,7 +96,7 @@ internal fun ProjectCardSkeleton(modifier: Modifier = Modifier) {
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RuntimeTheme.shapes.chip)
                         .background(brush),
                 )
                 Column(
@@ -105,14 +107,14 @@ internal fun ProjectCardSkeleton(modifier: Modifier = Modifier) {
                         modifier = Modifier
                             .fillMaxWidth(0.55f)
                             .height(16.dp)
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(RuntimeTheme.shapes.tiny)
                             .background(brush),
                     )
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(0.8f)
                             .height(12.dp)
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(RuntimeTheme.shapes.tiny)
                             .background(brush),
                     )
                 }
@@ -132,7 +134,7 @@ internal fun ProjectCardSkeleton(modifier: Modifier = Modifier) {
                     modifier = Modifier
                         .width(72.dp)
                         .height(28.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RuntimeTheme.shapes.chip)
                         .background(brush),
                 )
                 Spacer(Modifier.width(8.dp))
@@ -140,7 +142,7 @@ internal fun ProjectCardSkeleton(modifier: Modifier = Modifier) {
                     modifier = Modifier
                         .width(72.dp)
                         .height(28.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RuntimeTheme.shapes.chip)
                         .background(brush),
                 )
             }

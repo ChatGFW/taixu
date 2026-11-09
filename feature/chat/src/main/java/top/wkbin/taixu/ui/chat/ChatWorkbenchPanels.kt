@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -25,23 +28,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.minimumInteractiveComponentSize
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.rememberModalBottomSheetState
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,7 +59,6 @@ import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.database.AgentMemoryEntity
 import top.wkbin.taixu.core.database.AgentScratchpadEntity
 import top.wkbin.taixu.feature.chat.R
-import top.wkbin.taixu.harness.QueuedPrompt
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.CapabilityEvent
 import top.wkbin.taixu.harness.ModelSwitchEvent
@@ -73,11 +70,11 @@ import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.events.HarnessEvent
-import top.wkbin.taixu.harness.queue.PromptQueue
 import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.harness.session.ConversationBranchKind
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.StatusBadge
 import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
@@ -93,7 +90,7 @@ internal fun StatusDivider() {
         modifier = Modifier
             .padding(horizontal = 2.dp)
             .size(width = 1.dp, height = 9.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            .background(RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
     )
 }
 
@@ -108,7 +105,7 @@ internal fun WorkbenchStatusItem(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(4.dp),
+        shape = RuntimeTheme.shapes.tiny,
         color = if (highlight) tint.copy(alpha = 0.14f) else Color.Transparent,
         modifier = modifier,
     ) {
@@ -124,11 +121,11 @@ internal fun WorkbenchStatusItem(
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
+                style = RuntimeTheme.typography.labelSmall.copy(
                     fontSize = 11.sp,
-                    fontWeight = if (highlight) FontWeight.SemiBold else FontWeight.Medium,
+                    fontWeight = if (highlight) FontWeight.Medium else FontWeight.Medium,
                 ),
-                color = if (highlight) tint else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (highlight) tint else RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -136,7 +133,6 @@ internal fun WorkbenchStatusItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun BranchBrowserSheet(
     branches: List<ConversationBranch>,
@@ -162,15 +158,15 @@ internal fun BranchBrowserSheet(
             item(key = "branch_sheet_title") {
                 Text(
                     stringResource(R.string.chat_branches_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = RuntimeTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Medium,
                 )
             }
             item(key = "branch_sheet_description") {
                 Text(
                     stringResource(R.string.chat_branches_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
                 )
             }
@@ -179,7 +175,7 @@ internal fun BranchBrowserSheet(
                     RuntimeCard {
                         Text(
                             stringResource(R.string.chat_no_branches),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -222,22 +218,22 @@ internal fun stableSubagentBranches(branches: List<ConversationBranch>): List<Co
 @Composable
 private fun SectionLabel(title: String, count: Int) {
     Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Text(title, style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
         Spacer(Modifier.weight(1f))
-        Text("$count", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("$count", style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
 private fun BranchCard(branch: ConversationBranch, enabled: Boolean, onClick: () -> Unit) {
     val tint = when (branch.kind) {
-        ConversationBranchKind.MAIN -> MaterialTheme.colorScheme.primary
+        ConversationBranchKind.MAIN -> RuntimeTheme.colorScheme.primary
         ConversationBranchKind.BRANCH -> semanticColors().agent
-        ConversationBranchKind.SUBAGENT -> MaterialTheme.colorScheme.tertiary
-        ConversationBranchKind.HISTORY -> MaterialTheme.colorScheme.secondary
+        ConversationBranchKind.SUBAGENT -> RuntimeTheme.colorScheme.tertiary
+        ConversationBranchKind.HISTORY -> RuntimeTheme.colorScheme.secondary
     }
     RuntimeCard(
-        containerColor = if (branch.isCurrent) tint.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = if (branch.isCurrent) tint.copy(alpha = 0.10f) else RuntimeTheme.colorScheme.surfaceContainerLow,
         borderColor = if (branch.isCurrent) tint.copy(alpha = 0.55f) else Color.Transparent,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
         onClick = if (enabled && !branch.isCurrent) onClick else null,
@@ -250,20 +246,20 @@ private fun BranchCard(branch: ConversationBranch, enabled: Boolean, onClick: ()
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         branch.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        style = RuntimeTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium,
                         modifier = Modifier.weight(1f, fill = false),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (branch.isCurrent) MiniBadge(stringResource(R.string.chat_badge_current), tint)
-                    if (branch.isBusy) MiniBadge(stringResource(R.string.chat_badge_busy), semanticColors().agent)
-                    if (branch.faulted) MiniBadge(stringResource(R.string.chat_badge_faulted), MaterialTheme.colorScheme.error)
+                    if (branch.isCurrent) StatusBadge(stringResource(R.string.chat_badge_current), tint)
+                    if (branch.isBusy) StatusBadge(stringResource(R.string.chat_badge_busy), semanticColors().agent)
+                    if (branch.faulted) StatusBadge(stringResource(R.string.chat_badge_faulted), RuntimeTheme.colorScheme.error)
                 }
                 Text(
                     branch.preview.ifBlank { stringResource(R.string.chat_branch_start) },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -277,14 +273,14 @@ private fun BranchCard(branch: ConversationBranch, enabled: Boolean, onClick: ()
                                 R.string.chat_branch_busy_hint
                             },
                         ),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = RuntimeTheme.typography.labelSmall,
                         color = tint,
                     )
                 }
                 Text(
                     stringResource(R.string.chat_branch_records, branch.depth) + " · " + stringResource(R.string.chat_branch_tool_calls, branch.toolCallCount),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (enabled && !branch.isCurrent) RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(18.dp), tint)
@@ -292,7 +288,6 @@ private fun BranchCard(branch: ConversationBranch, enabled: Boolean, onClick: ()
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SubagentResultSheet(
     state: SubagentResultUiState,
@@ -327,27 +322,27 @@ internal fun SubagentResultSheet(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Box(
-                        Modifier.size(38.dp).background(MaterialTheme.colorScheme.tertiaryContainer, CircleShape),
+                        Modifier.size(38.dp).background(RuntimeTheme.colorScheme.tertiaryContainer, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
-                        RuntimeIcon(RuntimeIconName.Bot, Modifier.size(20.dp), MaterialTheme.colorScheme.onTertiaryContainer)
+                        RuntimeIcon(RuntimeIconName.Bot, Modifier.size(20.dp), RuntimeTheme.colorScheme.onTertiaryContainer)
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
                             branch.name,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
+                            style = RuntimeTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Medium,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             stringResource(R.string.chat_subagent_result_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    if (branch.isBusy) MiniBadge(stringResource(R.string.chat_badge_busy), semanticColors().agent)
-                    if (branch.faulted) MiniBadge(stringResource(R.string.chat_badge_faulted), MaterialTheme.colorScheme.error)
+                    if (branch.isBusy) StatusBadge(stringResource(R.string.chat_badge_busy), semanticColors().agent)
+                    if (branch.faulted) StatusBadge(stringResource(R.string.chat_badge_faulted), RuntimeTheme.colorScheme.error)
                 }
             }
 
@@ -360,31 +355,31 @@ internal fun SubagentResultSheet(
                     ) {
                         RuntimeCircularProgressIndicator(Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.chat_subagent_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.chat_subagent_loading), color = RuntimeTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             } else if (state.error != null) {
                 item {
-                    RuntimeCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
-                        Text(state.error, color = MaterialTheme.colorScheme.onErrorContainer)
+                    RuntimeCard(containerColor = RuntimeTheme.colorScheme.errorContainer) {
+                        Text(state.error, color = RuntimeTheme.colorScheme.onErrorContainer)
                     }
                 }
             } else {
                 task?.let { taskMessage ->
                     item {
-                        RuntimeCard(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+                        RuntimeCard(containerColor = RuntimeTheme.colorScheme.surfaceContainerLow) {
                             Text(
                                 stringResource(R.string.chat_subagent_task),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.tertiary,
+                                style = RuntimeTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = RuntimeTheme.colorScheme.tertiary,
                             )
                             Spacer(Modifier.height(4.dp))
                             SelectionContainer {
                                 Text(
                                     subagentTaskDetails(taskMessage.text),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = RuntimeTheme.typography.bodyMedium,
+                                    color = RuntimeTheme.colorScheme.onSurface,
                                 )
                             }
                         }
@@ -396,29 +391,29 @@ internal fun SubagentResultSheet(
                         stringResource(
                             if (interrupted) R.string.chat_subagent_partial_result else R.string.chat_subagent_final_result,
                         ),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (interrupted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = if (interrupted) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurface,
                     )
                 }
                 item {
                     RuntimeCard(
                         containerColor = if (interrupted) {
-                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.38f)
+                            RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.38f)
                         } else {
-                            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.38f)
+                            RuntimeTheme.colorScheme.tertiaryContainer.copy(alpha = 0.38f)
                         },
                         borderColor = if (interrupted) {
-                            MaterialTheme.colorScheme.error.copy(alpha = 0.35f)
+                            RuntimeTheme.colorScheme.error.copy(alpha = 0.35f)
                         } else {
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f)
+                            RuntimeTheme.colorScheme.tertiary.copy(alpha = 0.35f)
                         },
                     ) {
                         if (interrupted) {
                             Text(
                                 stringResource(R.string.chat_subagent_partial_hint),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                style = RuntimeTheme.typography.labelMedium,
+                                color = RuntimeTheme.colorScheme.onErrorContainer,
                             )
                             Spacer(Modifier.height(4.dp))
                         }
@@ -429,7 +424,7 @@ internal fun SubagentResultSheet(
                                 stringResource(
                                     if (branch.isBusy) R.string.chat_subagent_pending else R.string.chat_subagent_no_result,
                                 ),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -437,21 +432,21 @@ internal fun SubagentResultSheet(
 
                 item {
                     RuntimeCard(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
                         onClick = { processExpanded = !processExpanded },
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            RuntimeIcon(RuntimeIconName.Logs, Modifier.size(17.dp), MaterialTheme.colorScheme.primary)
+                            RuntimeIcon(RuntimeIconName.Logs, Modifier.size(17.dp), RuntimeTheme.colorScheme.primary)
                             Text(
                                 stringResource(R.string.chat_subagent_process, branch.depth, branch.toolCallCount),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
+                                style = RuntimeTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Medium,
                                 modifier = Modifier.weight(1f),
                             )
                             RuntimeIcon(
                                 RuntimeIconName.ChevronDown,
                                 Modifier.size(18.dp).rotate(if (processExpanded) 180f else 0f),
-                                MaterialTheme.colorScheme.onSurfaceVariant,
+                                RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -463,7 +458,7 @@ internal fun SubagentResultSheet(
                     ) { message ->
                         when (message) {
                             is UserMessage -> Unit
-                            is AssistantText -> RuntimeCard(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+                            is AssistantText -> RuntimeCard(containerColor = RuntimeTheme.colorScheme.surfaceContainerLow) {
                                 MarkdownText(message.text, Modifier.fillMaxWidth())
                             }
                             is ToolCall -> ToolCard(
@@ -484,7 +479,7 @@ internal fun SubagentResultSheet(
             }
 
             item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                     TextButton(onClick = onRefresh) { Text(stringResource(R.string.chat_subagent_refresh)) }
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_close)) }
                 }
@@ -500,21 +495,6 @@ private fun subagentTaskDetails(prompt: String): String {
     return details.ifBlank { prompt.trim() }
 }
 
-@Composable
-private fun MiniBadge(text: String, color: Color) {
-    Surface(color = color.copy(alpha = 0.12f), shape = RoundedCornerShape(6.dp)) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            color = color,
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun RuntimeTimelineSheet(
     events: List<HarnessEvent>,
@@ -545,13 +525,13 @@ internal fun RuntimeTimelineSheet(
                 Column {
                     Text(
                         stringResource(R.string.chat_runtime_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
+                        style = RuntimeTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Medium,
                     )
                     Text(
                         stringResource(R.string.chat_runtime_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
                     )
                 }
@@ -562,23 +542,23 @@ internal fun RuntimeTimelineSheet(
                 CollapsibleRuntimeSectionCard(
                     title = stringResource(R.string.chat_memory_section, memories.size),
                     icon = RuntimeIconName.Brain,
-                    tint = MaterialTheme.colorScheme.secondary,
+                    tint = RuntimeTheme.colorScheme.secondary,
                     expanded = memoriesExpanded,
                     onToggle = { memoriesExpanded = !memoriesExpanded },
                 ) {
                     if (memories.isEmpty()) {
                         Text(
                             text = stringResource(R.string.chat_memory_empty),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 4.dp),
                         )
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             memories.forEach { memory ->
                                 Surface(
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
-                                    shape = RoundedCornerShape(8.dp),
+                                    color = RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+                                    shape = RuntimeTheme.shapes.chip,
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Row(
@@ -589,13 +569,13 @@ internal fun RuntimeTimelineSheet(
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = memory.key,
-                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                                color = MaterialTheme.colorScheme.primary,
+                                                style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                                color = RuntimeTheme.colorScheme.primary,
                                             )
                                             Text(
                                                 text = limitDiagnosticText(memory.value),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurface,
+                                                style = RuntimeTheme.typography.bodySmall,
+                                                color = RuntimeTheme.colorScheme.onSurface,
                                                 maxLines = DIAGNOSTIC_PREVIEW_LINES,
                                                 overflow = TextOverflow.Ellipsis,
                                             )
@@ -604,7 +584,7 @@ internal fun RuntimeTimelineSheet(
                                             onClick = { onDeleteMemory(memory.id) },
                                             modifier = Modifier.size(24.dp),
                                         ) {
-                                            RuntimeIcon(RuntimeIconName.Trash, Modifier.size(14.dp), MaterialTheme.colorScheme.error)
+                                            RuntimeIcon(RuntimeIconName.Trash, Modifier.size(14.dp), RuntimeTheme.colorScheme.error)
                                         }
                                     }
                                 }
@@ -619,23 +599,23 @@ internal fun RuntimeTimelineSheet(
                 CollapsibleRuntimeSectionCard(
                     title = stringResource(R.string.chat_scratchpad_section, scratchpads.size),
                     icon = RuntimeIconName.File,
-                    tint = MaterialTheme.colorScheme.tertiary,
+                    tint = RuntimeTheme.colorScheme.tertiary,
                     expanded = scratchpadsExpanded,
                     onToggle = { scratchpadsExpanded = !scratchpadsExpanded },
                 ) {
                     if (scratchpads.isEmpty()) {
                         Text(
                             text = stringResource(R.string.chat_scratchpad_empty),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 4.dp),
                         )
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             scratchpads.forEach { pad ->
                                 Surface(
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
-                                    shape = RoundedCornerShape(8.dp),
+                                    color = RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+                                    shape = RuntimeTheme.shapes.chip,
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Row(
@@ -646,13 +626,13 @@ internal fun RuntimeTimelineSheet(
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = pad.key.ifBlank { "草稿" },
-                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                                color = MaterialTheme.colorScheme.tertiary,
+                                                style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                                color = RuntimeTheme.colorScheme.tertiary,
                                             )
                                             Text(
                                                 text = limitDiagnosticText(pad.value),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurface,
+                                                style = RuntimeTheme.typography.bodySmall,
+                                                color = RuntimeTheme.colorScheme.onSurface,
                                                 maxLines = DIAGNOSTIC_PREVIEW_LINES,
                                                 overflow = TextOverflow.Ellipsis,
                                             )
@@ -661,7 +641,7 @@ internal fun RuntimeTimelineSheet(
                                             onClick = { onDeleteScratchpad(pad.key) },
                                             modifier = Modifier.size(24.dp),
                                         ) {
-                                            RuntimeIcon(RuntimeIconName.Trash, Modifier.size(14.dp), MaterialTheme.colorScheme.error)
+                                            RuntimeIcon(RuntimeIconName.Trash, Modifier.size(14.dp), RuntimeTheme.colorScheme.error)
                                         }
                                     }
                                 }
@@ -676,7 +656,7 @@ internal fun RuntimeTimelineSheet(
                     RuntimeCard {
                         Text(
                             stringResource(R.string.chat_no_events),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -693,19 +673,19 @@ internal fun RuntimeTimelineSheet(
                             .padding(bottom = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        StatPill(RuntimeIconName.Brain, roundCount.toString(), MaterialTheme.colorScheme.primary, Modifier.weight(1f))
-                        StatPill(RuntimeIconName.Wrench, toolCount.toString(), MaterialTheme.colorScheme.tertiary, Modifier.weight(1f))
+                        StatPill(RuntimeIconName.Brain, roundCount.toString(), RuntimeTheme.colorScheme.primary, Modifier.weight(1f))
+                        StatPill(RuntimeIconName.Wrench, toolCount.toString(), RuntimeTheme.colorScheme.tertiary, Modifier.weight(1f))
                         StatPill(RuntimeIconName.Shield, approvalCount.toString(), semanticColors().warning, Modifier.weight(1f))
-                        StatPill(RuntimeIconName.Refresh, recoveryCount.toString(), MaterialTheme.colorScheme.secondary, Modifier.weight(1f))
+                        StatPill(RuntimeIconName.Refresh, recoveryCount.toString(), RuntimeTheme.colorScheme.secondary, Modifier.weight(1f))
                     }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 }
 
                 // 最新一轮在最上，组内按发生顺序链式展示；轮间以分隔线区隔。
                 items(rounds.asReversed()) { round ->
                     RoundSection(round, onNavigateToMessage)
                     HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                         modifier = Modifier.padding(vertical = 4.dp),
                     )
                 }
@@ -713,9 +693,9 @@ internal fun RuntimeTimelineSheet(
                     item {
                         Text(
                             stringResource(R.string.chat_tl_lifecycle),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 4.dp),
                         )
                     }
@@ -737,9 +717,9 @@ private fun CollapsibleRuntimeSectionCard(
     content: @Composable () -> Unit,
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(10.dp),
-        border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.small,
+        border = BorderStroke(0.6.dp, RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(
@@ -762,14 +742,14 @@ private fun CollapsibleRuntimeSectionCard(
                     RuntimeIcon(icon, Modifier.size(16.dp), tint)
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.titleSmall,
+                        color = RuntimeTheme.colorScheme.onSurface,
                     )
                 }
                 RuntimeIcon(
                     name = if (expanded) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown,
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -928,18 +908,18 @@ private fun RoundSection(
         ) {
             Text(
                 stringResource(R.string.chat_tl_round, if (group.displayIndex > 0) group.displayIndex else (group.roundNumber + 1)),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = RuntimeTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
             )
             group.modelId?.takeIf { it.isNotBlank() }?.let {
-                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(it, style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.weight(1f))
             if (totalIn > 0 || totalOut > 0) {
                 Text(
                     "↑$totalIn ↓$totalOut",
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -949,13 +929,13 @@ private fun RoundSection(
                 .substringBefore("\n\n[Attachment:")
                 .trim()
             Surface(
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                color = RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                shape = RuntimeTheme.shapes.chip,
+                border = BorderStroke(0.6.dp, RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 6.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RuntimeTheme.shapes.chip)
                     .clickable(enabled = onNavigateToMessage != null) {
                         onNavigateToMessage?.invoke(userMsg.id)
                     },
@@ -968,12 +948,12 @@ private fun RoundSection(
                     RuntimeIcon(
                         RuntimeIconName.Prompt,
                         Modifier.size(15.dp),
-                        MaterialTheme.colorScheme.primary,
+                        RuntimeTheme.colorScheme.primary,
                     )
                     Text(
                         text = cleanPrompt.ifBlank { stringResource(R.string.chat_user_request_clipboard) },
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
@@ -985,13 +965,13 @@ private fun RoundSection(
                         ) {
                             Text(
                                 stringResource(R.string.chat_navigate_to_message),
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.primary,
+                                style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                color = RuntimeTheme.colorScheme.primary,
                             )
                             RuntimeIcon(
                                 RuntimeIconName.ChevronRight,
                                 Modifier.size(13.dp),
-                                MaterialTheme.colorScheme.primary,
+                                RuntimeTheme.colorScheme.primary,
                             )
                         }
                     }
@@ -1021,9 +1001,9 @@ private fun RoundEntryRow(entry: TimelineEntry, isLast: Boolean) {
                 else -> RuntimeIconName.Alert
             }
             val color = when {
-                settled == null -> MaterialTheme.colorScheme.tertiary
+                settled == null -> RuntimeTheme.colorScheme.tertiary
                 settled.success -> semanticColors().success
-                else -> MaterialTheme.colorScheme.error
+                else -> RuntimeTheme.colorScheme.error
             }
             Triple(icon, color, entry.name)
         }
@@ -1060,23 +1040,23 @@ private fun RoundEntryRow(entry: TimelineEntry, isLast: Boolean) {
                     RuntimeIcon(icon, Modifier.size(15.dp), color)
                 }
                 if (!isLast) {
-                    Box(Modifier.width(1.dp).height(22.dp).background(MaterialTheme.colorScheme.outlineVariant))
+                    Box(Modifier.width(1.dp).height(22.dp).background(RuntimeTheme.colorScheme.outlineVariant))
                 }
             }
             Column(Modifier.weight(1f).padding(top = 3.dp, bottom = if (isLast) 4.dp else 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        style = RuntimeTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
                     Text(
                         formatEventTime(entry.timestamp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         fontFamily = FontFamily.Monospace,
                         maxLines = 1,
                     )
@@ -1084,8 +1064,8 @@ private fun RoundEntryRow(entry: TimelineEntry, isLast: Boolean) {
                 detail?.let {
                     Text(
                         it,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1095,7 +1075,7 @@ private fun RoundEntryRow(entry: TimelineEntry, isLast: Boolean) {
                 RuntimeIcon(
                     if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
                     Modifier.size(14.dp).padding(top = 6.dp),
-                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -1157,9 +1137,9 @@ private fun PayloadBox(label: String, text: String) {
         ) {
             Text(
                 label,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             RuntimeIconButton(
                 onClick = {
@@ -1169,13 +1149,13 @@ private fun PayloadBox(label: String, text: String) {
                 },
                 modifier = Modifier.size(20.dp),
             ) {
-                RuntimeIcon(RuntimeIconName.Copy, Modifier.size(12.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                RuntimeIcon(RuntimeIconName.Copy, Modifier.size(12.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(8.dp)) {
+        Surface(color = RuntimeTheme.colorScheme.surfaceContainerLow, shape = RuntimeTheme.shapes.chip) {
             Text(
                 text = limitDiagnosticText(text),
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
@@ -1189,7 +1169,7 @@ private fun StatPill(icon: RuntimeIconName, count: String, color: Color, modifie
     Surface(
         modifier = modifier,
         color = color.copy(alpha = 0.10f),
-        shape = RoundedCornerShape(10.dp),
+        shape = RuntimeTheme.shapes.small,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
@@ -1200,7 +1180,7 @@ private fun StatPill(icon: RuntimeIconName, count: String, color: Color, modifie
             Spacer(Modifier.width(5.dp))
             Text(
                 count,
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                 color = color,
                 maxLines = 1,
             )
@@ -1216,30 +1196,30 @@ private fun RuntimeEventRow(event: HarnessEvent) {
             Box(Modifier.size(30.dp).background(visual.color.copy(alpha = 0.13f), CircleShape), contentAlignment = Alignment.Center) {
                 RuntimeIcon(visual.icon, Modifier.size(16.dp), visual.color)
             }
-            Box(Modifier.width(1.dp).height(34.dp).background(MaterialTheme.colorScheme.outlineVariant))
+            Box(Modifier.width(1.dp).height(34.dp).background(RuntimeTheme.colorScheme.outlineVariant))
         }
         Column(Modifier.weight(1f).padding(top = 2.dp, bottom = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     visual.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
                     formatEventTime(event.timestamp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     fontFamily = FontFamily.Monospace,
                     maxLines = 1,
                 )
             }
             Text(
                 visual.detail,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -1252,13 +1232,13 @@ private data class EventVisual(val icon: RuntimeIconName, val color: Color, val 
 @Composable
 private fun eventVisual(event: HarnessEvent): EventVisual = when (event) {
     is HarnessEvent.OperationStarted -> EventVisual(
-        RuntimeIconName.Play, MaterialTheme.colorScheme.primary,
+        RuntimeIconName.Play, RuntimeTheme.colorScheme.primary,
         stringResource(R.string.chat_event_operation_started),
         stringResource(R.string.chat_operation_lane, event.laneName),
     )
     is HarnessEvent.OperationFinished -> EventVisual(
         if (event.outcome == "completed") RuntimeIconName.Check else RuntimeIconName.Stop,
-        if (event.outcome == "completed") semanticColors().success else MaterialTheme.colorScheme.error,
+        if (event.outcome == "completed") semanticColors().success else RuntimeTheme.colorScheme.error,
         if (event.outcome == "completed") stringResource(R.string.chat_event_operation_completed) else stringResource(R.string.chat_event_operation_ended),
         event.detail ?: event.outcome,
     )
@@ -1276,13 +1256,13 @@ private fun eventVisual(event: HarnessEvent): EventVisual = when (event) {
         stringResource(R.string.chat_token_usage, event.inputTokens, event.outputTokens),
     )
     is HarnessEvent.ToolCallStarted -> EventVisual(
-        RuntimeIconName.Wrench, MaterialTheme.colorScheme.tertiary,
+        RuntimeIconName.Wrench, RuntimeTheme.colorScheme.tertiary,
         stringResource(R.string.chat_event_tool_started, event.toolName),
         stringResource(R.string.chat_event_tool_executing),
     )
     is HarnessEvent.ToolCallSettled -> EventVisual(
         if (event.success) RuntimeIconName.Check else RuntimeIconName.Alert,
-        if (event.success) semanticColors().success else MaterialTheme.colorScheme.error,
+        if (event.success) semanticColors().success else RuntimeTheme.colorScheme.error,
         if (event.success) stringResource(R.string.chat_event_tool_completed, event.toolName)
         else stringResource(R.string.chat_event_tool_failed, event.toolName),
         event.durationMs?.let { stringResource(R.string.chat_event_duration, formatPanelDuration(it)) }
@@ -1294,7 +1274,7 @@ private fun eventVisual(event: HarnessEvent): EventVisual = when (event) {
         "${event.toolName} · ${event.riskLevel}",
     )
     is HarnessEvent.RecoveryApplied -> EventVisual(
-        RuntimeIconName.Refresh, MaterialTheme.colorScheme.secondary,
+        RuntimeIconName.Refresh, RuntimeTheme.colorScheme.secondary,
         stringResource(R.string.chat_event_recovery),
         event.detail ?: event.outcome,
     )
@@ -1312,8 +1292,8 @@ private fun eventVisual(event: HarnessEvent): EventVisual = when (event) {
         },
         when (event.status) {
             "COMPLETED" -> semanticColors().success
-            "FAILED" -> MaterialTheme.colorScheme.error
-            "RUNNING" -> MaterialTheme.colorScheme.primary
+            "FAILED" -> RuntimeTheme.colorScheme.error
+            "RUNNING" -> RuntimeTheme.colorScheme.primary
             else -> semanticColors().agent
         },
         "工序 ${event.stepId} · ${event.title}",
@@ -1335,11 +1315,11 @@ internal fun CreateBranchDialog(messageId: String, onDismiss: () -> Unit, onCrea
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(stringResource(R.string.chat_create_branch_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.chat_create_branch_description), style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 RuntimeFilledTextField(
                     value = name,
                     onValueChange = { name = it.take(48) },
-                    label = { Text(stringResource(R.string.chat_branch_name)) },
+                    labelText = stringResource(R.string.chat_branch_name),
                     placeholder = { Text(stringResource(R.string.chat_branch_name_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),

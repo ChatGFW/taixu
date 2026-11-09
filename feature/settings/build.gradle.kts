@@ -10,6 +10,7 @@ android {
 tasks.withType<Test>().configureEach { forkEvery = 1 }
 
 dependencies {
+    implementation(libs.miuix.preference)
     implementation(project(":plugin:ui"))
     implementation(project(":feature:theme"))
     implementation(project(":core:datastore"))
@@ -28,4 +29,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.bundles.test.robolectric)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

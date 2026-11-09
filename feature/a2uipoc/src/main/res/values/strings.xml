@@ -10,4 +10,5 @@
     <string name="fa2ui_audio_failed">音频无法播放</string>
     <string name="fa2ui_play">播放</string>
     <string name="fa2ui_pause">暂停</string>
+    <string name="fa2ui_render_failed">界面加载失败</string>
 </resources>

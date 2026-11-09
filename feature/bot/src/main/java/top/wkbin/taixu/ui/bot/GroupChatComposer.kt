@@ -16,11 +16,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +29,7 @@ import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.GroupAttachment
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeFilledIconButton
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
@@ -72,7 +70,7 @@ internal fun GroupChatComposer(
                         RuntimeFilterChip(
                             selected = false,
                             onClick = { onMention(bot.name) },
-                            label = { Text("@${bot.name}", style = MaterialTheme.typography.labelMedium,
+                            label = { Text("@${bot.name}", style = RuntimeTheme.typography.labelMedium,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             leadingIcon = { BotAvatar(bot, 18.dp) },
                         )
@@ -91,7 +89,7 @@ internal fun GroupChatComposer(
                             label = {
                                 Text(
                                     text = attachment.name,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = RuntimeTheme.typography.labelMedium,
                                     maxLines = 1,
                                 )
                             },
@@ -105,53 +103,63 @@ internal fun GroupChatComposer(
                     }
                 }
             }
-            RuntimeCard(containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                borderColor = MaterialTheme.colorScheme.outlineVariant, shape = RoundedCornerShape(28.dp),
+            RuntimeCard(containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+                shape = RuntimeTheme.shapes.large,
                 contentPadding = PaddingValues(12.dp)) {
                 BasicTextField(value = value, onValueChange = onValueChange, maxLines = 5,
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    textStyle = RuntimeTheme.typography.bodyLarge.copy(color = RuntimeTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(RuntimeTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp, max = 160.dp).padding(horizontal = 8.dp, vertical = 6.dp),
                     decorationBox = { field ->
                         Box {
                             if (value.text.isEmpty()) Text(stringResource(R.string.fbot_input_hint),
-                                style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                style = RuntimeTheme.typography.bodyLarge, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                             field()
                         }
                     })
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    RuntimeIconButton(onClick = onAttach, contentDescription = stringResource(R.string.fbot_attach)) {
-                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(22.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                    RuntimeIconButton(
+                        onClick = onAttach,
+                        modifier = Modifier.size(40.dp),
+                        contentDescription = stringResource(R.string.fbot_attach),
+                    ) {
+                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
                     }
                     RuntimeTextButton(onClick = {
                         val start = value.selection.min
                         onValueChange(TextFieldValue(value.text.replaceRange(start, value.selection.max, "@"), TextRange(start + 1)))
                     }, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(40.dp),
-                        enabled = members.isNotEmpty()) { Text("@", style = MaterialTheme.typography.titleLarge) }
+                        enabled = members.isNotEmpty()) { Text("@", style = RuntimeTheme.typography.bodyLarge) }
                     Text(stringResource(if (busy) R.string.fbot_process_composer_busy else R.string.fbot_process_composer_members, members.size),
-                        Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Modifier.weight(1f), style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val hasContent = value.text.isNotBlank() || attachments.isNotEmpty()
                     val canSend = hasContent && !sending && !stopping
                     val showStop = busy && !hasContent
                     val buttonEnabled = if (showStop) !stopping else canSend
                     val buttonColor = when {
-                        showStop -> MaterialTheme.colorScheme.error
-                        sending || canSend -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.surfaceContainerHigh
+                        showStop -> RuntimeTheme.colorScheme.error
+                        sending || canSend -> RuntimeTheme.colorScheme.primary
+                        else -> RuntimeTheme.colorScheme.surfaceContainerHigh
                     }
-                    Surface(color = buttonColor, shape = CircleShape, modifier = Modifier.size(44.dp)) {
-                        RuntimeIconButton(onClick = if (showStop) onStop else onSend, enabled = buttonEnabled,
-                            modifier = Modifier.fillMaxSize(),
-                            contentDescription = stringResource(if (showStop) R.string.fbot_stop else R.string.fbot_send)) {
-                            when {
-                                stopping || sending -> RuntimeCircularProgressIndicator(Modifier.size(18.dp),
-                                    color = if (stopping) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary)
-                                showStop -> RuntimeIcon(RuntimeIconName.Stop, Modifier.size(20.dp), MaterialTheme.colorScheme.onError)
-                                else -> RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(20.dp),
-                                    if (canSend) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+                    val contentColor = when {
+                        showStop -> RuntimeTheme.colorScheme.onError
+                        sending || canSend -> RuntimeTheme.colorScheme.onPrimary
+                        else -> RuntimeTheme.colorScheme.onSurfaceVariant
+                    }
+                    RuntimeFilledIconButton(
+                        onClick = if (showStop) onStop else onSend,
+                        enabled = buttonEnabled,
+                        modifier = Modifier.size(40.dp),
+                        containerColor = buttonColor,
+                        contentColor = contentColor,
+                        contentDescription = stringResource(if (showStop) R.string.fbot_stop else R.string.fbot_send),
+                    ) {
+                        when {
+                            stopping || sending -> RuntimeCircularProgressIndicator(Modifier.size(18.dp), color = contentColor)
+                            showStop -> RuntimeIcon(RuntimeIconName.Stop, Modifier.size(20.dp))
+                            else -> RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(20.dp))
                         }
                     }
                 }

@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.workspace
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -21,12 +24,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.material3.minimumInteractiveComponentSize
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -34,28 +36,23 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.workspace.R
@@ -65,7 +62,6 @@ import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Constraints
@@ -89,7 +85,7 @@ private val EditorWarning = Color(0xFFFFB5A0)
 private const val MIN_EDITOR_FONT_SIZE_SP = 10f
 private const val MAX_EDITOR_FONT_SIZE_SP = 28f
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CodeEditorScreen(
     projectName: String,
@@ -188,7 +184,7 @@ fun CodeEditorScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RuntimeTheme.colorScheme.background,
         topBar = {
             RuntimeTopBar(
                 title = fileName,
@@ -196,14 +192,14 @@ fun CodeEditorScreen(
                 statusText = "/workspace/$projectName/$relativePath",
                 actions = {
                     IconButton(onClick = copyAll, contentDescription = stringResource(R.string.workspace_cd_copy)) {
-                        RuntimeIcon(RuntimeIconName.Copy, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        RuntimeIcon(RuntimeIconName.Copy, Modifier.size(19.dp), tint = RuntimeTheme.colorScheme.onSurfaceVariant)
                     }
                     if (isDirty) {
                         IconButton(
                             onClick = { showDiscardDialog = true },
                             contentDescription = stringResource(R.string.workspace_cd_discard),
                         ) {
-                            RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.error)
+                            RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(19.dp), tint = RuntimeTheme.colorScheme.error)
                         }
                     }
                     IconButton(
@@ -211,8 +207,8 @@ fun CodeEditorScreen(
                         enabled = isDirty && !isSaving,
                         contentDescription = stringResource(R.string.workspace_cd_save),
                     ) {
-                        if (isSaving) CircularProgressIndicator(Modifier.size(18.dp), color = MaterialTheme.colorScheme.primary, strokeWidth = 2.dp)
-                        else RuntimeIcon(RuntimeIconName.Save, Modifier.size(20.dp), tint = if (isDirty) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                        if (isSaving) CircularProgressIndicator(Modifier.size(18.dp), color = RuntimeTheme.colorScheme.primary, strokeWidth = 2.dp)
+                        else RuntimeIcon(RuntimeIconName.Save, Modifier.size(20.dp), tint = if (isDirty) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                     }
                 },
             )
@@ -392,7 +388,7 @@ fun CodeEditorScreen(
                         onBack()
                     },
                     enabled = !isSaving,
-                ) { Text(stringResource(R.string.workspace_discard_changes), color = MaterialTheme.colorScheme.error) }
+                ) { Text(stringResource(R.string.workspace_discard_changes), color = RuntimeTheme.colorScheme.error) }
             },
         )
     }
@@ -441,21 +437,21 @@ private fun EditorStatusBar(
             // 语言类型
             Text(
                 text = if (extension.isNotBlank()) extension.uppercase() else "PLAIN TEXT",
-                style = MaterialTheme.typography.labelSmall,
+                style = RuntimeTheme.typography.labelSmall,
                 color = EditorAccent,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
             )
 
             Text(
                 text = "•",
                 color = EditorGutterText,
-                style = MaterialTheme.typography.labelSmall,
+                style = RuntimeTheme.typography.labelSmall,
             )
 
             // 行数与字数
             Text(
                 text = stringResource(R.string.workspace_editor_stats, lineCount, charCount),
-                style = MaterialTheme.typography.labelSmall,
+                style = RuntimeTheme.typography.labelSmall,
                 color = EditorGutterText,
                 fontFamily = FontFamily.Monospace,
             )
@@ -464,7 +460,7 @@ private fun EditorStatusBar(
 
             // 自动换行切换
             Surface(
-                shape = RoundedCornerShape(4.dp),
+                shape = RuntimeTheme.shapes.tiny,
                 color = if (wordWrap) EditorAccent.copy(alpha = 0.2f) else Color.Transparent,
                 modifier = Modifier
                     .minimumInteractiveComponentSize()
@@ -472,7 +468,7 @@ private fun EditorStatusBar(
             ) {
                 Text(
                     text = stringResource(if (wordWrap) R.string.workspace_word_wrap_on else R.string.workspace_word_wrap_off),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = RuntimeTheme.typography.labelSmall,
                     color = if (wordWrap) EditorAccent else EditorGutterText,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 )
@@ -481,7 +477,7 @@ private fun EditorStatusBar(
             // 保存状态
             Text(
                 text = stringResource(if (isDirty) R.string.workspace_unsaved else R.string.workspace_saved),
-                style = MaterialTheme.typography.labelSmall,
+                style = RuntimeTheme.typography.labelSmall,
                 color = if (isDirty) EditorWarning else EditorAccent,
             )
         }

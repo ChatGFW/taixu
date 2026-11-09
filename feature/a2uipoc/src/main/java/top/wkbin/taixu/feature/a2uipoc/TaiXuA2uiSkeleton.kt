@@ -1,5 +1,8 @@
 package top.wkbin.taixu.feature.a2uipoc
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.InfiniteRepeatableSpec
 import androidx.compose.animation.core.LinearEasing
@@ -9,19 +12,17 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -119,7 +120,7 @@ internal fun TaiXuA2uiSkeletonGroup(content: @Composable (Modifier) -> Unit) {
 internal fun TaiXuA2uiSkeleton(
     modifier: Modifier = Modifier,
     index: Int = 0,
-    shape: Shape = MaterialTheme.shapes.medium,
+    shape: Shape = RuntimeTheme.shapes.medium,
 ) {
     val providedGroup = LocalTaiXuA2uiSkeletonGroup.current
     val ownGroup = remember { TaiXuA2uiSkeletonGroupState() }
@@ -134,8 +135,8 @@ internal fun TaiXuA2uiSkeleton(
     }
 
     val coordinates = remember { mutableStateOf<LayoutCoordinates?>(null) }
-    val isLight = MaterialTheme.colorScheme.surface.luminance() > 0.5f
-    val baseColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    val isLight = RuntimeTheme.colorScheme.surface.luminance() > 0.5f
+    val baseColor = RuntimeTheme.colorScheme.surfaceContainerHighest
     val highlightColor = if (isLight) {
         lerp(baseColor, Color.White, 0.55f)
     } else {

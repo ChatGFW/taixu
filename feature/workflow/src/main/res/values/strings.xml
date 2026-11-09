@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workflow_sentinel_title">晨报哨兵</string>
+    <string name="workflow_sentinel_subtitle">每天定时只读巡检工作区，AI 汇总晨间简报</string>
+    <string name="workflow_sentinel_schedule">每天 %1$s 自动巡检</string>
+    <string name="workflow_sentinel_next_run">下次巡检：%1$s</string>
+    <string name="workflow_sentinel_time_edit">改时间</string>
+    <string name="workflow_sentinel_dialog_title">巡检时间</string>
+    <string name="workflow_sentinel_hour_label">时 (0–23)</string>
+    <string name="workflow_sentinel_minute_label">分 (0–59)</string>
+    <string name="workflow_sentinel_confirm">保存</string>
+    <string name="workflow_sentinel_cancel">取消</string>
+</resources>

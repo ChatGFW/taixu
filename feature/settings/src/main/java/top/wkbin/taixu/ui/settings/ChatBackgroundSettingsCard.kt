@@ -4,11 +4,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,68 +37,53 @@ internal fun ChatBackgroundSettingsCard(
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) viewModel?.chooseImage(uri)
     }
+    PersonalizationSection(stringResource(R.string.settings_chat_background)) {
     RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(stringResource(R.string.settings_chat_background), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.settings_chat_background_description),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             ChatBackgroundPreview(saved.copy(visibility = visibility, blurDp = blur))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RuntimeActionRow() {
                 RuntimeOutlinedButton(
                     onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     enabled = !busy,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 ) {
                     Text(stringResource(if (busy) R.string.settings_chat_background_loading
                         else R.string.settings_chat_background_choose), maxLines = 1)
                 }
                 RuntimeOutlinedButton(onClick = { viewModel?.removeImage() },
-                    enabled = !busy && saved.imageName != null,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+                    enabled = !busy && saved.imageName != null) {
                     Text(stringResource(R.string.settings_chat_background_remove), maxLines = 1)
                 }
             }
             if (failed) Text(stringResource(R.string.settings_chat_background_error),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.error)
             val visibilityLabel = stringResource(R.string.settings_chat_background_visibility, (visibility * 100).roundToInt())
-            Text(visibilityLabel, style = MaterialTheme.typography.titleSmall)
+            Text(visibilityLabel, style = RuntimeTheme.typography.titleSmall)
             RuntimeSlider(value = visibility, onValueChange = { visibility = it }, valueRange = 0f..1f,
                 onValueChangeFinished = { viewModel?.setVisibility(visibility) },
                 modifier = Modifier.fillMaxWidth().semantics { contentDescription = visibilityLabel })
             val blurLabel = stringResource(R.string.settings_chat_background_blur, blur.roundToInt())
-            Text(blurLabel, style = MaterialTheme.typography.titleSmall)
+            Text(blurLabel, style = RuntimeTheme.typography.titleSmall)
             RuntimeSlider(value = blur, onValueChange = { blur = it.roundToInt().toFloat() }, valueRange = 0f..24f, steps = 23,
                 onValueChangeFinished = { viewModel?.setBlur(blur) },
                 modifier = Modifier.fillMaxWidth().semantics { contentDescription = blurLabel })
-
-            val inputBlurEnabled by viewModel?.inputBlurEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column {
-                    Text("输入区毛玻璃", style = MaterialTheme.typography.titleSmall)
-                    Text("输入框背景实时模糊聊天内容", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Switch(checked = inputBlurEnabled, onCheckedChange = { viewModel?.setInputBlurEnabled(it) })
-            }
         }
+    }
     }
 }
 
 @Composable
 private fun ChatBackgroundPreview(style: ChatBackgroundStyle) {
     val label = stringResource(R.string.settings_chat_background_preview)
-    Box(Modifier.fillMaxWidth().heightIn(min = 210.dp).clip(MaterialTheme.shapes.large)
+    Box(Modifier.fillMaxWidth().heightIn(min = 210.dp).clip(RuntimeTheme.shapes.large)
         .semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
         RuntimeChatBackground(style, Modifier.matchParentSize())
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.Center) {
-            Surface(Modifier.align(Alignment.CenterHorizontally), shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.94f)) {
+            Surface(Modifier.align(Alignment.CenterHorizontally), shape = RuntimeTheme.shapes.small,
+                color = RuntimeTheme.colorScheme.tertiaryContainer.copy(alpha = 0.94f)) {
                 Text(stringResource(R.string.settings_chat_background_preview_title), Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    style = RuntimeTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.height(12.dp))
             PreviewBubble(stringResource(R.string.settings_chat_background_preview_user), true)
@@ -113,9 +96,9 @@ private fun ChatBackgroundPreview(style: ChatBackgroundStyle) {
 @Composable
 private fun ColumnScope.PreviewBubble(text: String, user: Boolean) {
     Surface(modifier = Modifier.align(if (user) Alignment.End else Alignment.Start).fillMaxWidth(if (user) 0.8f else 0.9f),
-        shape = RoundedCornerShape(16.dp),
-        color = (if (user) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh).copy(alpha = 0.94f),
-        contentColor = if (user) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface) {
-        Text(text, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        shape = RuntimeTheme.shapes.medium,
+        color = (if (user) RuntimeTheme.colorScheme.secondaryContainer else RuntimeTheme.colorScheme.surfaceContainerHigh).copy(alpha = 0.94f),
+        contentColor = if (user) RuntimeTheme.colorScheme.onSecondaryContainer else RuntimeTheme.colorScheme.onSurface) {
+        Text(text, Modifier.padding(12.dp), style = RuntimeTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }

@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -12,14 +15,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,7 +68,7 @@ internal fun GroupReasoningPanel(messageId: String, reasoning: String, streaming
                 RuntimeProcessIcon(RuntimeIconName.Brain, streaming)
                 Text(
                     stringResource(if (waiting) R.string.fbot_waiting_response else if (streaming) R.string.fbot_thinking else R.string.fbot_reasoning),
-                    style = MaterialTheme.typography.bodySmall, color = runtimeProcessColor(),
+                    style = RuntimeTheme.typography.bodySmall, color = runtimeProcessColor(),
                     maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).then(runtimeProcessPulse(streaming)),
                 )
@@ -84,8 +85,8 @@ internal fun GroupReasoningPanel(messageId: String, reasoning: String, streaming
                     Text(
                         reasoning.ifBlank { stringResource(R.string.fbot_waiting_response) },
                         modifier = Modifier.fillMaxWidth().verticalScroll(scroll).testTag("group-reasoning-scroll"),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     if (!following && scroll.maxValue > 0) {
                         RuntimeTextButton(

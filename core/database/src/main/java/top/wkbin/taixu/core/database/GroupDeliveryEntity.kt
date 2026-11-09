@@ -32,8 +32,9 @@ data class GroupDeliveryEntity(
     val sessionId: String? = null,
     val taskId: String? = null,
     val error: String? = null,
+    val claimNonce: String? = null,
 ) {
-    fun toModel() = GroupDelivery(id, sourceMessageId, groupId, botId, createdAt, status, sessionId, taskId, error)
+    fun toModel() = GroupDelivery(id, sourceMessageId, groupId, botId, createdAt, status, sessionId, taskId, error, claimNonce)
 }
 
 /** Shared by the message and assignment owners so staging is inside their existing transactions. */
@@ -96,27 +97,52 @@ interface GroupDeliveryDao {
     @Query("SELECT * FROM group_deliveries WHERE status IN ('submitting', 'admitted')")
     suspend fun interruptedGroupDeliveries(): List<GroupDeliveryEntity>
 
-    @Query("UPDATE group_deliveries SET status = 'submitting' WHERE id = :id AND status = 'pending' AND EXISTS " +
+    @Query("UPDATE group_deliveries SET status = 'submitting', claimNonce = :claimNonce WHERE id = :id AND status = 'pending' AND claimNonce IS NULL AND EXISTS " +
         "(SELECT 1 FROM group_members m WHERE m.groupId = group_deliveries.groupId AND m.botId = group_deliveries.botId)")
-    suspend fun claimGroupDelivery(id: String): Int
+    suspend fun claimGroupDelivery(id: String, claimNonce: String): Int
 
-    @Query("UPDATE group_deliveries SET sessionId = :sessionId WHERE id = :id AND status = 'submitting' AND EXISTS " +
+    @Query("UPDATE group_deliveries SET sessionId = :sessionId WHERE id = :id AND status = 'submitting' AND claimNonce = :claimNonce AND EXISTS " +
         "(SELECT 1 FROM group_members m WHERE m.groupId = group_deliveries.groupId AND m.botId = group_deliveries.botId)")
-    suspend fun prepareGroupDelivery(id: String, sessionId: String): Int
+    suspend fun prepareGroupDelivery(id: String, sessionId: String, claimNonce: String): Int
 
-    @Query("UPDATE group_deliveries SET status = 'admitted', sessionId = :sessionId, taskId = :taskId WHERE id = :id AND status = 'submitting'")
-    suspend fun admitGroupDelivery(id: String, sessionId: String, taskId: String?): Int
+    @Query("UPDATE group_deliveries SET status = 'admitted', sessionId = :sessionId, taskId = :taskId WHERE id = :id AND status = 'submitting' AND claimNonce = :claimNonce")
+    suspend fun admitGroupDelivery(id: String, sessionId: String, taskId: String?, claimNonce: String): Int
 
-    @Query("UPDATE group_deliveries SET status = :status, error = :error WHERE id = :id AND status IN ('pending', 'submitting', 'admitted')")
-    suspend fun settleGroupDelivery(id: String, status: String, error: String?): Int
+    @Query("UPDATE group_deliveries SET status = :status, error = :error WHERE id = :id AND status IN ('submitting', 'admitted') AND claimNonce = :claimNonce")
+    suspend fun settleClaimedGroupDelivery(id: String, status: String, error: String?, claimNonce: String): Int
+
+    @Query("UPDATE group_deliveries SET status = :status, error = :error WHERE id = :id AND status = 'pending'")
+    suspend fun settlePendingGroupDelivery(id: String, status: String, error: String?): Int
+
+    @Query("UPDATE group_deliveries SET status = :status, error = :error WHERE id = :id AND status IN ('submitting', 'admitted')")
+    suspend fun settleInterruptedGroupDelivery(id: String, status: String, error: String?): Int
 
     @Query("UPDATE group_messages SET isStreaming = 0, content = CASE WHEN content = '' THEN :notice ELSE content || char(10) || :notice END " +
         "WHERE id = :id AND isStreaming = 1")
     suspend fun interruptDeliveryReply(id: String, notice: String)
 
     @Transaction
-    suspend fun finishGroupDelivery(id: String, status: String, error: String?) {
-        if (settleGroupDelivery(id, status, error) != 1) return
+    suspend fun finishGroupDelivery(id: String, status: String, error: String?, claimNonce: String?) {
+        val settled = when {
+            claimNonce != null -> settleClaimedGroupDelivery(id, status, error, claimNonce)
+            else -> settlePendingGroupDelivery(id, status, error)
+        }
+        if (settled != 1) return
+        annotateTerminalDelivery(id, status, error)
+    }
+
+    @Transaction
+    suspend fun recoverGroupDeliveries() {
+        interruptedGroupDeliveries().forEach {
+            if (settleInterruptedGroupDelivery(it.id, GroupDelivery.UNKNOWN,
+                    "进程在处理群消息时退出，结果待核对；未自动重新执行") == 1) {
+                annotateTerminalDelivery(it.id, GroupDelivery.UNKNOWN,
+                    "进程在处理群消息时退出，结果待核对；未自动重新执行")
+            }
+        }
+    }
+
+    private suspend fun annotateTerminalDelivery(id: String, status: String, error: String?) {
         if (status != GroupDelivery.UNKNOWN && status != GroupDelivery.REJECTED) return
         val receipt = findGroupDelivery(id) ?: return
         val notice = "⚠️ ${error ?: "消息处理结果待核对，请检查会话记录"}"
@@ -126,13 +152,6 @@ interface GroupDeliveryDao {
             senderType = "SYSTEM", content = notice, timestamp = System.currentTimeMillis(), isStreaming = false, delegatedTaskId = null,
             seq = nextMessageSeq(receipt.groupId),
         ))
-    }
-
-    @Transaction
-    suspend fun recoverGroupDeliveries() {
-        interruptedGroupDeliveries().forEach {
-            finishGroupDelivery(it.id, GroupDelivery.UNKNOWN, "进程在处理群消息时退出，结果待核对；未自动重新执行")
-        }
     }
 
     @Query("UPDATE group_deliveries SET status = 'cancelled', error = '用户停止或成员已移出' WHERE groupId = :groupId " +

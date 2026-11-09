@@ -4,8 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.size
 import top.wkbin.taixu.ui.components.RuntimeFilterChip as FilterChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -22,7 +22,7 @@ internal fun OnboardingModelCandidates(candidateModels: List<String>, model: Str
                 selected = model == candidate, shape = androidx.compose.foundation.shape.CircleShape,
                 onClick = { onSelect(candidate) },
                 label = {
-                    Text(candidate, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(candidate, style = RuntimeTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 },
                 leadingIcon = if (model == candidate) {
                     { RuntimeIcon(RuntimeIconName.Check, Modifier.size(18.dp)) }

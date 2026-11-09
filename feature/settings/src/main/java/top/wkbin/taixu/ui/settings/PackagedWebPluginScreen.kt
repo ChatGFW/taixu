@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.settings
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource

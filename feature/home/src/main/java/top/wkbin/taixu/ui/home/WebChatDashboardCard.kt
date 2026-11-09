@@ -12,9 +12,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,9 +44,9 @@ internal fun WebChatDashboardCard(
     val directUrl = "${status.accessUrl}?token=${status.pinCode}"
 
     RuntimeCard(
-        modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge,
+        modifier = Modifier.fillMaxWidth(), shape = RuntimeTheme.shapes.extraLarge,
         // 减强调：运行态仅保留容器色强调，不再叠加主色描边
-        containerColor = if (status.isRunning) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.40f) else MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = if (status.isRunning) RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.40f) else RuntimeTheme.colorScheme.surfaceContainer,
         contentPadding = PaddingValues(if (status.isRunning) 16.dp else 12.dp),
     ) {
         Column(
@@ -65,18 +65,18 @@ internal fun WebChatDashboardCard(
                     IconTile(
                         icon = RuntimeIconName.Globe,
                         size = 36.dp,
-                        color = if (status.isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (status.isRunning) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Column {
                         Text(
                             text = stringResource(R.string.home_webchat_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = RuntimeTheme.typography.titleSmall,
+                            color = RuntimeTheme.colorScheme.onSurface,
                         )
                         if (status.isRunning) Text(
                             text = stringResource(R.string.home_webchat_running),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (status.isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = if (status.isRunning) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -88,22 +88,22 @@ internal fun WebChatDashboardCard(
             }
 
             if (status.isRunning) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
                 // 访问地址独立成行：统一 Monospace 等宽字体、颜色与大小
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = stringResource(R.string.home_webchat_url_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = status.accessUrl,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Bold,
+                        style = RuntimeTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium,
                             fontFamily = FontFamily.Monospace,
                         ),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = RuntimeTheme.colorScheme.primary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -113,17 +113,17 @@ internal fun WebChatDashboardCard(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = stringResource(R.string.home_webchat_pin_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = status.pinCode,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.ExtraBold,
+                        style = RuntimeTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Medium,
                             fontFamily = FontFamily.Monospace,
                             letterSpacing = 2.sp,
                         ),
-                        color = MaterialTheme.colorScheme.secondary,
+                        color = RuntimeTheme.colorScheme.secondary,
                     )
                 }
 
@@ -143,8 +143,8 @@ internal fun WebChatDashboardCard(
 
                 Text(
                     text = stringResource(R.string.home_webchat_hint, status.activeConnections),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

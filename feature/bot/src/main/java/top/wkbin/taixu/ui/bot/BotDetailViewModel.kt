@@ -3,8 +3,8 @@ package top.wkbin.taixu.ui.bot
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,13 +21,17 @@ import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotMemoryFile
 import top.wkbin.taixu.core.model.bot.BotScheduleDelivery
 import top.wkbin.taixu.core.model.bot.BotSchedule
+import top.wkbin.taixu.core.model.bot.ExternalAgentRuntimeToken
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.MemoryCommit
 import top.wkbin.taixu.harness.bot.BotOrchestrator
+import top.wkbin.taixu.harness.bot.ExternalAgentRuntimeService
 import top.wkbin.taixu.harness.bot.archive.BotPackageService
 import top.wkbin.taixu.harness.bot.memory.BotMemoryManager
 import top.wkbin.taixu.harness.bot.schedule.BotScheduleWakeup
 import top.wkbin.taixu.harness.bot.schedule.CronSchedule
+import top.wkbin.taixu.runtime.webchat.ExternalAgentRuntimeServer
+import top.wkbin.taixu.runtime.webchat.ExternalAgentRuntimeServerStatus
 
 data class BotDetailUiState(
     val bot: Bot? = null,
@@ -36,6 +40,8 @@ data class BotDetailUiState(
     val schedules: List<BotSchedule> = emptyList(),
     val deliveries: List<BotScheduleDelivery> = emptyList(),
     val groups: List<GroupChat> = emptyList(),
+    val runtimeTokens: List<ExternalAgentRuntimeToken> = emptyList(),
+    val issuedRuntimeToken: String? = null,
     val loading: Boolean = true,
     val busy: Boolean = false,
 )
@@ -51,12 +57,19 @@ class BotDetailViewModel(
     private val wakeup: BotScheduleWakeup? = null,
     private val models: top.wkbin.taixu.core.database.AiModelRepository,
     private val mcpServerRepository: top.wkbin.taixu.core.database.McpServerRepository? = null,
+    private val externalRuntime: ExternalAgentRuntimeService? = null,
+    private val externalRuntimeServer: ExternalAgentRuntimeServer? = null,
 ) : ViewModel() {
     val modelProfiles = models.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** 团队共享 MCP 服务清单（能力库白名单的可选项）。 */
     val mcpServers = (mcpServerRepository?.servers ?: kotlinx.coroutines.flow.flowOf())
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val externalRuntimeServerStatus: StateFlow<ExternalAgentRuntimeServerStatus> =
+        externalRuntimeServer?.status
+            ?: MutableStateFlow(ExternalAgentRuntimeServerStatus()).asStateFlow()
+
     private val _uiState = MutableStateFlow(BotDetailUiState())
     val uiState: StateFlow<BotDetailUiState> = _uiState.asStateFlow()
 
@@ -90,8 +103,66 @@ class BotDetailViewModel(
         viewModelScope.launch {
             val files = runCatching { memoryManager.listFiles(botId) }.getOrDefault(emptyList())
             val commits = runCatching { memoryManager.getCommitHistory(botId) }.getOrDefault(emptyList())
-            _uiState.update { it.copy(memoryFiles = files, commits = commits, loading = false) }
+            val tokens = runCatching { externalRuntime?.listTokens(botId).orEmpty() }.getOrDefault(emptyList())
+            _uiState.update {
+                it.copy(memoryFiles = files, commits = commits, runtimeTokens = tokens, loading = false)
+            }
         }
+    }
+
+    fun issueRuntimeToken(label: String) {
+        val bot = _uiState.value.bot ?: return
+        val service = externalRuntime ?: run {
+            emit("外部运行时服务不可用")
+            return
+        }
+        launchBusy {
+            val issued = service.issueToken(bot.id, label)
+            refreshRuntimeTokens(bot.id)
+            _uiState.update { it.copy(issuedRuntimeToken = issued.rawToken) }
+            "已签发运行时令牌，请立即复制"
+        }
+    }
+
+    fun revokeRuntimeToken(tokenId: String) {
+        val bot = _uiState.value.bot ?: return
+        val service = externalRuntime ?: return
+        launchBusy {
+            service.revokeToken(tokenId)
+            refreshRuntimeTokens(bot.id)
+            "已撤销令牌"
+        }
+    }
+
+    fun restoreLocalRuntime() {
+        val bot = _uiState.value.bot ?: return
+        val service = externalRuntime ?: return
+        launchBusy {
+            service.restoreLocalRuntime(bot.id)
+            refreshRuntimeTokens(bot.id)
+            _uiState.update { it.copy(issuedRuntimeToken = null) }
+            "已切回手机内执行"
+        }
+    }
+
+    fun toggleExternalRuntimeServer(enabled: Boolean) {
+        val server = externalRuntimeServer ?: run {
+            emit("局域网运行时服务不可用")
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok = if (enabled) server.start() else true.also { server.stop() }
+            if (enabled && !ok) emit("运行时服务启动失败")
+        }
+    }
+
+    fun clearIssuedRuntimeToken() {
+        _uiState.update { it.copy(issuedRuntimeToken = null) }
+    }
+
+    private suspend fun refreshRuntimeTokens(botId: String) {
+        val tokens = runCatching { externalRuntime?.listTokens(botId).orEmpty() }.getOrDefault(emptyList())
+        _uiState.update { it.copy(runtimeTokens = tokens) }
     }
 
     fun save(
@@ -104,6 +175,8 @@ class BotDetailViewModel(
         avatarSeed: String,
         allowModelSelection: Boolean,
         capabilityServerNames: List<String>? = null,
+        capabilityToolNames: Map<String, List<String>> = emptyMap(),
+        capabilityExpiresAt: Long? = null,
     ) {
         val bot = _uiState.value.bot ?: return
         if (name.isBlank() || role.isBlank() || persona.isBlank()) {
@@ -121,7 +194,7 @@ class BotDetailViewModel(
                 allowModelSelection = allowModelSelection,
                 isMainBot = isMainBot,
                 avatarSeed = avatarSeed,
-                capabilityServerNames = capabilityServerNames,
+                capabilityPolicy = top.wkbin.taixu.core.model.bot.BotCapabilityPolicy(capabilityServerNames, capabilityToolNames, capabilityExpiresAt),
             )
             refreshMemory(bot.id)
             "已保存"

@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.browser
+
+import androidx.compose.runtime.*
+
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -19,24 +22,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.SnackbarDuration
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -54,7 +48,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.browser.network.NetworkTimelineSheet
 import top.wkbin.taixu.ui.browser.snapshot.SnapshotSheet
-import androidx.compose.runtime.collectAsState
+import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.runtime.browser.cdp.DebugPausedState
 @Composable
 fun BrowserScreen(
@@ -76,7 +70,7 @@ fun BrowserScreen(
 
 /**
  * 可复用的浏览器内容面板，浏览区域最大化：
- *  - 顶部：极薄状态栏（共浏览开关 · 快照入口 · 标签页胶囊 · 返回对话，可横向滚动）；
+ *  - 顶部：极薄状态栏（共浏览开关 · 快照入口 · 标签页胶囊 · 固定返回入口，其余项目可横向滚动）；
  *  - 中部：WebView 占满剩余空间；
  *  - 底部：紧凑 URL 栏（后退/前进/刷新 + 小输入胶囊 + 跳转圆钮）。
  *
@@ -144,7 +138,7 @@ fun BrowserPane(
                 )
             }
             SnackbarHost(
-                hostState = snackbarHostState,
+                state = snackbarHostState,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
             state.snapshotSheet?.let { sheet ->
@@ -193,70 +187,64 @@ private fun BrowserStatusBar(
     onExit: (() -> Unit)? = null,
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.65f),
+        color = RuntimeTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.65f),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 10.dp, vertical = 3.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.Start),
-        ) {
-            // 1. 共浏览状态：AI 是否与用户共享浏览（点击切换）
-            val coTint = if (coBrowsingEnabled) Color(0xFF3F8FFF) else Color(0xFFFF8F3F)
-            BrowserStatusItem(
-                icon = if (coBrowsingEnabled) RuntimeIconName.Visibility else RuntimeIconName.VisibilityOff,
-                label = if (coBrowsingEnabled) "共浏览中" else "已暂停",
-                tint = coTint,
-                highlight = coBrowsingEnabled,
-                onClick = onCoBrowsingToggle,
-            )
-            StatusDivider()
-            // 2. 页面快照入口（Agent 视角的元素树）
-            BrowserStatusItem(
-                icon = RuntimeIconName.Search,
-                label = "快照",
-                tint = MaterialTheme.colorScheme.tertiary,
-                onClick = onShowSnapshot,
-            )
-            StatusDivider()
-            // 3. 网络时间线入口（请求流 + Hook 命中，agent 操作可视化）
-            BrowserStatusItem(
-                icon = RuntimeIconName.Network,
-                label = "网络 $networkCount",
-                tint = MaterialTheme.colorScheme.tertiary,
-                onClick = onShowNetwork,
-            )
-            StatusDivider()
-            // 4. 标签页胶囊
-            if (tabs.isEmpty()) {
-                BrowserStatusItem(
-                    icon = RuntimeIconName.Globe,
-                    label = "尚无标签页",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    onClick = {},
-                )
-            } else {
-                tabs.forEach { tab ->
-                    BrowserTabChip(
-                        tab = tab,
-                        onSelect = { onSelect(tab.tabId) },
-                        onClose = { onClose(tab.tabId) },
-                    )
-                }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            if (onExit != null) RuntimeIconButton(onClick = onExit, contentDescription = "返回对话") {
+                RuntimeIcon(RuntimeIconName.Back, Modifier.size(20.dp))
             }
-            // 末尾：返回对话（chat 分屏内嵌时显示）
-            if (onExit != null) {
-                StatusDivider()
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 10.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.Start),
+            ) {
+                // 1. 共浏览状态：AI 是否与用户共享浏览（点击切换）
+                val coTint = if (coBrowsingEnabled) semanticColors().info else semanticColors().warning
                 BrowserStatusItem(
-                    icon = RuntimeIconName.Back,
-                    label = "返回对话",
-                    tint = MaterialTheme.colorScheme.primary,
-                    highlight = true,
-                    onClick = onExit,
+                    icon = if (coBrowsingEnabled) RuntimeIconName.Visibility else RuntimeIconName.VisibilityOff,
+                    label = if (coBrowsingEnabled) "共浏览中" else "已暂停",
+                    tint = coTint,
+                    highlight = coBrowsingEnabled,
+                    onClick = onCoBrowsingToggle,
                 )
+                StatusDivider()
+                // 2. 页面快照入口（Agent 视角的元素树）
+                BrowserStatusItem(
+                    icon = RuntimeIconName.Search,
+                    label = "快照",
+                    tint = RuntimeTheme.colorScheme.tertiary,
+                    onClick = onShowSnapshot,
+                )
+                StatusDivider()
+                // 3. 网络时间线入口（请求流 + Hook 命中，agent 操作可视化）
+                BrowserStatusItem(
+                    icon = RuntimeIconName.Network,
+                    label = "网络 $networkCount",
+                    tint = RuntimeTheme.colorScheme.tertiary,
+                    onClick = onShowNetwork,
+                )
+                StatusDivider()
+                // 4. 标签页胶囊
+                if (tabs.isEmpty()) {
+                    BrowserStatusItem(
+                        icon = RuntimeIconName.Globe,
+                        label = "尚无标签页",
+                        tint = RuntimeTheme.colorScheme.onSurfaceVariant,
+                        onClick = {},
+                    )
+                } else {
+                    tabs.forEach { tab ->
+                        BrowserTabChip(
+                            tab = tab,
+                            onSelect = { onSelect(tab.tabId) },
+                            onClose = { onClose(tab.tabId) },
+                        )
+                    }
+                }
             }
         }
     }
@@ -269,10 +257,10 @@ private fun BrowserTabChip(
     onSelect: () -> Unit,
     onClose: () -> Unit,
 ) {
-    val tint = if (tab.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val tint = if (tab.active) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant
     Surface(
         onClick = onSelect,
-        shape = RoundedCornerShape(4.dp),
+        shape = RuntimeTheme.shapes.tiny,
         color = if (tab.active) tint.copy(alpha = 0.14f) else Color.Transparent,
     ) {
         Row(
@@ -283,8 +271,8 @@ private fun BrowserTabChip(
             RuntimeIcon(RuntimeIconName.Globe, Modifier.size(11.dp), tint = tint)
             Text(
                 text = tab.title.ifBlank { tab.url.ifBlank { tab.tabId } },
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                color = if (tab.active) tint else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                color = if (tab.active) tint else RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.widthIn(max = 120.dp),
@@ -294,7 +282,7 @@ private fun BrowserTabChip(
                 modifier = Modifier
                     .size(14.dp)
                     .clickable(onClick = onClose),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -306,7 +294,7 @@ private fun StatusDivider() {
         modifier = Modifier
             .padding(horizontal = 2.dp)
             .size(width = 1.dp, height = 9.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            .background(RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
     )
 }
 
@@ -325,8 +313,8 @@ private fun DebugPausedBanner(
         "${it.functionName.ifEmpty { "<anonymous>" }} @ ${it.url.substringAfterLast('/')}:${it.lineNumber + 1}"
     } ?: "无调用栈"
     Surface(
-        color = Color(0xCCB45309),
-        shape = RoundedCornerShape(10.dp),
+        color = semanticColors().warning,
+        shape = RuntimeTheme.shapes.small,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -336,38 +324,38 @@ private fun DebugPausedBanner(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            RuntimeIcon(RuntimeIconName.Alert, Modifier.size(16.dp), tint = Color.White)
+            RuntimeIcon(RuntimeIconName.Alert, Modifier.size(16.dp), tint = semanticColors().onWarning)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     "已暂停 · ${paused.reason}",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White,
+                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    color = semanticColors().onWarning,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     location,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = Color(0xE6FFFFFF),
+                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    color = semanticColors().onWarning.copy(alpha = 0.9f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
             Surface(
                 onClick = onResume,
-                shape = RoundedCornerShape(14.dp),
-                color = Color.White,
+                shape = RuntimeTheme.shapes.medium,
+                color = semanticColors().warningContainer,
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    RuntimeIcon(RuntimeIconName.Play, Modifier.size(12.dp), tint = Color(0xFFB45309))
+                    RuntimeIcon(RuntimeIconName.Play, Modifier.size(12.dp), tint = semanticColors().onWarningContainer)
                     Text(
                         "继续",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color(0xFFB45309),
+                        style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                        color = semanticColors().onWarningContainer,
                     )
                 }
             }
@@ -386,7 +374,7 @@ private fun BrowserStatusItem(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(4.dp),
+        shape = RuntimeTheme.shapes.tiny,
         color = if (highlight) tint.copy(alpha = 0.14f) else Color.Transparent,
     ) {
         Row(
@@ -401,11 +389,11 @@ private fun BrowserStatusItem(
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
+                style = RuntimeTheme.typography.labelSmall.copy(
                     fontSize = 11.sp,
-                    fontWeight = if (highlight) FontWeight.SemiBold else FontWeight.Medium,
+                    fontWeight = if (highlight) FontWeight.Medium else FontWeight.Medium,
                 ),
-                color = if (highlight) tint else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (highlight) tint else RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -430,7 +418,7 @@ private fun BrowserUrlBar(
 ) {
     var input by remember(urlInput) { mutableStateOf(urlInput) }
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.9f),
+        color = RuntimeTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.9f),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
@@ -451,9 +439,8 @@ private fun BrowserUrlBar(
             }
             // URL 输入胶囊：占满剩余宽度，右侧内嵌跳转圆钮
             Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = RuntimeTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier.weight(1f),
             ) {
                 Row(
@@ -468,12 +455,12 @@ private fun BrowserUrlBar(
                             onUrlChange(it)
                         },
                         singleLine = true,
-                        textStyle = MaterialTheme.typography.bodySmall.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
+                        textStyle = RuntimeTheme.typography.bodySmall.copy(
+                            color = RuntimeTheme.colorScheme.onSurface,
                         ),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                         keyboardActions = KeyboardActions(onGo = { onNavigate() }),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        cursorBrush = SolidColor(RuntimeTheme.colorScheme.primary),
                         modifier = Modifier.weight(1f),
                         decorationBox = { inner ->
                             Box(
@@ -483,8 +470,8 @@ private fun BrowserUrlBar(
                                 if (input.isEmpty()) {
                                     Text(
                                         "https://…",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = RuntimeTheme.typography.bodySmall,
+                                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
@@ -497,14 +484,14 @@ private fun BrowserUrlBar(
                     Surface(
                         onClick = onNavigate,
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = RuntimeTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             RuntimeIcon(
                                 RuntimeIconName.ArrowUp,
                                 Modifier.size(15.dp),
-                                tint = MaterialTheme.colorScheme.onPrimary,
+                                tint = RuntimeTheme.colorScheme.onPrimary,
                             )
                         }
                     }

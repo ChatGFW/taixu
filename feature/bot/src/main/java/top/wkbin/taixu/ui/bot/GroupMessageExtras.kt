@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -19,19 +23,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.bot.GroupAttachment
 import top.wkbin.taixu.feature.bot.R
@@ -53,7 +53,7 @@ internal fun AttachmentChips(
         attachments.forEach { attachment ->
             Surface(
                 onClick = { openAttachment(context, attachment) },
-                shape = RoundedCornerShape(8.dp),
+                shape = RuntimeTheme.shapes.chip,
                 color = tint.copy(alpha = 0.14f),
                 contentColor = tint,
             ) {
@@ -65,14 +65,14 @@ internal fun AttachmentChips(
                     RuntimeIcon(RuntimeIconName.Attach, Modifier.size(14.dp))
                     Text(
                         text = attachment.name,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = RuntimeTheme.typography.labelMedium,
                         maxLines = 1,
                         modifier = Modifier.weight(1f, fill = false),
                     )
                     if (attachment.sizeBytes > 0) {
                         Text(
                             text = formatBytes(attachment.sizeBytes),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = RuntimeTheme.typography.labelSmall,
                         )
                     }
                 }

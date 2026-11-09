@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.browser.network
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,22 +13,17 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import top.wkbin.taixu.ui.components.RuntimeTab
-import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.Text
-import androidx.compose.ui.graphics.luminance
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.theme.semanticColors
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -62,17 +60,17 @@ fun NetworkTimelineSheet(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     RuntimeTextButton(onClick = { detailId = null }) {
-                        Text("← 返回", color = MaterialTheme.colorScheme.primary)
+                        Text("← 返回")
                     }
                     Text(
                         "请求详情",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = RuntimeTheme.typography.titleMedium,
                     )
                 }
             } else {
                 Text(
                     "网络时间线",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = RuntimeTheme.typography.titleMedium,
                 )
             }
         },
@@ -86,22 +84,14 @@ fun NetworkTimelineSheet(
                 if (detailId != null) {
                     NetworkDetailBody(detail = detail)
                 } else {
-                    SecondaryTabRow(
-                        selectedTabIndex = selectedTab,
-                        containerColor = Color.Transparent,
-                        divider = {},
-                    ) {
-                        RuntimeTab(
-                            selected = selectedTab == 0,
-                            onClick = { selectedTab = 0 },
-                            text = { Text("请求 (${requests.size})", style = MaterialTheme.typography.labelMedium) },
-                        )
-                        RuntimeTab(
-                            selected = selectedTab == 1,
-                            onClick = { selectedTab = 1 },
-                            text = { Text("Hook 命中 (${hookHits.size})", style = MaterialTheme.typography.labelMedium) },
-                        )
-                    }
+                    top.yukonga.miuix.kmp.basic.TabRow(
+                tabs = listOf(
+                    "请求 (${requests.size})",
+                    "Hook 命中 (${hookHits.size})",
+                ),
+                selectedTabIndex = selectedTab,
+                onTabSelected = { selectedTab = it },
+            )
                     if (selectedTab == 0) {
                         RequestList(requests) { id ->
                             detailId = id
@@ -115,7 +105,7 @@ fun NetworkTimelineSheet(
         },
         confirmButton = {
             RuntimeTextButton(onClick = onDismiss) {
-                Text("关闭", color = MaterialTheme.colorScheme.primary)
+                Text("关闭")
             }
         },
     )
@@ -127,8 +117,8 @@ private fun RequestList(requests: List<CapturedRequest>, onClick: (String) -> Un
     if (requests.isEmpty()) {
         Text(
             "暂无捕获记录。\n导航页面后这里会显示资源请求；安装 hook 规则（browser.hook_create）可捕获 fetch/XHR 的状态码与 body。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         return
     }
@@ -143,8 +133,8 @@ private fun RequestList(requests: List<CapturedRequest>, onClick: (String) -> Un
 private fun RequestRow(req: CapturedRequest, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.chip,
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
     ) {
         Row(
@@ -154,9 +144,9 @@ private fun RequestRow(req: CapturedRequest, onClick: () -> Unit) {
         ) {
             Text(
                 req.method,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
+                style = RuntimeTheme.typography.labelSmall.copy(
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
                     fontFamily = FontFamily.Monospace,
                 ),
                 color = methodColor(req.method),
@@ -165,9 +155,9 @@ private fun RequestRow(req: CapturedRequest, onClick: () -> Unit) {
             )
             Text(
                 statusText(req),
-                style = MaterialTheme.typography.labelSmall.copy(
+                style = RuntimeTheme.typography.labelSmall.copy(
                     fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Medium,
                     fontFamily = FontFamily.Monospace,
                 ),
                 color = statusColor(req),
@@ -177,7 +167,7 @@ private fun RequestRow(req: CapturedRequest, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     req.url,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = RuntimeTheme.typography.bodySmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -189,8 +179,8 @@ private fun RequestRow(req: CapturedRequest, onClick: () -> Unit) {
                             req.actionTaken.takeIf { it.isNotBlank() },
                             req.source,
                         ).joinToString(" · "),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -204,18 +194,18 @@ private fun RequestRow(req: CapturedRequest, onClick: () -> Unit) {
 @Composable
 private fun NetworkDetailBody(detail: String?) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        shape = RuntimeTheme.shapes.chip,
+        color = RuntimeTheme.colorScheme.surfaceContainerHighest,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Text(
             text = detail ?: "加载中…",
-            style = MaterialTheme.typography.bodySmall.copy(
+            style = RuntimeTheme.typography.bodySmall.copy(
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp,
                 lineHeight = 15.sp,
             ),
-            color = MaterialTheme.colorScheme.onSurface,
+            color = RuntimeTheme.colorScheme.onSurface,
             modifier = Modifier
                 .padding(10.dp)
                 .heightIn(max = 460.dp)
@@ -230,16 +220,16 @@ private fun HookHitList(hits: List<HookHitRecord>) {
     if (hits.isEmpty()) {
         Text(
             "暂无 hook 命中。\n安装 hook 规则（browser.hook_create）后，函数调用、属性访问、WebSocket 与网络规则命中会实时出现在这里。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         return
     }
     LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
         items(hits.asReversed(), key = { it.hookId + it.at.toString() + it.target }) { hit ->
             Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RuntimeTheme.shapes.chip,
+                color = RuntimeTheme.colorScheme.surfaceContainerLow,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
             ) {
                 Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)) {
@@ -248,35 +238,35 @@ private fun HookHitList(hits: List<HookHitRecord>) {
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            shape = RuntimeTheme.shapes.tiny,
+                            color = RuntimeTheme.colorScheme.tertiaryContainer,
                         ) {
                             Text(
                                 hit.type.name,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                                color = RuntimeTheme.colorScheme.onTertiaryContainer,
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                                 maxLines = 1,
                             )
                         }
                         Text(
                             hit.phase,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                         )
                     }
                     Text(
                         hit.target,
-                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                        style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     if (hit.summary.isNotBlank()) {
                         Text(
                             hit.summary,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -291,13 +281,12 @@ private fun HookHitList(hits: List<HookHitRecord>) {
 
 @Composable
 private fun methodColor(method: String): Color {
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     return when (method.uppercase()) {
-        "GET" -> if (isDark) Color(0xFF64B5F6) else Color(0xFF1976D2)
-        "POST" -> if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)
-        "PUT", "PATCH" -> if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100)
-        "DELETE" -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+        "GET" -> semanticColors().info
+        "POST" -> semanticColors().success
+        "PUT", "PATCH" -> semanticColors().warning
+        "DELETE" -> RuntimeTheme.colorScheme.error
+        else -> RuntimeTheme.colorScheme.onSurfaceVariant
     }
 }
 
@@ -309,13 +298,12 @@ private fun statusText(req: CapturedRequest): String = when {
 
 @Composable
 private fun statusColor(req: CapturedRequest): Color {
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     return when {
-        req.statusCode in 200..299 -> if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)
-        req.statusCode in 300..399 -> if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100)
-        req.statusCode >= 400 -> MaterialTheme.colorScheme.error
-        req.statusCode == 0 && req.source != "native" -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+        req.statusCode in 200..299 -> semanticColors().success
+        req.statusCode in 300..399 -> semanticColors().info
+        req.statusCode >= 400 -> RuntimeTheme.colorScheme.error
+        req.statusCode == 0 && req.source != "native" -> RuntimeTheme.colorScheme.error
+        else -> RuntimeTheme.colorScheme.onSurfaceVariant
     }
 }
 

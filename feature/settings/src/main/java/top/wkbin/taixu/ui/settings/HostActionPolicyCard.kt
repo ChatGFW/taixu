@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,15 +11,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.FilterChip
+import top.wkbin.taixu.ui.miuix.FilterChipDefaults
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -56,31 +57,31 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
     ) {
         Text(
             "主机动作策略（CEL-lite）",
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.primary,
+            style = RuntimeTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+            color = RuntimeTheme.colorScheme.primary,
         )
         Text(
             "Bot 浏览器工具在人机接管之后再评估 deny→allow；云元数据始终硬拒。保存后立即生效，无需重启。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
     }
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
                 "字段：tool.name / page.url / page.host / initiator.kind / intent；" +
                     "运算：== != && || ! contains matches。示例 deny：contains(page.host, 'evil')",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 "常用预设（填入草稿，仍需点保存）",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelMedium,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -104,29 +105,25 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
                     draft = it
                     error = null
                 },
-                label = { Text("策略 JSON") },
+                labelText = resolveLegacyString("策略 JSON"),
                 minLines = 6,
                 maxLines = 14,
-                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                textStyle = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 isError = error != null,
                 supportingText = {
                     Text(
                         error ?: "出厂默认 deny:[] + allow:[\"true\"]；allow 不得为空",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = RuntimeTheme.typography.bodySmall,
                         color = if (error != null) {
-                            MaterialTheme.colorScheme.error
+                            RuntimeTheme.colorScheme.error
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            RuntimeTheme.colorScheme.onSurfaceVariant
                         },
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
                     onClick = {
                         val result = HostActionPolicy.validateAndParse(draft)
@@ -147,7 +144,7 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
                     },
                     enabled = viewModel != null && !saving,
                 ) { Text("恢复默认") }
-                Spacer(Modifier.weight(1f))
+
                 Button(
                     onClick = {
                         val vm = viewModel ?: return@Button

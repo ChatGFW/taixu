@@ -1,6 +1,8 @@
 package top.wkbin.taixu.ui.workspace
 
-import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,29 +14,25 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.mapSaver
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -169,7 +167,7 @@ internal fun CreateProjectDialog(
                 onDismiss()
             }
         },
-        title = { Text(stringResource(R.string.workspace_new_project), fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.workspace_new_project), fontWeight = FontWeight.Medium) },
         text = {
             Column(
                 modifier = Modifier
@@ -179,12 +177,12 @@ internal fun CreateProjectDialog(
             ) {
                 when (state.step) {
                     CreateProjectStep.PROJECT_TYPE -> {
-                        Text("选择项目类型", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("先选择要创建的项目平台", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("选择项目类型", style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                        Text("先选择要创建的项目平台", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                         val projectTypes = projectTemplates.map { it.manifest.projectType }.distinct()
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             // 空项目：跳过平台与模板选择，直接输入名称创建空文件夹
-                            RuntimeCard(shape = MaterialTheme.shapes.extraLarge,
+                            RuntimeCard(shape = RuntimeTheme.shapes.extraLarge,
                                 onClick = {
                                     state.selectedProjectType = null
                                     state.selectedTemplateId = null
@@ -195,20 +193,20 @@ internal fun CreateProjectDialog(
                                     state.step = CreateProjectStep.EMPTY_DETAILS
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                containerColor = RuntimeTheme.colorScheme.surfaceContainer,
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
                                 ) {
-                                    RuntimeIcon(RuntimeIconName.Folder, Modifier.size(36.dp), MaterialTheme.colorScheme.primary)
+                                    RuntimeIcon(RuntimeIconName.Folder, Modifier.size(36.dp), RuntimeTheme.colorScheme.primary)
                                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        Text("空项目", fontWeight = FontWeight.SemiBold)
+                                        Text("空项目", fontWeight = FontWeight.Medium)
                                         Text(
                                             "只创建一个空文件夹，随时手动添加内容",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = RuntimeTheme.typography.bodySmall,
+                                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                 }
@@ -219,16 +217,16 @@ internal fun CreateProjectDialog(
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 ) {
                                     rowTypes.forEach { type ->
-                                        RuntimeCard(shape = MaterialTheme.shapes.extraLarge,
+                                        RuntimeCard(shape = RuntimeTheme.shapes.extraLarge,
                                             onClick = {
                                                 state.selectedProjectType = type
                                                 state.selectedTemplateId = null
                                             },
                                             modifier = Modifier.weight(1f),
                                             containerColor = if (state.selectedProjectType == type) {
-                                                MaterialTheme.colorScheme.primaryContainer
+                                                RuntimeTheme.colorScheme.primaryContainer
                                             } else {
-                                                MaterialTheme.colorScheme.surfaceContainer
+                                                RuntimeTheme.colorScheme.surfaceContainer
                                             },
                                         ) {
                                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
@@ -239,10 +237,10 @@ internal fun CreateProjectDialog(
                                                         TemplateProjectType.GENERAL, TemplateProjectType.TAIXU_PLUGIN -> RuntimeIconName.Code
                                                     },
                                                     Modifier.size(36.dp),
-                                                    MaterialTheme.colorScheme.primary,
+                                                    RuntimeTheme.colorScheme.primary,
                                                 )
                                                 Spacer(Modifier.height(8.dp))
-                                                Text(if (type == TemplateProjectType.TAIXU_PLUGIN) stringResource(R.string.workspace_project_taixu_plugin) else type.name.lowercase().replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold)
+                                                Text(if (type == TemplateProjectType.TAIXU_PLUGIN) stringResource(R.string.workspace_project_taixu_plugin) else type.name.lowercase().replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.Medium)
                                             }
                                         }
                                     }
@@ -255,12 +253,12 @@ internal fun CreateProjectDialog(
                     }
 
                     CreateProjectStep.EMPTY_DETAILS -> {
-                        Text("新建空项目", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("输入名称即创建一个空文件夹", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("新建空项目", style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                        Text("输入名称即创建一个空文件夹", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                         RuntimeFilledTextField(
                             value = state.projectName,
                             onValueChange = { state.projectName = it },
-                            label = { Text(stringResource(R.string.workspace_project_name)) },
+                            labelText = stringResource(R.string.workspace_project_name),
                             placeholder = { Text("my-sandbox") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -268,20 +266,20 @@ internal fun CreateProjectDialog(
                         val emptyPath = state.projectName.trim()
                         if (emptyPath.isNotBlank()) Text(
                             stringResource(R.string.workspace_sandbox_path, "/workspace", emptyPath),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = RuntimeTheme.typography.labelSmall,
                             fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = RuntimeTheme.colorScheme.primary,
                         )
                     }
 
                     CreateProjectStep.TEMPLATE -> {
-                        Text("选择模板", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("选择一个具体模板后继续", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("选择模板", style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                        Text("选择一个具体模板后继续", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                         val filteredTemplates = projectTemplates.filter { it.manifest.projectType == state.selectedProjectType }
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             filteredTemplates.groupBy { it.manifest.category }.forEach { (category, templates) ->
                                 if (filteredTemplates.map { it.manifest.category.id }.distinct().size > 1) {
-                                    Text(category.name, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                                    Text(category.name, style = RuntimeTheme.typography.labelLarge, color = RuntimeTheme.colorScheme.primary)
                                 }
                                 templates.chunked(2).forEach { rowTemplates ->
                                     Row(
@@ -290,7 +288,7 @@ internal fun CreateProjectDialog(
                                     ) {
                                         rowTemplates.forEach { template ->
                                             val selected = state.selectedTemplateId == template.manifest.id
-                                            RuntimeCard(shape = MaterialTheme.shapes.extraLarge,
+                                            RuntimeCard(shape = RuntimeTheme.shapes.extraLarge,
                                                 onClick = {
                                                     state.selectedTemplateId = template.manifest.id
                                                     state.trustTemplateScripts = false
@@ -309,12 +307,12 @@ internal fun CreateProjectDialog(
                                                         }
                                                 },
                                                 modifier = Modifier.weight(1f),
-                                                containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                                                containerColor = if (selected) RuntimeTheme.colorScheme.primaryContainer else RuntimeTheme.colorScheme.surfaceContainer,
                                             ) {
                                                 Surface(
                                                     modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-                                                    shape = RoundedCornerShape(12.dp),
-                                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                                    shape = RuntimeTheme.shapes.small,
+                                                    color = RuntimeTheme.colorScheme.surfaceContainerHighest,
                                                 ) {
                                                     Box(contentAlignment = Alignment.Center) {
                                                         val previewFile = template.previewFile
@@ -328,7 +326,7 @@ internal fun CreateProjectDialog(
                                                                     TemplateProjectType.GENERAL, TemplateProjectType.TAIXU_PLUGIN -> RuntimeIconName.Code
                                                                 },
                                                                 Modifier.size(42.dp),
-                                                                MaterialTheme.colorScheme.primary,
+                                                                RuntimeTheme.colorScheme.primary,
                                                             )
                                                         }
                                                     }
@@ -336,7 +334,7 @@ internal fun CreateProjectDialog(
                                                 Spacer(Modifier.height(8.dp))
                                                 Text(
                                                     template.manifest.name,
-                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontWeight = FontWeight.Medium,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
                                                     fontSize = 12.sp,
@@ -374,7 +372,7 @@ internal fun CreateProjectDialog(
                                     state.packageName = "com.example.${it.lowercase().filter { c -> c.isLetterOrDigit() }}"
                                 }
                             },
-                            label = { Text(stringResource(R.string.workspace_project_name)) },
+                            labelText = stringResource(R.string.workspace_project_name),
                             placeholder = { Text("MyApplication / demo-app") },
                             supportingText = projectNameError?.let { error -> { Text(error) } },
                             isError = projectNameError != null,
@@ -386,20 +384,17 @@ internal fun CreateProjectDialog(
                         if (state.selectedTemplate == ProjectTemplate.APK_REVERSE) {
                             Text(
                                 stringResource(R.string.workspace_choose_apk_source),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelMedium,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
+                            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                                 OutlinedButton(
                                     onClick = { state.showAppPicker = true },
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier,
                                 ) {
                                     RuntimeIcon(RuntimeIconName.Package, Modifier.size(16.dp))
                                     Spacer(Modifier.size(6.dp))
-                                    Text(stringResource(R.string.workspace_extract_installed), style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.workspace_extract_installed))
                                 }
                                 OutlinedButton(
                                     onClick = {
@@ -410,27 +405,27 @@ internal fun CreateProjectDialog(
                                             ),
                                         )
                                     },
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier,
                                 ) {
                                     RuntimeIcon(RuntimeIconName.Folder, Modifier.size(16.dp))
                                     Spacer(Modifier.size(6.dp))
-                                    Text(stringResource(R.string.workspace_choose_apk_file), style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.workspace_choose_apk_file))
                                 }
                             }
                             Text(
                                 stringResource(R.string.workspace_apk_source_description),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                             // 逆向工具链就绪状态：避免"建好工程却发现 jadx/apktool 缺失"
                             val reverseToolReady = "android-re" in installedComponentIds && runtimeReady
                             val statusSurfaceColor = when {
-                                reverseToolReady -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-                                runtimeReady -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
-                                else -> MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
+                                reverseToolReady -> RuntimeTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                                runtimeReady -> RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
+                                else -> RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)
                             }
                             Surface(
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RuntimeTheme.shapes.small,
                                 color = statusSurfaceColor,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
@@ -447,9 +442,9 @@ internal fun CreateProjectDialog(
                                         },
                                         Modifier.size(17.dp),
                                         tint = when {
-                                            reverseToolReady -> MaterialTheme.colorScheme.onSecondaryContainer
-                                            runtimeReady -> MaterialTheme.colorScheme.error
-                                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                            reverseToolReady -> RuntimeTheme.colorScheme.onSecondaryContainer
+                                            runtimeReady -> RuntimeTheme.colorScheme.error
+                                            else -> RuntimeTheme.colorScheme.onSurfaceVariant
                                         },
                                     )
                                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -459,11 +454,11 @@ internal fun CreateProjectDialog(
                                                 runtimeReady -> stringResource(R.string.workspace_reverse_missing)
                                                 else -> stringResource(R.string.workspace_runtime_uninitialized)
                                             },
-                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                            style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                                             color = when {
-                                                reverseToolReady -> MaterialTheme.colorScheme.onSecondaryContainer
-                                                runtimeReady -> MaterialTheme.colorScheme.onErrorContainer
-                                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                                reverseToolReady -> RuntimeTheme.colorScheme.onSecondaryContainer
+                                                runtimeReady -> RuntimeTheme.colorScheme.onErrorContainer
+                                                else -> RuntimeTheme.colorScheme.onSurfaceVariant
                                             },
                                         )
                                         Text(
@@ -472,11 +467,11 @@ internal fun CreateProjectDialog(
                                                 runtimeReady -> stringResource(R.string.workspace_reverse_component_needed)
                                                 else -> stringResource(R.string.workspace_apk_creation_available)
                                             },
-                                            style = MaterialTheme.typography.labelSmall,
+                                            style = RuntimeTheme.typography.labelSmall,
                                             color = when {
-                                                reverseToolReady -> MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f)
-                                                runtimeReady -> MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.75f)
-                                                else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                                reverseToolReady -> RuntimeTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f)
+                                                runtimeReady -> RuntimeTheme.colorScheme.onErrorContainer.copy(alpha = 0.75f)
+                                                else -> RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                                             },
                                         )
                                     }
@@ -485,15 +480,15 @@ internal fun CreateProjectDialog(
                                             onDismiss()
                                             onOpenToolCenter()
                                         }) {
-                                            Text(stringResource(R.string.workspace_install_components), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                                            Text(stringResource(R.string.workspace_install_components), fontWeight = FontWeight.Medium, color = RuntimeTheme.colorScheme.error)
                                         }
                                     }
                                 }
                             }
                             state.apkSource?.let { source ->
                                 Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                                    shape = RuntimeTheme.shapes.small,
+                                    color = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Row(
@@ -501,11 +496,11 @@ internal fun CreateProjectDialog(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                                     ) {
-                                        RuntimeIcon(RuntimeIconName.Reverse, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
+                                        RuntimeIcon(RuntimeIconName.Reverse, Modifier.size(18.dp), RuntimeTheme.colorScheme.primary)
                                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                             Text(
                                                 text = source.displayName,
-                                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                                style = RuntimeTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                             )
@@ -514,8 +509,8 @@ internal fun CreateProjectDialog(
                                                     is ApkImportSource.FromInstalledApp -> stringResource(R.string.workspace_installed_app_source)
                                                     is ApkImportSource.FromFileUri -> stringResource(R.string.workspace_apk_file_source)
                                                 },
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                style = RuntimeTheme.typography.labelSmall,
+                                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                         RuntimeIconButton(
@@ -525,7 +520,7 @@ internal fun CreateProjectDialog(
                                                 .minimumInteractiveComponentSize(),
                                             contentDescription = stringResource(R.string.workspace_cd_close),
                                         ) {
-                                            RuntimeIcon(RuntimeIconName.Close, Modifier.size(15.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                                            RuntimeIcon(RuntimeIconName.Close, Modifier.size(15.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
                                         }
                                     }
                                 }
@@ -534,7 +529,7 @@ internal fun CreateProjectDialog(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .clip(RuntimeTheme.shapes.small)
                                     .clickable { state.exportApkToDownload = !state.exportApkToDownload }
                                     .padding(vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -547,12 +542,12 @@ internal fun CreateProjectDialog(
                                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text(
                                         stringResource(R.string.workspace_export_apk),
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        style = RuntimeTheme.typography.bodyMedium,
                                     )
                                     Text(
                                         stringResource(R.string.workspace_export_apk_description),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = RuntimeTheme.typography.labelSmall,
+                                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
@@ -561,9 +556,9 @@ internal fun CreateProjectDialog(
                         val path = state.projectName.trim()
                         if (path.isNotBlank()) Text(
                             stringResource(R.string.workspace_sandbox_path, "/workspace", path),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = RuntimeTheme.typography.labelSmall,
                             fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = RuntimeTheme.colorScheme.primary,
                         )
                         if (selectedManifest != null) {
                             TemplateVariableFields(
@@ -578,8 +573,8 @@ internal fun CreateProjectDialog(
                                 selectedManifest.hooks.afterCreate.isNotBlank()
                             if (hasTemplateScripts) {
                                 Surface(
-                                    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f),
-                                    shape = RoundedCornerShape(12.dp),
+                                    color = RuntimeTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f),
+                                    shape = RuntimeTheme.shapes.small,
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Row(
@@ -591,15 +586,15 @@ internal fun CreateProjectDialog(
                                     ) {
                                         Checkbox(checked = state.trustTemplateScripts, onCheckedChange = { state.trustTemplateScripts = it })
                                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Text(stringResource(R.string.workspace_trust_scripts_title), fontWeight = FontWeight.SemiBold)
+                                            Text(stringResource(R.string.workspace_trust_scripts_title), fontWeight = FontWeight.Medium)
                                             Text(
                                                 if (runtimeReady) {
                                                     stringResource(R.string.workspace_trust_scripts_hint_runtime)
                                                 } else {
                                                     stringResource(R.string.workspace_trust_scripts_hint_not_ready)
                                                 },
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                                style = RuntimeTheme.typography.labelSmall,
+                                                color = RuntimeTheme.colorScheme.onTertiaryContainer,
                                             )
                                             TextButton(onClick = {
                                                 state.selectedTemplateId?.let(viewModel::showTemplateScripts)
@@ -666,7 +661,7 @@ internal fun CreateProjectDialog(
                 if (state.createInProgress) {
                     RuntimeCircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.workspace_creating), color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.workspace_creating))
                 } else {
                     Text(
                         if (state.step == CreateProjectStep.DETAILS || state.step == CreateProjectStep.EMPTY_DETAILS) {
@@ -674,7 +669,6 @@ internal fun CreateProjectDialog(
                         } else {
                             stringResource(R.string.workspace_action_next)
                         },
-                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             }

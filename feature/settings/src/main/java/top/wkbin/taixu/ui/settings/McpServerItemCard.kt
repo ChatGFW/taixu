@@ -1,7 +1,7 @@
 package top.wkbin.taixu.ui.settings
 
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -54,7 +54,7 @@ internal fun McpServerItemCard(
                         RuntimeIcon(
                             RuntimeIconName.Check,
                             Modifier.size(16.dp),
-                            MaterialTheme.colorScheme.onPrimaryContainer,
+                            RuntimeTheme.colorScheme.onPrimaryContainer,
                         )
                     }
                 } else null,

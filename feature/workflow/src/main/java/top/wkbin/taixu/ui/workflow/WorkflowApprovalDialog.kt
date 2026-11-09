@@ -3,9 +3,9 @@ package top.wkbin.taixu.ui.workflow
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -31,7 +31,7 @@ internal fun ApprovalDialog(request: WorkflowApprovalRequest, onDecision: (Boole
         title = { Text(request.title) },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (request.description.isNotBlank()) Text(request.description, style = MaterialTheme.typography.bodyMedium)
+                if (request.description.isNotBlank()) Text(request.description, style = RuntimeTheme.typography.bodyMedium)
                 if (request.reviewToken != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     RuntimeSwitch(checked = reviewed, onCheckedChange = { reviewed = it })
                     Text(stringResource(R.string.workflow_review_configuration))

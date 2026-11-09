@@ -78,6 +78,14 @@ class CapabilityToolRouter(
         val allowed = capabilityScope?.allowedMcpServers(sessionId)
         val summaries = mcpManager?.enabledServerSummaries().orEmpty()
             .filter { allowed == null || it.id.lowercase() in allowed || it.name.lowercase() in allowed }
+            .map { summary ->
+                val allowedTools = capabilityScope?.allowedMcpTools(sessionId, summary.id)
+                if (allowedTools == null) summary else {
+                    val cached = mcpManager?.cachedToolsOf(summary.id).orEmpty()
+                    val enabled = toolPolicy?.filterEnabled(summary.id, cached) ?: cached
+                    summary.copy(cachedToolCount = enabled.count { it.name in allowedTools })
+                }
+            }
         val hostLine = HostCapabilityDirectory.listSummaryLine()
         val pluginLines = plugins?.summaries().orEmpty()
         if (summaries.isEmpty()) {
@@ -127,10 +135,11 @@ class CapabilityToolRouter(
             return false to "MCP[$serverId] 工具发现失败或服务不可用${lastError?.let { "：$it" } ?: "（未启用或不存在）"}。" +
                 "可稍后重试 inspect，或检查该服务的设置与沙箱环境。"
         }
-        val visibleTools = toolPolicy?.filterEnabled(serverId, tools) ?: tools
+        val visibleTools = (toolPolicy?.filterEnabled(serverId, tools) ?: tools).filter {
+            capabilityScope?.allowsTool(sessionId, serverId, it.name) != false
+        }
         if (visibleTools.isEmpty()) {
-            return false to "MCP[$serverId] 的工具都已在设置中禁用；模型侧不提供任何可调用工具。" +
-                "如需使用，请用户在 MCP 服务详情中重新启用。"
+            return false to "MCP[$serverId] 没有已启用且获当前 Bot 授权的工具，请在 MCP 设置与 Bot 能力库中检查。"
         }
         val rendered = visibleTools.joinToString("\n\n") { tool ->
             buildString {
@@ -215,7 +224,7 @@ class CapabilityToolRouter(
                 )
                 return false to reason
             }
-            capabilityDenied(sessionId, serverId)?.let { reason ->
+            capabilityDenied(sessionId, serverId, tool)?.let { reason ->
                 NestedCalls.append(
                     metadata, parentToolCallId, logicalName, NestedCalls.STATUS_BLOCKED,
                     System.currentTimeMillis() - startedAt, callArgs.toString(), reason, argRedactor,
@@ -230,7 +239,9 @@ class CapabilityToolRouter(
                 )
                 return false to reason
             }
-            manager.executeCapabilityTool(serverId, tool, callArgs, workspace)
+            manager.executeCapabilityTool(serverId, tool, callArgs, workspace) { resolved ->
+                capabilityScope?.allowsTool(sessionId, resolved.serverId, resolved.name) != false
+            }
         }
 
         NestedCalls.append(
@@ -247,7 +258,10 @@ class CapabilityToolRouter(
     }
 
     /** Bot 能力白名单判定：非 null 返回值即拒绝原因。宿主与插件域不受白名单约束。 */
-    private suspend fun capabilityDenied(sessionId: String, serverId: String): String? {
+    private suspend fun capabilityDenied(sessionId: String, serverId: String, tool: String? = null): String? {
+        if (tool != null && capabilityScope?.allowsTool(sessionId, serverId, tool) == false) {
+            return "MCP[$serverId] 工具「$tool」不在当前 Bot 的有效授权内，本次调用未执行。"
+        }
         val allowed = capabilityScope?.allowedMcpServers(sessionId) ?: return null
         if (serverId.lowercase() in allowed) return null
         return "MCP[$serverId] 不在当前 Bot 的能力白名单内，本次调用未执行。" +

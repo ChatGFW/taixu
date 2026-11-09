@@ -4,8 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -22,10 +22,10 @@ internal fun WorkflowNodeDetails(run: WorkflowNodeRunState?) {
         RuntimeLinearProgressIndicator(modifier = Modifier.fillMaxWidth())
     }
     output?.let {
-        Text("耗时 ${it.durationMs / 1000.0} 秒 · 退出码 ${it.exitCode}", style = MaterialTheme.typography.labelSmall)
-        it.error?.let { error -> SelectionContainer { Text(error, color = MaterialTheme.colorScheme.error) } }
+        Text("耗时 ${it.durationMs / 1000.0} 秒 · 退出码 ${it.exitCode}", style = RuntimeTheme.typography.labelSmall)
+        it.error?.let { error -> SelectionContainer { Text(error, color = RuntimeTheme.colorScheme.error) } }
         if (it.artifacts.isNotEmpty()) {
-            Text("产物路径", style = MaterialTheme.typography.labelLarge)
+            Text("产物路径", style = RuntimeTheme.typography.labelLarge)
             SelectionContainer { Text(it.artifacts.joinToString("\n"), fontFamily = FontFamily.Monospace) }
         }
         it.structuredResult?.let { result -> WorkflowStructuredResultButton(result) }
@@ -34,7 +34,7 @@ internal fun WorkflowNodeDetails(run: WorkflowNodeRunState?) {
     if (log.isNotBlank()) {
         RuntimeOutlinedButton(onClick = { expanded = !expanded }) { Text(if (expanded) "收起日志" else "展开日志 / Diff") }
         if (expanded) SelectionContainer {
-            Text(log, Modifier.fillMaxWidth().heightIn(max = 480.dp).verticalScroll(rememberScrollState()), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+            Text(log, Modifier.fillMaxWidth().heightIn(max = 480.dp).verticalScroll(rememberScrollState()), style = RuntimeTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
         }
     }
 }

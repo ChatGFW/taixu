@@ -1,6 +1,6 @@
 package top.wkbin.taixu.ui.theme
 
-import androidx.compose.material3.ColorScheme
+import top.wkbin.taixu.ui.miuix.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable

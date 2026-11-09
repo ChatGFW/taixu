@@ -5,8 +5,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -42,23 +42,23 @@ internal fun LocalBackupDialog(onDismiss: () -> Unit, viewModel: LocalBackupView
         title = { Text(stringResource(R.string.local_backup_title)) },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.local_backup_scope), style = MaterialTheme.typography.bodyMedium)
-                Text(stringResource(R.string.local_backup_exclusions), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.local_backup_scope), style = RuntimeTheme.typography.bodyMedium)
+                Text(stringResource(R.string.local_backup_exclusions), style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 val preview = state.prepared?.preview
                 if (preview != null) {
-                    Text(stringResource(R.string.local_backup_preview), style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.local_backup_preview), style = RuntimeTheme.typography.titleSmall)
                     Text(stringResource(R.string.local_backup_counts,
                         preview.counts["harness_models"] ?: 0, preview.counts["harness_sessions"] ?: 0,
                         preview.counts["harness_entries"] ?: 0, preview.counts["agent_skills"] ?: 0,
                         preview.counts["workspaces"] ?: 0))
                     Text(stringResource(R.string.local_backup_files, preview.assetCount, preview.assetBytes / (1024 * 1024), preview.skippedRecords),
-                        style = MaterialTheme.typography.bodySmall)
-                    Text(stringResource(R.string.local_backup_merge_detail), style = MaterialTheme.typography.bodySmall)
+                        style = RuntimeTheme.typography.bodySmall)
+                    Text(stringResource(R.string.local_backup_merge_detail), style = RuntimeTheme.typography.bodySmall)
                     Row {
                         RuntimeCheckbox(checked = restorePreferences, enabled = !state.busy, onCheckedChange = { restorePreferences = it })
                         Text(stringResource(R.string.local_backup_preferences, preview.preferenceCount),
-                            style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                            style = RuntimeTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     }
                 } else {
                     RuntimeOutlinedButton(onClick = viewModel::export, enabled = !state.busy && state.exportFile == null,
@@ -69,9 +69,9 @@ internal fun LocalBackupDialog(onDismiss: () -> Unit, viewModel: LocalBackupView
                     }
                 }
                 if (state.busy) RuntimeLinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                if (state.completed) Text(stringResource(R.string.local_backup_completed), color = MaterialTheme.colorScheme.primary)
-                if (state.error) Text(stringResource(state.errorMessage), color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall)
+                if (state.completed) Text(stringResource(R.string.local_backup_completed), color = RuntimeTheme.colorScheme.primary)
+                if (state.error) Text(stringResource(state.errorMessage), color = RuntimeTheme.colorScheme.error,
+                    style = RuntimeTheme.typography.bodySmall)
             }
         },
         confirmButton = {

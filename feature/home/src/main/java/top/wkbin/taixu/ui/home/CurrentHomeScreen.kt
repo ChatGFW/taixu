@@ -1,11 +1,12 @@
 package top.wkbin.taixu.ui.home
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -28,7 +29,6 @@ fun HomeScreen(onNavigate: (MainDestination) -> Unit, onOpenTerminal: () -> Unit
     else key(active, servers.firstOrNull { it.id == active }) { RemoteHomeScreen(checkNotNull(active), onNavigate, onBack = onBack) }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService? = previewOrNull { koinInject() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
     var refresh by remember { mutableIntStateOf(0) }
@@ -37,15 +37,21 @@ internal fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) ->
         service?.observe(serverId, target) ?: kotlinx.coroutines.flow.flowOf(RemoteSystemInspection(loading = false))
     }.collectAsStateWithLifecycle(RemoteSystemInspection(loading = service != null))
     val metrics = state.metrics
-    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    Scaffold(modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection), containerColor = MaterialTheme.colorScheme.surface,
+    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    Scaffold(modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection), containerColor = RuntimeTheme.colorScheme.surface,
         topBar = { RuntimeTopBar(title = androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.home.R.string.home_dashboard_title), onBack = onBack, scrollBehavior = scrollBehavior, actions = {
             RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) }
         }) },
     ) { padding ->
-        Column(Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)).verticalScroll(rememberScrollState()).padding(bottom = padding.calculateBottomPadding()).padding(runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 16.dp))
-            .padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-            Text("主系统概览", style = MaterialTheme.typography.titleMedium)
+        Column(
+            modifier = Modifier.fillMaxSize()
+                .then(runtimeScrollViewport(padding))
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = padding.calculateBottomPadding())
+                .padding(runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
+        ) {
+            Text("主系统概览", style = RuntimeTheme.typography.titleMedium)
             SystemOverviewCard(target?.name ?: "服务器", target?.let { "${it.username}@${it.host}:${it.port}" }.orEmpty(),
                 target?.workspace.orEmpty(), state.loading, state.error, metrics?.let { listOf(
                     "发行版" to it.distribution, "架构" to it.architecture,
@@ -54,12 +60,12 @@ internal fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) ->
                     "负载 · 1/5/15 分钟" to it.load, "进程" to it.processCount.toString(),
                     "运行时间" to "${it.uptimeSeconds / 3600} 小时", "内核" to it.kernel,
                 ) }.orEmpty())
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                RuntimeButton(modifier = Modifier.weight(1f), onClick = { onNavigate(MainDestination.Agent) }) { Text("打开智枢") }
-                RuntimeFilledTonalButton(modifier = Modifier.weight(1f), onClick = { onNavigate(MainDestination.Workspace) }) { Text("打开工坊") }
+            RuntimeActionRow() {
+                RuntimeButton(modifier = Modifier, onClick = { onNavigate(MainDestination.Agent) }) { Text("打开智枢") }
+                RuntimeFilledTonalButton(modifier = Modifier, onClick = { onNavigate(MainDestination.Workspace) }) { Text("打开工坊") }
             }
-            Text("指标采集自当前服务器，每 15 秒刷新。工作区文件与服务器保持一致。", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("指标采集自当前服务器，每 15 秒刷新。工作区文件与服务器保持一致。", style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

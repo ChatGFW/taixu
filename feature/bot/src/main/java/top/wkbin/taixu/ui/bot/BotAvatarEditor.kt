@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -58,7 +58,7 @@ internal fun BotAvatarEditor(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             BotAvatar(seed, colorHex, 64.dp)
-            Column {
+            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.weight(1f), maxColumns = 1) {
                 RuntimeTextButton(enabled = enabled && !loading, onClick = { designing = true }) {
                     Text(stringResource(R.string.fbot_pixel_edit))
                 }
@@ -72,7 +72,7 @@ internal fun BotAvatarEditor(
                 }
             }
         }
-        if (failed) Text(stringResource(R.string.fbot_avatar_failed), color = MaterialTheme.colorScheme.error)
+        if (failed) Text(stringResource(R.string.fbot_avatar_failed), color = RuntimeTheme.colorScheme.error)
     }
     if (designing) PixelAvatarDesigner(seed, defaultSeed, colorHex,
         onDismiss = { designing = false }, onSave = { onChange(it); designing = false })

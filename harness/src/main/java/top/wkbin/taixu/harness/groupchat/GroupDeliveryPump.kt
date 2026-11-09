@@ -25,6 +25,7 @@ internal class GroupDeliveryPump(
     private val replies: GroupReplyQueue,
     private val scope: CoroutineScope,
     private val logger: AppLogger,
+    private val isExternalRuntime: suspend (botId: String) -> Boolean = { false },
     private val deliver: suspend (GroupDelivery) -> GroupTurnOutcome,
 ) {
     private val startLock = Mutex()
@@ -50,6 +51,7 @@ internal class GroupDeliveryPump(
                 true
             }.collect { receipts ->
                 receipts.distinctBy { "${it.botId}:${it.groupId}" }.forEach { receipt ->
+                    if (isExternalRuntime(receipt.botId)) return@forEach
                     if (synchronized(scheduled) { scheduled.add("${receipt.botId}:${receipt.groupId}") }) enqueue(receipt)
                 }
             }
@@ -58,22 +60,23 @@ internal class GroupDeliveryPump(
 
     private suspend fun enqueue(receipt: GroupDelivery) {
         val job = replies.launch(receipt.groupId, "${receipt.botId}:${receipt.groupId}") {
+            val nonce = repository.claimDelivery(receipt.id) ?: return@launch
+            val claimed = receipt.copy(claimNonce = nonce, status = GroupDelivery.SUBMITTING)
             try {
-                if (!repository.claimDelivery(receipt.id)) return@launch
-                val result = deliver(receipt)
-                repository.finishDelivery(receipt.id, when {
+                val result = deliver(claimed)
+                repository.finishDelivery(claimed.id, when {
                     result.uncertain -> GroupDelivery.UNKNOWN
                     result.failed -> GroupDelivery.FAILED
                     else -> GroupDelivery.COMPLETED
-                }, result.text.takeIf { result.failed || result.uncertain })
+                }, result.text.takeIf { result.failed || result.uncertain }, nonce)
             } catch (cancelled: CancellationException) {
                 withContext(NonCancellable) {
-                    markUnknown(receipt.id, "群消息处理被中断，请核对会话记录")
+                    markUnknown(claimed.id, "群消息处理被中断，请核对会话记录", nonce)
                 }
                 throw cancelled
             } catch (failure: Exception) {
                 logger.e("[GroupDelivery] 群消息处理失败", failure)
-                markUnknown(receipt.id, "群消息处理结果待核对，请检查会话记录")
+                markUnknown(claimed.id, "群消息处理结果待核对，请检查会话记录", nonce)
             }
         }
         if (job == null) {
@@ -88,9 +91,9 @@ internal class GroupDeliveryPump(
         refresh.trySend(Unit)
     }
 
-    private suspend fun markUnknown(id: String, reason: String) {
+    private suspend fun markUnknown(id: String, reason: String, claimNonce: String) {
         // A storage outage must not crash the process or trigger a second native submission.
-        runCatching { repository.finishDelivery(id, GroupDelivery.UNKNOWN, reason) }
+        runCatching { repository.finishDelivery(id, GroupDelivery.UNKNOWN, reason, claimNonce) }
             .onFailure { logger.e("[GroupDelivery] 保存待核对状态失败，保留收件供重启核对", it) }
     }
 }

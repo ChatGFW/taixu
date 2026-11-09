@@ -1,4 +1,8 @@
 package top.wkbin.taixu.ui.settings
+
+import top.wkbin.taixu.ui.miuix.*
+import androidx.compose.runtime.*
+
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -26,19 +30,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -103,7 +97,7 @@ internal fun LocalCcSwitchContent(
                     ) {
                         RuntimeIcon(
                             name = RuntimeIconName.Refresh,
-                            tint = MaterialTheme.colorScheme.onSurface,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                     }
                 },
@@ -115,8 +109,8 @@ internal fun LocalCcSwitchContent(
                 .fillMaxSize()
                 .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding))
                 .verticalScroll(rememberScrollState()).padding(bottom = innerPadding.calculateBottomPadding())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             // 提示横幅
             state.errorMessage?.let { error ->
@@ -137,7 +131,7 @@ internal fun LocalCcSwitchContent(
                             ) {
                                 RuntimeIcon(name = RuntimeIconName.Terminal, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("查看并复制完整报错日志", style = MaterialTheme.typography.labelSmall)
+                                Text("查看并复制完整报错日志", style = RuntimeTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -177,52 +171,48 @@ internal fun LocalCcSwitchContent(
             }
 
             // 3. 本地环境检查矩阵
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column {
                     Text(
                         text = "本地环境检查",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = RuntimeTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = if (state.isDaemonRunning) "由 CC-Switch 纳管各 CLI 与 Agent 运行环境" else "启动中枢后自动检查环境与版本",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                top.wkbin.taixu.ui.components.RuntimeActionRow() {
                     if (state.installLogs.isNotEmpty()) {
                         RuntimeOutlinedButton(
                             onClick = { viewModel?.showInstallLogs() },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
                             RuntimeIcon(name = RuntimeIconName.Terminal, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("安装日志", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
+                            Text("安装日志", maxLines = 1, softWrap = false)
                         }
                     }
                     if (state.isDaemonRunning) {
                         RuntimeFilledTonalButton(
                             onClick = { viewModel?.refreshEnvironment() },
                             enabled = !state.isOperating && !state.isCheckingEnvironment,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         ) {
                             if (state.isCheckingEnvironment) {
                                 RuntimeCircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("检测中...", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
+                                Text("检测中...", maxLines = 1, softWrap = false)
                             } else {
                                 RuntimeIcon(name = RuntimeIconName.Refresh, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("刷新检测", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
+                                Text("刷新检测", maxLines = 1, softWrap = false)
                             }
                         }
                     }
@@ -306,8 +296,8 @@ private fun DaemonServiceCard(
     val context = LocalContext.current
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+        borderColor = Color.Transparent,
         contentPadding = PaddingValues(16.dp),
     ) {
         Row(
@@ -323,13 +313,13 @@ private fun DaemonServiceCard(
                     modifier = Modifier
                         .size(10.dp)
                         .clip(CircleShape)
-                        .background(if (state.isDaemonRunning) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error),
+                        .background(if (state.isDaemonRunning) Color(0xFF4CAF50) else RuntimeTheme.colorScheme.error),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = if (state.isDaemonRunning) "CC-Switch 运行中" else "CC-Switch 未启动",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = RuntimeTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     softWrap = false,
                     overflow = TextOverflow.Ellipsis,
@@ -338,7 +328,7 @@ private fun DaemonServiceCard(
             Spacer(modifier = Modifier.width(8.dp))
             StatusBadge(
                 text = "端口 ${state.servicePort}",
-                color = if (state.isDaemonRunning) Color(0xFF4CAF50) else MaterialTheme.colorScheme.outline,
+                color = if (state.isDaemonRunning) Color(0xFF4CAF50) else RuntimeTheme.colorScheme.outline,
             )
         }
 
@@ -349,49 +339,45 @@ private fun DaemonServiceCard(
             } else {
                 "中枢尚未运行。启动后将自动对沙箱环境进行实时检测，获取已安装 CLI、最新版本及模型源状态。"
             },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
 
         if (state.isDaemonRunning) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "本地代理地址: http://127.0.0.1:${state.servicePort}${state.deviceLanIp?.let { " · 局域网: http://$it:${state.servicePort}" } ?: ""}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
+                style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.primary,
             )
 
             Spacer(modifier = Modifier.height(10.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
             Spacer(modifier = Modifier.height(10.dp))
 
             // Web 控制台凭据区域（完全扁平化，去除卡片套卡片）
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
                     text = "Web 控制台访问凭据 (HTTP Basic 认证)",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = RuntimeTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = RuntimeTheme.colorScheme.onSurface,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                top.wkbin.taixu.ui.components.RuntimeActionRow() {
                     RuntimeTextButton(
                         onClick = {
                             val creds = "${state.webUsername} / ${state.webPassword}"
                             copyText(context, creds, "已复制控制台账号密码: $creds")
                         },
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                     ) {
-                        Text("一键复制", style = MaterialTheme.typography.labelSmall)
+                        Text("一键复制")
                     }
                     RuntimeTextButton(
                         onClick = { onResetPassword("admin123") },
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
                     ) {
-                        Text("重置密码", style = MaterialTheme.typography.labelSmall)
+                        Text("重置密码")
                     }
                 }
             }
@@ -403,41 +389,36 @@ private fun DaemonServiceCard(
             ) {
                 Text(
                     text = "账号：${state.webUsername}",
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = "密码：${state.webPassword}",
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    fontWeight = FontWeight.Medium,
+                    color = RuntimeTheme.colorScheme.primary,
                 )
             }
 
             Text(
                 text = "💡 外部浏览器访问提示登录时输入上方账号密码即可",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
             )
         }
 
         Spacer(modifier = Modifier.height(14.dp))
         if (state.isDaemonRunning) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 RuntimeFilledTonalButton(
                     onClick = onRestart,
                     enabled = !state.isOperating,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                    modifier = Modifier,
                 ) {
                     RuntimeIcon(name = RuntimeIconName.Refresh, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "重启",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                         maxLines = 1,
                         softWrap = false,
                     )
@@ -445,14 +426,12 @@ private fun DaemonServiceCard(
                 RuntimeOutlinedButton(
                     onClick = onStop,
                     enabled = !state.isOperating,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                    modifier = Modifier,
                 ) {
                     RuntimeIcon(name = RuntimeIconName.Close, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "停止",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                         maxLines = 1,
                         softWrap = false,
                     )
@@ -463,14 +442,12 @@ private fun DaemonServiceCard(
                         copyText(context, creds, "已复制登录凭据: $creds")
                         onOpenWebConsole()
                     },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                    modifier = Modifier,
                 ) {
                     RuntimeIcon(name = RuntimeIconName.OpenInNew, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "控制台",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                         maxLines = 1,
                         softWrap = false,
                     )
@@ -499,8 +476,8 @@ private fun DaemonServiceCard(
 private fun TokenUsageCard(daemon: CcSwitchDaemonStatus) {
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+        borderColor = Color.Transparent,
         contentPadding = PaddingValues(16.dp),
     ) {
         Row(
@@ -510,13 +487,13 @@ private fun TokenUsageCard(daemon: CcSwitchDaemonStatus) {
         ) {
             Text(
                 text = "今日反代 Token 记账",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = RuntimeTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
             )
             Text(
                 text = "${daemon.todayTokens.requestCount} 次请求",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
+                style = RuntimeTheme.typography.labelMedium,
+                color = RuntimeTheme.colorScheme.primary,
             )
         }
         Spacer(modifier = Modifier.height(10.dp))
@@ -525,16 +502,16 @@ private fun TokenUsageCard(daemon: CcSwitchDaemonStatus) {
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column {
-                Text("输入 Token", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("${daemon.todayTokens.promptTokens}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("输入 Token", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                Text("${daemon.todayTokens.promptTokens}", style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
             }
             Column {
-                Text("输出 Token", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("${daemon.todayTokens.completionTokens}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("输出 Token", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                Text("${daemon.todayTokens.completionTokens}", style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
             }
             Column {
-                Text("总消耗 Tokens", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("${daemon.todayTokens.totalTokens}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("总消耗 Tokens", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                Text("${daemon.todayTokens.totalTokens}", style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -555,14 +532,14 @@ private fun AgentAvatar(type: CcAgentType) {
     Box(
         modifier = Modifier
             .size(36.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RuntimeTheme.shapes.chip)
             .background(bg),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontWeight = FontWeight.Bold,
+            style = RuntimeTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.Medium,
                 fontFamily = FontFamily.Monospace,
             ),
             color = fg,
@@ -583,8 +560,8 @@ private fun AgentCard(
 ) {
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+        borderColor = Color.Transparent,
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
     ) {
         // 1. 顶部标题、头像与动作栏
@@ -607,24 +584,24 @@ private fun AgentCard(
                     ) {
                         Text(
                             text = agent.type.displayName,
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = RuntimeTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = agent.type.category,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Text(
                         text = "$ ${agent.type.defaultExecutable}",
-                        style = MaterialTheme.typography.labelSmall.copy(
+                        style = RuntimeTheme.typography.labelSmall.copy(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 11.sp,
                         ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -642,7 +619,7 @@ private fun AgentCard(
                     !isDaemonRunning -> {
                         StatusBadge(
                             text = "未运行",
-                            color = MaterialTheme.colorScheme.outline,
+                            color = RuntimeTheme.colorScheme.outline,
                         )
                     }
                     agent.isChecking -> {
@@ -651,8 +628,8 @@ private fun AgentCard(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "检测中",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.primary,
                             )
                         }
                     }
@@ -663,7 +640,7 @@ private fun AgentCard(
                         ) {
                             RuntimeCircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("安装中", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
+                            Text("安装中", style = RuntimeTheme.typography.labelSmall, maxLines = 1, softWrap = false)
                         }
                     }
                     !agent.installed -> {
@@ -674,7 +651,7 @@ private fun AgentCard(
                         ) {
                             RuntimeIcon(name = RuntimeIconName.Download, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("安装", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
+                            Text("安装", style = RuntimeTheme.typography.labelSmall, maxLines = 1, softWrap = false)
                         }
                     }
                     else -> {
@@ -685,7 +662,7 @@ private fun AgentCard(
                         ) {
                             RuntimeIcon(name = RuntimeIconName.ArrowUp, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("版本", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
+                            Text("版本", style = RuntimeTheme.typography.labelSmall, maxLines = 1, softWrap = false)
                         }
                     }
                 }
@@ -694,7 +671,6 @@ private fun AgentCard(
 
         // 2. 扁平精简信息区（彻底剔除卡片套卡片）
         Spacer(modifier = Modifier.height(6.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
         Spacer(modifier = Modifier.height(6.dp))
 
         Row(
@@ -710,8 +686,8 @@ private fun AgentCard(
             ) {
                 Text(
                     text = "版本:",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = when {
@@ -720,14 +696,14 @@ private fun AgentCard(
                         agent.installed -> agent.currentVersion ?: "已安装"
                         else -> "未安装"
                     },
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = if (agent.installed) FontWeight.Bold else FontWeight.Normal,
+                    style = RuntimeTheme.typography.labelSmall.copy(
+                        fontWeight = if (agent.installed) FontWeight.Medium else FontWeight.Normal,
                         fontFamily = FontFamily.Monospace,
                     ),
                     color = when {
-                        !isDaemonRunning -> MaterialTheme.colorScheme.outline
-                        agent.installed -> MaterialTheme.colorScheme.onSurface
-                        else -> MaterialTheme.colorScheme.outline
+                        !isDaemonRunning -> RuntimeTheme.colorScheme.outline
+                        agent.installed -> RuntimeTheme.colorScheme.onSurface
+                        else -> RuntimeTheme.colorScheme.outline
                     },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -738,7 +714,7 @@ private fun AgentCard(
             if (isDaemonRunning && agent.type.serverAppId != null) {
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RuntimeTheme.shapes.extraSmall)
                         .clickable(enabled = !isOperating && !isInstalling) { onSwitchProvider() }
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -746,20 +722,20 @@ private fun AgentCard(
                 ) {
                     Text(
                         text = "模型源:",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = agent.activeProviderName ?: if (agent.installed) "默认网关" else "未绑定",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                        color = if (agent.activeProviderName != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                        color = if (agent.activeProviderName != null) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     RuntimeIcon(
                         name = RuntimeIconName.ChevronRight,
                         modifier = Modifier.size(12.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        tint = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     )
                 }
             }
@@ -776,8 +752,8 @@ private fun AdvancedSyncCard(
 
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+        borderColor = Color.Transparent,
         contentPadding = PaddingValues(16.dp),
     ) {
         Row(
@@ -787,30 +763,29 @@ private fun AdvancedSyncCard(
         ) {
             Text(
                 text = "与太墟模型库深度互通",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface,
+                style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
+                color = RuntimeTheme.colorScheme.onSurface,
             )
             StatusBadge(
                 text = "${taiXuModels.size} 个可用源",
-                color = MaterialTheme.colorScheme.primary,
+                color = RuntimeTheme.colorScheme.primary,
             )
         }
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = "点击可将太墟已配置的模型服务商一键导入为 CC-Switch 的纳管 Provider，无需重复填写 Key 与 Base URL：",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(8.dp))
 
         taiXuModels.take(4).forEachIndexed { index, model ->
             if (index > 0) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
             }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(RuntimeTheme.shapes.extraSmall)
                     .clickable { onImportModel(model) }
                     .padding(vertical = 6.dp, horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -819,15 +794,15 @@ private fun AdvancedSyncCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = model.name,
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = "${model.provider} · ${model.model}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -836,7 +811,7 @@ private fun AdvancedSyncCard(
                     onClick = { onImportModel(model) },
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                 ) {
-                    Text("导入", style = MaterialTheme.typography.labelSmall)
+                    Text("导入", style = RuntimeTheme.typography.labelSmall)
                 }
             }
         }
@@ -864,34 +839,33 @@ private fun SwitchProviderDialog(
             ) {
                 Text(
                     text = "已配置的 CC-Switch 预设源：",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
                 )
 
                 if (providers.isEmpty()) {
                     Text(
                         text = "暂未配置独立的 Provider，可直接从下方太墟模型库选择一键导入并绑定。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
                 providers.forEachIndexed { index, provider ->
                     if (index > 0) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                     }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RuntimeTheme.shapes.chip)
                             .clickable { onSelectProvider(provider) }
                             .padding(horizontal = 4.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(provider.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Text("${provider.protocol} · ${provider.selectedModel}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(provider.name, style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
+                            Text("${provider.protocol} · ${provider.selectedModel}", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                         }
                         RuntimeTextButton(onClick = { onSelectProvider(provider) }) {
                             Text("应用")
@@ -900,31 +874,29 @@ private fun SwitchProviderDialog(
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                HorizontalDivider()
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "从太墟已存模型一键绑定：",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
                 )
 
                 taiXuModels.forEachIndexed { index, model ->
                     if (index > 0) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                     }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RuntimeTheme.shapes.chip)
                             .clickable { onImportAndSelect(model) }
                             .padding(horizontal = 4.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(model.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                            Text("${model.provider} · ${model.model}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(model.name, style = RuntimeTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                            Text("${model.provider} · ${model.model}", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                         }
                         RuntimeTextButton(onClick = { onImportAndSelect(model) }) {
                             Text("同步并切换")
@@ -965,15 +937,15 @@ private fun UpgradeVersionDialog(
                 RuntimeFilledTextField(
                     value = versionInput,
                     onValueChange = { versionInput = it },
-                    label = { Text("目标版本 (如 1.0.0，留空即最新)") },
+                    labelText = "目标版本 (如 1.0.0，留空即最新)",
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
 
                 Text(
                     text = "确认后将在沙箱内通过包管理器执行相应版本部署与配置。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
@@ -1031,8 +1003,8 @@ private fun InstallLogDialog(
                     RuntimeIcon(RuntimeIconName.Terminal, modifier = Modifier.size(18.dp))
                     Text(
                         text = "$agentName 日志",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        style = RuntimeTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1043,11 +1015,11 @@ private fun InstallLogDialog(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RuntimeCircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("执行中", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            Text("执行中", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.primary)
                         }
                     }
                     isError -> {
-                        StatusBadge(text = "异常/失败", color = MaterialTheme.colorScheme.error)
+                        StatusBadge(text = "异常/失败", color = RuntimeTheme.colorScheme.error)
                     }
                     logs.isNotEmpty() -> {
                         StatusBadge(text = "已完成", color = Color(0xFF4CAF50))
@@ -1059,7 +1031,7 @@ private fun InstallLogDialog(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Surface(
                     color = Color(0xFF161616),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RuntimeTheme.shapes.chip,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 180.dp, max = 360.dp),
@@ -1068,7 +1040,7 @@ private fun InstallLogDialog(
                         if (logs.isEmpty()) {
                             Text(
                                 text = "暂无命令输出日志。点击安装或升级后，将在沙箱内实时捕获并输出详细构建过程...",
-                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                                 color = Color(0xFF888888),
                                 modifier = Modifier.padding(12.dp),
                             )
@@ -1091,7 +1063,7 @@ private fun InstallLogDialog(
                                     }
                                     Text(
                                         text = line,
-                                        style = MaterialTheme.typography.labelSmall.copy(
+                                        style = RuntimeTheme.typography.labelSmall.copy(
                                             fontFamily = FontFamily.Monospace,
                                             fontSize = 11.sp,
                                             lineHeight = 15.sp,
@@ -1106,28 +1078,26 @@ private fun InstallLogDialog(
             }
         },
         confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
                 if (logs.isNotEmpty()) {
                     RuntimeFilledTonalButton(
                         onClick = onClear,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     ) {
-                        Text("清空", style = MaterialTheme.typography.labelSmall)
+                        Text("清空")
                     }
                     RuntimeButton(
                         onClick = { onCopy(logs.joinToString("\n")) },
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     ) {
                         RuntimeIcon(name = RuntimeIconName.Copy, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("复制全部日志", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        Text("复制全部日志", fontWeight = FontWeight.Medium)
                     }
                 } else {
                     RuntimeButton(onClick = onDismiss) {
                         Text("确定")
                     }
                 }
-            }
+
         },
         dismissButton = {
             if (logs.isNotEmpty()) {

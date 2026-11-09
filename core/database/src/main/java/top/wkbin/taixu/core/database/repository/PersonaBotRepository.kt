@@ -309,6 +309,9 @@ private fun BotEntity.toModel() = Bot(
     createdAt = createdAt,
     updatedAt = updatedAt,
     capabilityServerNames = decodeCapabilityServers(capabilityServerNames),
+    capabilityToolNames = decodeCapabilityTools(capabilityServerNames),
+    capabilityExpiresAt = decodeCapabilityExpiry(capabilityServerNames),
+    runtimeMode = top.wkbin.taixu.core.model.bot.BotRuntimeMode.parse(runtimeMode),
 )
 
 private fun Bot.toEntity() = BotEntity(
@@ -326,7 +329,8 @@ private fun Bot.toEntity() = BotEntity(
     colorHex = colorHex,
     createdAt = createdAt,
     updatedAt = updatedAt,
-    capabilityServerNames = encodeCapabilityServers(capabilityServerNames),
+    capabilityServerNames = encodeCapabilityServers(capabilityServerNames, capabilityToolNames, capabilityExpiresAt),
+    runtimeMode = runtimeMode.name,
 )
 
 internal fun GroupMessageEntity.toModel(json: Json) = GroupMessage(

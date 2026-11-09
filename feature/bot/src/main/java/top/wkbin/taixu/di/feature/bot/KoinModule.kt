@@ -39,6 +39,8 @@ val featureBotModule = module {
             packageService = get(),
             wakeup = getOrNull<BotScheduleWakeup>(),
             mcpServerRepository = getOrNull(),
+            externalRuntime = getOrNull<top.wkbin.taixu.harness.bot.ExternalAgentRuntimeService>(),
+            externalRuntimeServer = getOrNull<top.wkbin.taixu.runtime.webchat.ExternalAgentRuntimeServer>(),
         )
     }
     viewModel<GroupChatViewModel> {

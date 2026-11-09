@@ -1,4 +1,8 @@
 package top.wkbin.taixu.ui.settings.stats
+
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -6,7 +10,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,14 +17,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
@@ -32,7 +33,6 @@ import top.wkbin.taixu.core.model.StatsDateRangePreset
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
-import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.settings.stats.widgets.LedgerBreakdownPanel
@@ -56,7 +56,7 @@ fun StatsScreen(
     var showLedgerDetail by remember { mutableStateOf(false) }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RuntimeTheme.colorScheme.background,
         topBar = {
             RuntimeTopBar(
                 title = "数据统计与用量分析",
@@ -92,9 +92,9 @@ fun StatsScreen(
                         label = {
                             Text(
                                 text = label,
-                                style = MaterialTheme.typography.bodySmall.copy(
+                                style = RuntimeTheme.typography.bodySmall.copy(
                                     fontSize = 12.sp,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
                                 ),
                             )
                         },
@@ -121,7 +121,7 @@ fun StatsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(2.dp),
-                    color = MaterialTheme.colorScheme.primary,
+                    color = RuntimeTheme.colorScheme.primary,
                 )
             }
 
@@ -136,8 +136,8 @@ fun StatsScreen(
                         ) {
                             Text(
                                 text = errorMessage,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error,
+                                style = RuntimeTheme.typography.bodyMedium,
+                                color = RuntimeTheme.colorScheme.error,
                             )
                             RuntimeButton(
                                 onClick = { viewModel?.refresh() },
@@ -156,8 +156,8 @@ fun StatsScreen(
                         Text(
                             text = "暂无统计数据。开始使用 Agent 对话与工具后，这里会展示活跃度与 Token 用量。",
                             modifier = Modifier.fillMaxWidth().padding(24.dp),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodyMedium,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -167,8 +167,8 @@ fun StatsScreen(
             if (snapshot != null) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, PaddingValues(horizontal = 16.dp, vertical = 8.dp)),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                    verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
                 ) {
                     // 1. 活跃度打卡热力图（与用量无关的独立维度，原样保留）
                     item {

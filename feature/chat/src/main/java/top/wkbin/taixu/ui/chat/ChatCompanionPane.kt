@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +33,7 @@ internal fun ChatCompanionPane(
     browser: (@Composable ((() -> Unit)?) -> Unit)?, modifier: Modifier = Modifier
 ) {
     RuntimeCard(
-        modifier = modifier, containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = modifier, containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
         contentPadding = PaddingValues(0.dp)
     ) {
         Column(Modifier.fillMaxSize()) {
@@ -50,7 +50,7 @@ internal fun ChatCompanionPane(
                         .padding(12.dp),
                 ) { item, active ->
                     val tint =
-                        if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                        if (active) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant
                     Row(
                         Modifier.semantics { selected = active },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -58,8 +58,8 @@ internal fun ChatCompanionPane(
                     ) {
                         RuntimeIcon(item.first, Modifier.size(18.dp), tint)
                         Text(
-                            item.second, style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                            item.second, style = RuntimeTheme.typography.labelLarge,
+                            fontWeight = if (active) FontWeight.Medium else FontWeight.Medium,
                             color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
                     }

@@ -13,21 +13,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.minimumInteractiveComponentSize
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -319,11 +317,11 @@ fun AttachmentPreviewRow(
     ) {
         items(attachments, key = { it.id }) { item ->
             Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RuntimeTheme.shapes.small,
+                color = RuntimeTheme.colorScheme.surfaceContainerHigh,
                 border = androidx.compose.foundation.BorderStroke(
                     0.8.dp,
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                    RuntimeTheme.colorScheme.primary.copy(alpha = 0.35f),
                 ),
             ) {
                 Row(
@@ -336,7 +334,7 @@ fun AttachmentPreviewRow(
                             .size(24.dp)
                             .clip(CircleShape)
                             .background(
-                                if (item.isImage) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                if (item.isImage) RuntimeTheme.colorScheme.primary.copy(alpha = 0.15f)
                                 else semanticColors().success.copy(alpha = 0.15f),
                             ),
                         contentAlignment = Alignment.Center,
@@ -344,23 +342,23 @@ fun AttachmentPreviewRow(
                         RuntimeIcon(
                             name = if (item.isImage) RuntimeIconName.Image else RuntimeIconName.Attach,
                             modifier = Modifier.size(13.dp),
-                            tint = if (item.isImage) MaterialTheme.colorScheme.primary else semanticColors().success,
+                            tint = if (item.isImage) RuntimeTheme.colorScheme.primary else semanticColors().success,
                         )
                     }
 
                     Column(modifier = Modifier.widthIn(max = 180.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
                             text = item.name,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                            color = RuntimeTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = listOfNotNull(AttachmentHelper.formatFileSize(item.sizeBytes), item.documentNotice).joinToString(" · "),
                             maxLines = 2, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
 
@@ -376,13 +374,13 @@ fun AttachmentPreviewRow(
                             modifier = Modifier
                                 .size(18.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                .background(RuntimeTheme.colorScheme.surfaceContainerHighest),
                             contentAlignment = Alignment.Center,
                         ) {
                             RuntimeIcon(
                                 name = RuntimeIconName.Close,
                                 modifier = Modifier.size(10.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }

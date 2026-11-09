@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.bot
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -14,13 +18,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -49,7 +51,7 @@ internal fun BotMemoryPanel(
     var pendingRollback by remember { mutableStateOf<MemoryCommit?>(null) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 32.dp),
+        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
         verticalArrangement = Arrangement.Top,
     ) {
         item {
@@ -63,22 +65,22 @@ internal fun BotMemoryPanel(
             item {
                 Text(
                     stringResource(R.string.fbot_memory_empty),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 10.dp),
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp),
                 )
             }
         }
         items(files, key = { it.path }) { file ->
             RuntimeCard(
                 onClick = if (!busy && file.path.endsWith(".md", true)) ({ onOpenFile(file.path) }) else null,
-                modifier = Modifier.padding(bottom = 10.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                modifier = Modifier.padding(bottom = 12.dp),
+                contentPadding = PaddingValues(16.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         file.path,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = RuntimeTheme.typography.bodyMedium,
                         fontFamily = FontFamily.Monospace,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -86,8 +88,8 @@ internal fun BotMemoryPanel(
                     )
                     Text(
                         formatBytes(file.sizeBytes),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 10.dp),
                     )
                 }
@@ -104,8 +106,8 @@ internal fun BotMemoryPanel(
             item {
                 Text(
                     stringResource(R.string.fbot_commits_empty),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -118,19 +120,19 @@ internal fun BotMemoryPanel(
                 )
                 RuntimeCard(
                     onClick = { onOpenDiff(commit.hash) },
-                    modifier = Modifier.weight(1f).padding(bottom = 10.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                    modifier = Modifier.weight(1f).padding(bottom = 12.dp),
+                    contentPadding = PaddingValues(16.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             commit.shortHash,
-                            style = MaterialTheme.typography.labelMedium,
+                            style = RuntimeTheme.typography.labelMedium,
                             fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = RuntimeTheme.colorScheme.primary,
                         )
                         Text(
                             commit.message,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = RuntimeTheme.typography.bodyMedium,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
@@ -143,8 +145,8 @@ internal fun BotMemoryPanel(
                     ) {
                         Text(
                             "${commit.author} · ${formatEpoch(commit.timestamp)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
@@ -152,23 +154,23 @@ internal fun BotMemoryPanel(
                         if (commit.filesChanged.isNotEmpty()) {
                             Text(
                                 commit.filesChanged.first(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f),
                             )
                         }
                     }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                         RuntimeTextButton(
                             onClick = { onOpenDiff(commit.hash) },
                             enabled = !busy,
-                        ) { Text(stringResource(R.string.fbot_memory_diff), maxLines = 1, style = MaterialTheme.typography.labelSmall) }
+                        ) { Text(stringResource(R.string.fbot_memory_diff), maxLines = 1) }
                         RuntimeTextButton(
                             onClick = { pendingRollback = commit },
                             enabled = !busy,
-                        ) { Text(stringResource(R.string.fbot_rollback), maxLines = 1, style = MaterialTheme.typography.labelSmall) }
+                        ) { Text(stringResource(R.string.fbot_rollback), maxLines = 1) }
                     }
                 }
             }
@@ -198,9 +200,9 @@ internal fun BotMemoryPanel(
 /** Git 提交时间轴：节点 + 连接线，首尾提交自动收口。 */
 @Composable
 private fun CommitTimeline(isFirst: Boolean, isLast: Boolean, modifier: Modifier = Modifier) {
-    val lineColor = MaterialTheme.colorScheme.outlineVariant
-    val nodeColor = MaterialTheme.colorScheme.primary
-    val holeColor = MaterialTheme.colorScheme.surface
+    val lineColor = RuntimeTheme.colorScheme.outlineVariant
+    val nodeColor = RuntimeTheme.colorScheme.primary
+    val holeColor = RuntimeTheme.colorScheme.surface
     Canvas(modifier) {
         val centerX = size.width / 2f
         val nodeY = NODE_OFFSET.toPx()

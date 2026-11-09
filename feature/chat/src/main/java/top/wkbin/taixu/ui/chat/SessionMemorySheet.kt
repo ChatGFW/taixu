@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -7,26 +10,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.minimumInteractiveComponentSize
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.ButtonDefaults
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.ModalBottomSheet
+import top.wkbin.taixu.ui.miuix.rememberModalBottomSheetState
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,7 +49,6 @@ import top.wkbin.taixu.ui.components.TaixuMemoryEmptyIllustration
  * 与任务草稿便签（scratchpad 工具写入的 AgentScratchpadEntity）的管理入口——
  * 模型记了什么、存了什么草稿，用户可查、可删。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SessionMemorySheet(
     memories: List<AgentMemoryEntity>,
@@ -77,10 +74,10 @@ internal fun SessionMemorySheet(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Brain, Modifier.size(20.dp), MaterialTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Brain, Modifier.size(20.dp), RuntimeTheme.colorScheme.primary)
                 Text(
                     stringResource(R.string.chat_memory_sheet_title),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = RuntimeTheme.typography.titleMedium,
                 )
             }
 
@@ -137,8 +134,8 @@ internal fun SessionMemorySheet(
                             }) {
                                 Text(
                                     stringResource(R.string.chat_scratchpad_clear),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.error,
+                                    style = RuntimeTheme.typography.labelMedium,
+                                    color = RuntimeTheme.colorScheme.error,
                                 )
                             }
                         }
@@ -181,7 +178,7 @@ internal fun SessionMemorySheet(
                     text = stringResource(
                         if (isClear) R.string.chat_clear_scratchpad_title else R.string.chat_delete_memory_title,
                     ),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = RuntimeTheme.typography.titleMedium,
                 )
             },
             text = {
@@ -189,8 +186,8 @@ internal fun SessionMemorySheet(
                     text = stringResource(
                         if (isClear) R.string.chat_clear_scratchpad_message else R.string.chat_delete_memory_message,
                     ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             },
             confirmButton = {
@@ -204,12 +201,12 @@ internal fun SessionMemorySheet(
                         confirmTarget = null
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
+                        containerColor = RuntimeTheme.colorScheme.error,
                     ),
                 ) {
                     Text(
                         text = stringResource(if (isClear) R.string.chat_confirm_clear else R.string.chat_confirm_delete),
-                        color = MaterialTheme.colorScheme.onError,
+                        color = RuntimeTheme.colorScheme.onError,
                     )
                 }
             },
@@ -233,10 +230,10 @@ private fun SectionHeader(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = modifier.fillMaxWidth(),
     ) {
-        RuntimeIcon(icon, Modifier.size(15.dp), MaterialTheme.colorScheme.primary)
+        RuntimeIcon(icon, Modifier.size(15.dp), RuntimeTheme.colorScheme.primary)
         Text(
             title,
-            style = MaterialTheme.typography.titleSmall,
+            style = RuntimeTheme.typography.titleSmall,
         )
     }
 }
@@ -253,8 +250,8 @@ private fun EmptyHint(text: String, illustration: Boolean = false) {
         }
         Text(
             text,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
     }
@@ -269,9 +266,9 @@ private fun MemoryRow(
     onDelete: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.fillMaxWidth().clip(RuntimeTheme.shapes.small),
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.small,
     ) {
         Row(
             verticalAlignment = Alignment.Top,
@@ -281,25 +278,25 @@ private fun MemoryRow(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (scope != null) {
-                        Surface(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), shape = RoundedCornerShape(4.dp)) {
+                        Surface(color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f), shape = RuntimeTheme.shapes.tiny) {
                             Text(
                                 scope,
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.primary,
                             )
                         }
                     }
                     if (kind != null) {
                         Text(
                             kind,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.tertiary,
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.tertiary,
                         )
                     }
                     Text(
                         keyText,
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
@@ -307,8 +304,8 @@ private fun MemoryRow(
                 }
                 Text(
                     value,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -329,7 +326,7 @@ private fun MemoryRow(
                     RuntimeIcon(
                         RuntimeIconName.Close,
                         Modifier.size(16.dp),
-                        MaterialTheme.colorScheme.onSurfaceVariant,
+                        RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

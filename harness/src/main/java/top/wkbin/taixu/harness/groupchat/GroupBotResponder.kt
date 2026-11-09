@@ -53,6 +53,7 @@ internal class GroupBotResponder(
         delegatedTaskId: String? = null,
         workReceiptId: String? = null,
         deliveryId: String? = null,
+        claimNonce: String? = null,
         sessionOverride: String? = null,
         onAdmitted: suspend (String?) -> Unit = {},
         silentPass: Boolean = false,
@@ -89,7 +90,9 @@ internal class GroupBotResponder(
                 logger.e("[GroupChatDispatcher] Bot ${bot.name} 群维度会话准备失败", error)
                 val text = "❌ 无法准备会话：${error?.message}"
                 groupRepository.updateStreamingMessage(placeholderId, text, false)
-                if (deliveryId != null) groupRepository.finishDelivery(deliveryId, GroupDelivery.REJECTED, text)
+                if (deliveryId != null) {
+                    groupRepository.finishDelivery(deliveryId, GroupDelivery.REJECTED, text, claimNonce)
+                }
                 return GroupTurnOutcome(text, failed = true)
             }
             val sessionId = sessionReady.getOrThrow()
@@ -104,7 +107,8 @@ internal class GroupBotResponder(
             val prompt = buildGroupPrompt(group, bot, trigger, resolvedHistory, members, groupRepository.getTeam(group.id), groupRepository.getGovernance(group.id))
             bindAttachments(sessionId, prompt)
             if (deliveryId != null) {
-                check(groupRepository.prepareDelivery(deliveryId, sessionId)) { "收件已停止、成员已移出或来源已清除" }
+                val nonce = requireNotNull(claimNonce) { "收件租约缺失" }
+                check(groupRepository.prepareDelivery(deliveryId, sessionId, nonce)) { "收件已停止、成员已移出或来源已清除" }
             }
             if (sessionOverride != null) require(groupRepository.getMembers(group.id).any { it.id == bot.id }) {
                 "执行成员已移出来源群聊，未提交任务"
@@ -116,7 +120,8 @@ internal class GroupBotResponder(
             val submission = withContext(work) { sessionControl.submit(sessionId, prompt, imageUrls) }
             admittedTaskId = (submission as? PromptSubmission.Accepted)?.taskId
             if (deliveryId != null && submission is PromptSubmission.Accepted) {
-                check(groupRepository.admitDelivery(deliveryId, sessionId, submission.taskId)) { "群消息受理回执未保存" }
+                val nonce = requireNotNull(claimNonce) { "收件租约缺失" }
+                check(groupRepository.admitDelivery(deliveryId, sessionId, submission.taskId, nonce)) { "群消息受理回执未保存" }
             }
             if (submission is PromptSubmission.Accepted) {
                 onAdmitted(submission.taskId)
@@ -134,7 +139,9 @@ internal class GroupBotResponder(
                 val reason = (submission as? PromptSubmission.Rejected)?.reason?.name ?: "提交异常"
                 val text = "❌ 无法开始回复：$reason"
                 groupRepository.updateStreamingMessage(placeholderId, text, false)
-                if (deliveryId != null) groupRepository.finishDelivery(deliveryId, GroupDelivery.REJECTED, text)
+                if (deliveryId != null) {
+                    groupRepository.finishDelivery(deliveryId, GroupDelivery.REJECTED, text, claimNonce)
+                }
                 return GroupTurnOutcome(text, failed = true)
             }
 
@@ -237,7 +244,8 @@ internal class GroupBotResponder(
             admission?.completeExceptionally(failure)
             if (deliveryId != null) groupRepository.finishDelivery(deliveryId,
                 if (submissionAttempted) GroupDelivery.UNKNOWN else GroupDelivery.REJECTED,
-                if (submissionAttempted) "群消息处理结果待核对，请检查会话记录" else "群消息准备失败，未提交执行")
+                if (submissionAttempted) "群消息处理结果待核对，请检查会话记录" else "群消息准备失败，未提交执行",
+                claimNonce)
             logger.e("[GroupChatDispatcher] 群聊回复失败", failure)
             val text = "❌ 回复失败：${failure.message}"
             groupRepository.updateStreamingMessage(placeholderId, text, false)

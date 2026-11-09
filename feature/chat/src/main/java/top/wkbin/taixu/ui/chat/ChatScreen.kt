@@ -1,53 +1,37 @@
 package top.wkbin.taixu.ui.chat
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.flow.first
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.ui.text.style.TextOverflow
 import top.wkbin.taixu.harness.workflow.ProactiveWorkflowSuggestion
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.SnackbarDuration
+import top.yukonga.miuix.kmp.basic.SnackbarResult
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -57,11 +41,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.chat.R
-import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -76,8 +58,10 @@ import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.MainDestination
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.lazy.LazyListState
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.database.AgentPlanEntity
@@ -102,7 +86,7 @@ private val REPOSITORY_HIGHLIGHT_TOOLS = setOf(
 private fun chatBottomInsets(): WindowInsets = WindowInsets.navigationBars.union(WindowInsets.ime)
 
 /** 太墟 · 智枢对话界面 (TaiXu Agent)：智能结对编程、工具自动化调用与代码生成 */
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, )
 @Composable
 fun ChatScreen(
     onNavigate: (MainDestination) -> Unit,
@@ -381,7 +365,7 @@ fun ChatScreen(
     // 否则 Coil 会按 Android 根文件系统路径加载而必然失败。
     CompositionLocalProvider(LocalSandboxHostRoots provides (viewModel?.sandboxHostRoots ?: emptyMap()), LocalA2uiSessionId provides currentSessionId, LocalChatTimelineFocus provides timelineFocus, LocalChatTimelineItems provides timelineItems, LocalChatContextLimit provides contextUsage.limitTokens) {
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RuntimeTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
@@ -708,193 +692,133 @@ private fun ChatPaneContent(
     onApplySkillSuggestion: (SkillSuggestion, Boolean) -> Unit = { _, _ -> },
     onDismissSkillSuggestion: (String) -> Unit = {},
 ) {
+    val density = LocalDensity.current
+    var bottomChromePx by remember { mutableIntStateOf(0) }
+    val bottomChrome = with(density) { bottomChromePx.toDp() }
     Box(modifier = modifier, contentAlignment = Alignment.TopCenter) {
-    Column(modifier = Modifier.widthIn(max = 840.dp).fillMaxSize()) {
-        ChatMessageViewport(listState, Modifier.weight(1f).fillMaxWidth()) { ChatMessageList(
-            modifier = Modifier.fillMaxSize(),
-            listState = listState,
-            messages = messages,
-            toolResults = toolResults,
-            initializing = initializing,
-            running = running,
-            status = status,
-            workspace = workspace,
-            workspaceProject = workspaceProject,
-            onboardingPrivilege = onboardingPrivilege,
-            thinkingExpanded = thinkingExpanded,
-            thinkingAutoTranslate = thinkingAutoTranslate,
-            chatRoundCollapse = chatRoundCollapse,
-            thinkingLive = thinkingLive,
-            liveThinkingMessageId = liveThinkingMessageId,
-            lastAssistantMessageId = lastAssistantMessageId,
-            onNavigateToSettings = onNavigateToSettings,
-            knownMentionNames = knownMentionNames,
-            onSelectCommand = onApplyCommand,
-            onEditMessage = onEditMessage,
-            onDeleteMessage = onDeleteMessage,
-            onRewindMessage = onRewindMessage,
-            onCreateBranch = onCreateBranch,
-            onRegenerate = onRegenerate,
-            onRetryTool = onRetryTool,
-            onOpenFile = onOpenFile,
-            activeCompaction = activeCompaction,
-            activePlan = activePlan,
-            pendingApprovals = pendingApprovals,
-            onResolveApproval = onResolveApproval,
-            onResolveQuestion = onResolveQuestion,
-            onViewSubagentLanes = onViewSubagentLanes,
-            subagentBranches = subagentBranches,
-            onOpenSubagent = onOpenSubagentBranch,
-            hiddenSkillSuggestions = hiddenSkillSuggestions,
-            onApplySkillSuggestion = onApplySkillSuggestion,
-            onDismissSkillSuggestion = onDismissSkillSuggestion,
-        ) }
-
-        activePlan?.let { plan ->
-            val steps = remember(plan.stepsJson) { PlanStepParser.parse(plan.stepsJson) }
-            if (steps.isNotEmpty()) {
-                StickyPlanBar(
-                    goal = plan.goal,
-                    steps = steps,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp),
+        Box(Modifier.widthIn(max = 840.dp).fillMaxSize()) {
+            // 列表铺满整页，内容滚入底部输入区后方；渐隐靠 progressive haze，不用实色遮罩。
+            ChatMessageViewport(listState, Modifier.fillMaxSize(), bottomInset = bottomChrome) {
+                ChatMessageList(
+                    modifier = Modifier.fillMaxSize(),
+                    listState = listState,
+                    messages = messages,
+                    toolResults = toolResults,
+                    initializing = initializing,
+                    running = running,
+                    status = status,
+                    workspace = workspace,
+                    workspaceProject = workspaceProject,
+                    onboardingPrivilege = onboardingPrivilege,
+                    thinkingExpanded = thinkingExpanded,
+                    thinkingAutoTranslate = thinkingAutoTranslate,
+                    chatRoundCollapse = chatRoundCollapse,
+                    thinkingLive = thinkingLive,
+                    liveThinkingMessageId = liveThinkingMessageId,
+                    lastAssistantMessageId = lastAssistantMessageId,
+                    onNavigateToSettings = onNavigateToSettings,
+                    knownMentionNames = knownMentionNames,
+                    onSelectCommand = onApplyCommand,
+                    onEditMessage = onEditMessage,
+                    onDeleteMessage = onDeleteMessage,
+                    onRewindMessage = onRewindMessage,
+                    onCreateBranch = onCreateBranch,
+                    onRegenerate = onRegenerate,
+                    onRetryTool = onRetryTool,
+                    onOpenFile = onOpenFile,
+                    activeCompaction = activeCompaction,
+                    activePlan = activePlan,
+                    pendingApprovals = pendingApprovals,
+                    onResolveApproval = onResolveApproval,
+                    onResolveQuestion = onResolveQuestion,
+                    onViewSubagentLanes = onViewSubagentLanes,
+                    subagentBranches = subagentBranches,
+                    onOpenSubagent = onOpenSubagentBranch,
+                    hiddenSkillSuggestions = hiddenSkillSuggestions,
+                    onApplySkillSuggestion = onApplySkillSuggestion,
+                    onDismissSkillSuggestion = onDismissSkillSuggestion,
+                    bottomContentPadding = bottomChrome,
                 )
             }
-        }
-
-        error?.let { ChatErrorBanner(error = it, onClear = onClearError) }
-
-        McpRecommendationBanner(
-            recommendations = mcpRecommendations,
-            onEnable = onEnableMcpRecommendation,
-            onInstall = onInstallMcpRecommendation,
-            onDismiss = onDismissMcpRecommendation,
-        )
-
-        ProactiveWorkflowBanner(
-            suggestions = workflowSuggestions,
-            onLaunch = onLaunchWorkflowSuggestion,
-            onDismiss = onDismissWorkflowSuggestion,
-        )
-
-        BtwPanel(
-            queries = btwQueries,
-            streaming = btwStreaming,
-            onCancel = onCancelBtw,
-        )
-
-        shareActions?.let { share -> ShareQuickActionsRow(state = share, modifier = Modifier.padding(vertical = 4.dp)) }
-
-        Column(Modifier.chatInputScrim().windowInsetsPadding(chatBottomInsets())) { ChatComposer(
-            listState = listState,
-            running = running,
-            initializing = initializing,
-            status = status,
-            messages = messages,
-            toolResults = toolResults,
-            workspace = workspace,
-            input = input,
-            onInputChanged = onInputChanged,
-            onSend = onSend, onSendWithoutAnswer = onSendWithoutAnswer, onPasteLongText = onPasteLongText,            onStop = onStop,
-            sendMode = sendMode,
-            matchingCommands = matchingCommands,
-            onApplyCommand = onApplyCommand,
-            matchingMentions = matchingMentions,
-            onApplyMention = onApplyMention,
-            attachments = attachments,
-            attachmentsProcessing = attachmentsProcessing,
-            onAttachmentsPicked = onAttachmentsPicked,
-            onRemoveAttachment = onRemoveAttachment,
-            queuedPrompts = queuedPrompts,
-            onEditQueuedPrompt = onEditQueuedPrompt,
-            onRemoveQueuedPrompt = onRemoveQueuedPrompt,
-            onConvertToSteer = onConvertToSteer,
-            knownMentionNames = knownMentionNames,
-            attachedMentions = attachedMentions,
-            onRemoveMention = onRemoveMention,
-            pinnedCapabilities = pinnedCapabilities,
-            onUnpinMention = onUnpinMention,
-            onOpenSkillsMcp = onOpenSkillsMcp,
-            onCompactContext = onCompactContext,
-            activeModel = activeModel,
-            onOpenModels = onOpenModels, approvalMode = approvalMode, onOpenApprovalModes = onOpenApprovalModes,
-            onUpdateReasoning = onUpdateReasoning,
-            contextUsage = contextUsage,
-        ) }
-    }
-    }
-}
-/** Event-driven workflow actions shown directly above the composer as interactive pills. */
-@Composable
-private fun ProactiveWorkflowBanner(
-    suggestions: List<ProactiveWorkflowSuggestion>,
-    onLaunch: (ProactiveWorkflowSuggestion) -> Unit,
-    onDismiss: (String) -> Unit,
-) {
-    if (suggestions.isEmpty()) return
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        suggestions.forEach { suggestion ->
-            Surface(
-                modifier = Modifier.clip(RoundedCornerShape(20.dp)),
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.90f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.55f)),
-                tonalElevation = 2.dp,
+            // 贴屏幕最底（含导航栏区域）：由弱到强溶向底边；输入区叠在渐隐之上。
+            ChatBottomEdgeFade(
+                height = bottomChrome + ChatBottomEdgeFadeExtra,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+            Column(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .onSizeChanged { bottomChromePx = it.height }
+                    .windowInsetsPadding(chatBottomInsets()),
             ) {
-                Row(
-                    modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    RuntimeIcon(RuntimeIconName.Hub, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                    Column(
-                        modifier = Modifier
-                            .clickable { onLaunch(suggestion) }
-                            .padding(end = 4.dp),
-                    ) {
-                        Text(
-                            text = if (suggestion.projectName.isNotBlank()) "${suggestion.projectName} · ${suggestion.title}" else suggestion.title,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                            maxLines = 1,
-                        )
-                        if (suggestion.description.isNotBlank()) {
-                            Text(
-                                text = suggestion.description,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.75f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                    Button(
-                        onClick = { onLaunch(suggestion) },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.height(28.dp),
-                    ) {
-                        Text("运行", style = MaterialTheme.typography.labelSmall)
-                    }
-                    IconButton(
-                        onClick = { onDismiss(suggestion.workflowId) },
-                        modifier = Modifier.size(24.dp),
-                    ) {
-                        RuntimeIcon(
-                            RuntimeIconName.Close,
-                            Modifier.size(12.dp),
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.65f),
+                activePlan?.let { plan ->
+                    val steps = remember(plan.stepsJson) { PlanStepParser.parse(plan.stepsJson) }
+                    if (steps.isNotEmpty()) {
+                        StickyPlanBar(
+                            goal = plan.goal,
+                            steps = steps,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                         )
                     }
                 }
+                error?.let { ChatErrorBanner(error = it, onClear = onClearError) }
+                McpRecommendationBanner(
+                    recommendations = mcpRecommendations,
+                    onEnable = onEnableMcpRecommendation,
+                    onInstall = onInstallMcpRecommendation,
+                    onDismiss = onDismissMcpRecommendation,
+                )
+                ProactiveWorkflowBanner(
+                    suggestions = workflowSuggestions,
+                    onLaunch = onLaunchWorkflowSuggestion,
+                    onDismiss = onDismissWorkflowSuggestion,
+                )
+                BtwPanel(queries = btwQueries, streaming = btwStreaming, onCancel = onCancelBtw)
+                shareActions?.let { share ->
+                    ShareQuickActionsRow(state = share, modifier = Modifier.padding(vertical = 4.dp))
+                }
+                ChatComposer(
+                    listState = listState,
+                    running = running,
+                    initializing = initializing,
+                    status = status,
+                    messages = messages,
+                    toolResults = toolResults,
+                    workspace = workspace,
+                    input = input,
+                    onInputChanged = onInputChanged,
+                    onSend = onSend,
+                    onSendWithoutAnswer = onSendWithoutAnswer,
+                    onPasteLongText = onPasteLongText,
+                    onStop = onStop,
+                    sendMode = sendMode,
+                    matchingCommands = matchingCommands,
+                    onApplyCommand = onApplyCommand,
+                    matchingMentions = matchingMentions,
+                    onApplyMention = onApplyMention,
+                    attachments = attachments,
+                    attachmentsProcessing = attachmentsProcessing,
+                    onAttachmentsPicked = onAttachmentsPicked,
+                    onRemoveAttachment = onRemoveAttachment,
+                    queuedPrompts = queuedPrompts,
+                    onEditQueuedPrompt = onEditQueuedPrompt,
+                    onRemoveQueuedPrompt = onRemoveQueuedPrompt,
+                    onConvertToSteer = onConvertToSteer,
+                    knownMentionNames = knownMentionNames,
+                    attachedMentions = attachedMentions,
+                    onRemoveMention = onRemoveMention,
+                    pinnedCapabilities = pinnedCapabilities,
+                    onUnpinMention = onUnpinMention,
+                    onOpenSkillsMcp = onOpenSkillsMcp,
+                    onCompactContext = onCompactContext,
+                    activeModel = activeModel,
+                    onOpenModels = onOpenModels,
+                    approvalMode = approvalMode,
+                    onOpenApprovalModes = onOpenApprovalModes,
+                    onUpdateReasoning = onUpdateReasoning,
+                    contextUsage = contextUsage,
+                )
             }
         }
     }

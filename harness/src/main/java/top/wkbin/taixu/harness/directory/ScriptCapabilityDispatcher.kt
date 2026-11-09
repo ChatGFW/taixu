@@ -22,6 +22,8 @@ internal class ScriptCapabilityDispatcher(
     private val mcpManager: McpManager?,
     private val redact: (String) -> String,
     private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
+    private val capabilityScope: top.wkbin.taixu.harness.bot.BotCapabilityScope? = null,
+    private val sessionId: String = "",
     private val execute: suspend (ToolCall) -> ToolResult,
 ) {
     suspend fun call(server: String, tool: String, args: JsonObject): Pair<Boolean, String> {
@@ -66,6 +68,7 @@ internal class ScriptCapabilityDispatcher(
             }
             return ToolSchemaValidator.validate(HostCapabilityDirectory.schemaFor(tool), args)
         }
+        if (capabilityScope?.allowsTool(sessionId, server, tool) == false) return listOf("MCP 工具不在当前 Bot 的有效授权内")
         val manager = mcpManager ?: return listOf("未初始化 MCP 管理器")
         val tools = manager.cachedToolsOf(server).ifEmpty { manager.discoverServerTools(server) }
         val info = tools.firstOrNull { it.name == tool } ?: return listOf("MCP[$server] 没有可调用工具「$tool」")

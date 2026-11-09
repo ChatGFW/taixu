@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.components
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -13,14 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -105,7 +106,7 @@ fun SpotlightGuideOverlay(
         // 若此时继续绘制，belowAnchor 会误判且 bottom padding 算出负值抛异常。
         // Box 必须常驻组合树以触发 onGloballyPositioned，内部元素等待自身及锚点坐标上报后再渲染。
         if (anchorBounds == null || overlaySize == IntSize.Zero) return@Box
-        val accent = MaterialTheme.colorScheme.primary
+        val accent = RuntimeTheme.colorScheme.primary
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
@@ -160,7 +161,7 @@ fun SpotlightGuideOverlay(
                 )
                 .fillMaxWidth(tooltipWidthFraction)
                 .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .background(RuntimeTheme.colorScheme.surfaceContainerHighest)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -177,21 +178,21 @@ fun SpotlightGuideOverlay(
                 }
                 Text(
                     title,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
+                    color = RuntimeTheme.colorScheme.onSurface,
                 )
             }
             Text(
                 text = message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             RuntimeTextButton(
                 onClick = onDismiss,
                 modifier = Modifier.align(Alignment.End),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
             ) {
-                Text(resolvedConfirmText, style = MaterialTheme.typography.labelMedium)
+                Text(resolvedConfirmText, style = RuntimeTheme.typography.labelMedium)
             }
         }
     }

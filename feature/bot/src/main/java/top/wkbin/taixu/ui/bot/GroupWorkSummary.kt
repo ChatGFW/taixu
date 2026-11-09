@@ -1,12 +1,15 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -55,9 +58,9 @@ internal fun GroupWorkSummaryBar(summary: GroupWorkSummary, onOpen: () -> Unit) 
     RuntimeTextButton(onClick = onOpen, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RuntimeIcon(if (summary.attention > 0) RuntimeIconName.Alert else RuntimeIconName.Checklist,
-                Modifier.size(18.dp), if (summary.attention > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                Modifier.size(18.dp), if (summary.attention > 0) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.primary)
             Text(labels.joinToString(" · "), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelMedium)
+                style = RuntimeTheme.typography.labelMedium)
             RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(16.dp))
         }
     }

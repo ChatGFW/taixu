@@ -1,88 +1,39 @@
 package top.wkbin.taixu.ui.settings
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.minimumInteractiveComponentSize
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.database.AiModelEntity
-import top.wkbin.taixu.core.model.AiModelProfileExport
-import top.wkbin.taixu.harness.ModelContextWindows
-import top.wkbin.taixu.ui.components.IconTile
-import top.wkbin.taixu.ui.components.ProviderBadge
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
-import top.wkbin.taixu.ui.components.RuntimeCard
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeCheckbox
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-import java.util.Locale
 /**
  * 模型档案管理全屏独立页面
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ModelProfilesScreen(
     onBack: () -> Unit,
@@ -100,16 +51,19 @@ fun ModelProfilesScreen(
     var modelPendingDelete by remember { mutableStateOf<AiModelEntity?>(null) }
     var importing by remember { mutableStateOf(false) }
 
-    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = RuntimeTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
                 title = "模型档案",
                 onBack = onBack,
                 scrollBehavior = scrollBehavior,
                 actions = {
+                    RuntimeIconButton(onClick = onCreate, contentDescription = "新增模型档案") {
+                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp))
+                    }
                     // 📥 导入按钮
                     RuntimeIconButton(
                         onClick = { showImportDialog = true },
@@ -118,7 +72,7 @@ fun ModelProfilesScreen(
                         RuntimeIcon(
                             name = RuntimeIconName.Download,
                             modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.primary,
                         )
                     }
                     // 📤 导出全部按钮
@@ -135,7 +89,7 @@ fun ModelProfilesScreen(
                         RuntimeIcon(
                             name = RuntimeIconName.OpenInNew,
                             modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.primary,
                         )
                     }
                 },
@@ -211,7 +165,7 @@ fun ModelProfilesScreen(
             onDismissRequest = { modelPendingDelete = null },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RuntimeIcon(RuntimeIconName.Alert, Modifier.size(20.dp), MaterialTheme.colorScheme.error)
+                    RuntimeIcon(RuntimeIconName.Alert, Modifier.size(20.dp), RuntimeTheme.colorScheme.error)
                     Text("删除模型档案")
                 }
             },
@@ -223,7 +177,7 @@ fun ModelProfilesScreen(
                         modelPendingDelete = null
                     },
                 ) {
-                    Text("确认删除", color = MaterialTheme.colorScheme.error)
+                    Text("确认删除")
                 }
             },
             dismissButton = {

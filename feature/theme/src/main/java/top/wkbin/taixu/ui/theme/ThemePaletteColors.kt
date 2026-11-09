@@ -7,7 +7,7 @@ data class ThemePaletteColor(val id: String, val seed: Color)
 
 /** Stable preset IDs are persisted; actual visual tokens stay in the theme module. */
 val ThemePaletteColors = listOf(
-    ThemePaletteColor("default", Color(0xFF4259C3)),
+    ThemePaletteColor("default", Color(0xFF3482FF)),
     ThemePaletteColor("rose", Color(0xFFBA6475)),
     ThemePaletteColor("coral", Color(0xFFC67455)),
     ThemePaletteColor("amber", Color(0xFFAF832C)),
@@ -26,4 +26,4 @@ fun themePaletteSeed(id: String): Color = ThemePaletteColors.firstOrNull { it.id
 fun themePaletteColorScheme(palette: ThemePalette, darkTheme: Boolean) =
     if (palette == ThemePalette()) {
         if (darkTheme) XuantongDarkColors else XuantongLightColors
-    } else generateM3ColorScheme(themePaletteSeed(palette.colorId), darkTheme, palette.style)
+    } else generatePaletteColorScheme(themePaletteSeed(palette.colorId), darkTheme, palette.style)

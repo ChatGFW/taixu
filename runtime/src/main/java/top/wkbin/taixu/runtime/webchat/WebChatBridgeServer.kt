@@ -11,9 +11,7 @@ import androidx.core.app.NotificationCompat
 import java.io.File
 import java.util.UUID
 import java.io.InputStream
-import java.net.Inet4Address
 import java.net.InetSocketAddress
-import java.net.NetworkInterface
 import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
@@ -107,7 +105,8 @@ class WebChatBridgeServer(
             val generatedPin = pin ?: generatePin()
             // 工作线程池由 AndroidHttpServer 自己持有：stop() 时随服务一起回收，
             // 不再让本类持有一个永不 shutdown 的 fixedThreadPool。
-            val server = AndroidHttpServer.create(InetSocketAddress(port), 0)
+            // 显式 IPv4 0.0.0.0：避免双栈 :: 在部分 OEM 上出现 accept 队列堆积、局域网无响应。
+            val server = AndroidHttpServer.create(InetSocketAddress("0.0.0.0", port), 0)
             server.createContext("/webchat/api/session/bootstrap", SessionBootstrapHandler())
             server.createContext("/webchat/api/bootstrap", BootstrapHandler())
             server.createContext("/webchat/api/conversations", ConversationsHandler())
@@ -121,7 +120,7 @@ class WebChatBridgeServer(
             server.start()
             httpServer = server
 
-            val localIp = resolveLocalIp()
+            val localIp = resolveWebChatLanIpv4()
             _status.value = WebChatServerStatus(true, port, localIp, generatedPin)
             acquireLocks()
             notification.show("http://$localIp:$port", generatedPin)
@@ -593,25 +592,6 @@ class WebChatBridgeServer(
 
     private fun hasFileExtension(path: String): Boolean = path.substringAfterLast('/', "").contains('.')
     private fun generatePin(): String = (100000..999999).random().toString()
-
-    private fun resolveLocalIp(): String = runCatching {
-        var fallback = "127.0.0.1"
-        val interfaces = NetworkInterface.getNetworkInterfaces()
-        while (interfaces.hasMoreElements()) {
-            val network = interfaces.nextElement()
-            if (network.isLoopback || !network.isUp) continue
-            val addresses = network.inetAddresses
-            while (addresses.hasMoreElements()) {
-                val address = addresses.nextElement()
-                if (address is Inet4Address && !address.isLoopbackAddress) {
-                    val host = address.hostAddress.orEmpty()
-                    if (host.startsWith("192.168.") || host.startsWith("10.") || host.startsWith("172.")) return@runCatching host
-                    fallback = host
-                }
-            }
-        }
-        fallback
-    }.getOrDefault("127.0.0.1")
 
     companion object {
         const val DEFAULT_PORT = DEFAULT_WEBCHAT_PORT

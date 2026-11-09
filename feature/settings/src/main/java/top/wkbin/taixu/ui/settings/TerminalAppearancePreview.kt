@@ -13,10 +13,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,7 +43,7 @@ internal fun TerminalPreviewCard(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
+        shape = RuntimeTheme.shapes.medium,
         color = bg,
         border = BorderStroke(1.dp, Color(0xFF282A36)),
     ) {
@@ -66,23 +65,23 @@ internal fun TerminalPreviewCard(
                 }
                 Text(
                     text = "Linux PRoot (pty0)",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontFamily = FontFamily.Monospace),
+                    style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                     color = textColor.copy(alpha = 0.5f),
                 )
             }
             Spacer(Modifier.height(2.dp))
             Text(
                 text = "taixu@debian:~$ uname -a",
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontFamily = FontFamily.Monospace,
                     fontSize = fontSizeSp.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                 ),
                 color = accentColor,
             )
             Text(
                 text = "Linux taixu 6.6.0-aarch64 #1 SMP PREEMPT GNU/Linux",
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontFamily = FontFamily.Monospace,
                     fontSize = fontSizeSp.sp,
                 ),
@@ -90,16 +89,16 @@ internal fun TerminalPreviewCard(
             )
             Text(
                 text = stringResource(R.string.settings_terminal_preview_command),
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontFamily = FontFamily.Monospace,
                     fontSize = fontSizeSp.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                 ),
                 color = accentColor,
             )
             Text(
                 text = stringResource(R.string.settings_terminal_preview_output),
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontFamily = FontFamily.Monospace,
                     fontSize = fontSizeSp.sp,
                 ),
@@ -120,13 +119,13 @@ internal fun TerminalThemeChip(
 ) {
     Surface(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RuntimeTheme.shapes.small)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(10.dp),
+        shape = RuntimeTheme.shapes.small,
         color = bg,
         border = BorderStroke(
             1.5.dp,
-            if (selected) MaterialTheme.colorScheme.primary else Color(0xFF282A36),
+            if (selected) RuntimeTheme.colorScheme.primary else Color.Transparent,
         ),
     ) {
         Column(
@@ -147,7 +146,7 @@ internal fun TerminalThemeChip(
             }
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal),
+                style = RuntimeTheme.typography.labelSmall.copy(fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal),
                 color = text,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,

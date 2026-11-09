@@ -1,28 +1,24 @@
 package top.wkbin.taixu.ui.settings
+
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
-import top.wkbin.taixu.ui.components.RuntimeIllustration
-import top.wkbin.taixu.ui.components.RuntimeIllustrationScene
+import top.wkbin.taixu.ui.components.RuntimeSearchEntry
 import top.wkbin.taixu.ui.components.RuntimeUsageNoticeDialog
 import top.wkbin.taixu.feature.components.R as ComponentsR
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,7 +44,6 @@ fun SettingsScreen(
     onOpenSystemDev: () -> Unit,
     onOpenAboutCommunity: () -> Unit,
     onOpenSearch: () -> Unit = {},
-    onOpenFeatureHub: () -> Unit = {},
     onOpenPluginCenter: () -> Unit = {},
     viewModel: SettingsViewModel? = previewOrNull { koinViewModel() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) },
 ) {
@@ -60,8 +55,6 @@ fun SettingsScreen(
     val skills by viewModel?.allSkills?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val effectiveExecutionMode by viewModel?.effectiveExecutionMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.ExecutionMode.PROOT)
     val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val terminalFontSize by viewModel?.terminalFontSize?.collectAsStateWithLifecycle() ?: previewStateOf(14)
-
     val themeLabel = when (themeMode) {
         "light" -> "浅色"
         "dark" -> "曜石"
@@ -73,29 +66,14 @@ fun SettingsScreen(
 
     PersonalizationScaffold(stringResource(R.string.personal_settings_title), onBack) {
         item("search") {
-            RuntimeCard(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onOpenSearch,
-                shape = MaterialTheme.shapes.extraLarge,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    RuntimeIcon(RuntimeIconName.Search, Modifier.size(24.dp), MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(stringResource(R.string.personal_search), style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
-        }
-        item("settings_illustration") {
-            RuntimeIllustration(RuntimeIllustrationScene.Settings, Modifier.height(80.dp))
+            RuntimeSearchEntry(stringResource(R.string.personal_search), onOpenSearch)
         }
         item("appearance") {
             SettingsCategoryCard(
                 icon = RuntimeIconName.Palette,
                 title = stringResource(R.string.personal_appearance_title),
                 subtitle = stringResource(R.string.settings_nav_appearance_summary),
-                value = "$themeLabel · ${terminalFontSize}sp",
+                value = themeLabel,
                 onClick = onOpenAppearance,
             )
         }
@@ -113,12 +91,9 @@ fun SettingsScreen(
         }
         item("features-and-data") {
             PersonalizationSection(stringResource(R.string.settings_material_features_data)) {
-                SettingsCategoryCard(RuntimeIconName.Sparkles, stringResource(R.string.settings_feature_hub_title),
-                    stringResource(R.string.settings_nav_features_summary),
-                    "5 项功能", first = true, last = false, onClick = onOpenFeatureHub)
                 SettingsCategoryCard(RuntimeIconName.Extension, stringResource(R.string.plugin_center_title),
                     stringResource(R.string.plugin_center_summary), value = null,
-                    first = false, last = false, onClick = onOpenPluginCenter)
+                    first = true, last = false, onClick = onOpenPluginCenter)
                 LocalBackupSettingsCard(first = false, last = true)
             }
         }

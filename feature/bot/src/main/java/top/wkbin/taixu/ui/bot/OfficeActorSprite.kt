@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animate
@@ -11,15 +14,13 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.MotionDurationScale
@@ -121,7 +122,7 @@ internal fun OfficeActorSprite(
     val hitTop = top - (hitHeight - sh).roundToInt()
     val spriteLeft = ((hitWidth - sw) / 2f).roundToInt()
     val spriteTop = (hitHeight - sh).roundToInt()
-    val highlight = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+    val highlight = RuntimeTheme.colorScheme.primary.copy(alpha = 0.35f)
     Canvas(
         Modifier
             .offset { IntOffset(hitLeft, hitTop) }

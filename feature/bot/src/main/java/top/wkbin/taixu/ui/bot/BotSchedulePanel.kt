@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.bot
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,15 +17,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -57,8 +59,8 @@ internal fun BotSchedulePanel(
     var showAdd by rememberSaveable { mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
             SectionHeader(
@@ -75,28 +77,28 @@ internal fun BotSchedulePanel(
             item {
                 Text(
                     stringResource(R.string.fbot_schedule_empty),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
         items(schedules, key = { it.id }) { schedule ->
             val groupName = groups.firstOrNull { it.id == schedule.groupId }?.name
-            RuntimeCard(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
+            RuntimeCard(contentPadding = PaddingValues(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         schedule.cron,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = RuntimeTheme.typography.labelMedium,
                         fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = RuntimeTheme.colorScheme.primary,
                     )
                     Text(
                         stringResource(
                             R.string.fbot_schedule_next,
                             if (schedule.nextRunAt == Long.MAX_VALUE) "—" else formatEpoch(schedule.nextRunAt),
                         ),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f).padding(start = 10.dp),
                         maxLines = 1,
                     )
@@ -113,13 +115,13 @@ internal fun BotSchedulePanel(
                         RuntimeIcon(
                             RuntimeIconName.Trash,
                             Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.error,
+                            tint = RuntimeTheme.colorScheme.error,
                         )
                     }
                 }
                 Text(
                     schedule.instruction,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = RuntimeTheme.typography.bodyMedium,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 6.dp),
@@ -133,16 +135,16 @@ internal fun BotSchedulePanel(
                     }
                     Text(
                         stringResource(label, formatEpoch(delivery.scheduledAt)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (delivery.status == BotScheduleDelivery.UNKNOWN) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = if (delivery.status == BotScheduleDelivery.UNKNOWN) RuntimeTheme.colorScheme.error
+                            else RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (groupName != null) {
                     Text(
                         groupName,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -184,17 +186,17 @@ private fun AddScheduleDialog(
                 RuntimeFilledTextField(
                     value = cron,
                     onValueChange = { cron = it },
-                    label = { Text(stringResource(R.string.fbot_schedule_cron)) },
+                    labelText = stringResource(R.string.fbot_schedule_cron),
                     placeholder = { Text(stringResource(R.string.fbot_schedule_cron_hint)) },
                     singleLine = true,
                     isError = cronError != null,
-                    supportingText = cronError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    supportingText = cronError?.let { { Text(it, color = RuntimeTheme.colorScheme.error) } },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 RuntimeFilledTextField(
                     value = instruction,
                     onValueChange = { instruction = it },
-                    label = { Text(stringResource(R.string.fbot_schedule_instruction)) },
+                    labelText = stringResource(R.string.fbot_schedule_instruction),
                     minLines = 3,
                     maxLines = 6,
                     modifier = Modifier.fillMaxWidth(),
@@ -202,8 +204,8 @@ private fun AddScheduleDialog(
                 if (groups.isNotEmpty()) {
                     Text(
                         stringResource(R.string.fbot_schedule_group),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),

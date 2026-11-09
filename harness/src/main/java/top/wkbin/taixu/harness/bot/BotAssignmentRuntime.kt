@@ -51,6 +51,7 @@ class BotAssignmentRuntime(
     private val taskUsage: GroupTaskUsage? = null,
     private val nativeTasks: top.wkbin.taixu.core.database.task.AgentTaskRepository? = null,
     private val runtimeRepository: top.wkbin.taixu.core.database.HarnessRuntimeRepository? = null,
+    private val capabilityScope: BotCapabilityScope? = null,
 ) {
     private val pump = AssignmentRequestPump(repository, scope, logger, ::execute)
     private val maintenanceLock = Mutex()
@@ -151,7 +152,8 @@ class BotAssignmentRuntime(
         )
         val nativeSource = nativeTasks?.listForSession(sourceSessionId, top.wkbin.taixu.core.database.task.AgentTaskStatus.ACTIVE)
             ?.singleOrNull { it.operationId == operationId && it.groupId == groupId }
-        val admitted = repository.createIndependentOnce(task, session, BotAssignmentRequest("initial:$id", id, instruction, now), batch, operationId, nativeSource?.id)
+        val granted = task.copy(capabilityGrant = capabilityScope?.issueTaskGrant(task, sourceSessionId))
+        val admitted = repository.createIndependentOnce(granted, session, BotAssignmentRequest("initial:$id", id, instruction, now), batch, operationId, nativeSource?.id)
         return requireNotNull(repository.get(admitted)) { "派发回执不存在" }
     }
 

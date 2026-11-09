@@ -114,6 +114,8 @@ internal class AndroidHttpServer private constructor(
         .apply { allowCoreThreadTimeOut(true) }
 
     private fun acceptConnections(socket: ServerSocket) {
+        // Throwable 也要兜住：未捕获的 Error 会让 accept 线程静默死亡，
+        // 监听 socket 仍在、isRunning 仍为 true，但 Recv-Q 持续堆积，局域网表现为「能连上却无 HTTP 响应」。
         while (running) {
             try {
                 val client = socket.accept()
@@ -129,9 +131,8 @@ internal class AndroidHttpServer private constructor(
                     runCatching { client.close() }
                 }
             } catch (_: SocketException) {
-                if (running) continue
-                break
-            } catch (_: Exception) {
+                if (!running) break
+            } catch (_: Throwable) {
                 if (!running) break
             }
         }

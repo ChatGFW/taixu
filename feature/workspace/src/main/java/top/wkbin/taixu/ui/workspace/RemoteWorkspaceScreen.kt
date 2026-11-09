@@ -6,10 +6,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,22 +46,21 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
         finally { loading = false }
     }
     BackHandler(path.isNotBlank()) { path = path.substringBeforeLast('/', "") }
-    Scaffold(containerColor = MaterialTheme.colorScheme.background,
+    Scaffold(containerColor = RuntimeTheme.colorScheme.background,
         topBar = { RuntimeTopBar(title = if (path.isBlank()) "工坊" else path.substringAfterLast('/'),
             statusText = target?.name ?: "当前服务器", onBack = { if (path.isNotBlank()) path = path.substringBeforeLast('/', "") else onBack() },
             actions = { RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) } }) },
     ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)), contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, PaddingValues(16.dp, 16.dp, 16.dp,
-            24.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)), contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = 12.dp, bottom = 24.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
-                RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(20.dp), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+                RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp), containerColor = RuntimeTheme.colorScheme.surfaceContainerLow) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            IconTile(RuntimeIconName.FolderOpen, size = 40.dp, color = MaterialTheme.colorScheme.primary)
+                            IconTile(RuntimeIconName.FolderOpen, size = 40.dp, color = RuntimeTheme.colorScheme.primary)
                             Column(Modifier.weight(1f)) {
-                                Text(if (path.isBlank()) "服务器项目" else "项目文件", style = MaterialTheme.typography.titleMedium)
-                                Text((target?.workspace.orEmpty().trimEnd('/') + "/" + path).trimEnd('/'), style = MaterialTheme.typography.bodySmall,
-                                    maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(if (path.isBlank()) "服务器项目" else "项目文件", style = RuntimeTheme.typography.titleMedium)
+                                Text((target?.workspace.orEmpty().trimEnd('/') + "/" + path).trimEnd('/'), style = RuntimeTheme.typography.bodySmall,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         if (path.isBlank()) RuntimeFilledTonalButton(onClick = { projectName = ""; message = null; createProject = true }) { Text("新建项目") }
@@ -69,10 +68,10 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
                 }
             }
             if (loading) item { RuntimeLinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
-            message?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+            message?.let { item { Text(it, color = RuntimeTheme.colorScheme.error) } }
             if (!loading && entries.isEmpty() && message == null) item {
                 Text(if (path.isBlank()) "工作目录中还没有项目，可在此新建项目或将已有工程放入服务器工作目录。" else "此目录为空。",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
             items(entries, key = { it.name }) { item ->
                 RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp), onClick = {
@@ -90,13 +89,13 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
                     }
                 }) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        IconTile(if (item.directory) RuntimeIconName.Folder else RuntimeIconName.Code, size = 36.dp, color = MaterialTheme.colorScheme.primary)
+                        IconTile(if (item.directory) RuntimeIconName.Folder else RuntimeIconName.Code, size = 36.dp, color = RuntimeTheme.colorScheme.primary)
                         Column(Modifier.weight(1f)) {
-                            Text(item.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(if (item.directory) "浏览目录" else "${item.size / 1024} KB · 点击编辑", style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(item.name, style = RuntimeTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(if (item.directory) "浏览目录" else "${item.size / 1024} KB · 点击编辑", style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant)
                         }
-                        RuntimeIcon(RuntimeIconName.ChevronRight, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        RuntimeIcon(RuntimeIconName.ChevronRight, modifier = Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -105,8 +104,9 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
     if (createProject) RuntimeAlertDialog(onDismissRequest = { if (!creating) createProject = false }, title = { Text("新建服务器项目") },
         text = { Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("将在当前服务器的工作目录下创建项目目录。")
-            RuntimeFilledTextField(projectName, { projectName = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !creating, label = { Text("项目名称") })
-            message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            RuntimeFilledTextField(projectName, { projectName = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !creating,
+ labelText = "项目名称")
+            message?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
         } }, confirmButton = { RuntimeTextButton(enabled = !creating && projectName.isNotBlank(), onClick = {
             val snapshot = projectName.trim()
             scope.launch {
@@ -130,10 +130,10 @@ private fun RemoteFileEditor(serverId: String, path: String, original: String, s
     val scope = rememberCoroutineScope()
     RuntimeAlertDialog(onDismissRequest = { if (!busy) onDismiss() }, title = { Text(path.substringAfterLast('/'), maxLines = 1, overflow = TextOverflow.Ellipsis) },
         text = { Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(path, style = MaterialTheme.typography.bodySmall)
+            Text(path, style = RuntimeTheme.typography.bodySmall)
             RuntimeFilledTextField(content, { content = it }, modifier = Modifier.fillMaxWidth(), maxLines = 14, minLines = 8,
-                enabled = !busy, textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                enabled = !busy, textStyle = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+            error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
         } }, confirmButton = { RuntimeTextButton(enabled = !busy && content != original, onClick = {
             val snapshot = content
             scope.launch {

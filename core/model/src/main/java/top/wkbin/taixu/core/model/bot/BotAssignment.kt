@@ -45,4 +45,5 @@ data class BotAssignment(
     val rootWorkId: String? = null,
     val stageId: String? = null,
     val workItemId: String? = null,
+    val capabilityGrant: BotTaskCapabilityGrant? = null,
 )

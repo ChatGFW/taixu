@@ -43,13 +43,13 @@ class CapabilityToolGateway(
         if (rawToolName != "use_capability") {
             // 兼容路径：对话历史/模型习惯中仍可能出现直接 mcp__ 调用（schema 已不再宣告）
             toolPolicy?.resolve(args, rawToolName)?.takeIf { !it.enabled }?.let { return false to it.disabledMessage() }
-            rawToolName?.removePrefix("mcp__")?.substringBefore("__")?.let { serverId ->
-                capabilityScope?.allowedMcpServers(sessionId)?.takeIf { serverId.lowercase() !in it }
-                    ?.let { return false to "MCP[$serverId] 不在当前 Bot 的能力白名单内，本次调用未执行。" }
-            }
-            return mcpManager?.executeTool(rawToolName ?: "mcp", args, workspace) ?: (false to "未初始化 MCP 管理器")
+            val allowed = capabilityScope?.allowedMcpServers(sessionId)
+            return mcpManager?.executeTool(rawToolName ?: "mcp", args, workspace, allowedServers = allowed) { tool ->
+                capabilityScope?.allowsTool(sessionId, tool.serverId, tool.name) != false
+            } ?: (false to "未初始化 MCP 管理器")
         }
-        val dispatch = ScriptCapabilityDispatcher(parentToolCallId, metadata, mcpManager, argRedactor, plugins, reenter)
+        val dispatch = ScriptCapabilityDispatcher(parentToolCallId, metadata, mcpManager, argRedactor, plugins,
+            capabilityScope = capabilityScope, sessionId = sessionId, execute = reenter)
         return router.execute(args, workspace, parentToolCallId, operationId, sessionId, metadata, dispatch::call)
     }
 }

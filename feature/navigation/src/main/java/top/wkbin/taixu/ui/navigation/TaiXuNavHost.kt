@@ -1,16 +1,13 @@
 package top.wkbin.taixu.ui.navigation
+
+import androidx.compose.runtime.*
+
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -60,7 +57,6 @@ import top.wkbin.taixu.ui.settings.AppearanceSettingsScreen
 import top.wkbin.taixu.ui.settings.CcSwitchScreen
 import top.wkbin.taixu.ui.settings.DistroManagementScreen
 import top.wkbin.taixu.ui.settings.EnvironmentVariableSettingsScreen
-import top.wkbin.taixu.ui.settings.FeatureHubScreen
 import top.wkbin.taixu.ui.settings.FtpSettingsScreen
 import top.wkbin.taixu.ui.settings.LinuxEnvironmentSettingsScreen
 import top.wkbin.taixu.ui.settings.McpSettingsScreen
@@ -310,7 +306,6 @@ fun TaiXuNavHost(
                         onOpenSystemDev = { activeStack.push(SettingsDestination, SystemDevSettingsDestination) },
                         onOpenAboutCommunity = { activeStack.push(SettingsDestination, AboutCommunityDestination) },
                         onOpenSearch = { activeStack.push(SettingsDestination, SettingsSearchDestination) },
-                        onOpenFeatureHub = { activeStack.push(SettingsDestination, FeatureHubDestination) },
                         onOpenPluginCenter = { activeStack.push(SettingsDestination, ToolCenterDestination) },
                         viewModel = settingsViewModel,
                     )
@@ -441,6 +436,7 @@ fun TaiXuNavHost(
                         onOpenDeveloper = { activeStack.push(SystemDevSettingsDestination, DeveloperDestination) },
                         onOpenAdbLogcat = { activeStack.push(SystemDevSettingsDestination, AdbLogcatDestination) },
                         onOpenCustomIteration = { activeStack.push(SystemDevSettingsDestination, CustomIterationDestination) },
+                        onOpenA2uiPoc = { activeStack.push(SystemDevSettingsDestination, A2uiPocDestination) },
                         onOpenPermissionGuide = { activeStack.push(SystemDevSettingsDestination, PermissionGuideDestination) },
                         viewModel = settingsViewModel,
                     )
@@ -645,16 +641,6 @@ fun TaiXuNavHost(
                     A2uiPocScreen(onBack = ::popBack)
                 }
             }
-            entry<FeatureHubDestination> {
-                GuardedEntry(FeatureHubDestination) {
-                    FeatureHubScreen(
-                        onBack = ::popBack,
-                        onOpenCustomIteration = { activeStack.push(FeatureHubDestination, CustomIterationDestination) },
-                        onStartRoundtable = { pendingHealingTask = HealingTask(AgentPresets.ROUNDTABLE_TITLE, AgentPresets.ROUNDTABLE_PROMPT); navigateMain(MainDestination.Agent) },
-                        onOpenA2uiPoc = { activeStack.push(FeatureHubDestination, A2uiPocDestination) },
-                    )
-                }
-            }
             entry<CustomIterationDestination> {
                 GuardedEntry(CustomIterationDestination) {
                     CustomIterationScreen(
@@ -701,7 +687,7 @@ fun TaiXuNavHost(
             onNavigate = ::navigateMain, onOpenTerminal = { activeStack.pushRaw(TerminalDestination()) },
             onOpenTools = { activeStack.pushRaw(ToolCenterDestination) },
         ) {
-            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Surface(modifier = Modifier.fillMaxSize(), color = RuntimeTheme.colorScheme.background) {
                 NavDisplay(
                     backStack = activeStack, modifier = Modifier.fillMaxSize(), onBack = ::popBack,
                     entryDecorators = entryDecorators, entryProvider = appEntryProvider,

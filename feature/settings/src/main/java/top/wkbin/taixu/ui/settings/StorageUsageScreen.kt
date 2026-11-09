@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.settings
+
+import androidx.compose.runtime.*
+
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -25,19 +28,13 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import top.wkbin.taixu.ui.miuix.FilterChip
+import top.wkbin.taixu.ui.miuix.FilterChipDefaults
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,18 +75,18 @@ private fun StorageScanNotice(warnings: List<String>) {
         RuntimeIcon(
             name = RuntimeIconName.Info,
             modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             "部分目录未计入统计",
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         RuntimeTextButton(onClick = { showDetails = true }) {
-            Text("详情", style = MaterialTheme.typography.labelMedium, maxLines = 1)
+            Text("详情", style = RuntimeTheme.typography.labelMedium, maxLines = 1)
         }
     }
     if (showDetails) {
@@ -105,8 +102,8 @@ private fun StorageScanNotice(warnings: List<String>) {
                     warnings.forEach { warning ->
                         Text(
                             warning,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -144,11 +141,11 @@ fun StorageUsageScreen(
                             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            Text("清理超过 7 天、扫描后未改变的归档日志：", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text("清理超过 7 天、扫描后未改变的归档日志：", style = RuntimeTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                             Text("• .log.gz 与 .log.数字 格式的历史日志")
                             Text("• 当前日志、安装资源与回滚备份会保留")
                             Spacer(Modifier.height(4.dp))
-                            Text("历史诊断信息将被删除。请先关闭终端并停止运行中的任务。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                            Text("历史诊断信息将被删除。请先关闭终端并停止运行中的任务。", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.primary)
                         }
                     },
                     confirmButton = {
@@ -175,11 +172,11 @@ fun StorageUsageScreen(
                             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            Text("仅处理已识别工程中超过 7 天且未修改的缓存文件：", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text("仅处理已识别工程中超过 7 天且未修改的缓存文件：", style = RuntimeTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                             Text("• Gradle 工程的 .gradle 与 Dart/Flutter 工程的 .dart_tool")
                             Spacer(Modifier.height(4.dp))
-                            Text("• build、dist、out、target 和未识别目录由工作区管理。", color = MaterialTheme.colorScheme.primary)
-                            Text("• 下次构建需重新生成缓存，可能需要执行 pub get；请先停止任务。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("• build、dist、out、target 和未识别目录由工作区管理。", color = RuntimeTheme.colorScheme.primary)
+                            Text("• 下次构建需重新生成缓存，可能需要执行 pub get；请先停止任务。", color = RuntimeTheme.colorScheme.onSurfaceVariant)
                         }
                     },
                     confirmButton = {
@@ -213,9 +210,9 @@ fun StorageUsageScreen(
                                 Text("• ${item.name}：${item.reclaimableBytes.readableSize()}")
                             }
                             if (category.riskLevel == StorageRiskLevel.CAUTION) {
-                                Text("提示：缓存需要重新下载或生成，会增加下次构建时间并可能影响离线使用。", style = MaterialTheme.typography.bodySmall, color = semanticColors().warning)
+                                Text("提示：缓存需要重新下载或生成，会增加下次构建时间并可能影响离线使用。", style = RuntimeTheme.typography.bodySmall, color = semanticColors().warning)
                             } else if (category.riskLevel == StorageRiskLevel.DANGEROUS) {
-                                Text("警告：此操作不可撤销，请确认数据已备份。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                Text("警告：此操作不可撤销，请确认数据已备份。", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.error)
                             }
                         }
                     },
@@ -247,10 +244,10 @@ fun StorageUsageScreen(
                             Text("预计删除 ${entry.reclaimableBytes.readableSize()}（文件大小）")
                             Text(entry.cleanupHint ?: "确认清理此细项吗？")
                             entry.path?.let {
-                                Text("目标路径：$it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("目标路径：$it", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                             }
                             if (entry.riskLevel == StorageRiskLevel.DANGEROUS) {
-                                Text("警告：此项清理将永久删除对应数据，操作不可撤销！", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                Text("警告：此项清理将永久删除对应数据，操作不可撤销！", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.error)
                             }
                         }
                     },
@@ -292,8 +289,8 @@ fun StorageUsageScreen(
                     RuntimeCircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     Text(
                         "正在深度分析 Linux 沙箱、依赖缓存与工作区存储…",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -308,8 +305,8 @@ fun StorageUsageScreen(
             item(key = "excluded_mount_points") {
                 Text(
                     "已跳过 $count 个受限挂载入口，工作区与附件按实际目录统计。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -345,8 +342,8 @@ fun StorageUsageScreen(
             ) {
                 Text(
                     "分类细化明细",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = RuntimeTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
                 )
             }
             Spacer(Modifier.height(8.dp))
@@ -358,10 +355,10 @@ fun StorageUsageScreen(
                     FilterChip(
                         selected = activeFilter == filter,
                         onClick = { viewModel?.setFilter(filter) },
-                        label = { Text(filter.label, style = MaterialTheme.typography.labelMedium) },
+                        label = { Text(filter.label, style = RuntimeTheme.typography.labelMedium) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedContainerColor = RuntimeTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = RuntimeTheme.colorScheme.onPrimaryContainer,
                         ),
                     )
                 }
@@ -375,8 +372,8 @@ fun StorageUsageScreen(
                 SettingsDetailCard(Modifier.fillMaxWidth()) {
                     Text(
                         "当前筛选分类下无数据",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -416,15 +413,15 @@ private fun StorageDashboardCard(
         Column {
             Text(
                 "太墟已管理空间",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelMedium,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(2.dp))
             Text(
                 usage.totalManagedBytes.readableSize(),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
+                style = RuntimeTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Medium,
+                color = RuntimeTheme.colorScheme.primary,
             )
         }
         RuntimeOutlinedButton(
@@ -435,18 +432,18 @@ private fun StorageDashboardCard(
             if (refreshing) {
                 RuntimeCircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(6.dp))
-                Text("扫描中", style = MaterialTheme.typography.labelSmall)
+                Text("扫描中", style = RuntimeTheme.typography.labelSmall)
             } else {
                 RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(14.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("重新扫描", style = MaterialTheme.typography.labelSmall)
+                Text("重新扫描", style = RuntimeTheme.typography.labelSmall)
             }
         }
     }
 
     Spacer(Modifier.height(8.dp))
     Text("按文件大小统计，不包含 APK；与系统磁盘占用可能不同。可清理量只计超过 7 天的已识别文件。",
-        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
     Spacer(Modifier.height(14.dp))
 
     // 多段存储色彩条
@@ -457,8 +454,8 @@ private fun StorageDashboardCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(12.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .clip(RuntimeTheme.shapes.extraSmall)
+            .background(RuntimeTheme.colorScheme.surfaceContainerHighest)
             .semantics {
                 contentDescription = visibleCategories.joinToString("；") { cat ->
                     val pct = (cat.bytes * 100 / totalBytes)
@@ -467,7 +464,7 @@ private fun StorageDashboardCard(
             },
     ) {
         if (visibleCategories.isEmpty()) {
-            Spacer(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant))
+            Spacer(Modifier.fillMaxSize().background(RuntimeTheme.colorScheme.surfaceVariant))
         } else {
             visibleCategories.forEachIndexed { index, category ->
                 val weight = (category.bytes.toFloat() / totalBytes).coerceAtLeast(0.008f)
@@ -512,7 +509,7 @@ private fun StorageDashboardCard(
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = item.name,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = RuntimeTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -524,9 +521,9 @@ private fun StorageDashboardCard(
                     ) {
                         Text(
                             text = item.bytes.readableSize(),
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = RuntimeTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = RuntimeTheme.colorScheme.onSurface,
                         )
                         Surface(
                             shape = CircleShape,
@@ -534,8 +531,8 @@ private fun StorageDashboardCard(
                         ) {
                             Text(
                                 text = pctStr,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                fontWeight = FontWeight.Bold,
+                                style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                fontWeight = FontWeight.Medium,
                                 color = categoryColor(index),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             )
@@ -551,7 +548,7 @@ private fun StorageDashboardCard(
                         .fillMaxWidth()
                         .height(3.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                        .background(RuntimeTheme.colorScheme.surfaceContainerHighest),
                 ) {
                     Box(
                         modifier = Modifier
@@ -566,7 +563,6 @@ private fun StorageDashboardCard(
     }
 
     Spacer(Modifier.height(12.dp))
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     Spacer(Modifier.height(8.dp))
 
     Row(
@@ -576,13 +572,13 @@ private fun StorageDashboardCard(
     ) {
         Text(
             "设备可用空间：${usage.availableBytes.readableSize()}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             "共 ${usage.categories.size} 个管理分类",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.outline,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.outline,
         )
     }
 }
@@ -603,7 +599,7 @@ private fun SmartCleanupCards(
         if (safeCleanableBytes > 0) {
             SettingsDetailCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f),
+                containerColor = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.22f),
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -623,26 +619,25 @@ private fun SmartCleanupCards(
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
                                 "可清理的归档日志",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                style = RuntimeTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = RuntimeTheme.colorScheme.onSurface,
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 "超过 7 天的历史归档；当前日志保留",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         Text(
                             safeCleanableBytes.readableSize(),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
+                            style = RuntimeTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Medium,
                             color = top.wkbin.taixu.ui.theme.semanticColors().success,
                         )
                     }
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
                     // 下半部分：保障标签 + 独立操作按钮
                     Row(
@@ -666,7 +661,7 @@ private fun SmartCleanupCards(
                                 )
                                 Text(
                                     "零风险 · 不影响代码与配置",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                     fontWeight = FontWeight.Medium,
                                     color = semanticColors().onSuccessContainer,
                                 )
@@ -681,9 +676,9 @@ private fun SmartCleanupCards(
                             if (cleaningAction == "quick_safe") {
                                 RuntimeCircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                                 Spacer(Modifier.width(6.dp))
-                                Text("清理中…", style = MaterialTheme.typography.labelMedium)
+                                Text("清理中…", style = RuntimeTheme.typography.labelMedium)
                             } else {
-                                Text("清理过期日志", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                Text("清理过期日志", style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
@@ -695,7 +690,7 @@ private fun SmartCleanupCards(
         if (cautionCleanableBytes > 0) {
             SettingsDetailCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.22f),
+                containerColor = RuntimeTheme.colorScheme.secondaryContainer.copy(alpha = 0.22f),
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -715,26 +710,25 @@ private fun SmartCleanupCards(
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
                                 "工作区构建生成物",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                style = RuntimeTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = RuntimeTheme.colorScheme.onSurface,
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 "已识别工程的 .gradle / .dart_tool 旧缓存",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         Text(
                             cautionCleanableBytes.readableSize(),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
+                            style = RuntimeTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Medium,
                             color = top.wkbin.taixu.ui.theme.semanticColors().warning,
                         )
                     }
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
                     // 下半部分：保障标签 + 独立操作按钮
                     Row(
@@ -758,7 +752,7 @@ private fun SmartCleanupCards(
                                 )
                                 Text(
                                     "谨慎清理 · 编译时重新生成",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                     fontWeight = FontWeight.Medium,
                                     color = semanticColors().onWarningContainer,
                                 )
@@ -773,9 +767,9 @@ private fun SmartCleanupCards(
                             if (cleaningAction == "all_project_builds") {
                                 RuntimeCircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                                 Spacer(Modifier.width(6.dp))
-                                Text("清理中…", style = MaterialTheme.typography.labelMedium)
+                                Text("清理中…", style = RuntimeTheme.typography.labelMedium)
                             } else {
-                                Text("清理项目缓存", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                Text("清理项目缓存", style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
@@ -818,16 +812,16 @@ private fun StorageCategoryDetailCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = category.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = "可清理 ${category.reclaimableBytes.readableSize()} · ${category.description}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -839,14 +833,14 @@ private fun StorageCategoryDetailCard(
             ) {
                 Text(
                     text = category.bytes.readableSize(),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = RuntimeTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
                 )
                 if (category.entries.isNotEmpty()) {
                     RuntimeIcon(
                         name = if (expanded) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown,
                         modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -872,8 +866,8 @@ private fun StorageCategoryDetailCard(
                     } else {
                         Text(
                             text = if (category.id == "package_cache") "一键清理" else "清理此分类",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
+                            style = RuntimeTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium,
                         )
                     }
                 }
@@ -887,7 +881,6 @@ private fun StorageCategoryDetailCard(
             exit = fadeOut() + shrinkVertically(),
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 category.entries.forEachIndexed { index, entry ->
                     StorageEntryRow(
                         entry = entry,
@@ -897,7 +890,7 @@ private fun StorageCategoryDetailCard(
                     if (index < category.entries.size - 1) {
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 12.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                            color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
                         )
                     }
                 }
@@ -926,8 +919,8 @@ private fun StorageEntryRow(
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                 Text(
                     entry.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -935,8 +928,8 @@ private fun StorageEntryRow(
                     Spacer(Modifier.height(2.dp))
                     Text(
                         "可清理 ${entry.reclaimableBytes.readableSize()} · ${entry.detail}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -948,9 +941,9 @@ private fun StorageEntryRow(
             ) {
                 Text(
                     entry.bytes.readableSize(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = RuntimeTheme.colorScheme.onSurface,
                 )
                 if (entry.cleanable && entry.bytes > 0) {
                     RuntimeFilledTonalButton(
@@ -963,13 +956,13 @@ private fun StorageEntryRow(
                         } else {
                             Text(
                                 "清理",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
+                                style = RuntimeTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
                                 color = when (entry.riskLevel) {
                                     StorageRiskLevel.SAFE -> top.wkbin.taixu.ui.theme.semanticColors().success
                                     StorageRiskLevel.CAUTION -> top.wkbin.taixu.ui.theme.semanticColors().warning
-                                    StorageRiskLevel.DANGEROUS -> MaterialTheme.colorScheme.error
-                                    StorageRiskLevel.READONLY -> MaterialTheme.colorScheme.outline
+                                    StorageRiskLevel.DANGEROUS -> RuntimeTheme.colorScheme.error
+                                    StorageRiskLevel.READONLY -> RuntimeTheme.colorScheme.outline
                                 },
                             )
                         }
@@ -984,8 +977,8 @@ private fun StorageEntryRow(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp)),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
+                    .clip(RuntimeTheme.shapes.chip),
+                color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -1006,23 +999,23 @@ private fun StorageEntryRow(
                                         .size(6.dp)
                                         .clip(CircleShape)
                                         .background(
-                                            if (sub.cleanable) top.wkbin.taixu.ui.theme.semanticColors().warning else MaterialTheme.colorScheme.outlineVariant
+                                            if (sub.cleanable) top.wkbin.taixu.ui.theme.semanticColors().warning else RuntimeTheme.colorScheme.outlineVariant
                                         ),
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
                                     sub.name,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.labelMedium,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
                             Text(
                                 sub.bytes.readableSize(),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (sub.cleanable) semanticColors().warning else MaterialTheme.colorScheme.onSurface,
+                                style = RuntimeTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = if (sub.cleanable) semanticColors().warning else RuntimeTheme.colorScheme.onSurface,
                             )
                         }
                     }
@@ -1050,13 +1043,13 @@ private fun RiskBadge(riskLevel: StorageRiskLevel, modifier: Modifier = Modifier
         )
         StorageRiskLevel.DANGEROUS -> Triple(
             "高风险 · 持久化数据",
-            MaterialTheme.colorScheme.errorContainer,
-            MaterialTheme.colorScheme.onErrorContainer,
+            RuntimeTheme.colorScheme.errorContainer,
+            RuntimeTheme.colorScheme.onErrorContainer,
         )
         StorageRiskLevel.READONLY -> Triple(
             "保留 · 由所属功能管理",
-            MaterialTheme.colorScheme.surfaceContainerHighest,
-            MaterialTheme.colorScheme.onSurfaceVariant,
+            RuntimeTheme.colorScheme.surfaceContainerHighest,
+            RuntimeTheme.colorScheme.onSurfaceVariant,
         )
     }
 
@@ -1068,7 +1061,7 @@ private fun RiskBadge(riskLevel: StorageRiskLevel, modifier: Modifier = Modifier
         Text(
             text = label,
             color = fg,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+            style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             softWrap = false,

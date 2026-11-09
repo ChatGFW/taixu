@@ -11,9 +11,9 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
@@ -67,18 +67,22 @@ abstract class ChatRenderTestSupport {
         val focusState = mutableStateOf<String?>(if (details) "build" else null)
         try {
             activity.setContent {
-                CompositionLocalProvider(LocalChatTimelineFocus provides focusState) {
-                    TaiXuTheme(darkTheme = dark, dynamicColor = false) {
-                        Surface(color = MaterialTheme.colorScheme.background) {
-                            if (sidebar) SidebarFixture() else if (spacing) ProcessFixture { processState = it } else {
-                                Column(Modifier.fillMaxSize().padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    AssistantTurnLabel()
-                                    ThinkingBlock("thinking", "核对 SDK 与构建配置。", false, durationMs = 4_200)
-                                    Text("先核对工具链，再执行构建。", style = MaterialTheme.typography.bodyMedium)
-                                    ToolStepsCard(
-                                        ToolStepsItem(calls.mapIndexed { i, call -> ChatRenderItem.MessageItem(call, i) }),
-                                        results, calls, "demo", null, false, null, false, {})
+                androidx.compose.runtime.CompositionLocalProvider(
+                    top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled provides false,
+                ) {
+                    CompositionLocalProvider(LocalChatTimelineFocus provides focusState) {
+                        TaiXuTheme(darkTheme = dark, dynamicColor = false) {
+                            Surface(color = RuntimeTheme.colorScheme.background) {
+                                if (sidebar) SidebarFixture() else if (spacing) ProcessFixture { processState = it } else {
+                                    Column(Modifier.fillMaxSize().padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        AssistantTurnLabel()
+                                        ThinkingBlock("thinking", "核对 SDK 与构建配置。", false, durationMs = 4_200)
+                                        Text("先核对工具链，再执行构建。", style = RuntimeTheme.typography.bodyMedium)
+                                        ToolStepsCard(
+                                            ToolStepsItem(calls.mapIndexed { i, call -> ChatRenderItem.MessageItem(call, i) }),
+                                            results, calls, "demo", null, false, null, false, {})
+                                    }
                                 }
                             }
                         }

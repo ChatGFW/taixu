@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -21,7 +21,6 @@ import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
@@ -31,20 +30,20 @@ import top.wkbin.taixu.ui.components.RuntimeTextButton
 internal fun groupBackgroundBrush(style: String?): Brush = when (style) {
     "warm" -> Brush.verticalGradient(
         listOf(
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.07f),
-            MaterialTheme.colorScheme.surface,
+            RuntimeTheme.colorScheme.primary.copy(alpha = 0.07f),
+            RuntimeTheme.colorScheme.surface,
         ),
     )
     "mint" -> Brush.verticalGradient(
         listOf(
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.09f),
-            MaterialTheme.colorScheme.surface,
+            RuntimeTheme.colorScheme.tertiary.copy(alpha = 0.09f),
+            RuntimeTheme.colorScheme.surface,
         ),
     )
     "night" -> Brush.verticalGradient(
         listOf(
-            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
-            MaterialTheme.colorScheme.surface,
+            RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
+            RuntimeTheme.colorScheme.surface,
         ),
     )
     else -> SolidColor(Color.Transparent)
@@ -56,8 +55,8 @@ internal val BACKGROUND_STYLES = listOf("default", "warm", "mint", "night")
 internal fun BackgroundStyleRow(background: String, onSelect: (String) -> Unit) {
     Text(
         stringResource(R.string.fbot_background),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = RuntimeTheme.typography.labelMedium,
+        color = RuntimeTheme.colorScheme.onSurfaceVariant,
     )
     Row(
         modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -89,8 +88,8 @@ private fun backgroundLabel(style: String): String = when (style) {
 internal fun UnifiedApprovalModeRow(selected: String?, onSelect: (String?) -> Unit) {
     Text(
         "成员统一权限",
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = RuntimeTheme.typography.labelMedium,
+        color = RuntimeTheme.colorScheme.onSurfaceVariant,
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(null to "完全访问（默认）", ApprovalMode.ASSISTED.id to "询问后执行", ApprovalMode.REQUEST.id to "每次审批")
@@ -122,8 +121,8 @@ internal fun GroupAdminTransferDialog(
             ) {
                 Text(
                     "移交后原管理员转为普通成员，群聊由新管理员调度。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 members.filter { it.id != currentAdminId }.forEach { member ->
                     Row(

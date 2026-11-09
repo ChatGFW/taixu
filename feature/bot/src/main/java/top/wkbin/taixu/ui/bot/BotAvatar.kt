@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -16,9 +20,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.graphics.asImageBitmap
@@ -50,7 +53,7 @@ fun BotAvatar(
     active: Boolean = false,
     state: BotAvatarState = if (active) BotAvatarState.ACTIVE else BotAvatarState.IDLE,
 ) {
-    val fallback = MaterialTheme.colorScheme.primary
+    val fallback = RuntimeTheme.colorScheme.primary
     val base = remember(colorHex) { parseHexColor(colorHex) ?: fallback }
     val pattern = remember(seed) { pixelPattern(seed) }
     val recipe = remember(seed) { PixelAvatarRecipe.decode(seed) }
@@ -114,10 +117,10 @@ fun BotAvatar(
         if (active || state != BotAvatarState.IDLE) {
             val pulseColor = when (state) {
                 BotAvatarState.THINKING -> Color(0xFFFFB74D)
-                BotAvatarState.EXECUTING -> MaterialTheme.colorScheme.primary
-                BotAvatarState.BLOCKED -> MaterialTheme.colorScheme.error
+                BotAvatarState.EXECUTING -> RuntimeTheme.colorScheme.primary
+                BotAvatarState.BLOCKED -> RuntimeTheme.colorScheme.error
                 BotAvatarState.SUCCESS -> Color(0xFF4CAF50)
-                BotAvatarState.FAILED -> MaterialTheme.colorScheme.error
+                BotAvatarState.FAILED -> RuntimeTheme.colorScheme.error
                 else -> base
             }
             val transition = rememberInfiniteTransition(label = "bot_avatar_pulse")

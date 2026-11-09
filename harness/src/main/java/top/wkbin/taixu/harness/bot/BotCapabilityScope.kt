@@ -7,4 +7,14 @@ package top.wkbin.taixu.harness.bot
  */
 fun interface BotCapabilityScope {
     suspend fun allowedMcpServers(sessionId: String): Set<String>?
+
+    /** null 为不限制，空集合为全部禁用；工具名大小写敏感。 */
+    suspend fun allowedMcpTools(sessionId: String, serverId: String): Set<String>? = null
+
+    suspend fun issueTaskGrant(task: top.wkbin.taixu.core.model.bot.BotAssignment, sourceSessionId: String):
+        top.wkbin.taixu.core.model.bot.BotTaskCapabilityGrant? = null
+
+    suspend fun allowsTool(sessionId: String, serverId: String, tool: String): Boolean =
+        (allowedMcpServers(sessionId)?.contains(serverId.lowercase()) != false) &&
+            (allowedMcpTools(sessionId, serverId)?.contains(tool) != false)
 }

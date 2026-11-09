@@ -3,27 +3,21 @@ package top.wkbin.taixu.ui.settings.skill
 import androidx.compose.foundation.background
 import top.wkbin.taixu.ui.theme.semanticColors
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.ButtonDefaults
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,7 +39,7 @@ import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 
 /**
- * 技能端侧静态安全审计与权限审查弹窗（基于 RuntimeAlertDialog 与 M3 Expressive 设计规范）。
+ * 技能端侧静态安全审计与权限审查弹窗（基于 RuntimeAlertDialog 与 Miuix 设计规范）。
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -62,10 +56,10 @@ fun SkillSecurityAuditDialog(
 
     val badgeColor = when (audit.level) {
         AuditLevel.SAFE -> semanticColors().success
-        AuditLevel.INFO -> MaterialTheme.colorScheme.primary
+        AuditLevel.INFO -> RuntimeTheme.colorScheme.primary
         AuditLevel.WARNING -> semanticColors().warning
         AuditLevel.DANGER -> semanticColors().warning
-        AuditLevel.BLOCKED -> MaterialTheme.colorScheme.error
+        AuditLevel.BLOCKED -> RuntimeTheme.colorScheme.error
     }
 
     RuntimeAlertDialog(
@@ -84,13 +78,13 @@ fun SkillSecurityAuditDialog(
                 Column {
                     Text(
                         text = if (isBlocked) "安全阻断：禁止安装" else "技能安装与静态安全审查",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        style = RuntimeTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
                     )
                     Text(
                         text = "PalmClaw / 太墟端侧安全边界审计",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -105,8 +99,8 @@ fun SkillSecurityAuditDialog(
             ) {
                 // 1. 技能基本信息卡片
                 RuntimeCard(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(12.dp),
+                    containerColor = RuntimeTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RuntimeTheme.shapes.small,
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
@@ -119,29 +113,29 @@ fun SkillSecurityAuditDialog(
                         ) {
                             Text(
                                 text = pkg.manifest.name,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
+                                style = RuntimeTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f),
                             )
                             Surface(
                                 color = badgeColor.copy(alpha = 0.15f),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RuntimeTheme.shapes.small,
                             ) {
                                 Text(
                                     text = audit.level.label,
                                     color = badgeColor,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    style = RuntimeTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                 )
                             }
                         }
                         Text(
                             text = pkg.manifest.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -150,13 +144,13 @@ fun SkillSecurityAuditDialog(
                         ) {
                             Text(
                                 text = "版本: v${pkg.manifest.version}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
                                 text = "作者: ${pkg.manifest.author}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f, fill = false),
@@ -169,15 +163,15 @@ fun SkillSecurityAuditDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         text = "申请权限与操作边界：",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = RuntimeTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
                     )
                     val allPerms = (audit.declaredPermissions + audit.detectedPermissions).toList()
                     if (allPerms.isEmpty()) {
                         Text(
                             text = "纯只读提示词扩展，无需申请外部系统权限",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
                         FlowRow(
@@ -187,8 +181,8 @@ fun SkillSecurityAuditDialog(
                             allPerms.forEach { perm ->
                                 val isHighRisk = perm.isHighRisk
                                 Surface(
-                                    color = if (isHighRisk) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceVariant,
-                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isHighRisk) RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.4f) else RuntimeTheme.colorScheme.surfaceVariant,
+                                    shape = RuntimeTheme.shapes.chip,
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -196,9 +190,9 @@ fun SkillSecurityAuditDialog(
                                     ) {
                                         Text(
                                             text = perm.label,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = if (isHighRisk) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isHighRisk) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                                            style = RuntimeTheme.typography.labelSmall,
+                                            fontWeight = if (isHighRisk) FontWeight.Medium else FontWeight.Normal,
+                                            color = if (isHighRisk) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurface,
                                         )
                                     }
                                 }
@@ -211,68 +205,67 @@ fun SkillSecurityAuditDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = "环境兼容性判定：",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = RuntimeTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
                     )
                     Text(
                         text = compat.level.label,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = RuntimeTheme.typography.bodySmall,
                         color = when (compat.level) {
                             CompatibilityLevel.COMPATIBLE -> semanticColors().success
                             CompatibilityLevel.PARTIALLY_COMPATIBLE -> semanticColors().warning
-                            CompatibilityLevel.INCOMPATIBLE -> MaterialTheme.colorScheme.error
+                            CompatibilityLevel.INCOMPATIBLE -> RuntimeTheme.colorScheme.error
                         },
                         fontWeight = FontWeight.Medium,
                     )
                     if (compat.missingTools.isNotEmpty()) {
                         Text(
                             text = "缺少依赖工具: ${compat.missingTools.joinToString()}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.error,
                         )
                     }
                 }
 
                 // 4. 静态审计发现项（若有风险则展示详细代码段落）
                 if (audit.findings.isNotEmpty()) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Text(
                         text = "审计发现项 (${audit.findings.size} 项)：",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isBlocked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isBlocked) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurface,
                     )
 
                     audit.findings.take(6).forEach { finding ->
                         val itemColor = when (finding.level) {
-                            AuditLevel.BLOCKED, AuditLevel.DANGER -> MaterialTheme.colorScheme.error
+                            AuditLevel.BLOCKED, AuditLevel.DANGER -> RuntimeTheme.colorScheme.error
                             AuditLevel.WARNING -> semanticColors().warning
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            else -> RuntimeTheme.colorScheme.onSurfaceVariant
                         }
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RuntimeTheme.shapes.chip)
                                 .background(itemColor.copy(alpha = 0.08f))
                                 .padding(8.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             Text(
                                 text = "[${finding.ruleId}] ${finding.title}",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
+                                style = RuntimeTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
                                 color = itemColor,
                             )
                             Text(
                                 text = finding.detail,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurface,
                             )
                             finding.snippet?.let { snippet ->
                                 Text(
                                     text = snippet,
-                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier
                                         .padding(top = 2.dp)
                                         .background(Color.Black.copy(alpha = 0.05f))
@@ -286,8 +279,8 @@ fun SkillSecurityAuditDialog(
 
             Text(
                 text = "⚠ 静态审计仅为初步防线，无法识别所有混淆与恶意行为；安装后该技能脚本的实际执行仍会逐条申请审批。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
             )
         },
@@ -296,7 +289,7 @@ fun SkillSecurityAuditDialog(
                 RuntimeButton(
                     onClick = onDismiss,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
+                        containerColor = RuntimeTheme.colorScheme.error,
                     ),
                 ) {
                     Text("安全策略已阻断")
@@ -306,14 +299,14 @@ fun SkillSecurityAuditDialog(
                     onClick = onConfirmInstall,
                     enabled = !isCommitting,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (audit.hasWarnings) semanticColors().warning else MaterialTheme.colorScheme.primary,
+                        containerColor = if (audit.hasWarnings) semanticColors().warning else RuntimeTheme.colorScheme.primary,
                     ),
                 ) {
                     if (isCommitting) {
                         RuntimeCircularProgressIndicator(
                             modifier = Modifier.size(14.dp),
                             strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            color = RuntimeTheme.colorScheme.onPrimary,
                         )
                         Text("正在安装…")
                     } else {

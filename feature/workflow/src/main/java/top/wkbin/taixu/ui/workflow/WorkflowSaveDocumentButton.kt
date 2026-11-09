@@ -3,8 +3,8 @@ package top.wkbin.taixu.ui.workflow
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -55,5 +55,5 @@ internal fun WorkflowSaveDocumentButton(raw: String?, name: String) {
         catch (_: Exception) { pending = null; writing = false; fileError = "无法打开系统文件保存窗口" }
     }) { Text(if (writing) "正在保存…" else "保存为 JSON 文件", maxLines = 1) }
     if (saved) Text("完整 JSON 文件已保存")
-    fileError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+    fileError?.let { Text(it, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall) }
 }

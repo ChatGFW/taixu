@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +22,7 @@ import top.wkbin.taixu.feature.components.R
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 
 /**
  * 工具品牌专属视觉 Avatar（复用 ToolCenterScreen 的映射逻辑）
@@ -56,9 +56,8 @@ internal fun DetailToolAvatar(
     Box(
         modifier = modifier
             .size(size)
-            .clip(RoundedCornerShape(16.dp))
-            .background(brandColor.copy(alpha = 0.12f))
-            .border(1.dp, brandColor.copy(alpha = 0.28f), RoundedCornerShape(16.dp)),
+            .clip(RuntimeTheme.shapes.medium)
+            .background(brandColor.copy(alpha = 0.12f)),
         contentAlignment = Alignment.Center,
     ) {
         if (logoRes != null) {

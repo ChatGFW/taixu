@@ -52,11 +52,6 @@ private fun SettingsDensityPreview() {
                         stringResource(R.string.settings_nav_linux_summary), value = "2 套系统 · PRoot",
                         onClick = {}, tonalIcon = true)
                 }
-                PreferenceSurface(first = false, last = false) {
-                    SettingsRow(RuntimeIconName.Sparkles, "特色功能",
-                        stringResource(R.string.settings_nav_features_summary), value = "5 项功能",
-                        onClick = {}, tonalIcon = true)
-                }
                 PreferenceSurface(first = false) {
                     SettingsRow(RuntimeIconName.Admin, "诊断与系统",
                         stringResource(R.string.settings_nav_diagnostics_summary), value = "运行平稳",

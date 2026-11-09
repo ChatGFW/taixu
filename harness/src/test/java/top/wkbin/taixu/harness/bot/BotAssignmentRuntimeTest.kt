@@ -50,9 +50,25 @@ class BotAssignmentRuntimeTest {
         sessions.upsert(HarnessSessionEntity("parent", "Group", 1, 1, null, workspace = "/workspace/project", executionTargetJson = "frozen-target"))
     }
 
-    private fun runtime(execute: BotAssignmentExecutor) = BotAssignmentRuntime(tasks, groups, bots, sessions, control, tracker, execute, log, scope)
+    private fun runtime(capabilities: BotCapabilityScope? = null, execute: BotAssignmentExecutor) =
+        BotAssignmentRuntime(tasks, groups, bots, sessions, control, tracker, execute, log, scope, capabilityScope = capabilities)
     private suspend fun awaitStatus(id: String, expected: BotAssignmentStatus) = withTimeout(10_000) {
         while (tasks.get(id)?.status != expected) delay(10)
+    }
+
+    @Test fun `normal delegation persists a task bound grant before execution`() = runBlocking {
+        seed()
+        val chief = bots.getBot("chief")!!
+        bots.saveBot(chief.copy(capabilityToolNames = mapOf("remote" to listOf("read")), capabilityExpiresAt = Long.MAX_VALUE))
+        val capabilities = RepositoryBotCapabilityScope(bots,
+            McpServerRepository(db.mcpServerDao(), top.wkbin.taixu.core.security.SecretManager()), tasks)
+        val engine = runtime(capabilities) { _, _, _ -> GroupTurnOutcome("done", false) }
+        val task = engine.create("member", "group", "chief", "parent", "bounded work")
+        val grant = requireNotNull(tasks.get(task.id)!!.capabilityGrant)
+        assertTrue(grant.matches(task))
+        assertEquals(listOf("read"), grant.policy.tools["remote"])
+        assertEquals(Long.MAX_VALUE, grant.policy.expiresAt)
+        awaitStatus(task.id, BotAssignmentStatus.COMPLETED)
     }
 
     @Test fun `active followup queues without interrupting tools then reuses the same session and frozen target`() = runBlocking {

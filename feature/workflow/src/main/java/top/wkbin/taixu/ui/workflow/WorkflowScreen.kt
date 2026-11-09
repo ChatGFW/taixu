@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.workflow
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -24,25 +27,21 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,10 +59,6 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun WorkflowScreen(
     projectName: String = "",
@@ -77,6 +72,7 @@ fun WorkflowScreen(
     val history by viewModel?.history?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val schedules by viewModel?.schedules?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
+    val sentinelState by viewModel?.sentinelState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.harness.workflow.SentinelState())
     val backgroundRuns by viewModel?.backgroundActiveRuns?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val error by viewModel?.error?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val snackbar = remember { SnackbarHostState() }
@@ -102,10 +98,10 @@ fun WorkflowScreen(
         }
     }
     val catalogVisible = activeState == null && editorState == null
-    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = if (catalogVisible) Modifier.nestedScroll(scrollBehavior.nestedScrollConnection) else Modifier,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = RuntimeTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             if (catalogVisible) RuntimeTopBar(title = "太墟工作流", onBack = onBack, scrollBehavior = scrollBehavior)
@@ -176,6 +172,9 @@ fun WorkflowScreen(
                 onEditSchedule = { scheduleEditor = it },
                 onToggleSchedule = { arg0, arg1 -> viewModel?.toggleSchedule(arg0, arg1) },
                 onDeleteSchedule = { arg0 -> viewModel?.deleteSchedule(arg0) },
+                sentinelState = sentinelState,
+                onEnableSentinel = { hour, minute -> viewModel?.enableSentinel(hour, minute) },
+                onDisableSentinel = { viewModel?.disableSentinel() },
                 modifier = Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)), bottomPadding = padding.calculateBottomPadding(),
             )
             else -> WorkflowRunView(
@@ -254,7 +253,7 @@ private fun WorkflowRunView(
                     val node = state.definition.nodes.firstOrNull { it.id == selectedNode }
                     if (node == null) Text("点选节点查看日志、错误与产物")
                     else {
-                        Text(node.title, style = MaterialTheme.typography.titleMedium)
+                        Text(node.title, style = RuntimeTheme.typography.titleMedium)
                         WorkflowNodeDetails(state.nodeStates[node.id])
                     }
                 }
@@ -304,32 +303,32 @@ fun WorkflowTimelineView(state: WorkflowRuntimeState, modifier: Modifier = Modif
             }
 
             val cardContainerColor = if (isRunning) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f * pulseAlpha)
+                RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.15f * pulseAlpha)
             } else if (isWaiting) {
-                MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.20f)
+                RuntimeTheme.colorScheme.tertiaryContainer.copy(alpha = 0.20f)
             } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
+                RuntimeTheme.colorScheme.surfaceContainerLow
             }
 
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = cardContainerColor,
                 borderColor = color.copy(alpha = pulseAlpha),
-                contentPadding = PaddingValues(14.dp),
+                contentPadding = PaddingValues(16.dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         RuntimeIcon(statusIcon(status), Modifier.size(18.dp), tint = color.copy(alpha = if (isRunning) pulseAlpha else 1f))
                         Spacer(Modifier.width(10.dp))
-                        Text(node.title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(node.title, modifier = Modifier.weight(1f), style = RuntimeTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         val duration = run?.output?.durationMs
                         if (duration != null && duration > 0L) {
-                            Text("${duration}ms", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), modifier = Modifier.padding(end = 6.dp))
+                            Text("${duration}ms", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), modifier = Modifier.padding(end = 6.dp))
                         }
-                        Text(statusLabel(status), style = MaterialTheme.typography.labelSmall, color = color, maxLines = 1, fontWeight = if (isRunning || isWaiting) FontWeight.Bold else FontWeight.Normal)
+                        Text(statusLabel(status), style = RuntimeTheme.typography.labelSmall, color = color, maxLines = 1, fontWeight = if (isRunning || isWaiting) FontWeight.Medium else FontWeight.Normal)
                     }
                     run?.progressMessage?.takeIf(String::isNotBlank)?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        Text(it, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     }
                     WorkflowNodeDetails(run)
                 }
@@ -343,17 +342,17 @@ fun WorkflowTimelineView(state: WorkflowRuntimeState, modifier: Modifier = Modif
 private fun RunSummary(state: WorkflowRuntimeState) {
     val color = when (state.status) {
         WorkflowRunStatus.SUCCESS -> Color(0xFF2E7D32)
-        WorkflowRunStatus.FAILED -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.primary
+        WorkflowRunStatus.FAILED -> RuntimeTheme.colorScheme.error
+        else -> RuntimeTheme.colorScheme.primary
     }
-    RuntimeCard(modifier = Modifier.fillMaxWidth(), borderColor = color.copy(alpha = 0.45f), contentPadding = PaddingValues(14.dp)) {
+    RuntimeCard(modifier = Modifier.fillMaxWidth(), borderColor = color.copy(alpha = 0.45f), contentPadding = PaddingValues(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             RuntimeIcon(statusIcon(state.nodeStates.values.lastOrNull()?.status ?: NodeRunStatus.PENDING), Modifier.size(20.dp), tint = color)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(workflowStatusLabel(state.status), fontWeight = FontWeight.SemiBold)
+                Text(workflowStatusLabel(state.status), fontWeight = FontWeight.Medium)
                 WorkflowElapsed(state)
-                state.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                state.error?.let { Text(it, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.error, maxLines = 2, overflow = TextOverflow.Ellipsis) }
             }
         }
     }
@@ -362,10 +361,10 @@ private fun RunSummary(state: WorkflowRuntimeState) {
 @Composable
 internal fun statusColor(status: NodeRunStatus): Color = when (status) {
     NodeRunStatus.SUCCESS -> Color(0xFF2E7D32)
-    NodeRunStatus.FAILED, NodeRunStatus.CANCELLED -> MaterialTheme.colorScheme.error
-    NodeRunStatus.RUNNING, NodeRunStatus.STREAMING, NodeRunStatus.WAITING_APPROVAL -> MaterialTheme.colorScheme.primary
-    NodeRunStatus.SKIPPED -> MaterialTheme.colorScheme.tertiary
-    else -> MaterialTheme.colorScheme.outline
+    NodeRunStatus.FAILED, NodeRunStatus.CANCELLED -> RuntimeTheme.colorScheme.error
+    NodeRunStatus.RUNNING, NodeRunStatus.STREAMING, NodeRunStatus.WAITING_APPROVAL -> RuntimeTheme.colorScheme.primary
+    NodeRunStatus.SKIPPED -> RuntimeTheme.colorScheme.tertiary
+    else -> RuntimeTheme.colorScheme.outline
 }
 
 internal fun statusIcon(status: NodeRunStatus) = when (status) {

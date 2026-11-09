@@ -1,70 +1,45 @@
 package top.wkbin.taixu.ui.settings
+
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenu
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.MaterialTheme
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.draw.clip
-import androidx.compose.material3.minimumInteractiveComponentSize
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.core.model.QuickPhrase
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
-import top.wkbin.taixu.ui.components.RuntimeFloatingActionButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun QuickPhrasesScreen(
     onBack: () -> Unit,
@@ -103,7 +78,7 @@ fun QuickPhrasesScreen(
     if (showResetDialog) {
         RuntimeAlertDialog(
             onDismissRequest = { showResetDialog = false },
-            title = { Text("重置快捷短语预设", fontWeight = FontWeight.Bold) },
+            title = { Text("重置快捷短语预设", fontWeight = FontWeight.Medium) },
             text = { Text("确定要恢复出厂默认的快捷短语与指令吗？这将清除你自定义添加的短语。") },
             confirmButton = {
                 TextButton(
@@ -112,7 +87,7 @@ fun QuickPhrasesScreen(
                         showResetDialog = false
                     },
                 ) {
-                    Text("确认重置", color = MaterialTheme.colorScheme.error)
+                    Text("确认重置")
                 }
             },
             dismissButton = {
@@ -149,7 +124,7 @@ fun QuickPhrasesScreen(
     pendingDeletePhrase?.let { phrase ->
         RuntimeAlertDialog(
             onDismissRequest = { pendingDeletePhraseId = null },
-            title = { Text("删除快捷短语", fontWeight = FontWeight.Bold) },
+            title = { Text("删除快捷短语", fontWeight = FontWeight.Medium) },
             text = { Text("确定要删除「${phrase.title}」吗？删除后不可恢复。") },
             confirmButton = {
                 TextButton(
@@ -158,7 +133,7 @@ fun QuickPhrasesScreen(
                         pendingDeletePhraseId = null
                     },
                 ) {
-                    Text("确认删除", color = MaterialTheme.colorScheme.error)
+                    Text("确认删除")
                 }
             },
             dismissButton = {
@@ -169,10 +144,10 @@ fun QuickPhrasesScreen(
         )
     }
 
-    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = RuntimeTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
                 title = "快捷短语与常用指令",
@@ -186,7 +161,7 @@ fun QuickPhrasesScreen(
                         RuntimeIcon(
                             name = RuntimeIconName.Refresh,
                             modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     IconButton(
@@ -195,19 +170,12 @@ fun QuickPhrasesScreen(
                     ) {
                         RuntimeIcon(
                             name = RuntimeIconName.Plus,
-                            modifier = Modifier.size(22.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                            tint = RuntimeTheme.colorScheme.primary,
                         )
                     }
                 },
             )
-        },
-        floatingActionButton = {
-            RuntimeFloatingActionButton(
-                onClick = { isCreating = true },
-            ) {
-                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(24.dp))
-            }
         },
     ) { padding ->
         Column(
@@ -231,9 +199,9 @@ fun QuickPhrasesScreen(
                         label = {
                             Text(
                                 text = label,
-                                style = MaterialTheme.typography.bodySmall.copy(
+                                style = RuntimeTheme.typography.bodySmall.copy(
                                     fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                                 ),
                             )
                         },
@@ -255,12 +223,12 @@ fun QuickPhrasesScreen(
                         RuntimeIcon(
                             name = RuntimeIconName.Chat,
                             modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            tint = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                         )
                         Text(
                             text = "暂无匹配的快捷短语",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodyMedium,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                         Button(onClick = { isCreating = true }) {
                             Text("添加首条快捷短语")
@@ -270,8 +238,8 @@ fun QuickPhrasesScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 96.dp)),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = 96.dp)),
+                    verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
                 ) {
                     items(filteredPhrases, key = { it.id }) { phrase ->
                         QuickPhraseCard(

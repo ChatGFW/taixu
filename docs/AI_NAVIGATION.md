@@ -13,7 +13,8 @@
 | **数据流转、时序与核心调用链** | [`docs/EXECUTION_TRACES.md`](EXECUTION_TRACES.md) | Agent 循环、存储挂载、PTY 终端、双栏分屏、进程托管与构建链路 |
 | **执行环境替换与资源清理** | [`docs/EXECUTION_ENVIRONMENTS.md`](EXECUTION_ENVIRONMENTS.md) | 文件/命令/MCP/PTY 绑定、父子资源归属、关闭排空与扩展回滚 |
 | **定位特定类、文件与核心组件** | [`docs/FILE_INDEX.md`](FILE_INDEX.md) | Harness、Runtime、Tools、UI 各领域关键文件路径与职责索引 |
-| **架构红线、UX/UI 设计系统与避坑铁律** | [`docs/ARCHITECTURE_RULES.md`](ARCHITECTURE_RULES.md) | Pure Kotlin 隔离、`RuntimeCard`/`RuntimeAlertDialog` 规范、IME 防遮挡 |
+| **架构红线、产品 UX 与避坑铁律** | [`docs/ARCHITECTURE_RULES.md`](ARCHITECTURE_RULES.md) | Pure Kotlin 隔离、聊天/导航产品 UX、IME 防遮挡 |
+| **Compose / miuix 页面约定** | [`docs/UI_GUIDELINES.md`](UI_GUIDELINES.md) | 页面骨架、squircle、毛玻璃、宽屏、Dialog/Sheet、语义色与 Compose 性能 |
 | **构建、测试、打包与调试指令** | [`docs/COMMANDS.md`](COMMANDS.md) | Gradle 单元测试、APK 打包、架构合规检查、ADB 部署与日志调试 |
 | **GitFlow 分支与发布流程** | [`docs/GIT_WORKFLOW.md`](GIT_WORKFLOW.md) | main/develop、feature/release/hotfix 起点、合并方向与本地配置 |
 | **本地工具与生态插件开发** | [`docs/PLUGIN_DEVELOPMENT_GUIDELINES.md`](PLUGIN_DEVELOPMENT_GUIDELINES.md) | 插件 Manifest 结构、Recipe 安装事务与环境变量注入规范 |
@@ -31,6 +32,7 @@
 | **团队模板与审议制衡** | [`docs/GROUP_TEAM_GOVERNANCE.md`](GROUP_TEAM_GOVERNANCE.md) | 团队草稿与发布、按群升级、实时架构图、版本门禁、驳回与主控裁决 |
 | **让步总账（技术债台账）** | [`docs/CONCESSIONS_LEDGER.md`](CONCESSIONS_LEDGER.md) | 为宿主平台/既有架构登记的临时妥协、原因与偿还路径；偿还后移除，新增让步须登记 |
 | **Bot 群聊与可靠分发** | [`docs/BOT_COLLABORATION.md`](BOT_COLLABORATION.md) | 持久收件、独立任务续办、回复前复核、记忆编辑与可追溯恢复 |
+| **外部 Agent 运行时** | [`docs/EXTERNAL_AGENT_RUNTIME.md`](EXTERNAL_AGENT_RUNTIME.md) | 电脑/服务器执行器令牌、8901 LAN HTTP、领取/回执与本地分发隔离 |
 | **已知问题与避坑指南** | [`docs/KNOWN_ISSUES.md`](KNOWN_ISSUES.md) | PRoot 沙箱环境已知限制、架构设计历史考量与规避方案 |
 | **安全边界与凭证暴露面** | [`docs/SECURITY_SURFACE.md`](SECURITY_SURFACE.md) | 权限域总览、密钥流与脱敏边界、PRoot 挂载清单、HostBridge 信任模型与风险登记 |
 | **存储分类与清理边界** | [`docs/STORAGE_MANAGEMENT.md`](STORAGE_MANAGEMENT.md) | 六类空间归属、清理计划、运行时互斥与后续管理建议 |

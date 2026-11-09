@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.settings
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -11,7 +14,6 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,35 +30,25 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.*
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.wkbin.taixu.ui.components.RuntimeRadioButton as RadioButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
-import androidx.compose.material3.Tab
-import androidx.compose.material3.SecondaryTabRow
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -65,16 +57,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.model.McpConnectionState
-import top.wkbin.taixu.core.model.McpAuthMode
 import top.wkbin.taixu.core.model.McpAuthState
 import top.wkbin.taixu.core.model.McpServerConfig
-import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.harness.mcp.server.AgentMcpAccess
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
@@ -82,7 +67,6 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import kotlinx.coroutines.delay
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun McpSettingsScreen(
     onBack: () -> Unit,
@@ -132,10 +116,10 @@ fun McpSettingsScreen(
         }
     }
 
-    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = RuntimeTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
                 title = androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.settings.R.string.personal_mcp_title),
@@ -148,8 +132,8 @@ fun McpSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
-            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp)),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             item {
                 Spacer(Modifier.height(4.dp))
@@ -282,7 +266,7 @@ fun McpSettingsScreen(
     pendingDeleteServer?.let { server ->
         RuntimeAlertDialog(
             onDismissRequest = { pendingDeleteServerId = null },
-            title = { Text("删除 MCP 服务", fontWeight = FontWeight.Bold) },
+            title = { Text("删除 MCP 服务", fontWeight = FontWeight.Medium) },
             text = {
                 Text("确定要删除「${server.name}」吗？删除后将停止向智枢 Agent 注入该服务的工具能力；系统核心 MCP 重新开启即可恢复。")
             },
@@ -292,8 +276,8 @@ fun McpSettingsScreen(
                         viewModel?.deleteMcpServer(server.id)
                         pendingDeleteServerId = null
                     },
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
+                    colors = top.wkbin.taixu.ui.miuix.ButtonDefaults.buttonColors(
+                        containerColor = RuntimeTheme.colorScheme.error,
                     ),
                 ) {
                     Text("确认删除")
@@ -355,7 +339,7 @@ private fun LocalMcpDiscoveryDialog(
     var addedIds by remember { mutableStateOf(emptySet<String>()) }
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("探测本机 MCP", fontWeight = FontWeight.Bold) },
+        title = { Text("探测本机 MCP", fontWeight = FontWeight.Medium) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
@@ -363,8 +347,8 @@ private fun LocalMcpDiscoveryDialog(
             ) {
                 Text(
                     "正在检查 127.0.0.1 的监听端口，并用 MCP 协议验证。仅显示真正可用的服务，不会自动添加。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 when (state) {
                     LocalMcpDiscoveryState.Idle, LocalMcpDiscoveryState.Scanning -> {
@@ -375,43 +359,43 @@ private fun LocalMcpDiscoveryDialog(
                         ) {
                             CircularProgressIndicator(Modifier.size(20.dp))
                             Spacer(Modifier.width(10.dp))
-                            Text("正在探测本机服务…", style = MaterialTheme.typography.bodyMedium)
+                            Text("正在探测本机服务…", style = RuntimeTheme.typography.bodyMedium)
                         }
                     }
                     is LocalMcpDiscoveryState.Error -> {
-                        Text(state.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        Text(state.message, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall)
                     }
                     is LocalMcpDiscoveryState.Results -> {
                         if (state.servers.isEmpty()) {
                             Text(
                                 "没有发现可用的本机 MCP 服务。请确认服务已启动，并监听在 127.0.0.1。",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         } else {
                             state.servers.forEach { detected ->
                                 RuntimeCard(
                                     modifier = Modifier.fillMaxWidth(),
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                    containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
                                     contentPadding = PaddingValues(10.dp),
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                             Text(
                                                 detected.serverUrl,
-                                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                                                style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                             )
                                             Text(
                                                 "已验证 · ${detected.toolCount} 个工具",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                style = RuntimeTheme.typography.bodySmall,
+                                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                         Spacer(Modifier.width(8.dp))
                                         if (detected.server.id in addedIds) {
-                                            Text("已添加", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                            Text("已添加", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.primary)
                                         } else {
                                             OutlinedButton(
                                                 onClick = {
@@ -419,7 +403,7 @@ private fun LocalMcpDiscoveryDialog(
                                                     addedIds = addedIds + detected.server.id
                                                 },
                                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                            ) { Text("添加", style = MaterialTheme.typography.labelSmall) }
+                                            ) { Text("添加", style = RuntimeTheme.typography.labelSmall) }
                                         }
                                     }
                                 }
@@ -453,18 +437,18 @@ private fun BrowserGatesCard(gates: BrowserGateState, viewModel: SettingsViewMod
     ) {
         Text(
             "浏览器 MCP 安全门禁",
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.primary,
+            style = RuntimeTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+            color = RuntimeTheme.colorScheme.primary,
         )
         Text(
             "内置浏览器服务的危险能力开关，默认全部关闭；修改后需重启应用生效",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
     }
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -509,28 +493,11 @@ private fun BrowserGateRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
+    top.yukonga.miuix.kmp.preference.SwitchPreference(
+        title = resolveLegacyString(title), summary = resolveLegacyString(description),
+        checked = checked, onCheckedChange = onCheckedChange,
+        insideMargin = PaddingValues(horizontal = 0.dp, vertical = 16.dp),
+    )
 }
 
 /**
@@ -563,18 +530,18 @@ private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewMode
     ) {
         Text(
             "服务端（被控方）",
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.primary,
+            style = RuntimeTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+            color = RuntimeTheme.colorScheme.primary,
         )
         Text(
             "让外部 AI 客户端（Claude Desktop / Cursor 等）通过 MCP 控制本机：读写工作区文件、执行沙箱命令、操作宿主应用",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
     }
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -607,12 +574,12 @@ private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewMode
                             portText = input.filter { it.isDigit() }.take(5)
                             portText.toIntOrNull()?.let({ arg0 -> viewModel?.setAgentServerPort(arg0) })
                         },
-                        label = { Text("监听端口") },
+                        labelText = resolveLegacyString("监听端口"),
                         singleLine = true,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
                         ),
-                        supportingText = { Text("默认 8890；被占用时自动顺延 10 个相邻端口", style = MaterialTheme.typography.bodySmall) },
+                        supportingText = { Text("默认 8890；被占用时自动顺延 10 个相邻端口", style = RuntimeTheme.typography.bodySmall) },
                         modifier = Modifier.fillMaxWidth(),
                     )
 
@@ -626,12 +593,12 @@ private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewMode
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(if (running) successStatusColor() else MaterialTheme.colorScheme.outline),
+                                    .background(if (running) successStatusColor() else RuntimeTheme.colorScheme.outline),
                             )
                             Text(
                                 if (running) "运行中 · 监听 ${boundPort}" else "已停止",
-                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface,
+                                style = RuntimeTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                color = RuntimeTheme.colorScheme.onSurface,
                             )
                         }
                         val loopbackUrl = "http://127.0.0.1:$boundPort/mcp"
@@ -646,12 +613,12 @@ private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewMode
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
                             "访问令牌（Bearer）",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary,
+                            style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                            color = RuntimeTheme.colorScheme.primary,
                         )
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            shape = RuntimeTheme.shapes.chip,
+                            color = RuntimeTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Row(
@@ -661,8 +628,8 @@ private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewMode
                             ) {
                                 Text(
                                     text = state.token.ifBlank { "启用后自动生成" },
-                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                                    color = RuntimeTheme.colorScheme.onSurface,
                                     modifier = Modifier.weight(1f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -676,7 +643,7 @@ private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewMode
                                     enabled = state.token.isNotBlank(),
                                     modifier = Modifier.size(24.dp),
                                 ) {
-                                    RuntimeIcon(RuntimeIconName.Copy, Modifier.size(14.dp), MaterialTheme.colorScheme.outline)
+                                    RuntimeIcon(RuntimeIconName.Copy, Modifier.size(14.dp), RuntimeTheme.colorScheme.outline)
                                 }
                             }
                         }
@@ -687,26 +654,26 @@ private fun AgentServerCard(state: AgentServerState, viewModel: SettingsViewMode
                         ) {
                             Text(
                                 "令牌持久保存，外部客户端可长期复用；重置后需同步更新客户端配置",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f),
                             )
                             TextButton(onClick = { viewModel?.resetAgentServerToken() }) {
-                                Text("重置令牌", style = MaterialTheme.typography.labelSmall)
+                                Text("重置令牌", style = RuntimeTheme.typography.labelSmall)
                             }
                         }
                     }
 
                     Text(
                         "外部客户端配置示例：在 MCP 配置中填写上述地址，并在请求头带 Authorization: Bearer <令牌>。",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
 
                     Text(
                         "启用后会显示一条常驻通知用于后台保活，避免 App 退到后台时连接被系统掐断。",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -724,13 +691,13 @@ private fun CopyableLine(label: String, value: String, context: Context) {
     ) {
         Text(
             label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.labelSmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             value,
-            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-            color = MaterialTheme.colorScheme.onSurface,
+            style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+            color = RuntimeTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -743,7 +710,7 @@ private fun CopyableLine(label: String, value: String, context: Context) {
             },
             modifier = Modifier.size(24.dp),
         ) {
-            RuntimeIcon(RuntimeIconName.Copy, Modifier.size(14.dp), MaterialTheme.colorScheme.outline)
+            RuntimeIcon(RuntimeIconName.Copy, Modifier.size(14.dp), RuntimeTheme.colorScheme.outline)
         }
     }
 }

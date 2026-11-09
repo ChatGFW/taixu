@@ -3,7 +3,7 @@ package top.wkbin.taixu.ui.workflow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import top.wkbin.taixu.ui.components.RuntimeTextButton
@@ -16,7 +16,7 @@ internal fun WorkflowDelayFields(config: MutableMap<String, String>) {
         RuntimeFilledTextField(
             value = config[key] ?: config["delaySeconds"] ?: "1",
             onValueChange = { config[key] = it },
-            label = { Text(if (milliseconds) "等待毫秒数" else "等待秒数") },
+            labelText = if (milliseconds) "等待毫秒数" else "等待秒数",
             supportingText = { Text(if (milliseconds) "0–600000 整数，支持 \${VAR}" else "0–600 秒，可写小数或 \${VAR}") },
             singleLine = true, modifier = Modifier.fillMaxWidth(),
         )

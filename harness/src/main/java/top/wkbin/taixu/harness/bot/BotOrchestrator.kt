@@ -111,6 +111,7 @@ class BotOrchestrator(
         modelVariant: String? = null,
         allowModelSelection: Boolean? = null,
         capabilityServerNames: List<String>? = null,
+        capabilityPolicy: top.wkbin.taixu.core.model.bot.BotCapabilityPolicy? = null,
     ): Bot = modelManager.withBotLock(botId) {
         val current = requireNotNull(botRepository.getBot(botId)) { "Bot 不存在" }
         val selection = modelManager.validate(modelId, modelVariant)
@@ -130,7 +131,9 @@ class BotOrchestrator(
             allowModelSelection = allowModelSelection ?: current.allowModelSelection,
             isMainBot = keepMain,
             avatarSeed = avatarSeed?.takeIf { it.isNotBlank() } ?: current.avatarSeed,
-            capabilityServerNames = capabilityServerNames ?: current.capabilityServerNames,
+            capabilityServerNames = if (capabilityPolicy != null) capabilityPolicy.servers else capabilityServerNames ?: current.capabilityServerNames,
+            capabilityToolNames = capabilityPolicy?.tools ?: current.capabilityToolNames,
+            capabilityExpiresAt = if (capabilityPolicy != null) capabilityPolicy.expiresAt else current.capabilityExpiresAt,
             updatedAt = System.currentTimeMillis(),
         )
         botRepository.saveBot(updated)

@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -23,8 +24,7 @@ internal fun AddSkillDialog(
     val valid = name.isNotBlank() && prompt.isNotBlank()
     RuntimeSelectionSheet(title = "新增自定义技能", onDismissRequest = onDismiss,
         actions = {
-            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = top.wkbin.taixu.ui.miuix.RuntimeSpacing.dialogActionGap, scrollable = true) {
                 RuntimeTextButton(onDismiss) { Text("取消") }
                 RuntimeButton(onClick = { if (valid) onConfirm(name, description, prompt, command) }, enabled = valid) {
                     Text("添加并启用")
@@ -33,14 +33,18 @@ internal fun AddSkillDialog(
         },
     ) {
         Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            RuntimeFilledTextField(name, { name = it }, label = { Text("技能名称") },
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap)) {
+            RuntimeFilledTextField(name, { name = it },
+ labelText = resolveLegacyString("技能名称"),
                 placeholder = { Text("例如：Rust 编译专家") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            RuntimeFilledTextField(description, { description = it }, label = { Text("简要描述") },
+            RuntimeFilledTextField(description, { description = it },
+ labelText = resolveLegacyString("简要描述"),
                 singleLine = true, modifier = Modifier.fillMaxWidth())
-            RuntimeFilledTextField(command, { command = it }, label = { Text("触发指令（可选）") },
+            RuntimeFilledTextField(command, { command = it },
+ labelText = resolveLegacyString("触发指令（可选）"),
                 placeholder = { Text("例如：/rust") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            RuntimeFilledTextField(prompt, { prompt = it }, label = { Text("系统提示词规则") },
+            RuntimeFilledTextField(prompt, { prompt = it },
+ labelText = resolveLegacyString("系统提示词规则"),
                 minLines = 4, maxLines = 8, modifier = Modifier.fillMaxWidth())
         }
     }

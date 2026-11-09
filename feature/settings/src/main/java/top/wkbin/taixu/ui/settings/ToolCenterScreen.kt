@@ -1,13 +1,12 @@
 package top.wkbin.taixu.ui.settings
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,34 +28,24 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import top.wkbin.taixu.ui.miuix.*
 import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,28 +54,21 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import top.wkbin.taixu.core.database.ToolEntity
 import top.wkbin.taixu.core.model.ToolState
-import top.wkbin.taixu.core.tools.ToolInstallProgress
-import top.wkbin.taixu.core.tools.ToolVerification
 import top.wkbin.taixu.ui.components.NoticeBanner
-import top.wkbin.taixu.ui.components.InfoRow
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-import top.wkbin.taixu.ui.components.StatusBadge
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import top.wkbin.taixu.core.tools.LocalPluginImportState
-import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.feature.settings.R
 /**
  * 太墟 · 插件与 AI 工具中心 (Tool & Plugin Center)
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun LocalToolCenterContent(
     onBack: () -> Unit,
@@ -132,10 +114,10 @@ internal fun LocalToolCenterContent(
     val filteredTools = PluginCenterCatalogPolicy.visibleTools(tools, selectedCategory)
 
     Box(modifier = Modifier.fillMaxSize()) {
-    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = RuntimeTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
                 title = androidx.compose.ui.res.stringResource(R.string.plugin_center_title),
@@ -159,7 +141,7 @@ internal fun LocalToolCenterContent(
                             RuntimeIcon(
                                 name = RuntimeIconName.Refresh,
                                 modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -171,8 +153,8 @@ internal fun LocalToolCenterContent(
             modifier = Modifier
                 .fillMaxSize()
                 .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding)),
-            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(innerPadding, top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp)),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(innerPadding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             item("plugin-actions") {
                 PluginCenterActions(onOpenLibrary, { importLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) },
@@ -190,11 +172,11 @@ internal fun LocalToolCenterContent(
                     FilterChip(
                         selected = isSelected,
                         onClick = { viewModel?.setCategory(catId) },
-                        label = { Text(label, style = MaterialTheme.typography.labelLarge) },
-                        shape = RoundedCornerShape(50),
+                        label = { Text(label, style = RuntimeTheme.typography.labelLarge) },
+                        shape = CircleShape,
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedContainerColor = RuntimeTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = RuntimeTheme.colorScheme.onPrimaryContainer,
                         ),
                     )
                 }
@@ -202,7 +184,7 @@ internal fun LocalToolCenterContent(
             }
                 item(key = "tool_catalog_summary") {
                     Text("已集成 ${tools.count { it.state == ToolState.INSTALLED.name }} 个已就绪工具",
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
                 if (operationError != null) {
                     item(key = "tool_center_operation_error") {
@@ -222,19 +204,19 @@ internal fun LocalToolCenterContent(
                         val isError = state is LocalPluginImportState.Failed
                         val isPending = state is LocalPluginImportState.PendingConfirmation
                         val containerColor = when {
-                            isError -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f)
-                            isImporting -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                            else -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f)
+                            isError -> RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.55f)
+                            isImporting -> RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                            else -> RuntimeTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f)
                         }
                         val contentColor = when {
-                            isError -> MaterialTheme.colorScheme.onErrorContainer
-                            isImporting -> MaterialTheme.colorScheme.onPrimaryContainer
-                            else -> MaterialTheme.colorScheme.onTertiaryContainer
+                            isError -> RuntimeTheme.colorScheme.onErrorContainer
+                            isImporting -> RuntimeTheme.colorScheme.onPrimaryContainer
+                            else -> RuntimeTheme.colorScheme.onTertiaryContainer
                         }
                         RuntimeCard(
                             modifier = Modifier.fillMaxWidth(),
                             containerColor = containerColor,
-                            contentPadding = PaddingValues(14.dp),
+                            contentPadding = PaddingValues(16.dp),
                         ) {
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -267,7 +249,7 @@ internal fun LocalToolCenterContent(
                                                 is LocalPluginImportState.Failed -> "本地插件安装失败"
                                                 LocalPluginImportState.Idle -> ""
                                             },
-                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                            style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
                                             color = contentColor,
                                         )
                                         Text(
@@ -283,7 +265,7 @@ internal fun LocalToolCenterContent(
                                                 is LocalPluginImportState.Failed -> state.message
                                                 LocalPluginImportState.Idle -> ""
                                             },
-                                            style = MaterialTheme.typography.bodySmall,
+                                            style = RuntimeTheme.typography.bodySmall,
                                             color = contentColor,
                                             maxLines = if (isError) 5 else 3,
                                             overflow = TextOverflow.Ellipsis,
@@ -298,13 +280,13 @@ internal fun LocalToolCenterContent(
                                 if (isImporting && state is LocalPluginImportState.Importing) {
                                     LinearProgressIndicator(
                                         progress = { state.progress ?: 0.03f },
-                                        modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                        modifier = Modifier.fillMaxWidth().height(4.dp).clip(RuntimeTheme.shapes.hairline),
                                         color = contentColor,
                                     )
                                 }
                                 if (state is LocalPluginImportState.Reading) {
                                     LinearProgressIndicator(
-                                        modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                        modifier = Modifier.fillMaxWidth().height(4.dp).clip(RuntimeTheme.shapes.hairline),
                                         color = contentColor,
                                     )
                                 }
@@ -318,9 +300,9 @@ internal fun LocalToolCenterContent(
                     item {
                         RuntimeCard(
                             modifier = Modifier.fillMaxWidth(),
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-                            borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
-                            contentPadding = PaddingValues(14.dp),
+                            containerColor = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                            borderColor = RuntimeTheme.colorScheme.primary,
+                            contentPadding = PaddingValues(16.dp),
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(
@@ -330,33 +312,33 @@ internal fun LocalToolCenterContent(
                                     RuntimeCircularProgressIndicator(
                                         modifier = Modifier.size(18.dp),
                                         strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = RuntimeTheme.colorScheme.primary,
                                     )
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = if (isInstallingComponents) "后台正在装配开发套件..." else "最近一次开发套件装配",
-                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = MaterialTheme.colorScheme.primary,
+                                            style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
+                                            color = RuntimeTheme.colorScheme.primary,
                                         )
                                         Text(
                                             text = componentInstallProgress ?: if (isInstallingComponents) "正在执行后台批量装配流水线，你可自由切换到其他页面" else "装配任务已结束，可查看完整日志",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = RuntimeTheme.typography.bodySmall,
+                                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 2,
                                         )
                                     }
                                 }
                                 if (isInstallingComponents) {
                                     LinearProgressIndicator(
-                                        modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
-                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.fillMaxWidth().height(4.dp).clip(RuntimeTheme.shapes.hairline),
+                                        color = RuntimeTheme.colorScheme.primary,
                                     )
                                 }
                                 TextButton(
                                     onClick = { showBundleInstallLog = true },
                                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                                 ) {
-                                    Text("查看安装日志", style = MaterialTheme.typography.labelMedium)
+                                    Text("查看安装日志", style = RuntimeTheme.typography.labelMedium)
                                 }
                             }
                         }
@@ -368,8 +350,8 @@ internal fun LocalToolCenterContent(
                     item {
                         Text(
                             text = "开发者全栈套件 (Dev Bundles)",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.primary,
+                            style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
+                            color = RuntimeTheme.colorScheme.primary,
                             modifier = Modifier.padding(bottom = 2.dp),
                         )
                     }
@@ -381,10 +363,9 @@ internal fun LocalToolCenterContent(
                         RuntimeCard(
                             modifier = Modifier.fillMaxWidth(),
                             onClick = { viewModel?.openBundleSetup(bundle) },
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            borderColor = if (isCoreReady) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                            contentPadding = PaddingValues(14.dp),
+                            containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+                            borderColor = if (isCoreReady) RuntimeTheme.colorScheme.primary else Color.Transparent,
+                            contentPadding = PaddingValues(16.dp),
                         ) {
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -399,15 +380,15 @@ internal fun LocalToolCenterContent(
                                             .size(40.dp)
                                             .clip(CircleShape)
                                             .background(
-                                                if (isCoreReady) MaterialTheme.colorScheme.primaryContainer
-                                                else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                                if (isCoreReady) RuntimeTheme.colorScheme.primaryContainer
+                                                else RuntimeTheme.colorScheme.surfaceContainerHighest,
                                             ),
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         RuntimeIcon(
                                             name = bundleIcon(bundle.iconName),
                                             modifier = Modifier.size(22.dp),
-                                            tint = if (isCoreReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = if (isCoreReady) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
 
@@ -422,23 +403,23 @@ internal fun LocalToolCenterContent(
                                         ) {
                                             Text(
                                                 text = bundle.name,
-                                                style = MaterialTheme.typography.titleMedium,
-                                                color = MaterialTheme.colorScheme.onSurface,
+                                                style = RuntimeTheme.typography.titleMedium,
+                                                color = RuntimeTheme.colorScheme.onSurface,
                                                 modifier = Modifier.weight(1f, fill = false),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                             )
                                             Spacer(Modifier.width(6.dp))
                                             Surface(
-                                                shape = RoundedCornerShape(4.dp),
-                                                color = if (isCoreReady) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                                else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                                shape = RuntimeTheme.shapes.tiny,
+                                                color = if (isCoreReady) RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                                else RuntimeTheme.colorScheme.surfaceContainerHighest,
                                                 modifier = Modifier.wrapContentWidth(),
                                             ) {
                                                 Text(
                                                     text = if (isCoreReady) "已就绪 ($installedCount/${bundle.components.size})" else "未装配 ($installedCount/${bundle.components.size})",
-                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                    color = if (isCoreReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                                    color = if (isCoreReady) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                                     maxLines = 1,
                                                 )
@@ -446,8 +427,8 @@ internal fun LocalToolCenterContent(
                                         }
                                         Text(
                                             text = bundle.summary,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = RuntimeTheme.typography.bodySmall,
+                                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 2,
                                             overflow = TextOverflow.Ellipsis,
                                         )
@@ -464,9 +445,9 @@ internal fun LocalToolCenterContent(
                                     bundle.components.forEach { comp ->
                                         val isInstalled = comp.id in installedComponentIds
                                         Surface(
-                                            shape = RoundedCornerShape(4.dp),
-                                            color = if (isInstalled) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                                            else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                                            shape = RuntimeTheme.shapes.tiny,
+                                            color = if (isInstalled) RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                                            else RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
                                         ) {
                                             Row(
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
@@ -474,12 +455,12 @@ internal fun LocalToolCenterContent(
                                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             ) {
                                                 if (comp.isRequired) {
-                                                    RuntimeIcon(RuntimeIconName.Shield, Modifier.size(10.dp), tint = MaterialTheme.colorScheme.primary)
+                                                    RuntimeIcon(RuntimeIconName.Shield, Modifier.size(10.dp), tint = RuntimeTheme.colorScheme.primary)
                                                 }
                                                 Text(
                                                     text = if (comp.isRequired) "${comp.name} (必选)" else comp.name,
-                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                    color = if (isInstalled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                                    color = if (isInstalled) RuntimeTheme.colorScheme.onPrimaryContainer else RuntimeTheme.colorScheme.onSurfaceVariant,
                                                 )
                                             }
                                         }
@@ -493,14 +474,14 @@ internal fun LocalToolCenterContent(
                                 ) {
                                     FilledTonalButton(
                                         onClick = { viewModel?.openBundleSetup(bundle) },
-                                        shape = RoundedCornerShape(8.dp),
+                                        shape = RuntimeTheme.shapes.medium,
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                                     ) {
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                             RuntimeIcon(RuntimeIconName.Tune, Modifier.size(14.dp))
                                             Text(
                                                 text = if (isCoreReady) "组件管理与配置" else "装配套件",
-                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                                             )
                                         }
                                     }
@@ -517,8 +498,8 @@ internal fun LocalToolCenterContent(
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 text = "智能体生态与服务 (Agents & Services)",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary,
+                                style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
+                                color = RuntimeTheme.colorScheme.primary,
                                 modifier = Modifier.padding(bottom = 2.dp),
                             )
                         }
@@ -557,9 +538,9 @@ internal fun LocalToolCenterContent(
                         val emptySubtitle = androidx.compose.ui.res.stringResource(if (selectedCategory == "INSTALLED") R.string.plugin_center_empty_summary else R.string.settings_tool_center_empty_category_subtitle)
                         RuntimeCard(
                             modifier = Modifier.fillMaxWidth(),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                            contentPadding = PaddingValues(24.dp),
+                            containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+                            borderColor = Color.Transparent,
+                            contentPadding = PaddingValues(16.dp),
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
@@ -569,17 +550,17 @@ internal fun LocalToolCenterContent(
                                 RuntimeIcon(
                                     name = RuntimeIconName.Package,
                                     modifier = Modifier.size(40.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                    tint = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                                 )
                                 Text(
                                     text = emptyTitle,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = RuntimeTheme.typography.titleSmall,
+                                    color = RuntimeTheme.colorScheme.onSurface,
                                 )
                                 Text(
                                     text = emptySubtitle,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.bodySmall,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -607,8 +588,8 @@ internal fun LocalToolCenterContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 200.dp, max = 360.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        shape = RuntimeTheme.shapes.chip,
+                        color = RuntimeTheme.colorScheme.surfaceContainerLowest,
                     ) {
                         Column(
                             modifier = Modifier
@@ -620,21 +601,21 @@ internal fun LocalToolCenterContent(
                             if (toolLogs.isEmpty()) {
                                 Text(
                                     text = "暂无相关事件日志",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.outline,
+                                    style = RuntimeTheme.typography.labelSmall,
+                                    color = RuntimeTheme.colorScheme.outline,
                                 )
                             } else {
                                 toolLogs.forEach { log ->
                                     Text(
                                         text = "[${log.event}] ${log.message}",
-                                        style = MaterialTheme.typography.labelSmall.copy(
+                                        style = RuntimeTheme.typography.labelSmall.copy(
                                             fontFamily = FontFamily.Monospace,
                                             fontSize = 11.sp,
                                         ),
                                         color = if (log.event.contains("FAIL", ignoreCase = true) || log.message.startsWith("ERR:")) {
-                                            MaterialTheme.colorScheme.error
+                                            RuntimeTheme.colorScheme.error
                                         } else {
-                                            MaterialTheme.colorScheme.onSurface
+                                            RuntimeTheme.colorScheme.onSurface
                                         },
                                     )
                                 }
@@ -643,10 +624,7 @@ internal fun LocalToolCenterContent(
                     }
                 },
                 confirmButton = {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
+
                         if (hasErrors) {
                             Button(
                                 onClick = {
@@ -654,15 +632,14 @@ internal fun LocalToolCenterContent(
                                     viewModel?.viewLogs(null)
                                     onStartAiHealing(toolId, toolName, fullLogs)
                                 },
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                shape = RuntimeTheme.shapes.medium,
                             ) {
                                 RuntimeIcon(
                                     name = RuntimeIconName.Brain,
                                     modifier = Modifier.size(14.dp),
                                 )
                                 Spacer(Modifier.width(4.dp))
-                                Text("🧠 AI 自愈", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                Text("🧠 AI 自愈", fontWeight = FontWeight.Medium)
                             }
                         }
                         TextButton(
@@ -681,12 +658,12 @@ internal fun LocalToolCenterContent(
                             onClick = { viewModel?.clearLogs(toolId) },
                             enabled = toolLogs.isNotEmpty(),
                         ) {
-                            Text("清空", color = MaterialTheme.colorScheme.error)
+                            Text("清空")
                         }
                         TextButton(onClick = { viewModel?.viewLogs(null) }) {
                             Text("关闭")
                         }
-                    }
+
                 },
             )
         }
@@ -699,15 +676,15 @@ internal fun LocalToolCenterContent(
                 text = {
                     Surface(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp, max = 420.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        shape = RuntimeTheme.shapes.chip,
+                        color = RuntimeTheme.colorScheme.surfaceContainerLowest,
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize().padding(10.dp).verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             if (componentInstallLog.isEmpty()) {
-                                Text("安装日志正在接收...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                                Text("安装日志正在接收...", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.outline)
                             } else {
                                 componentInstallLog.forEach { line ->
                                     val isError = line.contains("error", ignoreCase = true) ||
@@ -717,8 +694,8 @@ internal fun LocalToolCenterContent(
                                         line.startsWith("E:")
                                     Text(
                                         line,
-                                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-                                        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                                        style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                                        color = if (isError) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurface,
                                     )
                                 }
                             }
@@ -726,7 +703,7 @@ internal fun LocalToolCenterContent(
                     }
                 },
                 confirmButton = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+
                         TextButton(
                             onClick = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
@@ -737,7 +714,7 @@ internal fun LocalToolCenterContent(
                             enabled = componentInstallLog.isNotEmpty(),
                         ) { Text("复制") }
                         TextButton(onClick = { showBundleInstallLog = false }) { Text("关闭") }
-                    }
+
                 },
             )
         }

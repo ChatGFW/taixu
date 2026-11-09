@@ -1,9 +1,9 @@
 package top.wkbin.taixu.ui.settings
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SuggestionChip
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.SuggestionChip
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -103,22 +103,21 @@ You are a helpful and expert AI assistant called {{char}}, based on model {{mode
         "{{user}}" to "用户名称",
     )
 
-    RuntimeCard(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge) {
+    RuntimeCard(Modifier.fillMaxWidth(), shape = RuntimeTheme.shapes.extraLarge) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                RuntimeIcon(RuntimeIconName.Prompt, Modifier.size(24.dp), MaterialTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Prompt, Modifier.size(24.dp), RuntimeTheme.colorScheme.primary)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("自定义系统提示词", style = MaterialTheme.typography.bodyLarge)
-                    Text("覆盖默认提示词，支持动态宏变量", style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("自定义系统提示词", style = RuntimeTheme.typography.bodyLarge)
+                    Text("覆盖默认提示词，支持动态宏变量", style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
                 RuntimeSwitch(enabled, onEnabledChange,
                     modifier = Modifier.semantics { contentDescription = "启用自定义系统提示词" })
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("称呼与人设", style = MaterialTheme.typography.titleSmall,
+                Text("称呼与人设", style = RuntimeTheme.typography.titleSmall,
                     modifier = Modifier.align(Alignment.CenterVertically))
                 RuntimeTextButton(onClick = { showDefaultPromptDialog = true }) {
                     RuntimeIcon(RuntimeIconName.Visibility, Modifier.size(18.dp))
@@ -126,17 +125,18 @@ You are a helpful and expert AI assistant called {{char}}, based on model {{mode
                     Text("查看默认系统提示词")
                 }
             }
-            RuntimeFilledTextField(charNameBuffer, { charNameBuffer = it }, label = { Text("模型自称") },
+            RuntimeFilledTextField(charNameBuffer, { charNameBuffer = it },
+ labelText = resolveLegacyString("模型自称"),
                 placeholder = { Text("太墟智枢") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            RuntimeFilledTextField(userNameBuffer, { userNameBuffer = it }, label = { Text("对用户的称呼") },
+            RuntimeFilledTextField(userNameBuffer, { userNameBuffer = it },
+ labelText = resolveLegacyString("对用户的称呼"),
                 placeholder = { Text("用户") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             Text("称呼对所有对话生效，留空恢复默认；模板中的 {{char}} 和 {{user}} 也使用这两个值。",
-                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             if (enabled) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("提示词模板", style = MaterialTheme.typography.titleSmall,
+                    Text("提示词模板", style = RuntimeTheme.typography.titleSmall,
                         modifier = Modifier.align(Alignment.CenterVertically))
                     RuntimeTextButton(onClick = {
                         textBuffer = defaultPromptTemplate
@@ -147,19 +147,20 @@ You are a helpful and expert AI assistant called {{char}}, based on model {{mode
                         Text("重置模板")
                     }
                 }
-                RuntimeFilledTextField(textBuffer, { textBuffer = it }, label = { Text("自定义提示词") },
+                RuntimeFilledTextField(textBuffer, { textBuffer = it },
+ labelText = resolveLegacyString("自定义提示词"),
                     placeholder = { Text("支持 {{cur_datetime}} 等宏变量") }, minLines = 5, maxLines = 10,
                     modifier = Modifier.fillMaxWidth(),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
-                Text("插入动态宏变量", style = MaterialTheme.typography.titleSmall)
+                    textStyle = RuntimeTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                Text("插入动态宏变量", style = RuntimeTheme.typography.titleSmall)
                 FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     availableVariables.forEach { (variable, label) ->
                         SuggestionChip(onClick = {
                             val updated = if (textBuffer.isBlank()) variable else "$textBuffer $variable"
                             textBuffer = updated
                             onPromptChange(updated)
-                        }, label = { Text("$label · $variable", style = MaterialTheme.typography.labelMedium) },
-                            shape = MaterialTheme.shapes.small)
+                        }, label = { Text("$label · $variable", style = RuntimeTheme.typography.labelMedium) },
+                            shape = RuntimeTheme.shapes.small)
                     }
                 }
             }

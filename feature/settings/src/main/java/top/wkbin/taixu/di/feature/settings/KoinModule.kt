@@ -4,7 +4,6 @@ import org.koin.dsl.module
 import top.wkbin.taixu.ui.settings.AppManagementViewModel
 import top.wkbin.taixu.ui.settings.CcSwitchViewModel
 import top.wkbin.taixu.ui.settings.FtpSettingsViewModel
-import top.wkbin.taixu.ui.settings.FeatureHubViewModel
 import top.wkbin.taixu.ui.settings.FirstResponseTimeoutViewModel
 import top.wkbin.taixu.ui.settings.LocalLlmViewModel
 import top.wkbin.taixu.ui.settings.PhoneAgentSettingsViewModel
@@ -110,15 +109,6 @@ val featureSettingsModule = module {
             translationManager = get(),
             skillInstallationManager = getOrNull(),
             clawHubClient = getOrNull(),
-        )
-    }
-
-    viewModel<FeatureHubViewModel> {
-        FeatureHubViewModel(
-            webChatBridgeServer = get(),
-            workflowRepository = get(),
-            scheduleRepository = get(),
-            logger = get(),
         )
     }
 

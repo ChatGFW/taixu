@@ -2,8 +2,8 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeCard
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -41,15 +40,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.material3.ButtonDefaults
+import top.wkbin.taixu.ui.miuix.*
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,7 +57,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
@@ -103,7 +96,6 @@ import top.wkbin.taixu.core.common.translation.TranslationManager
 import top.wkbin.taixu.core.common.translation.TranslationModelStatus
 
 /** 消息气泡：用户/助手气泡、思考块、任务计划卡、能力事件卡。 */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun UserBubble(
     message: UserMessage,
@@ -156,12 +148,12 @@ internal fun UserBubble(
                 Box(
                     modifier = Modifier
                         .widthIn(max = 560.dp)
-                        .clipBubbleShape(RoundedCornerShape(24.dp, 8.dp, 24.dp, 24.dp))
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .clipBubbleShape(RoundedCornerShape(20.dp, 6.dp, 20.dp, 20.dp))
+                        .background(RuntimeTheme.colorScheme.secondaryContainer)
                         .clickable { showMenu = true },
                 ) {
-                    val mentionColor = MaterialTheme.colorScheme.primary
-                    val mentionBg = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                    val mentionColor = RuntimeTheme.colorScheme.primary
+                    val mentionBg = RuntimeTheme.colorScheme.primary.copy(alpha = 0.18f)
                     val annotatedText = remember(displayText, knownMentionNames, mentionColor, mentionBg) {
                         formatMentionText(displayText, knownMentionNames, mentionColor, mentionBg)
                     }
@@ -169,8 +161,8 @@ internal fun UserBubble(
                         Text(
                             text = annotatedText,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            style = RuntimeTheme.typography.bodyMedium,
+                            color = RuntimeTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -178,7 +170,7 @@ internal fun UserBubble(
                 // 纯图片消息：显示小菜单按钮
                 Surface(
                     onClick = { showMenu = true },
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    color = RuntimeTheme.colorScheme.surfaceContainerHigh,
                     shape = CircleShape,
                     modifier = Modifier.size(28.dp),
                 ) {
@@ -186,62 +178,41 @@ internal fun UserBubble(
                         RuntimeIcon(
                             RuntimeIconName.More,
                             Modifier.size(15.dp),
-                            MaterialTheme.colorScheme.onSurfaceVariant,
+                            RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
             }
         }
 
-        DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false },
-        ) {
+        // 长按/溢出上下文菜单：miuix WindowListPopup 薄包装（非 ExposedDropdown）
+        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.chat_copy)) },
                 leadingIcon = { RuntimeIcon(RuntimeIconName.Copy, Modifier.size(16.dp)) },
-                onClick = {
-                    showMenu = false
-                    copyText()
-                },
+                onClick = { showMenu = false; copyText() },
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.chat_edit_resend)) },
                 leadingIcon = { RuntimeIcon(RuntimeIconName.Edit, Modifier.size(16.dp)) },
-                onClick = {
-                    showMenu = false
-                    onEdit()
-                },
+                onClick = { showMenu = false; onEdit() },
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.chat_create_branch)) },
                 leadingIcon = { RuntimeIcon(RuntimeIconName.GitBranch, Modifier.size(16.dp)) },
-                onClick = {
-                    showMenu = false
-                    onCreateBranch()
-                },
+                onClick = { showMenu = false; onCreateBranch() },
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.chat_rewind)) },
                 leadingIcon = { RuntimeIcon(RuntimeIconName.Reverse, Modifier.size(16.dp)) },
-                onClick = {
-                    showMenu = false
-                    showRewindScopeDialog = true
-                },
+                onClick = { showMenu = false; showRewindScopeDialog = true },
             )
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.chat_delete), color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(R.string.chat_delete), color = RuntimeTheme.colorScheme.error) },
                 leadingIcon = {
-                    RuntimeIcon(
-                        RuntimeIconName.Trash,
-                        Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.error,
-                    )
+                    RuntimeIcon(RuntimeIconName.Trash, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.error)
                 },
-                onClick = {
-                    showMenu = false
-                    showDeleteConfirm = true
-                },
+                onClick = { showMenu = false; showDeleteConfirm = true },
             )
         }
     }
@@ -250,12 +221,12 @@ internal fun UserBubble(
     if (showDeleteConfirm) {
         RuntimeAlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text(stringResource(R.string.chat_delete_message_title), fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.chat_delete_message_title), fontWeight = FontWeight.Medium) },
             text = {
                 Text(
                     stringResource(R.string.chat_delete_message_message),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             },
             confirmButton = {
@@ -264,9 +235,9 @@ internal fun UserBubble(
                         showDeleteConfirm = false
                         onDelete()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    colors = ButtonDefaults.buttonColors(containerColor = RuntimeTheme.colorScheme.error),
                 ) {
-                    Text(stringResource(R.string.chat_confirm_delete), color = MaterialTheme.colorScheme.onError)
+                    Text(stringResource(R.string.chat_confirm_delete), color = RuntimeTheme.colorScheme.onError)
                 }
             },
             dismissButton = {
@@ -279,13 +250,13 @@ internal fun UserBubble(
     if (showRewindScopeDialog) {
         RuntimeAlertDialog(
             onDismissRequest = { showRewindScopeDialog = false },
-            title = { Text(stringResource(R.string.chat_rewind_title), fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.chat_rewind_title), fontWeight = FontWeight.Medium) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         stringResource(R.string.chat_rewind_subtitle),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     RewindScopeOption(
                         label = stringResource(R.string.chat_rewind_code),
@@ -325,22 +296,22 @@ private fun RewindScopeOption(
 ) {
     Surface(
         onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RuntimeTheme.shapes.medium,
+        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RuntimeIcon(icon, Modifier.size(20.dp), MaterialTheme.colorScheme.primary)
+            RuntimeIcon(icon, Modifier.size(20.dp), RuntimeTheme.colorScheme.primary)
             Spacer(Modifier.width(12.dp))
             Column {
-                Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text(label, style = RuntimeTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                 Text(
                     description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -393,13 +364,8 @@ internal fun ImageThumbnail(
         contentScale = ContentScale.Crop,
         modifier = Modifier
             .size(width = 130.dp, height = 130.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .border(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                RoundedCornerShape(12.dp),
-            )
+            .clip(RuntimeTheme.shapes.small)
+            .background(RuntimeTheme.colorScheme.surfaceContainerHigh)
             // 与文字气泡一致的点击语义：弹出操作菜单
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
     )
@@ -476,13 +442,13 @@ internal fun AssistantBubble(
                             Text(
                                 text = humanPrefix,
                                 modifier = Modifier.fillMaxWidth(),
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = RuntimeTheme.typography.bodyMedium,
                             )
                         }
                     }
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        shape = RoundedCornerShape(14.dp),
+                        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+                        shape = RuntimeTheme.shapes.medium,
                         modifier = Modifier.size(width = 260.dp, height = 180.dp),
                     ) {
                         Column(
@@ -492,8 +458,8 @@ internal fun AssistantBubble(
                             CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
                             Text(
                                 text = stringResource(R.string.chat_receiving_image),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -502,7 +468,7 @@ internal fun AssistantBubble(
                         Text(
                             text = message.text.take(MAX_LIVE_TEXT_CHARS),
                             modifier = Modifier.fillMaxWidth(),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = RuntimeTheme.typography.bodyMedium,
                         )
                     }
                 }
@@ -606,7 +572,7 @@ internal fun ThinkingBlock(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
-                .fillMaxWidth().heightIn(min = 28.dp).clip(MaterialTheme.shapes.small)
+                .fillMaxWidth().heightIn(min = 28.dp).clip(RuntimeTheme.shapes.small)
                 .clickable { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); expanded = !expanded }
                 .padding(horizontal = 2.dp, vertical = 4.dp),
         ) {
@@ -652,13 +618,13 @@ internal fun ThinkingBlock(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 1.5.dp,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = RuntimeTheme.colorScheme.primary,
                             )
                         } else {
                             RuntimeIcon(
                                 RuntimeIconName.Globe,
                                 Modifier.size(18.dp),
-                                tint = if (showTranslation) MaterialTheme.colorScheme.primary
+                                tint = if (showTranslation) RuntimeTheme.colorScheme.primary
                                        else chatProcessColor(),
                             )
                         }
@@ -710,12 +676,12 @@ internal fun ThinkingBlock(
                                 RuntimeIcon(
                                     RuntimeIconName.Globe,
                                     Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = RuntimeTheme.colorScheme.primary,
                                 )
                                 Text(
                                     text = "中文译文 (ML Kit 离线生成)",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    style = RuntimeTheme.typography.labelMedium,
+                                    color = RuntimeTheme.colorScheme.primary,
                                 )
                             }
                             MarkdownText(
@@ -732,11 +698,11 @@ internal fun ThinkingBlock(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
                                 strokeWidth = 1.5.dp,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = RuntimeTheme.colorScheme.primary,
                             )
                             Text(
                                 text = "正在离线翻译思考内容...",
-                                style = MaterialTheme.typography.bodyMedium.copy(
+                                style = RuntimeTheme.typography.bodyMedium.copy(
                                     color = chatProcessColor(),
                                 ),
                             )
@@ -748,7 +714,7 @@ internal fun ThinkingBlock(
                                     Text(
                                         text = reasoning,
                                         modifier = Modifier.fillMaxWidth().verticalScroll(liveScroll),
-                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                        style = RuntimeTheme.typography.bodyMedium.copy(
                                             color = chatProcessColor(),
                                         ),
                                     )
@@ -760,7 +726,7 @@ internal fun ThinkingBlock(
                                     ) {
                                         Text(
                                             text = stringResource(R.string.chat_follow_reasoning),
-                                            style = MaterialTheme.typography.labelSmall,
+                                            style = RuntimeTheme.typography.labelSmall,
                                         )
                                     }
                                 }
@@ -785,7 +751,7 @@ internal fun ThinkingBlock(
             title = {
                 Text(
                     text = if (isDownloading) "离线翻译模型下载中" else "未下载离线翻译语种包",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = RuntimeTheme.typography.titleMedium,
                 )
             },
             text = {
@@ -795,7 +761,7 @@ internal fun ThinkingBlock(
                     } else {
                         "本地英语-中文翻译模型（约 60MB）尚未下载。请前往「Agent 设置」完成语种模型下载后方可离线翻译思考流内容。"
                     },
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = RuntimeTheme.typography.bodyMedium,
                 )
             },
             confirmButton = {
@@ -834,9 +800,9 @@ internal fun SkillSuggestionCard(
 ) {
     val isUpdate = suggestion.action == "update"
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        shape = RuntimeTheme.shapes.small,
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
@@ -849,27 +815,27 @@ internal fun SkillSuggestionCard(
                 RuntimeIcon(
                     RuntimeIconName.Sparkles,
                     Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.primary,
                 )
                 Text(
                     if (isUpdate) "技能进化建议 · 修复既有技能" else "技能进化建议 · 沉淀为新技能",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    style = RuntimeTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = RuntimeTheme.colorScheme.primary,
                 )
             }
             Text(
                 suggestion.skillName,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = RuntimeTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             if (suggestion.description.isNotBlank()) {
                 Text(
                     suggestion.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -877,39 +843,32 @@ internal fun SkillSuggestionCard(
             if (suggestion.reason.isNotBlank()) {
                 Text(
                     "依据：" + suggestion.reason,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
+            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 if (isUpdate) {
                     OutlinedButton(
                         onClick = onUpdate,
-                        modifier = Modifier.height(32.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                        modifier = Modifier,
                     ) {
-                        Text("更新技能", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
+                        Text("更新技能", maxLines = 1, softWrap = false)
                     }
                 }
                 Button(
                     onClick = onCreate,
-                    modifier = Modifier.height(32.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                    modifier = Modifier,
                 ) {
-                    Text(if (isUpdate) "另存为新技能" else "创建技能", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
+                    Text(if (isUpdate) "另存为新技能" else "创建技能", maxLines = 1, softWrap = false)
                 }
                 TextButton(
                     onClick = onDismiss,
-                    modifier = Modifier.height(32.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    modifier = Modifier,
                 ) {
-                    Text("忽略", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+                    Text("忽略", color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
                 }
             }
         }
@@ -933,7 +892,7 @@ internal fun CapabilityEventCard(event: CapabilityEvent) {
             RuntimeIcon(
                 if (isSkill) RuntimeIconName.BookOpen else RuntimeIconName.Extension,
                 Modifier.size(13.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                tint = RuntimeTheme.colorScheme.primary.copy(alpha = 0.8f),
             )
         }
         Text(
@@ -941,17 +900,17 @@ internal fun CapabilityEventCard(event: CapabilityEvent) {
                 if (isSkill) R.string.chat_capability_skill_fmt else R.string.chat_capability_mcp_fmt,
                 event.name,
             ),
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 11.5.sp,
+            style = RuntimeTheme.typography.labelSmall.copy(
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
             ),
-            color = MaterialTheme.colorScheme.primary,
+            color = RuntimeTheme.colorScheme.primary,
         )
         if (event.details.isNotBlank()) {
             Text(
                 "· ${event.details}",
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                style = RuntimeTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
@@ -990,7 +949,7 @@ internal fun ModelSwitchCard(event: ModelSwitchEvent) {
                 modifier = Modifier
                     .weight(1f)
                     .height(1.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+                    .background(RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1000,15 +959,15 @@ internal fun ModelSwitchCard(event: ModelSwitchEvent) {
                 RuntimeIcon(
                     RuntimeIconName.Bot,
                     Modifier.size(13.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     title,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 11.5.sp,
+                    style = RuntimeTheme.typography.labelSmall.copy(
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -1017,13 +976,13 @@ internal fun ModelSwitchCard(event: ModelSwitchEvent) {
                 modifier = Modifier
                     .weight(1f)
                     .height(1.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+                    .background(RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
             )
         }
         Text(
             subtitle,
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+            style = RuntimeTheme.typography.bodySmall.copy(fontSize = 11.sp),
+            color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
             modifier = Modifier.fillMaxWidth(),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,

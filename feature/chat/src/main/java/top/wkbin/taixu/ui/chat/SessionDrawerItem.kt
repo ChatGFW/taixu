@@ -1,13 +1,10 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,8 +22,11 @@ import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconMenu
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.theme.semanticColors
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
 
 /** 单条会话项：只保留标题一行；重命名/删除走长按，当前与执行中的行额外给出 ⋮。 */
 @Composable
@@ -36,7 +36,6 @@ internal fun SessionDrawerItem(
     onHide: (() -> Unit)? = null,
     pinned: Boolean = false, onTogglePin: (() -> Unit)? = null,
 ) {
-    var showMenu by remember(session.id) { mutableStateOf(false) }
     val moreLabel = stringResource(R.string.chat_more_controls)
     val statusLabel = stringResource(when (runState) {
         SessionRunState.RUNNING -> R.string.chat_step_running
@@ -49,76 +48,61 @@ internal fun SessionDrawerItem(
     val statusColor = when (runState) {
         SessionRunState.RUNNING -> semanticColors().warning
         SessionRunState.WAITING_APPROVAL -> semanticColors().agent
-        SessionRunState.FAILED -> MaterialTheme.colorScheme.error
+        SessionRunState.FAILED -> RuntimeTheme.colorScheme.error
         else -> Color.Transparent
     }
     Surface(
-        shape = MaterialTheme.shapes.large,
-        color = if (isCurrent) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f) else Color.Transparent,
+        shape = RuntimeTheme.shapes.large,
+        color = if (isCurrent) RuntimeTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f) else Color.Transparent,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = 44.dp).clip(MaterialTheme.shapes.large)
-                .combinedClickable(onClick = onSwitch, onLongClick = { showMenu = true })
+                .heightIn(min = 44.dp).clip(RuntimeTheme.shapes.large)
+                .clickable(onClick = onSwitch)
                 .semantics { selected = isCurrent; stateDescription = statusLabel }
                 .padding(start = 12.dp, end = 10.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (pinned) {
-                RuntimeIcon(RuntimeIconName.Bookmark, Modifier.size(14.dp), MaterialTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Bookmark, Modifier.size(14.dp), RuntimeTheme.colorScheme.primary)
             }
             Text(
                 text = session.title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = RuntimeTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Normal,
-                color = if (isCurrent) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                color = if (isCurrent) RuntimeTheme.colorScheme.onSecondaryContainer else RuntimeTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Box {
-                if (isCurrent || isBusy) {
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(MaterialTheme.shapes.small)
-                            .clickable { showMenu = true }
-                            .semantics { contentDescription = moreLabel },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        RuntimeIcon(RuntimeIconName.More, Modifier.size(16.dp),
-                            if (isBusy) statusColor else MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_rename_session)) },
-                        leadingIcon = { RuntimeIcon(RuntimeIconName.Edit, Modifier.size(18.dp)) },
-                        onClick = { showMenu = false; onRename() },
-                    )
-                    if (onTogglePin != null) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(if (pinned) R.string.chat_unpin_session else R.string.chat_pin_session)) },
-                            leadingIcon = { RuntimeIcon(RuntimeIconName.Bookmark, Modifier.size(18.dp)) },
-                            onClick = { showMenu = false; onTogglePin() },
-                        )
-                    }
-                    if (onHide != null) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_hide_session)) },
-                            leadingIcon = { RuntimeIcon(RuntimeIconName.VisibilityOff, Modifier.size(18.dp)) },
-                            onClick = { showMenu = false; onHide() },
-                        )
-                    }
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_delete_session), color = MaterialTheme.colorScheme.error) },
-                        leadingIcon = { RuntimeIcon(RuntimeIconName.Trash, Modifier.size(18.dp), MaterialTheme.colorScheme.error) },
-                        onClick = { showMenu = false; onDelete() },
-                    )
-                }
+            RuntimeIconMenu(
+                entries = listOf(
+                    DropdownEntry(
+                        items = buildList {
+                            add(DropdownItem(text = stringResource(R.string.chat_rename_session), icon = { mod -> RuntimeIcon(RuntimeIconName.Edit, mod.size(18.dp)) }, onClick = onRename))
+                            if (onTogglePin != null) {
+                                add(DropdownItem(text = stringResource(if (pinned) R.string.chat_unpin_session else R.string.chat_pin_session), icon = { mod -> RuntimeIcon(RuntimeIconName.Bookmark, mod.size(18.dp)) }, onClick = onTogglePin))
+                            }
+                            if (onHide != null) {
+                                add(DropdownItem(text = stringResource(R.string.chat_hide_session), icon = { mod -> RuntimeIcon(RuntimeIconName.VisibilityOff, mod.size(18.dp)) }, onClick = onHide))
+                            }
+                            add(DropdownItem(text = stringResource(R.string.chat_delete_session), icon = { mod -> RuntimeIcon(RuntimeIconName.Trash, mod.size(18.dp), RuntimeTheme.colorScheme.error) }, onClick = onDelete))
+                        },
+                    ),
+                ),
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(RuntimeTheme.shapes.small)
+                    .semantics { contentDescription = moreLabel },
+            ) {
+                RuntimeIcon(
+                    RuntimeIconName.More,
+                    Modifier.size(16.dp),
+                    if (isBusy) statusColor else RuntimeTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

@@ -6,17 +6,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -43,9 +41,9 @@ internal fun SessionDrawerSearch(
             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             RuntimeChatIdentityAvatar(size = 32.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(LocalChatIdentity.current.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(stringResource(R.string.chat_sidebar_subtitle), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(LocalChatIdentity.current.name, style = RuntimeTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(stringResource(R.string.chat_sidebar_subtitle), style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
             if (onCollapse != null) RuntimeIconButton(onClick = onCollapse, modifier = Modifier.size(40.dp),
                 contentDescription = stringResource(top.wkbin.taixu.feature.components.R.string.components_collapse_sidebar)) {
@@ -54,28 +52,21 @@ internal fun SessionDrawerSearch(
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Surface(modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f)) {
-                Row(Modifier.heightIn(min = 44.dp).padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RuntimeIcon(RuntimeIconName.Search, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
-                    BasicTextField(value = query, onValueChange = onQueryChange, singleLine = true,
-                        modifier = Modifier.weight(1f).semantics { contentDescription = searchLabel },
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        decorationBox = { field -> Box {
-                            if (query.isEmpty()) Text(searchLabel, style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            field()
-                        } },
-                    )
-                }
-            }
-            Surface(onClick = onNew, shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(44.dp).semantics { contentDescription = newTaskLabel }) {
-                Box(contentAlignment = Alignment.Center) {
-                    RuntimeIcon(RuntimeIconName.Plus, Modifier.size(22.dp), MaterialTheme.colorScheme.onPrimaryContainer)
-                }
+            top.yukonga.miuix.kmp.basic.InputField(
+                query = query,
+                onQueryChange = onQueryChange,
+                onSearch = {},
+                expanded = false,
+                onExpandedChange = {},
+                modifier = Modifier.weight(1f).semantics { contentDescription = searchLabel },
+                label = searchLabel,
+            )
+            RuntimeIconButton(
+                onClick = onNew,
+                modifier = Modifier.size(40.dp),
+                contentDescription = newTaskLabel,
+            ) {
+                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), RuntimeTheme.colorScheme.primary)
             }
         }
     }
@@ -90,7 +81,7 @@ internal fun SessionDrawerFooter(
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()) {
-        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+        top.wkbin.taixu.ui.miuix.HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
         AnimatedVisibility(visible = expanded) {
             Column(Modifier.fillMaxWidth().heightIn(max = 240.dp)
                 .verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -99,21 +90,21 @@ internal fun SessionDrawerFooter(
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.weight(1f).clip(MaterialTheme.shapes.medium).clickable(onClick = onSettings)
+            Row(Modifier.weight(1f).clip(RuntimeTheme.shapes.medium).clickable(onClick = onSettings)
                 .padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                RuntimeIcon(RuntimeIconName.Settings, Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                RuntimeIcon(RuntimeIconName.Settings, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(stringResource(top.wkbin.taixu.feature.components.R.string.components_drawer_settings),
-                        style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(stringResource(R.string.chat_session_count, totalSessions), style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        style = RuntimeTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(stringResource(R.string.chat_session_count, totalSessions), style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             RuntimeTextButton(onClick = { expanded = !expanded }) {
                 RuntimeIcon(if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.Menu, Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.chat_sidebar_functions), style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.chat_sidebar_functions), style = RuntimeTheme.typography.labelMedium)
             }
         }
     }
@@ -137,7 +128,7 @@ internal fun SessionSectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.small)
+            .clip(RuntimeTheme.shapes.small)
             .clickable(onClick = onToggle)
             .semantics {
                 contentDescription = toggleLabel
@@ -149,8 +140,8 @@ internal fun SessionSectionHeader(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.labelMedium,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -160,13 +151,13 @@ internal fun SessionSectionHeader(
         }
         Text(
             text = "$count",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.outline,
+            style = RuntimeTheme.typography.labelSmall,
+            color = RuntimeTheme.colorScheme.outline,
         )
         RuntimeIcon(
             name = if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
             modifier = Modifier.size(14.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -179,9 +170,9 @@ internal fun SessionAttentionBanner(
     onOpen: () -> Unit,
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = MaterialTheme.shapes.small,
-        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).clickable(onClick = onOpen),
+        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
+        shape = RuntimeTheme.shapes.small,
+        modifier = Modifier.fillMaxWidth().clip(RuntimeTheme.shapes.small).clickable(onClick = onOpen),
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
@@ -192,14 +183,14 @@ internal fun SessionAttentionBanner(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
                     text = stringResource(R.string.chat_drawer_attention, count),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = RuntimeTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = firstTitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -207,7 +198,7 @@ internal fun SessionAttentionBanner(
             RuntimeIcon(
                 RuntimeIconName.ChevronRight,
                 Modifier.size(18.dp),
-                MaterialTheme.colorScheme.onSurfaceVariant,
+                RuntimeTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

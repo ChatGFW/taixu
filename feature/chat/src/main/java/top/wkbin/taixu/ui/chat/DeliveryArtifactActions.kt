@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,16 +14,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -118,7 +118,7 @@ internal fun DeliveryArtifactRow(
                     contentDescription = artifact.path,
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RuntimeTheme.shapes.chip)
                         .clickable { if (canAct) launch(false) },
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 )
@@ -127,13 +127,13 @@ internal fun DeliveryArtifactRow(
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = artifact.path.substringAfterLast('/'),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = RuntimeTheme.typography.labelMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = artifact.path,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = RuntimeTheme.typography.bodySmall,
                         fontFamily = FontFamily.Monospace,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -141,15 +141,15 @@ internal fun DeliveryArtifactRow(
                     integrityLabel(integrity)?.let { label ->
                         Text(
                             text = stringResource(label),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (integrity == DeliveryIntegrity.MATCHED) MaterialTheme.colorScheme.onSurfaceVariant
-                            else MaterialTheme.colorScheme.error,
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = if (integrity == DeliveryIntegrity.MATCHED) RuntimeTheme.colorScheme.onSurfaceVariant
+                            else RuntimeTheme.colorScheme.error,
                         )
                     }
                 }
             }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                top.wkbin.taixu.ui.components.RuntimeActionRow() {
                     // 文本日志在编辑器里看最直接（有语法高亮/行号），不必先找个外部应用。
                     if (artifact.kind == DeliveryArtifactKind.OUTPUT_LOG && onOpenFile != null) {
                         RuntimeTextButton(onClick = {
@@ -171,13 +171,13 @@ internal fun DeliveryArtifactRow(
         }
         Text(
             text = stringResource(R.string.delivery_hash_at_creation),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.labelSmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         SelectionContainer {
             Text(
                 text = artifact.sha256,
-                style = MaterialTheme.typography.labelSmall,
+                style = RuntimeTheme.typography.labelSmall,
                 fontFamily = FontFamily.Monospace,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

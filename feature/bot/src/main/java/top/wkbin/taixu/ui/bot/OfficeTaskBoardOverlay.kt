@@ -16,8 +16,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,14 +61,14 @@ internal fun OfficeTaskBoardOverlay(
                     Text(
                         text = stringResource(R.string.fbot_office_kanban_title),
                         color = OverlayCream,
-                        style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
+                        style = top.wkbin.taixu.ui.miuix.RuntimeTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Medium,
                         fontFamily = FontFamily.Monospace,
                     )
                     Text(
                         text = stringResource(R.string.fbot_office_kanban_summary, tasks.size, doing),
                         color = OverlayDim,
-                        style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                        style = top.wkbin.taixu.ui.miuix.RuntimeTheme.typography.labelMedium,
                         fontFamily = FontFamily.Monospace,
                     )
                 }
@@ -115,15 +115,15 @@ private fun BoardSection(
                     },
                 ),
                 color = accent,
-                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                style = top.wkbin.taixu.ui.miuix.RuntimeTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
                 fontFamily = FontFamily.Monospace,
             )
             Spacer(Modifier.width(8.dp))
             Text(
                 text = rows.size.toString(),
                 color = OverlayDim,
-                style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                style = top.wkbin.taixu.ui.miuix.RuntimeTheme.typography.labelMedium,
                 fontFamily = FontFamily.Monospace,
             )
         }
@@ -132,7 +132,7 @@ private fun BoardSection(
             Text(
                 text = stringResource(R.string.fbot_office_kanban_empty),
                 color = OverlayDim,
-                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                style = top.wkbin.taixu.ui.miuix.RuntimeTheme.typography.bodyMedium,
                 modifier = Modifier.padding(vertical = 6.dp),
             )
         } else {
@@ -168,7 +168,7 @@ private fun TaskCard(
                 Text(
                     text = task.title,
                     color = if (task.failed) OverlayRed else OverlayCream,
-                    style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+                    style = top.wkbin.taixu.ui.miuix.RuntimeTheme.typography.bodyLarge,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -176,7 +176,7 @@ private fun TaskCard(
                     Text(
                         text = "${task.owner} · ${stringResource(R.string.fbot_office_kanban_elapsed, task.elapsedSeconds)}",
                         color = OverlayDim,
-                        style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                        style = top.wkbin.taixu.ui.miuix.RuntimeTheme.typography.labelMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -184,7 +184,7 @@ private fun TaskCard(
                         Text(
                             text = stringResource(R.string.fbot_office_kanban_failed),
                             color = OverlayRed,
-                            style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                            style = top.wkbin.taixu.ui.miuix.RuntimeTheme.typography.labelMedium,
                         )
                     }
                 }
@@ -195,7 +195,7 @@ private fun TaskCard(
                             task.dependsOn.joinToString(" / ").take(44),
                         ),
                         color = OverlayDim,
-                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                        style = top.wkbin.taixu.ui.miuix.RuntimeTheme.typography.labelSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -204,7 +204,7 @@ private fun TaskCard(
             Text(
                 text = stringResource(R.string.fbot_office_kanban_locate),
                 color = accent,
-                style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                style = top.wkbin.taixu.ui.miuix.RuntimeTheme.typography.labelMedium,
                 fontFamily = FontFamily.Monospace,
             )
             RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(18.dp), tint = accent)

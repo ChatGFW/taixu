@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat.floating
 
+import androidx.compose.runtime.*
+
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,7 +14,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,15 +30,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -176,12 +172,12 @@ private fun FloatingChatEdgeHandle(
     ) {
         Surface(
             modifier = Modifier.size(width = 20.dp, height = 32.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.96f),
+            color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.96f),
             shape = shape,
             border = androidx.compose.foundation.BorderStroke(
                 1.dp,
-                if (running) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                if (running) RuntimeTheme.colorScheme.primary.copy(alpha = 0.6f)
+                else RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
             ),
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -189,13 +185,13 @@ private fun FloatingChatEdgeHandle(
                     RuntimeCircularProgressIndicator(
                         modifier = Modifier.size(11.dp),
                         strokeWidth = 1.6.dp,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = RuntimeTheme.colorScheme.primary,
                     )
                 } else {
                     RuntimeIcon(
                         RuntimeIconName.Brain,
                         modifier = Modifier.size(12.dp),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = RuntimeTheme.colorScheme.primary,
                     )
                 }
             }
@@ -218,7 +214,7 @@ private fun FloatingChatCapsule(
 ) {
     Surface(
         modifier = Modifier
-            .clip(RoundedCornerShape(22.dp))
+            .clip(RuntimeTheme.shapes.extraLargeIncreased)
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -244,12 +240,12 @@ private fun FloatingChatCapsule(
                     }
                 }
             },
-        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.96f),
-        shape = RoundedCornerShape(22.dp),
+        color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.96f),
+        shape = RuntimeTheme.shapes.extraLargeIncreased,
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (running) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            if (running) RuntimeTheme.colorScheme.primary.copy(alpha = 0.6f)
+            else RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
         ),
     ) {
         Row(
@@ -262,8 +258,8 @@ private fun FloatingChatCapsule(
                     .size(24.dp)
                     .clip(CircleShape)
                     .background(
-                        if (running) MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        if (running) RuntimeTheme.colorScheme.primaryContainer
+                        else RuntimeTheme.colorScheme.surfaceContainerHigh,
                     ),
                 contentAlignment = Alignment.Center,
             ) {
@@ -271,13 +267,13 @@ private fun FloatingChatCapsule(
                     RuntimeCircularProgressIndicator(
                         modifier = Modifier.size(14.dp),
                         strokeWidth = 1.8.dp,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = RuntimeTheme.colorScheme.primary,
                     )
                 } else {
                     RuntimeIcon(
                         RuntimeIconName.Brain,
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = RuntimeTheme.colorScheme.primary,
                     )
                 }
             }
@@ -288,11 +284,11 @@ private fun FloatingChatCapsule(
                     running -> stringResource(R.string.chat_floating_running)
                     else -> sessionTitle?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_title)
                 },
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.SemiBold,
+                style = RuntimeTheme.typography.labelSmall.copy(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
                 ),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = RuntimeTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.widthIn(max = 110.dp),
@@ -335,12 +331,12 @@ private fun FloatingChatPanel(
         modifier = Modifier
             .width(310.dp)
             .height(410.dp)
-            .clip(RoundedCornerShape(16.dp)),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.98f),
-        shape = RoundedCornerShape(16.dp),
+            .clip(RuntimeTheme.shapes.medium),
+        color = RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.98f),
+        shape = RuntimeTheme.shapes.medium,
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+            RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
         ),
     ) {
         Column(
@@ -374,15 +370,15 @@ private fun FloatingChatPanel(
                     RuntimeIcon(
                         RuntimeIconName.Brain,
                         modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = RuntimeTheme.colorScheme.primary,
                     )
                     Text(
                         text = sessionTitle?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_title),
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.Bold,
+                        style = RuntimeTheme.typography.titleSmall.copy(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
                         ),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = RuntimeTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -401,7 +397,7 @@ private fun FloatingChatPanel(
                             RuntimeIcon(
                                 RuntimeIconName.Stop,
                                 modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.error,
+                                tint = RuntimeTheme.colorScheme.error,
                             )
                         }
                     }
@@ -413,7 +409,7 @@ private fun FloatingChatPanel(
                         RuntimeIcon(
                             RuntimeIconName.OpenInNew,
                             modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.primary,
                         )
                     }
                     RuntimeIconButton(
@@ -424,7 +420,7 @@ private fun FloatingChatPanel(
                         RuntimeIcon(
                             RuntimeIconName.ChevronDown,
                             modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     RuntimeIconButton(
@@ -435,7 +431,7 @@ private fun FloatingChatPanel(
                         RuntimeIcon(
                             RuntimeIconName.Close,
                             modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -446,8 +442,8 @@ private fun FloatingChatPanel(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = RoundedCornerShape(10.dp),
+                color = RuntimeTheme.colorScheme.surfaceContainer,
+                shape = RuntimeTheme.shapes.small,
             ) {
                 if (displayMessages.isEmpty()) {
                     Box(
@@ -458,8 +454,8 @@ private fun FloatingChatPanel(
                     ) {
                         Text(
                             text = stringResource(R.string.chat_floating_idle),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 } else {
@@ -478,14 +474,14 @@ private fun FloatingChatPanel(
                                         horizontalArrangement = Arrangement.End,
                                     ) {
                                         Surface(
-                                            color = MaterialTheme.colorScheme.primaryContainer,
-                                            shape = RoundedCornerShape(10.dp),
+                                            color = RuntimeTheme.colorScheme.primaryContainer,
+                                            shape = RuntimeTheme.shapes.small,
                                             modifier = Modifier.widthIn(max = 240.dp),
                                         ) {
                                             Text(
                                                 text = msg.text,
-                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                style = RuntimeTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                                color = RuntimeTheme.colorScheme.onPrimaryContainer,
                                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                                             )
                                         }
@@ -498,8 +494,8 @@ private fun FloatingChatPanel(
                                     ) {
                                         if (!msg.reasoning.isNullOrBlank()) {
                                             Surface(
-                                                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                                shape = RoundedCornerShape(6.dp),
+                                                color = RuntimeTheme.colorScheme.surfaceContainerLow,
+                                                shape = RuntimeTheme.shapes.extraSmall,
                                             ) {
                                                 Row(
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
@@ -509,12 +505,12 @@ private fun FloatingChatPanel(
                                                     RuntimeIcon(
                                                         RuntimeIconName.Brain,
                                                         Modifier.size(11.dp),
-                                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        RuntimeTheme.colorScheme.onSurfaceVariant,
                                                     )
                                                     Text(
                                                         text = msg.reasoning.orEmpty(),
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                                         maxLines = 2,
                                                         overflow = TextOverflow.Ellipsis,
                                                     )
@@ -523,14 +519,14 @@ private fun FloatingChatPanel(
                                         }
                                         if (msg.text.isNotBlank()) {
                                             Surface(
-                                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                                shape = RoundedCornerShape(10.dp),
+                                                color = RuntimeTheme.colorScheme.surfaceContainerHighest,
+                                                shape = RuntimeTheme.shapes.small,
                                                 modifier = Modifier.widthIn(max = 260.dp),
                                             ) {
                                                 Text(
                                                     text = msg.text,
-                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    style = RuntimeTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                                    color = RuntimeTheme.colorScheme.onSurface,
                                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                                                 )
                                             }
@@ -539,8 +535,8 @@ private fun FloatingChatPanel(
                                 }
                                 is ToolCall -> {
                                     Surface(
-                                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                        shape = RoundedCornerShape(6.dp),
+                                        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+                                        shape = RuntimeTheme.shapes.extraSmall,
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
@@ -550,12 +546,12 @@ private fun FloatingChatPanel(
                                             RuntimeIcon(
                                                 RuntimeIconName.Code,
                                                 Modifier.size(11.dp),
-                                                MaterialTheme.colorScheme.primary,
+                                                RuntimeTheme.colorScheme.primary,
                                             )
                                             Text(
                                                 text = "${msg.rawToolName ?: msg.tool.name} ${msg.args}",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                color = MaterialTheme.colorScheme.primary,
+                                                style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                                color = RuntimeTheme.colorScheme.primary,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                             )
@@ -568,8 +564,8 @@ private fun FloatingChatPanel(
                                             R.string.chat_model_switch_to_fmt,
                                             msg.toLabel,
                                         ),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.fillMaxWidth(),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
@@ -587,12 +583,12 @@ private fun FloatingChatPanel(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(36.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .clip(RuntimeTheme.shapes.medium)
+                    .background(RuntimeTheme.colorScheme.surfaceContainer)
                     .border(
                         0.8.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                        RoundedCornerShape(18.dp),
+                        RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                        RuntimeTheme.shapes.medium,
                     )
                     .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -605,20 +601,20 @@ private fun FloatingChatPanel(
                     if (inputText.isEmpty()) {
                         Text(
                             text = stringResource(R.string.chat_floating_input_hint),
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            style = RuntimeTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         )
                     }
                     BasicTextField(
                         value = inputText,
                         onValueChange = { inputText = it },
                         modifier = Modifier.fillMaxWidth(),
-                        textStyle = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 11.5.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
+                        textStyle = RuntimeTheme.typography.bodySmall.copy(
+                            fontSize = 12.sp,
+                            color = RuntimeTheme.colorScheme.onSurface,
                         ),
                         singleLine = true,
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        cursorBrush = SolidColor(RuntimeTheme.colorScheme.primary),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(
                             onSend = {
@@ -635,16 +631,16 @@ private fun FloatingChatPanel(
                 // 迷你实心圆钮，与主 composer 发送按钮同族
                 Box(
                     modifier = Modifier.size(24.dp).clip(CircleShape)
-                        .background(if (inputText.isNotBlank()) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .background(if (inputText.isNotBlank()) RuntimeTheme.colorScheme.primary
+                            else RuntimeTheme.colorScheme.surfaceContainerHigh)
                         .clickable(enabled = inputText.isNotBlank()) {
                             onSendPrompt(inputText.trim()); inputText = ""
                         },
                     contentAlignment = Alignment.Center,
                 ) {
                     RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(14.dp),
-                        tint = if (inputText.isNotBlank()) MaterialTheme.colorScheme.onPrimary
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                        tint = if (inputText.isNotBlank()) RuntimeTheme.colorScheme.onPrimary
+                        else RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
                 }
             }
         }

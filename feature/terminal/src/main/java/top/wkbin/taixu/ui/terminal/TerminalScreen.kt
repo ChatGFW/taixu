@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.terminal
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -21,21 +24,23 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -82,6 +87,22 @@ fun TerminalScreen(
 
     val termBg = top.wkbin.taixu.ui.theme.terminalSurfaceColor(colorScheme)
     val termText = top.wkbin.taixu.ui.theme.terminalContentColor(colorScheme)
+
+    val view = LocalView.current
+    val restoreLightBars by rememberUpdatedState(RuntimeTheme.colorScheme.background.luminance() > 0.5f)
+    if (!embedded && context is Activity) {
+        val bars = remember(context, view) { androidx.core.view.WindowCompat.getInsetsController(context.window, view) }
+        SideEffect {
+            bars.isAppearanceLightStatusBars = termBg.luminance() > 0.5f
+            bars.isAppearanceLightNavigationBars = termBg.luminance() > 0.5f
+        }
+        DisposableEffect(bars) {
+            onDispose {
+                bars.isAppearanceLightStatusBars = restoreLightBars
+                bars.isAppearanceLightNavigationBars = restoreLightBars
+            }
+        }
+    }
 
     val bridge = remember(context) {
         TaiXuTerminalBridge(context, viewModel?.sessionClientRouter)
@@ -172,11 +193,11 @@ fun TerminalScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(12.dp),
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        containerColor = RuntimeTheme.colorScheme.errorContainer,
                     ) {
                         Text(
                             error.orEmpty(),
-                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            color = RuntimeTheme.colorScheme.onErrorContainer,
                             fontFamily = FontFamily.Monospace,
                         )
                         Button(

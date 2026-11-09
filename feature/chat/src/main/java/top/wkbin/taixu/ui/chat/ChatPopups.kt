@@ -13,11 +13,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,9 +36,9 @@ internal fun SlashCommandPopup(
     onSelect: (SlashCommandItem) -> Unit,
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(12.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.small,
+        border = androidx.compose.foundation.BorderStroke(1.dp, RuntimeTheme.colorScheme.outlineVariant),
         shadowElevation = 6.dp,
         modifier = Modifier
             .fillMaxWidth()
@@ -55,18 +54,18 @@ internal fun SlashCommandPopup(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    RuntimeIcon(cmd.icon, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                    RuntimeIcon(cmd.icon, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.primary)
                     Text(
                         cmd.command,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        style = RuntimeTheme.typography.labelMedium,
+                        color = RuntimeTheme.colorScheme.primary,
                         fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Medium,
                     )
                     Text(
                         cmd.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
@@ -83,9 +82,9 @@ internal fun MentionPopup(
     onSelect: (MentionItem) -> Unit,
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = RuntimeTheme.colorScheme.surfaceContainer,
+        shape = RuntimeTheme.shapes.medium,
+        border = androidx.compose.foundation.BorderStroke(1.dp, RuntimeTheme.colorScheme.outlineVariant),
         shadowElevation = 10.dp,
         modifier = Modifier
             .fillMaxWidth()
@@ -101,28 +100,28 @@ internal fun MentionPopup(
             ) {
                 Text(
                     stringResource(R.string.chat_mention_picker_title),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.primary,
+                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                    color = RuntimeTheme.colorScheme.primary,
                 )
                 Text(
                     stringResource(R.string.chat_mention_picker_hint),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 )
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
             LazyColumn(
                 modifier = Modifier.heightIn(max = 240.dp),
             ) {
                 items(mentions.size, key = { mentions[it].id }) { index ->
                     val item = mentions[index]
                     val isSkill = item.type == MentionType.SKILL
-                    val tagBg = if (isSkill) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
-                                else MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f)
-                    val tagBorder = if (isSkill) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                                    else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f)
-                    val tagColor = if (isSkill) MaterialTheme.colorScheme.primary
-                                   else MaterialTheme.colorScheme.tertiary
+                    val tagBg = if (isSkill) RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+                                else RuntimeTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f)
+                    val tagBorder = if (isSkill) RuntimeTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                    else RuntimeTheme.colorScheme.tertiary.copy(alpha = 0.4f)
+                    val tagColor = if (isSkill) RuntimeTheme.colorScheme.primary
+                                   else RuntimeTheme.colorScheme.tertiary
 
                     Row(
                         modifier = Modifier
@@ -134,7 +133,7 @@ internal fun MentionPopup(
                     ) {
                         // 左侧图标芯片
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RuntimeTheme.shapes.chip,
                             color = tagBg,
                             border = androidx.compose.foundation.BorderStroke(1.dp, tagBorder),
                             modifier = Modifier.size(34.dp),
@@ -156,14 +155,14 @@ internal fun MentionPopup(
                             ) {
                                 Text(
                                     "@${item.name}",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                    color = RuntimeTheme.colorScheme.onSurface,
                                     modifier = Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 )
                                 Surface(
                                     color = tagBg,
                                     border = androidx.compose.foundation.BorderStroke(0.8.dp, tagBorder),
-                                    shape = RoundedCornerShape(4.dp),
+                                    shape = RuntimeTheme.shapes.tiny,
                                 ) {
                                     Text(
                                         stringResource(when (item.type) {
@@ -173,15 +172,15 @@ internal fun MentionPopup(
                                             MentionType.DIRECTORY -> R.string.chat_directory_badge
                                         }),
                                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Medium),
+                                        style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
                                         color = tagColor,
                                     )
                                 }
                             }
                             Text(
                                 item.description,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )

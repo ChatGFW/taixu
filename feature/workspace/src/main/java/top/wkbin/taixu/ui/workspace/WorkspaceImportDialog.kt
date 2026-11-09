@@ -1,6 +1,8 @@
 package top.wkbin.taixu.ui.workspace
 
-import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,29 +15,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenu
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import top.wkbin.taixu.ui.components.RuntimeFilterChip as FilterChip
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +46,7 @@ import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeIconButton
+import top.wkbin.taixu.ui.components.RuntimeDropdownField
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
@@ -69,7 +63,6 @@ internal class ImportProjectWizardState(
     importMode: MutableState<ProjectImportMode>,
     importProjectName: MutableState<String>,
     importDirectoryPath: MutableState<String>,
-    importDirectoryMenuExpanded: MutableState<Boolean>,
     importProjectType: MutableState<ProjectType>,
     archiveSource: MutableState<ProjectArchiveSource?>,
     importGitUrl: MutableState<String>,
@@ -79,7 +72,6 @@ internal class ImportProjectWizardState(
     var importMode by importMode
     var importProjectName by importProjectName
     var importDirectoryPath by importDirectoryPath
-    var importDirectoryMenuExpanded by importDirectoryMenuExpanded
     var importProjectType by importProjectType
     var archiveSource by archiveSource
     var importGitUrl by importGitUrl
@@ -104,7 +96,6 @@ internal fun rememberImportProjectWizardState(): ImportProjectWizardState =
         importMode = rememberSaveable { mutableStateOf(ProjectImportMode.LOCAL) },
         importProjectName = rememberSaveable { mutableStateOf("") },
         importDirectoryPath = rememberSaveable { mutableStateOf("") },
-        importDirectoryMenuExpanded = rememberSaveable { mutableStateOf(false) },
         importProjectType = rememberSaveable { mutableStateOf(ProjectType.ANDROID) },
         archiveSource = remember { mutableStateOf<ProjectArchiveSource?>(null) },
         importGitUrl = rememberSaveable { mutableStateOf("") },
@@ -117,7 +108,7 @@ internal fun rememberImportProjectWizardState(): ImportProjectWizardState =
  * GitHub 拉取期间保持弹窗打开展示克隆进度（可能耗时数分钟），完成后统一关闭并复位。
  */
 @Composable
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class, )
 internal fun ImportProjectDialog(
     state: ImportProjectWizardState,
     viewModel: WorkspaceViewModel,
@@ -144,7 +135,7 @@ internal fun ImportProjectDialog(
     ) stringResource(R.string.workspace_git_url_invalid) else null
     RuntimeAlertDialog(
         onDismissRequest = { if (!state.importInProgress) resetImportDialog() },
-        title = { Text(stringResource(R.string.workspace_import_project), fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.workspace_import_project), fontWeight = FontWeight.Medium) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
@@ -153,8 +144,8 @@ internal fun ImportProjectDialog(
                 // GitHub 拉取进度：git 克隆可能耗时数分钟，实时展示最新进度与百分比
                 if (state.importInProgress) {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        shape = RuntimeTheme.shapes.small,
+                        color = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
@@ -169,28 +160,28 @@ internal fun ImportProjectDialog(
                                 RuntimeCircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                                 Text(
                                     stringResource(R.string.workspace_git_clone_in_progress),
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.primary,
+                                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                    color = RuntimeTheme.colorScheme.primary,
                                     modifier = Modifier.weight(1f),
                                 )
                                 githubImportProgress?.percent?.let { percent ->
                                     Text(
                                         "$percent%",
-                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.primary,
+                                        style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                        color = RuntimeTheme.colorScheme.primary,
                                     )
                                 }
                             }
                             val clonePercent = githubImportProgress?.percent
                             LinearProgressIndicator(
                                 progress = clonePercent?.let { percent -> { percent / 100f } },
-                                modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(4.dp)),
+                                modifier = Modifier.fillMaxWidth().height(5.dp).clip(RuntimeTheme.shapes.tiny),
                             )
                             githubImportProgress?.let { progress ->
                                 Text(
                                     progress.text,
-                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -200,8 +191,8 @@ internal fun ImportProjectDialog(
                 }
                 Text(
                     stringResource(R.string.workspace_import_source),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(shape = androidx.compose.foundation.shape.CircleShape,
@@ -235,8 +226,8 @@ internal fun ImportProjectDialog(
                     }
                     state.archiveSource?.let { source ->
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                            shape = RuntimeTheme.shapes.small,
+                            color = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Row(
@@ -244,11 +235,11 @@ internal fun ImportProjectDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                RuntimeIcon(RuntimeIconName.Compress, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
+                                RuntimeIcon(RuntimeIconName.Compress, Modifier.size(18.dp), RuntimeTheme.colorScheme.primary)
                                 Text(
                                     source.fileName,
                                     modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                    style = RuntimeTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -267,8 +258,8 @@ internal fun ImportProjectDialog(
                 } else {
                     Text(
                         stringResource(R.string.workspace_git_transport),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(shape = androidx.compose.foundation.shape.CircleShape,
@@ -287,7 +278,7 @@ internal fun ImportProjectDialog(
                     RuntimeFilledTextField(
                         value = state.importGitUrl,
                         onValueChange = { state.importGitUrl = it },
-                        label = { Text(stringResource(R.string.workspace_git_url)) },
+                        labelText = stringResource(R.string.workspace_git_url),
                         placeholder = {
                             Text(
                                 if (state.gitTransport == GitTransport.HTTP) "https://github.com/user/project.git"
@@ -305,8 +296,8 @@ internal fun ImportProjectDialog(
 
                 Text(
                     stringResource(R.string.workspace_project_label),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -317,7 +308,7 @@ internal fun ImportProjectDialog(
                             selected = state.importProjectType == type,
                             onClick = { state.importProjectType = type },
                             leadingIcon = { RuntimeIcon(pair.second, Modifier.size(16.dp)) },
-                            label = { Text(pair.first, style = MaterialTheme.typography.labelSmall) },
+                            label = { Text(pair.first, style = RuntimeTheme.typography.labelSmall) },
                         )
                     }
                 }
@@ -325,7 +316,7 @@ internal fun ImportProjectDialog(
                 RuntimeFilledTextField(
                     value = state.importProjectName,
                     onValueChange = { state.importProjectName = it },
-                    label = { Text(stringResource(R.string.workspace_project_name)) },
+                    labelText = stringResource(R.string.workspace_project_name),
                     placeholder = { Text("my-imported-project") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -338,48 +329,39 @@ internal fun ImportProjectDialog(
                     "repos/$importPathName" to stringResource(R.string.workspace_location_repos, importPathName),
                     "work/$importPathName" to stringResource(R.string.workspace_location_work, importPathName),
                 )
-                ExposedDropdownMenuBox(
-                    expanded = state.importDirectoryMenuExpanded,
-                    onExpandedChange = { state.importDirectoryMenuExpanded = it },
-                ) {
-                    RuntimeFilledTextField(
-                        value = state.importDirectoryPath,
-                        onValueChange = {
-                            state.importDirectoryPath = it
-                            state.importDirectoryMenuExpanded = true
-                        },
-                        label = { Text(stringResource(R.string.workspace_linked_directory)) },
-                        placeholder = { Text(stringResource(R.string.workspace_directory_default)) },
-                        supportingText = { Text(stringResource(R.string.workspace_import_directory_hint)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(state.importDirectoryMenuExpanded) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().menuAnchor(
-                            ExposedDropdownMenuAnchorType.PrimaryEditable,
-                            true,
-                        ),
-                    )
-                    ExposedDropdownMenu(
-                        expanded = state.importDirectoryMenuExpanded,
-                        onDismissRequest = { state.importDirectoryMenuExpanded = false },
-                    ) {
-                        commonDirectories.forEach { (path, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    state.importDirectoryPath = path
-                                    state.importDirectoryMenuExpanded = false
-                                },
-                            )
-                        }
-                    }
+                RuntimeFilledTextField(
+                    value = state.importDirectoryPath,
+                    onValueChange = { state.importDirectoryPath = it },
+                    labelText = stringResource(R.string.workspace_linked_directory),
+                    placeholder = { Text(stringResource(R.string.workspace_directory_default)) },
+                    supportingText = { Text(stringResource(R.string.workspace_import_directory_hint)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                val selectedDirectory = state.importDirectoryPath.trim()
+                val directoryOptions = if (commonDirectories.none { it.first == selectedDirectory } && selectedDirectory.isNotBlank()) {
+                    listOf(selectedDirectory to "当前自定义：$selectedDirectory") + commonDirectories
+                } else {
+                    commonDirectories
                 }
+                RuntimeDropdownField(
+                    title = "常用目录",
+                    items = directoryOptions.map { it.second },
+                    selectedIndex = directoryOptions.indexOfFirst { it.first == selectedDirectory }.coerceAtLeast(0),
+                    onSelectedIndexChange = { index ->
+                        directoryOptions.getOrNull(index)?.let { (path, _) ->
+                            state.importDirectoryPath = path
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 val targetPath = state.importDirectoryPath.trim().ifBlank { state.importProjectName.trim() }
                 if (targetPath.isNotBlank()) {
                     Text(
                         stringResource(R.string.workspace_sandbox_path, "/workspace", targetPath.trimStart('/')),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = RuntimeTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = RuntimeTheme.colorScheme.primary,
                     )
                 }
             }
@@ -407,7 +389,7 @@ internal fun ImportProjectDialog(
                 enabled = state.importProjectName.isNotBlank() && !busy && gitUrlError == null &&
                     ((state.importMode == ProjectImportMode.LOCAL && state.archiveSource != null) ||
                         (state.importMode == ProjectImportMode.GITHUB && state.importGitUrl.isNotBlank())),
-            ) { Text(stringResource(R.string.workspace_import), color = MaterialTheme.colorScheme.primary) }
+            ) { Text(stringResource(R.string.workspace_import)) }
         },
         dismissButton = {
             TextButton(onClick = { resetImportDialog() }, enabled = !state.importInProgress) { Text(stringResource(R.string.workspace_cancel)) }

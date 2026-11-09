@@ -1,4 +1,8 @@
 package top.wkbin.taixu.ui.settings
+
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import androidx.compose.foundation.layout.Arrangement
@@ -12,14 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Scaffold
+import top.wkbin.taixu.ui.miuix.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -104,7 +106,7 @@ fun PhoneAgentSettingsScreen(
     val testing by viewModel?.testing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RuntimeTheme.colorScheme.background,
         topBar = { RuntimeTopBar("手机操作模型", onBack) },
     ) { padding ->
         Column(
@@ -112,13 +114,13 @@ fun PhoneAgentSettingsScreen(
                 .fillMaxSize()
                 .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding))
                 .verticalScroll(rememberScrollState()).padding(bottom = padding.calculateBottomPadding())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             Text(
                 "这里只给虚拟屏用，看画面、点击、滑动和输入。聊天主模型仍在「模型档案管理」里配置，两边互不影响。",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodyMedium,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             SettingsGroup {
                 Column(
@@ -129,7 +131,7 @@ fun PhoneAgentSettingsScreen(
                         value = baseUrl,
                         onValueChange = { baseUrl = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("接口地址") },
+                        labelText = resolveLegacyString("接口地址"),
                         placeholder = { Text("https://open.bigmodel.cn/api/paas/v4") },
                         supportingText = { Text("智谱开放平台用上面这个地址") },
                         singleLine = true,
@@ -139,7 +141,7 @@ fun PhoneAgentSettingsScreen(
                         value = model,
                         onValueChange = { model = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("模型名") },
+                        labelText = resolveLegacyString("模型名"),
                         placeholder = { Text("autoglm-phone") },
                         supportingText = { Text("智谱的手机操作模型名是 autoglm-phone") },
                         singleLine = true,
@@ -148,7 +150,7 @@ fun PhoneAgentSettingsScreen(
                         value = apiKey,
                         onValueChange = { apiKey = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("API 密钥") },
+                        labelText = resolveLegacyString("API 密钥"),
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         singleLine = true,
@@ -193,7 +195,7 @@ fun PhoneAgentSettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("清除") }
             message?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(it, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

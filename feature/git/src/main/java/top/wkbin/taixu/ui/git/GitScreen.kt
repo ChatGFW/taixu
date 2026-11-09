@@ -1,8 +1,11 @@
 package top.wkbin.taixu.ui.git
+
+import top.wkbin.taixu.ui.miuix.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -24,22 +27,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -62,12 +57,12 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.components.StatusBadge
 import android.widget.Toast
 /**
  * 分支管理（参考 MGit）：
  * 分支列表/切换/新建/删除 + 多色提交记录树（哈希/作者/时间）+ HTTPS Token 推送拉取。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GitScreen(
     projectName: String,
@@ -106,7 +101,7 @@ fun GitScreen(
     // （无背景时转场中下层 ChatScreen 仍全量渲染并可见，既视觉怪异又掉帧）
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
+        color = RuntimeTheme.colorScheme.background,
     ) {
         Column(
             modifier = Modifier
@@ -121,28 +116,28 @@ fun GitScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             RuntimeIconButton(onClick = onBack) {
-                RuntimeIcon(RuntimeIconName.Back, Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                RuntimeIcon(RuntimeIconName.Back, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
             }
             Column(Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.fgit_title),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
+                    style = RuntimeTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = projectName,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
             RuntimeIconButton(onClick = { viewModel?.refresh() }) {
-                RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(19.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(19.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
             }
             RuntimeIconButton(onClick = { showCredentials = true }) {
-                RuntimeIcon(RuntimeIconName.Key, Modifier.size(19.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                RuntimeIcon(RuntimeIconName.Key, Modifier.size(19.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -152,8 +147,8 @@ fun GitScreen(
                     RuntimeCircularProgressIndicator(Modifier.size(26.dp))
                     Text(
                         stringResource(R.string.fgit_loading),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -185,7 +180,7 @@ fun GitScreen(
 
                 state.error?.let { errorText ->
                     RuntimeCard(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        containerColor = RuntimeTheme.colorScheme.errorContainer,
                         contentPadding = PaddingValues(10.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -193,71 +188,34 @@ fun GitScreen(
                     ) {
                         Text(
                             errorText,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onErrorContainer,
                         )
                     }
                 }
 
-                PrimaryTabRow(selectedTabIndex = selectedTab) {
-                    // 页签文案统一两字 + 数量角标，防止窄屏下换行（"提交记录"曾折成两行）
-                    Tab(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        text = {
-                            Text(
-                                if (state.overview == null || state.overview!!.localBranches.isEmpty()) {
+                top.yukonga.miuix.kmp.basic.TabRow(
+                tabs = listOf(
+                    if (state.overview == null || state.overview!!.localBranches.isEmpty()) {
                                     stringResource(R.string.fgit_tab_branches)
                                 } else {
                                     stringResource(R.string.fgit_tab_branches_count, state.overview!!.localBranches.size)
                                 },
-                                maxLines = 1,
-                                softWrap = false,
-                            )
-                        },
-                    )
-                    Tab(
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                        text = {
-                            Text(
-                                stringResource(R.string.fgit_tab_commits),
-                                maxLines = 1,
-                                softWrap = false,
-                            )
-                        },
-                    )
-                    Tab(
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 },
-                        text = {
-                            Text(
-                                if (state.changes.isEmpty()) {
+                    stringResource(R.string.fgit_tab_commits),
+                    if (state.changes.isEmpty()) {
                                     stringResource(R.string.fgit_tab_changes)
                                 } else {
                                     stringResource(R.string.fgit_tab_changes_count, state.changes.size)
                                 },
-                                maxLines = 1,
-                                softWrap = false,
-                            )
-                        },
-                    )
-                    Tab(
-                        selected = selectedTab == 3,
-                        onClick = { selectedTab = 3 },
-                        text = {
-                            Text(
-                                if (state.tags.isEmpty()) {
+                    if (state.tags.isEmpty()) {
                                     stringResource(R.string.fgit_tab_tags)
                                 } else {
                                     stringResource(R.string.fgit_tab_tags_count, state.tags.size)
                                 },
-                                maxLines = 1,
-                                softWrap = false,
-                            )
-                        },
-                    )
-                }
+                ),
+                selectedTabIndex = selectedTab,
+                onTabSelected = { selectedTab = it },
+            )
 
                 when (selectedTab) {
                     0 -> BranchesTab(
@@ -323,7 +281,7 @@ fun GitScreen(
                 RuntimeTextButton(onClick = {
                     viewModel?.deleteBranch(branch)
                     deleteTarget = null
-                }) { Text(stringResource(R.string.fgit_delete), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.fgit_delete)) }
             },
             dismissButton = {
                 RuntimeTextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.fgit_cancel)) }
@@ -340,7 +298,7 @@ fun GitScreen(
                 RuntimeTextButton(onClick = {
                     viewModel?.deleteTag(tagName)
                     deleteTagTarget = null
-                }) { Text(stringResource(R.string.fgit_delete), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.fgit_delete)) }
             },
             dismissButton = {
                 RuntimeTextButton(onClick = { deleteTagTarget = null }) { Text(stringResource(R.string.fgit_cancel)) }
@@ -357,7 +315,7 @@ fun GitScreen(
                 RuntimeTextButton(onClick = {
                     viewModel?.discardFile(change)
                     discardTarget = null
-                }) { Text(stringResource(R.string.fgit_discard), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.fgit_discard)) }
             },
             dismissButton = {
                 RuntimeTextButton(onClick = { discardTarget = null }) { Text(stringResource(R.string.fgit_cancel)) }
@@ -372,12 +330,12 @@ fun GitScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (preview.isEmpty()) {
-                        Text(stringResource(R.string.fgit_push_preview_empty), style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.fgit_push_preview_empty), style = RuntimeTheme.typography.bodySmall)
                     } else {
                         Text(
                             stringResource(R.string.fgit_push_preview_count, preview.size),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                         Column(
                             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -386,8 +344,8 @@ fun GitScreen(
                             preview.forEach { (hash, subject) ->
                                 Text(
                                     text = "$hash  $subject",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                                    color = RuntimeTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -421,31 +379,28 @@ fun GitScreen(
         )
     }
 }
-
 // ----------------------------------------------------------------------
 // 仓库语义颜色辅助函数（深浅主题自适应，符合 MD3 对比度规范）
 // ----------------------------------------------------------------------
 
 @Composable
 private fun gitSuccessColor(): Color {
-    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val isDark = RuntimeTheme.colorScheme.surface.luminance() < 0.5f
     return if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)
 }
-
 @Composable
 private fun gitInfoColor(): Color {
-    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val isDark = RuntimeTheme.colorScheme.surface.luminance() < 0.5f
     return if (isDark) Color(0xFF90CAF9) else Color(0xFF1976D2)
 }
-
 @Composable
 private fun gitWarningColor(): Color {
-    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val isDark = RuntimeTheme.colorScheme.surface.luminance() < 0.5f
     return if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100)
 }
 
 @Composable
-private fun gitAiColor(): Color = MaterialTheme.colorScheme.tertiary
+private fun gitAiColor(): Color = RuntimeTheme.colorScheme.tertiary
 
 // ----------------------------------------------------------------------
 // 仓库概览卡片：分支 + 领先落后 + 远程地址 + 推送/拉取
@@ -461,7 +416,7 @@ private fun RepoHeaderCard(
     onPush: () -> Unit,
 ) {
     RuntimeCard(
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
         contentPadding = PaddingValues(14.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -475,27 +430,27 @@ private fun RepoHeaderCard(
                 RuntimeIcon(
                     name = RuntimeIconName.GitBranch,
                     modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.primary,
                 )
                 Text(
                     text = overview.currentBranch,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace),
+                    style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 if (overview.isDetached) {
-                    MiniBadge(stringResource(R.string.fgit_detached), MaterialTheme.colorScheme.error)
+                    StatusBadge(stringResource(R.string.fgit_detached), RuntimeTheme.colorScheme.error)
                 }
                 Spacer(Modifier.weight(1f))
                 if (overview.aheadCount > 0) {
-                    MiniBadge("↑${overview.aheadCount}", gitSuccessColor())
+                    StatusBadge("↑${overview.aheadCount}", gitSuccessColor())
                 }
                 if (overview.behindCount > 0) {
-                    MiniBadge("↓${overview.behindCount}", gitInfoColor())
+                    StatusBadge("↓${overview.behindCount}", gitInfoColor())
                 }
                 if (overview.uncommittedChanges > 0 || overview.untrackedFiles > 0) {
-                    MiniBadge(
+                    StatusBadge(
                         stringResource(
                             R.string.fgit_dirty_count,
                             overview.uncommittedChanges + overview.untrackedFiles,
@@ -508,16 +463,16 @@ private fun RepoHeaderCard(
             if (overview.remoteUrl.isNotBlank()) {
                 Text(
                     text = overview.remoteUrl,
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             } else {
                 Text(
                     text = stringResource(R.string.fgit_no_remote),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -526,8 +481,8 @@ private fun RepoHeaderCard(
                     progress?.let { p ->
                         Text(
                             text = p.title + if (p.total > 0) "  ${p.completed}/${p.total}" else "",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -577,8 +532,8 @@ private fun ActionChip(
     Surface(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(10.dp),
-        color = if (enabled) tint.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RuntimeTheme.shapes.small,
+        color = if (enabled) tint.copy(alpha = 0.12f) else RuntimeTheme.colorScheme.surfaceContainerHigh,
         modifier = modifier.minimumInteractiveComponentSize(),
     ) {
         Row(
@@ -586,12 +541,12 @@ private fun ActionChip(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
-            RuntimeIcon(icon, Modifier.size(15.dp), if (enabled) tint else MaterialTheme.colorScheme.onSurfaceVariant)
+            RuntimeIcon(icon, Modifier.size(15.dp), if (enabled) tint else RuntimeTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(6.dp))
             Text(
                 label,
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = if (enabled) tint else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                color = if (enabled) tint else RuntimeTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -626,39 +581,39 @@ private fun ShallowRepoCard(
                 RuntimeIcon(RuntimeIconName.Info, Modifier.size(16.dp), warningColor)
                 Text(
                     text = stringResource(R.string.fgit_shallow_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
                     color = warningColor,
                     modifier = Modifier.weight(1f),
                 )
                 Surface(
                     onClick = onUnshallow,
                     enabled = !busy,
-                    color = if (busy) MaterialTheme.colorScheme.surfaceContainerHigh else warningColor.copy(alpha = 0.16f),
-                    shape = RoundedCornerShape(8.dp),
+                    color = if (busy) RuntimeTheme.colorScheme.surfaceContainerHigh else warningColor.copy(alpha = 0.16f),
+                    shape = RuntimeTheme.shapes.chip,
                     modifier = Modifier.minimumInteractiveComponentSize(),
                 ) {
                     Text(
                         text = stringResource(
                             if (inProgress) R.string.fgit_unshallow_running else R.string.fgit_unshallow,
                         ),
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = if (busy) MaterialTheme.colorScheme.onSurfaceVariant else warningColor,
+                        style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = if (busy) RuntimeTheme.colorScheme.onSurfaceVariant else warningColor,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                     )
                 }
             }
             Text(
                 text = stringResource(R.string.fgit_shallow_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             if (inProgress) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     progress?.let { p ->
                         Text(
                             text = p.title,
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                            style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                             color = warningColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -685,7 +640,7 @@ private fun BranchesTab(
     val overview = state.overview ?: return
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 32.dp),
+        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         item {
@@ -695,26 +650,26 @@ private fun BranchesTab(
             ) {
                 Text(
                     stringResource(R.string.fgit_local_branches, overview.localBranches.size),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
                 )
                 Surface(
                     onClick = onCreate,
                     enabled = !state.busy,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(8.dp),
+                    color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    shape = RuntimeTheme.shapes.chip,
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(13.dp), MaterialTheme.colorScheme.primary)
+                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(13.dp), RuntimeTheme.colorScheme.primary)
                         Text(
                             stringResource(R.string.fgit_new_branch),
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary,
+                            style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                            color = RuntimeTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -738,8 +693,8 @@ private fun BranchesTab(
             item {
                 Text(
                     stringResource(R.string.fgit_remote_branches, overview.remoteBranches.size),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),
                 )
             }
@@ -765,14 +720,14 @@ private fun BranchRow(
     onDelete: (() -> Unit)?,
 ) {
     val tint = if (branch.isCurrent) {
-        MaterialTheme.colorScheme.primary
+        RuntimeTheme.colorScheme.primary
     } else if (branch.isRemote) {
         gitInfoColor()
     } else {
-        MaterialTheme.colorScheme.tertiary
+        RuntimeTheme.colorScheme.tertiary
     }
     RuntimeCard(
-        containerColor = if (branch.isCurrent) tint.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = if (branch.isCurrent) tint.copy(alpha = 0.10f) else RuntimeTheme.colorScheme.surfaceContainerLow,
         borderColor = if (branch.isCurrent) tint.copy(alpha = 0.55f) else Color.Transparent,
         contentPadding = PaddingValues(10.dp),
         onClick = if (!busy && !branch.isCurrent) onCheckout else null,
@@ -793,24 +748,24 @@ private fun BranchRow(
                 ) {
                     Text(
                         branch.shortName,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = RuntimeTheme.typography.titleSmall,
                         modifier = Modifier.weight(1f, fill = false),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (branch.isCurrent) MiniBadge(stringResource(R.string.fgit_current), tint)
+                    if (branch.isCurrent) StatusBadge(stringResource(R.string.fgit_current), tint)
                 }
                 Text(
                     text = branch.commitId.take(7),
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (isCheckoutLoading && !branch.isCurrent) {
                 RuntimeCircularProgressIndicator(Modifier.size(16.dp))
             } else if (onDelete != null && !branch.isCurrent && !busy) {
                 RuntimeIconButton(onClick = onDelete, modifier = Modifier.size(30.dp)) {
-                    RuntimeIcon(RuntimeIconName.Trash, Modifier.size(15.dp), MaterialTheme.colorScheme.error)
+                    RuntimeIcon(RuntimeIconName.Trash, Modifier.size(15.dp), RuntimeTheme.colorScheme.error)
                 }
             }
         }
@@ -860,16 +815,16 @@ private fun CommitsTab(
                 androidx.compose.animation.AnimatedVisibility(visible = expanded) {
                     val detail = state.commitDetails[row.hash]
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        shape = RoundedCornerShape(10.dp),
+                        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+                        shape = RuntimeTheme.shapes.small,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(start = 20.dp, end = 4.dp, bottom = 6.dp),
                     ) {
                         Text(
                             text = detail ?: stringResource(R.string.fgit_detail_loading),
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, lineHeight = 16.sp),
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, lineHeight = 16.sp),
+                            color = RuntimeTheme.colorScheme.onSurface,
                             modifier = Modifier
                                 .padding(10.dp)
                                 .horizontalScroll(rememberScrollState()),
@@ -893,7 +848,7 @@ private fun TagsTab(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 32.dp),
+        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         item {
@@ -903,26 +858,26 @@ private fun TagsTab(
             ) {
                 Text(
                     stringResource(R.string.fgit_tags_title, state.tags.size),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
                 )
                 Surface(
                     onClick = onCreate,
                     enabled = !state.busy,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(8.dp),
+                    color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    shape = RuntimeTheme.shapes.chip,
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(13.dp), MaterialTheme.colorScheme.primary)
+                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(13.dp), RuntimeTheme.colorScheme.primary)
                         Text(
                             stringResource(R.string.fgit_new_tag),
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary,
+                            style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                            color = RuntimeTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -933,7 +888,7 @@ private fun TagsTab(
         } else {
             items(state.tags, key = { it.name }) { tag ->
                 RuntimeCard(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
                     contentPadding = PaddingValues(10.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -945,20 +900,20 @@ private fun TagsTab(
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
                                 tag.name,
-                                style = MaterialTheme.typography.titleSmall,
+                                style = RuntimeTheme.typography.titleSmall,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 tag.commitId.take(7) + (tag.message?.let { " · ${it.lineSequence().firstOrNull().orEmpty().take(40)}" } ?: ""),
-                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
                         RuntimeIconButton(onClick = { onDelete(tag.name) }, modifier = Modifier.size(30.dp)) {
-                            RuntimeIcon(RuntimeIconName.Trash, Modifier.size(15.dp), MaterialTheme.colorScheme.error)
+                            RuntimeIcon(RuntimeIconName.Trash, Modifier.size(15.dp), RuntimeTheme.colorScheme.error)
                         }
                     }
                 }
@@ -1009,21 +964,21 @@ private fun ChangesTab(
                     ) {
                         Text(
                             stringResource(R.string.fgit_staged_count, stagedCount, state.changes.size),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
+                            style = RuntimeTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium,
                             modifier = Modifier.weight(1f),
                         )
                         if (stagedCount < state.changes.size) {
                             Surface(
                                 onClick = onStageAll,
                                 enabled = !state.busy,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                shape = RoundedCornerShape(8.dp),
+                                color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                shape = RuntimeTheme.shapes.chip,
                             ) {
                                 Text(
                                     stringResource(R.string.fgit_stage_all),
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.primary,
+                                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                    color = RuntimeTheme.colorScheme.primary,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                                 )
                             }
@@ -1032,13 +987,13 @@ private fun ChangesTab(
                             Surface(
                                 onClick = onUnstageAll,
                                 enabled = !state.busy,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                shape = RoundedCornerShape(8.dp),
+                                color = RuntimeTheme.colorScheme.surfaceContainerHigh,
+                                shape = RuntimeTheme.shapes.chip,
                             ) {
                                 Text(
                                     stringResource(R.string.fgit_unstage_all),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.labelMedium,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                                 )
                             }
@@ -1058,7 +1013,7 @@ private fun ChangesTab(
 
         // 底部提交栏：message 输入 + AI 生成 + 提交按钮
         Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            color = RuntimeTheme.colorScheme.surfaceContainerLow,
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -1070,8 +1025,8 @@ private fun ChangesTab(
                     RuntimeFilledTextField(
                         value = message,
                         onValueChange = onMessageChange,
-                        placeholder = { Text(stringResource(R.string.fgit_message_placeholder), style = MaterialTheme.typography.bodySmall) },
-                        textStyle = MaterialTheme.typography.bodySmall,
+                        placeholder = { Text(stringResource(R.string.fgit_message_placeholder), style = RuntimeTheme.typography.bodySmall) },
+                        textStyle = RuntimeTheme.typography.bodySmall,
                         minLines = 1,
                         maxLines = 4,
                         modifier = Modifier.weight(1f),
@@ -1084,7 +1039,7 @@ private fun ChangesTab(
                             onClick = onGenerateMessage,
                             enabled = !state.busy && state.changes.isNotEmpty(),
                             color = aiColor.copy(alpha = 0.12f),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RuntimeTheme.shapes.small,
                             modifier = Modifier.minimumInteractiveComponentSize(),
                         ) {
                             Row(
@@ -1095,7 +1050,7 @@ private fun ChangesTab(
                                 RuntimeIcon(RuntimeIconName.Sparkles, Modifier.size(15.dp), aiColor)
                                 Text(
                                     stringResource(R.string.fgit_ai_message),
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                                     color = aiColor,
                                 )
                             }
@@ -1108,8 +1063,8 @@ private fun ChangesTab(
                     Surface(
                         onClick = { onCommit(message) },
                         enabled = canCommit,
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (canCommit) commitColor.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = RuntimeTheme.shapes.small,
+                        color = if (canCommit) commitColor.copy(alpha = 0.16f) else RuntimeTheme.colorScheme.surfaceContainerHigh,
                         modifier = Modifier.weight(1f).minimumInteractiveComponentSize(),
                     ) {
                         Text(
@@ -1121,8 +1076,8 @@ private fun ChangesTab(
                                     stagedCount,
                                 )
                             },
-                            style = MaterialTheme.typography.labelLarge,
-                            color = if (canCommit) commitColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.labelLarge,
+                            color = if (canCommit) commitColor else RuntimeTheme.colorScheme.onSurfaceVariant,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             modifier = Modifier.padding(vertical = 10.dp),
                         )
@@ -1131,8 +1086,8 @@ private fun ChangesTab(
                     Surface(
                         onClick = { onCommitAndPush(message) },
                         enabled = canCommit,
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (canCommit) pushColor.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = RuntimeTheme.shapes.small,
+                        color = if (canCommit) pushColor.copy(alpha = 0.14f) else RuntimeTheme.colorScheme.surfaceContainerHigh,
                         modifier = Modifier.minimumInteractiveComponentSize(),
                     ) {
                         Row(
@@ -1140,11 +1095,11 @@ private fun ChangesTab(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(15.dp), if (canCommit) pushColor else MaterialTheme.colorScheme.onSurfaceVariant)
+                            RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(15.dp), if (canCommit) pushColor else RuntimeTheme.colorScheme.onSurfaceVariant)
                             Text(
                                 stringResource(R.string.fgit_commit_push),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = if (canCommit) pushColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelLarge,
+                                color = if (canCommit) pushColor else RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -1164,13 +1119,13 @@ private fun ChangeRow(
     val (typeLabel, typeTint) = when (change.changeType) {
         GitManager.ChangeType.ADDED -> "新增" to gitSuccessColor()
         GitManager.ChangeType.MODIFIED -> "修改" to gitInfoColor()
-        GitManager.ChangeType.DELETED -> "删除" to MaterialTheme.colorScheme.error
+        GitManager.ChangeType.DELETED -> "删除" to RuntimeTheme.colorScheme.error
         GitManager.ChangeType.UNTRACKED -> "未跟踪" to gitWarningColor()
-        GitManager.ChangeType.CONFLICT -> "冲突" to MaterialTheme.colorScheme.error
+        GitManager.ChangeType.CONFLICT -> "冲突" to RuntimeTheme.colorScheme.error
     }
     RuntimeCard(
-        containerColor = if (change.staged) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = if (change.staged) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.Transparent,
+        containerColor = if (change.staged) RuntimeTheme.colorScheme.primary.copy(alpha = 0.08f) else RuntimeTheme.colorScheme.surfaceContainerLow,
+        borderColor = if (change.staged) RuntimeTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.Transparent,
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
         onClick = if (enabled) onToggle else null,
         modifier = Modifier.fillMaxWidth(),
@@ -1184,27 +1139,27 @@ private fun ChangeRow(
                 modifier = Modifier
                     .size(18.dp)
                     .background(
-                        if (change.staged) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        RoundedCornerShape(4.dp),
+                        if (change.staged) RuntimeTheme.colorScheme.primary else Color.Transparent,
+                        RuntimeTheme.shapes.tiny,
                     ),
                 contentAlignment = Alignment.Center,
             ) {
                 if (change.staged) {
-                    RuntimeIcon(RuntimeIconName.Check, Modifier.size(12.dp), MaterialTheme.colorScheme.onPrimary)
+                    RuntimeIcon(RuntimeIconName.Check, Modifier.size(12.dp), RuntimeTheme.colorScheme.onPrimary)
                 } else {
                     Box(
                         Modifier
                             .size(17.dp)
-                            .background(Color.Transparent, RoundedCornerShape(4.dp))
-                            .border(1.2.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(4.dp)),
+                            .background(Color.Transparent, RuntimeTheme.shapes.tiny)
+                            .border(1.2.dp, RuntimeTheme.colorScheme.outlineVariant, RuntimeTheme.shapes.tiny),
                     )
                 }
             }
-            MiniBadge(typeLabel, typeTint)
+            StatusBadge(typeLabel, typeTint)
             Text(
                 text = change.path,
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.onSurface,
+                style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color = RuntimeTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
@@ -1212,14 +1167,14 @@ private fun ChangeRow(
             // 丢弃：未跟踪=删除文件，已跟踪=还原到 HEAD（危险操作，外层有确认对话框）
             if (enabled) {
                 RuntimeIconButton(onClick = onDiscard, modifier = Modifier.size(30.dp)) {
-                    RuntimeIcon(RuntimeIconName.Reverse, Modifier.size(15.dp), MaterialTheme.colorScheme.error)
+                    RuntimeIcon(RuntimeIconName.Reverse, Modifier.size(15.dp), RuntimeTheme.colorScheme.error)
                 }
             }
             if (change.staged) {
                 Text(
                     stringResource(R.string.fgit_staged),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.primary,
                 )
             }
         }
@@ -1248,13 +1203,13 @@ private fun CreateBranchDialog(
                     } else {
                         stringResource(R.string.fgit_create_branch_from, currentBranch)
                     },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 RuntimeFilledTextField(
                     value = name,
                     onValueChange = { name = it.trim().take(64) },
-                    label = { Text(stringResource(R.string.fgit_branch_name)) },
+                    labelText = stringResource(R.string.fgit_branch_name),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1270,7 +1225,6 @@ private fun CreateBranchDialog(
         },
     )
 }
-
 @Composable
 private fun CreateTagDialog(
     onDismiss: () -> Unit,
@@ -1285,20 +1239,20 @@ private fun CreateTagDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     stringResource(R.string.fgit_create_tag_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 RuntimeFilledTextField(
                     value = name,
                     onValueChange = { name = it.trim().take(64) },
-                    label = { Text(stringResource(R.string.fgit_tag_name)) },
+                    labelText = stringResource(R.string.fgit_tag_name),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 RuntimeFilledTextField(
                     value = message,
                     onValueChange = { message = it.take(500) },
-                    label = { Text(stringResource(R.string.fgit_tag_message)) },
+                    labelText = stringResource(R.string.fgit_tag_message),
                     placeholder = { Text(stringResource(R.string.fgit_tag_message_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1339,20 +1293,20 @@ private fun CredentialsDialog(
             ) {
                 Text(
                     stringResource(R.string.fgit_credentials_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 if (remoteUrl.isNotBlank()) {
                     Text(
                         stringResource(R.string.fgit_credentials_remote, remoteUrl),
-                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.primary,
+                        style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                        color = RuntimeTheme.colorScheme.primary,
                     )
                 }
                 RuntimeFilledTextField(
                     value = host,
                     onValueChange = { host = it.trim().take(100) },
-                    label = { Text(stringResource(R.string.fgit_host)) },
+                    labelText = stringResource(R.string.fgit_host),
                     placeholder = { Text("github.com") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -1360,14 +1314,14 @@ private fun CredentialsDialog(
                 RuntimeFilledTextField(
                     value = username,
                     onValueChange = { username = it.take(100) },
-                    label = { Text(stringResource(R.string.fgit_username)) },
+                    labelText = stringResource(R.string.fgit_username),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 RuntimeFilledTextField(
                     value = token,
                     onValueChange = { token = it.take(500) },
-                    label = { Text(stringResource(R.string.fgit_token)) },
+                    labelText = stringResource(R.string.fgit_token),
                     placeholder = { Text(stringResource(R.string.fgit_token_placeholder)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
@@ -1376,8 +1330,8 @@ private fun CredentialsDialog(
                 if (savedHosts.isNotEmpty()) {
                     Text(
                         stringResource(R.string.fgit_saved_hosts, savedHosts.joinToString("、")),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -1391,18 +1345,4 @@ private fun CredentialsDialog(
             RuntimeTextButton(onClick = onDismiss) { Text(stringResource(R.string.fgit_cancel)) }
         },
     )
-}
-
-@Composable
-private fun MiniBadge(text: String, color: Color) {
-    Surface(color = color.copy(alpha = 0.12f), shape = RoundedCornerShape(6.dp)) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
-            color = color,
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-        )
-    }
 }

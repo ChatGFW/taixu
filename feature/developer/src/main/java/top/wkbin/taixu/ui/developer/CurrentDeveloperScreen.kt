@@ -1,14 +1,13 @@
 package top.wkbin.taixu.ui.developer
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
 import top.wkbin.taixu.core.datastore.RemoteServerRepository
@@ -32,11 +31,11 @@ internal fun RemoteDeveloperScreen(serverId: String, onBack: () -> Unit, service
     val state by remember(serverId, refresh, service) {
         service?.observe(serverId, target) ?: kotlinx.coroutines.flow.flowOf(RemoteSystemInspection(loading = false))
     }.collectAsStateWithLifecycle(RemoteSystemInspection(loading = service != null))
-    Scaffold(containerColor = MaterialTheme.colorScheme.background,
+    Scaffold(containerColor = RuntimeTheme.colorScheme.background,
         topBar = { RuntimeTopBar(title = "系统运行状态", statusText = target?.name ?: "服务器", onBack = onBack,
             actions = { RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) } }) },
     ) { padding ->
-        Column(Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)).verticalScroll(rememberScrollState()).padding(bottom = padding.calculateBottomPadding()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)).verticalScroll(rememberScrollState()).padding(bottom = padding.calculateBottomPadding()).padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)), verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap)) {
             SystemOverviewCard(target?.name ?: "服务器", target?.let { "${it.username}@${it.host}:${it.port}" }.orEmpty(),
                 target?.workspace.orEmpty(), state.loading, state.error, state.metrics?.let { listOf(
                     "发行版" to it.distribution, "架构" to it.architecture, "内核" to it.kernel,

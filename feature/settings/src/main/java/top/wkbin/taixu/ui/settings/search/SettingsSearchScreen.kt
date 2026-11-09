@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.settings.search
 
+import top.wkbin.taixu.ui.miuix.*
+import androidx.compose.runtime.*
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,20 +22,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,7 +69,7 @@ fun SettingsSearchScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RuntimeTheme.colorScheme.background,
         topBar = {
             RuntimeTopBar(
                 title = "搜索功能与设置",
@@ -108,8 +99,8 @@ fun SettingsSearchScreen(
                     placeholder = {
                         Text(
                             text = "搜索功能名称、设置项、拼音或关键词...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            style = RuntimeTheme.typography.bodyMedium,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -118,7 +109,7 @@ fun SettingsSearchScreen(
                         RuntimeIcon(
                             name = RuntimeIconName.Search,
                             modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.primary,
                         )
                     },
                     trailingIcon = {
@@ -130,18 +121,18 @@ fun SettingsSearchScreen(
                                 RuntimeIcon(
                                     name = RuntimeIconName.Close,
                                     modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
                     },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RuntimeTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        focusedBorderColor = RuntimeTheme.colorScheme.primary,
+                        unfocusedBorderColor = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                        focusedContainerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+                        unfocusedContainerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
                     ),
                 )
             }
@@ -150,7 +141,7 @@ fun SettingsSearchScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize(),
-                contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, PaddingValues(horizontal = 16.dp, vertical = 8.dp)),
+                contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (searchQuery.isBlank()) {
@@ -159,8 +150,8 @@ fun SettingsSearchScreen(
                         Column(modifier = Modifier.padding(vertical = 4.dp)) {
                             Text(
                                 text = "热门快捷检索",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(bottom = 8.dp, start = 2.dp),
                             )
                             FlowRow(
@@ -170,8 +161,8 @@ fun SettingsSearchScreen(
                             ) {
                                 SettingsSearchRegistry.popularTags.forEach { tag ->
                                     Surface(
-                                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
-                                        shape = RoundedCornerShape(8.dp),
+                                        color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                                        shape = RuntimeTheme.shapes.chip,
                                         modifier = Modifier.clickable {
                                             searchQuery = tag
                                         },
@@ -184,12 +175,12 @@ fun SettingsSearchScreen(
                                             RuntimeIcon(
                                                 name = RuntimeIconName.Search,
                                                 modifier = Modifier.size(12.dp),
-                                                tint = MaterialTheme.colorScheme.primary,
+                                                tint = RuntimeTheme.colorScheme.primary,
                                             )
                                             Text(
                                                 text = tag,
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
-                                                color = MaterialTheme.colorScheme.onSurface,
+                                                style = RuntimeTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                                                color = RuntimeTheme.colorScheme.onSurface,
                                             )
                                         }
                                     }
@@ -202,8 +193,8 @@ fun SettingsSearchScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "全局所有功能选项 (${SettingsSearchRegistry.allItems.size})",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = 2.dp, start = 2.dp),
                         )
                     }
@@ -235,20 +226,20 @@ fun SettingsSearchScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(56.dp)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                        .clip(RuntimeTheme.shapes.medium)
+                                        .background(RuntimeTheme.colorScheme.surfaceContainerHighest),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     RuntimeIcon(
                                         name = RuntimeIconName.Search,
                                         modifier = Modifier.size(26.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        tint = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                     )
                                 }
                                 Text(
                                     text = "未找到包含「$searchQuery」的功能选项",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.bodyMedium,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                                 RuntimeOutlinedButton(
                                     onClick = { searchQuery = "" },
@@ -264,8 +255,8 @@ fun SettingsSearchScreen(
                     item {
                         Text(
                             text = "找到 ${searchResults.size} 个相关功能选项",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary,
+                            style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                            color = RuntimeTheme.colorScheme.primary,
                             modifier = Modifier.padding(bottom = 2.dp, start = 2.dp),
                         )
                     }
@@ -299,10 +290,10 @@ private fun SearchResultCard(
 ) {
     val categoryColor = item.category.themeColor
     val iconBg = categoryColor.copy(alpha = 0.12f)
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val titleTextColor = MaterialTheme.colorScheme.onSurface
-    val subtitleTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val breadcrumbTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
+    val primaryColor = RuntimeTheme.colorScheme.primary
+    val titleTextColor = RuntimeTheme.colorScheme.onSurface
+    val subtitleTextColor = RuntimeTheme.colorScheme.onSurfaceVariant
+    val breadcrumbTextColor = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
 
     val titleAnnotated = remember(item.title, highlightQuery, primaryColor, titleTextColor) {
         buildHighlightedText(
@@ -335,8 +326,8 @@ private fun SearchResultCard(
     RuntimeCard(
         modifier = modifier.fillMaxWidth(),
         onClick = onClick,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+        borderColor = Color.Transparent,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Row(
@@ -348,9 +339,8 @@ private fun SearchResultCard(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(iconBg)
-                    .border(1.dp, categoryColor.copy(alpha = 0.22f), RoundedCornerShape(10.dp)),
+                    .clip(RuntimeTheme.shapes.small)
+                    .background(iconBg),
                 contentAlignment = Alignment.Center,
             ) {
                 RuntimeIcon(item.icon, Modifier.size(18.dp), tint = categoryColor)
@@ -368,7 +358,7 @@ private fun SearchResultCard(
                 ) {
                     Text(
                         text = titleAnnotated,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
@@ -377,11 +367,11 @@ private fun SearchResultCard(
                     item.badge?.let { badgeText ->
                         Surface(
                             color = categoryColor.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(4.dp),
+                            shape = RuntimeTheme.shapes.tiny,
                         ) {
                             Text(
                                 text = badgeText,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold),
+                                style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
                                 color = categoryColor,
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                             )
@@ -391,7 +381,7 @@ private fun SearchResultCard(
 
                 Text(
                     text = subtitleAnnotated,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                    style = RuntimeTheme.typography.bodySmall.copy(fontSize = 12.sp),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -399,12 +389,12 @@ private fun SearchResultCard(
                 // 路径面包屑（展示深层嵌套路径）
 
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(4.dp),
+                    color = RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                    shape = RuntimeTheme.shapes.tiny,
                 ) {
                     Text(
                         text = breadcrumbAnnotated,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp, fontWeight = FontWeight.Medium),
+                        style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
@@ -416,7 +406,7 @@ private fun SearchResultCard(
             RuntimeIcon(
                 name = RuntimeIconName.ChevronRight,
                 modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             )
         }
     }
@@ -477,7 +467,7 @@ private fun buildHighlightedText(
                 withStyle(
                     SpanStyle(
                         color = highlightColor,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Medium,
                         background = highlightColor.copy(alpha = 0.16f),
                     )
                 ) {

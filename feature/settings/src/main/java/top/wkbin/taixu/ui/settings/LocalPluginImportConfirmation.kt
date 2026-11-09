@@ -4,8 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -24,7 +24,7 @@ internal fun LocalPluginImportConfirmation(pending: LocalPluginImportState.Pendi
         title = { Text(stringResource(R.string.package_confirm_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("${manifest.name} · ${manifest.version}", style = MaterialTheme.typography.titleMedium)
+                Text("${manifest.name} · ${manifest.version}", style = RuntimeTheme.typography.titleMedium)
                 Text(manifest.description)
                 Text("Schema ${manifest.schemaVersion} · ${manifest.architectures.joinToString()}")
                 manifest.plugin?.let { spec ->
@@ -45,7 +45,7 @@ internal fun LocalPluginImportConfirmation(pending: LocalPluginImportState.Pendi
                 }
                 Text(stringResource(R.string.package_new_capabilities))
                 Text(pending.addedCapabilities.joinToString("\n").ifEmpty { stringResource(R.string.package_none) })
-                Text(stringResource(R.string.package_confirm_scope), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.package_confirm_scope), style = RuntimeTheme.typography.bodySmall)
             }
         },
         dismissButton = { RuntimeTextButton(onClick = onCancel) { Text(stringResource(android.R.string.cancel)) } },

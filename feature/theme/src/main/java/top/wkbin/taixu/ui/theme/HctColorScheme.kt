@@ -2,14 +2,14 @@ package top.wkbin.taixu.ui.theme
 
 import top.wkbin.taixu.core.model.ThemePaletteStyle
 
-import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import top.wkbin.taixu.ui.miuix.ColorScheme
+import top.wkbin.taixu.ui.miuix.darkColorScheme
+import top.wkbin.taixu.ui.miuix.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.dynamiccolor.DynamicColor
-import com.materialkolor.dynamiccolor.DynamicScheme
+import com.materialkolor.scheme.DynamicScheme
 import com.materialkolor.dynamiccolor.MaterialDynamicColors
 import com.materialkolor.hct.Hct
 import com.materialkolor.scheme.SchemeTonalSpot
@@ -28,12 +28,12 @@ private val dynamicColors = MaterialDynamicColors()
  *
  * 变体取 Monet 同款 [SchemeTonalSpot]，规范版本取 SPEC_2025（M3 Expressive 对应版本）。
  */
-fun generateM3ColorScheme(
+fun generatePaletteColorScheme(
     seedColor: Color,
     darkTheme: Boolean,
     style: ThemePaletteStyle = ThemePaletteStyle.TONAL_SPOT,
 ): ColorScheme {
-    val source = listOf(Hct.fromInt(seedColor.toArgb()))
+    val source = Hct.fromInt(seedColor.toArgb())
     val scheme = when (style) {
         ThemePaletteStyle.TONAL_SPOT -> SchemeTonalSpot(source, darkTheme, 0.0, ColorSpec.SpecVersion.SPEC_2025, DynamicScheme.Platform.PHONE)
         ThemePaletteStyle.VIBRANT -> com.materialkolor.scheme.SchemeVibrant(source, darkTheme, 0.0, ColorSpec.SpecVersion.SPEC_2025, DynamicScheme.Platform.PHONE)
@@ -65,53 +65,53 @@ private fun DynamicScheme.roleColor(dynamicColor: DynamicColor): Color = Color(g
 private fun DynamicScheme.toComposeColorScheme(): ColorScheme {
     val base = if (isDark) darkColorScheme() else lightColorScheme()
     return base.copy(
-        primary = roleColor(dynamicColors.primary),
-        onPrimary = roleColor(dynamicColors.onPrimary),
-        primaryContainer = roleColor(dynamicColors.primaryContainer),
-        onPrimaryContainer = roleColor(dynamicColors.onPrimaryContainer),
-        inversePrimary = roleColor(dynamicColors.inversePrimary),
-        secondary = roleColor(dynamicColors.secondary),
-        onSecondary = roleColor(dynamicColors.onSecondary),
-        secondaryContainer = roleColor(dynamicColors.secondaryContainer),
-        onSecondaryContainer = roleColor(dynamicColors.onSecondaryContainer),
-        tertiary = roleColor(dynamicColors.tertiary),
-        onTertiary = roleColor(dynamicColors.onTertiary),
-        tertiaryContainer = roleColor(dynamicColors.tertiaryContainer),
-        onTertiaryContainer = roleColor(dynamicColors.onTertiaryContainer),
-        background = roleColor(dynamicColors.background),
-        onBackground = roleColor(dynamicColors.onBackground),
-        surface = roleColor(dynamicColors.surface),
-        onSurface = roleColor(dynamicColors.onSurface),
-        surfaceVariant = roleColor(dynamicColors.surfaceVariant),
-        onSurfaceVariant = roleColor(dynamicColors.onSurfaceVariant),
-        surfaceTint = roleColor(dynamicColors.surfaceTint),
-        inverseSurface = roleColor(dynamicColors.inverseSurface),
-        inverseOnSurface = roleColor(dynamicColors.inverseOnSurface),
-        error = roleColor(dynamicColors.error),
-        onError = roleColor(dynamicColors.onError),
-        errorContainer = roleColor(dynamicColors.errorContainer),
-        onErrorContainer = roleColor(dynamicColors.onErrorContainer),
-        outline = roleColor(dynamicColors.outline),
-        outlineVariant = roleColor(dynamicColors.outlineVariant),
-        scrim = roleColor(dynamicColors.scrim),
-        surfaceBright = roleColor(dynamicColors.surfaceBright),
-        surfaceDim = roleColor(dynamicColors.surfaceDim),
-        surfaceContainer = roleColor(dynamicColors.surfaceContainer),
-        surfaceContainerHigh = roleColor(dynamicColors.surfaceContainerHigh),
-        surfaceContainerHighest = roleColor(dynamicColors.surfaceContainerHighest),
-        surfaceContainerLow = roleColor(dynamicColors.surfaceContainerLow),
-        surfaceContainerLowest = roleColor(dynamicColors.surfaceContainerLowest),
-        primaryFixed = roleColor(dynamicColors.primaryFixed),
-        primaryFixedDim = roleColor(dynamicColors.primaryFixedDim),
-        onPrimaryFixed = roleColor(dynamicColors.onPrimaryFixed),
-        onPrimaryFixedVariant = roleColor(dynamicColors.onPrimaryFixedVariant),
-        secondaryFixed = roleColor(dynamicColors.secondaryFixed),
-        secondaryFixedDim = roleColor(dynamicColors.secondaryFixedDim),
-        onSecondaryFixed = roleColor(dynamicColors.onSecondaryFixed),
-        onSecondaryFixedVariant = roleColor(dynamicColors.onSecondaryFixedVariant),
-        tertiaryFixed = roleColor(dynamicColors.tertiaryFixed),
-        tertiaryFixedDim = roleColor(dynamicColors.tertiaryFixedDim),
-        onTertiaryFixed = roleColor(dynamicColors.onTertiaryFixed),
-        onTertiaryFixedVariant = roleColor(dynamicColors.onTertiaryFixedVariant),
+        primary = roleColor(dynamicColors.primary()),
+        onPrimary = roleColor(dynamicColors.onPrimary()),
+        primaryContainer = roleColor(dynamicColors.primaryContainer()),
+        onPrimaryContainer = roleColor(dynamicColors.onPrimaryContainer()),
+        inversePrimary = roleColor(dynamicColors.inversePrimary()),
+        secondary = roleColor(dynamicColors.secondary()),
+        onSecondary = roleColor(dynamicColors.onSecondary()),
+        secondaryContainer = roleColor(dynamicColors.secondaryContainer()),
+        onSecondaryContainer = roleColor(dynamicColors.onSecondaryContainer()),
+        tertiary = roleColor(dynamicColors.tertiary()),
+        onTertiary = roleColor(dynamicColors.onTertiary()),
+        tertiaryContainer = roleColor(dynamicColors.tertiaryContainer()),
+        onTertiaryContainer = roleColor(dynamicColors.onTertiaryContainer()),
+        background = roleColor(dynamicColors.background()),
+        onBackground = roleColor(dynamicColors.onBackground()),
+        surface = roleColor(dynamicColors.surface()),
+        onSurface = roleColor(dynamicColors.onSurface()),
+        surfaceVariant = roleColor(dynamicColors.surfaceVariant()),
+        onSurfaceVariant = roleColor(dynamicColors.onSurfaceVariant()),
+        surfaceTint = roleColor(dynamicColors.surfaceTint()),
+        inverseSurface = roleColor(dynamicColors.inverseSurface()),
+        inverseOnSurface = roleColor(dynamicColors.inverseOnSurface()),
+        error = roleColor(dynamicColors.error()),
+        onError = roleColor(dynamicColors.onError()),
+        errorContainer = roleColor(dynamicColors.errorContainer()),
+        onErrorContainer = roleColor(dynamicColors.onErrorContainer()),
+        outline = roleColor(dynamicColors.outline()),
+        outlineVariant = roleColor(dynamicColors.outlineVariant()),
+        scrim = roleColor(dynamicColors.scrim()),
+        surfaceBright = roleColor(dynamicColors.surfaceBright()),
+        surfaceDim = roleColor(dynamicColors.surfaceDim()),
+        surfaceContainer = roleColor(dynamicColors.surfaceContainer()),
+        surfaceContainerHigh = roleColor(dynamicColors.surfaceContainerHigh()),
+        surfaceContainerHighest = roleColor(dynamicColors.surfaceContainerHighest()),
+        surfaceContainerLow = roleColor(dynamicColors.surfaceContainerLow()),
+        surfaceContainerLowest = roleColor(dynamicColors.surfaceContainerLowest()),
+        primaryFixed = roleColor(dynamicColors.primaryFixed()),
+        primaryFixedDim = roleColor(dynamicColors.primaryFixedDim()),
+        onPrimaryFixed = roleColor(dynamicColors.onPrimaryFixed()),
+        onPrimaryFixedVariant = roleColor(dynamicColors.onPrimaryFixedVariant()),
+        secondaryFixed = roleColor(dynamicColors.secondaryFixed()),
+        secondaryFixedDim = roleColor(dynamicColors.secondaryFixedDim()),
+        onSecondaryFixed = roleColor(dynamicColors.onSecondaryFixed()),
+        onSecondaryFixedVariant = roleColor(dynamicColors.onSecondaryFixedVariant()),
+        tertiaryFixed = roleColor(dynamicColors.tertiaryFixed()),
+        tertiaryFixedDim = roleColor(dynamicColors.tertiaryFixedDim()),
+        onTertiaryFixed = roleColor(dynamicColors.onTertiaryFixed()),
+        onTertiaryFixedVariant = roleColor(dynamicColors.onTertiaryFixedVariant()),
     )
 }

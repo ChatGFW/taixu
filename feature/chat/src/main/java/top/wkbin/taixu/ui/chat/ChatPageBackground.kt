@@ -1,11 +1,14 @@
 package top.wkbin.taixu.ui.chat
 
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+
 import androidx.compose.runtime.getValue
+
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -54,7 +57,7 @@ internal fun ChatPageSurface(
                 if (normalized.imageName != null && normalized.visibility > 0f) {
                     Box(
                         Modifier.matchParentSize().background(
-                            MaterialTheme.colorScheme.background.copy(alpha = BACKDROP_SCRIM_ALPHA),
+                            RuntimeTheme.colorScheme.background.copy(alpha = BACKDROP_SCRIM_ALPHA),
                         ),
                     )
                 }

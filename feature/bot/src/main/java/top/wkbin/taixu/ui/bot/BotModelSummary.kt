@@ -1,7 +1,7 @@
 package top.wkbin.taixu.ui.bot
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -23,7 +23,7 @@ internal fun BotModelSummary(bot: Bot, profiles: List<AiModelEntity>?) {
         invalid -> "${profile.name} · ${stringResource(R.string.fbot_model_unavailable)}"
         else -> "${profile.name} · ${profile.provider} · $variant"
     }
-    Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 2,
+    Text(label, style = RuntimeTheme.typography.labelSmall, maxLines = 2,
         overflow = TextOverflow.Ellipsis,
-        color = if (invalid) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+        color = if (invalid) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurfaceVariant)
 }

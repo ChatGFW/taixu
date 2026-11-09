@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,22 +39,22 @@ internal fun BinaryFileNotice(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        RuntimeIcon(RuntimeIconName.File, Modifier.size(40.dp), MaterialTheme.colorScheme.primary)
+        RuntimeIcon(RuntimeIconName.File, Modifier.size(40.dp), RuntimeTheme.colorScheme.primary)
         Spacer(Modifier.height(16.dp))
         Text(
             stringResource(R.string.workspace_binary_title),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = RuntimeTheme.typography.titleMedium,
+            color = RuntimeTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(8.dp))
         Text(
             stringResource(R.string.workspace_binary_message, describeBinaryArtifact(inspection)),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodyMedium,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(24.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        top.wkbin.taixu.ui.components.RuntimeActionRow() {
             RuntimeFilledTonalButton(onClick = onOpen) { Text(stringResource(R.string.workspace_binary_open)) }
             RuntimeOutlinedButton(onClick = onShare) { Text(stringResource(R.string.workspace_binary_share)) }
         }

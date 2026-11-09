@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.workspace
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -17,39 +20,27 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.minimumInteractiveComponentSize
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,6 +50,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import top.wkbin.taixu.feature.workspace.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,8 +60,11 @@ import top.wkbin.taixu.runtime.WorkspaceFileItem
 import top.wkbin.taixu.ui.components.EmptyPanel
 import top.wkbin.taixu.ui.components.NoticeBanner
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconMenu
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -77,7 +73,6 @@ import java.util.Locale
  * 太墟 · 文件浏览器 (File Explorer)
  * 实时树形遍历与文件 CRUD
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkspaceExplorerScreen(
     projectName: String,
@@ -109,7 +104,6 @@ fun WorkspaceExplorerScreen(
     }
 
     // 对话框开关与输入状态用 rememberSaveable，旋转后不丢失（复杂对象目标仍为 remember）
-    var showCreateMenu by rememberSaveable { mutableStateOf(false) }
     var showCreateFileDialog by rememberSaveable { mutableStateOf(false) }
     var showCreateFolderDialog by rememberSaveable { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<WorkspaceFileItem?>(null) }
@@ -146,7 +140,7 @@ fun WorkspaceExplorerScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RuntimeTheme.colorScheme.background,
         topBar = {
             RuntimeTopBar(
                 title = projectName,
@@ -159,40 +153,38 @@ fun WorkspaceExplorerScreen(
                     }
                 },
                 actions = {
-                    // 新建按钮菜单
-                    Box {
-                        IconButton(
-                            onClick = { showCreateMenu = true },
+                    val newLabel = stringResource(R.string.workspace_cd_new)
+                    Box(Modifier.semantics { contentDescription = newLabel }) {
+                        top.yukonga.miuix.kmp.menu.WindowIconDropdownMenu(
+                            entries = listOf(
+                                top.yukonga.miuix.kmp.basic.DropdownEntry(
+                                    items = listOf(
+                                        top.yukonga.miuix.kmp.basic.DropdownItem(
+                                            text = stringResource(R.string.workspace_new_file),
+                                            icon = { mod -> RuntimeIcon(RuntimeIconName.File, mod.size(18.dp)) },
+                                            onClick = {
+                                                viewModel?.clearMessage()
+                                                newFileName = ""
+                                                showCreateFileDialog = true
+                                            },
+                                        ),
+                                        top.yukonga.miuix.kmp.basic.DropdownItem(
+                                            text = stringResource(R.string.workspace_new_folder),
+                                            icon = { mod -> RuntimeIcon(RuntimeIconName.Folder, mod.size(18.dp)) },
+                                            onClick = {
+                                                viewModel?.clearMessage()
+                                                newFolderName = ""
+                                                showCreateFolderDialog = true
+                                            },
+                                        ),
+                                    ),
+                                ),
+                            ),
                             enabled = !busy,
-                            contentDescription = stringResource(R.string.workspace_cd_new),
-                        ) {
-                            RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                        }
-                        DropdownMenu(
-                            expanded = showCreateMenu,
-                            onDismissRequest = { showCreateMenu = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.workspace_new_file)) },
-                                leadingIcon = { RuntimeIcon(RuntimeIconName.File, Modifier.size(18.dp)) },
-                                onClick = {
-                                    showCreateMenu = false
-                                    viewModel?.clearMessage()
-                                    newFileName = ""
-                                    showCreateFileDialog = true
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.workspace_new_folder)) },
-                                leadingIcon = { RuntimeIcon(RuntimeIconName.Folder, Modifier.size(18.dp)) },
-                                onClick = {
-                                    showCreateMenu = false
-                                    viewModel?.clearMessage()
-                                    newFolderName = ""
-                                    showCreateFolderDialog = true
-                                },
-                            )
-                        }
+                            content = {
+                                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.primary)
+                            },
+                        )
                     }
 
                     // 终端入口
@@ -200,7 +192,7 @@ fun WorkspaceExplorerScreen(
                         onClick = { onOpenTerminal(projectName) },
                         contentDescription = stringResource(R.string.workspace_cd_terminal),
                     ) {
-                        RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                        RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.primary)
                     }
 
                     // 刷新
@@ -209,7 +201,7 @@ fun WorkspaceExplorerScreen(
                         enabled = !loading,
                         contentDescription = stringResource(R.string.workspace_cd_refresh),
                     ) {
-                        RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(19.dp), tint = RuntimeTheme.colorScheme.onSurfaceVariant)
                     }
                 },
             )
@@ -227,7 +219,7 @@ fun WorkspaceExplorerScreen(
                 onNavigate = { targetPath -> viewModel?.navigateToDirectory(targetPath) },
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
 
             // 共享存储"所有文件访问"权限缺失横幅：系统会过滤其他应用的文件（只显示文件夹）
             if (sharedStorageAccessLimited) {
@@ -256,7 +248,7 @@ fun WorkspaceExplorerScreen(
 
             if (loading && fileItems.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(Modifier.size(36.dp), color = MaterialTheme.colorScheme.primary)
+                    CircularProgressIndicator(Modifier.size(36.dp), color = RuntimeTheme.colorScheme.primary)
                 }
             } else if (fileItems.isEmpty()) {
                 EmptyPanel(
@@ -274,7 +266,7 @@ fun WorkspaceExplorerScreen(
                         if (currentPath.isNotBlank()) {
                             item {
                                 ParentDirectoryRow(onClick = { viewModel?.navigateUp() })
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
                             }
                         }
 
@@ -297,7 +289,7 @@ fun WorkspaceExplorerScreen(
                                     deleteTarget = item
                                 },
                             )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                            HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                         }
                     }
                     // 进入子目录时的覆盖式加载指示：列表非空但正在刷新
@@ -305,10 +297,10 @@ fun WorkspaceExplorerScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)),
+                                .background(RuntimeTheme.colorScheme.surface.copy(alpha = 0.55f)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            CircularProgressIndicator(Modifier.size(30.dp), color = MaterialTheme.colorScheme.primary)
+                            CircularProgressIndicator(Modifier.size(30.dp), color = RuntimeTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -368,7 +360,7 @@ fun WorkspaceExplorerScreen(
     deleteTarget?.let { target ->
         RuntimeAlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text(stringResource(R.string.workspace_delete_title, target.name), fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.workspace_delete_title, target.name), fontWeight = FontWeight.Medium) },
             text = {
                 Text(
                     stringResource(if (target.isDirectory) R.string.workspace_delete_folder_message else R.string.workspace_delete_file_message),
@@ -385,7 +377,7 @@ fun WorkspaceExplorerScreen(
                     if (busy) {
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                     } else {
-                        Text(stringResource(R.string.workspace_confirm_delete), color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.workspace_confirm_delete))
                     }
                 }
             },
@@ -403,7 +395,7 @@ private fun BreadcrumbBar(
     val segments = currentPath.split('/').filter { it.isNotBlank() }
 
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth(),
     ) {
         LazyRow(
@@ -429,7 +421,7 @@ private fun BreadcrumbBar(
                 RuntimeIcon(
                     RuntimeIconName.ChevronRight,
                     Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 BreadcrumbChip(
                     label = segment,
@@ -450,8 +442,8 @@ private fun BreadcrumbChip(
     onClick: () -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+        shape = RuntimeTheme.shapes.chip,
+        color = if (isCurrent) RuntimeTheme.colorScheme.primaryContainer else Color.Transparent,
         modifier = Modifier.clickable(onClick = onClick),
     ) {
         Row(
@@ -462,15 +454,15 @@ private fun BreadcrumbChip(
             RuntimeIcon(
                 icon,
                 Modifier.size(14.dp),
-                tint = if (isCurrent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = if (isCurrent) RuntimeTheme.colorScheme.onPrimaryContainer else RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                style = RuntimeTheme.typography.labelMedium.copy(
+                    fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
                     fontFamily = FontFamily.Monospace,
                 ),
-                color = if (isCurrent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                color = if (isCurrent) RuntimeTheme.colorScheme.onPrimaryContainer else RuntimeTheme.colorScheme.onSurface,
             )
         }
     }
@@ -479,8 +471,8 @@ private fun BreadcrumbChip(
 @Composable
 private fun SharedStoragePermissionBanner(onAuthorize: () -> Unit) {
     Surface(
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f),
-        shape = RoundedCornerShape(12.dp),
+        color = RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.55f),
+        shape = RuntimeTheme.shapes.small,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -493,7 +485,7 @@ private fun SharedStoragePermissionBanner(onAuthorize: () -> Unit) {
             RuntimeIcon(
                 RuntimeIconName.Alert,
                 Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onErrorContainer,
+                tint = RuntimeTheme.colorScheme.onErrorContainer,
             )
             Column(
                 modifier = Modifier.weight(1f),
@@ -501,20 +493,19 @@ private fun SharedStoragePermissionBanner(onAuthorize: () -> Unit) {
             ) {
                 Text(
                     text = stringResource(R.string.workspace_shared_permission_banner_title),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = RuntimeTheme.colorScheme.onErrorContainer,
                 )
                 Text(
                     text = stringResource(R.string.workspace_shared_permission_banner_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
                 )
             }
             TextButton(onClick = onAuthorize) {
                 Text(
                     text = stringResource(R.string.workspace_shared_permission_go_settings),
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
                 )
             }
         }
@@ -534,12 +525,12 @@ private fun ParentDirectoryRow(onClick: () -> Unit) {
         RuntimeIcon(
             RuntimeIconName.ArrowUp,
             Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = RuntimeTheme.colorScheme.primary,
         )
         Text(
             text = stringResource(R.string.workspace_parent_directory),
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-            color = MaterialTheme.colorScheme.primary,
+            style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            color = RuntimeTheme.colorScheme.primary,
         )
     }
 }
@@ -551,9 +542,9 @@ private fun FileItemRow(
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    var showMenu by remember { mutableStateOf(false) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val extColor = fileExtensionColor(item.extension)
+    val moreLabel = stringResource(R.string.workspace_cd_more)
 
     Row(
         modifier = Modifier
@@ -571,21 +562,21 @@ private fun FileItemRow(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)),
+                    .clip(RuntimeTheme.shapes.small)
+                    .background(RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)),
                 contentAlignment = Alignment.Center,
             ) {
                 RuntimeIcon(
                     RuntimeIconName.Folder,
                     Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.primary,
                 )
             }
         } else {
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(RuntimeTheme.shapes.small)
                     .background(extColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center,
             ) {
@@ -605,8 +596,8 @@ private fun FileItemRow(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = item.name,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = if (item.isDirectory) FontWeight.SemiBold else FontWeight.Normal,
+                    style = RuntimeTheme.typography.bodyMedium.copy(
+                        fontWeight = if (item.isDirectory) FontWeight.Medium else FontWeight.Normal,
                     ),
                     modifier = Modifier.weight(1f, fill = false),
                     maxLines = 1,
@@ -615,14 +606,14 @@ private fun FileItemRow(
                 if (!item.isDirectory && item.extension.isNotBlank()) {
                     Surface(
                         color = extColor.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = RuntimeTheme.shapes.tiny,
                     ) {
                         Text(
                             text = item.extension.uppercase(),
-                            style = MaterialTheme.typography.labelSmall.copy(
+                            style = RuntimeTheme.typography.labelSmall.copy(
                                 fontFamily = FontFamily.Monospace,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
                             ),
                             color = extColor,
                             maxLines = 1,
@@ -637,63 +628,47 @@ private fun FileItemRow(
                 if (!item.isDirectory) {
                     Text(
                         text = item.sizeBytes.toReadableSize(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (item.lastModified > 0) {
                     Text(
                         text = formatTime(item.lastModified),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
 
         // 操作菜单
-        Box {
-            IconButton(
-                onClick = {
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                    showMenu = true
-                },
+        Box(Modifier.semantics { contentDescription = moreLabel }) {
+            RuntimeIconMenu(
+                entries = listOf(
+                    DropdownEntry(
+                        items = listOf(
+                            DropdownItem(
+                                text = stringResource(R.string.workspace_rename),
+                                icon = { mod -> RuntimeIcon(RuntimeIconName.Edit, mod.size(16.dp)) },
+                                onClick = onRename,
+                            ),
+                            DropdownItem(
+                                text = stringResource(R.string.workspace_delete),
+                                icon = { mod -> RuntimeIcon(RuntimeIconName.Trash, mod.size(16.dp), RuntimeTheme.colorScheme.error) },
+                                onClick = onDelete,
+                            ),
+                        ),
+                    ),
+                ),
                 modifier = Modifier
                     .size(32.dp)
                     .minimumInteractiveComponentSize(),
-                contentDescription = stringResource(R.string.workspace_cd_more),
             ) {
                 RuntimeIcon(
                     RuntimeIconName.More,
                     Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.workspace_rename)) },
-                    leadingIcon = { RuntimeIcon(RuntimeIconName.Edit, Modifier.size(16.dp)) },
-                    onClick = {
-                        showMenu = false
-                        onRename()
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.workspace_delete), color = MaterialTheme.colorScheme.error) },
-                    leadingIcon = {
-                        RuntimeIcon(
-                            RuntimeIconName.Trash,
-                            Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.error,
-                        )
-                    },
-                    onClick = {
-                        showMenu = false
-                        onDelete()
-                    },
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

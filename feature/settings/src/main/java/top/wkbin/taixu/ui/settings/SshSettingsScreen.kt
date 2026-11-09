@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.settings
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -8,30 +11,24 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.SwitchDefaults
+import top.wkbin.taixu.ui.miuix.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -147,8 +144,8 @@ fun SshSettingsScreen(
                                 checked = settings.enabled,
                                 onCheckedChange = { arg0 -> viewModel?.toggleEnabled(arg0) },
                                 colors = SwitchDefaults.colors(
-                                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                    checkedThumbColor = RuntimeTheme.colorScheme.onPrimary,
+                                    checkedTrackColor = RuntimeTheme.colorScheme.primary,
                                 ),
                             )
                         }
@@ -158,10 +155,10 @@ fun SshSettingsScreen(
             (serviceState as? SshServiceState.Failed)?.let { failed ->
                 SettingsDetailCard(
                     modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
-                    borderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.25f),
+                    containerColor = RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+                    borderColor = RuntimeTheme.colorScheme.error,
                 ) {
-                    Text(failed.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(failed.message, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall)
                 }
             }
         }
@@ -175,7 +172,6 @@ fun SshSettingsScreen(
                     subtitle = "PRoot Linux 沙箱管理员账户",
                     value = "root",
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 SettingsRow(
                     icon = RuntimeIconName.Key,
                     title = "登录密码",
@@ -183,7 +179,6 @@ fun SshSettingsScreen(
                     value = if (settings.passwordConfigured) "已设置" else "未设置",
                     onClick = { showPasswordDialog = true },
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 SettingsRow(
                     icon = RuntimeIconName.Shield,
                     title = "允许密码登录",
@@ -209,19 +204,19 @@ fun SshSettingsScreen(
             SectionLabel("连接")
             SettingsDetailCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+                borderColor = Color.Transparent,
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         text = settings.connectionCommand,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.primary,
+                        style = RuntimeTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.primary,
                     )
                     Text(
                         text = "首次连接输入 yes 确认服务器指纹，然后输入 root 登录密码",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     RuntimeOutlinedButton(
                         onClick = { copyText(context, settings.connectionCommand, "SSH 命令已复制") },
@@ -264,30 +259,30 @@ fun SshSettingsScreen(
             SectionLabel("公钥登录（可选）")
             SettingsDetailCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+                borderColor = Color.Transparent,
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         "无需公钥也可以使用密码登录。需要免密连接时，每行添加一个 OpenSSH 公钥。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     RuntimeFilledTextField(
                         value = authorizedKeysText,
                         onValueChange = { authorizedKeysText = it },
-                        label = { Text("authorized_keys") },
+                        labelText = resolveLegacyString("authorized_keys"),
                         placeholder = { Text("ssh-ed25519 AAAAC3... user@device") },
                         minLines = 4,
                         maxLines = 8,
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        textStyle = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                         modifier = Modifier.fillMaxWidth(),
                     )
                     RuntimeButton(
                         onClick = { viewModel?.saveAuthorizedKeys(authorizedKeysText) },
                         enabled = !busy,
                         modifier = Modifier.align(Alignment.End),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RuntimeTheme.shapes.medium,
                     ) {
                         RuntimeIcon(RuntimeIconName.Save, Modifier.size(16.dp))
                         Spacer(Modifier.size(6.dp))
@@ -302,13 +297,13 @@ fun SshSettingsScreen(
                 SectionLabel("最近日志")
                 SettingsDetailCard(
                     modifier = Modifier.fillMaxWidth(),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                    borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    containerColor = RuntimeTheme.colorScheme.surfaceContainerLowest,
+                    borderColor = Color.Transparent,
                 ) {
                     Text(
                         logs.takeLast(12).joinToString("\n"),
-                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -320,8 +315,8 @@ fun SshSettingsScreen(
 private fun SectionLabel(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-        color = MaterialTheme.colorScheme.primary,
+        style = RuntimeTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+        color = RuntimeTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
     )
 }
@@ -354,13 +349,13 @@ private fun PasswordSettingsDialog(
             ) {
                 Text(
                     "密码将通过 Android Keystore 加密保存，并应用到当前 Linux 发行版的 root 账户。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 RuntimeFilledTextField(
                     value = password,
                     onValueChange = { password = it.take(128) },
-                    label = { Text("新密码") },
+                    labelText = resolveLegacyString("新密码"),
                     supportingText = { Text("至少 8 个字符，不能包含冒号") },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -370,7 +365,7 @@ private fun PasswordSettingsDialog(
                 RuntimeFilledTextField(
                     value = confirmation,
                     onValueChange = { confirmation = it.take(128) },
-                    label = { Text("再次输入密码") },
+                    labelText = resolveLegacyString("再次输入密码"),
                     isError = confirmation.isNotEmpty() && !matches,
                     supportingText = {
                         if (confirmation.isNotEmpty() && !matches) Text("两次输入的密码不一致")
@@ -389,12 +384,12 @@ private fun PasswordSettingsDialog(
             ) { Text("保存并启用") }
         },
         dismissButton = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+
                 if (passwordConfigured) {
                     RuntimeTextButton(onClick = onClear) { Text("清除密码") }
                 }
                 RuntimeTextButton(onClick = onDismiss) { Text("取消") }
-            }
+
         },
     )
 }

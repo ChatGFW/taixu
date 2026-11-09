@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,7 +21,7 @@ internal fun ChatProcessTimer(id: String, running: Boolean, startedAtMs: Long? =
 internal fun ChatReasoningLabel(id: String, live: Boolean, durationMs: Long?, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(if (live) R.string.chat_deep_reasoning else R.string.chat_reasoning_process),
-            modifier = Modifier.weight(1f).then(chatProcessPulse(live)), style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f).then(chatProcessPulse(live)), style = RuntimeTheme.typography.bodySmall,
             color = chatProcessColor(), maxLines = 1, overflow = TextOverflow.Ellipsis)
         ChatProcessTimer(id, live, durationMs = durationMs)
     }

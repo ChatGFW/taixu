@@ -1,19 +1,20 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -42,12 +43,12 @@ internal fun GroupTeamDialog(team: GroupTeam, members: List<Bot>, onDismiss: () 
         title = { Text(stringResource(R.string.fbot_team_title)) },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.fbot_team_hint), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.fbot_team_hint), style = RuntimeTheme.typography.bodySmall)
                 TeamArchitectureGraph(current, governance, members, editable = !saving) { if (it != team.adminBotId) selecting = it }
                 members.sortedBy { if (it.id == team.adminBotId) 0 else 1 }.forEach { member ->
                     RuntimeCard(modifier = Modifier.fillMaxWidth()) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(member.name, style = MaterialTheme.typography.titleSmall)
+                            Text(member.name, style = RuntimeTheme.typography.titleSmall)
                             if (member.id == team.adminBotId) Text(stringResource(R.string.fbot_team_root))
                             else RuntimeTextButton(onClick = { selecting = member.id }, enabled = !saving) {
                                 Text(stringResource(R.string.fbot_team_supervisor,
@@ -56,7 +57,7 @@ internal fun GroupTeamDialog(team: GroupTeam, members: List<Bot>, onDismiss: () 
                         }
                     }
                 }
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
             }
         },
         confirmButton = {

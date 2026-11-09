@@ -7,7 +7,7 @@
 #   - 首次运行会就地解包内嵌安装（main.jar + 自带 JRE，约 70 MB）到
 #     $ANDROID_USER_HOME/cli/bundles/<sha>/；该解包不联网，因此这里主动触发一次，
 #     避免把耗时算进 60 秒超时的 verifyCommand。
-#   - 33 个官方技能落到 /attachments/skills/android-skills/，即太墟技能自动发现的扫描根。
+#   - 36 个官方技能落到 /attachments/skills/android-skills/，即太墟技能自动发现的扫描根。
 set -eu
 
 PAYLOAD="${TAIXU_PLUGIN_PAYLOAD:?missing TAIXU_PLUGIN_PAYLOAD}"
@@ -19,7 +19,7 @@ SKILLS_ROOT="/attachments/skills"
 SKILLS_COLLECTION="$SKILLS_ROOT/android-skills"
 SKILLS_STAGING="$SKILLS_ROOT/android-skills.staging"
 SKILLS_PREVIOUS="$SKILLS_ROOT/android-skills.previous"
-MIN_SKILL_COUNT=33
+MIN_SKILL_COUNT=36
 
 progress() { printf '[TAIXU_PROGRESS:%s] %s\n' "$1" "$2"; }
 fail() { echo "$1" >&2; exit 1; }
@@ -96,4 +96,4 @@ progress 95 "[CLEAN] 释放沙箱内载荷暂存（约 90 MB；重新安装时�
 rm -f "$PAYLOAD/bin/android-cli" "$PAYLOAD/bin/android-launcher"
 rm -rf "$PAYLOAD/archives"
 
-progress 100 "[VERIFY] Android CLI 与 33 个官方技能已就绪"
+progress 100 "[VERIFY] Android CLI 与 36 个官方技能已就绪"

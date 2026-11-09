@@ -1,5 +1,7 @@
 package top.wkbin.taixu.ui.workspace
 
+import androidx.compose.runtime.*
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -15,19 +17,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -63,8 +61,8 @@ internal fun WorkspaceBuildStatusBanner(
 ) {
     if (activeBuildingProjectName != null && !isBuildDialogVisible) {
         Surface(
-            color = MaterialTheme.colorScheme.primaryContainer,
-            shape = RoundedCornerShape(12.dp),
+            color = RuntimeTheme.colorScheme.primaryContainer,
+            shape = RuntimeTheme.shapes.small,
             modifier = Modifier.fillMaxWidth().clickable { onShowDialog() },
         ) {
             Row(
@@ -75,82 +73,76 @@ internal fun WorkspaceBuildStatusBanner(
                 RuntimeCircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     strokeWidth = 2.5.dp,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = RuntimeTheme.colorScheme.primary,
                 )
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = stringResource(R.string.workspace_building_project, activeBuildingProjectName.orEmpty()),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.onPrimaryContainer,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = buildProgress?.step ?: stringResource(R.string.workspace_building),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
                 TextButton(onClick = onShowDialog) {
-                    Text(stringResource(R.string.workspace_view_logs), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.workspace_view_logs), fontWeight = FontWeight.Medium)
                 }
             }
         }
     } else if (activeBuildingProjectName == null && buildProgress != null && !isBuildDialogVisible) {
         val progress = buildProgress
         Surface(
-            color = if (progress.isSuccess == true) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer,
-            shape = RoundedCornerShape(12.dp),
+            color = if (progress.isSuccess == true) RuntimeTheme.colorScheme.secondaryContainer else RuntimeTheme.colorScheme.errorContainer,
+            shape = RuntimeTheme.shapes.small,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 RuntimeIcon(
                     if (progress.isSuccess == true) RuntimeIconName.Check else RuntimeIconName.Close,
                     Modifier.size(18.dp),
-                    tint = if (progress.isSuccess == true) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer,
+                    tint = if (progress.isSuccess == true) RuntimeTheme.colorScheme.onSecondaryContainer else RuntimeTheme.colorScheme.onErrorContainer,
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(if (progress.isSuccess == true) R.string.workspace_build_ready else R.string.workspace_build_failed),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = if (progress.isSuccess == true) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer,
+                        style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = if (progress.isSuccess == true) RuntimeTheme.colorScheme.onSecondaryContainer else RuntimeTheme.colorScheme.onErrorContainer,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     progress.message?.let {
                         Text(
                             text = it,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (progress.isSuccess == true) MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = if (progress.isSuccess == true) RuntimeTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f) else RuntimeTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                }
+                top.wkbin.taixu.ui.components.RuntimeActionRow() {
                     if (progress.isSuccess == true && progress.apkPath != null) {
                         TextButton(onClick = { onLaunchInstaller(progress.apkPath!!) }) {
-                            Text(stringResource(R.string.workspace_install), fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.workspace_install), fontWeight = FontWeight.Medium)
                         }
                     }
                     TextButton(onClick = onShowDialog) {
                         Text(stringResource(R.string.workspace_details))
                     }
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .size(28.dp)
-                            .minimumInteractiveComponentSize(),
-                        contentDescription = stringResource(R.string.workspace_cd_dismiss),
-                    ) {
-                        RuntimeIcon(RuntimeIconName.Close, Modifier.size(14.dp))
-                    }
+                    val dismissLabel = stringResource(R.string.workspace_cd_dismiss)
+                    TextButton(onClick = onDismiss, modifier = Modifier.semantics { contentDescription = dismissLabel }) { Text(dismissLabel) }
                 }
             }
         }
@@ -189,7 +181,7 @@ internal fun BuildProgressDialog(
                 if (progress.isRunning) {
                     RuntimeCircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 }
-                Text(stringResource(if (progress.isRunning) R.string.workspace_building_device else if (progress.isSuccess == true) R.string.workspace_run_ready else R.string.workspace_run_failed), fontWeight = FontWeight.Bold)
+                Text(stringResource(if (progress.isRunning) R.string.workspace_building_device else if (progress.isSuccess == true) R.string.workspace_run_ready else R.string.workspace_run_failed), fontWeight = FontWeight.Medium)
             }
         },
         text = {
@@ -197,17 +189,17 @@ internal fun BuildProgressDialog(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(progress.step, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
+                Text(progress.step, style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
                 if (progress.isRunning) {
                     LinearProgressIndicator(
                         progress = { progress.progress },
-                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(4.dp)),
+                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(RuntimeTheme.shapes.tiny),
                     )
                 }
                 if (progress.currentDependency != null || progress.dependencyItemsObserved > 0) {
                     Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                        shape = RoundedCornerShape(8.dp),
+                        color = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                        shape = RuntimeTheme.shapes.chip,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
@@ -221,19 +213,19 @@ internal fun BuildProgressDialog(
                             ) {
                                 Text(
                                     text = stringResource(R.string.workspace_dependency_activity),
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.primary,
+                                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                    color = RuntimeTheme.colorScheme.primary,
                                 )
                                 val countText = progress.dependenciesTotal?.let { total ->
                                     stringResource(R.string.workspace_dependency_count_total, progress.dependencyItemsObserved, total)
                                 } ?: stringResource(R.string.workspace_dependency_count, progress.dependencyItemsObserved)
-                                Text(countText, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(countText, style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                             }
                             progress.currentDependency?.let { dependency ->
                                 Text(
                                     text = dependency,
-                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                    color = RuntimeTheme.colorScheme.onSurface,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -241,12 +233,12 @@ internal fun BuildProgressDialog(
                             progress.dependencyProgressPercent?.let { percent ->
                                 LinearProgressIndicator(
                                     progress = { percent / 100f },
-                                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(RuntimeTheme.shapes.hairline),
                                 )
                                 Text(
                                     text = stringResource(R.string.workspace_dependency_percent, percent),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.labelSmall,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -255,8 +247,8 @@ internal fun BuildProgressDialog(
                 progress.message?.let { msg ->
                     Text(
                         text = msg,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (progress.isSuccess == false) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = if (progress.isSuccess == false) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -268,14 +260,14 @@ internal fun BuildProgressDialog(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             RuntimeIcon(if (showStepAnalysis) RuntimeIconName.ArrowUp else RuntimeIconName.ChevronDown, Modifier.size(14.dp))
-                            Text(stringResource(if (showStepAnalysis) R.string.workspace_hide_timing else R.string.workspace_timing), style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(if (showStepAnalysis) R.string.workspace_hide_timing else R.string.workspace_timing), style = RuntimeTheme.typography.labelMedium)
                         }
                     }
 
                     if (showStepAnalysis) {
                         Surface(
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            shape = RoundedCornerShape(8.dp),
+                            color = RuntimeTheme.colorScheme.surfaceContainerHighest,
+                            shape = RuntimeTheme.shapes.chip,
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         ) {
                             Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -296,27 +288,27 @@ internal fun BuildProgressDialog(
                                         ) {
                                             Text(
                                                 text = step.step,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurface,
+                                                style = RuntimeTheme.typography.labelSmall,
+                                                color = RuntimeTheme.colorScheme.onSurface,
                                             )
                                             Text(
                                                 text = durationText,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                style = RuntimeTheme.typography.labelSmall,
+                                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .height(6.dp)
-                                                .clip(RoundedCornerShape(4.dp))
-                                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                                                .clip(RuntimeTheme.shapes.tiny)
+                                                .background(RuntimeTheme.colorScheme.surfaceVariant),
                                         ) {
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth(barRatio)
                                                     .height(6.dp)
-                                                    .clip(RoundedCornerShape(4.dp))
+                                                    .clip(RuntimeTheme.shapes.tiny)
                                                     .background(barColor),
                                             )
                                         }
@@ -331,13 +323,13 @@ internal fun BuildProgressDialog(
                                     ) {
                                         Text(
                                             text = stringResource(R.string.workspace_total),
-                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = MaterialTheme.colorScheme.onSurface,
+                                            style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                            color = RuntimeTheme.colorScheme.onSurface,
                                         )
                                         Text(
                                             text = totalText,
-                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = MaterialTheme.colorScheme.primary,
+                                            style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                            color = RuntimeTheme.colorScheme.primary,
                                         )
                                     }
                                 }
@@ -353,18 +345,13 @@ internal fun BuildProgressDialog(
                 // running (and for completed tasks) instead of tying it
                 // to logOutput being non-empty.
                 run {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
+                    top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                         TextButton(
                             onClick = { showBuildLog = !showBuildLog },
-                            contentPadding = PaddingValues(0.dp),
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 RuntimeIcon(if (showBuildLog) RuntimeIconName.ArrowUp else RuntimeIconName.ChevronDown, Modifier.size(14.dp))
-                                Text(stringResource(if (showBuildLog) R.string.workspace_hide_build_log else R.string.workspace_view_build_log), style = MaterialTheme.typography.labelMedium)
+                                Text(stringResource(if (showBuildLog) R.string.workspace_hide_build_log else R.string.workspace_view_build_log))
                             }
                         }
 
@@ -374,11 +361,10 @@ internal fun BuildProgressDialog(
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                                     clipboard?.setPrimaryClip(ClipData.newPlainText("TaiXu Build Log", progress.logOutput))
                                 },
-                                contentPadding = PaddingValues(0.dp),
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     RuntimeIcon(RuntimeIconName.Copy, Modifier.size(12.dp))
-                                    Text(stringResource(R.string.workspace_copy_log), style = MaterialTheme.typography.labelSmall)
+                                    Text(stringResource(R.string.workspace_copy_log))
                                 }
                             }
                         }
@@ -388,8 +374,8 @@ internal fun BuildProgressDialog(
                         if (progress.logOutput.isBlank()) {
                             Text(
                                 text = stringResource(if (progress.isRunning) R.string.workspace_build_log_receiving else R.string.workspace_no_build_log),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         // 分类日志
@@ -448,15 +434,15 @@ internal fun BuildProgressDialog(
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                                 RuntimeIcon(if (isCollapsed) RuntimeIconName.ChevronRight else RuntimeIconName.ArrowUp, Modifier.size(12.dp))
-                                                Text("${cat.emoji} ${cat.name}", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                                                Text("${cat.emoji} ${cat.name}", style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium))
                                             }
-                                            Text(stringResource(R.string.workspace_log_count, cat.logs.size), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(stringResource(R.string.workspace_log_count, cat.logs.size), style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                                         }
                                     }
                                     if (!isCollapsed) {
                                         Surface(
-                                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                            shape = RoundedCornerShape(6.dp),
+                                            color = RuntimeTheme.colorScheme.surfaceContainerHighest,
+                                            shape = RuntimeTheme.shapes.extraSmall,
                                             modifier = Modifier.fillMaxWidth(),
                                         ) {
                                             Column(modifier = Modifier.padding(6.dp)) {
@@ -464,19 +450,19 @@ internal fun BuildProgressDialog(
                                                 displayLogs.forEach { line ->
                                                     Text(
                                                         text = line,
-                                                        style = MaterialTheme.typography.labelSmall.copy(
+                                                        style = RuntimeTheme.typography.labelSmall.copy(
                                                             fontFamily = FontFamily.Monospace,
-                                                            fontSize = 10.sp,
+                                                            fontSize = 11.sp,
                                                             lineHeight = 14.sp,
                                                         ),
-                                                        color = MaterialTheme.colorScheme.onSurface,
+                                                        color = RuntimeTheme.colorScheme.onSurface,
                                                     )
                                                 }
                                                 if (cat.logs.size > 200) {
                                                     Text(
                                                         text = stringResource(R.string.workspace_log_truncated, cat.logs.size),
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        style = RuntimeTheme.typography.labelSmall,
+                                                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                                     )
                                                 }
                                             }
@@ -491,7 +477,7 @@ internal fun BuildProgressDialog(
         },
         confirmButton = {
             if (!progress.isRunning) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                top.wkbin.taixu.ui.components.RuntimeActionRow() {
                     // 缺少环境时展示前往插件中心准备环境按钮
                     if (progress.suggestedSuiteId != null) {
                         Button(
@@ -501,7 +487,7 @@ internal fun BuildProgressDialog(
                             },
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                RuntimeIcon(RuntimeIconName.Package, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onPrimary)
+                                RuntimeIcon(RuntimeIconName.Package, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.onPrimary)
                                 Text(stringResource(R.string.workspace_prepare_environment))
                             }
                         }
@@ -511,7 +497,7 @@ internal fun BuildProgressDialog(
                     if (progress.isSuccess == true && path != null) {
                         Button(onClick = { onLaunchInstaller(path) }) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                RuntimeIcon(RuntimeIconName.Download, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onPrimary)
+                                RuntimeIcon(RuntimeIconName.Download, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.onPrimary)
                                 Text(stringResource(R.string.workspace_launch_install))
                             }
                         }
@@ -521,12 +507,12 @@ internal fun BuildProgressDialog(
                     }
                 }
             } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                top.wkbin.taixu.ui.components.RuntimeActionRow() {
                     TextButton(onClick = onCancelBuild) {
-                        Text(stringResource(R.string.workspace_stop_build), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.workspace_stop_build), fontWeight = FontWeight.Medium)
                     }
                     TextButton(onClick = onHideDialog) {
-                        Text(stringResource(R.string.workspace_background), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.workspace_background), fontWeight = FontWeight.Medium)
                     }
                 }
             }

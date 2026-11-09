@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.settings
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -9,25 +12,18 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import top.wkbin.taixu.ui.miuix.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -87,7 +83,7 @@ fun AboutCommunityScreen(
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             RuntimeIcon(RuntimeIconName.Check, Modifier.size(22.dp), tint = successStatusColor())
-                            Text("已是最新版本", fontWeight = FontWeight.Bold)
+                            Text("已是最新版本", fontWeight = FontWeight.Medium)
                         }
                     },
                     text = {
@@ -115,7 +111,7 @@ fun AboutCommunityScreen(
                 onDismissRequest = { viewModel?.clearUpdateState() },
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        RuntimeIcon(RuntimeIconName.Alert, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.error)
+                        RuntimeIcon(RuntimeIconName.Alert, Modifier.size(22.dp), tint = RuntimeTheme.colorScheme.error)
                         Text("检查更新失败")
                     }
                 },
@@ -157,8 +153,8 @@ fun AboutCommunityScreen(
         item {
             Text(
                 text = "应用版本与更新",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelLarge,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
             )
             SettingsGroup {
@@ -174,7 +170,6 @@ fun AboutCommunityScreen(
                         }
                     },
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 SettingsRow(
                     icon = RuntimeIconName.Document,
                     title = "版本更新日志",
@@ -184,7 +179,6 @@ fun AboutCommunityScreen(
                         showReleaseNotesDialog = true
                     },
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 ToggleRow(
                     icon = RuntimeIconName.Update,
                     title = "启动时自动检查更新",
@@ -192,7 +186,6 @@ fun AboutCommunityScreen(
                     checked = autoCheckUpdates,
                     change = { arg0 -> viewModel?.setAutoCheckUpdates(arg0) },
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 SettingsRow(
                     icon = RuntimeIconName.Sparkles,
                     title = "重看功能引导",
@@ -212,8 +205,8 @@ fun AboutCommunityScreen(
         item {
             Text(
                 text = "官方社区与开源",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelLarge,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
             )
             SettingsGroup {
@@ -223,7 +216,6 @@ fun AboutCommunityScreen(
                     subtitle = "https://github.com/taixu-lab/taixu · 欢迎 Star 支持",
                     onClick = { openBrowser(context, "https://github.com/taixu-lab/taixu") },
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 SettingsRow(
                     icon = RuntimeIconName.Qq,
                     title = "官方 QQ 交流群",
@@ -231,14 +223,12 @@ fun AboutCommunityScreen(
                     value = "964382207",
                     onClick = { joinQqGroup(context, "964382207") },
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 SettingsRow(
                     icon = RuntimeIconName.Sponsor,
                     title = "赞助支持",
                     subtitle = "赞助太墟 · 助力开源持续开发",
                     onClick = onOpenSponsor,
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 SettingsRow(
                     icon = RuntimeIconName.Info,
                     title = "关于太墟 · TaiXu",
@@ -261,32 +251,32 @@ private fun AboutAppDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(name = RuntimeIconName.Package, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                Text("太墟 · TaiXu", fontWeight = FontWeight.Bold)
+                RuntimeIcon(name = RuntimeIconName.Package, modifier = Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
+                Text("太墟 · TaiXu", fontWeight = FontWeight.Medium)
             }
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Android 原生 Linux PRoot 沙箱与 AI 结对编程中枢", style = MaterialTheme.typography.bodyMedium)
-                Text("版本: v$appVersion (Material 3 Expressive)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                Text("架构: aarch64 · chroot-less user-space virtualization", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("协议: Apache-2.0 License", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Android 原生 Linux PRoot 沙箱与 AI 结对编程中枢", style = RuntimeTheme.typography.bodyMedium)
+                Text("版本: v$appVersion", style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.primary)
+                Text("架构: aarch64 · chroot-less user-space virtualization", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                Text("协议: Apache-2.0 License", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(4.dp))
                 OutlinedButton(
                     onClick = onOpenReleaseNotes,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RuntimeTheme.shapes.medium,
                 ) {
-                    RuntimeIcon(RuntimeIconName.Document, Modifier.size(16.dp), MaterialTheme.colorScheme.primary)
+                    RuntimeIcon(RuntimeIconName.Document, Modifier.size(16.dp), RuntimeTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
                     Text("本版更新日志")
                 }
                 OutlinedButton(
                     onClick = { joinQqGroup(context, "964382207") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RuntimeTheme.shapes.medium,
                 ) {
-                    RuntimeIcon(RuntimeIconName.Chat, Modifier.size(16.dp), MaterialTheme.colorScheme.primary)
+                    RuntimeIcon(RuntimeIconName.Chat, Modifier.size(16.dp), RuntimeTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
                     Text("加入 QQ 交流群 (964382207)")
                 }
@@ -311,8 +301,8 @@ private fun UpdateInfoDialog(
         onDismissRequest = { if (!isDownloading) onDismiss() },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                Text("发现新版本 v${info.latestVersion}", fontWeight = FontWeight.Bold)
+                RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
+                Text("发现新版本 v${info.latestVersion}", fontWeight = FontWeight.Medium)
             }
         },
         text = {
@@ -321,13 +311,13 @@ private fun UpdateInfoDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(8.dp),
+                    color = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    shape = RuntimeTheme.shapes.chip,
                 ) {
                     Text(
                         text = "当前版本: v${info.currentVersion}  ➔  最新版本: v${info.latestVersion}",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     )
                 }
@@ -335,11 +325,11 @@ private fun UpdateInfoDialog(
                 if (info.releaseNotes.isNotBlank()) {
                     Text(
                         text = "更新日志：",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
                     )
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = RoundedCornerShape(10.dp),
+                        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
+                        shape = RuntimeTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         MarkdownText(
@@ -351,15 +341,15 @@ private fun UpdateInfoDialog(
 
                 if (isDownloading) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("正在下载更新安装包...", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Text("正在下载更新安装包...", style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.primary)
                         if (downloadProgress != null) {
                             LinearProgressIndicator(
                                 progress = { downloadProgress },
-                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(4.dp)),
+                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RuntimeTheme.shapes.tiny),
                             )
                         } else {
                             LinearProgressIndicator(
-                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(4.dp)),
+                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RuntimeTheme.shapes.tiny),
                             )
                         }
                     }
@@ -372,7 +362,7 @@ private fun UpdateInfoDialog(
                     onClick = onDownload,
                     enabled = !isDownloading,
                 ) {
-                    Text(if (isDownloading) "正在下载…" else "应用内立即更新")
+                    Text(if (isDownloading) "正在下载…" else "更新")
                 }
             } else {
                 Button(onClick = onOpenBrowser) {
@@ -430,8 +420,8 @@ private fun VersionReleaseNotesDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(RuntimeIconName.Document, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                Text("太墟 v$version 更新说明", fontWeight = FontWeight.Bold)
+                RuntimeIcon(RuntimeIconName.Document, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
+                Text("太墟 v$version 更新说明", fontWeight = FontWeight.Medium)
             }
         },
         text = {
@@ -452,8 +442,8 @@ private fun VersionReleaseNotesDialog(
                     }
                 } else if (!releaseNotes.isNullOrBlank()) {
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = RoundedCornerShape(10.dp),
+                        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
+                        shape = RuntimeTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         MarkdownText(
@@ -462,7 +452,7 @@ private fun VersionReleaseNotesDialog(
                         )
                     }
                 } else {
-                    Text(androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.settings.R.string.settings_release_notes_unavailable), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.settings.R.string.settings_release_notes_unavailable), color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
             }
         },

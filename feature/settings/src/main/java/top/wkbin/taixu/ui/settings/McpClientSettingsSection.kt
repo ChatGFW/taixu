@@ -1,13 +1,16 @@
 package top.wkbin.taixu.ui.settings
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -25,25 +28,25 @@ import top.wkbin.taixu.ui.components.previewStateOf
 internal fun McpClientSettingsSection(viewModel: McpClientSettingsViewModel? = previewOrNull { koinViewModel() }) {
     val minutes by viewModel?.idleMinutes?.collectAsStateWithLifecycle() ?: previewStateOf(McpIdlePolicy.DEFAULT_MINUTES)
     val failed by viewModel?.saveFailed?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    RuntimeCard(modifier = Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.extraLarge,
+    RuntimeCard(modifier = Modifier.fillMaxWidth(), containerColor = RuntimeTheme.colorScheme.surfaceContainer,
+        shape = RuntimeTheme.shapes.extraLarge,
         contentPadding = PaddingValues(SettingsDensity.cardPadding)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            LocalizedText("Model Context Protocol (MCP)", style = MaterialTheme.typography.titleMedium)
+            LocalizedText("Model Context Protocol (MCP)", style = RuntimeTheme.typography.titleMedium)
             LocalizedText(stringResource(R.string.mcp_client_intro), style = settingsSupportingStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            LocalizedText(stringResource(R.string.mcp_client_idle_title), style = MaterialTheme.typography.titleMedium)
+                color = RuntimeTheme.colorScheme.onSurfaceVariant)
+            LocalizedText(stringResource(R.string.mcp_client_idle_title), style = RuntimeTheme.typography.titleMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 (listOf(1, 3, 5, 10, 30, 60) + minutes).distinct().sorted().forEach { value ->
-                    RuntimeFilterChip(shape = MaterialTheme.shapes.small, selected = minutes == value, onClick = { viewModel?.setIdleMinutes(value) },
+                    RuntimeFilterChip(shape = RuntimeTheme.shapes.small, selected = minutes == value, onClick = { viewModel?.setIdleMinutes(value) },
                         label = { LocalizedText(stringResource(R.string.mcp_client_minutes, value), maxLines = 1,
                             overflow = TextOverflow.Ellipsis) })
                 }
             }
             LocalizedText(stringResource(R.string.mcp_client_idle_hint), style = settingsSupportingStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                color = RuntimeTheme.colorScheme.onSurfaceVariant)
             if (failed) LocalizedText(stringResource(R.string.mcp_client_save_failed),
-                color = MaterialTheme.colorScheme.error, style = settingsSupportingStyle())
+                color = RuntimeTheme.colorScheme.error, style = settingsSupportingStyle())
         }
     }
 }
