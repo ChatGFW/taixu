@@ -1,8 +1,13 @@
-// Managed by TaiXu. Prefer the active toolchain environment and fall back to
-// the standard local offline-suite path.
+// 回退时必须实际探测：本沙箱存在两套 NDK 布局 —— 主环境走 tools/ndk/current
+// （由 setup_termux_ndk.sh 维护的软链），离线套件走 tools/android/ndk。
+// 写死其中任一个都会在另一套布局下指向不存在的目录，导致 ndkPath 漂移拦截。
+def taixuNdkCandidates = [
+    '/opt/taixu/tools/ndk/current',
+    '/opt/taixu/tools/android/ndk'
+]
 def taixuNdkPath = System.getenv('TAIXU_NDK_PATH') ?:
     System.getenv('ANDROID_NDK_HOME') ?:
-    '/opt/taixu/toolchains/android/ndk'
+    taixuNdkCandidates.find { new File(it, 'source.properties').isFile() }
 def taixuNdkProperties = new Properties()
 def taixuNdkSourceProperties = new File(taixuNdkPath, 'source.properties')
 if (taixuNdkSourceProperties.isFile()) {

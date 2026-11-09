@@ -10,7 +10,7 @@ set -e
 
 PROJECT_PATH="${1:-.}"
 TASK="${2:-assembleDebug}"
-GRADLE_VER="8.14.2"
+GRADLE_VER="${TAIXU_GRADLE_VER:-$(ls -d /opt/gradle-* 2>/dev/null | sed 's|^/opt/gradle-||' | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -V | tail -n 1)}"
 
 echo "==> [TaiXu Build Engine] 启动 Android 项目编译..."
 echo "==> [TaiXu Build] 项目路径: $PROJECT_PATH"
@@ -73,21 +73,21 @@ export TAIXU_TOOL_DIR="${TAIXU_TOOL_DIR:-/opt/taixu/tools}"
 
 # The local offline suite is authoritative when present. A distro package may
 # leave an x86_64 Java earlier on PATH, which is unusable in the ARM64 PRoot.
-if [ -z "${JAVA_HOME:-}" ] && [ -x /opt/taixu/toolchains/android/jdk/bin/java ]; then
-    JAVA_HOME=/opt/taixu/toolchains/android/jdk
+if [ -z "${JAVA_HOME:-}" ] && [ -x /opt/taixu/tools/android/jdk/bin/java ]; then
+    JAVA_HOME=/opt/taixu/tools/android/jdk
 fi
 
 # AGP's default Maven artifact is a Linux x86_64 executable.  When the
 # android-core plugin installed the ARM64 tool bundle, pass the real aapt2
 # executable explicitly so AGP never tries to start the incompatible daemon.
-AAPT2_OVERRIDE="${TAIXU_AAPT2_PATH:-$ANDROID_HOME/build-tools/35.0.0/aapt2}"
-NDK_PATH="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}}"
+AAPT2_OVERRIDE="${TAIXU_AAPT2_PATH:-$(ls -d "$ANDROID_HOME"/build-tools/*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')/aapt2}"
+NDK_PATH="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/tools/ndk}}"
 
 # 非登录 shell 可能没有继承插件写入的 profile；变量为空时从标准 JDK
 # 目录和 PATH 重新解析，避免环境变量漂移阻断构建。
 if [ -z "${JAVA_HOME:-}" ] || [ ! -x "$JAVA_HOME/bin/java" ]; then
     JAVA_HOME=""
-    for candidate in /usr/lib/jvm/java-17-openjdk-arm64 /usr/lib/jvm/java-17-openjdk-aarch64 /usr/lib/jvm/default-java; do
+    for candidate in $(ls -d /opt/taixu/tools/jdk* 2>/dev/null | sort -V | tail -n 1) $(ls -d /usr/lib/jvm/java-* 2>/dev/null | sort -V | tail -n 1) /usr/lib/jvm/default-java; do
         if [ -x "$candidate/bin/java" ]; then
             JAVA_HOME="$candidate"
             break
@@ -144,7 +144,8 @@ echo "==> [TaiXu Build] ANDROID_HOME: $ANDROID_HOME"
 
 # AGP 8.11.1 requires SDK Build Tools 35.0.0. Fail before Gradle starts slow
 # remote SDK probes, which hide the actionable error in restricted networks.
-REQUIRED_BUILD_TOOLS="35.0.0"
+REQUIRED_BUILD_TOOLS="$(ls -d "$ANDROID_HOME"/build-tools/*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')"
+REQUIRED_BUILD_TOOLS="${REQUIRED_BUILD_TOOLS##*/}"
 if [ ! -f "$ANDROID_HOME/build-tools/$REQUIRED_BUILD_TOOLS/source.properties" ] || \
    [ ! -f "$ANDROID_HOME/build-tools/$REQUIRED_BUILD_TOOLS/lib/d8.jar" ]; then
     echo "==> [TaiXu Build] ❌ 缺少 Android Build-Tools $REQUIRED_BUILD_TOOLS"
@@ -152,7 +153,7 @@ if [ ! -f "$ANDROID_HOME/build-tools/$REQUIRED_BUILD_TOOLS/source.properties" ] 
     exit 2
 fi
 case "$AAPT2_OVERRIDE" in
-    /opt/android-sdk/build-tools/35.0.0/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/*/build-tools/aapt2) ;;
+    /opt/android-sdk/build-tools/*/aapt2|/opt/taixu/tools/android/sdk-tools/artifacts/*/build-tools/aapt2) ;;
     *)
         echo "==> [TaiXu Build] ❌ AAPT2 未指向不可变 ARM64 制品目录"
         exit 2
@@ -273,3 +274,4 @@ else
     echo "==> [TaiXu Build] ❌ 未找到有效的 Gradle 执行环境，请在插件中心装配【Android & 移动全栈开发套件】"
     exit 127
 fi
+# TAIXU_DYN_PATH: 旧版本字面量剥离，改为动态探测

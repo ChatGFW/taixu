@@ -318,7 +318,7 @@ class GenericRecipeInstaller(
                 'dest=.' \
                 'jar_bin="${'$'}{JAVA_HOME:-}/bin/jar"' \
                 'if [ ! -x "${'$'}{jar_bin}" ]; then' \
-                '  for candidate in /opt/taixu/toolchains/android/jdk/bin/jar /usr/bin/jar /usr/lib/jvm/default-java/bin/jar; do' \
+                '  for candidate in /opt/taixu/tools/android/jdk/bin/jar /usr/bin/jar /usr/lib/jvm/default-java/bin/jar; do' \
                 '    if [ -x "${'$'}{candidate}" ]; then jar_bin="${'$'}{candidate}"; break; fi' \
                 '  done' \
                 'fi' \

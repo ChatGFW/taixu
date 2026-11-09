@@ -10,7 +10,7 @@ class WorkshopSigningManagerTest {
     @Test
     fun createCommandPassesValidityAsCalculatedDayCount() {
         val command = buildCreateKeystoreCommand(
-            javaHome = "/opt/taixu/toolchains/android/jdk",
+            javaHome = "/opt/taixu/tools/android/jdk",
             keystorePath = "/opt/taixu/keystores/release.p12",
             alias = "release",
             storePassword = "store-secret",

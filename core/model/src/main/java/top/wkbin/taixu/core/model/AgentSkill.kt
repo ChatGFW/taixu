@@ -178,7 +178,7 @@ object BuiltinSkills {
                      org.gradle.caching=true
                      kotlin.daemon.jvmargs=-Xmx512m -XX:MaxMetaspaceSize=256m
                      ```
-                   - 需要更新 Gradle 时使用腾讯云镜像 https://mirrors.cloud.tencent.com/gradle/gradle-8.14.2-bin.zip。
+                   - 需要更新 Gradle 时使用腾讯云镜像 https://mirrors.cloud.tencent.com/gradle/ 下载目标版本（`gradle-<version>-bin.zip`；本机实际版本用 `gradle --version` 查看，勿假设固定版本号）。
                 8. 安装到本机：APK 构建完成后用 `taixu-host install-apk <apk路径>`（或 adb 已连接时 `adb install -r <apk路径>`）交付。
                 9. 排错顺序：先 `java -version` / `adb version` / `gradle --version` 与实际 Gradle、AAPT2 报错定位；
                    `android info` 可查看 CLI 自身版本与 SDK 位置；不要把失败一律归因到 QEMU 或主机架构。

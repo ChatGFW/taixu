@@ -52,7 +52,7 @@ class StorageManagerTest {
         write(File(paths.homeDir("debian"), ".gradle/caches/modules-2/files-2.1/lib.jar"), 30)
         write(File(paths.homeDir("debian"), ".ssh/key"), 11)
         write(File(paths.taixuRuntimesDir("debian"), "flutter/bin/dart"), 40)
-        write(File(paths.taixuRootDir("debian"), "toolchains/android/sdk/other.dat"), 13)
+        write(File(paths.taixuRootDir("debian"), "tools/android/sdk/other.dat"), 13)
         write(File(paths.baseDir, "metadata/unknown"), 7)
         write(File(paths.workspaceDir, "export.apk"), 9)
         write(context.getDatabasePath("taixu.db"), 12)

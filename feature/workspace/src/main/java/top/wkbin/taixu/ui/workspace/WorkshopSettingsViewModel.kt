@@ -72,13 +72,13 @@ class WorkshopSettingsViewModel(
 ) : ViewModel() {
     private val defaults = WorkshopEnvironmentDraft(
         androidSdkPath = "/opt/android-sdk",
-        ndkPath = "/opt/taixu/toolchains/android/ndk",
+        ndkPath = "/opt/taixu/tools/ndk/current",
         flutterSdkPath = "/opt/flutter",
-        javaPath = "/opt/taixu/toolchains/android/jdk",
-        gradlePath = "/opt/gradle-8.14.2",
+        javaPath = "/opt/taixu/tools/android/jdk",
+        gradlePath = "", // 不写死版本：留空则由 /etc/profile.d/taixu-android.sh 的 _tx_latest_dir 动态探测
         cmakePath = "/opt/taixu/tools/android-suite-offline/cmake",
         ninjaPath = "/opt/taixu/tools/android-suite-offline/bin",
-        aapt2Path = "/opt/android-sdk/build-tools/35.0.0/aapt2",
+        aapt2Path = "", // 不写死版本：留空则由动态探测取 build-tools 下最高正式版的 aapt2
         gradleUserHome = "/root/.gradle",
         pubCache = "/opt/taixu/cache/flutter-pub",
         toolDir = "/opt/taixu/tools",
@@ -122,13 +122,13 @@ class WorkshopSettingsViewModel(
         val probeCmd = """
             sh -c '
             echo "===GRADLE==="
-            ls -d /opt/gradle* /opt/taixu/toolchains/gradle* /usr/share/gradle* /usr/lib/gradle* 2>/dev/null || true
+            for p in /opt/gradle* /opt/taixu/tools/gradle* /usr/share/gradle* /usr/lib/gradle*; do [ -d "${'$'}p" ] && readlink -f "${'$'}p"; done | sort -u
             echo "===JAVA==="
-            ls -d /opt/taixu/toolchains/android/jdk /usr/lib/jvm/* /opt/jdk* 2>/dev/null || true
+            ls -d /opt/taixu/tools/android/jdk /opt/jdk* 2>/dev/null; find /usr/lib/jvm -mindepth 1 -maxdepth 1 ! -name ".*" -exec test -x {}/bin/javac \; -exec readlink -f {} + 2>/dev/null | sort -u
             echo "===NDK==="
-            ls -d /opt/taixu/toolchains/android/ndk /opt/android-sdk/ndk/* 2>/dev/null || true
+            ls -d /opt/taixu/tools/ndk/current 2>/dev/null; find -L /opt/android-sdk/ndk -maxdepth 1 -mindepth 1 ! -samefile /opt/taixu/tools/ndk/current 2>/dev/null || ls -d /opt/android-sdk/ndk/* 2>/dev/null
             echo "===AAPT2==="
-            ls /opt/android-sdk/build-tools/*/aapt2 2>/dev/null || true
+            ls /opt/android-sdk/build-tools/*/aapt2 2>/dev/null | grep -v '/0-current/' || true
             '
         """.trimIndent()
         val result = runCatching {
@@ -169,11 +169,11 @@ class WorkshopSettingsViewModel(
                     if (ver != null) "Gradle $ver" else path
                 },
                 javaOptions = toOptions(detectedJava) { path ->
-                    if (path.contains("taixu/toolchains/android/jdk")) "Adoptium OpenJDK 17 (内置)"
+                    if (path.contains("taixu/tools/android/jdk")) "Adoptium OpenJDK 21 (内置)"
                     else "JDK ${path.substringAfterLast('/')}"
                 },
                 ndkOptions = toOptions(detectedNdk) { path ->
-                    if (path.contains("taixu/toolchains/android/ndk")) "固定 ARM64 NDK r29 (内置)"
+                    if (path.contains("taixu/tools/ndk/")) "内置 ARM64 NDK"
                     else "NDK ${path.substringAfterLast('/')}"
                 },
                 aapt2Options = toOptions(detectedAapt2) { path ->
@@ -200,37 +200,37 @@ class WorkshopSettingsViewModel(
         // 1. 扫描 /opt 下存在的 Gradle
         listOf(hostOpt, guestOpt).forEach { dir ->
             dir.listFiles()?.filter { it.isDirectory && it.name.startsWith("gradle") }?.forEach {
-                gradlePaths.add("/opt/${it.name}")
+                gradlePaths.add(if (File(dir, "taixu/tools/${it.name}").exists()) "/opt/taixu/tools/${it.name}" else "/opt/${it.name}")
             }
         }
         if (File(rootfs, "usr/share/gradle/bin/gradle").exists() || File(rootfs, "usr/bin/gradle").exists()) {
             gradlePaths.add("/usr/share/gradle")
         }
 
-        // 2. 扫描 Java / JDK
+        // 2. 扫描 Java / JDK：判据用 bin/javac——/usr/lib/jvm 下的 openjdk-21-jre-headless 只有 java 不能编译
         val jvmDir = File(rootfs, "usr/lib/jvm")
-        jvmDir.listFiles()?.filter { it.isDirectory && !it.name.startsWith(".") }?.forEach {
+        jvmDir.listFiles()?.filter { it.isDirectory && !it.name.startsWith(".") }?.map { runCatching { it.canonicalFile }.getOrNull() ?: it }?.filter { File(it, "bin/javac").exists() }?.distinctBy { it.path }?.forEach {
             javaPaths.add("/usr/lib/jvm/${it.name}")
         }
-        val taixuJdk = File(hostOpt, "taixu/toolchains/android/jdk")
-        if (taixuJdk.exists() || File(guestOpt, "taixu/toolchains/android/jdk").exists()) {
-            javaPaths.add("/opt/taixu/toolchains/android/jdk")
+        val taixuJdk = File(hostOpt, "taixu/tools/android/jdk")
+        if (taixuJdk.exists() || File(guestOpt, "taixu/tools/android/jdk").exists()) {
+            javaPaths.add("/opt/taixu/tools/android/jdk")
         }
 
         // 3. 扫描 NDK
-        val taixuNdk = File(hostOpt, "taixu/toolchains/android/ndk")
-        if (taixuNdk.exists() || File(guestOpt, "taixu/toolchains/android/ndk").exists()) {
-            ndkPaths.add("/opt/taixu/toolchains/android/ndk")
-        }
-        listOf(File(hostOpt, "android-sdk/ndk"), File(guestOpt, "android-sdk/ndk")).forEach { ndkParent ->
-            ndkParent.listFiles()?.filter { it.isDirectory }?.forEach {
+        // NDK 实体在 tools/ndk/current；android-sdk/ndk/<ver> 是 setup_termux_ndk.sh 给 AGP 建的同实体别名，按 canonicalPath 去重。
+        val taixuNdk = File(hostOpt, "taixu/tools/ndk/current")
+        if (taixuNdk.exists() || File(guestOpt, "taixu/tools/ndk/current").exists()) ndkPaths.add("/opt/taixu/tools/ndk/current")
+        listOf(hostOpt, guestOpt).forEach { opt ->
+            val curCanon = runCatching { File(opt, "taixu/tools/ndk/current").canonicalPath }.getOrNull()
+            File(opt, "android-sdk/ndk").listFiles()?.filter { it.isDirectory && (curCanon == null || runCatching { it.canonicalPath }.getOrNull() != curCanon) }?.forEach {
                 ndkPaths.add("/opt/android-sdk/ndk/${it.name}")
             }
         }
 
         // 4. 扫描 AAPT2
         listOf(File(hostOpt, "android-sdk/build-tools"), File(guestOpt, "android-sdk/build-tools")).forEach { btParent ->
-            btParent.listFiles()?.filter { it.isDirectory && File(it, "aapt2").exists() }?.forEach {
+            btParent.listFiles()?.filter { it.name != "0-current" && it.isDirectory && File(it, "aapt2").exists() }?.forEach {
                 aapt2Paths.add("/opt/android-sdk/build-tools/${it.name}/aapt2")
             }
         }
@@ -245,11 +245,11 @@ class WorkshopSettingsViewModel(
                 if (ver != null) "Gradle $ver" else path
             },
             javaOptions = toOptions(javaPaths) { path ->
-                if (path.contains("taixu/toolchains/android/jdk")) "Adoptium OpenJDK 17 (内置)"
+                if (path.contains("taixu/tools/android/jdk")) "Adoptium OpenJDK 21 (内置)"
                 else "JDK ${path.substringAfterLast('/')}"
             },
             ndkOptions = toOptions(ndkPaths) { path ->
-                if (path.contains("taixu/toolchains/android/ndk")) "固定 ARM64 NDK r29 (内置)"
+                if (path.contains("taixu/tools/ndk/")) "内置 ARM64 NDK"
                 else "NDK ${path.substringAfterLast('/')}"
             },
             aapt2Options = toOptions(aapt2Paths) { path ->

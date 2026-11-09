@@ -6,11 +6,74 @@ ARCHIVES="$PAYLOAD/archives"
 CHECKSUMS="$PAYLOAD/checksums/SHA256SUMS"
 TOOL_DIR="${TAIXU_TOOL_DIR:?missing TAIXU_TOOL_DIR}"
 ANDROID_HOME="/opt/android-sdk"
-TOOLCHAIN_ROOT="/opt/taixu/toolchains/android"
+TOOLCHAIN_ROOT="/opt/taixu/tools/android"
 JDK_HOME="$TOOLCHAIN_ROOT/jdk"
 NDK_HOME="$TOOLCHAIN_ROOT/ndk"
-GRADLE_VERSION="8.14.2"
-BUILD_TOOLS_VERSION="35.0.0"
+# 版本号不写死：从离线归档名 / 归档内容推导
+GRADLE_ARCHIVE="$(pick_archive "$ARCHIVES" 'gradle-*-bin.zip')"
+GRADLE_VERSION="$(basename "${GRADLE_ARCHIVE:-gradle-}" | sed 's/^gradle-//; s/-bin\.zip$//')"
+BT_ARCHIVE="$(pick_archive "$ARCHIVES" 'build-tools_*_linux.zip')"
+# build-tools 归档名只带主版本（r35），真实版本读 zip 内 source.properties
+BUILD_TOOLS_VERSION="$(unzip -p "${BT_ARCHIVE:-/dev/null}" '*/source.properties' 2>/dev/null | sed -n 's/^Pkg\.Revision *= *//p' | tr -d '\r' | head -n 1)"
+[ -n "$BUILD_TOOLS_VERSION" ] || BUILD_TOOLS_VERSION="$(basename "${BT_ARCHIVE:-build-tools_r0}" | sed 's/^build-tools_r//; s/_linux\.zip$//')"
+
+# 按名字匹配离线归档并取版本最高者（不写死版本号）
+# 用法：pick_archive "$ARCHIVES" 'gradle-*-bin.zip'
+# 参数3：架构策略 auto(默认) / require(强制 aarch64|arm64) / any(不过滤)
+# 太墟环境是 aarch64：平台相关制品必须带 aarch64|arm64；纯 Java 制品（.jar、gradle-*-bin.zip）不过滤
+pick_archive() {
+    _pa_dir="$1"
+    _pa_pat="$2"
+    _pa_arch="${3:-auto}"
+    _pa_list="$(find "$_pa_dir" -maxdepth 1 -type f -name "$_pa_pat" -print 2>/dev/null \
+        | grep -Eiv '(^|[-._])(rc[0-9]*|alpha[0-9]*|beta[0-9]*|preview[0-9]*|snapshot[0-9]*|canary[0-9]*)([-._]|$)')"
+    [ -n "$_pa_list" ] || return 0
+    case "$_pa_arch" in
+        any) ;;
+        require)
+            _pa_list="$(printf '%s\n' "$_pa_list" | grep -Ei 'aarch64|arm64')" ;;
+        *)
+            _pa_list="$(printf '%s\n' "$_pa_list" | while IFS= read -r _pa_f; do
+                case "$_pa_f" in
+                    *.jar|*gradle-*-bin.zip|*-universal.zip|*-all.zip|*jadx-*.zip|*dex-tools-*.zip|*platform-*.zip|*build-tools_*_linux.zip|*apktool_*.jar) printf '%s\n' "$_pa_f" ;;
+                    *) printf '%s\n' "$_pa_f" | grep -Ei 'aarch64|arm64' ;;
+                esac
+            done)" ;;
+    esac
+    printf '%s\n' "$_pa_list" | sed '/^$/d' | sort -V | tail -n 1
+}
+
+# 从归档内部读版本（应对「文件名不带版本号」的情况，如 cmake-linux-aarch64.tar.gz）
+# 用法：probe_archive_version <归档路径>
+probe_archive_version() {
+    _pv_file="$1"
+    [ -f "$_pv_file" ] || return 1
+    case "$_pv_file" in
+        *.zip)
+            _pv_v="$(unzip -p "$_pv_file" '*/source.properties' 2>/dev/null | sed -n 's/^Pkg\.Revision *= *//p' | tr -d '\r' | head -n 1)"
+            [ -n "$_pv_v" ] && { printf '%s\n' "$_pv_v"; return 0; }
+            ;;
+        *.tar.gz|*.tar.xz|*.tgz)
+            _pv_v="$(tar -xOf "$_pv_file" --wildcards '*/source.properties' 2>/dev/null | sed -n 's/^Pkg\.Revision *= *//p' | tr -d '\r' | head -n 1)"
+            [ -n "$_pv_v" ] && { printf '%s\n' "$_pv_v"; return 0; }
+            _pv_v="$(tar -xOf "$_pv_file" --wildcards '*/version' 2>/dev/null | head -n 1 | tr -d '\r')"
+            [ -n "$_pv_v" ] && { printf '%s\n' "$_pv_v"; return 0; }
+            ;;
+    esac
+    return 1
+}
+
+# 从「已安装的二进制」读实际版本（最可靠，完全不依赖文件名）
+# 用法：probe_installed_version cmake|ninja|flutter|node
+probe_installed_version() {
+    case "$1" in
+        cmake)   [ -x "$TOOL_DIR/cmake/bin/cmake" ] && "$TOOL_DIR/cmake/bin/cmake" --version 2>/dev/null | head -n 1 | awk '{print $3}' ;;
+        ninja)   command -v ninja >/dev/null 2>&1 && ninja --version 2>/dev/null ;;
+        flutter) [ -f /opt/flutter/version ] && tr -d '\r\n' < /opt/flutter/version ;;
+        node)    command -v node >/dev/null 2>&1 && node -v 2>/dev/null | sed 's/^v//' ;;
+        *) return 1 ;;
+    esac
+}
 
 need() {
     resource_path="${1:-}"
@@ -55,10 +118,10 @@ progress 6 "[VERIFY] 离线归档校验完成"
 
 # JDK 17 ARM64.
 progress 8 "[EXTRACT] 正在解压 JDK 17：jdk-17-aarch64-linux.tar.gz"
-need "$ARCHIVES/jdk-17-aarch64-linux.tar.gz"
+need "$(pick_archive "$ARCHIVES" 'jdk-*-aarch64-linux.tar.gz')"
 rm -rf "$JDK_HOME.staging"
 mkdir -p "$JDK_HOME.staging"
-tar -xzf "$ARCHIVES/jdk-17-aarch64-linux.tar.gz" -C "$JDK_HOME.staging"
+tar -xzf "$(pick_archive "$ARCHIVES" 'jdk-*-aarch64-linux.tar.gz')" -C "$JDK_HOME.staging"
 JDK_BIN=$(find "$JDK_HOME.staging" -type f -path '*/bin/java' -print -quit)
 need "$JDK_BIN"
 JDK_SOURCE=$(dirname "$(dirname "$JDK_BIN")")
@@ -121,7 +184,7 @@ fi
 
 # Gradle.
 progress 17 "[EXTRACT] 正在解压 Gradle $GRADLE_VERSION：gradle-$GRADLE_VERSION-bin.zip"
-need "$ARCHIVES/gradle-8.14.2-bin.zip"
+need "$(pick_archive "$ARCHIVES" 'gradle-*-bin.zip')"
 rm -rf "/opt/gradle-$GRADLE_VERSION.staging"
 mkdir -p "/opt/gradle-$GRADLE_VERSION.staging"
 extract_zip "$ARCHIVES/gradle-$GRADLE_VERSION-bin.zip" "/opt/gradle-$GRADLE_VERSION.staging"
@@ -135,10 +198,10 @@ progress 23 "[COMMAND] Gradle $GRADLE_VERSION 安装完成"
 
 # Android Platform 34.
 progress 25 "[EXTRACT] 正在解压 Android Platform 34：platform-34-ext7_r03.zip"
-need "$ARCHIVES/platform-34-ext7_r03.zip"
+need "$(pick_archive "$ARCHIVES" 'platform-*.zip')"
 rm -rf /tmp/taixu-android-platform
 mkdir -p /tmp/taixu-android-platform
-extract_zip "$ARCHIVES/platform-34-ext7_r03.zip" /tmp/taixu-android-platform
+extract_zip "$(pick_archive "$ARCHIVES" 'platform-*.zip')" /tmp/taixu-android-platform
 PLATFORM_SOURCE=$(find /tmp/taixu-android-platform -type f -name android.jar -print -quit | xargs -r dirname)
 need "$PLATFORM_SOURCE/android.jar"
 rm -rf "$ANDROID_HOME/platforms/android-34"
@@ -149,10 +212,10 @@ progress 30 "[COMMAND] Android Platform 34 安装完成"
 
 # Java Build-Tools 35 and ARM64 native SDK tools.
 progress 32 "[EXTRACT] 正在解压 Build Tools $BUILD_TOOLS_VERSION：build-tools_r35_linux.zip"
-need "$ARCHIVES/build-tools_r35_linux.zip"
+need "$(pick_archive "$ARCHIVES" 'build-tools_*_linux.zip')"
 rm -rf /tmp/taixu-build-tools
 mkdir -p /tmp/taixu-build-tools
-extract_zip "$ARCHIVES/build-tools_r35_linux.zip" /tmp/taixu-build-tools
+extract_zip "$(pick_archive "$ARCHIVES" 'build-tools_*_linux.zip')" /tmp/taixu-build-tools
 BUILD_SOURCE=$(find /tmp/taixu-build-tools -type f -name source.properties -print -quit | xargs -r dirname)
 need "$BUILD_SOURCE/lib/d8.jar"
 rm -rf "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
@@ -190,11 +253,15 @@ rm -rf /tmp/taixu-arm64-tools
 progress 45 "[VERIFY] AAPT2 ARM64 校验完成"
 
 # ARM64 NDK. Find llvm tools dynamically; do not assume an x86 directory name.
-progress 47 "[EXTRACT] 正在解压 Android NDK r29：android-ndk-r29-aarch64.tar.gz"
-need "$ARCHIVES/android-ndk-r29-aarch64.tar.gz"
+# 已有可用 ARM64 NDK 就跳过：绝不把用户自装的高版本覆盖成固定 r29
+if [ -f "$NDK_HOME/source.properties" ] && [ -x "$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
+    progress 47 "[SKIP] 已存在可用 ARM64 NDK，跳过固定 r29 安装（保护新版本）"
+else
+progress 47 "[EXTRACT] 正在解压 Android NDK（版本按归档自动匹配）"
+need "$(pick_archive "$ARCHIVES" 'android-ndk-*-aarch64.tar.gz')"
 rm -rf "$NDK_HOME.staging"
 mkdir -p "$NDK_HOME.staging"
-tar -xzf "$ARCHIVES/android-ndk-r29-aarch64.tar.gz" -C "$NDK_HOME.staging"
+tar -xzf "$(pick_archive "$ARCHIVES" 'android-ndk-*-aarch64.tar.gz')" -C "$NDK_HOME.staging"
 NDK_SOURCE=$(find "$NDK_HOME.staging" -type f -name source.properties -print -quit | xargs -r dirname)
 NDK_CLANG=$(find "$NDK_SOURCE/toolchains/llvm/prebuilt" \( -type f -o -type l \) -name clang -print -quit)
 NDK_STRIP=$(find "$NDK_SOURCE/toolchains/llvm/prebuilt" \( -type f -o -type l \) -name llvm-strip -print -quit)
@@ -208,7 +275,8 @@ fi
 rm -rf "$NDK_HOME"
 mv "$NDK_SOURCE" "$NDK_HOME"
 rm -rf "$NDK_HOME.staging"
-progress 61 "[VERIFY] Android NDK r29 ARM64 工具链校验完成"
+progress 61 "[VERIFY] Android NDK ARM64 工具链校验完成"
+fi
 
 # Linux AArch64 CMake and Ninja.
 progress 63 "[EXTRACT] 正在解压 CMake ARM64：cmake-linux-aarch64.tar.gz"
@@ -271,27 +339,32 @@ fi
 progress 82 "[EXTRACT] 正在解压 Flutter Android ARM64 SDK"
 need "$ARCHIVES/flutter-linux-arm64-android-only-slim.tar.gz"
 if [ -s "$ARCHIVES/flutter-linux-arm64-android-only-slim.tar.gz" ]; then
-    rm -rf /tmp/taixu-flutter
-    mkdir -p /tmp/taixu-flutter
-    tar -xzf "$ARCHIVES/flutter-linux-arm64-android-only-slim.tar.gz" -C /tmp/taixu-flutter
-    FLUTTER_SOURCE=$(find /tmp/taixu-flutter -type f -path '*/bin/flutter' -print -quit | xargs -r dirname | xargs -r dirname)
-    need "$FLUTTER_SOURCE/bin/flutter"
-    rm -rf /opt/flutter
-    mv "$FLUTTER_SOURCE" /opt/flutter
-    rm -rf /tmp/taixu-flutter
-    ln -sfn /opt/flutter/bin/flutter "$TOOL_DIR/bin/flutter"
-    ln -sfn /opt/flutter/bin/dart "$TOOL_DIR/bin/dart"
+    # 不降级保护：已存在就跳过重装（想强制重装请先手动删除 /opt/flutter）
+    if [ -e /opt/flutter ]; then
+        progress 82 "[SKIP] Flutter SDK 已存在，跳过重装（避免降级）"
+    else
+        rm -rf /tmp/taixu-flutter
+        mkdir -p /tmp/taixu-flutter
+        tar -xzf "$ARCHIVES/flutter-linux-arm64-android-only-slim.tar.gz" -C /tmp/taixu-flutter
+        FLUTTER_SOURCE=$(find /tmp/taixu-flutter -type f -path '*/bin/flutter' -print -quit | xargs -r dirname | xargs -r dirname)
+        need "$FLUTTER_SOURCE/bin/flutter"
+        rm -rf /opt/flutter
+        mv "$FLUTTER_SOURCE" /opt/flutter
+        rm -rf /tmp/taixu-flutter
+        ln -sfn /opt/flutter/bin/flutter "$TOOL_DIR/bin/flutter"
+        ln -sfn /opt/flutter/bin/dart "$TOOL_DIR/bin/dart"
 
-    # 补齐 Flutter Engine Android ARM64 原生 gen_snapshot 路径
-    ENGINE_DIR="/opt/flutter/bin/cache/artifacts/engine"
-    if [ -x "$ENGINE_DIR/linux-arm64/gen_snapshot" ]; then
-        for mode in release profile; do
-            target_dir="$ENGINE_DIR/android-arm64-$mode/linux-arm64"
-            mkdir -p "$target_dir" 2>/dev/null || true
-            if [ ! -e "$target_dir/gen_snapshot" ]; then
-                ln -sf "$ENGINE_DIR/linux-arm64/gen_snapshot" "$target_dir/gen_snapshot" 2>/dev/null || true
-            fi
-        done
+        # 补齐 Flutter Engine Android ARM64 原生 gen_snapshot 路径
+        ENGINE_DIR="/opt/flutter/bin/cache/artifacts/engine"
+        if [ -x "$ENGINE_DIR/linux-arm64/gen_snapshot" ]; then
+            for mode in release profile; do
+                target_dir="$ENGINE_DIR/android-arm64-$mode/linux-arm64"
+                mkdir -p "$target_dir" 2>/dev/null || true
+                if [ ! -e "$target_dir/gen_snapshot" ]; then
+                    ln -sf "$ENGINE_DIR/linux-arm64/gen_snapshot" "$target_dir/gen_snapshot" 2>/dev/null || true
+                fi
+            done
+        fi
     fi
 fi
 progress 85 "[COMMAND] Flutter Android ARM64 SDK 安装完成"
@@ -299,40 +372,52 @@ progress 85 "[COMMAND] Flutter Android ARM64 SDK 安装完成"
 # Rust ARM64 独立工具链与 aarch64-linux-android 交叉编译目标库
 RUST_STANDALONE=$(find "$ARCHIVES" -maxdepth 1 -type f -name 'rust-*-aarch64-unknown-linux-gnu.tar.*' -print -quit 2>/dev/null || true)
 RUST_STD_ANDROID=$(find "$ARCHIVES" -maxdepth 1 -type f -name 'rust-std-*-aarch64-linux-android.tar.*' -print -quit 2>/dev/null || true)
-RUST_HOME="/opt/taixu/toolchains/rust"
+RUST_HOME="/opt/taixu/tools/rust"
 if [ -n "$RUST_STANDALONE" ] && [ -f "$RUST_STANDALONE" ]; then
-    progress 86 "[EXTRACT] 正在解压 Rust ARM64 独立开发工具链：$(basename "$RUST_STANDALONE")"
-    rm -rf /tmp/taixu-rust "$RUST_HOME"
-    mkdir -p /tmp/taixu-rust "$RUST_HOME"
-    tar -xf "$RUST_STANDALONE" -C /tmp/taixu-rust --strip-components=1 2>/dev/null || tar -xzf "$RUST_STANDALONE" -C /tmp/taixu-rust --strip-components=1
-    if [ -x /tmp/taixu-rust/install.sh ]; then
-        sh /tmp/taixu-rust/install.sh --prefix="$RUST_HOME" --components=rustc,cargo,rust-std-aarch64-unknown-linux-gnu --disable-ldconfig >/dev/null 2>&1
-    fi
-    rm -rf /tmp/taixu-rust
-
-    if [ -n "$RUST_STD_ANDROID" ] && [ -f "$RUST_STD_ANDROID" ]; then
-        progress 87 "[EXTRACT] 正在配置 Rust aarch64-linux-android 交叉编译目标库：$(basename "$RUST_STD_ANDROID")"
-        mkdir -p /tmp/taixu-rust-android
-        tar -xf "$RUST_STD_ANDROID" -C /tmp/taixu-rust-android --strip-components=1 2>/dev/null || tar -xzf "$RUST_STD_ANDROID" -C /tmp/taixu-rust-android --strip-components=1
-        if [ -x /tmp/taixu-rust-android/install.sh ]; then
-            sh /tmp/taixu-rust-android/install.sh --prefix="$RUST_HOME" --disable-ldconfig >/dev/null 2>&1
+    # 不降级保护：已存在就跳过重装（想强制重装请先手动删除 "$RUST_HOME"）
+    if [ -e "$RUST_HOME" ]; then
+        progress 85 "[SKIP] Rust 工具链 已存在，跳过重装（避免降级）"
+    else
+        progress 86 "[EXTRACT] 正在解压 Rust ARM64 独立开发工具链：$(basename "$RUST_STANDALONE")"
+        rm -rf /tmp/taixu-rust "$RUST_HOME"
+        mkdir -p /tmp/taixu-rust "$RUST_HOME"
+        tar -xf "$RUST_STANDALONE" -C /tmp/taixu-rust --strip-components=1 2>/dev/null || tar -xzf "$RUST_STANDALONE" -C /tmp/taixu-rust --strip-components=1
+        if [ -x /tmp/taixu-rust/install.sh ]; then
+            sh /tmp/taixu-rust/install.sh --prefix="$RUST_HOME" --components=rustc,cargo,rust-std-aarch64-unknown-linux-gnu --disable-ldconfig >/dev/null 2>&1
         fi
-        rm -rf /tmp/taixu-rust-android
-    fi
+        rm -rf /tmp/taixu-rust
 
-    if [ -x "$RUST_HOME/bin/rustc" ]; then
-        chmod 755 "$RUST_HOME/bin/"* 2>/dev/null || true
-        for cmd in rustc cargo rustdoc; do
-            if [ -x "$RUST_HOME/bin/$cmd" ]; then
-                ln -sfn "$RUST_HOME/bin/$cmd" "$TOOL_DIR/bin/$cmd"
-                ln -sfn "$RUST_HOME/bin/$cmd" "/opt/taixu/bin/$cmd"
+        if [ -n "$RUST_STD_ANDROID" ] && [ -f "$RUST_STD_ANDROID" ]; then
+            progress 87 "[EXTRACT] 正在配置 Rust aarch64-linux-android 交叉编译目标库：$(basename "$RUST_STD_ANDROID")"
+            mkdir -p /tmp/taixu-rust-android
+            tar -xf "$RUST_STD_ANDROID" -C /tmp/taixu-rust-android --strip-components=1 2>/dev/null || tar -xzf "$RUST_STD_ANDROID" -C /tmp/taixu-rust-android --strip-components=1
+            if [ -x /tmp/taixu-rust-android/install.sh ]; then
+                sh /tmp/taixu-rust-android/install.sh --prefix="$RUST_HOME" --disable-ldconfig >/dev/null 2>&1
             fi
-        done
-        mkdir -p /root/.cargo
-        cat << 'EOF' > /root/.cargo/config.toml
+            rm -rf /tmp/taixu-rust-android
+        fi
+
+        if [ -x "$RUST_HOME/bin/rustc" ]; then
+            chmod 755 "$RUST_HOME/bin/"* 2>/dev/null || true
+            for cmd in rustc cargo rustdoc; do
+                if [ -x "$RUST_HOME/bin/$cmd" ]; then
+                    ln -sfn "$RUST_HOME/bin/$cmd" "$TOOL_DIR/bin/$cmd"
+                    ln -sfn "$RUST_HOME/bin/$cmd" "/opt/taixu/bin/$cmd"
+                fi
+            done
+            mkdir -p /root/.cargo
+            # NDK 布局与版本随安装方式而变（主环境 tools/ndk/current、离线套件 tools/android/ndk），
+            # llvm prebuilt 目录名也不固定，必须实际 find；写死会让 Rust 交叉链接直接失败。
+            CARGO_NDK_ROOT="$NDK_HOME"
+            CARGO_LINKER=$(find "$CARGO_NDK_ROOT/toolchains/llvm/prebuilt" \( -type f -o -type l \) -name 'aarch64-linux-android*-clang' -print -quit 2>/dev/null || true)
+            CARGO_AR=$(find "$CARGO_NDK_ROOT/toolchains/llvm/prebuilt" \( -type f -o -type l \) -name llvm-ar -print -quit 2>/dev/null || true)
+            if [ -z "$CARGO_LINKER" ] || [ -z "$CARGO_AR" ]; then
+                progress 88 "[WARN] 未找到 NDK 交叉编译工具，跳过 Rust config.toml 写入"
+            else
+            cat << EOF > /root/.cargo/config.toml
 [target.aarch64-linux-android]
-linker = "/opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
-ar = "/opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+linker = "$CARGO_LINKER"
+ar = "$CARGO_AR"
 
 [source.crates-io]
 replace-with = 'tuna'
@@ -340,16 +425,18 @@ replace-with = 'tuna'
 [source.tuna]
 registry = "sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/"
 EOF
-        progress 88 "[COMMAND] Rust 编译器与 Android 交叉编译配置完成"
+            fi
+            progress 88 "[COMMAND] Rust 编译器与 Android 交叉编译配置完成"
+        fi
     fi
 fi
 
 # Ripgrep (rg) ARM64: 毫秒级极速搜索
-if [ -f "$ARCHIVES/ripgrep-15.2.0-aarch64-unknown-linux-musl.tar.gz" ]; then
+if [ -f "$(pick_archive "$ARCHIVES" 'ripgrep-*-aarch64-unknown-linux-musl.tar.gz')" ]; then
     progress 89 "[EXTRACT] 正在解压 Ripgrep 极速代码搜索工具：ripgrep-15.2.0-aarch64-unknown-linux-musl.tar.gz"
     rm -rf /tmp/taixu-ripgrep
     mkdir -p /tmp/taixu-ripgrep
-    tar -xzf "$ARCHIVES/ripgrep-15.2.0-aarch64-unknown-linux-musl.tar.gz" -C /tmp/taixu-ripgrep
+    tar -xzf "$(pick_archive "$ARCHIVES" 'ripgrep-*-aarch64-unknown-linux-musl.tar.gz')" -C /tmp/taixu-ripgrep
     RG_BIN=$(find /tmp/taixu-ripgrep -type f -name rg -print -quit)
     need "$RG_BIN" "ripgrep binary"
     is_aarch64_elf "$RG_BIN" || { echo "Ripgrep is not ARM64" >&2; exit 5; }
@@ -361,27 +448,32 @@ if [ -f "$ARCHIVES/ripgrep-15.2.0-aarch64-unknown-linux-musl.tar.gz" ]; then
 fi
 
 # JADX 1.5.0 CLI: Java 反编译工具
-if [ -f "$ARCHIVES/jadx-1.5.0.zip" ]; then
-    progress 91 "[EXTRACT] 正在解压 JADX 1.5.0 反编译套件：jadx-1.5.0.zip"
-    rm -rf "$TOOL_DIR/jadx" /tmp/taixu-jadx
-    mkdir -p /tmp/taixu-jadx
-    extract_zip "$ARCHIVES/jadx-1.5.0.zip" /tmp/taixu-jadx
-    JADX_BIN=$(find /tmp/taixu-jadx -type f -name jadx -print -quit)
-    need "$JADX_BIN" "jadx launcher"
-    mkdir -p "$TOOL_DIR/jadx"
-    cp -a "$(dirname "$(dirname "$JADX_BIN")")/." "$TOOL_DIR/jadx/"
-    chmod +x "$TOOL_DIR/jadx/bin/jadx" "$TOOL_DIR/jadx/bin/jadx-gui" 2>/dev/null || true
-    ln -sfn "$TOOL_DIR/jadx/bin/jadx" "$TOOL_DIR/bin/jadx"
-    ln -sfn "$TOOL_DIR/jadx/bin/jadx" "/opt/taixu/bin/jadx"
-    rm -rf /tmp/taixu-jadx
-    progress 92 "[COMMAND] JADX 1.5.0 安装完成"
+if [ -f "$(pick_archive "$ARCHIVES" 'jadx-*.zip')" ]; then
+    # 不降级保护：已存在就跳过重装（想强制重装请先手动删除 $TOOL_DIR/jadx）
+    if [ -e "$TOOL_DIR/jadx" ]; then
+        progress 90 "[SKIP] JADX 已存在，跳过重装（避免降级）"
+    else
+        progress 91 "[EXTRACT] 正在解压 JADX 1.5.0 反编译套件：jadx-1.5.0.zip"
+        rm -rf "$TOOL_DIR/jadx" /tmp/taixu-jadx
+        mkdir -p /tmp/taixu-jadx
+        extract_zip "$(pick_archive "$ARCHIVES" 'jadx-*.zip')" /tmp/taixu-jadx
+        JADX_BIN=$(find /tmp/taixu-jadx -type f -name jadx -print -quit)
+        need "$JADX_BIN" "jadx launcher"
+        mkdir -p "$TOOL_DIR/jadx"
+        cp -a "$(dirname "$(dirname "$JADX_BIN")")/." "$TOOL_DIR/jadx/"
+        chmod +x "$TOOL_DIR/jadx/bin/jadx" "$TOOL_DIR/jadx/bin/jadx-gui" 2>/dev/null || true
+        ln -sfn "$TOOL_DIR/jadx/bin/jadx" "$TOOL_DIR/bin/jadx"
+        ln -sfn "$TOOL_DIR/jadx/bin/jadx" "/opt/taixu/bin/jadx"
+        rm -rf /tmp/taixu-jadx
+        progress 92 "[COMMAND] JADX 1.5.0 安装完成"
+    fi
 fi
 
 # Apktool 2.10.0: 资源与 Smali 处理
-if [ -f "$ARCHIVES/apktool_2.10.0.jar" ]; then
+if [ -f "$(pick_archive "$ARCHIVES" 'apktool_*.jar')" ]; then
     progress 93 "[INSTALL] 正在配置 Apktool 2.10.0..."
     mkdir -p "$TOOL_DIR/lib"
-    cp "$ARCHIVES/apktool_2.10.0.jar" "$TOOL_DIR/lib/apktool.jar"
+    cp "$(pick_archive "$ARCHIVES" 'apktool_*.jar')" "$TOOL_DIR/lib/apktool.jar"
     printf '#!/usr/bin/env sh\nexec "%s/bin/java" -jar "%s/lib/apktool.jar" "$@"\n' "$JDK_HOME" "$TOOL_DIR" > "$TOOL_DIR/bin/apktool"
     chmod 755 "$TOOL_DIR/bin/apktool"
     ln -sfn "$TOOL_DIR/bin/apktool" "/opt/taixu/bin/apktool"
@@ -389,27 +481,32 @@ if [ -f "$ARCHIVES/apktool_2.10.0.jar" ]; then
 fi
 
 # dex-tools 2.4 (dex2jar): DEX 转换与字节码工具
-if [ -f "$ARCHIVES/dex-tools-v2.4.zip" ]; then
-    progress 95 "[EXTRACT] 正在解压 dex-tools 2.4 (dex2jar)：dex-tools-v2.4.zip"
-    rm -rf "$TOOL_DIR/dex-tools" /tmp/taixu-d2j
-    mkdir -p /tmp/taixu-d2j
-    extract_zip "$ARCHIVES/dex-tools-v2.4.zip" /tmp/taixu-d2j
-    D2J_SCRIPT=$(find /tmp/taixu-d2j -type f -name "d2j-dex2jar.sh" -print -quit)
-    need "$D2J_SCRIPT" "d2j-dex2jar script"
-    mkdir -p "$TOOL_DIR/dex-tools"
-    cp -a "$(dirname "$D2J_SCRIPT")/." "$TOOL_DIR/dex-tools/"
-    chmod +x "$TOOL_DIR/dex-tools/"*.sh 2>/dev/null || true
-    for script in "$TOOL_DIR/dex-tools/"*.sh; do
-        if [ -f "$script" ]; then
-            base_cmd=$(basename "$script" .sh)
-            ln -sfn "$script" "$TOOL_DIR/bin/$base_cmd"
-            ln -sfn "$script" "$TOOL_DIR/bin/$base_cmd.sh"
-            ln -sfn "$script" "/opt/taixu/bin/$base_cmd"
-            ln -sfn "$script" "/opt/taixu/bin/$base_cmd.sh"
-        fi
-    done
-    rm -rf /tmp/taixu-d2j
-    progress 96 "[COMMAND] dex-tools (d2j-dex2jar) 安装完成"
+if [ -f "$(pick_archive "$ARCHIVES" 'dex-tools-*.zip')" ]; then
+    # 不降级保护：已存在就跳过重装（想强制重装请先手动删除 $TOOL_DIR/dex-tools）
+    if [ -e "$TOOL_DIR/dex-tools" ]; then
+        progress 94 "[SKIP] dex-tools (dex2jar) 已存在，跳过重装（避免降级）"
+    else
+        progress 95 "[EXTRACT] 正在解压 dex-tools 2.4 (dex2jar)：dex-tools-v2.4.zip"
+        rm -rf "$TOOL_DIR/dex-tools" /tmp/taixu-d2j
+        mkdir -p /tmp/taixu-d2j
+        extract_zip "$(pick_archive "$ARCHIVES" 'dex-tools-*.zip')" /tmp/taixu-d2j
+        D2J_SCRIPT=$(find /tmp/taixu-d2j -type f -name "d2j-dex2jar.sh" -print -quit)
+        need "$D2J_SCRIPT" "d2j-dex2jar script"
+        mkdir -p "$TOOL_DIR/dex-tools"
+        cp -a "$(dirname "$D2J_SCRIPT")/." "$TOOL_DIR/dex-tools/"
+        chmod +x "$TOOL_DIR/dex-tools/"*.sh 2>/dev/null || true
+        for script in "$TOOL_DIR/dex-tools/"*.sh; do
+            if [ -f "$script" ]; then
+                base_cmd=$(basename "$script" .sh)
+                ln -sfn "$script" "$TOOL_DIR/bin/$base_cmd"
+                ln -sfn "$script" "$TOOL_DIR/bin/$base_cmd.sh"
+                ln -sfn "$script" "/opt/taixu/bin/$base_cmd"
+                ln -sfn "$script" "/opt/taixu/bin/$base_cmd.sh"
+            fi
+        done
+        rm -rf /tmp/taixu-d2j
+        progress 96 "[COMMAND] dex-tools (d2j-dex2jar) 安装完成"
+    fi
 fi
 
 # Android Build-Tools 35 工具链命令链接（apksigner, zipalign, aapt, aapt2, dexdump, d8, aidl）
@@ -552,25 +649,36 @@ mkdir -p /root/.gradle /root/.gradle/init.d
 if [ -f "$PAYLOAD/config/gradle.properties" ]; then cp "$PAYLOAD/config/gradle.properties" /root/.gradle/gradle.properties; fi
 if [ -f "$PAYLOAD/config/taixu-android-ndk.gradle" ]; then cp "$PAYLOAD/config/taixu-android-ndk.gradle" /root/.gradle/init.d/taixu-android-ndk.gradle; fi
 printf '%s\n' 'android.builder.sdkDownload=false' >> /root/.gradle/gradle.properties
+# aapt2 覆盖路径按本机实际 build-tools 目录生成：build-tools 升级后版本目录名会变，
+# 写死版本号会让 AGP 指向不存在的 aapt2 而直接构建失败。取最高正式版，与构建脚本同口径。
+TAIXU_BT_DIR="$(ls -d "$ANDROID_HOME"/build-tools/*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')"
+if [ -n "$TAIXU_BT_DIR" ] && [ -x "$TAIXU_BT_DIR/aapt2" ]; then
+    sed -i '/^[[:space:]]*android\.aapt2FromMavenOverride[[:space:]]*=/d' /root/.gradle/gradle.properties 2>/dev/null || true
+    printf 'android.aapt2FromMavenOverride=%s\n' "$TAIXU_BT_DIR/aapt2" >> /root/.gradle/gradle.properties
+fi
 
 # 持久化环境变量（供终端、PTY与沙箱全生命周期共享）
 mkdir -p /etc/profile.d
+# 计算真实版本值：Gradle 取 /opt/gradle-* 最高正式版，NDK 读 source.properties
+GRADLE_HOME_REAL="${GRADLE_HOME:-$(ls -d /opt/gradle-*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')}"
+NDK_REAL_VERSION="$(sed -n 's/^Pkg\.Revision *= *//p' "$NDK_HOME/source.properties" 2>/dev/null | tr -d '\r' | head -n 1)"
+
 cat << EOF > /etc/profile.d/taixu-android.sh
 # TaiXu Android development environment (managed by android-suite-offline plugin)
 export JAVA_HOME="$JDK_HOME"
 export ANDROID_HOME="$ANDROID_HOME"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
-export GRADLE_HOME="/opt/gradle-$GRADLE_VERSION"
+export GRADLE_HOME="$GRADLE_HOME_REAL"
 export TAIXU_AAPT2_PATH="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/aapt2"
 export TAIXU_NDK_PATH="$NDK_HOME"
-export TAIXU_NDK_VERSION="r29"
+export TAIXU_NDK_VERSION="$(sed -n 's/^Pkg\.Revision *= *//p' "$NDK_HOME/source.properties" 2>/dev/null | tr -d '\r' | head -n 1)"
 export ANDROID_NDK_HOME="$NDK_HOME"
 export ANDROID_NDK_ROOT="$NDK_HOME"
 export TAIXU_CMAKE_HOME="$TOOL_DIR/cmake"
 export TAIXU_NINJA_HOME="$TOOL_DIR/bin"
-export RUSTUP_HOME="/opt/taixu/toolchains/rust"
+export RUSTUP_HOME="/opt/taixu/tools/rust"
 export CARGO_HOME="/root/.cargo"
-export PATH="/opt/taixu/bin:/opt/taixu/toolchains/rust/bin:$TOOL_DIR/bin:$TOOL_DIR/cmake/bin:\$JAVA_HOME/bin:\$GRADLE_HOME/bin:/opt/flutter/bin:\$PATH"
+export PATH="/opt/taixu/bin:/opt/taixu/tools/rust/bin:$TOOL_DIR/bin:$TOOL_DIR/cmake/bin:\$JAVA_HOME/bin:\$GRADLE_HOME/bin:/opt/flutter/bin:\$PATH"
 export _JAVA_OPTIONS="-Djava.security.egd=file:/dev/urandom"
 EOF
 chmod 644 /etc/profile.d/taixu-android.sh 2>/dev/null || true
@@ -579,15 +687,15 @@ cat << EOF > /etc/environment
 JAVA_HOME=$JDK_HOME
 ANDROID_HOME=$ANDROID_HOME
 ANDROID_SDK_ROOT=$ANDROID_HOME
-GRADLE_HOME=/opt/gradle-$GRADLE_VERSION
+GRADLE_HOME=$GRADLE_HOME_REAL
 TAIXU_AAPT2_PATH=$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/aapt2
 TAIXU_NDK_PATH=$NDK_HOME
-TAIXU_NDK_VERSION=r29
+TAIXU_NDK_VERSION=$NDK_REAL_VERSION
 ANDROID_NDK_HOME=$NDK_HOME
 ANDROID_NDK_ROOT=$NDK_HOME
-RUSTUP_HOME=/opt/taixu/toolchains/rust
+RUSTUP_HOME=/opt/taixu/tools/rust
 CARGO_HOME=/root/.cargo
-PATH=/opt/taixu/bin:/opt/taixu/toolchains/rust/bin:$TOOL_DIR/bin:$TOOL_DIR/cmake/bin:$JDK_HOME/bin:/opt/gradle-$GRADLE_VERSION/bin:/opt/flutter/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PATH=/opt/taixu/bin:/opt/taixu/tools/rust/bin:$TOOL_DIR/bin:$TOOL_DIR/cmake/bin:$JDK_HOME/bin:/opt/gradle-$GRADLE_VERSION/bin:/opt/flutter/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 _JAVA_OPTIONS=-Djava.security.egd=file:/dev/urandom
 EOF
 

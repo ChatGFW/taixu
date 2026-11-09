@@ -84,8 +84,21 @@ class RuntimeBinaryInstaller(
     }
 
     private companion object {
-        const val NODE_VERSION = "22.22.3"
-        const val NODE_URL = "https://nodejs.org/download/release/v22.22.3/node-v22.22.3-linux-arm64.tar.xz"
+        /**
+         * 兜底版本号（**不要把它当唯一来源**）。实际安装版本按优先级取：
+         * 1. 环境变量 `TAIXU_NODE_VERSION`
+         * 2. 该兜底值
+         * 下载 URL 由版本号派生，不再单独写死一份。
+         */
+        const val NODE_VERSION_FALLBACK = "22.22.3"
+
+        /** 实际生效的 Node 版本（可被环境变量覆盖） */
+        val NODE_VERSION: String
+            get() = System.getenv("TAIXU_NODE_VERSION")?.takeIf { it.isNotBlank() } ?: NODE_VERSION_FALLBACK
+
+        /** 由版本号派生的下载地址 */
+        val NODE_URL: String
+            get() = "https://nodejs.org/download/release/v$NODE_VERSION/node-v$NODE_VERSION-linux-arm64.tar.xz"
         const val NODE_SHA256 = "1c4a9933a5e45bc88f54f70b5f91232c127ec49f1a5989d23fb85824c7adf9b7"
     }
 }

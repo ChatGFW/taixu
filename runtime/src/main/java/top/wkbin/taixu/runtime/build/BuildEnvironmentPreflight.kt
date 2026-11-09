@@ -24,6 +24,7 @@ object BuildEnvironmentPreflight {
             "test -x /bin/sh || fail shell",
             "test -d \"\$PROJECT_PATH\" || fail project_missing",
             "elf_machine() { od -An -t x1 -j 18 -N 2 \"\$1\" 2>/dev/null | tr -d '[:space:]'; }",
+            "_tx_latest_dir() { _tx_parent=\"${'$'}1\"; _tx_prefix=\"${'$'}{2:-}\"; ls -d \"${'$'}_tx_parent\"/\"${'$'}_tx_prefix\"*/ 2>/dev/null | sed 's#/${'$'}##' | grep -Eiv 'rc[0-9]*${'$'}|[-._]?(alpha|beta|preview|snapshot|canary)' | sort -V | tail -n 1; }",
             "java_arch_machine() { bin=\"\$1\"; real=\$(readlink -f \"\$bin\" 2>/dev/null || echo \"\$bin\"); magic=\$(od -An -t x1 -N 4 \"\$real\" 2>/dev/null | tr -d '[:space:]'); if test \"\$magic\" != 7f454c46; then echo not_elf; return 0; fi; home=\$(dirname \"\$(dirname \"\$real\")\"); lib=\$(find \"\$home\" \\( -type f -o -type l \\) -name libjvm.so -print -quit 2>/dev/null || true); if test -z \"\$lib\"; then echo unreadable; return 0; fi; od -An -t x1 -j 18 -N 2 \"\$lib\" 2>/dev/null | tr -d '[:space:]'; }",
         )
         if (projectType == ProjectType.ANDROID) {
@@ -34,22 +35,27 @@ object BuildEnvironmentPreflight {
             lines += "test -d \"\$PROJECT_PATH/android\" || fail flutter_android_host"
         }
 
+        // x86_64 QEMU 兼容层根目录（/opt/taixu/compat/x86_64）是固定路径，但其下的
+        // SDK / Build-Tools / Gradle 子目录带版本号，随客机镜像升级而变，必须走版本探测。
         if (qemu) {
             lines += "test \"\$(uname -m)\" = x86_64 || fail qemu_guest"
             lines += "COMPAT_ROOT=/opt/taixu/compat/x86_64"
-            lines += "JAVA_HOME=\$COMPAT_ROOT/jdk-17"
+            lines += "JAVA_HOME=${'$'}(_tx_latest_dir \"${'$'}COMPAT_ROOT\" jdk-)"
+            lines += "test -n \"\$JAVA_HOME\" || fail java_missing"
             lines += "ANDROID_HOME=\$COMPAT_ROOT/android-sdk"
-            lines += "GRADLE_HOME=\$COMPAT_ROOT/gradle-8.14.2"
+            lines += "GRADLE_HOME=${'$'}(_tx_latest_dir \"${'$'}COMPAT_ROOT\" gradle-)"
             lines += "JAVA_BIN=\$JAVA_HOME/bin/java"
             lines += "test -x \"\$JAVA_BIN\" || fail java_missing"
             lines += "JAVA_MACHINE=\$(java_arch_machine \"\$JAVA_BIN\")"
             lines += "test \"\$JAVA_MACHINE\" = $X86_64_ELF_MACHINE || { echo \"TAIXU_PREFLIGHT_FAIL: java_arch path=\$JAVA_BIN machine=\${JAVA_MACHINE:-unreadable} expected=$X86_64_ELF_MACHINE\"; exit 2; }"
-            lines += "test -f \"\$ANDROID_HOME/platforms/android-34/android.jar\" || fail android_platform"
-            lines += "AAPT2=\$ANDROID_HOME/build-tools/35.0.0/aapt2"
+            lines += "PLATFORM_DIR=${'$'}(_tx_latest_dir \"${'$'}ANDROID_HOME/platforms\" android-)"
+            lines += "test -f \"${'$'}PLATFORM_DIR/android.jar\" || fail android_platform"
+            lines += "BUILD_TOOLS_DIR=${'$'}(_tx_latest_dir \"${'$'}ANDROID_HOME/build-tools\" '')"
+            lines += "AAPT2=${'$'}BUILD_TOOLS_DIR/aapt2"
             lines += "test -x \"\$AAPT2\" || fail aapt2_missing"
             lines += "test \"\$(elf_machine \"\$AAPT2\")\" = $X86_64_ELF_MACHINE || fail aapt2_arch"
-            lines += "test -f \"\$ANDROID_HOME/build-tools/35.0.0/lib/d8.jar\" || fail build_tools"
-            lines += "test -x \"\$GRADLE_HOME/bin/gradle\" -o -d \"\$GRADLE_HOME/lib\" || test -f \"\$PROJECT_PATH/gradle/wrapper/gradle-wrapper.jar\" || fail gradle_missing"
+            lines += "test -f \"${'$'}BUILD_TOOLS_DIR/lib/d8.jar\" || fail build_tools"
+            lines += "test -n \"\$GRADLE_HOME\" -a \\( -x \"\$GRADLE_HOME/bin/gradle\" -o -d \"\$GRADLE_HOME/lib\" \\) || test -f \"\$PROJECT_PATH/gradle/wrapper/gradle-wrapper.jar\" || fail gradle_missing"
             if (projectType == ProjectType.FLUTTER) {
                 lines += "FLUTTER_HOME=\$COMPAT_ROOT/flutter"
                 lines += "FLUTTER=\$FLUTTER_HOME/bin/flutter"
@@ -59,17 +65,19 @@ object BuildEnvironmentPreflight {
             }
         } else {
             lines += "ANDROID_HOME=\${ANDROID_HOME:-/opt/android-sdk}"
-            lines += "# default JAVA_BIN=/opt/taixu/toolchains/android/jdk/bin/java"
-            lines += "JAVA_BIN=\${JAVA_HOME:-/opt/taixu/toolchains/android/jdk}/bin/java"
+            lines += "# default JAVA_BIN=/opt/taixu/tools/android/jdk/bin/java"
+            lines += "JAVA_BIN=\${JAVA_HOME:-/opt/taixu/tools/android/jdk}/bin/java"
             lines += "test -x \"\$JAVA_BIN\" || JAVA_BIN=\$(command -v java 2>/dev/null || true)"
             lines += "test -n \"\$JAVA_BIN\" -a -x \"\$JAVA_BIN\" || fail java_missing"
             lines += "JAVA_MACHINE=\$(java_arch_machine \"\$JAVA_BIN\")"
             lines += "test \"\$JAVA_MACHINE\" = $ARM64_ELF_MACHINE || { echo \"TAIXU_PREFLIGHT_FAIL: java_arch path=\$JAVA_BIN machine=\${JAVA_MACHINE:-unreadable} expected=$ARM64_ELF_MACHINE\"; exit 2; }"
-            lines += "test -f \"\$ANDROID_HOME/platforms/android-34/android.jar\" || fail android_platform"
-            lines += "test -f \"\$ANDROID_HOME/build-tools/35.0.0/lib/d8.jar\" || fail build_tools"
-            lines += "AAPT2=\${TAIXU_AAPT2_PATH:-\$ANDROID_HOME/build-tools/35.0.0/aapt2}"
+            lines += "PLATFORM_DIR=${'$'}(_tx_latest_dir \"${'$'}ANDROID_HOME/platforms\" android-)"
+            lines += "test -f \"${'$'}PLATFORM_DIR/android.jar\" || fail android_platform"
+            lines += "BUILD_TOOLS_DIR=${'$'}(_tx_latest_dir \"${'$'}ANDROID_HOME/build-tools\" '')"
+            lines += "test -f \"${'$'}BUILD_TOOLS_DIR/lib/d8.jar\" || fail build_tools"
+            lines += "AAPT2=${'$'}{TAIXU_AAPT2_PATH:-${'$'}BUILD_TOOLS_DIR/aapt2}"
             lines += "test -x \"\$AAPT2\" -a \"\$(elf_machine \"\$AAPT2\")\" = $ARM64_ELF_MACHINE || fail aapt2_arch"
-            lines += "NDK_PATH=\${TAIXU_NDK_PATH:-\${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}}"
+            lines += "NDK_PATH=\${TAIXU_NDK_PATH:-\${ANDROID_NDK_HOME:-/opt/taixu/tools/ndk/current}}"
             lines += "NDK_CLANG=\$(find \"\$NDK_PATH/toolchains/llvm/prebuilt\" \\( -type f -o -type l \\) -name clang -print -quit 2>/dev/null)"
             lines += "NDK_STRIP=\$(find \"\$NDK_PATH/toolchains/llvm/prebuilt\" \\( -type f -o -type l \\) -name llvm-strip -print -quit 2>/dev/null)"
             lines += "test -f \"\$NDK_PATH/source.properties\" -a -x \"\$NDK_CLANG\" -a -x \"\$NDK_STRIP\" || fail ndk_missing"
@@ -88,7 +96,7 @@ object BuildEnvironmentPreflight {
             lines += "fi"
             lines += "GRADLE_USER_HOME=\${GRADLE_USER_HOME:-/root/.gradle}"
             lines += "grep -Fqx 'android.builder.sdkDownload=false' \"\$GRADLE_USER_HOME/gradle.properties\" 2>/dev/null || fail sdk_download_enabled"
-            lines += "GRADLE_HOME=\${GRADLE_HOME:-/opt/gradle-8.14.2}"
+            lines += "GRADLE_HOME=${'$'}{GRADLE_HOME:-${'$'}(_tx_latest_dir /opt gradle-)}"
             lines += "test -x \"\$GRADLE_HOME/bin/gradle\" -o -d \"\$GRADLE_HOME/lib\" -o -f \"\$PROJECT_PATH/gradle/wrapper/gradle-wrapper.jar\" -o -n \"\$(command -v gradle 2>/dev/null || true)\" || fail gradle_missing"
             if (projectType == ProjectType.FLUTTER) {
                 lines += "# default FLUTTER=/opt/flutter/bin/flutter DART=/opt/flutter/bin/cache/dart-sdk/bin/dart"
@@ -120,17 +128,17 @@ object BuildEnvironmentPreflight {
             "flutter_pubspec" -> "项目缺少 pubspec.yaml"
             "flutter_android_host" -> "Flutter 工程缺少 android 宿主目录"
             "qemu_guest" -> "QEMU 隔离环境架构异常"
-            "java_missing" -> "缺少 JDK 17"
+            "java_missing" -> "缺少 JDK"
             "java_arch" -> "JDK 架构不匹配（$token）"
-            "android_platform" -> "缺少 Android Platform 34"
-            "build_tools" -> "缺少 Android Build-Tools 35"
+            "android_platform" -> "缺少 Android Platform"
+            "build_tools" -> "缺少 Android Build-Tools"
             "aapt2_missing" -> "缺少 AAPT2"
             "aapt2_arch" -> "AAPT2 不是 ARM64 制品"
             "ndk_missing" -> "缺少 ARM64 NDK"
             "ndk_arch" -> "NDK 主机工具不是 ARM64 制品"
             "cmake_missing" -> "缺少 CMake（含 native 代码的工程需要）"
             "ninja_missing" -> "缺少 Ninja（含 native 代码的工程需要）"
-            "gradle_missing" -> "缺少 Gradle 8.14.2"
+            "gradle_missing" -> "缺少 Gradle"
             "sdk_download_enabled" -> "Gradle SDK 自动下载禁用策略未配置"
             "flutter_missing" -> "缺少 Flutter SDK"
             "dart_arch" -> "Dart SDK 不是 ARM64 制品"

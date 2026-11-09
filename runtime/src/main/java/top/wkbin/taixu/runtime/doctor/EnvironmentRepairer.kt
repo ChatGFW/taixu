@@ -193,42 +193,86 @@ class EnvironmentRepairer(
             addLog("[Step 5/5] 检查并自动升级 Node.js (>= v20 LTS) 及配置镜像加速")
             val setupNodeAndMirrors = """
                 NODE_VER=${'$'}(node -v 2>/dev/null | tr -d 'v' | cut -d. -f1)
-                if [ -z "${'$'}NODE_VER" ] || [ "${'$'}NODE_VER" -lt 20 ]; then
+                NODE_BIN=${'$'}(command -v node 2>/dev/null || true)
+                # 只有「完全找不到 node」才安装；已有 node 一律不覆盖（否则会把新版降级成 v22）
+                if [ -z "${'$'}NODE_BIN" ] && [ -z "${'$'}NODE_VER" ]; then
                     echo "检测到 Node.js 缺失或版本较低 (当前: ${'$'}{NODE_VER:-未安装})，正在下载安装 Node.js v22 (LTS ARM64)..."
                     mkdir -p /tmp/node_setup
-                    curl -fsSL --connect-timeout 10 --max-time 180 https://npmmirror.com/mirrors/node/v22.14.0/node-v22.14.0-linux-arm64.tar.xz -o /tmp/node_setup/node.tar.xz || \
-                    curl -fsSL --connect-timeout 10 --max-time 180 https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-arm64.tar.xz -o /tmp/node_setup/node.tar.xz || true
+                    # 版本号不写死：动态查官方 latest-lts 的实际版本
+                    NODE_LTS_VER=${'$'}(curl -fsSL --connect-timeout 10 --max-time 20 https://nodejs.org/dist/index.json 2>/dev/null \
+                        | python3 -c "import sys,json;d=json.load(sys.stdin);print([x['version'].lstrip('v') for x in d if x.get('lts')][0])" 2>/dev/null)
+                    [ -n "${'$'}NODE_LTS_VER" ] || NODE_LTS_VER=${'$'}{TAIXU_NODE_VERSION:-}
+                    if [ -n "${'$'}NODE_LTS_VER" ]; then
+                        curl -fsSL --connect-timeout 10 --max-time 180 "https://npmmirror.com/mirrors/node/v${'$'}{NODE_LTS_VER}/node-v${'$'}{NODE_LTS_VER}-linux-arm64.tar.xz" -o /tmp/node_setup/node.tar.xz || \
+                        curl -fsSL --connect-timeout 10 --max-time 180 "https://nodejs.org/dist/v${'$'}{NODE_LTS_VER}/node-v${'$'}{NODE_LTS_VER}-linux-arm64.tar.xz" -o /tmp/node_setup/node.tar.xz || true
+                    else
+                        echo "无法解析 Node LTS 版本，跳过 Node 安装（不写死版本号）"
+                    fi
                     if [ -f /tmp/node_setup/node.tar.xz ]; then
                         tar -xJf /tmp/node_setup/node.tar.xz -C /usr/local --strip-components=1
                         rm -rf /tmp/node_setup
-                        echo "Node.js v22 升级完成: ${'$'}(node -v 2>/dev/null)"
+                        echo "Node.js 安装完成: ${'$'}(node -v 2>/dev/null)"
                     else
                         echo "预编译包拉取受限，尝试通过系统包管理器就绪基础 Node..."
                         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nodejs npm || true
+                    fi
+                else
+                    echo "Node.js 已存在 (v${'$'}{NODE_VER:-?}，${'$'}NODE_BIN)，跳过安装（环境修复不覆盖/不降级已有版本）"
+                    if [ -n "${'$'}NODE_VER" ] && [ "${'$'}NODE_VER" -lt 20 ] 2>/dev/null; then
+                        echo "提示: 当前 Node 主版本 ${'$'}NODE_VER 低于 20，建议手动升级；本修复不会自动替换"
                     fi
                 fi
                 which npm >/dev/null 2>&1 && npm config set registry https://registry.npmmirror.com || true
                 mkdir -p ${'$'}HOME/.pip
                 printf '[global]\nindex-url = https://pypi.tuna.tsinghua.edu.cn/simple\n' > ${'$'}HOME/.pip/pip.conf 2>/dev/null || true
                 echo "运行时就绪状态: Node ${'$'}(node -v 2>/dev/null || echo '未就绪'), NPM ${'$'}(npm -v 2>/dev/null || echo '未就绪')"
-                if [ -d /opt/android-sdk ] || [ -d /opt/taixu/toolchains/android ]; then
+                if [ -d /opt/android-sdk ] || [ -d /opt/taixu/tools/android ]; then
                     if [ ! -f /etc/profile.d/taixu-android.sh ]; then
                         mkdir -p /etc/profile.d
                         cat << 'EOF' > /etc/profile.d/taixu-android.sh
 # TaiXu Android development environment (self-healed by EnvironmentRepairer)
-export JAVA_HOME="${'$'}{JAVA_HOME:-/opt/taixu/toolchains/android/jdk}"
-export ANDROID_HOME="/opt/android-sdk"
-export ANDROID_SDK_ROOT="/opt/android-sdk"
-export GRADLE_HOME="/opt/gradle-8.14.2"
-export TAIXU_AAPT2_PATH="/opt/android-sdk/build-tools/35.0.0/aapt2"
-export TAIXU_NDK_PATH="/opt/taixu/toolchains/android/ndk"
-export TAIXU_NDK_VERSION="r29"
-export ANDROID_NDK_HOME="/opt/taixu/toolchains/android/ndk"
-export ANDROID_NDK_ROOT="/opt/taixu/toolchains/android/ndk"
-export TAIXU_CMAKE_HOME="/opt/taixu/tools/android-suite-offline/cmake"
-export TAIXU_NINJA_HOME="/opt/taixu/tools/android-suite-offline/bin"
-export PATH="/opt/taixu/bin:/opt/taixu/tools/android-suite-offline/bin:/opt/taixu/tools/android-suite-offline/cmake/bin:${'$'}JAVA_HOME/bin:${'$'}GRADLE_HOME/bin:/opt/flutter/bin:${'$'}PATH"
-export _JAVA_OPTIONS="-Djava.security.egd=file:/dev/urandom"
+                        # ---- 太墟动态路径解析（勿手改成具体版本号）----
+                        # 按名字扫描目录取最高正式版；跳过 rc/alpha/beta/preview/snapshot/canary
+                        _tx_latest_dir() {
+                            _tx_parent="${'$'}1"
+                            _tx_prefix="${'$'}{2:-}"
+                            ls -d "${'$'}_tx_parent"/"${'$'}_tx_prefix"*/ 2>/dev/null \
+                                | sed 's#/${'$'}##' \
+                                | grep -Eiv 'rc[0-9]*${'$'}|[-._]?(alpha|beta|preview|snapshot|canary)' \
+                                | sort -V | tail -n 1
+                        }
+                        _tx_ndk_version() {
+                            sed -n 's/^Pkg\.Revision *= *//p' "${'$'}1/source.properties" 2>/dev/null | tr -d '\r' | head -n 1
+                        }
+                        # _tx_ndk_dir：NDK 根。按太墟原设计布局探测（TAIXU_NDK_PATH → ANDROID_NDK_HOME → ANDROID_HOME/ndk → 内置目录）
+                        _tx_ndk_dir() {
+                            if [ -n "${'$'}{TAIXU_NDK_PATH:-}" ]; then printf '%s' "${'$'}TAIXU_NDK_PATH"; return 0; fi
+                            if [ -n "${'$'}{ANDROID_NDK_HOME:-}" ]; then printf '%s' "${'$'}ANDROID_NDK_HOME"; return 0; fi
+                            _d=${'$'}(_tx_latest_dir "${'$'}{ANDROID_HOME:-/opt/android-sdk}/ndk" '')
+                            [ -z "${'$'}_d" ] && _d=${'$'}(_tx_latest_dir /opt/taixu/tools/android ndk)
+                            [ -n "${'$'}_d" ] && printf '%s' "${'$'}_d"
+                        }
+                        # _tx_jdk_dir：JDK 根。按太墟原设计布局探测（JAVA_HOME → 内置 android/jdk → tools/jdk<ver>）
+                        _tx_jdk_dir() {
+                            if [ -n "${'$'}{JAVA_HOME:-}" ]; then printf '%s' "${'$'}JAVA_HOME"; return 0; fi
+                            if [ -x /opt/taixu/tools/android/jdk/bin/javac ]; then printf '%s' /opt/taixu/tools/android/jdk; return 0; fi
+                            _j=${'$'}(_tx_latest_dir /opt/taixu/tools jdk)
+                            [ -n "${'$'}_j" ] && printf '%s' "${'$'}_j"
+                        }
+                        export ANDROID_HOME="/opt/android-sdk"
+                        export ANDROID_SDK_ROOT="${'$'}ANDROID_HOME"
+                        export JAVA_HOME="${'$'}{JAVA_HOME:-${'$'}(_tx_jdk_dir)}"
+                        export GRADLE_HOME="${'$'}(_tx_latest_dir /opt gradle-)"
+                        export TAIXU_BUILD_TOOLS_DIR="${'$'}(_tx_latest_dir "${'$'}ANDROID_HOME/build-tools" '')"
+                        export TAIXU_AAPT2_PATH="${'$'}TAIXU_BUILD_TOOLS_DIR/aapt2"
+                        export TAIXU_NDK_PATH="${'$'}{TAIXU_NDK_PATH:-${'$'}(_tx_ndk_dir)}"
+                        export TAIXU_NDK_VERSION="${'$'}(_tx_ndk_version "${'$'}TAIXU_NDK_PATH")"
+                        export ANDROID_NDK_HOME="${'$'}TAIXU_NDK_PATH"
+                        export ANDROID_NDK_ROOT="${'$'}TAIXU_NDK_PATH"
+                        export TAIXU_CMAKE_HOME="/opt/taixu/tools/android-suite-offline/cmake"
+                        export TAIXU_NINJA_HOME="/opt/taixu/tools/android-suite-offline/bin"
+                        export PATH="/opt/taixu/bin:/opt/taixu/tools/android-suite-offline/bin:/opt/taixu/tools/android-suite-offline/cmake/bin:${'$'}JAVA_HOME/bin:${'$'}GRADLE_HOME/bin:/opt/flutter/bin:${'$'}PATH"
+                        export _JAVA_OPTIONS="-Djava.security.egd=file:/dev/urandom"
 EOF
                         chmod 644 /etc/profile.d/taixu-android.sh 2>/dev/null || true
                     fi

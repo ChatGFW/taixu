@@ -34,11 +34,12 @@ require_executable /opt/taixu/bin/ninja
 # od 会跟随软链，符号链接链最终必须落在 JDK 的 AArch64 ELF 上。
 require_aarch64 /opt/taixu/bin/java
 require_aarch64 /opt/taixu/bin/javac
-require_file /opt/android-sdk/platforms/android-34/android.jar
-require_file /opt/android-sdk/build-tools/35.0.0/lib/d8.jar
-require_executable /opt/android-sdk/build-tools/35.0.0/aapt2
-require_aarch64 /opt/android-sdk/build-tools/35.0.0/aapt2
-NDK_STRIP=$(find /opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt \( -type f -o -type l \) -name llvm-strip -print -quit)
+require_file "$(ls -d /opt/android-sdk/platforms/android-*/ 2>/dev/null | sort -V | tail -n 1 | sed 's#/$##')/android.jar"
+require_file "$(ls -d "$ANDROID_HOME"/build-tools/*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')/lib/d8.jar"
+require_executable "$(ls -d "$ANDROID_HOME"/build-tools/*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')/aapt2"
+require_aarch64 "$(ls -d "$ANDROID_HOME"/build-tools/*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')/aapt2"
+NDK_STRIP=$(find "${TAIXU_NDK_PATH:-/opt/taixu/tools/ndk/current}/toolchains/llvm/prebuilt" \( -type f -o -type l \) -name llvm-strip -print -quit 2>/dev/null || true)
+[ -n "$NDK_STRIP" ] || NDK_STRIP=$(find /opt/taixu/tools/android/ndk/toolchains/llvm/prebuilt \( -type f -o -type l \) -name llvm-strip -print -quit 2>/dev/null || true)
 test -n "$NDK_STRIP" || fail "missing NDK llvm-strip"
 require_executable "$NDK_STRIP"
 require_aarch64 "$NDK_STRIP"

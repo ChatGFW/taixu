@@ -71,7 +71,7 @@ class BuildGuardAssetTest {
         }
         assertTrue(ndkSetup.contains("androidExtension.ndkPath = taixuNdkPath"))
         assertTrue(managedNdkPolicy.contains("androidExtension.ndkPath = taixuNdkPath"))
-        assertTrue(managedNdkPolicy.contains("/opt/taixu/toolchains/android/ndk"))
+        assertTrue(managedNdkPolicy.contains("/opt/taixu/tools/ndk/current"))
         // ARM64-only 沙箱：AAR（如 androidx.graphics.path）自带 x86/x86_64
         // 原生库，托管策略必须剥离 x86 ABI 并在无过滤时钉住 arm64-v8a，
         // 否则 APK 会因 x86_abi_present 被产物校验拒绝。
@@ -135,9 +135,9 @@ class BuildGuardAssetTest {
         assertFalse(offlineAndroidVerifier.readText().contains('\r'))
         assertTrue(script.contains("extract_zip()"))
         assertTrue(script.contains("\"${'$'}JDK_HOME/bin/jar\" xf \"${'$'}archive\""))
-        assertTrue(script.contains("extract_zip \"${'$'}ARCHIVES/gradle-${'$'}GRADLE_VERSION-bin.zip\""))
-        assertTrue(script.contains("extract_zip \"${'$'}ARCHIVES/platform-34-ext7_r03.zip\""))
-        assertTrue(script.contains("extract_zip \"${'$'}ARCHIVES/build-tools_r35_linux.zip\""))
+        assertTrue(script.contains("pick_archive \"${'$'}ARCHIVES\" 'gradle-*-bin.zip'"))
+        assertTrue(script.contains("pick_archive \"${'$'}ARCHIVES\" 'platform-*.zip'"))
+        assertTrue(script.contains("pick_archive \"${'$'}ARCHIVES\" 'build-tools_*_linux.zip'"))
         assertTrue(script.contains("extract_zip \"${'$'}ARCHIVES/android-sdk-tools-static-aarch64.zip\""))
         assertTrue(script.contains("extract_zip \"${'$'}ARCHIVES/ninja-linux-aarch64.zip\""))
     }
@@ -198,7 +198,7 @@ class BuildGuardAssetTest {
             assertFalse(optionalFileCommand.containsMatchIn(script))
         }
         assertFalse(installer.contains("tar -xJ"))
-        assertTrue(installer.contains("android-ndk-r29-aarch64.tar.gz"))
+        assertTrue(installer.contains("android-ndk-*-aarch64.tar.gz"))
         assertTrue(installer.contains("tar -xzf"))
     }
 
@@ -256,7 +256,7 @@ class BuildGuardAssetTest {
         assertTrue(script.contains("need \"${'$'}NDK_CLANG\" \"NDK clang\""))
         assertTrue(script.contains("need \"${'$'}NDK_STRIP\" \"NDK llvm-strip\""))
         assertTrue(script.contains("missing offline resource: ${'$'}{resource_name:-unknown}"))
-        assertFalse(verifier.contains("test -x /opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/*"))
+        assertFalse(verifier.contains("test -x /opt/taixu/tools/android/ndk/toolchains/llvm/prebuilt/*"))
         assertTrue(verifier.contains("-name llvm-strip -print -quit"))
         assertTrue(verifier.contains("require_executable \"${'$'}NDK_STRIP\""))
         assertTrue(verifier.contains("require_aarch64 \"${'$'}NDK_STRIP\""))
@@ -313,7 +313,7 @@ class BuildGuardAssetTest {
     fun offlinePluginCompatibilityShimUsesJdkJar() {
         val installer = File("../tools/src/main/java/top/wkbin/taixu/runtime/tools/GenericRecipeInstaller.kt").readText()
         assertTrue(installer.contains("localUnzipCompatibilityCommand"))
-        assertTrue(installer.contains("/opt/taixu/toolchains/android/jdk/bin/jar"))
+        assertTrue(installer.contains("/opt/taixu/tools/android/jdk/bin/jar"))
         assertTrue(installer.contains("jar_bin"))
         assertTrue(installer.contains("TAIXU_TOOL_DIR/bin/unzip"))
     }

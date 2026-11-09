@@ -251,7 +251,7 @@ class StorageManager(
                         "请通过插件功能卸载或重置，以维护引用和注册表一致性")
                 }
             }
-            listOf(File(taixu, "toolchains"), pathManager.taixuRuntimesDir(id), File(taixu, "compat"), File(rfs, "opt")).forEach { dir ->
+            listOf(pathManager.taixuRuntimesDir(id), File(taixu, "compat"), File(rfs, "opt")).forEach { dir ->
                 children(dir).filter { it.name != "taixu" }.forEach { sdk ->
                     addRule(sdk, "environment", "$id · ${sdk.name}", "开发套件或共享运行时；卸载前需检查插件和项目引用")
                 }

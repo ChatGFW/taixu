@@ -50,7 +50,7 @@ class PluginBundleScriptsTest {
             retainedComponentIds = setOf("android-re", "android-ndk"),
         ).joinToString("\n")
         assertTrue(script.contains("rm -rf -- /opt/android-sdk"))
-        assertFalse(script.contains("/opt/taixu/toolchains/android/ndk"))
+        assertFalse(script.contains("/opt/taixu/tools/android/ndk"))
         assertFalse(script.contains("openjdk-17-jdk-headless"))
         assertTrue(script.contains("apt-get remove"))
         assertTrue(script.contains("adb"))
@@ -62,7 +62,7 @@ class PluginBundleScriptsTest {
             selectedComponentIds = setOf("android-core"),
             retainedComponentIds = emptySet(),
         ).joinToString("\n")
-        assertTrue(script.contains("/opt/taixu/toolchains/android/ndk"))
+        assertTrue(script.contains("/opt/taixu/tools/android/ndk"))
         assertTrue(script.contains("openjdk-17-jdk-headless"))
         assertTrue(script.contains("rm -f -- /usr/local/bin/java /usr/bin/java"))
     }

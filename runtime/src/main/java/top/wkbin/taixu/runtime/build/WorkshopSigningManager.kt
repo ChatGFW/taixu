@@ -53,7 +53,7 @@ class WorkshopSigningManager(
     private fun sandboxKeystorePath(fileName: String): String = "/opt/taixu/keystores/$fileName"
 
     private suspend fun javaHome(): String =
-        preferences.javaPath.first().ifBlank { "/opt/taixu/toolchains/android/jdk" }
+        preferences.javaPath.first().ifBlank { "/opt/taixu/tools/android/jdk" }
 
     suspend fun createKeystore(
         name: String,

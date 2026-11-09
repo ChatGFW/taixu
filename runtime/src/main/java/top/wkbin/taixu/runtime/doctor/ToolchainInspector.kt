@@ -1,6 +1,7 @@
 package top.wkbin.taixu.runtime.doctor
 
 import top.wkbin.taixu.core.model.SandboxToolchainCatalog
+import top.wkbin.taixu.core.model.ToolchainPathResolver
 import top.wkbin.taixu.core.model.ToolchainProbe
 import top.wkbin.taixu.core.model.ToolchainReport
 import top.wkbin.taixu.runtime.LinuxRuntime
@@ -102,8 +103,10 @@ class ToolchainInspector(
      */
     private fun buildProbeScript(probes: List<ToolchainProbe>): String {
         val sb = StringBuilder()
+        // 注入动态路径解析函数：candidatePaths 里的 $(_tx_latest_dir ...) 依赖它
+        sb.append(ToolchainPathResolver.SHELL_PRELUDE).append("\n")
         probes.forEach { probe ->
-            // 1) 定位可执行文件：候选路径优先，再退 PATH 查找
+            // 1. 定位可执行文件：候选路径优先，再退 PATH 查找
             val resolve = StringBuilder()
             resolve.append("res=\"\"; ")
             probe.candidatePaths.forEach { p ->
@@ -114,7 +117,7 @@ class ToolchainInspector(
             }
             resolve.append("echo \"__TX__${probe.id}__PATH__\$res\"; ")
 
-            // 2) 取版本（仅当定位成功），外层加 timeout 5 防单个工具卡死拖垮整轮
+            // 2. 取版本（仅当定位成功），外层加 timeout 5 防单个工具卡死拖垮整轮
             val versionCmd = probe.versionCommand
             val version = if (versionCmd == null) {
                 "echo \"__TX__${probe.id}__VER__\"; "

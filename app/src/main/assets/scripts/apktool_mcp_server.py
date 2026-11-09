@@ -19,6 +19,10 @@ import subprocess
 import sys
 import tempfile
 
+# TAIXU_ANDROID_DATA PRoot 沙箱补丁：AOSP 系二进制（aapt 等）启动时校验 ANDROID_DATA，
+# 缺失则报 "ANDROID_DATA not set" 并非零退出，导致 analyze_manifest 永远退化为 apktool 全解包。
+os.environ.setdefault("ANDROID_DATA", "/data")
+
 MAX_OUTPUT_CHARS = 60000  # 单次工具输出上限，防止海量日志撑爆上下文
 
 

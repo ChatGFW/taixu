@@ -14,9 +14,12 @@ class BuildEnvironmentPreflightTest {
         assertTrue(command.contains("android.builder.sdkDownload=false"))
         assertTrue(command.contains("TAIXU_NDK_PATH"))
         assertTrue(command.contains("TAIXU_AAPT2_PATH"))
-        assertTrue(command.contains("/opt/taixu/toolchains/android/jdk/bin/java"))
-        assertTrue(command.contains("\$ANDROID_HOME/build-tools/35.0.0/aapt2"))
-        assertTrue(command.contains("/opt/taixu/toolchains/android/ndk"))
+        assertTrue(command.contains("/opt/taixu/tools/android/jdk/bin/java"))
+        // 版本不再写死：改为断言「动态探测链路」存在
+        assertTrue(command.contains("_tx_latest_dir"))
+        assertTrue(command.contains("BUILD_TOOLS_DIR"))
+        assertTrue(command.contains("/aapt2"))
+        assertTrue(command.contains("/opt/taixu/tools/ndk/current"))
         assertTrue(command.contains("-name clang"))
         assertTrue(command.contains("od -An -t x1 -j 18 -N 2"))
         assertTrue(command.contains("= b700"))
@@ -50,7 +53,7 @@ class BuildEnvironmentPreflightTest {
     fun flutterArmPreflightAcceptsOfflineSuiteLayoutWithoutLegacyMarker() {
         val command = BuildEnvironmentPreflight.command("/workspace/flutter", ProjectType.FLUTTER)
 
-        assertTrue(command.contains("/opt/taixu/toolchains/android/jdk/bin/java"))
+        assertTrue(command.contains("/opt/taixu/tools/android/jdk/bin/java"))
         assertTrue(command.contains("/opt/flutter/bin/flutter"))
         assertTrue(command.contains("/opt/flutter/bin/cache/dart-sdk/bin/dart"))
         assertFalse(command.contains("flutter_marker"))
@@ -82,15 +85,15 @@ class BuildEnvironmentPreflightTest {
     @Test
     fun describeFailureNamesTheActuallyMissingTool() {
         // 用户反馈"缺 gradle"实际多为 cmake/ninja/java 等单项失败被统一文案掩盖
-        assertEquals("缺少 Gradle 8.14.2", BuildEnvironmentPreflight.describeFailure("TAIXU_PREFLIGHT_FAIL: gradle_missing"))
+        assertEquals("缺少 Gradle", BuildEnvironmentPreflight.describeFailure("TAIXU_PREFLIGHT_FAIL: gradle_missing"))
         assertEquals("缺少 CMake（含 native 代码的工程需要）", BuildEnvironmentPreflight.describeFailure("some log\nTAIXU_PREFLIGHT_FAIL: cmake_missing"))
         assertEquals("缺少 Ninja（含 native 代码的工程需要）", BuildEnvironmentPreflight.describeFailure("TAIXU_PREFLIGHT_FAIL: ninja_missing"))
-        assertEquals("缺少 JDK 17", BuildEnvironmentPreflight.describeFailure("TAIXU_PREFLIGHT_FAIL: java_missing"))
+        assertEquals("缺少 JDK", BuildEnvironmentPreflight.describeFailure("TAIXU_PREFLIGHT_FAIL: java_missing"))
         assertEquals(
             "JDK 架构不匹配（java_arch path=/usr/bin/java machine=unreadable expected=b700）",
             BuildEnvironmentPreflight.describeFailure("TAIXU_PREFLIGHT_FAIL: java_arch path=/usr/bin/java machine=unreadable expected=b700"),
         )
-        assertEquals("缺少 Android Platform 34", BuildEnvironmentPreflight.describeFailure("TAIXU_PREFLIGHT_FAIL: android_platform"))
+        assertEquals("缺少 Android Platform", BuildEnvironmentPreflight.describeFailure("TAIXU_PREFLIGHT_FAIL: android_platform"))
         assertNull(BuildEnvironmentPreflight.describeFailure("TAIXU_PREFLIGHT_OK"))
         assertNull(BuildEnvironmentPreflight.describeFailure(""))
     }

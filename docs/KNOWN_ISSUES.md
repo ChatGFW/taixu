@@ -72,7 +72,7 @@ This file tracks known issues and environment notes for the TaiXu Android projec
   - 真实 Android 34 平台包：`platform-34-ext7_r03.zip`（android.jar + core-for-system-modules.jar，~60MB）从腾讯云镜像 `mirrors.cloud.tencent.com/AndroidSDK/` 下载（官方源兜底），SHA-1 固定校验，安装到 `/opt/android-sdk/platforms/android-34/`；
   - Gradle 8.9 官方独立包：腾讯云 → 华为云双镜像，SHA-256 固定校验（`d725d707...cab`）；
   - 全套 SDK licenses 预接受 + Build Tools 35.0.0 的官方 Java 工具/元数据；宿主原生程序使用固定 SHA-256 的 lzhiyong ARM64 35.0.2 aapt/aapt2/aidl/zipalign；
-  - `lzhiyong/termux-ndk` r29（NDK `29.0.14206865`）Linux AArch64 静态工具链，固定 SHA-256 后安装到 `/opt/taixu/toolchains/android/ndk/artifacts/<digest>/ndk`；AGP 通过本地 Gradle init policy 的 `android.ndkPath` 使用该不可变路径；
+  - `lzhiyong/termux-ndk` r29（NDK `29.0.14206865`）Linux AArch64 静态工具链，固定 SHA-256 后安装到 `/opt/taixu/tools/android/ndk/artifacts/<digest>/ndk`；AGP 通过本地 Gradle init policy 的 `android.ndkPath` 使用该不可变路径；
   - 全局阿里云 Maven 镜像 `/root/.gradle/init.gradle`（beforeSettings 注入，覆盖所有项目）；
   - 持久化环境变量 `/etc/profile.d/taixu-android.sh`（JAVA_HOME/ANDROID_HOME/GRADLE_HOME/PATH），`/root/.bashrc` 自动 source；
   - JAVA_HOME 推导、java/gradle 全局软链、cacerts 注入。

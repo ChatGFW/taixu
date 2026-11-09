@@ -138,8 +138,8 @@ sha256sum payload/archives/* > payload/checksums/SHA256SUMS
     "ANDROID_HOME": "/opt/android-sdk",
     "ANDROID_SDK_ROOT": "/opt/android-sdk",
     "GRADLE_HOME": "/opt/gradle-8.14.2",
-    "JAVA_HOME": "/opt/taixu/toolchains/android/jdk",
-    "ANDROID_NDK_HOME": "/opt/taixu/toolchains/android/ndk"
+    "JAVA_HOME": "/opt/taixu/tools/android/jdk",
+    "ANDROID_NDK_HOME": "/opt/taixu/tools/android/ndk"
   }
 }
 ```
@@ -165,7 +165,7 @@ ARCHIVES="$PAYLOAD/archives"
 CHECKSUMS="$PAYLOAD/checksums/SHA256SUMS"
 TOOL_DIR="${TAIXU_TOOL_DIR:?missing TAIXU_TOOL_DIR}"
 ANDROID_HOME="/opt/android-sdk"
-TOOLCHAIN_ROOT="/opt/taixu/toolchains/android"
+TOOLCHAIN_ROOT="/opt/taixu/tools/android"
 JDK_HOME="$TOOLCHAIN_ROOT/jdk"
 NDK_HOME="$TOOLCHAIN_ROOT/ndk"
 GRADLE_VERSION="8.14.2"
@@ -295,7 +295,7 @@ rm -f /opt/taixu/bin/adb /opt/taixu/bin/flutter /opt/taixu/bin/dart
 rm -rf "$TOOL_DIR"
 rm -rf /opt/android-sdk
 rm -rf /opt/gradle-8.14.2
-rm -rf /opt/taixu/toolchains/android
+rm -rf /opt/taixu/tools/android
 rm -rf /opt/flutter
 rm -f /root/.gradle/init.d/taixu-android-ndk.gradle
 ```

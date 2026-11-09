@@ -643,7 +643,7 @@ class McpHttpTransport(
 
     companion object {
         private const val ACCEPT = "application/json, text/event-stream"
-        private const val MAX_BYTES = 4 * 1024 * 1024
+        private const val MAX_BYTES = 16 * 1024 * 1024
         // 单行上限与 SSE 累积硬顶（DEFAULT_HARD_LIMIT_BYTES）同值：一个完整的 tools/call
         // JSON 结果通常被压成单条 data 行，1MiB 的旧行限会让合法大结果直接失败
         private const val MAX_SSE_LINE_BYTES = McpResponseSizeLimiter.DEFAULT_HARD_LIMIT_BYTES.toInt()

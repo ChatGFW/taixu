@@ -28,7 +28,7 @@ mkdir -p /opt/flutter /usr/local/bin /usr/bin 2>/dev/null || true
 # native ARM64 archive marker so an older x86_64 installation is replaced.
 FLUTTER_ARM64_MARKER=/opt/flutter/.taixu-arm64
 
-if [ ! -f "${ANDROID_HOME:-/opt/android-sdk}/platforms/android-34/android.jar" ]; then
+if [ ! -f "$(ls -d "${ANDROID_HOME:-/opt/android-sdk}"/platforms/android-*/ 2>/dev/null | sort -V | tail -n 1 | sed 's#/$##')/android.jar" ]; then
     echo "!! [TaiXu] Flutter APK 构建依赖 Android 核心基础环境 (Platform 34)，请先安装 android-core"
 fi
 

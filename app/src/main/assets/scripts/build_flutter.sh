@@ -7,7 +7,7 @@ set -e
 
 PROJECT_PATH="${1:-.}"
 TARGET="${2:-apk --debug}"
-GRADLE_VER="8.14.2"
+GRADLE_VER="${TAIXU_GRADLE_VER:-$(ls -d /opt/gradle-* 2>/dev/null | sed 's|^/opt/gradle-||' | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -V | tail -n 1)}"
 
 echo "==> [TaiXu Build Engine] 启动 Flutter 项目跨端编译..."
 echo "==> [TaiXu Build] 项目路径: $PROJECT_PATH"
@@ -60,7 +60,7 @@ export ANDROID_SDK_ROOT="$ANDROID_HOME"
 export PUB_HOSTED_URL="https://pub.flutter-io.cn"
 export FLUTTER_STORAGE_BASE_URL="https://storage.flutter-io.cn"
 export PUB_CACHE="${PUB_CACHE:-/opt/taixu/cache/flutter-pub}"
-NDK_PATH="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}}"
+NDK_PATH="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/tools/ndk}}"
 LLVM_STRIP=$(find "$NDK_PATH/toolchains/llvm/prebuilt" \( -type f -o -type l \) -name llvm-strip -print -quit 2>/dev/null)
 NDK_CLANG=$(find "$NDK_PATH/toolchains/llvm/prebuilt" \( -type f -o -type l \) -name clang -print -quit 2>/dev/null)
 if [ -z "$NDK_PATH" ] || [ ! -f "$NDK_PATH/source.properties" ] || \
@@ -84,7 +84,7 @@ echo "==> [TaiXu Build] 固定 ARM64 NDK: $NDK_PATH"
 # Java 启动器防回环守卫（与 build_android.sh 同一规则）：Flutter 的 Gradle
 # 宿主构建最终经 JAVA_HOME 启动 JVM。包装脚本回环在 PRoot 下是零输出、
 # CPU 满载的死循环，必须在 JVM 启动前拒绝。
-JAVA_GUARD="${JAVA_HOME:-/opt/taixu/toolchains/android/jdk}/bin/java"
+JAVA_GUARD="${JAVA_HOME:-/opt/taixu/tools/android/jdk}/bin/java"
 if [ -e "$JAVA_GUARD" ]; then
     JAVA_GUARD_REAL=$(readlink -f "$JAVA_GUARD" 2>/dev/null || echo "$JAVA_GUARD")
     JAVA_GUARD_MAGIC=$(od -An -t x1 -N 4 "$JAVA_GUARD_REAL" 2>/dev/null | tr -d '[:space:]')
@@ -143,7 +143,7 @@ taixu_align_build_versions() {
     }
 
     # --- NDK 版本对齐 ---
-    ndk_home="${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}"
+    ndk_home="${ANDROID_NDK_HOME:-/opt/taixu/tools/ndk}"
     if [ -f "$ndk_home/source.properties" ]; then
         actual_ndk=$(sed -n 's/^[[:space:]]*Pkg\.Revision[[:space:]]*=[[:space:]]*//p' "$ndk_home/source.properties" | head -n1 | tr -d '[:space:]')
         if [ -n "$actual_ndk" ]; then
@@ -203,7 +203,7 @@ fi
 # 常驻 /opt/taixu/bin/unzip（PATH 首位），避免 "Missing unzip tool" 中断。
 if ! command -v unzip >/dev/null 2>&1; then
     JAR_BIN=""
-    for candidate in "${JAVA_HOME:-/opt/taixu/toolchains/android/jdk}/bin/jar" /opt/taixu/toolchains/android/jdk/bin/jar /usr/bin/jar /usr/lib/jvm/default-java/bin/jar; do
+    for candidate in "${JAVA_HOME:-/opt/taixu/tools/android/jdk}/bin/jar" /opt/taixu/tools/android/jdk/bin/jar /usr/bin/jar /usr/lib/jvm/default-java/bin/jar; do
         if [ -x "$candidate" ]; then JAR_BIN="$candidate"; break; fi
     done
     if [ -n "$JAR_BIN" ]; then
@@ -258,12 +258,12 @@ if [ ! -f "$ANDROID_HOME/licenses/android-sdk-license" ]; then
         > "$ANDROID_HOME/licenses/android-sdk-license"
 fi
 
-if [ ! -f "${ANDROID_HOME}/platforms/android-34/android.jar" ]; then
+if [ ! -f "$(ls -d "$ANDROID_HOME"/platforms/android-*/ 2>/dev/null | sort -V | tail -n 1 | sed 's#/$##')/android.jar" ]; then
     echo "==> [TaiXu Build] ❌ 缺少 Android SDK Platform 34，请同时安装 Android 核心基础环境"
     exit 126
 fi
-if [ ! -f "${ANDROID_HOME}/build-tools/35.0.0/lib/d8.jar" ]; then
-    echo "==> [TaiXu Build] ❌ 缺少 Android Build-Tools 35.0.0，请重新装配 Android 核心基础环境"
+if [ ! -f "$(ls -d "$ANDROID_HOME"/build-tools/*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')/lib/d8.jar" ]; then
+    echo "==> [TaiXu Build] ❌ 缺少 Android Build-Tools，请重新装配 Android 核心基础环境"
     exit 126
 fi
 
@@ -314,9 +314,9 @@ if [ -f "$FLUTTER_HOME/bin/flutter" ]; then
     mv -f "$LOCAL_PROPERTIES_TMP" "$LOCAL_PROPERTIES"
     echo "==> [TaiXu Build] 绑定 ANDROID_HOME/Flutter SDK: $ANDROID_HOME / $FLUTTER_HOME"
 fi
-AAPT2_PATH="${TAIXU_AAPT2_PATH:-$ANDROID_HOME/build-tools/35.0.0/aapt2}"
+AAPT2_PATH="${TAIXU_AAPT2_PATH:-$(ls -d "$ANDROID_HOME"/build-tools/*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')/aapt2}"
 case "$AAPT2_PATH" in
-    /opt/android-sdk/build-tools/35.0.0/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/*/build-tools/aapt2) ;;
+    /opt/android-sdk/build-tools/*/aapt2|/opt/taixu/tools/android/sdk-tools/artifacts/*/build-tools/aapt2) ;;
     *)
         echo "==> [TaiXu Build] ❌ AAPT2 未指向不可变 ARM64 制品目录"
         exit 126
@@ -368,10 +368,13 @@ fi
 # 3. 确保 Android 宿主使用本地 Gradle 8.14.2 + 国内镜像，避免 Wrapper 从 services.gradle.org
 #    下载发行版（国内网络易被重置，报 SocketException: connection abort）。
 mkdir -p android/gradle/wrapper
-cat > android/gradle/wrapper/gradle-wrapper.properties <<'EOF'
+# Gradle 发行版版本号从本机 GRADLE_HOME 推导，不写死
+GRADLE_DIST_VERSION="$(basename "${GRADLE_HOME:-$(ls -d /opt/gradle-*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1 | sed 's#/$##')}" | sed 's/^gradle-//')"
+# 注意：heredoc 不带引号，才能展开 $GRADLE_DIST_VERSION
+cat > android/gradle/wrapper/gradle-wrapper.properties <<EOF
 distributionBase=GRADLE_USER_HOME
 distributionPath=wrapper/dists
-distributionUrl=https\://mirrors.cloud.tencent.com/gradle/gradle-8.14.2-bin.zip
+distributionUrl=https\://mirrors.cloud.tencent.com/gradle/gradle-$GRADLE_DIST_VERSION-bin.zip
 zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists
 EOF
@@ -428,3 +431,4 @@ else
 fi
 build_exit=$?
 exit $build_exit
+# TAIXU_DYN_PATH: 旧版本字面量剥离，改为动态探测

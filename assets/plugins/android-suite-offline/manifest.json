@@ -33,11 +33,10 @@
   "environment": {
     "ANDROID_HOME": "/opt/android-sdk",
     "ANDROID_SDK_ROOT": "/opt/android-sdk",
-    "GRADLE_HOME": "/opt/gradle-8.14.2",
-    "JAVA_HOME": "/opt/taixu/toolchains/android/jdk",
-    "ANDROID_NDK_HOME": "/opt/taixu/toolchains/android/ndk",
-    "RUSTUP_HOME": "/opt/taixu/toolchains/rust",
+    "JAVA_HOME": "/opt/taixu/tools/android/jdk",
+    "ANDROID_NDK_HOME": "/opt/taixu/tools/android/ndk",
+    "RUSTUP_HOME": "/opt/taixu/tools/rust",
     "CARGO_HOME": "/root/.cargo",
-    "PATH": "/opt/taixu/bin:/opt/taixu/toolchains/rust/bin:/opt/taixu/tools/android-suite-offline/bin:/opt/taixu/toolchains/android/jdk/bin:/opt/gradle-8.14.2/bin:$PATH"
+    "PATH": "/opt/taixu/bin:/opt/taixu/tools/rust/bin:/opt/taixu/tools/android-suite-offline/bin:/opt/taixu/tools/android/jdk/bin:$PATH"
   }
 }
