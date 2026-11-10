@@ -3,8 +3,10 @@ package top.wkbin.taixu.harness.directory
 import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.bot.BotCapabilityScope
 import top.wkbin.taixu.harness.mcp.McpManager
 import top.wkbin.taixu.harness.mcp.McpToolCallPolicy
+import top.wkbin.taixu.harness.plugins.HarnessPluginRegistry
 
 /**
  * 能力统一网关（use_capability 与 MCP 直连的统一入口）：
@@ -19,11 +21,11 @@ class CapabilityToolGateway(
     private val mcpManager: McpManager?,
     /** 嵌套记录脱敏（调用方注入 SecretRedactor；目录层保持纯净）。 */
     private val argRedactor: (String) -> String = { it },
-    private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
+    private val plugins: HarnessPluginRegistry? = null,
     /** 按工具策略拒绝已禁用的 MCP 工具。 */
     private val toolPolicy: McpToolCallPolicy? = null,
     /** Bot 级能力白名单：非 Bot 会话为 null（不限制）。 */
-    private val capabilityScope: top.wkbin.taixu.harness.bot.BotCapabilityScope? = null,
+    private val capabilityScope: BotCapabilityScope? = null,
     /** 宿主执行通道：与直接 host 调用共用同一 host 后端（含输出上限与截图 metadata 附带）。 */
     hostExecutor: suspend (JsonObject, String?, String, MutableMap<String, String>) -> Pair<Boolean, String>,
 ) {

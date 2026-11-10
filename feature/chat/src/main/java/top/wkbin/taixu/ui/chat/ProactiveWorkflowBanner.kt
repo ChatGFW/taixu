@@ -54,7 +54,7 @@ internal fun ProactiveWorkflowBanner(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    RuntimeIcon(RuntimeIconName.Hub, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.primary)
+                    RuntimeIcon(RuntimeIconName.Hub, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.onSurface)
                     Column(
                         modifier = Modifier
                             .clickable { onLaunch(suggestion) }

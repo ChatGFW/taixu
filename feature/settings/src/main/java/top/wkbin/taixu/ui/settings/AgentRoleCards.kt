@@ -109,7 +109,7 @@ internal fun SubagentProfileCard(
                         .background(RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    RuntimeIcon(RuntimeIconName.Bot, Modifier.size(18.dp), RuntimeTheme.colorScheme.primary)
+                    RuntimeIcon(RuntimeIconName.Bot, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurface)
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(profile.name, style = RuntimeTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)

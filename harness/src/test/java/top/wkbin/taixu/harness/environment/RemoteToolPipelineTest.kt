@@ -8,14 +8,15 @@ import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import top.wkbin.taixu.harness.*
-import top.wkbin.taixu.harness.directory.CapabilityToolGateway
-import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.core.network.FileDownloader
+import top.wkbin.taixu.core.security.SecretRedactor
+import top.wkbin.taixu.harness.*
+import top.wkbin.taixu.harness.checkpoint.*
+import top.wkbin.taixu.harness.directory.CapabilityToolGateway
+import top.wkbin.taixu.harness.websearch.StubSearchProvider
+import top.wkbin.taixu.harness.websearch.WebSearchProviders
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.environment.*
-import top.wkbin.taixu.harness.checkpoint.*
-import top.wkbin.taixu.harness.websearch.StubSearchProvider
 
 class RemoteToolPipelineTest {
     @Test fun `remote rewind and undo restore only the bound world's files`() = runBlocking {
@@ -105,7 +106,7 @@ class RemoteToolPipelineTest {
         val executor = ToolExecutor(local, paths, policy, SecretRedactor(),
             HostCapabilityToolBackend(secretRedactor = SecretRedactor()),
             LinuxCommandToolBackend(unused<LinuxRuntime>(), paths, environments = registry), download,
-            SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(StubSearchProvider()))), ContextMemoryToolBackend(), AskUserToolBackend(policy, null), PromptAssetToolBackend(),
+            SearchWebToolBackend(WebSearchProviders(listOf(StubSearchProvider()))), ContextMemoryToolBackend(), AskUserToolBackend(policy, null), PromptAssetToolBackend(),
             HarnessServiceToolBackend(), CapabilityToolGateway(null) { _, _, _, _ -> error("host") },
             workspaceToolBackend = WorkspaceToolBackend({ error("local files") }, environments = registry),
             environments = registry)

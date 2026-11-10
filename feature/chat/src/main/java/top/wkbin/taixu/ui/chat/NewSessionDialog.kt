@@ -39,11 +39,12 @@ import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.runtime.ProjectType
+import top.wkbin.taixu.runtime.SessionWorkspaceCatalogState
 
 @Composable
 internal fun NewSessionDialog(
     workspaces: List<WorkspaceProject>,
-    catalog: top.wkbin.taixu.runtime.SessionWorkspaceCatalogState,
+    catalog: SessionWorkspaceCatalogState,
     onDismiss: () -> Unit,
     onCreate: (title: String, workspace: String, projectType: ProjectType) -> Unit,
 ) {
@@ -65,7 +66,7 @@ internal fun NewSessionDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text(stringResource(R.string.chat_new_agent_session), fontWeight = FontWeight.Medium)
             }
         },

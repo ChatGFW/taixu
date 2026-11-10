@@ -68,7 +68,7 @@ internal fun ModelProfileCard(
                 color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (model.isActive) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RuntimeIcon(RuntimeIconName.Check, Modifier.size(20.dp), RuntimeTheme.colorScheme.primary)
+                    RuntimeIcon(RuntimeIconName.Check, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurface)
                     Text("全局默认", style = RuntimeTheme.typography.labelLarge, color = RuntimeTheme.colorScheme.primary)
                 }
             }

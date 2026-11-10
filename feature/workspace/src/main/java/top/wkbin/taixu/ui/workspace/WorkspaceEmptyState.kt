@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,10 +14,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.workspace.R
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun WorkspaceEmptyState(
@@ -45,7 +46,7 @@ internal fun WorkspaceEmptyState(
             color = RuntimeTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.padding(top = 16.dp)) {
+        RuntimeActionRow(modifier = Modifier.padding(top = 16.dp)) {
             RuntimeButton(onClick = onCreate, enabled = enabled) {
                 Text(stringResource(R.string.workspace_menu_create), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }

@@ -1,11 +1,5 @@
 package top.wkbin.taixu.ui.iteration
 
-import top.wkbin.taixu.ui.miuix.RuntimeSpacing
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,12 +14,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Scaffold
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.feature.custom_iteration.R
 import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator
 import top.wkbin.taixu.ui.components.NoticeBanner
@@ -44,6 +38,15 @@ import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 @Composable
 fun CustomIterationScreen(
     onBack: () -> Unit,
@@ -51,7 +54,7 @@ fun CustomIterationScreen(
     viewModel: CustomIterationViewModel? = previewOrNull { koinViewModel() }
 ) {
     val uiState by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(CustomIterationViewModel.UiState())
-    val buildState by viewModel?.buildState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator.BuildStatus.Idle)
+    val buildState by viewModel?.buildState?.collectAsStateWithLifecycle() ?: previewStateOf(TaiXuDevBuildCoordinator.BuildStatus.Idle)
 
     Scaffold(
         containerColor = RuntimeTheme.colorScheme.background,
@@ -60,9 +63,9 @@ fun CustomIterationScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding))
-                .verticalScroll(rememberScrollState()).padding(bottom = innerPadding.calculateBottomPadding())
-                .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                .then(runtimeScrollViewport(innerPadding))
+                .verticalScroll(rememberScrollState())
+                .padding(runtimeScrollContentPadding(innerPadding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom))),
             verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap)
         ) {
             // 头部 Hero 卡片

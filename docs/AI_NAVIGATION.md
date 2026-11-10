@@ -32,7 +32,7 @@
 | **团队模板与审议制衡** | [`docs/GROUP_TEAM_GOVERNANCE.md`](GROUP_TEAM_GOVERNANCE.md) | 团队草稿与发布、按群升级、实时架构图、版本门禁、驳回与主控裁决 |
 | **让步总账（技术债台账）** | [`docs/CONCESSIONS_LEDGER.md`](CONCESSIONS_LEDGER.md) | 为宿主平台/既有架构登记的临时妥协、原因与偿还路径；偿还后移除，新增让步须登记 |
 | **Bot 群聊与可靠分发** | [`docs/BOT_COLLABORATION.md`](BOT_COLLABORATION.md) | 持久收件、独立任务续办、回复前复核、记忆编辑与可追溯恢复 |
-| **外部 Agent 运行时** | [`docs/EXTERNAL_AGENT_RUNTIME.md`](EXTERNAL_AGENT_RUNTIME.md) | 电脑/服务器执行器令牌、8901 LAN HTTP、领取/回执与本地分发隔离 |
+| **外部 Agent 运行时** | [`docs/EXTERNAL_AGENT_RUNTIME.md`](EXTERNAL_AGENT_RUNTIME.md) | 电脑/服务器执行器令牌、8901 LAN HTTP、`/me`+pending 预览、领取/回执与参考轮询脚本 |
 | **已知问题与避坑指南** | [`docs/KNOWN_ISSUES.md`](KNOWN_ISSUES.md) | PRoot 沙箱环境已知限制、架构设计历史考量与规避方案 |
 | **安全边界与凭证暴露面** | [`docs/SECURITY_SURFACE.md`](SECURITY_SURFACE.md) | 权限域总览、密钥流与脱敏边界、PRoot 挂载清单、HostBridge 信任模型与风险登记 |
 | **存储分类与清理边界** | [`docs/STORAGE_MANAGEMENT.md`](STORAGE_MANAGEMENT.md) | 六类空间归属、清理计划、运行时互斥与后续管理建议 |

@@ -53,6 +53,7 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * Full-screen pixel office. Members walk to a desk, the whiteboard, the racks or the sofa
@@ -328,7 +329,7 @@ private fun OfficeActorCard(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+        RuntimeActionRow(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
             RuntimeTextButton(
                 onClick = onMention,
                 modifier = Modifier.testTag("studio-actor-mention"),

@@ -62,6 +62,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.SyntaxHighlighter
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 enum class ArtifactViewMode {
     PREVIEW,
     CODE,
@@ -372,7 +373,7 @@ fun ArtifactPreviewSheet(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                top.wkbin.taixu.ui.components.RuntimeActionRow {
+                RuntimeActionRow {
                     // 复制全文
                     RuntimeOutlinedButton(
                         onClick = {

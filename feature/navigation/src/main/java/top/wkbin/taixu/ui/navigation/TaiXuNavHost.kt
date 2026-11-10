@@ -1,5 +1,4 @@
 package top.wkbin.taixu.ui.navigation
-
 import androidx.compose.runtime.*
 
 import org.koin.compose.viewmodel.koinViewModel
@@ -79,6 +78,10 @@ import top.wkbin.taixu.ui.workspace.WorkshopScriptEditorScreen
 import top.wkbin.taixu.ui.workspace.WorkshopScriptType
 import top.wkbin.taixu.ui.workspace.WorkshopSettingsScreen
 import top.wkbin.taixu.ui.workspace.WorkshopSigningScreen
+import top.wkbin.taixu.ui.bot.BotDetailScreen
+import top.wkbin.taixu.ui.bot.GroupChatScreen
+import top.wkbin.taixu.ui.settings.RemotePluginLibraryScreen
+import top.wkbin.taixu.ui.settings.WebPluginsScreen
 /** 太墟核心导航分发系统：采用 Navigation 3，为每个 Tab 独立维护持久回退栈与状态生命周期 */
 @Composable
 fun TaiXuNavHost(
@@ -94,7 +97,8 @@ fun TaiXuNavHost(
     // 浏览器引擎是全局单例：BrowserViewModel 同样挂到 Activity 作用域，
     // 使智枢内嵌浏览器面板与独立浏览器页共享同一份 tab/URL/共浏览状态。
     val browserViewModel: BrowserViewModel = koinViewModel()
-    val browserUiState by browserViewModel.uiState.collectAsStateWithLifecycle()
+    // 只订活动 tick：订整包 uiState 会在 URL/标题/快照轮询时拖着 ChatScreen 连环重组，内嵌 WebView 跟着闪。
+    val browserActivityTick by browserViewModel.activityTick.collectAsStateWithLifecycle()
     // SettingsViewModel owns dozens of eagerly shared DataStore/database streams and performs
     // repository initialization. Let the settings navigation graph share the Activity-scoped
     // instance instead of constructing that whole graph once for every Navigation3 entry.
@@ -209,7 +213,7 @@ fun TaiXuNavHost(
                         // 内嵌浏览器面板：与独立浏览器页共享 Activity 级 BrowserViewModel，
                         // 手机端左右滑动切换对话/浏览器，宽屏双栏可切"终端/浏览器"
                         browserPane = { onExit -> BrowserPluginPage(pluginPages, embedded = true, onBack = onExit) },
-                        browserActivityTick = browserUiState.activityTick,
+                        browserActivityTick = browserActivityTick,
                         browserBackPressed = { browserPluginBack(pluginController, browserViewModel) },
                         onOpenFile = { projectName, relativePath ->
                             activeStack.push(AgentDestination, CodeEditorDestination(projectName, relativePath))
@@ -307,7 +311,6 @@ fun TaiXuNavHost(
                         onOpenAboutCommunity = { activeStack.push(SettingsDestination, AboutCommunityDestination) },
                         onOpenSearch = { activeStack.push(SettingsDestination, SettingsSearchDestination) },
                         onOpenPluginCenter = { activeStack.push(SettingsDestination, ToolCenterDestination) },
-                        viewModel = settingsViewModel,
                     )
                 }
             }
@@ -410,7 +413,6 @@ fun TaiXuNavHost(
                         onOpenQuickPhrases = { activeStack.push(AgentEcoSettingsDestination, QuickPhrasesDestination) },
                         onOpenStats = { activeStack.push(AgentEcoSettingsDestination, StatsDestination) },
                         onOpenPhoneAgent = { activeStack.push(AgentEcoSettingsDestination, PhoneAgentSettingsDestination) },
-                        viewModel = settingsViewModel,
                     )
                 }
             }
@@ -653,8 +655,8 @@ fun TaiXuNavHost(
                 }
             }
             entry<PluginManagerDestination> { GuardedEntry(PluginManagerDestination) { ManagedPluginsScreen(pluginPlatform, pluginController, { activeStack.pushRaw(PluginPageDestination(it.pluginId, it.extensionId)) }, ::popBack) } }
-            entry<RemotePluginLibraryDestination> { GuardedEntry(RemotePluginLibraryDestination) { top.wkbin.taixu.ui.settings.RemotePluginLibraryScreen(::popBack) } }
-            entry<WebPluginManagerDestination> { GuardedEntry(WebPluginManagerDestination) { top.wkbin.taixu.ui.settings.WebPluginsScreen({ id, version, plugin -> activeStack.pushRaw(PluginPageDestination(plugin, "main", mapOf("web.package.id" to id, "web.package.version" to version))) }, ::popBack) } }
+            entry<RemotePluginLibraryDestination> { GuardedEntry(RemotePluginLibraryDestination) { RemotePluginLibraryScreen(::popBack) } }
+            entry<WebPluginManagerDestination> { GuardedEntry(WebPluginManagerDestination) { WebPluginsScreen({ id, version, plugin -> activeStack.pushRaw(PluginPageDestination(plugin, "main", mapOf("web.package.id" to id, "web.package.version" to version))) }, ::popBack) } }
             entry<PluginPageDestination> { destination ->
                 GuardedEntry(destination) { RegisteredPluginPage(pluginPages, destination, ::popBack) }
             }
@@ -669,8 +671,8 @@ fun TaiXuNavHost(
                     GitScreen(projectName = destination.projectName, onBack = ::popBack)
                 }
             }
-            entry<BotDetailDestination> { destination -> GuardedEntry(destination) { top.wkbin.taixu.ui.bot.BotDetailScreen(botId = destination.botId, onBack = ::popBack, onOpenSession = { sessionId -> chatViewModel.switchSession(sessionId); navigateMain(MainDestination.Agent) }) } }
-            entry<GroupChatDestination> { destination -> GuardedEntry(destination) { top.wkbin.taixu.ui.bot.GroupChatScreen(groupId = destination.groupId, onBack = ::popBack, onOpenBot = { activeStack.pushRaw(BotDetailDestination(it)) }) } }
+            entry<BotDetailDestination> { destination -> GuardedEntry(destination) { BotDetailScreen(botId = destination.botId, onBack = ::popBack, onOpenSession = { sessionId -> chatViewModel.switchSession(sessionId); navigateMain(MainDestination.Agent) }) } }
+            entry<GroupChatDestination> { destination -> GuardedEntry(destination) { GroupChatScreen(groupId = destination.groupId, onBack = ::popBack, onOpenBot = { activeStack.pushRaw(BotDetailDestination(it)) }) } }
     }
 
     // Keep entry state and ViewModels across pushes and pops in the shared navigation stack.

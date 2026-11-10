@@ -92,7 +92,7 @@ private fun AttachGridCell(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            RuntimeIcon(icon, Modifier.size(24.dp), RuntimeTheme.colorScheme.primary)
+            RuntimeIcon(icon, Modifier.size(24.dp), RuntimeTheme.colorScheme.onSurface)
             Text(
                 label,
                 style = RuntimeTheme.typography.labelMedium,

@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.ui.miuix.RuntimeSpacing
-import top.yukonga.miuix.kmp.preference.SwitchPreference
+import top.wkbin.taixu.ui.components.RuntimeSwitchPreference
 
 /** The form card supplies the horizontal inset, and the preference supplies its row spacing. */
 @Composable
@@ -14,7 +14,7 @@ internal fun EditorToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    SwitchPreference(
+    RuntimeSwitchPreference(
         title = resolveLegacyString(title),
         summary = resolveLegacyString(subtitle),
         checked = checked,

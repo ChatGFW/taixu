@@ -1,14 +1,18 @@
 package top.wkbin.taixu.core.tools
 
+import top.wkbin.taixu.core.model.ToolManifest
+import top.wkbin.taixu.plugin.packages.SemanticVersion
+
+
 /** Local package releases have their own version, independent from bundled command output. */
-internal fun installedToolVersion(manifest: top.wkbin.taixu.core.model.ToolManifest, reported: String?): String =
+internal fun installedToolVersion(manifest: ToolManifest, reported: String?): String =
     if (manifest.source == "LOCAL" || manifest.schemaVersion == 2) manifest.version
     else reported?.trim()?.takeIf { it.isNotBlank() } ?: manifest.version
 
 internal fun isUpdateNewer(manifestLatest: String?, installedVersion: String?): Boolean {
     if (manifestLatest.isNullOrBlank() || installedVersion.isNullOrBlank()) return false
-    val latestSemantic = top.wkbin.taixu.plugin.packages.SemanticVersion.parse(manifestLatest)
-    val installedSemantic = top.wkbin.taixu.plugin.packages.SemanticVersion.parse(installedVersion)
+    val latestSemantic = SemanticVersion.parse(manifestLatest)
+    val installedSemantic = SemanticVersion.parse(installedVersion)
     if (latestSemantic != null && installedSemantic != null) return latestSemantic > installedSemantic
     val latestNums = manifestLatest.versionNumbers() ?: return false
     val currentNums = installedVersion.versionNumbers() ?: return false

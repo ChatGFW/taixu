@@ -3,21 +3,23 @@ package top.wkbin.taixu.ui.onboarding
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import top.wkbin.taixu.ui.miuix.*
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.core.tools.AgentProviderDefinition
+import top.wkbin.taixu.core.tools.ProviderGroup
+import top.wkbin.taixu.core.tools.ProviderProtocol
 import top.wkbin.taixu.feature.onboarding.R
 import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.components.RuntimeDropdownField
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun ModelSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier) {
@@ -28,7 +30,7 @@ internal fun ModelSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier)
     val discovered by viewModel?.discoveredModels?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val discovering by viewModel?.discoveringModels?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val discoveryError by viewModel?.modelDiscoveryError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
-    val providers = viewModel?.providerCatalog ?: listOf(AgentProviderDefinition("custom", provider, "", group = top.wkbin.taixu.core.tools.ProviderGroup.CUSTOM))
+    val providers = viewModel?.providerCatalog ?: listOf(AgentProviderDefinition("custom", provider, "", group = ProviderGroup.CUSTOM))
     val selectedProvider = providers.firstOrNull { it.name == provider } ?: providers.first()
 
     val context = LocalContext.current
@@ -66,7 +68,7 @@ internal fun ModelSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier)
                     providers.getOrNull(index)?.let { option -> viewModel?.selectProvider(option.id) }
                 },
                 summary = stringResource(
-                    if (selectedProvider.protocol == top.wkbin.taixu.core.tools.ProviderProtocol.ANTHROPIC) {
+                    if (selectedProvider.protocol == ProviderProtocol.ANTHROPIC) {
                         R.string.model_setup_protocol_anthropic
                     } else {
                         R.string.model_setup_protocol_openai

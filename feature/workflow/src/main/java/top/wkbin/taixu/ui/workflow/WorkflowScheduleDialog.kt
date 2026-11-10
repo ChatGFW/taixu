@@ -36,6 +36,7 @@ import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeDropdownField
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeNumberPicker
 
 /** 重复方式的展示文案（列表与对话框共用）。 */
 fun scheduleRepeatLabel(entity: WorkflowScheduleEntity): String = when (WorkflowScheduleRepeat.valueOf(entity.repeatType)) {
@@ -114,14 +115,24 @@ fun WorkflowScheduleEditDialog(
                 }
                 when (repeat) {
                     WorkflowScheduleRepeat.DAILY -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        RuntimeFilledTextField(
-                            value = hour, onValueChange = { hour = it.filter(Char::isDigit).take(2) },
-                            labelText = "时(0-23)", singleLine = true, modifier = Modifier.weight(1f),
-                        )
-                        RuntimeFilledTextField(
-                            value = minute, onValueChange = { minute = it.filter(Char::isDigit).take(2) },
-                            labelText = "分(0-59)", singleLine = true, modifier = Modifier.weight(1f),
-                        )
+                        Column(Modifier.weight(1f)) {
+                            Text("时", style = RuntimeTheme.typography.labelMedium)
+                            RuntimeNumberPicker(
+                                value = hour.toIntOrNull()?.coerceIn(0, 23) ?: 9,
+                                onValueChange = { hour = it.toString() },
+                                range = 0..23,
+                                label = { "%02d".format(it) },
+                            )
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text("分", style = RuntimeTheme.typography.labelMedium)
+                            RuntimeNumberPicker(
+                                value = minute.toIntOrNull()?.coerceIn(0, 59) ?: 0,
+                                onValueChange = { minute = it.toString() },
+                                range = 0..59,
+                                label = { "%02d".format(it) },
+                            )
+                        }
                     }
                     WorkflowScheduleRepeat.INTERVAL -> RuntimeFilledTextField(
                         value = intervalMinutes, onValueChange = { intervalMinutes = it.filter(Char::isDigit).take(4) },

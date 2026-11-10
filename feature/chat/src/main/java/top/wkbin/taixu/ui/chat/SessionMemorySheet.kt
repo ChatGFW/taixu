@@ -43,6 +43,7 @@ import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.TaixuMemoryEmptyIllustration
+import top.wkbin.taixu.harness.operation.FailureMemoryAccess
 
 /**
  * 会话工作记忆抽屉：长期记忆（memory 工具写入的 AgentMemoryEntity，全量观察流）
@@ -54,7 +55,7 @@ internal fun SessionMemorySheet(
     memories: List<AgentMemoryEntity>,
     scratchpads: List<AgentScratchpadEntity>,
     sessionId: String,
-    failureMemoryAccess: top.wkbin.taixu.harness.operation.FailureMemoryAccess?,
+    failureMemoryAccess: FailureMemoryAccess?,
     onDeleteMemory: (String) -> Unit,
     onDeleteScratchpad: (String) -> Unit,
     onClearScratchpads: () -> Unit,
@@ -74,7 +75,7 @@ internal fun SessionMemorySheet(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Brain, Modifier.size(20.dp), RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Brain, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurface)
                 Text(
                     stringResource(R.string.chat_memory_sheet_title),
                     style = RuntimeTheme.typography.titleMedium,
@@ -230,7 +231,7 @@ private fun SectionHeader(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = modifier.fillMaxWidth(),
     ) {
-        RuntimeIcon(icon, Modifier.size(15.dp), RuntimeTheme.colorScheme.primary)
+        RuntimeIcon(icon, Modifier.size(15.dp), RuntimeTheme.colorScheme.onSurface)
         Text(
             title,
             style = RuntimeTheme.typography.titleSmall,

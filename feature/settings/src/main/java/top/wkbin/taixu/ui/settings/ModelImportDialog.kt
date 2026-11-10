@@ -70,7 +70,7 @@ fun ModelImportDialog(
         onDismissRequest = onDismiss, dismissEnabled = !busy,
         title = stringResource(if (profiles == null) R.string.profile_transfer_import else R.string.profile_transfer_preview),
         actions = {
-            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = top.wkbin.taixu.ui.miuix.RuntimeSpacing.dialogActionGap, scrollable = true) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
             RuntimeTextButton(enabled = !busy, onClick = {
                 if (profiles == null) onDismiss() else { profiles = null; error = null }
             }) { Text(stringResource(if (profiles == null) R.string.profile_transfer_cancel else R.string.profile_transfer_edit)) }
@@ -151,7 +151,7 @@ fun ModelImportDialog(
 
 @Composable
 private fun ImportChoice(selected: Boolean, enabled: Boolean, title: String, detail: String, onClick: () -> Unit) {
-    top.yukonga.miuix.kmp.preference.RadioButtonPreference(
+    top.wkbin.taixu.ui.components.RuntimeRadioPreference(
         title = resolveLegacyString(title),
         summary = resolveLegacyString(detail),
         selected = selected,

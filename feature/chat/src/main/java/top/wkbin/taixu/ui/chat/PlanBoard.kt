@@ -176,7 +176,7 @@ internal fun SessionPlanBoardCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                RuntimeIcon(RuntimeIconName.List, Modifier.size(16.dp), RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.List, Modifier.size(16.dp), RuntimeTheme.colorScheme.onSurface)
                 Text(
                     goal.ifBlank { stringResource(R.string.chat_plan_board_header) },
                     style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),

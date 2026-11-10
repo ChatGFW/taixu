@@ -1,8 +1,5 @@
 package top.wkbin.taixu.ui.terminal
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,25 +10,32 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.yukonga.miuix.kmp.basic.Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import top.wkbin.taixu.core.model.InstalledDistro
 import top.wkbin.taixu.feature.terminal.R
+import top.wkbin.taixu.runtime.WorkspaceProject
+import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeButton as Button
+import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
+import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.core.model.InstalledDistro
-import top.wkbin.taixu.runtime.WorkspaceProject
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.miuix.ButtonDefaults
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun CreateTerminalDialog(
@@ -57,7 +61,7 @@ internal fun CreateTerminalDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text(stringResource(R.string.terminal_new_session), fontWeight = FontWeight.Bold)
             }
         },
@@ -80,7 +84,7 @@ internal fun CreateTerminalDialog(
                             TerminalChoiceChip(d.displayName, selectedDistroId == d.id) { selectedDistroId = d.id }
                         }
                     }
-                    top.wkbin.taixu.ui.miuix.HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 }
 
                 Text(stringResource(R.string.terminal_label), style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
@@ -105,7 +109,7 @@ internal fun CreateTerminalDialog(
                     }
                 }
 
-                top.wkbin.taixu.ui.miuix.HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
+                HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
 
                 Text(stringResource(R.string.terminal_initial_cwd), style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
 
@@ -138,7 +142,7 @@ internal fun CreateTerminalDialog(
 
 @Composable
 private fun TerminalDirOption(name: String, path: String, selected: Boolean, onSelect: () -> Unit) {
-    top.wkbin.taixu.ui.components.RuntimeCard(
+    RuntimeCard(
         modifier = Modifier.fillMaxWidth(), onClick = onSelect, shape = RuntimeTheme.shapes.large,
         containerColor = if (selected) RuntimeTheme.colorScheme.secondaryContainer else RuntimeTheme.colorScheme.surfaceContainerHigh,
     ) {
@@ -156,9 +160,9 @@ private fun TerminalDirOption(name: String, path: String, selected: Boolean, onS
 
 @Composable
 private fun TerminalChoiceChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    top.wkbin.taixu.ui.components.RuntimeFilledTonalButton(
+    RuntimeFilledTonalButton(
         onClick = onClick, shape = CircleShape, modifier = Modifier.heightIn(min = 48.dp),
-        colors = top.wkbin.taixu.ui.miuix.ButtonDefaults.filledTonalButtonColors(
+        colors = ButtonDefaults.filledTonalButtonColors(
             containerColor = if (selected) RuntimeTheme.colorScheme.secondaryContainer else RuntimeTheme.colorScheme.surfaceContainerHigh,
             contentColor = if (selected) RuntimeTheme.colorScheme.onSecondaryContainer else RuntimeTheme.colorScheme.onSurfaceVariant,
         ),

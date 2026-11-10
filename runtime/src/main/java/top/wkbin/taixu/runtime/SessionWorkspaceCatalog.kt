@@ -6,6 +6,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.model.RemoteServer
+import top.wkbin.taixu.runtime.environment.ExecutionFileEntry
 import top.wkbin.taixu.runtime.remote.RemoteSystemService
 
 data class SessionWorkspaceCatalogState(val projects: List<WorkspaceProject> = emptyList(), val loading: Boolean = true,
@@ -14,7 +15,7 @@ data class SessionWorkspaceCatalogState(val projects: List<WorkspaceProject> = e
 /** The new-session picker uses the same selected profile and SFTP root as the remote workshop. */
 class SessionWorkspaceCatalog(private val servers: RemoteServerRepository,
     private val localProjects: () -> Flow<List<WorkspaceProject>>,
-    private val remoteProjects: suspend (RemoteServer) -> List<top.wkbin.taixu.runtime.environment.ExecutionFileEntry>) {
+    private val remoteProjects: suspend (RemoteServer) -> List<ExecutionFileEntry>) {
     constructor(servers: RemoteServerRepository, remote: RemoteSystemService, local: WorkspaceManager) :
         this(servers, local::observeProjects, { target -> remote.projects(target.id, target) })
     @OptIn(ExperimentalCoroutinesApi::class)

@@ -24,7 +24,7 @@ internal fun AddSkillDialog(
     val valid = name.isNotBlank() && prompt.isNotBlank()
     RuntimeSelectionSheet(title = "新增自定义技能", onDismissRequest = onDismiss,
         actions = {
-            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = top.wkbin.taixu.ui.miuix.RuntimeSpacing.dialogActionGap, scrollable = true) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
                 RuntimeTextButton(onDismiss) { Text("取消") }
                 RuntimeButton(onClick = { if (valid) onConfirm(name, description, prompt, command) }, enabled = valid) {
                     Text("添加并启用")

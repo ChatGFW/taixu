@@ -81,6 +81,44 @@ class ExternalAgentRuntimeServiceTest {
         assertTrue(runCatching { runtime.issueToken("chief", "nope") }.isFailure)
     }
 
+    @Test fun `issued token can carry absolute expiry`() = runBlocking {
+        seed()
+        val expiresAt = System.currentTimeMillis() + 60_000L
+        val issued = runtime.issueToken("member", "laptop", expiresAt)
+        assertEquals(expiresAt, issued.expiresAt)
+        assertEquals(expiresAt, runtime.listTokens("member").single { it.id == issued.tokenId }.expiresAt)
+        assertNotNull(runtime.authorize(issued.rawToken))
+    }
+
+    @Test fun `restore local requeues submitting claims for the member`() = runBlocking {
+        seed()
+        val issued = runtime.issueToken("member", "laptop")
+        val principal = runtime.authorize(issued.rawToken)!!
+        groups.stageMessage(
+            GroupMessage("source", "group", "user", "我", GroupSenderType.USER, "hold me", 1),
+            listOf("member"),
+        )
+        val event = runtime.claimNextDelivery(principal)!!
+        assertEquals(GroupDelivery.SUBMITTING, groups.findDelivery(event.deliveryId)!!.status)
+        assertTrue(runtime.restoreLocalRuntime("member"))
+        assertEquals(BotRuntimeMode.LOCAL, bots.getBot("member")!!.runtimeMode)
+        assertEquals(GroupDelivery.PENDING, groups.findDelivery(event.deliveryId)!!.status)
+        assertNull(groups.findDelivery(event.deliveryId)!!.claimNonce)
+        assertNull(runtime.authorize(issued.rawToken))
+    }
+
+    @Test fun `expired token cannot authorize and is purged on list`() = runBlocking {
+        var clock = 1_000_000L
+        val timed = ExternalAgentRuntimeService(bots, groups, tokens, now = { clock })
+        seed()
+        val issued = timed.issueToken("member", "laptop", expiresAt = clock + 5_000L)
+        assertNotNull(timed.authorize(issued.rawToken))
+        clock += 6_000L
+        assertNull(timed.authorize(issued.rawToken))
+        assertEquals(1, timed.revokeExpiredTokens("member"))
+        assertTrue(timed.listTokens("member").none { it.id == issued.tokenId && it.revokedAt == null })
+    }
+
     @Test fun `claim coalesces consecutive same-group pending deliveries`() = runBlocking {
         seed()
         val issued = runtime.issueToken("member", "laptop")
@@ -107,13 +145,160 @@ class ExternalAgentRuntimeServiceTest {
         assertTrue(event.content.contains("third"))
         assertTrue(event.content.contains("另有 2 条"))
         assertEquals(0, groups.pendingDeliveries().first().size)
-        event.leases.forEach { lease ->
-            assertTrue(
-                runtime.acknowledge(
-                    principal,
-                    ExternalAgentDeliveryAck(lease.deliveryId, lease.claimNonce, GroupDelivery.COMPLETED),
-                ),
-            )
-        }
+        assertEquals(3, runtime.acknowledgeAll(
+            principal,
+            event.leases.map { ExternalAgentDeliveryAck(it.deliveryId, it.claimNonce, GroupDelivery.COMPLETED) },
+        ))
+    }
+
+    @Test fun `failed ack stores error and clears lease`() = runBlocking {
+        seed()
+        val issued = runtime.issueToken("member", "laptop")
+        val principal = runtime.authorize(issued.rawToken)!!
+        groups.stageMessage(
+            GroupMessage("source", "group", "user", "我", GroupSenderType.USER, "please help", 1),
+            listOf("member"),
+        )
+        val event = runtime.claimNextDelivery(principal)!!
+        assertTrue(
+            runtime.acknowledge(
+                principal,
+                ExternalAgentDeliveryAck(event.deliveryId, event.claimNonce, GroupDelivery.FAILED, "tool crashed"),
+            ),
+        )
+        val receipt = groups.findDelivery(event.deliveryId)!!
+        assertEquals(GroupDelivery.FAILED, receipt.status)
+        assertEquals("tool crashed", receipt.error)
+        assertNull(receipt.claimedAt)
+    }
+
+    @Test fun `duplicate ack on settled lease is idempotent`() = runBlocking {
+        seed()
+        val issued = runtime.issueToken("member", "laptop")
+        val principal = runtime.authorize(issued.rawToken)!!
+        groups.stageMessage(
+            GroupMessage("source", "group", "user", "我", GroupSenderType.USER, "please help", 1),
+            listOf("member"),
+        )
+        val event = runtime.claimNextDelivery(principal)!!
+        val first = ExternalAgentDeliveryAck(event.deliveryId, event.claimNonce, GroupDelivery.COMPLETED)
+        assertTrue(runtime.acknowledge(principal, first))
+        assertTrue(runtime.acknowledge(principal, first))
+        assertTrue(
+            runtime.acknowledge(
+                principal,
+                ExternalAgentDeliveryAck(event.deliveryId, event.claimNonce, GroupDelivery.FAILED, "late retry"),
+            ),
+        )
+        assertEquals(GroupDelivery.COMPLETED, groups.findDelivery(event.deliveryId)!!.status)
+    }
+
+    @Test fun `release returns claim to pending for another turn`() = runBlocking {
+        seed()
+        val issued = runtime.issueToken("member", "laptop")
+        val principal = runtime.authorize(issued.rawToken)!!
+        groups.stageMessage(
+            GroupMessage("source", "group", "user", "我", GroupSenderType.USER, "please help", 1),
+            listOf("member"),
+        )
+        val event = runtime.claimNextDelivery(principal)!!
+        assertEquals(0, groups.pendingDeliveries().first().size)
+        assertTrue(runtime.release(principal, event.deliveryId, event.claimNonce))
+        assertEquals(1, groups.pendingDeliveries().first().size)
+        assertFalse(runtime.release(principal, event.deliveryId, event.claimNonce))
+        val again = runtime.claimNextDelivery(principal)!!
+        assertEquals("please help", again.content)
+        assertEquals(1, runtime.acknowledgeAll(
+            principal,
+            listOf(ExternalAgentDeliveryAck(again.deliveryId, again.claimNonce, GroupDelivery.COMPLETED)),
+        ))
+    }
+
+    @Test fun `recover requeues external submitting instead of marking unknown`() = runBlocking {
+        seed()
+        val issued = runtime.issueToken("member", "laptop")
+        val principal = runtime.authorize(issued.rawToken)!!
+        groups.stageMessage(
+            GroupMessage("source", "group", "user", "我", GroupSenderType.USER, "recover me", 1),
+            listOf("member"),
+        )
+        runtime.claimNextDelivery(principal)!!
+        groups.recoverDeliveries()
+        assertEquals(GroupDelivery.PENDING, groups.findDelivery("source:member")!!.status)
+        assertNull(groups.findDelivery("source:member")!!.claimNonce)
+        val again = runtime.claimNextDelivery(principal)!!
+        assertEquals("recover me", again.content)
+    }
+
+    @Test fun `lists member groups and recent context`() = runBlocking {
+        seed()
+        val issued = runtime.issueToken("member", "laptop")
+        val principal = runtime.authorize(issued.rawToken)!!
+        groups.postMessage(GroupMessage("a", "group", "user", "我", GroupSenderType.USER, "hello", 1))
+        groups.postMessage(GroupMessage("b", "group", "member", "Member", GroupSenderType.BOT, "hi", 2))
+        assertEquals(listOf("group"), runtime.listGroups(principal).map { it.id })
+        val context = runtime.groupContext(principal, "group", limit = 10)
+        assertEquals(listOf("a", "b"), context.map { it.id })
+        assertEquals("USER", context.first().senderType)
+        assertTrue(runCatching { runtime.groupContext(principal, "missing") }.isFailure)
+    }
+
+    @Test fun `session and pending peek leave deliveries unclaimed`() = runBlocking {
+        seed()
+        val issued = runtime.issueToken("member", "laptop")
+        val principal = runtime.authorize(issued.rawToken)!!
+        groups.stageMessage(
+            GroupMessage("source", "group", "user", "我", GroupSenderType.USER, "please help", 1),
+            listOf("member"),
+        )
+        val session = runtime.describeSession(principal)
+        assertEquals("member", session.botId)
+        assertEquals("laptop", session.label)
+        assertEquals(1, session.pendingCount)
+        assertEquals(ExternalAgentRuntimeService.CLAIM_LEASE_TTL_MS, session.claimLeaseTtlMs)
+        assertEquals(listOf("group"), session.groups.map { it.id })
+        val peek = runtime.peekPending(principal)
+        assertEquals(1, peek.size)
+        assertEquals("please help", peek.single().contentPreview)
+        assertEquals(1, groups.pendingDeliveries().first().size)
+        assertEquals(GroupDelivery.PENDING, groups.findDelivery(peek.single().deliveryId)!!.status)
+    }
+
+    @Test fun `stale claim is reclaimed and heartbeat renews lease`() = runBlocking {
+        seed()
+        val issued = runtime.issueToken("member", "laptop")
+        val principal = runtime.authorize(issued.rawToken)!!
+        groups.stageMessage(
+            GroupMessage("source", "group", "user", "我", GroupSenderType.USER, "stale me", 1),
+            listOf("member"),
+        )
+        val event = runtime.claimNextDelivery(principal)!!
+        assertEquals(0, groups.pendingDeliveries().first().size)
+        assertNotNull(groups.findDelivery(event.deliveryId)!!.claimedAt)
+        assertEquals(1, runtime.heartbeat(principal, listOf(event.deliveryId to event.claimNonce)))
+        val renewedAt = groups.findDelivery(event.deliveryId)!!.claimedAt!!
+        // Age below TTL: reclaim should leave the heartbeated lease alone.
+        db.openHelper.writableDatabase.execSQL(
+            "UPDATE group_deliveries SET claimedAt = ? WHERE id = ?",
+            arrayOf<Any>(
+                renewedAt - (ExternalAgentRuntimeService.CLAIM_LEASE_TTL_MS - 5_000L),
+                event.deliveryId,
+            ),
+        )
+        assertEquals(0, runtime.reclaimStaleClaims())
+        assertEquals(GroupDelivery.SUBMITTING, groups.findDelivery(event.deliveryId)!!.status)
+        // Age past TTL: reclaim returns it to pending.
+        db.openHelper.writableDatabase.execSQL(
+            "UPDATE group_deliveries SET claimedAt = ? WHERE id = ?",
+            arrayOf<Any>(
+                System.currentTimeMillis() - ExternalAgentRuntimeService.CLAIM_LEASE_TTL_MS - 1_000L,
+                event.deliveryId,
+            ),
+        )
+        assertEquals(1, runtime.reclaimStaleClaims())
+        assertEquals(1, groups.pendingDeliveries().first().size)
+        assertEquals(GroupDelivery.PENDING, groups.findDelivery(event.deliveryId)!!.status)
+        assertNull(groups.findDelivery(event.deliveryId)!!.claimNonce)
+        assertNull(groups.findDelivery(event.deliveryId)!!.claimedAt)
     }
 }

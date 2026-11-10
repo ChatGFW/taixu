@@ -1,10 +1,5 @@
 package top.wkbin.taixu.ui.settings
 
-import top.wkbin.taixu.ui.miuix.RuntimeSpacing
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,12 +11,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.wkbin.taixu.ui.miuix.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -41,10 +35,19 @@ import top.wkbin.taixu.core.datastore.PhoneAgentEndpoint
 import top.wkbin.taixu.core.tools.AgentModelConnectionTester
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 class PhoneAgentSettingsViewModel(
     private val preferences: AgentPreferences,
@@ -81,14 +84,11 @@ class PhoneAgentSettingsViewModel(
 @Composable
 internal fun PhoneAgentSettingsEntry(
     onOpen: () -> Unit,
-    viewModel: PhoneAgentSettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val config by viewModel?.config?.collectAsStateWithLifecycle(PhoneAgentEndpoint()) ?: previewStateOf(PhoneAgentEndpoint())
     SettingsRow(
         icon = RuntimeIconName.Android,
         title = "手机操作模型",
         subtitle = "单独的接口、模型名和密钥，不会出现在聊天模型里",
-        value = config.model.ifBlank { "未配置" },
         onClick = onOpen, tonalIcon = true,
     )
 }
@@ -112,9 +112,9 @@ fun PhoneAgentSettingsScreen(
         Column(
             Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding))
-                .verticalScroll(rememberScrollState()).padding(bottom = padding.calculateBottomPadding())
-                .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                .then(runtimeScrollViewport(padding))
+                .verticalScroll(rememberScrollState())
+                .padding(runtimeScrollContentPadding(padding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom))),
             verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             Text(

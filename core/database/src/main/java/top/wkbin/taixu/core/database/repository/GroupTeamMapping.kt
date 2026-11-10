@@ -1,9 +1,10 @@
 package top.wkbin.taixu.core.database.repository
 
 import top.wkbin.taixu.core.database.GroupChatEntity
-import top.wkbin.taixu.core.model.bot.GroupChat
-import top.wkbin.taixu.core.model.bot.GroupReplyMode
 import top.wkbin.taixu.core.database.GroupMemberEntity
+import top.wkbin.taixu.core.model.bot.GroupChat
+import top.wkbin.taixu.core.model.bot.GroupExecutionLimits
+import top.wkbin.taixu.core.model.bot.GroupReplyMode
 import top.wkbin.taixu.core.model.bot.GroupTeam
 
 internal fun teamFromRows(adminId: String, rows: List<GroupMemberEntity>) = GroupTeam(
@@ -22,8 +23,8 @@ internal fun GroupChatEntity.toModel() = GroupChat(
     replyMode = runCatching { GroupReplyMode.valueOf(replyMode) }.getOrDefault(GroupReplyMode.ADMIN_FIRST),
     unifiedApprovalMode = unifiedApprovalMode,
     executionLimits = executionLimitsJson?.let { runCatching {
-        kotlinx.serialization.json.Json.decodeFromString<top.wkbin.taixu.core.model.bot.GroupExecutionLimits>(it)
-    }.getOrNull() } ?: top.wkbin.taixu.core.model.bot.GroupExecutionLimits(),
+        kotlinx.serialization.json.Json.decodeFromString<GroupExecutionLimits>(it)
+    }.getOrNull() } ?: GroupExecutionLimits(),
 )
 
 internal fun GroupChat.toEntity() = GroupChatEntity(

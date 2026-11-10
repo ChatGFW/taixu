@@ -73,7 +73,7 @@ internal fun ModelConnectionThreeWayPanel(
                 Spacer(Modifier.width(6.dp))
                 Text("三项测试中…")
             } else {
-                RuntimeIcon(RuntimeIconName.Checklist, Modifier.size(16.dp), RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Checklist, Modifier.size(16.dp), RuntimeTheme.colorScheme.onSurface)
                 Spacer(Modifier.width(6.dp))
                 Text("三项连接测试（非流式 / 流式 / 工具调用）")
             }
@@ -130,7 +130,7 @@ internal fun ModelConnectionTestBlock(
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    RuntimeIcon(RuntimeIconName.Play, Modifier.size(16.dp), RuntimeTheme.colorScheme.primary)
+                    RuntimeIcon(RuntimeIconName.Play, Modifier.size(16.dp), RuntimeTheme.colorScheme.onSurface)
                     Text("测试连接")
                 }
             }
@@ -208,7 +208,7 @@ private fun ProbeRow(label: String, success: Boolean, detail: String) {
         RuntimeIcon(
             name = if (success) RuntimeIconName.Check else RuntimeIconName.Alert,
             modifier = Modifier.size(14.dp),
-            tint = if (success) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.error,
+            tint = if (success) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.error,
         )
         Text(label, style = RuntimeTheme.typography.labelMedium, modifier = Modifier.width(72.dp))
         Text(

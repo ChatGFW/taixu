@@ -1,10 +1,5 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -17,14 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.wkbin.taixu.ui.miuix.Surface
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,22 +26,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.util.Locale
+import kotlinx.coroutines.delay
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.runtime.LocalGgufModel
 import top.wkbin.taixu.runtime.LocalLlmServiceState
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeSectionTitle
-import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
+import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.miuix.ButtonDefaults
 import top.wkbin.taixu.ui.miuix.RuntimeSpacing
-import java.util.Locale
-import kotlinx.coroutines.delay
-import androidx.compose.foundation.shape.CircleShape
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
 @Composable
 internal fun LocalLlmContent(
     onBack: () -> Unit,
@@ -55,7 +57,7 @@ internal fun LocalLlmContent(
     viewModel: LocalLlmViewModel? = previewOrNull { koinViewModel() },
 ) {
     val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val serviceState by viewModel?.serviceState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.LocalLlmServiceState.Stopped)
+    val serviceState by viewModel?.serviceState?.collectAsStateWithLifecycle() ?: previewStateOf(LocalLlmServiceState.Stopped)
     val transfer by viewModel?.transfer?.collectAsStateWithLifecycle() ?: previewStateOf(LocalModelTransferUiState())
     val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
@@ -137,7 +139,7 @@ internal fun LocalLlmContent(
         },
     ) {
         item {
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 RuntimeOutlinedButton(
                     onClick = { showDownloadDialog = true },
                     enabled = !transfer.running,
@@ -211,7 +213,7 @@ internal fun LocalLlmContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        RuntimeIcon(RuntimeIconName.Info, Modifier.size(22.dp), RuntimeTheme.colorScheme.primary)
+                        RuntimeIcon(RuntimeIconName.Info, Modifier.size(22.dp), RuntimeTheme.colorScheme.onSurface)
                         Text("本地 LLM 推理", style = RuntimeTheme.typography.titleMedium)
                     }
                     Text(
@@ -226,7 +228,7 @@ internal fun LocalLlmContent(
                         ) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("需要先安装 llama.cpp 推理引擎", fontWeight = FontWeight.Medium)
-                                top.wkbin.taixu.ui.components.RuntimeActionRow() {
+                                RuntimeActionRow() {
                                     RuntimeButton(onClick = { viewModel?.installEngine() }) { Text("一键安装") }
                                     RuntimeOutlinedButton(onClick = onOpenEngine) { Text("查看详情") }
                                 }
@@ -319,7 +321,7 @@ private fun MobileModelPresetCard(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Cpu, Modifier.size(22.dp), RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Cpu, Modifier.size(22.dp), RuntimeTheme.colorScheme.onSurface)
                 Text(
                     preset.name,
                     style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
@@ -465,7 +467,7 @@ private fun ModelCard(
         borderColor = if (isRunning) RuntimeTheme.colorScheme.primary else Color.Transparent,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            RuntimeIcon(RuntimeIconName.Model, Modifier.size(28.dp), RuntimeTheme.colorScheme.primary)
+            RuntimeIcon(RuntimeIconName.Model, Modifier.size(28.dp), RuntimeTheme.colorScheme.onSurface)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     model.fileName,
@@ -636,7 +638,7 @@ private fun DeleteModelConfirmDialog(
             RuntimeButton(
                 onClick = onConfirm,
                 enabled = countdown == 0,
-                colors = top.wkbin.taixu.ui.miuix.ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = RuntimeTheme.colorScheme.error,
                     disabledContainerColor = RuntimeTheme.colorScheme.error.copy(alpha = 0.3f),
                 ),

@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.*
@@ -21,6 +21,7 @@ import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.*
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.HarnessMessage
+import top.wkbin.taixu.harness.projection.LiveMessagePort
 import top.wkbin.taixu.harness.queue.PromptQueue
 import top.wkbin.taixu.harness.session.PromptSubmission
 import top.wkbin.taixu.harness.session.SessionControl
@@ -159,7 +160,7 @@ class GroupDeliveryPumpTest {
         val bot = RoomPersonaBotRepository(db.personaBotDao()).getBot("bot")!!
         val control = FakeControl()
         control.sessionRunStates.value = mapOf("session" to SessionRunState.RUNNING)
-        val port = object : top.wkbin.taixu.harness.projection.LiveMessagePort {
+        val port = object : LiveMessagePort {
             override suspend fun append(sessionId: String, message: HarnessMessage) = error("not submitted")
             override suspend fun publishPersisted(sessionId: String, message: HarnessMessage) = error("not submitted")
             override fun snapshot(sessionId: String): List<HarnessMessage> = emptyList()

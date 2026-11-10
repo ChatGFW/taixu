@@ -1,5 +1,6 @@
 package top.wkbin.taixu.core.tools
 
+import top.wkbin.taixu.core.common.McpCatalogRevisions
 import top.wkbin.taixu.core.model.McpCatalogEntry
 import top.wkbin.taixu.core.model.McpUpdateStatus
 import top.wkbin.taixu.runtime.LinuxRuntime
@@ -48,7 +49,7 @@ class McpCatalogUpdater(private val linuxRuntime: LinuxRuntime) {
         val installed = fields["INSTALLED"].orEmpty()
         if (installed.isBlank() || fields["CHANGED"] !in setOf("0", "1"))
             return McpUpdateStatus(entry.id, error = "升级结果缺少已验证的版本信息，请检查运行时脚本")
-        if (fields["CHANGED"] == "1") top.wkbin.taixu.core.common.McpCatalogRevisions.upgraded(distroId, entry.id)
+        if (fields["CHANGED"] == "1") McpCatalogRevisions.upgraded(distroId, entry.id)
         return McpUpdateStatus(entry.id, installedVersion = installed, latestVersion = fields["LATEST"].orEmpty())
     }
 

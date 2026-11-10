@@ -29,6 +29,9 @@ import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.RuntimeFilterChip
+import top.wkbin.taixu.ui.components.RuntimeSelectionSheet
 
 /**
  * 新增 / 编辑自定义 MCP 服务。
@@ -84,11 +87,11 @@ internal fun McpServerEditorDialog(
         (transport != McpTransportType.SSE || serverUrl.isNotBlank()) &&
         (!oauthEnabled || (oauthClientId.isNotBlank() && oauthAuthorizationEndpoint.isNotBlank() && oauthTokenEndpoint.isNotBlank()))
 
-    top.wkbin.taixu.ui.components.RuntimeSelectionSheet(
+    RuntimeSelectionSheet(
         title = if (editing) "编辑 MCP 服务" else "添加 MCP 服务",
         onDismissRequest = onDismiss,
         actions = {
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = top.wkbin.taixu.ui.miuix.RuntimeSpacing.dialogActionGap, scrollable = true) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
                 TextButton(onClick = onDismiss) { Text("取消") }
             if (editing || selectedTab == 0) {
                 Button(
@@ -136,9 +139,9 @@ internal fun McpServerEditorDialog(
         },
     ) {
         if (!editing) androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            top.wkbin.taixu.ui.components.RuntimeFilterChip(selectedTab == 0, { selectedTab = 0 },
+            RuntimeFilterChip(selectedTab == 0, { selectedTab = 0 },
                 label = { Text("表单模式") }, shape = RuntimeTheme.shapes.small)
-            top.wkbin.taixu.ui.components.RuntimeFilterChip(selectedTab == 1, { selectedTab = 1 },
+            RuntimeFilterChip(selectedTab == 1, { selectedTab = 1 },
                 label = { Text("JSON 导入") }, shape = RuntimeTheme.shapes.small)
         }
         Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()),
@@ -162,9 +165,9 @@ internal fun McpServerEditorDialog(
 
                 Text("传输协议", style = RuntimeTheme.typography.titleSmall)
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    top.wkbin.taixu.ui.components.RuntimeFilterChip(transport == McpTransportType.STDIO,
+                    RuntimeFilterChip(transport == McpTransportType.STDIO,
                         { transport = McpTransportType.STDIO }, label = { Text("Stdio") }, shape = RuntimeTheme.shapes.small)
-                    top.wkbin.taixu.ui.components.RuntimeFilterChip(transport == McpTransportType.SSE,
+                    RuntimeFilterChip(transport == McpTransportType.SSE,
                         { transport = McpTransportType.SSE }, label = { Text("SSE / HTTP") }, shape = RuntimeTheme.shapes.small)
                 }
                 Text(if (transport == McpTransportType.STDIO) "在沙箱中启动服务进程" else "连接远程 HTTP / SSE 服务",
@@ -198,7 +201,7 @@ internal fun McpServerEditorDialog(
                         }
                         McpHeadersEditor(headersJson, { headersJson = it },
                             if (headerConflict) "自定义 Authorization 与 OAuth 不能同时启用" else parsedHeaders.exceptionOrNull()?.message)
-                        top.yukonga.miuix.kmp.preference.SwitchPreference(
+                        top.wkbin.taixu.ui.components.RuntimeSwitchPreference(
                             title = resolveLegacyString("OAuth 2.0 + PKCE"), summary = resolveLegacyString("授权码模式；token 加密保存且不会导出"),
                             checked = oauthEnabled, onCheckedChange = { oauthEnabled = it },
                             insideMargin = PaddingValues(horizontal = 0.dp, vertical = 16.dp),

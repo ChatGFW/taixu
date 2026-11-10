@@ -7,6 +7,7 @@ import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.plugin.packages.PluginPackageProtocol
+import top.wkbin.taixu.plugin.packages.WebPluginPackagePolicy
 
 /** Bounded extraction shared by URI import and filesystem tests. ZIP entries never become symlinks. */
 internal object LocalPluginArchive {
@@ -105,9 +106,9 @@ internal object LocalPluginArchive {
         val manifest = PluginPackageProtocol.decode(manifestText)
         ToolManifestValidator.validateAll(listOf(manifest))
         manifest.plugin?.let { require(it.integrity == hashes) { "payload 文件集合或 SHA-256 与清单不一致" } }
-        if (top.wkbin.taixu.plugin.packages.WebPluginPackagePolicy.isWeb(manifest)) {
+        if (WebPluginPackagePolicy.isWeb(manifest)) {
             val payloadBytes = hashes.keys.sumOf { File(staging, "payload/$it").length() }
-            require(payloadBytes <= top.wkbin.taixu.plugin.packages.WebPluginPackagePolicy.MAX_PAYLOAD_BYTES) { "Web 插件资源超过大小限制" }
+            require(payloadBytes <= WebPluginPackagePolicy.MAX_PAYLOAD_BYTES) { "Web 插件资源超过大小限制" }
         }
         File(staging, "manifest.json").writeText(manifestText)
         File(staging, "payload").mkdirs()

@@ -86,7 +86,7 @@ internal fun ProjectSection(
                             name = if (isExpanded) RuntimeIconName.FolderOpen
                             else RuntimeIconName.Folder,
                             modifier = Modifier.size(20.dp),
-                            tint = RuntimeTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = group.projectName,
@@ -115,7 +115,7 @@ internal fun ProjectSection(
                             RuntimeIcon(
                                 name = RuntimeIconName.Plus,
                                 modifier = Modifier.size(18.dp),
-                                tint = RuntimeTheme.colorScheme.primary,
+                                tint = RuntimeTheme.colorScheme.onSurface,
                             )
                         }
 

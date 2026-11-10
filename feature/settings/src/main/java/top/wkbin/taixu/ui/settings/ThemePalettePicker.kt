@@ -30,6 +30,7 @@ import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.theme.ThemePaletteColors
 import top.wkbin.taixu.ui.theme.themePaletteColorScheme
+import top.wkbin.taixu.ui.theme.themePaletteSeed
 
 /** Manual palettes stay available while Monet is enabled; picking one switches to manual color. */
 @Composable
@@ -87,6 +88,26 @@ internal fun ThemePalettePicker(
         Text(stringResource(if (dynamicColor) R.string.appearance_palette_wallpaper_hint else R.string.appearance_palette_manual_hint),
             style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp))
+        // miuix ColorPalette / ColorPicker：选中色映射到最近预设色板 ID。
+        val seed = remember(palette.colorId) { themePaletteSeed(palette.colorId) }
+        var draft by remember(seed) { mutableStateOf(seed) }
+        fun applyNearest(color: Color) {
+            draft = color
+            onDynamicColor(false)
+            onColor(nearestThemePaletteId(color))
+        }
+        Text("精细调色", style = RuntimeTheme.typography.titleSmall,
+            modifier = Modifier.padding(horizontal = 16.dp))
+        RuntimeColorPalette(
+            color = draft,
+            onColorChanged = ::applyNearest,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        )
+        RuntimeColorPicker(
+            color = draft,
+            onColorChanged = ::applyNearest,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        )
         top.yukonga.miuix.kmp.basic.Card {
             PersonalizationToggle(
                 icon = RuntimeIconName.Image,
@@ -95,7 +116,7 @@ internal fun ThemePalettePicker(
                 checked = dynamicColor,
                 onCheckedChange = onDynamicColor,
             )
-            top.yukonga.miuix.kmp.preference.WindowDropdownPreference(
+            top.wkbin.taixu.ui.components.RuntimeWindowDropdownPreference(
                 items = styleNames.toList(),
                 selectedIndex = palette.style.ordinal,
                 title = stringResource(R.string.appearance_palette_style),
@@ -105,3 +126,11 @@ internal fun ThemePalettePicker(
         }
     }
 }
+
+private fun nearestThemePaletteId(color: Color): String =
+    ThemePaletteColors.minBy { swatch ->
+        val dr = color.red - swatch.seed.red
+        val dg = color.green - swatch.seed.green
+        val db = color.blue - swatch.seed.blue
+        dr * dr + dg * dg + db * db
+    }.id

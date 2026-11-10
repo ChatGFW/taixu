@@ -16,6 +16,8 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.feature.settings.R
+import top.wkbin.taixu.ui.components.runtimeContentPadding
 
 /** Gate before constructing local ViewModels, including navigation/search/deep-link entry points. */
 @Composable
@@ -24,7 +26,7 @@ internal fun LocalSettingsGate(title: String, onBack: () -> Unit, unavailableCon
     val active by repository.activeId.collectAsStateWithLifecycle()
     if (active == null) content()
     else Scaffold(topBar = { RuntimeTopBar(title = title, onBack = onBack) }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = 12.dp, bottom = 24.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxSize().padding(padding).padding(runtimeContentPadding(top = 12.dp, bottom = 24.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             NoticeBanner(text = "此功能管理手机上的 Linux、插件和配置，当前主系统无法使用。请先在「Linux 系统管理」中切回本地系统。")
             Text("服务器工具链可通过智枢命令管理；手机目录不会自动挂载或同步到服务器。", style = RuntimeTheme.typography.bodyMedium)
             unavailableContent()
@@ -52,5 +54,5 @@ fun ToolCenterScreen(onBack: () -> Unit, onLaunchPty: (String) -> Unit, onOpenTo
     onStartAiHealing: (String, String, List<String>) -> Unit = { _, _, _ -> }, viewModel: ToolCenterViewModel? = null,
     onOpenLibrary: () -> Unit = {}, onOpenBuiltinFeatures: () -> Unit = {}, onOpenWebPlugins: () -> Unit = {}) =
     LocalSettingsGate("插件中心", onBack, unavailableContent = {
-        RuntimeTextButton(onClick = onOpenBuiltinFeatures) { Text(androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.settings.R.string.plugin_center_builtin)) }
+        RuntimeTextButton(onClick = onOpenBuiltinFeatures) { Text(androidx.compose.ui.res.stringResource(R.string.plugin_center_builtin)) }
     }) { LocalToolCenterContent(onBack, onLaunchPty, onOpenToolDetail, onStartAiHealing, viewModel ?: koinViewModel(), onOpenLibrary, onOpenBuiltinFeatures, onOpenWebPlugins) }

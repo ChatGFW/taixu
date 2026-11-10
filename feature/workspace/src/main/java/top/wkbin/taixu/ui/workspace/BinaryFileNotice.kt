@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,10 +17,13 @@ import androidx.compose.ui.unit.dp
 import java.util.Locale
 import top.wkbin.taixu.feature.workspace.R
 import top.wkbin.taixu.runtime.WorkspaceFileInspection
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 /**
  * 二进制产物的编辑器占位：不再把字节流当 UTF-8 文本塞进 BasicTextField
@@ -39,7 +40,7 @@ internal fun BinaryFileNotice(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        RuntimeIcon(RuntimeIconName.File, Modifier.size(40.dp), RuntimeTheme.colorScheme.primary)
+        RuntimeIcon(RuntimeIconName.File, Modifier.size(40.dp), RuntimeTheme.colorScheme.onSurface)
         Spacer(Modifier.height(16.dp))
         Text(
             stringResource(R.string.workspace_binary_title),
@@ -54,7 +55,7 @@ internal fun BinaryFileNotice(
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(24.dp))
-        top.wkbin.taixu.ui.components.RuntimeActionRow() {
+        RuntimeActionRow() {
             RuntimeFilledTonalButton(onClick = onOpen) { Text(stringResource(R.string.workspace_binary_open)) }
             RuntimeOutlinedButton(onClick = onShare) { Text(stringResource(R.string.workspace_binary_share)) }
         }

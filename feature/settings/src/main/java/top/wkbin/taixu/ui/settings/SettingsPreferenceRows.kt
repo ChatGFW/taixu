@@ -1,12 +1,24 @@
 package top.wkbin.taixu.ui.settings
 
 import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.LayoutDirection
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Switch
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
@@ -24,35 +36,68 @@ internal fun SettingsGroup(content: @Composable () -> Unit) {
     }
 }
 
+/** miuix 行内文案：标题保持库字阶，描述固定单行，超出省略，避免长描述挤成两行。 */
+@Composable
+private fun SettingsRowTexts(title: String, subtitle: String?, enabled: Boolean) {
+    Text(
+        title,
+        fontSize = MiuixTheme.textStyles.headline1.fontSize,
+        fontWeight = FontWeight.Medium,
+        color = if (enabled) MiuixTheme.colorScheme.onBackground else MiuixTheme.colorScheme.disabledOnSecondaryVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+    if (!subtitle.isNullOrEmpty()) {
+        Text(
+            subtitle,
+            fontSize = MiuixTheme.textStyles.body2.fontSize,
+            color = if (enabled) MiuixTheme.colorScheme.onSurfaceVariantSummary else MiuixTheme.colorScheme.disabledOnSecondaryVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun RowScope.SettingsRowArrow(enabled: Boolean) {
+    val tint = MiuixTheme.colorScheme.onSurfaceVariantActions
+    val layoutDirection = LocalLayoutDirection.current
+    Image(
+        modifier = Modifier
+            .size(width = 10.dp, height = 16.dp)
+            .graphicsLayer { scaleX = if (layoutDirection == LayoutDirection.Rtl) -1f else 1f }
+            .align(Alignment.CenterVertically),
+        imageVector = MiuixIcons.Basic.ArrowRight,
+        contentDescription = null,
+        colorFilter = ColorFilter.tint(if (enabled) tint else MiuixTheme.colorScheme.disabledOnSecondaryVariant),
+    )
+}
+
 @Composable
 internal fun SettingsRow(
     icon: RuntimeIconName,
     title: String,
     subtitle: String,
-    value: String? = null,
     onClick: (() -> Unit)? = null,
     tonalIcon: Boolean = false,
     enabled: Boolean = true,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
-    val startAction: @Composable () -> Unit = { SettingsRowIcon(icon) }
-    val endActions: @Composable RowScope.() -> Unit = {
-        value?.let {
-            Text(it, Modifier.widthIn(max = 128.dp), style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantActions, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        trailing()
-    }
-    if (onClick == null) {
-        top.yukonga.miuix.kmp.basic.BasicComponent(
-            title = resolveLegacyString(title), summary = resolveLegacyString(subtitle),
-            enabled = enabled, startAction = startAction, endActions = endActions,
-        )
-    } else {
-        top.yukonga.miuix.kmp.preference.ArrowPreference(
-            title = resolveLegacyString(title), summary = resolveLegacyString(subtitle),
-            enabled = enabled, onClick = onClick, startAction = startAction, endActions = endActions,
-        )
+    BasicComponent(
+        onClick = onClick,
+        enabled = enabled,
+        startAction = { SettingsRowIcon(icon) },
+        endActions = {
+            Row(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .align(Alignment.CenterVertically)
+                    .weight(1f, fill = false),
+            ) { trailing() }
+            if (onClick != null) SettingsRowArrow(enabled)
+        },
+    ) {
+        SettingsRowTexts(title, subtitle, enabled)
     }
 }
 
@@ -65,14 +110,17 @@ internal fun ToggleRow(
     change: (Boolean) -> Unit,
     enabled: Boolean = true,
 ) {
-    top.yukonga.miuix.kmp.preference.SwitchPreference(
-        checked = checked,
-        onCheckedChange = change,
-        title = resolveLegacyString(title),
-        summary = resolveLegacyString(subtitle),
-        startAction = { SettingsRowIcon(icon) },
+    BasicComponent(
+        onClick = { if (enabled) change(!checked) },
+        role = Role.Switch,
         enabled = enabled,
-    )
+        startAction = { SettingsRowIcon(icon) },
+        endActions = {
+            Switch(checked = checked, onCheckedChange = change, enabled = enabled)
+        },
+    ) {
+        SettingsRowTexts(title, subtitle, enabled)
+    }
 }
 
 /** Row glyphs sit a step behind the title: softer ink and a fixed gap before the text column. */

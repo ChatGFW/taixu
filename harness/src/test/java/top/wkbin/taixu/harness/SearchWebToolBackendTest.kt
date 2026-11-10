@@ -38,7 +38,7 @@ class SearchWebToolBackendTest {
     @Test
     fun `formats numbered results with citation guidance`() = runTest {
         val provider = FakeProvider("bing", listOf(SearchHit("标题一", "https://a.example/1", "摘要一"), SearchHit("标题二", "https://a.example/2", "")))
-        val (success, output) = SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(provider))).execute(
+        val (success, output) = SearchWebToolBackend(WebSearchProviders(listOf(provider))).execute(
             SearchWebToolRequest(args(), "s1", "/workspace"),
         )
         assertTrue(success)
@@ -55,7 +55,7 @@ class SearchWebToolBackendTest {
     fun `empty query fails without hitting provider`() = runTest {
         val provider = FakeProvider("bing", listOf(SearchHit("t", "https://a.example/1", "")))
         val failure = runCatching {
-            SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(provider))).execute(
+            SearchWebToolBackend(WebSearchProviders(listOf(provider))).execute(
                 SearchWebToolRequest(args(query = "  "), "s1", "/workspace"),
             )
         }.exceptionOrNull()
@@ -66,7 +66,7 @@ class SearchWebToolBackendTest {
     @Test
     fun `provider failure is translated into actionable output`() = runTest {
         val provider = FakeProvider("bing", failure = IllegalStateException("HTTP 503"))
-        val (success, output) = SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(provider))).execute(
+        val (success, output) = SearchWebToolBackend(WebSearchProviders(listOf(provider))).execute(
             SearchWebToolRequest(args(), "s1", "/workspace"),
         )
         assertFalse(success)
@@ -76,7 +76,7 @@ class SearchWebToolBackendTest {
 
     @Test
     fun `empty result set reports retry hint`() = runTest {
-        val (success, output) = SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(FakeProvider("bing")))).execute(
+        val (success, output) = SearchWebToolBackend(WebSearchProviders(listOf(FakeProvider("bing")))).execute(
             SearchWebToolRequest(args(), "s1", "/workspace"),
         )
         assertFalse(success)
@@ -87,7 +87,7 @@ class SearchWebToolBackendTest {
     fun `count argument out of provider bounds is rejected`() = runTest {
         val provider = FakeProvider("bing", listOf(SearchHit("t", "https://a.example/1", "")))
         val failure = runCatching {
-            SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(provider))).execute(
+            SearchWebToolBackend(WebSearchProviders(listOf(provider))).execute(
                 SearchWebToolRequest(args(count = 999), "s1", "/workspace"),
             )
         }.exceptionOrNull()
@@ -99,7 +99,7 @@ class SearchWebToolBackendTest {
     fun `defaults to bing provider when present`() = runTest {
         val bing = FakeProvider("bing", listOf(SearchHit("t", "https://a.example/1", "")))
         val other = FakeProvider("other", listOf(SearchHit("t2", "https://a.example/2", "")))
-        val (success, output) = SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(other, bing))).execute(
+        val (success, output) = SearchWebToolBackend(WebSearchProviders(listOf(other, bing))).execute(
             SearchWebToolRequest(args(), "s1", "/workspace"),
         )
         assertTrue(success)

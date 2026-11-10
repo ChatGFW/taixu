@@ -26,10 +26,11 @@ import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.core.model.bot.GroupGovernance
 
 @Composable
 internal fun GroupTeamDialog(team: GroupTeam, members: List<Bot>, onDismiss: () -> Unit,
-    governance: top.wkbin.taixu.core.model.bot.GroupGovernance = top.wkbin.taixu.core.model.bot.GroupGovernance(),
+    governance: GroupGovernance = GroupGovernance(),
     initialMemberId: String? = null, onSave: suspend (Map<String, String>) -> Unit) {
     var draft by rememberSaveable(stateSaver = SupervisorMapSaver) { mutableStateOf(team.supervisors) }
     var selecting by rememberSaveable { mutableStateOf(initialMemberId?.takeUnless { it == team.adminBotId }) }

@@ -24,6 +24,7 @@ import top.wkbin.taixu.harness.text.HashlineEditStats
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * Hashline 编辑闸门与累计观测计数（自 [AgentSettingsScreen] 抽出）。
@@ -119,7 +120,7 @@ private fun HashlineStatsRow(
                 Text("一键临时开启 legacy 编辑")
             }
         }
-        top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+        RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
             TextButton(onClick = {
                 HashlineEditStats.flush()
                 tick++

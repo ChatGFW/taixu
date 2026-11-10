@@ -31,7 +31,7 @@ class SettingsHomeMaterialRenderTest : ModelEditorRenderSupport() {
         render("round2-settings-home", height = 800, content = {
             CompositionLocalProvider(LocalInspectionMode provides true) {
             SettingsScreen(onNavigate = {}, onOpenAgentEco = {}, onOpenLinuxEnv = {}, onOpenAppearance = {},
-                onOpenSystemDev = {}, onOpenAboutCommunity = {}, onOpenSearch = { searched = true }, viewModel = null)
+                onOpenSystemDev = {}, onOpenAboutCommunity = {}, onOpenSearch = { searched = true })
             }
         }) { root ->
             click(root, RuntimeEnvironment.getApplication().getString(R.string.personal_search))

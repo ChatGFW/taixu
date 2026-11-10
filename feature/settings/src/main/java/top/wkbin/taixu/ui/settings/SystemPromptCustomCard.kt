@@ -106,7 +106,7 @@ You are a helpful and expert AI assistant called {{char}}, based on model {{mode
     RuntimeCard(Modifier.fillMaxWidth(), shape = RuntimeTheme.shapes.extraLarge) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                RuntimeIcon(RuntimeIconName.Prompt, Modifier.size(24.dp), RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Prompt, Modifier.size(24.dp), RuntimeTheme.colorScheme.onSurface)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("自定义系统提示词", style = RuntimeTheme.typography.bodyLarge)
                     Text("覆盖默认提示词，支持动态宏变量", style = RuntimeTheme.typography.bodyMedium,

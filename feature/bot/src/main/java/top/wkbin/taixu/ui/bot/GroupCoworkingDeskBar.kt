@@ -99,7 +99,7 @@ internal fun GroupCoworkingDeskBar(
                 RuntimeIcon(
                     name = RuntimeIconName.Sessions,
                     modifier = Modifier.size(16.dp),
-                    tint = RuntimeTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(

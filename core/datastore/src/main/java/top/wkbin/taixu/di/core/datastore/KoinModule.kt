@@ -8,35 +8,46 @@ import top.wkbin.taixu.core.datastore.AppearancePreferences
 import top.wkbin.taixu.core.datastore.BackupPreferenceStore
 import top.wkbin.taixu.core.datastore.BackupPreferences
 import top.wkbin.taixu.core.datastore.BrowserPreferences
+import top.wkbin.taixu.core.datastore.ChatBackgroundImageStore
+import top.wkbin.taixu.core.datastore.ChatBackgroundPreferences
+import top.wkbin.taixu.core.datastore.ChatIdentityPreferences
+import top.wkbin.taixu.core.datastore.ContainerBackendPreferences
+import top.wkbin.taixu.core.datastore.EncryptedRemoteServerRepository
 import top.wkbin.taixu.core.datastore.FirstUseGuidePreferences
 import top.wkbin.taixu.core.datastore.FtpPreferences
+import top.wkbin.taixu.core.datastore.McpClientPreferences
+import top.wkbin.taixu.core.datastore.McpToolPolicyPreferences
 import top.wkbin.taixu.core.datastore.OnboardingPreferences
+import top.wkbin.taixu.core.datastore.PluginLibraryPreferences
+import top.wkbin.taixu.core.datastore.PluginPreferences
 import top.wkbin.taixu.core.datastore.ProviderPreferences
 import top.wkbin.taixu.core.datastore.RegistryPreferences
+import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.datastore.RuntimePreferences
 import top.wkbin.taixu.core.datastore.SettingsDataStore
 import top.wkbin.taixu.core.datastore.SshPreferences
 import top.wkbin.taixu.core.datastore.TerminalPreferences
 import top.wkbin.taixu.core.datastore.ToolPreferences
 import top.wkbin.taixu.core.datastore.WorkshopPreferences
+import top.wkbin.taixu.core.model.ChatIdentityStyle
 
 /** Dependency registrations owned by the core:datastore module. */
 val coreDatastoreModule = module {
-    single { top.wkbin.taixu.core.datastore.ChatIdentityPreferences(context = get()) }
+    single { ChatIdentityPreferences(context = get()) }
     single(org.koin.core.qualifier.named("chatIdentityImages")) {
         val context = get<android.content.Context>().applicationContext
-        top.wkbin.taixu.core.datastore.ChatBackgroundImageStore(
-            java.io.File(context.filesDir, top.wkbin.taixu.core.model.ChatIdentityStyle.IMAGE_DIRECTORY),
+        ChatBackgroundImageStore(
+            java.io.File(context.filesDir, ChatIdentityStyle.IMAGE_DIRECTORY),
             { uri -> context.contentResolver.openInputStream(uri) }, maxBytes = 10L * 1024 * 1024,
         )
     }
-    single { top.wkbin.taixu.core.datastore.ChatBackgroundPreferences(context = get()) }
-    single { top.wkbin.taixu.core.datastore.ChatBackgroundImageStore(context = get()) }
-    single { top.wkbin.taixu.core.datastore.PluginPreferences(context = get()) }
-    single { top.wkbin.taixu.core.datastore.PluginLibraryPreferences(context = get()) }
-    single { top.wkbin.taixu.core.datastore.ContainerBackendPreferences(context = get()) }
-    single<top.wkbin.taixu.core.datastore.RemoteServerRepository> {
-        top.wkbin.taixu.core.datastore.EncryptedRemoteServerRepository(get(), get())
+    single { ChatBackgroundPreferences(context = get()) }
+    single { ChatBackgroundImageStore(context = get()) }
+    single { PluginPreferences(context = get()) }
+    single { PluginLibraryPreferences(context = get()) }
+    single { ContainerBackendPreferences(context = get()) }
+    single<RemoteServerRepository> {
+        EncryptedRemoteServerRepository(get(), get())
     }
     single<BackupPreferenceStore> { BackupPreferences(context = get()) }
     single<AppearancePreferences> { AppearancePreferences(store = get()) }
@@ -68,8 +79,8 @@ val coreDatastoreModule = module {
     single<BrowserPreferences> { BrowserPreferences(store = get()) }
 
     single<AgentServerPreferences> { AgentServerPreferences(store = get()) }
-    single { top.wkbin.taixu.core.datastore.McpClientPreferences(context = get()) }
-    single { top.wkbin.taixu.core.datastore.McpToolPolicyPreferences(context = get()) }
+    single { McpClientPreferences(context = get()) }
+    single { McpToolPolicyPreferences(context = get()) }
 
     single<SettingsDataStore> { SettingsDataStore(context = get(), secretManager = get()) }
 }

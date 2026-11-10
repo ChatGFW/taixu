@@ -20,9 +20,9 @@
 
 ## 外部 Agent 运行时令牌
 
-非主控成员可签发 `tx_rt_…` 运行时令牌；明文只返回一次，Room 仅存 SHA-256、备注、期限与撤销时间。有效令牌要求成员处于 `EXTERNAL` 模式；本地分发泵跳过该类成员的 pending 收件。授权后可领取本成员收件、用 claim nonce 回执，以及向所在群发 Bot 消息。不授予 MCP/宿主/其它成员权限。撤销令牌或 `restoreLocalRuntime` 后旧明文立即失效。
+非主控成员可签发 `tx_rt_…` 运行时令牌；明文只返回一次，Room 仅存 SHA-256、备注、期限与撤销时间。有效令牌要求成员处于 `EXTERNAL` 模式；本地分发泵跳过该类成员的 pending 收件。授权后可领取本成员收件、用 claim nonce 回执（同 nonce 已结算幂等成功），以及向所在群发 Bot 消息。不授予 MCP/宿主/其它成员权限。撤销令牌或 `restoreLocalRuntime` 后旧明文立即失效。
 
-局域网暴露面为独立 `ExternalAgentRuntimeServer`（默认 `0.0.0.0:8901`，路径 `/runtime/v1/*`）：只接受 `Authorization: Bearer tx_rt_…`，**不接受** Web 协作台 PIN，也不复用 WebChat 会话 Cookie。成员详情可启停该服务；关闭后端口释放，已签发令牌仍存库但无法经 HTTP 使用，直到再次启动。`claim` 支持最长 30s 的 `waitMs` 长轮询；同群连续未领取收件最多合并 8 条进一轮，每条仍须用各自 `claimNonce` 回执。数据库 89→90 增加 `runtimeMode` 与令牌表。协议细节见 [`EXTERNAL_AGENT_RUNTIME.md`](EXTERNAL_AGENT_RUNTIME.md)。
+局域网暴露面为独立 `ExternalAgentRuntimeServer`（默认 `0.0.0.0:8901`，路径 `/runtime/v1/*`）：只接受 `Authorization: Bearer tx_rt_…`，**不接受** Web 协作台 PIN，也不复用 WebChat 会话 Cookie。成员详情可启停该服务；关闭后端口释放，已签发令牌仍存库但无法经 HTTP 使用，直到再次启动。`/health` 与 `/meta` 免鉴权（仅服务名 / 路由目录，不含令牌与队列）；`/me` 返回 pending 计数、租约 TTL 与群摘要；`/events/pending` 仅预览不领取。过期令牌不能通过 `authorize`；可用 `revokeExpiredTokens` 批量清理。`claim` 支持最长 30s 的 `waitMs` 长轮询；同群连续未领取收件最多合并 8 条进一轮，可用批量 `ack` 一次结算，也可用 `release` 把 `submitting` 租约放回 pending。EXTERNAL `submitting` 默认 15 分钟无 `heartbeat` 会回收回 pending；冷启动时未结算 `submitting` 仍会重新入队，不标 UNKNOWN。切回 LOCAL 会先回收该成员未结算租约，避免本地泵永久跳过。数据库 89→90 增加 `runtimeMode` 与令牌表；90→91 增加 `claimedAt`。协议细节见 [`EXTERNAL_AGENT_RUNTIME.md`](EXTERNAL_AGENT_RUNTIME.md)。
 
 ## 2026-10-30：产物外发、二进制边界与请求体积
 

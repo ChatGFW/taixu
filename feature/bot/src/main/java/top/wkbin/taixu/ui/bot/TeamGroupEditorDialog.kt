@@ -3,8 +3,6 @@ package top.wkbin.taixu.ui.bot
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -13,6 +11,9 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.model.bot.*
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun TeamGroupEditorDialog(group: BotMemberGroup, bots: List<Bot>, onDismiss: () -> Unit,
@@ -52,7 +53,7 @@ internal fun TeamGroupEditorDialog(group: BotMemberGroup, bots: List<Bot>, onDis
                 TeamArchitectureGraph(team, definition.governance, members, editable = !saving) { id ->
                     if (id == root) selectingRoot = true else { selectedNode = id; editingManagement = true }
                 }
-                top.wkbin.taixu.ui.components.RuntimeActionRow() {
+                RuntimeActionRow() {
                     RuntimeTextButton(enabled = !saving, onClick = { selectedNode = null; editingManagement = true }) { Text("编辑管理关系") }
                     RuntimeTextButton(enabled = !saving, onClick = { editingReview = true }) { Text("编辑审议规则") }
                 }

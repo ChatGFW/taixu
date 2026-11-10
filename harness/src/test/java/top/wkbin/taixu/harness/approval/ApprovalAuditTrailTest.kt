@@ -40,15 +40,16 @@ import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.HostCapabilityToolBackend
 import top.wkbin.taixu.harness.LinuxCommandToolBackend
 import top.wkbin.taixu.harness.PromptAssetToolBackend
+import top.wkbin.taixu.harness.SearchWebToolBackend
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolExecutor
 import top.wkbin.taixu.harness.WorkspaceFileAccess
 import top.wkbin.taixu.harness.WorkspaceMutationSnapshots
 import top.wkbin.taixu.harness.core.ToolCheckpoints
 import top.wkbin.taixu.harness.directory.CapabilityToolGateway
-import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.harness.websearch.StubSearchProvider
-import top.wkbin.taixu.harness.SearchWebToolBackend
+import top.wkbin.taixu.harness.websearch.WebSearchProviders
+import top.wkbin.taixu.runtime.LinuxRuntime
 
 /**
  * 审批审计台账（DSH 借鉴项）：会话授权豁免 / deferred 交接必须留下持久痕迹；
@@ -99,7 +100,7 @@ class ApprovalAuditTrailTest {
             askUserToolBackend = AskUserToolBackend(ApprovalPolicyEngine(paths), approvals),
             promptAssetToolBackend = PromptAssetToolBackend(),
             harnessServiceToolBackend = HarnessServiceToolBackend(),
-            searchWebToolBackend = SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(StubSearchProvider()))),
+            searchWebToolBackend = SearchWebToolBackend(WebSearchProviders(listOf(StubSearchProvider()))),
             capabilityToolGateway = CapabilityToolGateway(null) { _, _, _, _ -> error("unexpected host dispatch") },
             approvalRepository = approvalRepo, sessionDao = sessions,
             sessionApprovalGrants = grants,
@@ -250,7 +251,7 @@ class ApprovalAuditTrailTest {
             askUserToolBackend = AskUserToolBackend(ApprovalPolicyEngine(paths), approvals),
             promptAssetToolBackend = PromptAssetToolBackend(),
             harnessServiceToolBackend = HarnessServiceToolBackend(),
-            searchWebToolBackend = SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(StubSearchProvider()))),
+            searchWebToolBackend = SearchWebToolBackend(WebSearchProviders(listOf(StubSearchProvider()))),
             capabilityToolGateway = CapabilityToolGateway(null) { _, _, _, _ -> error("unexpected host dispatch") },
             approvalRepository = approvals, sessionDao = sessions,
             sessionApprovalGrants = grants,

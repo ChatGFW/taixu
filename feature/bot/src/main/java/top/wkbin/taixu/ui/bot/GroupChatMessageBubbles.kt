@@ -147,7 +147,7 @@ private fun MessageBubble(message: GroupMessage, shape: Shape) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            RuntimeIcon(RuntimeIconName.Sparkles, Modifier.size(14.dp), RuntimeTheme.colorScheme.primary)
+            RuntimeIcon(RuntimeIconName.Sparkles, Modifier.size(14.dp), RuntimeTheme.colorScheme.onSurface)
             Text(
                 text = content.toString().removePrefix("⏳").trim(),
                 style = RuntimeTheme.typography.labelMedium,
@@ -225,7 +225,7 @@ private fun SystemNotice(message: GroupMessage) {
     val content = message.content.trim()
     val warning = content.startsWith("⚠️") || content.startsWith("❌")
     val icon = if (warning) RuntimeIconName.Alert else RuntimeIconName.Info
-    val tint = if (warning) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.primary
+    val tint = if (warning) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurface
     Surface(
         color = RuntimeTheme.colorScheme.surfaceContainerLow,
         shape = RuntimeTheme.shapes.small,

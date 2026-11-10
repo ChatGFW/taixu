@@ -1,10 +1,5 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -22,49 +17,55 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import top.wkbin.taixu.ui.miuix.*
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
-import top.wkbin.taixu.ui.components.RuntimeCard
-import androidx.compose.ui.res.stringResource
-import top.wkbin.taixu.feature.settings.R as SettingsR
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.database.AiModelEntity
+import top.wkbin.taixu.core.database.ToolEntity
+import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.core.model.ToolState
+import top.wkbin.taixu.feature.settings.R as SettingsR
 import top.wkbin.taixu.ui.components.CodeBlockRow
 import top.wkbin.taixu.ui.components.InfoRow
 import top.wkbin.taixu.ui.components.NoticeBanner
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeButton as Button
+import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
+import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.StatusBadge
-import kotlinx.coroutines.delay
-import top.wkbin.taixu.core.database.ToolEntity
-import top.wkbin.taixu.core.model.ToolManifest
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.miuix.*
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
 /**
  * 太墟 · 插件配置详情页 (Tool Detail & Configuration Screen)
  *
@@ -533,7 +534,7 @@ private fun ServiceLogsCard(
                 RuntimeIcon(
                     name = RuntimeIconName.Terminal,
                     modifier = Modifier.size(18.dp),
-                    tint = if (running) successStatusColor() else RuntimeTheme.colorScheme.primary,
+                    tint = if (running) successStatusColor() else RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = "服务实时控制台日志",
@@ -655,7 +656,7 @@ private fun ModelApplyCard(
                 RuntimeIcon(
                     name = RuntimeIconName.Chat,
                     modifier = Modifier.size(18.dp),
-                    tint = RuntimeTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = "模型配置",
@@ -852,7 +853,7 @@ private fun AccessLinkCard(
                 RuntimeIcon(
                     name = RuntimeIconName.Globe,
                     modifier = Modifier.size(18.dp),
-                    tint = RuntimeTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = "访问链接",
@@ -967,7 +968,7 @@ private fun AccessLinkCard(
                         RuntimeIcon(
                             name = RuntimeIconName.Copy,
                             modifier = Modifier.size(16.dp),
-                            tint = RuntimeTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -992,7 +993,7 @@ private fun AccessLinkCard(
 
         Spacer(Modifier.height(8.dp))
 
-        top.wkbin.taixu.ui.components.RuntimeActionRow() {
+        RuntimeActionRow() {
             FilledTonalButton(
                 onClick = onGenerate,
                 shape = RuntimeTheme.shapes.medium,
@@ -1030,7 +1031,7 @@ private fun ToolMetadataCard(
             RuntimeIcon(
                 name = RuntimeIconName.Settings,
                 modifier = Modifier.size(18.dp),
-                tint = RuntimeTheme.colorScheme.primary,
+                tint = RuntimeTheme.colorScheme.onSurface,
             )
             Text(
                 text = "工具信息",
@@ -1178,7 +1179,7 @@ private fun ToolActionsCard(
             RuntimeIcon(
                 name = RuntimeIconName.More,
                 modifier = Modifier.size(18.dp),
-                tint = RuntimeTheme.colorScheme.primary,
+                tint = RuntimeTheme.colorScheme.onSurface,
             )
             Text(
                 text = "操作",
@@ -1188,7 +1189,7 @@ private fun ToolActionsCard(
 
         Spacer(Modifier.height(10.dp))
 
-                if (isInstalled) top.wkbin.taixu.ui.components.RuntimeActionRow {
+                if (isInstalled) RuntimeActionRow {
                 FilledTonalButton(
                     onClick = onLaunchTerminal,
                     shape = RuntimeTheme.shapes.medium,

@@ -41,6 +41,7 @@ import top.wkbin.taixu.harness.task.DeliveryArtifactKind
 import top.wkbin.taixu.runtime.HostFileActions
 import top.wkbin.taixu.ui.components.LocalSandboxHostRoots
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /** 交付产物的当前磁盘状态：只有与记录哈希一致时才敢说「这就是记录的版本」。 */
 internal enum class DeliveryIntegrity { UNRESOLVED, MISSING, PENDING, MATCHED, CHANGED }
@@ -149,7 +150,7 @@ internal fun DeliveryArtifactRow(
                 }
             }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                top.wkbin.taixu.ui.components.RuntimeActionRow() {
+                RuntimeActionRow() {
                     // 文本日志在编辑器里看最直接（有语法高亮/行号），不必先找个外部应用。
                     if (artifact.kind == DeliveryArtifactKind.OUTPUT_LOG && onOpenFile != null) {
                         RuntimeTextButton(onClick = {

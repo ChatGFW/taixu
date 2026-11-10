@@ -1,9 +1,12 @@
 package top.wkbin.taixu.harness.workflow
 
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -18,9 +21,8 @@ import top.wkbin.taixu.core.model.workflow.WorkflowRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeContext
 import top.wkbin.taixu.core.model.workflow.WorkflowValidator
 import top.wkbin.taixu.core.model.workflow.previousOutput
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withTimeout
+import top.wkbin.taixu.harness.approval.RunInitiator
+import top.wkbin.taixu.harness.approval.currentRunInitiator
 
 class WorkflowSchedulerTest {
     @Test
@@ -176,7 +178,7 @@ class WorkflowSchedulerTest {
         var seenKind: String? = null
         var seenId: String? = null
         val executor = fakeExecutor { _, context ->
-            val initiator = top.wkbin.taixu.harness.approval.currentRunInitiator()
+            val initiator = currentRunInitiator()
             seenKind = initiator.kind
             seenId = initiator.id
             assertEquals(context.executionId, initiator.id)
@@ -186,7 +188,7 @@ class WorkflowSchedulerTest {
             .execute(definition(listOf(node("a"))), emptyMap(), "/workspace/test", this)
             .state.first { it.status in TERMINAL }
         assertEquals(WorkflowRunStatus.SUCCESS, result.status)
-        assertEquals(top.wkbin.taixu.harness.approval.RunInitiator.WORKFLOW, seenKind)
+        assertEquals(RunInitiator.WORKFLOW, seenKind)
         assertEquals(result.executionId, seenId)
     }
 

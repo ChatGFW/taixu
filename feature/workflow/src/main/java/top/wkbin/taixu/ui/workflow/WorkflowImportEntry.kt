@@ -5,25 +5,26 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
 import top.wkbin.taixu.core.model.workflow.WorkflowDefinitionImport
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun WorkflowCatalogEntry(onCreate: () -> Unit, onImport: (WorkflowDefinition) -> Unit) {
@@ -31,7 +32,7 @@ internal fun WorkflowCatalogEntry(onCreate: () -> Unit, onImport: (WorkflowDefin
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("把构建、诊断、逆向与 Git 操作编排成可观察、可暂停的 DAG。",
             style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
-        top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+        RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
             RuntimeButton(onClick = onCreate, modifier = Modifier) { Text("新建", maxLines = 1) }
             RuntimeOutlinedButton(onClick = { importing = true }, modifier = Modifier) { Text("导入 JSON", maxLines = 1) }
         }

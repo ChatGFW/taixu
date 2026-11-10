@@ -1,26 +1,27 @@
 package top.wkbin.taixu.ui.settings
 
-import top.wkbin.taixu.ui.miuix.RuntimeSpacing
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Scaffold
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
+import top.wkbin.taixu.core.model.PluginLibraryChannel
 import top.wkbin.taixu.core.tools.LocalPluginImportState
 import top.wkbin.taixu.core.tools.RemotePluginSource
-import top.wkbin.taixu.core.model.PluginLibraryChannel
-import top.wkbin.taixu.ui.components.*
-import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.settings.R
+import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.miuix.FilterChip
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 fun RemotePluginLibraryScreen(onBack: () -> Unit) {
@@ -47,7 +48,7 @@ internal fun RemotePluginsScreen(onBack: () -> Unit, model: RemotePluginsViewMod
                         Text("仓库渠道", style = RuntimeTheme.typography.labelLarge)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             PluginLibraryChannel.entries.forEach { channel ->
-                                top.wkbin.taixu.ui.miuix.FilterChip(
+                                FilterChip(
                                     selected = state.channel == channel,
                                     onClick = { model.selectChannel(channel) },
                                     enabled = !state.busy && !importingBusy && state.pendingWeb == null,

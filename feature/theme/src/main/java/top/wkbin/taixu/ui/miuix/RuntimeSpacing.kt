@@ -12,7 +12,8 @@ object RuntimeSpacing {
     val rowIconSize = 24.dp
     val rowIconEnd = 6.dp
     val buttonMinHeight = 48.dp
-    val actionMinWidth = 96.dp
+    // 88dp：常见卡片内容宽可排下 3 个等分按钮，避免 2+1 折行。
+    val actionMinWidth = 88.dp
     val actionGap = 12.dp
     val dialogActionGap = 20.dp
 }

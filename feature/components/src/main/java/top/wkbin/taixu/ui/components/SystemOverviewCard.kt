@@ -17,7 +17,7 @@ fun SystemOverviewCard(name: String, address: String, workspace: String, loading
         shape = RuntimeTheme.shapes.extraLarge, containerColor = RuntimeTheme.colorScheme.surfaceContainer) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                IconTile(icon = RuntimeIconName.Server, size = 44.dp, color = RuntimeTheme.colorScheme.primary)
+                IconTile(icon = RuntimeIconName.Server, size = 44.dp, color = RuntimeTheme.colorScheme.onSurface)
                 Column(Modifier.weight(1f)) {
                     Text(name, style = RuntimeTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(address, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant,

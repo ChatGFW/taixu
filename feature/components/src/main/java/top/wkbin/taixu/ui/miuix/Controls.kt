@@ -92,17 +92,46 @@ fun LinearProgressIndicator(
     colors = top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults.progressIndicatorColors(
         foregroundColor = color, backgroundColor = trackColor))
 
+/**
+ * 不确定加载：走 miuix [InfiniteProgressIndicator]（圆环 + 轨道点），
+ * 不是弧形扫过的 [top.yukonga.miuix.kmp.basic.CircularProgressIndicator]。
+ * [trackColor] 保留兼容，圆环加载不用轨道色。
+ */
 @Composable
 fun CircularProgressIndicator(
     modifier: Modifier = Modifier,
-    color: Color = top.yukonga.miuix.kmp.theme.LocalContentColor.current,
+    color: Color = RuntimeTheme.colorScheme.onSurfaceVariant,
     trackColor: Color = Color.Transparent,
+    strokeWidth: Dp = 2.dp,
+) {
+    BoxWithConstraints(modifier.size(20.dp)) {
+        val indicatorSize = minOf(maxWidth, maxHeight)
+        val ring = strokeWidth.coerceIn(1.dp, (indicatorSize / 8).coerceAtLeast(1.dp))
+        val dot = (indicatorSize / 10).coerceIn(1.5.dp, 3.dp)
+        top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator(
+            modifier = Modifier.size(indicatorSize),
+            color = color,
+            size = indicatorSize,
+            strokeWidth = ring,
+            orbitingDotSize = dot,
+        )
+    }
+}
+
+/** 确定进度圆环（扫弧）；不确定加载请用 [CircularProgressIndicator]。 */
+@Composable
+fun DeterminateCircularProgressIndicator(
+    progress: Float,
+    modifier: Modifier = Modifier,
+    color: Color = RuntimeTheme.colorScheme.primary,
+    trackColor: Color = RuntimeTheme.colorScheme.secondaryContainer,
     strokeWidth: Dp = 4.dp,
 ) {
-    BoxWithConstraints(modifier.size(24.dp)) {
+    BoxWithConstraints(modifier.size(30.dp)) {
         val indicatorSize = minOf(maxWidth, maxHeight)
         top.yukonga.miuix.kmp.basic.CircularProgressIndicator(
             modifier = Modifier.size(indicatorSize),
+            progress = progress.coerceIn(0f, 1f),
             size = indicatorSize,
             colors = top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults.progressIndicatorColors(
                 foregroundColor = color, backgroundColor = trackColor),

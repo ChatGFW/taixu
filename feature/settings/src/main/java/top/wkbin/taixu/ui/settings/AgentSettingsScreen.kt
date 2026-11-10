@@ -1,16 +1,11 @@
 package top.wkbin.taixu.ui.settings
 
-import top.wkbin.taixu.ui.miuix.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
-import org.koin.compose.koinInject
-import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,25 +16,18 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.wkbin.taixu.ui.components.RuntimeSlider as Slider
-import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,24 +37,43 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
+import top.wkbin.taixu.core.common.translation.TranslationModelStatus
+import top.wkbin.taixu.core.datastore.AgentPreferences
+import top.wkbin.taixu.core.model.AgentDepartments
 import top.wkbin.taixu.core.model.AgentPlugin
-import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.core.model.AgentSkill
 import top.wkbin.taixu.core.model.AgentSubagent
-import top.wkbin.taixu.core.model.AgentDepartments
+import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.RunMode
+import top.wkbin.taixu.core.model.RunningSendMode
+import top.wkbin.taixu.core.model.skill.ClawHubMarketItem
+import top.wkbin.taixu.harness.ContextWindowPolicy
+import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
-import top.wkbin.taixu.core.model.skill.ClawHubMarketItem
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.*
+import top.wkbin.taixu.ui.miuix.TopAppBarDefaults
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import top.wkbin.taixu.ui.settings.skill.SkillSecurityAuditDialog
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-import top.wkbin.taixu.core.datastore.AgentPreferences
 
 enum class AgentSettingsCategory { EXECUTION, SUBAGENTS, SKILLS }
 
@@ -77,7 +84,7 @@ fun AgentSettingsScreen(
     viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
     val thinkingExpanded by viewModel?.thinkingExpanded?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    val translationModelStatus by viewModel?.translationModelStatus?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.common.translation.TranslationModelStatus.NotDownloaded)
+    val translationModelStatus by viewModel?.translationModelStatus?.collectAsStateWithLifecycle() ?: previewStateOf(TranslationModelStatus.NotDownloaded)
     val thinkingAutoTranslate by viewModel?.thinkingAutoTranslate?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val chatRoundCollapse by viewModel?.chatRoundCollapse?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val customSystemPromptEnabled by viewModel?.customSystemPromptEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
@@ -96,9 +103,9 @@ fun AgentSettingsScreen(
     val autoWorkspaceCwd by viewModel?.autoWorkspaceCwd?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val commandOutputCompressionEnabled by viewModel?.commandOutputCompressionEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val baseCommandTimeoutSeconds by viewModel?.baseCommandTimeoutSeconds?.collectAsStateWithLifecycle() ?: previewStateOf(0)
-    val approvalMode by viewModel?.approvalMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.ApprovalMode.ASSISTED)
-    val runMode by viewModel?.runMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RunMode.BUILD)
-    val runningSendMode by viewModel?.runningSendMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RunningSendMode.QUEUE)
+    val approvalMode by viewModel?.approvalMode?.collectAsStateWithLifecycle() ?: previewStateOf(ApprovalMode.ASSISTED)
+    val runMode by viewModel?.runMode?.collectAsStateWithLifecycle() ?: previewStateOf(RunMode.BUILD)
+    val runningSendMode by viewModel?.runningSendMode?.collectAsStateWithLifecycle() ?: previewStateOf(RunningSendMode.QUEUE)
     val maxToolsPerRound by viewModel?.maxToolsPerRound?.collectAsStateWithLifecycle() ?: previewStateOf(0)
     val maxConsecutiveFailures by viewModel?.maxConsecutiveFailures?.collectAsStateWithLifecycle() ?: previewStateOf(0)
     val contextBudgetTokens by viewModel?.contextBudgetTokens?.collectAsStateWithLifecycle() ?: previewStateOf(0)
@@ -159,7 +166,7 @@ fun AgentSettingsScreen(
     }
     val skillDirPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> if (uri != null) viewModel?.importSkillsFromTree(uri) }
 
-    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = RuntimeTheme.colorScheme.surface,
@@ -178,8 +185,8 @@ fun AgentSettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
-            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                .then(runtimeScrollViewport(padding)),
+            contentPadding = runtimeScrollContentPadding(padding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
             verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             if (category == AgentSettingsCategory.EXECUTION) {
@@ -786,42 +793,22 @@ private fun AutoContinuationSliderRow(
 ) {
     var sliderVal by remember(currentValue) { mutableFloatStateOf(currentValue.toFloat()) }
     val continuations = sliderVal.toInt()
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("轮次用尽后自动续跑", style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-            Text(
-                if (continuations == 0) "关闭" else "$continuations 次",
-                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
-                color = RuntimeTheme.colorScheme.primary,
-            )
-        }
-        Text(
-            if (continuations == 0) {
-                "轮次用尽即停下等待用户确认；适合希望逐段把关的场景"
-            } else {
-                "轮次用尽时先让模型收束并记录进度，再自动续跑，无需用户点击继续；" +
-                    "总预算上限 ${roundsPerSegment * (continuations + 1)} 轮"
-            },
-            style = RuntimeTheme.typography.bodySmall,
-            color = RuntimeTheme.colorScheme.onSurfaceVariant,
-        )
-        Slider(
-            value = sliderVal,
-            onValueChange = { sliderVal = it },
-            onValueChangeFinished = { onValueChange(sliderVal.toInt()) },
-            valueRange = 0f..10f,
-            steps = 9, // 0, 1, 2 ... 10
-        )
+    val summary = if (continuations == 0) {
+        "轮次用尽即停下等待用户确认；适合希望逐段把关的场景"
+    } else {
+        "轮次用尽时先让模型收束并记录进度，再自动续跑，无需用户点击继续；总预算上限 ${roundsPerSegment * (continuations + 1)} 轮"
     }
+    top.wkbin.taixu.ui.components.RuntimeSliderPreference(
+        value = sliderVal,
+        onValueChange = { sliderVal = it },
+        modifier = Modifier.fillMaxWidth(),
+        title = "轮次用尽后自动续跑",
+        summary = summary,
+        valueText = if (continuations == 0) "关闭" else "$continuations 次",
+        valueRange = 0f..10f,
+        steps = 9,
+        onValueChangeFinished = { onValueChange(sliderVal.toInt()) },
+    )
 }
 
 @Composable
@@ -831,43 +818,22 @@ private fun ContextBudgetSliderRow(
     onValueChange: (Int) -> Unit,
 ) {
     var sliderVal by remember(currentValue) { mutableFloatStateOf(currentValue.toFloat()) }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("上下文 Token 预算上限", style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-            Text(
-                "${sliderVal.toInt()} tok",
-                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
-                color = RuntimeTheme.colorScheme.primary,
-            )
-        }
-        Text(
-            if (declaredTokens != null) {
-                "当前激活模型已适配上下文上限 ${declaredTokens / 1000}K（显式配置或自动识别），此滑块暂不生效；" +
-                    "仅在模型无法识别且未配置 contextTokens 时，本值才作为兜底预算。"
-            } else {
-                "当前未识别到激活模型上下文上限，本值即实际生效预算；" +
-                    "长会话历史超出预算将自动折叠早期内容。"
-            },
-            style = RuntimeTheme.typography.bodySmall,
-            color = RuntimeTheme.colorScheme.onSurfaceVariant,
-        )
-        Slider(
-            value = sliderVal,
-            onValueChange = { sliderVal = it },
-            onValueChangeFinished = { onValueChange(sliderVal.toInt()) },
-            valueRange = 8000f..2000000f,
-            steps = 49, // 步长约 4 万 tok
-        )
+    val summary = if (declaredTokens != null) {
+        "当前激活模型已适配上下文上限 ${declaredTokens / 1000}K（显式配置或自动识别），此滑块暂不生效；仅在模型无法识别且未配置 contextTokens 时，本值才作为兜底预算。"
+    } else {
+        "当前未识别到激活模型上下文上限，本值即实际生效预算；长会话历史超出预算将自动折叠早期内容。"
     }
+    top.wkbin.taixu.ui.components.RuntimeSliderPreference(
+        value = sliderVal,
+        onValueChange = { sliderVal = it },
+        modifier = Modifier.fillMaxWidth(),
+        title = "上下文 Token 预算上限",
+        summary = summary,
+        valueText = "${sliderVal.toInt()} tok",
+        valueRange = 8000f..2000000f,
+        steps = 49,
+        onValueChangeFinished = { onValueChange(sliderVal.toInt()) },
+    )
 }
 
 /**
@@ -898,64 +864,31 @@ private fun ContextFoldingRatioSliderRow(
             systemTokens = previewSystemTokens,
         ).coerceAtLeast(0)
     }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("历史折叠线比例", style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-            Text(
-                "${sliderVal.toInt()}%",
-                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
-                color = RuntimeTheme.colorScheme.primary,
-            )
-        }
-        Text(
-            "历史在「预算 × 比例」处开始折叠；默认 100%，对齐主流 harness 的" +
-                " contextWindow - reserveTokens - toolSchemaReserve - systemTokens。" +
-                "调低比例可让历史更早进入摘要、节省 input token；大窗口模型不再被 96K 封顶。" +
-                "走 Nginx/中转时请把 client_max_body_size 调到 20m 以上，否则可能 HTTP 413。",
-            style = RuntimeTheme.typography.bodySmall,
-            color = RuntimeTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            "按当前设置，折叠线约为 ${previewLimit / 1000}K tok",
-            style = RuntimeTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-            color = RuntimeTheme.colorScheme.primary,
-        )
-        // 说明这个预览数按什么预算折算，避免用户误以为它基于「上下文预算上限」滑块。
-        Text(
-            if (declaredTokens != null) {
-                "以上按当前生效模型窗口 ${budget / 1000}K 计算" +
-                    "（显式配置或自动适配）" +
-                    (if (declaredTokens > ContextWindowPolicy.MAX_CONTEXT_BUDGET) {
-                        "，引擎钳制到 ${ContextWindowPolicy.MAX_CONTEXT_BUDGET / 1000}K"
-                    } else {
-                        ""
-                    }) +
-                    "。预览已扣除系统提示/输出/工具 schema 预留。"
+    val budgetHint = if (declaredTokens != null) {
+        "以上按当前生效模型窗口 ${budget / 1000}K 计算（显式配置或自动适配）" +
+            (if (declaredTokens > ContextWindowPolicy.MAX_CONTEXT_BUDGET) {
+                "，引擎钳制到 ${ContextWindowPolicy.MAX_CONTEXT_BUDGET / 1000}K"
             } else {
-                "以上按上方「上下文预算上限」滑块的值计算（当前未识别到模型上下文上限）。" +
-                    "预览已扣除系统提示/输出/工具 schema 预留。"
-            },
-            style = RuntimeTheme.typography.bodySmall,
-            color = RuntimeTheme.colorScheme.onSurfaceVariant,
-        )
-        Slider(
-            value = sliderVal,
-            onValueChange = { sliderVal = it },
-            onValueChangeFinished = { onValueChange(sliderVal.toInt()) },
-            // 与 SettingsDataStore.setContextFoldingRatioPercent 的 coerceIn(10, 100) 对齐
-            valueRange = 10f..100f,
-            steps = 8, // 步长 10%
-        )
+                ""
+            }) +
+            "。预览已扣除系统提示/输出/工具 schema 预留。"
+    } else {
+        "以上按上方「上下文预算上限」滑块的值计算（当前未识别到模型上下文上限）。预览已扣除系统提示/输出/工具 schema 预留。"
     }
+    val summary =
+        "历史在「预算 × 比例」处开始折叠；默认 100%。调低比例可让历史更早进入摘要、节省 input token。" +
+            "按当前设置，折叠线约为 ${previewLimit / 1000}K tok。" + budgetHint
+    top.wkbin.taixu.ui.components.RuntimeSliderPreference(
+        value = sliderVal,
+        onValueChange = { sliderVal = it },
+        modifier = Modifier.fillMaxWidth(),
+        title = "历史折叠线比例",
+        summary = summary,
+        valueText = "${sliderVal.toInt()}%",
+        valueRange = 10f..100f,
+        steps = 8,
+        onValueChangeFinished = { onValueChange(sliderVal.toInt()) },
+    )
 }
 
 @Composable
@@ -964,37 +897,17 @@ private fun ToolsPerRoundSliderRow(
     onValueChange: (Int) -> Unit,
 ) {
     var sliderVal by remember(currentValue) { mutableFloatStateOf(currentValue.toFloat()) }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("单轮最大工具调用数", style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-            Text(
-                "${sliderVal.toInt()} 个",
-                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
-                color = RuntimeTheme.colorScheme.primary,
-            )
-        }
-        Text(
-            "防止模型一次性爆发大量工具调用耗尽上下文或失控循环",
-            style = RuntimeTheme.typography.bodySmall,
-            color = RuntimeTheme.colorScheme.onSurfaceVariant,
-        )
-        Slider(
-            value = sliderVal,
-            onValueChange = { sliderVal = it },
-            onValueChangeFinished = { onValueChange(sliderVal.toInt()) },
-            valueRange = 1f..30f,
-            steps = 29,
-        )
-    }
+    top.wkbin.taixu.ui.components.RuntimeSliderPreference(
+        value = sliderVal,
+        onValueChange = { sliderVal = it },
+        modifier = Modifier.fillMaxWidth(),
+        title = "单轮最大工具调用数",
+        summary = "防止模型一次性爆发大量工具调用耗尽上下文或失控循环",
+        valueText = "${sliderVal.toInt()} 个",
+        valueRange = 1f..30f,
+        steps = 29,
+        onValueChangeFinished = { onValueChange(sliderVal.toInt()) },
+    )
 }
 
 @Composable
@@ -1003,37 +916,17 @@ private fun ConsecutiveFailuresSliderRow(
     onValueChange: (Int) -> Unit,
 ) {
     var sliderVal by remember(currentValue) { mutableFloatStateOf(currentValue.toFloat()) }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("连续失败熔断阈值", style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-            Text(
-                "${sliderVal.toInt()} 轮",
-                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
-                color = RuntimeTheme.colorScheme.primary,
-            )
-        }
-        Text(
-            "连续多轮工具调用全部失败时主动终止，避免陷入死循环空转",
-            style = RuntimeTheme.typography.bodySmall,
-            color = RuntimeTheme.colorScheme.onSurfaceVariant,
-        )
-        Slider(
-            value = sliderVal,
-            onValueChange = { sliderVal = it },
-            onValueChangeFinished = { onValueChange(sliderVal.toInt()) },
-            valueRange = 2f..30f,
-            steps = 28,
-        )
-    }
+    top.wkbin.taixu.ui.components.RuntimeSliderPreference(
+        value = sliderVal,
+        onValueChange = { sliderVal = it },
+        modifier = Modifier.fillMaxWidth(),
+        title = "连续失败熔断阈值",
+        summary = "连续多轮工具调用全部失败时主动终止，避免陷入死循环空转",
+        valueText = "${sliderVal.toInt()} 轮",
+        valueRange = 2f..30f,
+        steps = 28,
+        onValueChangeFinished = { onValueChange(sliderVal.toInt()) },
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)

@@ -27,10 +27,15 @@ import top.wkbin.taixu.ui.theme.chatBackdropChrome
 /** 聊天毛玻璃的共享 HazeState：source 挂在背景图与消息列表上，效果挂在顶/底边缘渐隐上。 */
 val LocalChatHazeState = staticCompositionLocalOf { HazeState() }
 
-/** 顶边软渐隐带：状态栏 + 更长过渡区，避免刚出顶栏就硬切成一块雾。 */
+/** 对齐 DITING FloatingHeader：工具栏高度 + 底沿 overhang，再叠状态栏。 */
+private val ChatTopToolbarHeight = 56.dp
+private val ChatTopFadeOverhang = 20.dp
+
+/** 顶边软渐隐带：状态栏实色段 + 工具栏溶开 + overhang 尾巴。 */
 @Composable
 internal fun chatTopEdgeFadeHeight(): Dp =
-    WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 88.dp
+    WindowInsets.statusBars.asPaddingValues().calculateTopPadding() +
+        ChatTopToolbarHeight + ChatTopFadeOverhang
 
 /** 底边软渐隐额外上探：从输入区上方开始，一路溶到屏幕最底（含导航栏）。 */
 internal val ChatBottomEdgeFadeExtra = 72.dp
@@ -38,22 +43,20 @@ internal val ChatBottomEdgeFadeExtra = 72.dp
 /**
  * 边缘渐进模糊。
  *
- * 关键是 [mask]：清晰端大段保持全透明，即使设备把 progressive 退化成均匀模糊，
- * 也不会在条带内缘画出一道硬切线；模糊强度再由 progressive 由弱到强叠上去。
- *
- * 不要给 CompositionLocal 写默认参数——会触发 CONFLICTING_OVERLOADS。
+ * 顶边按 DITING `fadeStart = status/(status+toolbar)`：上段强、过工具栏后迅速变弱，
+ * overhang 段几乎只靠颜色溶出，避免整条雾砖硬切。
  */
 @Composable
-private fun Modifier.chatEdgeHaze(topStrong: Boolean): Modifier {
+private fun Modifier.chatEdgeHaze(topStrong: Boolean, fadeStart: Float = 0f): Modifier {
     val hazeState = LocalChatHazeState.current
-    val style = remember(topStrong) {
-        // mask：清晰端 0~35% 完全不画效果，之后才慢慢显形
+    val style = remember(topStrong, fadeStart) {
         val mask = if (topStrong) {
+            val solid = fadeStart.coerceIn(0f, 0.55f)
             Brush.verticalGradient(
                 0.00f to Color.Black.copy(alpha = 1f),
-                0.25f to Color.Black.copy(alpha = 0.55f),
-                0.55f to Color.Black.copy(alpha = 0.18f),
-                0.78f to Color.Black.copy(alpha = 0.04f),
+                solid to Color.Black.copy(alpha = 0.85f),
+                (solid + (1f - solid) * 0.45f) to Color.Black.copy(alpha = 0.28f),
+                0.88f to Color.Black.copy(alpha = 0.04f),
                 1.00f to Color.Transparent,
             )
         } else {
@@ -66,9 +69,9 @@ private fun Modifier.chatEdgeHaze(topStrong: Boolean): Modifier {
             )
         }
         HazeBlurStyle {
-            blurRadius(16.dp)
+            blurRadius(if (topStrong) 20.dp else 16.dp)
             backgroundColor(Color.Transparent)
-            noiseFactor(0.02f)
+            noiseFactor(0.015f)
             progressive(
                 HazeProgressive.verticalGradient(
                     easing = LinearEasing,
@@ -83,31 +86,34 @@ private fun Modifier.chatEdgeHaze(topStrong: Boolean): Modifier {
 }
 
 /**
- * 顶部全宽软渐隐条。有自定义背景时只做模糊渐变；无背景时再叠极淡页面色溶出。
+ * 顶部全宽软渐隐条。仿 DITING FloatingHeader：状态栏段更实，工具栏以下溶到透明；
+ * 有无自定义背景都叠页面色渐隐（壁纸时略淡），再配 progressive haze。
  */
 @Composable
 internal fun ChatTopEdgeFade(modifier: Modifier = Modifier) {
+    val status = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val height = chatTopEdgeFadeHeight()
+    val fadeStart = if (height > 0.dp) {
+        (status / height).coerceIn(0.12f, 0.45f)
+    } else {
+        0.2f
+    }
     val bgActive = LocalChatBackgroundActive.current
     val chrome = chatBackdropChrome()
+    val peak = if (bgActive) 0.72f else 0.94f
     Box(
         modifier
             .fillMaxWidth()
             .height(height)
-            .chatEdgeHaze(topStrong = true)
-            .then(
-                if (bgActive) {
-                    Modifier
-                } else {
-                    Modifier.background(
-                        Brush.verticalGradient(
-                            0.00f to chrome.copy(alpha = 0.42f),
-                            0.40f to chrome.copy(alpha = 0.14f),
-                            0.75f to chrome.copy(alpha = 0.03f),
-                            1.00f to Color.Transparent,
-                        ),
-                    )
-                },
+            .chatEdgeHaze(topStrong = true, fadeStart = fadeStart)
+            .background(
+                Brush.verticalGradient(
+                    0.00f to chrome.copy(alpha = peak),
+                    fadeStart to chrome.copy(alpha = peak * 0.88f),
+                    (fadeStart + (1f - fadeStart) * 0.55f) to chrome.copy(alpha = peak * 0.22f),
+                    0.90f to chrome.copy(alpha = peak * 0.04f),
+                    1.00f to Color.Transparent,
+                ),
             ),
     )
 }

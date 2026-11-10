@@ -1,3 +1,5 @@
 ﻿package top.wkbin.taixu.ui.workspace
 
-typealias SyntaxHighlighter = top.wkbin.taixu.ui.components.SyntaxHighlighter
+import top.wkbin.taixu.ui.components.SyntaxHighlighter as ComponentSyntaxHighlighter
+
+typealias SyntaxHighlighter = ComponentSyntaxHighlighter

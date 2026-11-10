@@ -35,11 +35,13 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.StatusBadge
+import top.wkbin.taixu.core.database.AiModelEntity
+import top.wkbin.taixu.ui.components.runtimeContentPadding
 
 @Composable
 internal fun BotList(
     bots: List<Bot>,
-    modelProfiles: List<top.wkbin.taixu.core.database.AiModelEntity>?,
+    modelProfiles: List<AiModelEntity>?,
     memberGroups: List<BotMemberGroup>,
     selectedGroupId: String?,
     onSelectGroup: (String?) -> Unit,
@@ -53,7 +55,7 @@ internal fun BotList(
         if (memberIds == null) bots else bots.filter { it.id in memberIds }
     }
     LazyColumn(
-        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = 96.dp),
+        contentPadding = runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "member-group-filter") {
@@ -148,7 +150,7 @@ internal fun GroupList(
     onDeleteGroup: (GroupChat) -> Unit,
 ) {
     LazyColumn(
-        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = 96.dp),
+        contentPadding = runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (groups.isEmpty()) {

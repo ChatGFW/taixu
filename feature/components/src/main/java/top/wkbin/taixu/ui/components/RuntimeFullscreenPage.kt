@@ -15,6 +15,7 @@ fun RuntimeFullscreenPage(title: String, onBack: () -> Unit, statusText: String?
     Dialog(onDismissRequest = onBack,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         RuntimeDialogSystemBars()
+        // Scaffold owns frosted top-bar blur for the dialog page.
         Scaffold(modifier = Modifier.fillMaxSize(), topBar = {
             RuntimeTopBar(title = title, onBack = onBack, statusText = statusText)
         }, content = content)

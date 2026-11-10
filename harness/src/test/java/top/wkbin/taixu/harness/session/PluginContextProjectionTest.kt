@@ -19,17 +19,20 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
-import top.wkbin.taixu.core.datastore.AgentPreferences
-import top.wkbin.taixu.core.datastore.SettingsDataStore
+import top.wkbin.taixu.core.database.AgencyAgentCatalogLoader
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.AgentSkillRepository
 import top.wkbin.taixu.core.database.AgentSubagentRepository
-import top.wkbin.taixu.core.database.AgencyAgentCatalogLoader
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.McpServerRepository
 import top.wkbin.taixu.core.database.RoomAgentContextRepository
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
+import top.wkbin.taixu.core.datastore.AgentPreferences
+import top.wkbin.taixu.core.datastore.SettingsDataStore
 import top.wkbin.taixu.core.security.SecretManager
+import top.wkbin.taixu.core.security.SecretRedactor
+import top.wkbin.taixu.core.tools.ToolRegistry
+import top.wkbin.taixu.core.tools.ToolRepository
 import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ModelConfig
 import top.wkbin.taixu.harness.ToolCall
@@ -37,17 +40,21 @@ import top.wkbin.taixu.harness.ToolCallMode
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.WorkspaceFileAccess
-import top.wkbin.taixu.core.tools.ToolRegistry
-import top.wkbin.taixu.core.tools.ToolRepository
 import top.wkbin.taixu.harness.compaction.CompactionManager
+import top.wkbin.taixu.harness.events.HarnessEventBus
+import top.wkbin.taixu.harness.operation.OperationCoordinator
+import top.wkbin.taixu.harness.plugins.HarnessPlugin
+import top.wkbin.taixu.harness.plugins.HarnessPluginRegistry
+import top.wkbin.taixu.harness.plugins.PluginContext
 import top.wkbin.taixu.harness.prompt.MemoryRecallSelector
 import top.wkbin.taixu.harness.prompt.PrivilegeSectionRenderer
 import top.wkbin.taixu.harness.prompt.PromptAssetLoader
 import top.wkbin.taixu.harness.prompt.PromptRouter
 import top.wkbin.taixu.harness.prompt.SystemPromptBuilder
 import top.wkbin.taixu.harness.session.SessionTreeStore
-import top.wkbin.taixu.harness.operation.OperationCoordinator
-import top.wkbin.taixu.harness.events.HarnessEventBus
+import top.wkbin.taixu.plugin.api.PluginDescriptor
+import top.wkbin.taixu.plugin.api.PluginExtension
+import top.wkbin.taixu.plugin.api.PluginExtensionPoint
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -102,7 +109,7 @@ class PluginContextProjectionTest {
             agentApprovalRepository = AgentApprovalRepository(database.agentApprovalDao()),
             operationCoordinator = operations,
             plugins = registry,
-            secretRedactor = top.wkbin.taixu.core.security.SecretRedactor(),
+            secretRedactor = SecretRedactor(),
         )
     }
 
@@ -112,12 +119,12 @@ class PluginContextProjectionTest {
         tempDir.deleteRecursively()
     }
 
-    private val registry = top.wkbin.taixu.harness.plugins.HarnessPluginRegistry(listOf(
-        top.wkbin.taixu.harness.plugins.HarnessPlugin(
-            top.wkbin.taixu.plugin.api.PluginDescriptor("example.facts", "1.0.0", extensions = listOf(
-                top.wkbin.taixu.plugin.api.PluginExtension("facts", top.wkbin.taixu.plugin.api.PluginExtensionPoint.CONTEXT),
+    private val registry = HarnessPluginRegistry(listOf(
+        HarnessPlugin(
+            PluginDescriptor("example.facts", "1.0.0", extensions = listOf(
+                PluginExtension("facts", PluginExtensionPoint.CONTEXT),
             )),
-            contexts = listOf(top.wkbin.taixu.harness.plugins.PluginContext("facts") { "fixture-runtime-fact" }),
+            contexts = listOf(PluginContext("facts") { "fixture-runtime-fact" }),
         ),
     ))
 

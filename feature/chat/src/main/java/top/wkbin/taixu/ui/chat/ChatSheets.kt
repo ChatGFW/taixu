@@ -332,7 +332,7 @@ internal fun SkillsAndMcpSheet(
                         RuntimeIcon(
                             name = RuntimeIconName.Settings,
                             modifier = Modifier.size(16.dp),
-                            tint = RuntimeTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = stringResource(R.string.chat_manage_capabilities),
@@ -343,7 +343,7 @@ internal fun SkillsAndMcpSheet(
                     RuntimeIcon(
                         name = RuntimeIconName.ChevronRight,
                         modifier = Modifier.size(14.dp),
-                        tint = RuntimeTheme.colorScheme.primary,
+                        tint = RuntimeTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -462,7 +462,7 @@ internal fun ReasoningEffortSlider(
                 RuntimeIcon(
                     name = RuntimeIconName.Info,
                     modifier = Modifier.size(15.dp),
-                    tint = RuntimeTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = stringResource(R.string.chat_reasoning_model_support_notice),
@@ -562,7 +562,7 @@ internal fun ApprovalModeSheet(
                         RuntimeIcon(
                             name = if (isSelected) RuntimeIconName.Check else RuntimeIconName.Shield,
                             modifier = Modifier.size(22.dp),
-                            tint = if (isSelected) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isSelected) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
@@ -654,7 +654,7 @@ internal fun RunModeSheet(
                         RuntimeIcon(
                             name = if (isSelected) RuntimeIconName.Check else runModeIcon(mode),
                             modifier = Modifier.size(22.dp),
-                            tint = if (isSelected) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isSelected) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(

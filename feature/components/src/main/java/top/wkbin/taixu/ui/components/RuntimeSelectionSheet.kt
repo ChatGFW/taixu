@@ -26,6 +26,7 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.components.R
+import top.wkbin.taixu.ui.miuix.SheetValue
 
 /** 搜索、列表和表单共享的选择面板。标题与操作固定，内容消费剩余的有界高度。 */
 @Composable
@@ -41,7 +42,7 @@ fun RuntimeSelectionSheet(
     RuntimeModalBottomSheet(
         onDismissRequest = { if (canDismiss) onDismissRequest() },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true,
-            confirmValueChange = { canDismiss || it != top.wkbin.taixu.ui.miuix.SheetValue.Hidden }),
+            confirmValueChange = { canDismiss || it != SheetValue.Hidden }),
         shape = RuntimeTheme.shapes.extraLarge,
     ) {
         Column(
@@ -93,7 +94,7 @@ fun RuntimeSelectionRow(
             startAction = leadingContent,
             endActions = {
                 if (multiple) Checkbox(checked = selected, onCheckedChange = null)
-                else if (selected) RuntimeIcon(RuntimeIconName.Check, Modifier.size(24.dp), MiuixTheme.colorScheme.primary)
+                else if (selected) RuntimeIcon(RuntimeIconName.Check, Modifier.size(24.dp), RuntimeTheme.colorScheme.onSurface)
                 if (trailingContent != null) trailingContent()
             },
         ) {
@@ -101,7 +102,7 @@ fun RuntimeSelectionRow(
                 color = MiuixTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (!supportingText.isNullOrBlank()) Text(supportingText,
                 style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                maxLines = 2, overflow = TextOverflow.Ellipsis)
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (supportingContent != null) supportingContent()
         }
     }

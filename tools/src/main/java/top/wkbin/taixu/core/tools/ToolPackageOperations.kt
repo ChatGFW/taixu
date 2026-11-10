@@ -2,14 +2,16 @@ package top.wkbin.taixu.core.tools
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import top.wkbin.taixu.core.database.ToolEntity
 import top.wkbin.taixu.core.model.PluginInstallReceipt
 import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.plugin.packages.PackageInstallPolicy
 import top.wkbin.taixu.plugin.packages.PluginPackageProtocol
+import top.wkbin.taixu.runtime.bridge.FullAccessGrant
 
 /** Serializes install/uninstall reference checks; receipts are minimal, version-specific metadata. */
 class ToolPackageOperations(private val repository: ToolRepository, private val receipts: PluginReceiptStore,
-    private val hostGrants: top.wkbin.taixu.runtime.bridge.FullAccessGrant? = null) {
+    private val hostGrants: FullAccessGrant? = null) {
     private val operations = Mutex()
 
     suspend fun <T> useInstalled(distro: String, expected: ToolManifest, allowUpdateAvailable: Boolean = false, action: suspend () -> T): T = operations.withLock {
@@ -59,7 +61,7 @@ class ToolPackageOperations(private val repository: ToolRepository, private val 
     fun record(distro: String, manifest: ToolManifest, version: String) = receipts.record(distro, manifest, version)
 
     /** Refresh metadata and repair legacy runtime-banner versions under the installation lock. */
-    suspend fun syncManifest(distro: String, manifest: ToolManifest): top.wkbin.taixu.core.database.ToolEntity? = operations.withLock {
+    suspend fun syncManifest(distro: String, manifest: ToolManifest): ToolEntity? = operations.withLock {
         val existing = repository.findById(distro, manifest.id)
         val normalized = existing?.let { tool ->
             val version = tool.installedVersion

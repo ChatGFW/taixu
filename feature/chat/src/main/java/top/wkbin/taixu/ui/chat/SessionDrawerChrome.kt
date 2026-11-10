@@ -7,9 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Surface
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -22,8 +19,13 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.chat.R
+import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
 import top.wkbin.taixu.ui.theme.semanticColors
+import top.yukonga.miuix.kmp.basic.Text
 
 /** Roomy search and compose actions above the conversation list. */
 @Composable
@@ -46,7 +48,7 @@ internal fun SessionDrawerSearch(
                     color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
             if (onCollapse != null) RuntimeIconButton(onClick = onCollapse, modifier = Modifier.size(40.dp),
-                contentDescription = stringResource(top.wkbin.taixu.feature.components.R.string.components_collapse_sidebar)) {
+                contentDescription = stringResource(ComponentsR.string.components_collapse_sidebar)) {
                 RuntimeIcon(RuntimeIconName.PanelLeftClose, Modifier.size(20.dp))
             }
         }
@@ -66,7 +68,7 @@ internal fun SessionDrawerSearch(
                 modifier = Modifier.size(40.dp),
                 contentDescription = newTaskLabel,
             ) {
-                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurface)
             }
         }
     }
@@ -81,7 +83,7 @@ internal fun SessionDrawerFooter(
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()) {
-        top.wkbin.taixu.ui.miuix.HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+        HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
         AnimatedVisibility(visible = expanded) {
             Column(Modifier.fillMaxWidth().heightIn(max = 240.dp)
                 .verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -95,7 +97,7 @@ internal fun SessionDrawerFooter(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 RuntimeIcon(RuntimeIconName.Settings, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(stringResource(top.wkbin.taixu.feature.components.R.string.components_drawer_settings),
+                    Text(stringResource(ComponentsR.string.components_drawer_settings),
                         style = RuntimeTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(stringResource(R.string.chat_session_count, totalSessions), style = RuntimeTheme.typography.labelSmall,
                         color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)

@@ -159,6 +159,7 @@ fun BotDetailScreen(
                             serverStatus = runtimeServerStatus,
                             onIssue = viewModel::issueRuntimeToken,
                             onRevoke = viewModel::revokeRuntimeToken,
+                            onRevokeExpired = viewModel::revokeExpiredRuntimeTokens,
                             onRestoreLocal = viewModel::restoreLocalRuntime,
                             onToggleServer = viewModel::toggleExternalRuntimeServer,
                             onClearIssued = viewModel::clearIssuedRuntimeToken,

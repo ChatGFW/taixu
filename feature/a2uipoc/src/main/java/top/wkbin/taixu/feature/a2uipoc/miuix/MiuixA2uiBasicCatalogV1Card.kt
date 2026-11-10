@@ -33,6 +33,7 @@ import top.wkbin.taixu.feature.a2uipoc.miuix.MiuixA2uiDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 
 internal object MiuixA2uiBasicCatalogV1Card : A2uiBasicCatalogV1.Card {
 
@@ -48,7 +49,7 @@ internal object MiuixA2uiBasicCatalogV1Card : A2uiBasicCatalogV1.Card {
             modifier = modifier.a2uiAccessibility(accessibility),
             color = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.surface,
             
-            shape = top.wkbin.taixu.ui.miuix.RuntimeTheme.shapes.large,
+            shape = RuntimeTheme.shapes.large,
         ) {
             AnimatedContent(
                 targetState = childState,

@@ -47,6 +47,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * 套件子组件装配弹窗。已装配的组件可以卸载，或清掉旧文件后重新安装。
@@ -85,7 +86,7 @@ internal fun BundleComponentSetupDialog(
                 RuntimeIcon(
                     name = bundleIcon(bundle.iconName),
                     modifier = Modifier.size(22.dp),
-                    tint = RuntimeTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text("装配 ${bundle.name}", fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
@@ -298,7 +299,7 @@ private fun InstalledComponentRow(
                 }
             }
             McpComponentUpdateRow(component, updateStatus, upgrading, enabled, onUpgrade)
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 TextButton(onClick = onReinstall, enabled = enabled) {
                     Text(stringResource(R.string.settings_component_reinstall), maxLines = 1, softWrap = false)
                 }

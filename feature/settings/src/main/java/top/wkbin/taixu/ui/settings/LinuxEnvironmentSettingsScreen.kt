@@ -1,11 +1,5 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,26 +10,34 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Surface
-import androidx.compose.ui.res.stringResource
-import top.wkbin.taixu.feature.settings.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.model.ExecutionMode
+import top.wkbin.taixu.feature.settings.R
+import top.wkbin.taixu.runtime.privilege.PrivilegeState
+import top.wkbin.taixu.runtime.webchat.WebChatServerStatus
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
 /**
  * 二级子页 2：Linux 容器沙箱与存储
  */
@@ -51,12 +53,11 @@ fun LinuxEnvironmentSettingsScreen(
     onOpenFtpSettings: () -> Unit,
     viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val executionMode by viewModel?.executionMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.ExecutionMode.PROOT)
-    val effectiveExecutionMode by viewModel?.effectiveExecutionMode?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.ExecutionMode.PROOT)
-    val privilegeState by viewModel?.privilegeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.privilege.PrivilegeState())
+    val executionMode by viewModel?.executionMode?.collectAsStateWithLifecycle() ?: previewStateOf(ExecutionMode.PROOT)
+    val effectiveExecutionMode by viewModel?.effectiveExecutionMode?.collectAsStateWithLifecycle() ?: previewStateOf(ExecutionMode.PROOT)
+    val privilegeState by viewModel?.privilegeState?.collectAsStateWithLifecycle() ?: previewStateOf(PrivilegeState())
     val switchingMode by viewModel?.switchingMode?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val webChatStatus by viewModel?.webChatStatus?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.webchat.WebChatServerStatus())
+    val webChatStatus by viewModel?.webChatStatus?.collectAsStateWithLifecycle() ?: previewStateOf(WebChatServerStatus())
 
     var showExecutionModeDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var showWebChatDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
@@ -117,7 +118,6 @@ fun LinuxEnvironmentSettingsScreen(
                         icon = RuntimeIconName.Server,
                         title = "Linux 发行版管理",
                         subtitle = "多沙箱并存 · 镜像拉取 · 一键切换主系统",
-                        value = "${installedDistros.size} 套系统",
                         onClick = onOpenDistroManagement,
                     )
                 }
@@ -170,7 +170,6 @@ fun LinuxEnvironmentSettingsScreen(
                         } else {
                             "在同一 Wi-Fi 下使用电脑浏览器访问太墟 Agent 与工作区"
                         },
-                        value = if (webChatStatus.isRunning) "已开启" else "未开启",
                         onClick = { showWebChatDialog = true },
                     )
                 }
@@ -196,11 +195,6 @@ fun LinuxEnvironmentSettingsScreen(
                         } else {
                             "PRoot 用户态沙箱 · Shizuku · Root"
                         },
-                        value = if (executionMode == effectiveExecutionMode) {
-                            effectiveExecutionMode.shortLabel
-                        } else {
-                            "${effectiveExecutionMode.shortLabel}（已降级）"
-                        },
                         onClick = { showExecutionModeDialog = true },
                     )
                 }
@@ -220,7 +214,7 @@ private fun ExecutionModeDialog(
         onDismissRequest = { if (!switching) onDismiss() },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(RuntimeIconName.Shield, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Shield, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text("选择系统运行模式", fontWeight = FontWeight.Medium)
             }
         },

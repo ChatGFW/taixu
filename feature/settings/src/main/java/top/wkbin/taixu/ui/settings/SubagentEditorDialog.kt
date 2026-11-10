@@ -48,7 +48,7 @@ internal fun SubagentEditorDialog(
         title = if (profile == null) "新增子智能体角色" else "编辑子智能体角色",
         onDismissRequest = onDismiss,
         actions = {
-            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = top.wkbin.taixu.ui.miuix.RuntimeSpacing.dialogActionGap, scrollable = true) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
                 TextButton(onClick = onDismiss) { Text("取消") }
                 Button(onClick = {
                     onConfirm(normalizedId, name, description, prompt, defaultModelId, defaultModelVariant)

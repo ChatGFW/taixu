@@ -55,6 +55,9 @@ import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.SectionHeader
 import top.wkbin.taixu.ui.components.SpotlightGuideOverlay
 import top.wkbin.taixu.ui.components.rememberSpotlightAnchor
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 /**
  * 太墟 · 工坊空间 (Workspace Space)
  * 管理 Linux 隔离工作区、代码工程与文件项目。
@@ -181,8 +184,8 @@ internal fun LocalWorkspaceScreen(
             androidx.compose.foundation.lazy.grid.LazyVerticalGrid(columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(340.dp),
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
-                contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                    .then(runtimeScrollViewport(padding)),
+                contentPadding = runtimeScrollContentPadding(padding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
                 verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap), horizontalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
             ) {
                 fullWidthItem {

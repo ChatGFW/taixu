@@ -108,7 +108,7 @@ internal fun TaskPlanCard(steps: List<TaskStepItem>, modifier: Modifier = Modifi
                     RuntimeIcon(
                         RuntimeIconName.Code,
                         modifier = Modifier.size(13.dp),
-                        tint = RuntimeTheme.colorScheme.primary,
+                        tint = RuntimeTheme.colorScheme.onSurface,
                     )
                 }
 

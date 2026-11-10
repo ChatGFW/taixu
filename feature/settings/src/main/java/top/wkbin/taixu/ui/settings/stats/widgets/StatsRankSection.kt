@@ -211,7 +211,7 @@ private fun RankRow(
                     RuntimeIcon(
                         name = icon,
                         modifier = Modifier.size(14.dp),
-                        tint = RuntimeTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        tint = RuntimeTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                     )
                 }
                 Text(

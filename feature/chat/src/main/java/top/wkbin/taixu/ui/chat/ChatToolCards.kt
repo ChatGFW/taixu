@@ -56,6 +56,8 @@ import top.wkbin.taixu.ui.theme.semanticColors
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import top.wkbin.taixu.harness.text.HashlineEditArgs
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * 工具调用卡的运行态配色：组合期读取 [semanticColors]，随明暗主题切换。
@@ -221,7 +223,7 @@ internal fun ApprovalRequestCard(
 
             // 审批处理期间禁用按钮，防止重复提交
             var resolving by remember { mutableStateOf(false) }
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
                     onClick = {
                         resolving = true
@@ -274,7 +276,7 @@ internal fun AskUserCard(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Chat, Modifier.size(18.dp), RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Chat, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurface)
                 Text(stringResource(R.string.chat_ask_user_title), style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium))
             }
             if (questions.isEmpty()) {
@@ -328,7 +330,7 @@ internal fun AskUserCard(
                 }
             }
             var resolving by remember { mutableStateOf(false) }
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
                     onClick = {
                         resolving = true
@@ -491,7 +493,7 @@ internal fun parseDiffStat(call: ToolCall, result: ToolResult?): Pair<Int, Int>?
                 val added = newText?.lines()?.size ?: 0
                 val deleted = oldText?.lines()?.size ?: 0
                 if (added > 0 || deleted > 0) added to deleted else null
-            } else top.wkbin.taixu.harness.text.HashlineEditArgs.opCount(call.args).takeIf { it > 0 }?.to(0)
+            } else HashlineEditArgs.opCount(call.args).takeIf { it > 0 }?.to(0)
         }
         else -> null
     }

@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.core.tools.LocalPluginPreview
 import top.wkbin.taixu.core.tools.WebPluginRepository
+import top.wkbin.taixu.runtime.service.ProotWebBootstrapLimitException
 
 data class WebPluginImportConfirmation(val uri: Uri, val preview: LocalPluginPreview)
 data class WebPluginManagementState(
@@ -47,7 +48,7 @@ class WebPluginsViewModel(val repository: WebPluginRepository) : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try { action() }
             catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: top.wkbin.taixu.runtime.service.ProotWebBootstrapLimitException) {
+            catch (_: ProotWebBootstrapLimitException) {
                 mutableState.value = WebPluginManagementState(busy = true, failed = true, bootstrapTooLarge = true)
             }
             catch (_: Exception) { mutableState.value = WebPluginManagementState(busy = true, failed = true) }

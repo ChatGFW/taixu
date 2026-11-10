@@ -257,7 +257,7 @@ private fun SponsorQrDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Sponsor, Modifier.size(22.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Sponsor, Modifier.size(22.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text(title, fontWeight = FontWeight.Medium)
             }
         },
@@ -285,7 +285,7 @@ private fun SponsorQrDialog(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                RuntimeIcon(RuntimeIconName.Sponsor, Modifier.size(32.dp), tint = RuntimeTheme.colorScheme.primary)
+                                RuntimeIcon(RuntimeIconName.Sponsor, Modifier.size(32.dp), tint = RuntimeTheme.colorScheme.onSurface)
                                 Text(
                                     "二维码加载失败，请稍后重试",
                                     style = RuntimeTheme.typography.bodySmall,
@@ -319,7 +319,7 @@ private fun SponsorQrDialog(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     RuntimeIcon(RuntimeIconName.Download, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.onPrimary)
-                    Text("保存到相册", color = RuntimeTheme.colorScheme.onPrimary)
+                    Text("存相册", color = RuntimeTheme.colorScheme.onPrimary, maxLines = 1)
                 }
             }
         },

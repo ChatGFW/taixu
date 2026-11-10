@@ -1,22 +1,16 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Scaffold
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -24,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeIcon
@@ -31,6 +26,13 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.miuix.TopAppBarDefaults
+import top.yukonga.miuix.kmp.basic.Text
 /**
  * 模型档案管理全屏独立页面
  */
@@ -51,7 +53,7 @@ fun ModelProfilesScreen(
     var modelPendingDelete by remember { mutableStateOf<AiModelEntity?>(null) }
     var importing by remember { mutableStateOf(false) }
 
-    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = RuntimeTheme.colorScheme.surface,
@@ -72,7 +74,7 @@ fun ModelProfilesScreen(
                         RuntimeIcon(
                             name = RuntimeIconName.Download,
                             modifier = Modifier.size(20.dp),
-                            tint = RuntimeTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                     }
                     // 📤 导出全部按钮
@@ -89,7 +91,7 @@ fun ModelProfilesScreen(
                         RuntimeIcon(
                             name = RuntimeIconName.OpenInNew,
                             modifier = Modifier.size(20.dp),
-                            tint = RuntimeTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                     }
                 },
@@ -97,7 +99,7 @@ fun ModelProfilesScreen(
         },
     ) { padding ->
         ModelProfilesContent(
-            modifier = top.wkbin.taixu.ui.components.runtimeScrollViewport(padding), bottomPadding = padding.calculateBottomPadding(),
+            modifier = runtimeScrollViewport(padding), bottomPadding = padding.calculateBottomPadding(),
             models = models,
             onCreate = onCreate,
             onEdit = { model -> onEdit(model.id) },

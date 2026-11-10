@@ -235,7 +235,7 @@ internal fun ImportProjectDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                RuntimeIcon(RuntimeIconName.Compress, Modifier.size(18.dp), RuntimeTheme.colorScheme.primary)
+                                RuntimeIcon(RuntimeIconName.Compress, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurface)
                                 Text(
                                     source.fileName,
                                     modifier = Modifier.weight(1f),

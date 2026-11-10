@@ -7,16 +7,18 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.GroupChat
+import top.wkbin.taixu.core.model.bot.GroupMessage
 import top.wkbin.taixu.core.model.bot.GroupRound
 import top.wkbin.taixu.core.model.bot.GroupRoundSlot
 import top.wkbin.taixu.core.model.bot.GroupRoundStatus
+import top.wkbin.taixu.core.model.bot.GroupSenderType
 import top.wkbin.taixu.core.model.bot.GroupSlotStatus
 
 internal fun interface GroupRoundResponder {
@@ -265,12 +267,12 @@ internal class GroupRoundCoordinator(
         if (relayOverflow && groupId !in cancelledGroups && relayPausedGroups.add(groupId)) {
             runCatching {
                 groups.postMessage(
-                    top.wkbin.taixu.core.model.bot.GroupMessage(
+                    GroupMessage(
                         id = UUID.randomUUID().toString(),
                         groupId = groupId,
                         senderId = "system",
                         senderName = "系统通知",
-                        senderType = top.wkbin.taixu.core.model.bot.GroupSenderType.SYSTEM,
+                        senderType = GroupSenderType.SYSTEM,
                         content = "🛑 @ 接力已达轮次上限，群聊暂停；发送新消息即可继续。",
                         timestamp = System.currentTimeMillis(),
                     ),

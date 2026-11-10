@@ -8,7 +8,6 @@ import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.wkbin.taixu.ui.miuix.runtimeCardColor
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -58,7 +57,7 @@ internal fun PersonalizationToggle(
     enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    top.yukonga.miuix.kmp.preference.SwitchPreference(
+    RuntimeSwitchPreference(
         checked = checked,
         onCheckedChange = onCheckedChange,
         title = resolveLegacyString(title),
@@ -78,7 +77,7 @@ internal fun PreferenceText(title: String, subtitle: String, modifier: Modifier 
 
 @Composable
 internal fun ThemeOptionRow(title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
-    top.yukonga.miuix.kmp.preference.RadioButtonPreference(
+    RuntimeRadioPreference(
         selected = selected,
         onClick = onClick,
         title = resolveLegacyString(title),
@@ -96,12 +95,16 @@ internal fun PreferenceSlider(
     onValueChange: (Float) -> Unit,
     onFinished: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().padding(SettingsDensity.cardPadding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, Modifier.weight(1f), style = settingsTitleStyle())
-            Text(valueLabel, style = RuntimeTheme.typography.labelLarge, color = RuntimeTheme.colorScheme.primary)
-        }
-        RuntimeSlider(value = value, onValueChange = onValueChange, onValueChangeFinished = onFinished,
-            valueRange = range, steps = steps, modifier = Modifier.fillMaxWidth().semantics { contentDescription = title })
-    }
+    RuntimeSliderPreference(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = title },
+        title = resolveLegacyString(title),
+        valueText = valueLabel,
+        valueRange = range,
+        steps = steps,
+        onValueChangeFinished = onFinished,
+    )
 }

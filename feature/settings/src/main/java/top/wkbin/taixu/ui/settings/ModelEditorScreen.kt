@@ -1,44 +1,36 @@
 package top.wkbin.taixu.ui.settings
 
-import top.wkbin.taixu.ui.miuix.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import androidx.compose.ui.res.stringResource
-import top.wkbin.taixu.feature.settings.R
-import org.koin.compose.viewmodel.koinViewModel
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.wkbin.taixu.ui.components.RuntimeProviderCard
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -48,25 +40,35 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.util.Locale
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.model.AiModelProfileExport
 import top.wkbin.taixu.core.tools.AgentProviderDefinition
 import top.wkbin.taixu.core.tools.ProviderGroup
+import top.wkbin.taixu.core.tools.ProviderProtocol
+import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.harness.ModelContextWindows
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeDropdownField
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeProviderCard
 import top.wkbin.taixu.ui.components.RuntimeSectionTitle
-import top.wkbin.taixu.ui.components.RuntimeSlider
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-import java.util.Locale
-import top.wkbin.taixu.core.tools.ProviderProtocol
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.Text
 
 /**
  * 模型编辑与连接测试全屏独立页面
@@ -120,7 +122,7 @@ fun ModelEditorScreen(
                         RuntimeIcon(
                             name = RuntimeIconName.Code,
                             modifier = Modifier.size(20.dp),
-                            tint = RuntimeTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                     }
                 },
@@ -128,7 +130,7 @@ fun ModelEditorScreen(
         },
     ) { padding ->
         ModelEditorContent(
-            modifier = top.wkbin.taixu.ui.components.runtimeScrollViewport(padding), bottomPadding = padding.calculateBottomPadding(),
+            modifier = runtimeScrollViewport(padding), bottomPadding = padding.calculateBottomPadding(),
             modelId = modelId,
             existing = existing,
             initialApiKey = initialApiKey,
@@ -448,7 +450,7 @@ internal fun ModelEditorContent(
 
     LazyColumn(
         modifier = modifier.fillMaxSize().imePadding(),
-        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom + bottomPadding),
+        contentPadding = runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom + bottomPadding),
         verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
     ) {
         // The preset card is one selection target, leaving the full name room to wrap.
@@ -521,7 +523,7 @@ internal fun ModelEditorContent(
                                     RuntimeIcon(
                                         name = RuntimeIconName.Download,
                                         modifier = Modifier.size(18.dp),
-                                        tint = if (url.isNotBlank()) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.outlineVariant,
+                                        tint = if (url.isNotBlank()) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.outlineVariant,
                                     )
                                 }
                             }
@@ -606,7 +608,7 @@ internal fun ModelEditorContent(
                     }
 
                     // 添加备用 Key / 批量导入：M3 标准按钮并排，主操作 tonal、次操作 outlined
-                    top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                    RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                         RuntimeFilledTonalButton(
                             onClick = { keyList = keyList + "" },
                             modifier = Modifier,
@@ -621,7 +623,7 @@ internal fun ModelEditorContent(
                             modifier = Modifier,
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                RuntimeIcon(RuntimeIconName.Download, Modifier.size(18.dp), RuntimeTheme.colorScheme.primary)
+                                RuntimeIcon(RuntimeIconName.Download, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurface)
                                 Text("批量导入", maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
@@ -775,27 +777,14 @@ internal fun ModelEditorContent(
 
                             // Temperature 滑块
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text("Temperature (随机性)", style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-                                    Surface(shape = RuntimeTheme.shapes.extraSmall, color = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)) {
-                                        Text(
-                                            text = String.format("%.2f", temperature),
-                                            style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium),
-                                            color = RuntimeTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                        )
-                                    }
-                                }
-                                RuntimeSlider(
+                                top.wkbin.taixu.ui.components.RuntimeSliderPreference(
                                     value = temperature,
                                     onValueChange = { temperature = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    title = "Temperature (随机性)",
+                                    valueText = String.format("%.2f", temperature),
                                     valueRange = 0f..2.0f,
                                     steps = 20,
-                                    modifier = Modifier.fillMaxWidth(),
                                 )
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     PresetChip("0.2 精准", temperature == 0.2f) { temperature = 0.2f }
@@ -846,30 +835,15 @@ internal fun ModelEditorContent(
                             }
 
                             // Top P 滑块
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text("Top P (核采样)", style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-                                    Surface(shape = RuntimeTheme.shapes.extraSmall, color = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)) {
-                                        Text(
-                                            text = String.format("%.2f", topP),
-                                            style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium),
-                                            color = RuntimeTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                        )
-                                    }
-                                }
-                                RuntimeSlider(
-                                    value = topP,
-                                    onValueChange = { topP = it },
-                                    valueRange = 0f..1.0f,
-                                    steps = 10,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
+                            top.wkbin.taixu.ui.components.RuntimeSliderPreference(
+                                value = topP,
+                                onValueChange = { topP = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                title = "Top P (核采样)",
+                                valueText = String.format("%.2f", topP),
+                                valueRange = 0f..1.0f,
+                                steps = 10,
+                            )
 
                             val reasoningModeItems = listOf("跟随模型默认", "开启深度推理（模型深入思考）")
                             RuntimeDropdownField(

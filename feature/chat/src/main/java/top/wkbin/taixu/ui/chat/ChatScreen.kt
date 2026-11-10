@@ -1,14 +1,4 @@
 package top.wkbin.taixu.ui.chat
-
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import kotlinx.coroutines.flow.first
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
-import top.wkbin.taixu.harness.workflow.ProactiveWorkflowSuggestion
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconName
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -23,58 +13,69 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import top.wkbin.taixu.ui.miuix.*
-import top.yukonga.miuix.kmp.basic.SnackbarHost
-import top.yukonga.miuix.kmp.basic.SnackbarHostState
-import top.yukonga.miuix.kmp.basic.SnackbarDuration
-import top.yukonga.miuix.kmp.basic.SnackbarResult
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import top.wkbin.taixu.feature.chat.R
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
+import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
+import top.wkbin.taixu.core.database.AgentPlanEntity
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.BtwQuery
 import top.wkbin.taixu.core.model.RunMode
+import top.wkbin.taixu.feature.a2uipoc.LocalA2uiSessionId
+import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.HarnessMessage
+import top.wkbin.taixu.harness.HarnessTool
+import top.wkbin.taixu.harness.QueuedPrompt
+import top.wkbin.taixu.harness.SkillSuggestion
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
-import top.wkbin.taixu.runtime.WorkspaceProject
-import top.wkbin.taixu.ui.components.MainDestination
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.lazy.LazyListState
-import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
-import top.wkbin.taixu.core.database.AgentPlanEntity
-import top.wkbin.taixu.harness.QueuedPrompt
+import top.wkbin.taixu.harness.checkpoint.RewindScope
 import top.wkbin.taixu.harness.compaction.CompactionSnapshot
 import top.wkbin.taixu.harness.mcp.McpWorkspaceRecommender
-import top.wkbin.taixu.runtime.ProjectType
-import top.wkbin.taixu.feature.a2uipoc.LocalA2uiSessionId
-import top.wkbin.taixu.harness.HarnessTool
-import top.wkbin.taixu.harness.SkillSuggestion
-import top.wkbin.taixu.harness.checkpoint.RewindScope
 import top.wkbin.taixu.harness.session.ConversationBranch
+import top.wkbin.taixu.harness.workflow.ProactiveWorkflowSuggestion
 import top.wkbin.taixu.runtime.DistributionCatalog
+import top.wkbin.taixu.runtime.ProjectType
+import top.wkbin.taixu.runtime.SessionWorkspaceCatalogState
+import top.wkbin.taixu.runtime.WorkspaceProject
+import top.wkbin.taixu.ui.components.MainDestination
+import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.SnackbarDuration
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.SnackbarResult
+import top.yukonga.miuix.kmp.basic.Text
 /** 会改动工作区文件的工具：这些工具执行后「仓库」入口按需高亮提示新改动 */
 private val REPOSITORY_HIGHLIGHT_TOOLS = setOf(
     HarnessTool.WRITE,
@@ -84,7 +85,6 @@ private val REPOSITORY_HIGHLIGHT_TOOLS = setOf(
 )
 @Composable
 private fun chatBottomInsets(): WindowInsets = WindowInsets.navigationBars.union(WindowInsets.ime)
-
 /** 太墟 · 智枢对话界面 (TaiXu Agent)：智能结对编程、工具自动化调用与代码生成 */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, )
 @Composable
@@ -113,7 +113,7 @@ fun ChatScreen(
     val thinkingAutoTranslate by viewModel?.thinkingAutoTranslate?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val chatRoundCollapse by viewModel?.chatRoundCollapse?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val sessions by viewModel?.sessions?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val workspaceCatalog by viewModel?.workspaceCatalog?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.SessionWorkspaceCatalogState()); val workspaces = workspaceCatalog.projects
+    val workspaceCatalog by viewModel?.workspaceCatalog?.collectAsStateWithLifecycle() ?: previewStateOf(SessionWorkspaceCatalogState()); val workspaces = workspaceCatalog.projects
     val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val providerModelIds by viewModel?.providerModelIds?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val discoveringProviderModels by viewModel?.discoveringProviderModels?.collectAsStateWithLifecycle() ?: previewStateOf(false)
@@ -123,7 +123,7 @@ fun ChatScreen(
     val mcpRecommendations by viewModel?.mcpRecommendations?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val workflowSuggestions by viewModel?.workflowSuggestions?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val btwQueries by viewModel?.btwController?.queries?.collectAsStateWithLifecycle()
-        ?: previewStateOf(emptyList<top.wkbin.taixu.core.model.BtwQuery>())
+        ?: previewStateOf(emptyList<BtwQuery>())
     val btwStreaming by viewModel?.btwController?.streaming?.collectAsStateWithLifecycle() ?: previewStateOf("")
     val shareActions by viewModel?.shareActions?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val hiddenSkillSuggestions by viewModel?.hiddenSkillSuggestions?.collectAsStateWithLifecycle() ?: previewStateOf(emptySet())
@@ -679,7 +679,7 @@ private fun ChatPaneContent(
     workflowSuggestions: List<ProactiveWorkflowSuggestion> = emptyList(),
     onLaunchWorkflowSuggestion: (ProactiveWorkflowSuggestion) -> Unit = {},
     onDismissWorkflowSuggestion: (String) -> Unit = {},
-    btwQueries: List<top.wkbin.taixu.core.model.BtwQuery> = emptyList(),
+    btwQueries: List<BtwQuery> = emptyList(),
     btwStreaming: String = "",
     onCancelBtw: () -> Unit = {},
     onResolveApproval: (String, Boolean, Boolean) -> Unit = { _, _, _ -> },

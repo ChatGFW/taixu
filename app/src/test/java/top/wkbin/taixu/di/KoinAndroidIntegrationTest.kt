@@ -10,8 +10,8 @@ import java.lang.reflect.Proxy
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,18 +24,24 @@ import org.koin.dsl.module
 import org.koin.viewmodel.factory.KoinViewModelFactory
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.AppDatabase
+import top.wkbin.taixu.core.database.HarnessSessionEntity
+import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.database.WorkflowRepository
 import top.wkbin.taixu.core.database.WorkflowScheduleStore
+import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.harness.HarnessLoop
+import top.wkbin.taixu.harness.bot.BotOrchestrator
+import top.wkbin.taixu.harness.plugins.HarnessPlugin
 import top.wkbin.taixu.harness.session.InteractiveSessionControl
 import top.wkbin.taixu.harness.session.PromptSubmission
 import top.wkbin.taixu.harness.session.SessionControl
 import top.wkbin.taixu.harness.workflow.WorkflowRunManager
 import top.wkbin.taixu.harness.workflow.WorkflowScheduler
 import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 import top.wkbin.taixu.ui.iteration.CustomIterationViewModel
 import top.wkbin.taixu.workflow.WorkflowScheduleWorker
-import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 
 @RunWith(Aarch64AwareRobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, manifest = Config.NONE)
@@ -123,7 +129,7 @@ class KoinAndroidIntegrationTest {
             assertSame(loop, control)
             assertSame(loop, koin.get<InteractiveSessionControl>())
             listOf("taixu.bot-memory", "taixu.bot-management", "taixu.bot-schedule").forEach { id ->
-                val plugin = koin.get<top.wkbin.taixu.harness.plugins.HarnessPlugin>(org.koin.core.qualifier.named(id))
+                val plugin = koin.get<HarnessPlugin>(org.koin.core.qualifier.named(id))
                 assertEquals(id, plugin.descriptor.id)
             }
             val foreground = control.currentSessionId.value
@@ -143,16 +149,16 @@ class KoinAndroidIntegrationTest {
         val application = startKoin { androidContext(context); modules(taiXuModule) }
         val koin = application.koin
         try {
-            val bots = koin.get<top.wkbin.taixu.core.database.repository.PersonaBotRepository>()
-            val sessions = koin.get<top.wkbin.taixu.core.database.HarnessSessionRepository>()
-            val bot = top.wkbin.taixu.core.model.bot.Bot("resumed-bot", "Worker", "coder", "persona", "seed",
+            val bots = koin.get<PersonaBotRepository>()
+            val sessions = koin.get<HarnessSessionRepository>()
+            val bot = Bot("resumed-bot", "Worker", "coder", "persona", "seed",
                 sessionId = "resumed-session", createdAt = 1, updatedAt = 1)
             bots.saveBot(bot)
             val target = """{"distribution":"debian","workspace":"/workspace/project"}"""
-            sessions.upsert(top.wkbin.taixu.core.database.HarnessSessionEntity(bot.sessionId, "Worker", 1, 1, null,
+            sessions.upsert(HarnessSessionEntity(bot.sessionId, "Worker", 1, 1, null,
                 workspace = "/workspace/project", executionTargetJson = target, approvalMode = "assisted",
                 modelVariant = "stale-variant"))
-            koin.get<top.wkbin.taixu.harness.bot.BotOrchestrator>().ensureSession(bot)
+            koin.get<BotOrchestrator>().ensureSession(bot)
             val resumed = sessions.findById(bot.sessionId)!!
             assertEquals("/workspace/project", resumed.workspace)
             assertEquals(target, resumed.executionTargetJson)

@@ -40,13 +40,12 @@ fun RuntimeActionRow(
                 it.measure(androidx.compose.ui.unit.Constraints.fixed(cellWidth, cellHeight))
             }
             val rows = (cells.size + columns - 1) / columns
+            // 末行左齐：3 个按钮折成 2+1 时避免居中成「两眼一嘴」倒三角。
             layout(width, rows * cellHeight + (rows - 1) * gap) {
                 cells.forEachIndexed { index, cell ->
                     val row = index / columns
-                    val rowCount = minOf(columns, cells.size - row * columns)
-                    val rowWidth = rowCount * cellWidth + (rowCount - 1) * gap
-                    val start = (width - rowWidth) / 2
-                    cell.placeRelative(start + (index % columns) * (cellWidth + gap), row * (cellHeight + gap))
+                    val col = index % columns
+                    cell.placeRelative(col * (cellWidth + gap), row * (cellHeight + gap))
                 }
             }
         }

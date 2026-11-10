@@ -1,22 +1,23 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.*
+import top.wkbin.taixu.harness.text.HashlineEditArgs
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.theme.semanticColors
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun ToolStepHeader(call: ToolCall, result: ToolResult?, running: Boolean) {
@@ -73,7 +74,7 @@ internal fun toolStepTarget(call: ToolCall): String? {
         ?.replace('\\', '/')?.trimEnd('/')?.substringAfterLast('/')
         ?.replace(Regex("[\\r\\n\\t]+"), " ")?.take(100)?.takeIf { it.isNotBlank() }
     if (call.tool != HarnessTool.EDIT) return base
-    val hashline = top.wkbin.taixu.harness.text.HashlineEditArgs.opsLabel(call.args) ?: return base
+    val hashline = HashlineEditArgs.opsLabel(call.args) ?: return base
     return when {
         base != null -> "$base · $hashline"
         else -> hashline

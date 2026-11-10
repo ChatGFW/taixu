@@ -35,6 +35,7 @@ import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeIconName
 
 import top.wkbin.taixu.harness.bot.market.GroupTeamTemplates
+import top.wkbin.taixu.ui.components.runtimeContentPadding
 
 @Composable
 internal fun MarketList(
@@ -60,7 +61,7 @@ internal fun MarketList(
         }
     }
     LazyColumn(
-        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
+        contentPadding = runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {

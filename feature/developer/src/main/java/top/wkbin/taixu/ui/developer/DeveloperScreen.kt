@@ -53,13 +53,17 @@ import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import top.wkbin.taixu.runtime.RootfsUpdateInfo
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 
 @Composable
 internal fun LocalDeveloperScreen(
     onBack: () -> Unit,
     viewModel: DeveloperViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
+    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(RuntimeState.Ready)
     val busy by viewModel?.busy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val commandInput by viewModel?.commandInput?.collectAsStateWithLifecycle() ?: previewStateOf("")
     val health by viewModel?.health?.collectAsStateWithLifecycle() ?: previewStateOf(null)
@@ -78,8 +82,8 @@ internal fun LocalDeveloperScreen(
     val agentLoggingEnabled by viewModel?.agentLoggingEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val agentLogSize by viewModel?.agentLogSize?.collectAsStateWithLifecycle() ?: previewStateOf(0L)
     val agentLogLocation by viewModel?.agentLogLocation?.collectAsStateWithLifecycle() ?: previewStateOf("")
-    val adbState by viewModel?.adbState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager.ConnectionState.Disconnected)
-    val adbDiscovery by viewModel?.adbDiscovery?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager.DiscoveryState())
+    val adbState by viewModel?.adbState?.collectAsStateWithLifecycle() ?: previewStateOf(EmbeddedAdbManager.ConnectionState.Disconnected)
+    val adbDiscovery by viewModel?.adbDiscovery?.collectAsStateWithLifecycle() ?: previewStateOf(EmbeddedAdbManager.DiscoveryState())
     val adbBusy by viewModel?.adbBusy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val adbMessage by viewModel?.adbMessage?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val logcatOutput by viewModel?.logcatOutput?.collectAsStateWithLifecycle() ?: previewStateOf("")
@@ -110,9 +114,8 @@ internal fun LocalDeveloperScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding))
-                .verticalScroll(rememberScrollState()).padding(bottom = innerPadding.calculateBottomPadding())
-                .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                .then(runtimeScrollViewport(innerPadding)).verticalScroll(rememberScrollState())
+                .padding(runtimeScrollContentPadding(innerPadding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom))),
             verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             Spacer(Modifier.height(4.dp))
@@ -199,7 +202,7 @@ internal fun LocalDeveloperScreen(
                     supportingText = { Text("先在系统“无线调试”中打开“使用配对码配对设备”；端口无需手填") },
                     singleLine = true,
                 )
-                top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = { viewModel?.pairWirelessAdb(pairingCode) },
                         enabled = !adbBusy && pairingCode.length == 6 && adbDiscovery.pairingEndpoints.isNotEmpty(),
@@ -260,7 +263,7 @@ internal fun LocalDeveloperScreen(
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = { viewModel?.captureLogcat(logcatPackage, logcatTag, logcatPriority, logcatKeyword, logcatLines.toIntOrNull() ?: 200) },
                         enabled = connected != null && !adbBusy,
@@ -339,7 +342,7 @@ internal fun LocalDeveloperScreen(
                         style = RuntimeTheme.typography.labelSmall,
                         color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
-                    top.wkbin.taixu.ui.components.RuntimeActionRow() {
+                    RuntimeActionRow() {
                         Button(
                             onClick = { viewModel?.saveRegistryConfig(manifestUrl.trim(), signatureUrl.trim(), publicKey.trim()) },
                             enabled = manifestUrlValid && signatureUrlValid && publicKeyValid,
@@ -578,7 +581,7 @@ private fun RuntimeControlCard(
             Button(onClick = onInitialize, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                 Text(if (state is RuntimeState.Error) "重试初始化" else if (state is RuntimeState.Ready) "重新检查初始化" else "下载并初始化")
             }
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
                     onClick = onHealthCheck,
                     enabled = !busy,

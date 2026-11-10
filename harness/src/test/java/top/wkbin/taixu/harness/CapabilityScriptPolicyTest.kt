@@ -4,13 +4,19 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import java.lang.reflect.Proxy
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import okhttp3.OkHttpClient
+import okhttp3.mockwebserver.Dispatcher
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -18,29 +24,26 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import top.wkbin.taixu.core.database.*
-import top.wkbin.taixu.core.model.ApprovalMode
-import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.datastore.SettingsDataStore
-import top.wkbin.taixu.core.security.SecretManager
+import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.core.network.FileDownloader
+import top.wkbin.taixu.core.security.SecretManager
 import top.wkbin.taixu.core.security.SecretRedactor
+import top.wkbin.taixu.harness.bot.BotCapabilityScope
 import top.wkbin.taixu.harness.core.ToolCheckpoint
 import top.wkbin.taixu.harness.core.ToolCheckpoints
 import top.wkbin.taixu.harness.core.ToolGateDecision
 import top.wkbin.taixu.harness.directory.*
 import top.wkbin.taixu.harness.events.AgentEventLogger
 import top.wkbin.taixu.harness.mcp.*
-import okhttp3.OkHttpClient
-import okhttp3.mockwebserver.Dispatcher
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import okhttp3.mockwebserver.RecordedRequest
-import java.util.concurrent.atomic.AtomicInteger
-import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.harness.websearch.StubSearchProvider
+import top.wkbin.taixu.harness.websearch.WebSearchProviders
+import top.wkbin.taixu.runtime.LinuxRuntime
+
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -63,7 +66,7 @@ class CapabilityScriptPolicyTest {
     )
 
     private fun executor(hooks: List<ToolCheckpoint<ToolExecutionRequest, ToolResult>> = emptyList(), mcp: McpManager? = null,
-        capabilityScope: top.wkbin.taixu.harness.bot.BotCapabilityScope? = null): ToolExecutor {
+        capabilityScope: BotCapabilityScope? = null): ToolExecutor {
         val paths = HarnessPathResolver()
         return ToolExecutor(WorkspaceFileAccess(context.cacheDir), paths,
             ApprovalPolicyEngine(paths), SecretRedactor(),
@@ -76,7 +79,7 @@ class CapabilityScriptPolicyTest {
             askUserToolBackend = AskUserToolBackend(ApprovalPolicyEngine(paths), approvals),
             promptAssetToolBackend = PromptAssetToolBackend(),
             harnessServiceToolBackend = HarnessServiceToolBackend(),
-            searchWebToolBackend = SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(StubSearchProvider()))),
+            searchWebToolBackend = SearchWebToolBackend(WebSearchProviders(listOf(StubSearchProvider()))),
             capabilityToolGateway = CapabilityToolGateway(mcp, capabilityScope = capabilityScope) { _, _, _, _ -> error("unexpected host dispatch") },
             approvalRepository = approvals, sessionDao = sessions, toolCheckpoints = ToolCheckpoints(hooks), mcpManager = mcp)
     }
@@ -247,7 +250,7 @@ class CapabilityScriptPolicyTest {
     @Test fun `revoked bot tool scope blocks direct encoded script and approval replay calls`() = runBlocking {
         seed(ApprovalMode.FULL_ACCESS)
         var allowed = setOf("write_record")
-        val scope = object : top.wkbin.taixu.harness.bot.BotCapabilityScope {
+        val scope = object : BotCapabilityScope {
             override suspend fun allowedMcpServers(sessionId: String) = setOf("remote")
             override suspend fun allowedMcpTools(sessionId: String, serverId: String) = allowed
         }
@@ -281,7 +284,7 @@ class CapabilityScriptPolicyTest {
     @Test fun `approval replay checks the expired scope instead of trusting the old request`() = runBlocking {
         seed()
         var valid = true
-        val scope = top.wkbin.taixu.harness.bot.BotCapabilityScope { if (valid) setOf("remote") else emptySet() }
+        val scope = BotCapabilityScope { if (valid) setOf("remote") else emptySet() }
         withMcp { manager, calls ->
             val runner = executor(mcp = manager, capabilityScope = scope)
             val waiting = runner.execute(script("capability.call('remote','write_record',{input:'value'});"), "session")
@@ -298,7 +301,7 @@ class CapabilityScriptPolicyTest {
     @Test fun `expired scope blocks cold direct and script discovery`() = runBlocking {
         seed(ApprovalMode.FULL_ACCESS)
         var discoveries = 0
-        val scope = top.wkbin.taixu.harness.bot.BotCapabilityScope { emptySet() }
+        val scope = BotCapabilityScope { emptySet() }
         withMcp(onDiscover = { discoveries++ }) { manager, calls ->
             val runner = executor(mcp = manager, capabilityScope = scope)
             val direct = ToolCall("direct", 1, HarnessTool.MCP, buildJsonObject { put("input", "value") },

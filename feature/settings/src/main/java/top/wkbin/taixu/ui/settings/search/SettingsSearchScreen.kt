@@ -40,10 +40,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.RuntimeExpandableSearchBar
+import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 
 /**
  * 太墟 · 全局功能与设置选项搜索页面
@@ -56,6 +60,7 @@ fun SettingsSearchScreen(
     modifier: Modifier = Modifier,
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var searchExpanded by rememberSaveable { mutableStateOf(true) }
     val focusRequester = remember { FocusRequester() }
 
     val searchResults = remember(searchQuery) {
@@ -81,67 +86,35 @@ fun SettingsSearchScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding))
+                .then(runtimeScrollViewport(padding))
+                // 搜索框固定在顶栏下方；结果列表不再叠进顶栏（避免与展开 SearchBar 抢位）。
+                .padding(top = padding.calculateTopPadding())
                 .imePadding(),
         ) {
-            // 搜索输入框
-            Box(
+            // miuix SearchBar：展开后结果区落在下方 content。
+            RuntimeExpandableSearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                expanded = searchExpanded,
+                onExpandedChange = { searchExpanded = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 8.dp)
+                    .focusRequester(focusRequester),
+                placeholder = "搜索功能名称、设置项、拼音或关键词...",
+                outsideEndAction = {
+                    RuntimeTextButton(
+                        onClick = { searchExpanded = false; searchQuery = "" },
+                    ) { Text("取消") }
+                },
             ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester),
-                    placeholder = {
-                        Text(
-                            text = "搜索功能名称、设置项、拼音或关键词...",
-                            style = RuntimeTheme.typography.bodyMedium,
-                            color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    leadingIcon = {
-                        RuntimeIcon(
-                            name = RuntimeIconName.Search,
-                            modifier = Modifier.size(20.dp),
-                            tint = RuntimeTheme.colorScheme.primary,
-                        )
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            RuntimeIconButton(
-                                onClick = { searchQuery = "" },
-                                contentDescription = "清除输入",
-                            ) {
-                                RuntimeIcon(
-                                    name = RuntimeIconName.Close,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RuntimeTheme.shapes.medium,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = RuntimeTheme.colorScheme.primary,
-                        unfocusedBorderColor = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                        focusedContainerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
-                        unfocusedContainerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
-                    ),
-                )
-            }
-
-            // 内容展示列表
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize(),
-                contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                contentPadding = runtimeScrollContentPadding(
+                    PaddingValues(bottom = padding.calculateBottomPadding()),
+                    runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
+                ),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (searchQuery.isBlank()) {
@@ -175,7 +148,7 @@ fun SettingsSearchScreen(
                                             RuntimeIcon(
                                                 name = RuntimeIconName.Search,
                                                 modifier = Modifier.size(12.dp),
-                                                tint = RuntimeTheme.colorScheme.primary,
+                                                tint = RuntimeTheme.colorScheme.onSurface,
                                             )
                                             Text(
                                                 text = tag,
@@ -273,6 +246,7 @@ fun SettingsSearchScreen(
                         )
                     }
                 }
+            }
             }
         }
     }

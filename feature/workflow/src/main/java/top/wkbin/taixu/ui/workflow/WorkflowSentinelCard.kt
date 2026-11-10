@@ -60,7 +60,7 @@ internal fun WorkflowSentinelCard(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                RuntimeIcon(RuntimeIconName.Alarm, Modifier.size(22.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Alarm, Modifier.size(22.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(

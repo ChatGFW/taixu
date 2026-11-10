@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.preference.WindowDropdownPreference
+import top.wkbin.taixu.ui.components.RuntimeWindowDropdownPreference
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,7 +45,7 @@ private val distributionOptions = DistributionCatalog.supported.map { SetupOptio
 internal fun SystemSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier) {
     val distribution by viewModel?.distribution?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
     val mirror by viewModel?.mirror?.collectAsStateWithLifecycle() ?: previewStateOf("auto")
-    val state by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
+    val state by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(RuntimeState.Ready)
     val importing by viewModel?.isImporting?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val importError by viewModel?.importError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val installing = state is RuntimeState.Initializing || importing
@@ -197,7 +197,7 @@ private fun SetupDropdown(
     enabled: Boolean,
     onSelected: (String) -> Unit,
 ) {
-    WindowDropdownPreference(
+    top.wkbin.taixu.ui.components.RuntimeWindowDropdownPreference(
         items = options.map { it.label },
         selectedIndex = options.indexOfFirst { it.id == selectedId }.coerceAtLeast(0),
         title = label,

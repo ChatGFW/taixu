@@ -83,6 +83,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import top.wkbin.taixu.ui.components.RuntimeIconButton
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 @Composable
 internal fun StatusDivider() {
@@ -436,7 +437,7 @@ internal fun SubagentResultSheet(
                         onClick = { processExpanded = !processExpanded },
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            RuntimeIcon(RuntimeIconName.Logs, Modifier.size(17.dp), RuntimeTheme.colorScheme.primary)
+                            RuntimeIcon(RuntimeIconName.Logs, Modifier.size(17.dp), RuntimeTheme.colorScheme.onSurface)
                             Text(
                                 stringResource(R.string.chat_subagent_process, branch.depth, branch.toolCallCount),
                                 style = RuntimeTheme.typography.titleSmall,
@@ -479,7 +480,7 @@ internal fun SubagentResultSheet(
             }
 
             item {
-                top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                     TextButton(onClick = onRefresh) { Text(stringResource(R.string.chat_subagent_refresh)) }
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_close)) }
                 }

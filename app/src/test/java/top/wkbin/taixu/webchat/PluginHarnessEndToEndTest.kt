@@ -25,6 +25,7 @@ import top.wkbin.taixu.harness.session.SessionControl
 import top.wkbin.taixu.plugin.api.*
 import top.wkbin.taixu.runtime.FakeLinuxRuntime
 import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.runtime.webchat.WebChatTaskState
 import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 
@@ -61,7 +62,7 @@ class PluginHarnessEndToEndTest {
             androidContext(context)
             modules(taiXuModule, module {
                 single<LinuxRuntime> {
-                    val paths = get<top.wkbin.taixu.runtime.RuntimePathManager>()
+                    val paths = get<RuntimePathManager>()
                     object : LinuxRuntime by FakeLinuxRuntime() { override fun workspacePath() = paths.workspaceDir }
                 }
                 single { OkHttpClient.Builder().addInterceptor { error("Network is forbidden in this fixture") }.build() }

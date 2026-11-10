@@ -110,7 +110,7 @@ private fun MetricTile(
                 RuntimeIcon(
                     name = item.icon,
                     modifier = Modifier.size(15.dp),
-                    tint = RuntimeTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    tint = RuntimeTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                 )
                 Text(
                     text = item.label,

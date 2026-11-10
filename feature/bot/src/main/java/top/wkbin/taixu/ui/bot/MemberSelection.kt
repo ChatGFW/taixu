@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,9 +15,12 @@ import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotMemberGroup
 import top.wkbin.taixu.feature.bot.R
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeCheckbox
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 /** 建群与分组编辑共用的成员选择：分组快捷全选 + 逐个勾选。 */
 @Composable
@@ -65,7 +66,7 @@ internal fun MemberSelection(
             style = RuntimeTheme.typography.labelMedium,
             color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
-        top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+        RuntimeActionRow(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
             RuntimeTextButton(onClick = { apply(bots.mapTo(mutableSetOf()) { it.id }) }) {
                 Text(stringResource(R.string.fbot_select_all))
             }

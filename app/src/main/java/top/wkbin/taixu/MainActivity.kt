@@ -82,6 +82,7 @@ import top.wkbin.taixu.ui.chat.floating.FloatingChatService
 import org.koin.android.ext.android.getKoin
 import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
 import top.wkbin.taixu.navigation.AgentNotificationIntentExtractor
+import top.wkbin.taixu.core.model.ThemePalette
 class MainActivity : AppCompatActivity() {
     val settingsDataStore: AppearancePreferences by inject()
     val appUpdateManager: AppUpdateManager by inject()
@@ -107,7 +108,7 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val themeMode by settingsDataStore.themeMode.collectAsStateWithLifecycle(initialValue = "system")
             val dynamicColorEnabled by settingsDataStore.dynamicColorEnabled.collectAsStateWithLifecycle(initialValue = true)
-            val themePalette by settingsDataStore.themePalette.collectAsStateWithLifecycle(initialValue = top.wkbin.taixu.core.model.ThemePalette())
+            val themePalette by settingsDataStore.themePalette.collectAsStateWithLifecycle(initialValue = ThemePalette())
             val pageScale by settingsDataStore.appFontScale.collectAsStateWithLifecycle(initialValue = 1f)
             val systemDark = isSystemInDarkTheme()
             val systemDensity = LocalDensity.current

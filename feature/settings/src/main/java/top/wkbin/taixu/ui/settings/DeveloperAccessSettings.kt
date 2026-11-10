@@ -81,12 +81,8 @@ private fun HostAccessSettings() {
             HostAccessTarget(HostAccessScope(distro, it.manifest.plugin!!.id, it.manifest.version), it.manifest.name.take(128))
         }
     for (target in targets) {
-        val allowed = remember(consents, target, tick) {
-            SandboxCredentialStore.SHELL_ACTION in grant.snapshot(target.scope).actions
-        }
         SettingsRow(icon = RuntimeIconName.Admin, title = target.label,
             subtitle = stringResource(R.string.host_access_target, distro, target.scope.pluginId, target.scope.version),
-            value = stringResource(if (allowed) R.string.host_access_active else R.string.host_access_request),
             onClick = { pending = target })
     }
     pending?.let { target ->

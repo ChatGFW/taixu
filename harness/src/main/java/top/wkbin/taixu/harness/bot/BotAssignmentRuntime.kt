@@ -13,14 +13,17 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.core.database.task.AgentTaskRepository
+import top.wkbin.taixu.core.database.task.AgentTaskStatus
 import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.BotAssignment
@@ -28,8 +31,8 @@ import top.wkbin.taixu.core.model.bot.BotAssignmentRequest
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.core.model.bot.BotWorkBatch
 import top.wkbin.taixu.core.model.bot.BotWorkBatchStatus
-import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 import top.wkbin.taixu.harness.HarnessPathResolver
+import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 import top.wkbin.taixu.harness.session.SessionControl
 
 fun interface BotAssignmentExecutor {
@@ -49,8 +52,8 @@ class BotAssignmentRuntime(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val modelManager: BotModelManager? = null,
     private val taskUsage: GroupTaskUsage? = null,
-    private val nativeTasks: top.wkbin.taixu.core.database.task.AgentTaskRepository? = null,
-    private val runtimeRepository: top.wkbin.taixu.core.database.HarnessRuntimeRepository? = null,
+    private val nativeTasks: AgentTaskRepository? = null,
+    private val runtimeRepository: HarnessRuntimeRepository? = null,
     private val capabilityScope: BotCapabilityScope? = null,
 ) {
     private val pump = AssignmentRequestPump(repository, scope, logger, ::execute)
@@ -150,7 +153,7 @@ class BotAssignmentRuntime(
             workspace = source.workspace, projectType = source.projectType,
             approvalMode = ApprovalMode.FULL_ACCESS.id, executionTargetJson = source.executionTargetJson,
         )
-        val nativeSource = nativeTasks?.listForSession(sourceSessionId, top.wkbin.taixu.core.database.task.AgentTaskStatus.ACTIVE)
+        val nativeSource = nativeTasks?.listForSession(sourceSessionId, AgentTaskStatus.ACTIVE)
             ?.singleOrNull { it.operationId == operationId && it.groupId == groupId }
         val granted = task.copy(capabilityGrant = capabilityScope?.issueTaskGrant(task, sourceSessionId))
         val admitted = repository.createIndependentOnce(granted, session, BotAssignmentRequest("initial:$id", id, instruction, now), batch, operationId, nativeSource?.id)
@@ -160,7 +163,7 @@ class BotAssignmentRuntime(
     suspend fun rootWorkId(sessionId: String, operationId: String?, groupId: String): String? {
         repository.assignmentForSession(sessionId)?.let { return it.rootWorkId.takeIf { _ -> it.groupId == groupId } }
         if (operationId == null) return null
-        return nativeTasks?.listForSession(sessionId, top.wkbin.taixu.core.database.task.AgentTaskStatus.ACTIVE)
+        return nativeTasks?.listForSession(sessionId, AgentTaskStatus.ACTIVE)
             ?.singleOrNull { it.operationId == operationId && it.groupId == groupId }?.groupWorkId
     }
 

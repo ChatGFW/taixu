@@ -342,7 +342,7 @@ fun AttachmentPreviewRow(
                         RuntimeIcon(
                             name = if (item.isImage) RuntimeIconName.Image else RuntimeIconName.Attach,
                             modifier = Modifier.size(13.dp),
-                            tint = if (item.isImage) RuntimeTheme.colorScheme.primary else semanticColors().success,
+                            tint = if (item.isImage) RuntimeTheme.colorScheme.onSurface else semanticColors().success,
                         )
                     }
 

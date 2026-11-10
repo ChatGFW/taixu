@@ -51,7 +51,7 @@ fun EnvironmentVariableSettingsScreen(
     val loading by viewModel?.environmentLoading?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val error by viewModel?.environmentError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val activeDistroId by viewModel?.activeDistroId?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
-    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
+    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(RuntimeState.Ready)
     // 对象状态仅保存可 Bundle 化的字段，旋转后按 key/entry 恢复
     var showEditor by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var editingKey by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }

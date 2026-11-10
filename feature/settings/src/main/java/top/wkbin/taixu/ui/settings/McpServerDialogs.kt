@@ -48,6 +48,8 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
 
 /**
  * MCP 服务详情、命令预览、JSON 配置与工具探测弹窗
@@ -78,7 +80,7 @@ internal fun McpServerDetailDialog(
     RuntimeSelectionSheet(
         title = server.name, subtitle = server.transportType.name, onDismissRequest = onDismiss,
         actions = {
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = top.wkbin.taixu.ui.miuix.RuntimeSpacing.dialogActionGap, scrollable = true) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
                 onEdit?.let { action -> OutlinedButton(onClick = action) { Text("编辑") } }
                 if (!server.isBuiltin) TextButton(onClick = onDelete) { Text("删除服务", color = RuntimeTheme.colorScheme.error) }
             }

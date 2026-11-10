@@ -8,8 +8,10 @@ import kotlinx.serialization.json.put
 import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.bot.BotCapabilityScope
 import top.wkbin.taixu.harness.mcp.McpManager
 import top.wkbin.taixu.harness.mcp.McpToolApiName
+import top.wkbin.taixu.harness.plugins.HarnessPluginRegistry
 import top.wkbin.taixu.harness.validation.ToolSchemaValidator
 
 /** Abort JS control flow without losing approval handoff flags. */
@@ -21,8 +23,8 @@ internal class ScriptCapabilityDispatcher(
     private val metadata: MutableMap<String, String>,
     private val mcpManager: McpManager?,
     private val redact: (String) -> String,
-    private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
-    private val capabilityScope: top.wkbin.taixu.harness.bot.BotCapabilityScope? = null,
+    private val plugins: HarnessPluginRegistry? = null,
+    private val capabilityScope: BotCapabilityScope? = null,
     private val sessionId: String = "",
     private val execute: suspend (ToolCall) -> ToolResult,
 ) {

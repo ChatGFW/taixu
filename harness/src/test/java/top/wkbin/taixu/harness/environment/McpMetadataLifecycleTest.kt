@@ -4,10 +4,10 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import java.lang.reflect.Proxy
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.*
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
@@ -21,6 +21,7 @@ import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.datastore.RemoteServerRepository
+import top.wkbin.taixu.core.datastore.SettingsDataStore
 import top.wkbin.taixu.core.model.*
 import top.wkbin.taixu.core.security.SecretManager
 import top.wkbin.taixu.harness.events.AgentEventLogger
@@ -38,7 +39,7 @@ class McpMetadataLifecycleTest {
             check(method.name == "observeAll"); flowOf(listOf(row))
         } as McpServerDao
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val preferences = AgentPreferences(top.wkbin.taixu.core.datastore.SettingsDataStore(context, SecretManager()))
+        val preferences = AgentPreferences(SettingsDataStore(context, SecretManager()))
         val runtime = Proxy.newProxyInstance(LinuxRuntime::class.java.classLoader, arrayOf(LinuxRuntime::class.java)) { _, method, _ ->
             error("local RootFS accessed: ${method.name}")
         } as LinuxRuntime

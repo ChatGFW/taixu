@@ -33,6 +33,8 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.core.model.bot.TeamPublishedVersion
+import top.wkbin.taixu.core.model.bot.TeamUpgradeImpact
 
 @Composable
 internal fun MemberGroupsDialog(
@@ -42,8 +44,8 @@ internal fun MemberGroupsDialog(
     onSave: suspend (BotMemberGroup) -> Unit,
     onDelete: (BotMemberGroup) -> Unit,
     initialGroupId: String? = null,
-    loadImpact: suspend (String) -> List<top.wkbin.taixu.core.model.bot.TeamUpgradeImpact> = { emptyList() },
-    loadVersions: suspend (String) -> List<top.wkbin.taixu.core.model.bot.TeamPublishedVersion> = { emptyList() },
+    loadImpact: suspend (String) -> List<TeamUpgradeImpact> = { emptyList() },
+    loadVersions: suspend (String) -> List<TeamPublishedVersion> = { emptyList() },
     onPublish: suspend (String, Int, Set<String>) -> Int = { _, _, _ -> error("发布不可用") },
     onUpgrade: suspend (String, Int, Set<String>) -> Unit = { _, _, _ -> error("升级不可用") },
 ) {

@@ -67,7 +67,7 @@ internal fun SessionDrawerItem(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (pinned) {
-                RuntimeIcon(RuntimeIconName.Bookmark, Modifier.size(14.dp), RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Bookmark, Modifier.size(14.dp), RuntimeTheme.colorScheme.onSurface)
             }
             Text(
                 text = session.title,

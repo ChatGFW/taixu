@@ -6,7 +6,9 @@ import top.wkbin.taixu.core.database.repository.BotMemberGroupRepository
 import top.wkbin.taixu.core.database.repository.BotScheduleRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.harness.bot.ExternalAgentRuntimeService
 import top.wkbin.taixu.harness.bot.schedule.BotScheduleWakeup
+import top.wkbin.taixu.runtime.webchat.ExternalAgentRuntimeServer
 import top.wkbin.taixu.ui.bot.BotDetailViewModel
 import top.wkbin.taixu.ui.bot.BotListViewModel
 import top.wkbin.taixu.ui.bot.GroupChatViewModel
@@ -39,8 +41,8 @@ val featureBotModule = module {
             packageService = get(),
             wakeup = getOrNull<BotScheduleWakeup>(),
             mcpServerRepository = getOrNull(),
-            externalRuntime = getOrNull<top.wkbin.taixu.harness.bot.ExternalAgentRuntimeService>(),
-            externalRuntimeServer = getOrNull<top.wkbin.taixu.runtime.webchat.ExternalAgentRuntimeServer>(),
+            externalRuntime = getOrNull<ExternalAgentRuntimeService>(),
+            externalRuntimeServer = getOrNull<ExternalAgentRuntimeServer>(),
         )
     }
     viewModel<GroupChatViewModel> {

@@ -78,6 +78,11 @@ import top.wkbin.taixu.ui.components.RuntimeDropdownField
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.RuntimeWidthClass
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.widthClassOf
+import top.wkbin.taixu.ui.theme.semanticColors
 
 /** 共享的 pretty Json：构建实例开销大，不在 remember/重组中反复创建。 */
 private val PrettyJson = Json { prettyPrint = true }
@@ -116,7 +121,7 @@ fun WorkflowEditorView(
 
     BoxWithConstraints(modifier) {
         val editorHeight = maxHeight
-        val isWideScreen = top.wkbin.taixu.ui.components.widthClassOf(maxWidth.value) == top.wkbin.taixu.ui.components.RuntimeWidthClass.Expanded
+        val isWideScreen = widthClassOf(maxWidth.value) == RuntimeWidthClass.Expanded
         val selectedNode = state.definition.nodes.firstOrNull { it.id == state.selectedNodeId }
         val isInspectorOpen = !isWideScreen && sheetExpanded && selectedNode != null
 
@@ -489,7 +494,7 @@ private fun EditorBottomDock(
                 icon = RuntimeIconName.Plus,
                 label = "添加",
                 onClick = { addDialogVisible = true },
-                tint = RuntimeTheme.colorScheme.primary,
+                tint = RuntimeTheme.colorScheme.onSurface,
             )
 
             // 运行 / 停止调试
@@ -505,7 +510,7 @@ private fun EditorBottomDock(
                     icon = RuntimeIconName.Play,
                     label = "运行",
                     onClick = onRun,
-                    tint = RuntimeTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
             }
 
@@ -515,7 +520,7 @@ private fun EditorBottomDock(
                     icon = RuntimeIconName.Terminal,
                     label = if (isRunning) "运行中" else "日志",
                     onClick = onToggleConsole,
-                    tint = if (isRunning) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
+                    tint = if (isRunning) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant,
                     badge = if (isRunning) {
                         {
                             Box(
@@ -690,7 +695,7 @@ private fun RunConsoleModal(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text("运行调试控制台", style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 Surface(
                     color = runStatusColor(activeRunState.status).copy(alpha = 0.16f),
@@ -857,7 +862,7 @@ private fun NodePickerModal(
                                 modifier = Modifier.size(36.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    RuntimeIcon(meta.icon, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.primary)
+                                    RuntimeIcon(meta.icon, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
                                 }
                             }
                             Column(Modifier.weight(1f)) {
@@ -898,7 +903,7 @@ private fun EditorInspector(
 ) {
     val selected = state.definition.nodes.firstOrNull { it.id == state.selectedNodeId }
     Column(
-        modifier = modifier.verticalScroll(rememberScrollState()).padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+        modifier = modifier.verticalScroll(rememberScrollState()).padding(runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         WorkflowMetadataCard(state, onUpdateMetadata)
@@ -1005,7 +1010,7 @@ private fun NodeInspectorCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        RuntimeIcon(meta.icon, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.primary)
+                        RuntimeIcon(meta.icon, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.onSurface)
                         Text(meta.label, style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
                     }
                 }
@@ -1069,13 +1074,13 @@ private fun NodeInspectorCard(
                     Surface(
                         color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
                         shape = RuntimeTheme.shapes.small,
-                        border = BorderStroke(1.dp, top.wkbin.taixu.ui.theme.semanticColors().info.copy(alpha = 0.4f)),
+                        border = BorderStroke(1.dp, semanticColors().info.copy(alpha = 0.4f)),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(16.dp), tint = top.wkbin.taixu.ui.theme.semanticColors().info)
-                                Text("终端 Shell 命令行（在沙箱环境中执行）", style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium, color = top.wkbin.taixu.ui.theme.semanticColors().info)
+                                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(16.dp), tint = semanticColors().info)
+                                Text("终端 Shell 命令行（在沙箱环境中执行）", style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium, color = semanticColors().info)
                             }
                             RuntimeFilledTextField(
                                 value = configMap["command"].orEmpty(),
@@ -1099,12 +1104,12 @@ private fun NodeInspectorCard(
                                     Surface(
                                         onClick = { configMap["command"] = cmd },
                                         shape = CircleShape,
-                                        color = top.wkbin.taixu.ui.theme.semanticColors().info.copy(alpha = 0.14f),
+                                        color = semanticColors().info.copy(alpha = 0.14f),
                                     ) {
                                         Text(
                                             text = "+ $name",
                                             style = RuntimeTheme.typography.labelSmall,
-                                            color = top.wkbin.taixu.ui.theme.semanticColors().info,
+                                            color = semanticColors().info,
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                         )
                                     }
@@ -1261,7 +1266,7 @@ private fun NodeInspectorCard(
                 RuntimeIcon(
                     name = if (showAdvancedJson) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown,
                     modifier = Modifier.size(16.dp),
-                    tint = RuntimeTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
             }
             if (showAdvancedJson) {
@@ -1284,7 +1289,7 @@ private fun NodeInspectorCard(
 
             WorkflowNodePolicyFields(node.type, timeout, { timeout = it }, policy, { policy = it })
 
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 RuntimeOutlinedButton(
                     onClick = if (isConnecting) onCancelConnection else onBeginConnection,
                     modifier = Modifier,
@@ -1429,8 +1434,8 @@ private fun BranchRouterCard(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Surface(shape = CircleShape, color = top.wkbin.taixu.ui.theme.semanticColors().success.copy(alpha = 0.18f)) {
-                    Text("✔ 成功分支 (exitCode == 0)", style = RuntimeTheme.typography.labelSmall, color = top.wkbin.taixu.ui.theme.semanticColors().success, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                Surface(shape = CircleShape, color = semanticColors().success.copy(alpha = 0.18f)) {
+                    Text("✔ 成功分支 (exitCode == 0)", style = RuntimeTheme.typography.labelSmall, color = semanticColors().success, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                 }
                 if (successEdge != null) {
                     val target = state.definition.nodes.firstOrNull { it.id == successEdge.toNodeId }
@@ -1533,7 +1538,7 @@ private fun NodeConnectionsCard(
     RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                RuntimeIcon(RuntimeIconName.Link, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Link, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Spacer(Modifier.width(6.dp))
                 Text("节点连线与拓扑 (${allConnected.size})", style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 if (allConnected.isNotEmpty()) {

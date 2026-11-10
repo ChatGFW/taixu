@@ -6,7 +6,9 @@ import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import top.wkbin.taixu.core.common.result.AppError
 import top.wkbin.taixu.core.common.result.AppResult
+import top.wkbin.taixu.core.common.result.ErrorCode
 import top.wkbin.taixu.runtime.environment.FileFingerprint
 
 class ArtifactReadVerifierTest {
@@ -53,8 +55,8 @@ class ArtifactReadVerifierTest {
         files.write("output", "host-side substitute")
         val unsupported = object : WorkspaceToolOperations by files {
             override suspend fun fingerprint(path: String, maxBytes: Long): AppResult<FileFingerprint> =
-                AppResult.Failure(top.wkbin.taixu.core.common.result.AppError(
-                    top.wkbin.taixu.core.common.result.ErrorCode.IO, "unsupported"))
+                AppResult.Failure(AppError(
+                    ErrorCode.IO, "unsupported"))
         }
         var reads = 0
         val result = ArtifactReadVerifier.read(unsupported, "output",

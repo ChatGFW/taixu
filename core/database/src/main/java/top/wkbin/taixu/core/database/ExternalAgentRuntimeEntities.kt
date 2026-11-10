@@ -52,6 +52,12 @@ interface ExternalAgentRuntimeTokenDao {
 
     @Query("UPDATE external_agent_runtime_tokens SET revokedAt = :revokedAt WHERE botId = :botId AND revokedAt IS NULL")
     suspend fun revokeAllForBot(botId: String, revokedAt: Long): Int
+
+    @Query(
+        "UPDATE external_agent_runtime_tokens SET revokedAt = :revokedAt " +
+            "WHERE botId = :botId AND revokedAt IS NULL AND expiresAt IS NOT NULL AND expiresAt <= :now",
+    )
+    suspend fun revokeExpiredForBot(botId: String, now: Long, revokedAt: Long): Int
 }
 
 val MIGRATION_89_90 = object : Migration(89, 90) {

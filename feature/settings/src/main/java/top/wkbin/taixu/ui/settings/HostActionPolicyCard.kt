@@ -6,9 +6,10 @@ import androidx.compose.runtime.setValue
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import top.wkbin.taixu.ui.miuix.FilterChip
@@ -18,7 +19,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -39,6 +39,7 @@ import top.wkbin.taixu.ui.settings.LocalizedText as Text
 /**
  * CEL-lite 主机动作策略编辑：deny→allow，失败封闭；保存即时生效并写入 DataStore。
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
     val context = LocalContext.current
@@ -83,9 +84,10 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
                 style = RuntimeTheme.typography.labelMedium,
                 color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 HostActionPolicyPresets.ALL.forEach { preset ->
                     FilterChip(
@@ -106,8 +108,8 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
                     error = null
                 },
                 labelText = resolveLegacyString("策略 JSON"),
-                minLines = 6,
-                maxLines = 14,
+                minLines = 3,
+                maxLines = 10,
                 textStyle = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 isError = error != null,
                 supportingText = {
@@ -123,7 +125,10 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 OutlinedButton(
                     onClick = {
                         val result = HostActionPolicy.validateAndParse(draft)
@@ -135,6 +140,7 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
                         }
                     },
                     enabled = !saving,
+                    modifier = Modifier.weight(1f),
                 ) { Text("校验") }
                 OutlinedButton(
                     onClick = {
@@ -143,8 +149,8 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
                         Toast.makeText(context, "已恢复出厂默认", Toast.LENGTH_SHORT).show()
                     },
                     enabled = viewModel != null && !saving,
-                ) { Text("恢复默认") }
-
+                    modifier = Modifier.weight(1f),
+                ) { Text("默认") }
                 Button(
                     onClick = {
                         val vm = viewModel ?: return@Button
@@ -161,7 +167,8 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
                         }
                     },
                     enabled = viewModel != null && !saving,
-                ) { Text(if (saving) "保存中…" else "保存") }
+                    modifier = Modifier.weight(1f),
+                ) { Text(if (saving) "…" else "保存") }
             }
         }
     }

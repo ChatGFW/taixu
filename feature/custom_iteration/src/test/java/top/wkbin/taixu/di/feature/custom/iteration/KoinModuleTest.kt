@@ -17,6 +17,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.iteration.engine.CustomIterationBootstrap
 import top.wkbin.taixu.iteration.engine.CustomIterationPaths
+import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCli
 import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator
 import top.wkbin.taixu.ui.iteration.CustomIterationViewModel
 
@@ -95,7 +96,7 @@ class KoinModuleTest {
         assertEquals("/root/custom_taixu", CustomIterationBootstrap.GUEST_WORKSPACE)
         assertEquals(
             CustomIterationBootstrap.GUEST_WORKSPACE,
-            top.wkbin.taixu.iteration.engine.TaiXuDevBuildCli.DEFAULT_WORKSPACE_DIR,
+            TaiXuDevBuildCli.DEFAULT_WORKSPACE_DIR,
         )
     }
 }

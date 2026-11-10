@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.iteration
 
 import android.app.Application
-import java.io.File
 import androidx.test.core.app.ApplicationProvider
+import java.io.File
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,10 +20,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator
+import top.wkbin.taixu.feature.custom_iteration.R
 import top.wkbin.taixu.iteration.engine.AssetReader
 import top.wkbin.taixu.iteration.engine.CustomIterationBootstrap
 import top.wkbin.taixu.iteration.engine.CustomIterationPaths
+import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator
 import top.wkbin.taixu.runtime.shell.CommandResult
 import top.wkbin.taixu.runtime.shell.ShellCommand
 
@@ -171,7 +172,7 @@ class CustomIterationViewModelTest {
         val state = vm.uiState.value
         assertFalse("must not claim readiness", state.workspaceReady)
         val app = ApplicationProvider.getApplicationContext<Application>()
-        assertEquals(app.getString(top.wkbin.taixu.feature.custom_iteration.R.string.iteration_error_bootstrap), state.errorMessage)
+        assertEquals(app.getString(R.string.iteration_error_bootstrap), state.errorMessage)
         assertNull("must not open a chat session on failure", prompt)
     }
 

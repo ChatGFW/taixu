@@ -59,15 +59,26 @@ internal fun ChatBackgroundSettingsCard(
             if (failed) Text(stringResource(R.string.settings_chat_background_error),
                 style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.error)
             val visibilityLabel = stringResource(R.string.settings_chat_background_visibility, (visibility * 100).roundToInt())
-            Text(visibilityLabel, style = RuntimeTheme.typography.titleSmall)
-            RuntimeSlider(value = visibility, onValueChange = { visibility = it }, valueRange = 0f..1f,
+            top.wkbin.taixu.ui.components.RuntimeSliderPreference(
+                value = visibility,
+                onValueChange = { visibility = it },
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = visibilityLabel },
+                title = visibilityLabel,
+                valueText = "${(visibility * 100).roundToInt()}%",
+                valueRange = 0f..1f,
                 onValueChangeFinished = { viewModel?.setVisibility(visibility) },
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = visibilityLabel })
+            )
             val blurLabel = stringResource(R.string.settings_chat_background_blur, blur.roundToInt())
-            Text(blurLabel, style = RuntimeTheme.typography.titleSmall)
-            RuntimeSlider(value = blur, onValueChange = { blur = it.roundToInt().toFloat() }, valueRange = 0f..24f, steps = 23,
+            top.wkbin.taixu.ui.components.RuntimeSliderPreference(
+                value = blur,
+                onValueChange = { blur = it.roundToInt().toFloat() },
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = blurLabel },
+                title = blurLabel,
+                valueText = "${blur.roundToInt()} dp",
+                valueRange = 0f..24f,
+                steps = 23,
                 onValueChangeFinished = { viewModel?.setBlur(blur) },
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = blurLabel })
+            )
         }
     }
     }

@@ -45,6 +45,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeSwitch
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.SectionHeader
+import top.wkbin.taixu.ui.components.runtimeContentPadding
 
 @Composable
 internal fun BotSchedulePanel(
@@ -59,7 +60,7 @@ internal fun BotSchedulePanel(
     var showAdd by rememberSaveable { mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
+        contentPadding = runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {

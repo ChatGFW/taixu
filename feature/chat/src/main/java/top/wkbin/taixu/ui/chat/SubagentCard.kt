@@ -128,7 +128,7 @@ fun SubagentCard(
                         RuntimeIcon(
                             name = RuntimeIconName.Brain,
                             modifier = Modifier.size(12.dp),
-                            tint = RuntimeTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                     }
 

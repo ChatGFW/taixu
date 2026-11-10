@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Slider
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableFloatStateOf
@@ -31,7 +32,6 @@ import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.model.FirstResponseTimeoutPolicy
 import top.wkbin.taixu.feature.settings.R
-import top.wkbin.taixu.ui.components.RuntimeSlider
 import top.wkbin.taixu.ui.components.RuntimeSwitch
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
@@ -109,12 +109,21 @@ internal fun FirstResponseTimeoutRow(
             overflow = TextOverflow.Ellipsis,
         )
         if (enabled) {
-            RuntimeSlider(
+            Slider(
                 value = sliderSeconds,
                 onValueChange = { sliderSeconds = it },
-                onValueChangeFinished = { viewModel?.setSeconds(sliderSeconds.toInt()) },
-                valueRange = FirstResponseTimeoutPolicy.MIN_ENABLED_SECONDS.toFloat()..FirstResponseTimeoutPolicy.MAX_SECONDS.toFloat(),
-                steps = 16,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = true,
+                valueRange = FirstResponseTimeoutPolicy.MIN_ENABLED_SECONDS.toFloat()..
+                    FirstResponseTimeoutPolicy.MAX_SECONDS.toFloat(),
+                onValueChangeFinished = {
+                    viewModel?.setSeconds(
+                        sliderSeconds.toInt().coerceIn(
+                            FirstResponseTimeoutPolicy.MIN_ENABLED_SECONDS,
+                            FirstResponseTimeoutPolicy.MAX_SECONDS,
+                        ),
+                    )
+                },
             )
         }
     }

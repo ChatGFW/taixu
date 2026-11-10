@@ -1,14 +1,11 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,15 +18,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
+import top.wkbin.taixu.core.model.AppUpdateInfo
+import top.wkbin.taixu.core.model.UpdateCheckState
+import top.wkbin.taixu.feature.settings.R
+import top.wkbin.taixu.ui.components.MarkdownText
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
@@ -37,14 +40,12 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
-import top.wkbin.taixu.ui.components.MarkdownText
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.widget.Toast
-import top.wkbin.taixu.core.model.AppUpdateInfo
-import top.wkbin.taixu.core.model.UpdateCheckState
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.miuix.*
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
 /**
  * 二级子页 4：关于、版本更新与官方社区
  */
@@ -55,7 +56,7 @@ fun AboutCommunityScreen(
     viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
     val autoCheckUpdates by viewModel?.autoCheckUpdates?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    val updateCheckState by viewModel?.updateCheckState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.UpdateCheckState.Idle)
+    val updateCheckState by viewModel?.updateCheckState?.collectAsStateWithLifecycle() ?: previewStateOf(UpdateCheckState.Idle)
     val downloadProgress by viewModel?.downloadProgress?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val isDownloading by viewModel?.isDownloading?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -162,7 +163,6 @@ fun AboutCommunityScreen(
                     icon = RuntimeIconName.Update,
                     title = "检查新版本",
                     subtitle = "基于 GitHub Releases 自动检测与在线升级",
-                    value = if (updateCheckState is UpdateCheckState.Checking) "检查中…" else "v$currentVersion",
                     onClick = {
                         // 检查进行中禁止重复触发
                         if (updateCheckState !is UpdateCheckState.Checking) {
@@ -220,7 +220,6 @@ fun AboutCommunityScreen(
                     icon = RuntimeIconName.Qq,
                     title = "官方 QQ 交流群",
                     subtitle = "群号: 964382207 · 点击一键加群 / 复制群号",
-                    value = "964382207",
                     onClick = { joinQqGroup(context, "964382207") },
                 )
                 SettingsRow(
@@ -251,7 +250,7 @@ private fun AboutAppDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(name = RuntimeIconName.Package, modifier = Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(name = RuntimeIconName.Package, modifier = Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text("太墟 · TaiXu", fontWeight = FontWeight.Medium)
             }
         },
@@ -267,7 +266,7 @@ private fun AboutAppDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RuntimeTheme.shapes.medium,
                 ) {
-                    RuntimeIcon(RuntimeIconName.Document, Modifier.size(16.dp), RuntimeTheme.colorScheme.primary)
+                    RuntimeIcon(RuntimeIconName.Document, Modifier.size(16.dp), RuntimeTheme.colorScheme.onSurface)
                     Spacer(Modifier.width(8.dp))
                     Text("本版更新日志")
                 }
@@ -276,7 +275,7 @@ private fun AboutAppDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RuntimeTheme.shapes.medium,
                 ) {
-                    RuntimeIcon(RuntimeIconName.Chat, Modifier.size(16.dp), RuntimeTheme.colorScheme.primary)
+                    RuntimeIcon(RuntimeIconName.Chat, Modifier.size(16.dp), RuntimeTheme.colorScheme.onSurface)
                     Spacer(Modifier.width(8.dp))
                     Text("加入 QQ 交流群 (964382207)")
                 }
@@ -301,7 +300,7 @@ private fun UpdateInfoDialog(
         onDismissRequest = { if (!isDownloading) onDismiss() },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text("发现新版本 v${info.latestVersion}", fontWeight = FontWeight.Medium)
             }
         },
@@ -420,7 +419,7 @@ private fun VersionReleaseNotesDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(RuntimeIconName.Document, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Document, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text("太墟 v$version 更新说明", fontWeight = FontWeight.Medium)
             }
         },
@@ -452,7 +451,7 @@ private fun VersionReleaseNotesDialog(
                         )
                     }
                 } else {
-                    Text(androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.settings.R.string.settings_release_notes_unavailable), color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                    Text(androidx.compose.ui.res.stringResource(R.string.settings_release_notes_unavailable), color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
             }
         },
@@ -460,7 +459,7 @@ private fun VersionReleaseNotesDialog(
             TextButton(onClick = onDismiss) { Text("确定") }
         },
         dismissButton = {
-            TextButton(onClick = onOpenHistory) { Text("查看全部历史") }
+            TextButton(onClick = onOpenHistory) { Text("全部", maxLines = 1) }
         },
     )
 }

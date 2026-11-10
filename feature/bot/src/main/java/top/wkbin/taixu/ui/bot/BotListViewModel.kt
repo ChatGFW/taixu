@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.wkbin.taixu.core.database.AiModelEntity
+import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.database.repository.BotMemberGroupRepository
 import top.wkbin.taixu.core.database.repository.BotScheduleRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
@@ -28,6 +30,7 @@ import top.wkbin.taixu.core.model.bot.MarketBotItem
 import top.wkbin.taixu.harness.bot.BotOrchestrator
 import top.wkbin.taixu.harness.bot.archive.BotPackageService
 import top.wkbin.taixu.harness.bot.market.BotMarketRepository
+import top.wkbin.taixu.harness.bot.market.GroupTeamImporter
 import top.wkbin.taixu.harness.bot.schedule.BotScheduleWakeup
 
 data class BotListUiState(
@@ -44,11 +47,11 @@ class BotListViewModel(
     private val orchestrator: BotOrchestrator,
     private val marketRepository: BotMarketRepository,
     private val packageService: BotPackageService,
-    private val models: top.wkbin.taixu.core.database.AiModelRepository,
+    private val models: AiModelRepository,
     private val wakeup: BotScheduleWakeup? = null,
-    private val teamImporter: top.wkbin.taixu.harness.bot.market.GroupTeamImporter? = null,
+    private val teamImporter: GroupTeamImporter? = null,
 ) : ViewModel() {
-    val modelProfiles: StateFlow<List<top.wkbin.taixu.core.database.AiModelEntity>?> = models.observeAll()
+    val modelProfiles: StateFlow<List<AiModelEntity>?> = models.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val bots: StateFlow<List<Bot>> = botRepository.observeBots()

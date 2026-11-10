@@ -1,23 +1,25 @@
 package top.wkbin.taixu.ui.home
 
-import top.wkbin.taixu.ui.miuix.RuntimeSpacing
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Scaffold
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.util.Locale
 import org.koin.compose.koinInject
 import top.wkbin.taixu.core.datastore.RemoteServerRepository
-import top.wkbin.taixu.runtime.remote.RemoteSystemService
+import top.wkbin.taixu.feature.home.R
 import top.wkbin.taixu.runtime.remote.RemoteSystemInspection
+import top.wkbin.taixu.runtime.remote.RemoteSystemService
 import top.wkbin.taixu.ui.components.*
-import java.util.Locale
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.miuix.TopAppBarDefaults
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 fun HomeScreen(onNavigate: (MainDestination) -> Unit, onOpenTerminal: () -> Unit,
@@ -37,9 +39,9 @@ internal fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) ->
         service?.observe(serverId, target) ?: kotlinx.coroutines.flow.flowOf(RemoteSystemInspection(loading = false))
     }.collectAsStateWithLifecycle(RemoteSystemInspection(loading = service != null))
     val metrics = state.metrics
-    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection), containerColor = RuntimeTheme.colorScheme.surface,
-        topBar = { RuntimeTopBar(title = androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.home.R.string.home_dashboard_title), onBack = onBack, scrollBehavior = scrollBehavior, actions = {
+        topBar = { RuntimeTopBar(title = androidx.compose.ui.res.stringResource(R.string.home_dashboard_title), onBack = onBack, scrollBehavior = scrollBehavior, actions = {
             RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) }
         }) },
     ) { padding ->
@@ -47,8 +49,7 @@ internal fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) ->
             modifier = Modifier.fillMaxSize()
                 .then(runtimeScrollViewport(padding))
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = padding.calculateBottomPadding())
-                .padding(runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                .padding(runtimeScrollContentPadding(padding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom))),
             verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             Text("主系统概览", style = RuntimeTheme.typography.titleMedium)

@@ -5,37 +5,48 @@ import org.koin.dsl.module
 import top.wkbin.taixu.core.database.repository.BotScheduleRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.harness.approval.RunInitiator
+import top.wkbin.taixu.harness.approval.RunInitiatorContext
 import top.wkbin.taixu.harness.bot.BotAssignmentExecutor
 import top.wkbin.taixu.harness.bot.BotAssignmentRuntime
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
+import top.wkbin.taixu.harness.bot.BotModelManager
 import top.wkbin.taixu.harness.bot.BotOrchestrator
+import top.wkbin.taixu.harness.bot.ExternalAgentRuntimeService
+import top.wkbin.taixu.harness.bot.GroupGovernanceGuard
+import top.wkbin.taixu.harness.bot.GroupTaskUsage
+import top.wkbin.taixu.harness.bot.TaskBudgetGuard
 import top.wkbin.taixu.harness.bot.archive.BotPackageService
 import top.wkbin.taixu.harness.bot.diagnostics.BotDiagnosticsExporter
 import top.wkbin.taixu.harness.bot.market.BotMarketRepository
+import top.wkbin.taixu.harness.bot.market.GroupTeamImporter
 import top.wkbin.taixu.harness.bot.memory.BotMemoryManager
-import top.wkbin.taixu.harness.bot.schedule.BotScheduledSubmission
 import top.wkbin.taixu.harness.bot.schedule.BotScheduleRunner
 import top.wkbin.taixu.harness.bot.schedule.BotScheduleWakeup
-import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
+import top.wkbin.taixu.harness.bot.schedule.BotScheduledSubmission
 import top.wkbin.taixu.harness.groupchat.BotAttachmentPreparer
+import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
+import top.wkbin.taixu.harness.groupchat.GroupContextScope
+import top.wkbin.taixu.harness.groupchat.GroupReplyFreshness
 import top.wkbin.taixu.harness.plugins.HarnessPlugin
 import top.wkbin.taixu.harness.plugins.botManagementPlugin
 import top.wkbin.taixu.harness.plugins.botMemoryPlugin
 import top.wkbin.taixu.harness.plugins.botSchedulePlugin
+import top.wkbin.taixu.harness.session.SessionControl
 
 /** PersonaBot：独立会话、Git 记忆、群聊调度与定时唤醒。 */
 val botHarnessModule = module {
-    single { top.wkbin.taixu.harness.bot.ExternalAgentRuntimeService(get(), get(), get()) }
-    single { top.wkbin.taixu.harness.bot.GroupGovernanceGuard(get(), get(), get()) }
-    single { top.wkbin.taixu.harness.bot.market.GroupTeamImporter(get(), get(), get()) }
-    single { top.wkbin.taixu.harness.bot.BotModelManager(get(), get(), get(), get(), get()) }
-    single { top.wkbin.taixu.harness.groupchat.GroupContextScope(groups = get(), assignments = get(), nativeTasks = get()) }
-    single { top.wkbin.taixu.harness.groupchat.GroupReplyFreshness(groups = get(), messages = get(), contextScope = get()) }
+    single { ExternalAgentRuntimeService(get(), get(), get()) }
+    single { GroupGovernanceGuard(get(), get(), get()) }
+    single { GroupTeamImporter(get(), get(), get()) }
+    single { BotModelManager(get(), get(), get(), get(), get()) }
+    single { GroupContextScope(groups = get(), assignments = get(), nativeTasks = get()) }
+    single { GroupReplyFreshness(groups = get(), messages = get(), contextScope = get()) }
     single { BotMemoryManager(pathManager = get(), logger = get()) }
     single { BotAttachmentPreparer(context = get(), paths = get()) }
-    single { top.wkbin.taixu.harness.bot.TaskBudgetGuard(get()) }
+    single { TaskBudgetGuard(get()) }
     single { BotAssignmentTracker(repository = get()) }
-    single { top.wkbin.taixu.harness.bot.GroupTaskUsage(assignments = get(), runtime = get(), budgets = get()) }
+    single { GroupTaskUsage(assignments = get(), runtime = get(), budgets = get()) }
     single {
         BotOrchestrator(
             botRepository = get<PersonaBotRepository>(),
@@ -100,8 +111,8 @@ val botHarnessModule = module {
     single<BotScheduledSubmission> {
         BotScheduledSubmission { bot, instruction, group, scheduleId ->
             kotlinx.coroutines.withContext(
-                top.wkbin.taixu.harness.approval.RunInitiatorContext(
-                    top.wkbin.taixu.harness.approval.RunInitiator.schedule(scheduleId),
+                RunInitiatorContext(
+                    RunInitiator.schedule(scheduleId),
                 ),
             ) {
                 get<GroupChatDispatcher>().triggerScheduled(bot, instruction, group)
@@ -134,7 +145,7 @@ val botHarnessModule = module {
             logger = get(),
             runtime = { get() },
             modelManager = get(),
-            sessionStates = { get<top.wkbin.taixu.harness.session.SessionControl>().sessionRunStates.value },
+            sessionStates = { get<SessionControl>().sessionRunStates.value },
         )
     }
     single<HarnessPlugin>(named("taixu.bot-schedule")) {

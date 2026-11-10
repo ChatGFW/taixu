@@ -7,17 +7,18 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.OkHttpClient
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import okhttp3.OkHttpClient
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.repository.RoomTaskBudgetRepository
+import top.wkbin.taixu.core.database.repository.TaskBudgetRepository
 import top.wkbin.taixu.core.model.bot.*
 import top.wkbin.taixu.harness.*
 
@@ -138,7 +139,7 @@ class TaskBudgetGuardTest {
 
     @Test fun `accounting failure after a response cannot become a retryable network error`() = runBlocking {
         seed()
-        val failing = object : top.wkbin.taixu.core.database.repository.TaskBudgetRepository by budgets {
+        val failing = object : TaskBudgetRepository by budgets {
             override suspend fun settle(requestId: String, tokens: Long, known: Boolean) {
                 if (known) throw java.io.IOException("local storage unavailable")
                 budgets.settle(requestId, tokens, false)

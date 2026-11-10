@@ -15,11 +15,14 @@ import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Surface
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.onboarding.R
 import top.wkbin.taixu.ui.components.RuntimeCard
@@ -55,12 +58,26 @@ internal fun OnboardingWelcomePage(modifier: Modifier = Modifier) {
 @Composable
 private fun WelcomeFeature(icon: RuntimeIconName, title: String, description: String) {
     BasicComponent(
-        title = title,
-        summary = description,
         startAction = {
-            RuntimeIcon(icon, Modifier.padding(end = 16.dp).size(26.dp), tint = RuntimeTheme.colorScheme.primary)
+            RuntimeIcon(icon, Modifier.padding(end = 16.dp).size(26.dp), tint = RuntimeTheme.colorScheme.onSurface)
         },
-    )
+    ) {
+        Text(
+            title,
+            fontSize = MiuixTheme.textStyles.headline1.fontSize,
+            fontWeight = FontWeight.Medium,
+            color = MiuixTheme.colorScheme.onBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            description,
+            fontSize = MiuixTheme.textStyles.body2.fontSize,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 @Composable

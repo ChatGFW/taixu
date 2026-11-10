@@ -8,10 +8,9 @@ import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.IconButtonDefaults
 import top.yukonga.miuix.kmp.menu.WindowIconDropdownMenu
-import top.yukonga.miuix.kmp.preference.WindowDropdownPreference
 
 /**
- * 表单/设置里的单选下拉：直接委托 miuix [WindowDropdownPreference]。
+ * 表单/设置里的单选下拉：走单行标题/副标题的 miuix 下拉行。
  */
 @Composable
 fun RuntimeDropdownField(
@@ -24,7 +23,7 @@ fun RuntimeDropdownField(
     enabled: Boolean = true,
     showValue: Boolean = true,
 ) {
-    WindowDropdownPreference(
+    RuntimeWindowDropdownPreference(
         items = items,
         selectedIndex = if (items.isEmpty()) 0 else selectedIndex.coerceIn(0, items.lastIndex),
         title = title,

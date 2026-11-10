@@ -4,10 +4,12 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +27,7 @@ import top.wkbin.taixu.core.model.bot.ExternalAgentRuntimeToken
 import top.wkbin.taixu.runtime.webchat.ExternalAgentRuntimeServerStatus
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
+import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeSwitch
 import top.wkbin.taixu.ui.components.StatusBadge
@@ -39,8 +42,9 @@ internal fun BotExternalRuntimePanel(
     tokens: List<ExternalAgentRuntimeToken>,
     issuedPlaintext: String?,
     serverStatus: ExternalAgentRuntimeServerStatus,
-    onIssue: (label: String) -> Unit,
+    onIssue: (label: String, expiresAt: Long?) -> Unit,
     onRevoke: (tokenId: String) -> Unit,
+    onRevokeExpired: () -> Unit,
     onRestoreLocal: () -> Unit,
     onToggleServer: (Boolean) -> Unit,
     onClearIssued: () -> Unit,
@@ -48,6 +52,12 @@ internal fun BotExternalRuntimePanel(
     if (bot.isMainBot) return
     val context = LocalContext.current
     var label by remember(bot.id) { mutableStateOf("laptop") }
+    /** null = unlimited; otherwise days until expiry. */
+    var expiryDays by remember(bot.id) { mutableStateOf<Int?>(null) }
+    val now = System.currentTimeMillis()
+    val openTokens = tokens.filter { it.revokedAt == null }
+    val activeTokens = openTokens.filter { it.isActive(now) }
+    val expiredTokens = openTokens.filter { !it.isActive(now) }
     Column(verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("外部运行时", style = RuntimeTheme.typography.bodyMedium)
@@ -58,6 +68,13 @@ internal fun BotExternalRuntimePanel(
             style = RuntimeTheme.typography.labelSmall,
             color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
+        if (bot.runtimeMode == BotRuntimeMode.EXTERNAL && activeTokens.isEmpty()) {
+            Text(
+                "当前没有可用运行时令牌：本地泵不会领取该成员收件。请签发新令牌，或切回手机内执行。",
+                style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.error,
+            )
+        }
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -70,6 +87,11 @@ internal fun BotExternalRuntimePanel(
                         serverStatus.accessUrl,
                         style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                         color = RuntimeTheme.colorScheme.primary,
+                    )
+                    Text(
+                        "claim ${serverStatus.claimUrl}",
+                        style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -86,8 +108,40 @@ internal fun BotExternalRuntimePanel(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("令牌有效期", style = RuntimeTheme.typography.bodyMedium)
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                RuntimeFilterChip(
+                    selected = expiryDays == null,
+                    onClick = { expiryDays = null },
+                    enabled = !busy,
+                    label = { Text("不限时") },
+                )
+                listOf(7 to "7 天", 30 to "30 天").forEach { (days, chip) ->
+                    RuntimeFilterChip(
+                        selected = expiryDays == days,
+                        onClick = { expiryDays = days },
+                        enabled = !busy,
+                        label = { Text(chip) },
+                    )
+                }
+            }
+            val previewExpiresAt = expiryDays?.let { System.currentTimeMillis() + it * 24L * 60L * 60L * 1000L }
+            Text(
+                previewExpiresAt?.let { "截止约 ${formatCapabilityDeadline(it)}，过期后令牌立即失效。" }
+                    ?: "不设截止时间；可随时撤销或切回手机内执行。",
+                style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         RuntimeButton(
-            onClick = { onIssue(label) },
+            onClick = {
+                val expiresAt = expiryDays?.let { System.currentTimeMillis() + it * 24L * 60L * 60L * 1000L }
+                onIssue(label, expiresAt)
+            },
             enabled = !busy && label.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         ) { Text("签发运行时令牌") }
@@ -108,25 +162,59 @@ internal fun BotExternalRuntimePanel(
                     RuntimeOutlinedButton(onClick = {
                         copyText(context, "太墟外部运行时地址", serverStatus.accessUrl)
                     }) { Text("复制地址") }
+                    RuntimeOutlinedButton(onClick = {
+                        copyText(
+                            context,
+                            "太墟外部运行时环境变量",
+                            "TAIXU_RUNTIME_BASE=${serverStatus.accessUrl}\nTAIXU_RUNTIME_TOKEN=$token\n",
+                        )
+                    }) { Text("复制环境变量") }
                 }
             }
         }
-        tokens.filter { it.revokedAt == null }.forEach { token ->
+        openTokens.forEach { token ->
+            val expired = !token.isActive(now)
+            val expiresAt = token.expiresAt
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(token.label, style = RuntimeTheme.typography.bodyMedium)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(token.label, style = RuntimeTheme.typography.bodyMedium)
+                        if (expired) StatusBadge("已过期")
+                    }
                     Text(
-                        token.id.take(8),
+                        buildString {
+                            append(token.id.take(8))
+                            when {
+                                expired -> append(" · 已失效，可清理")
+                                expiresAt != null -> {
+                                    append(" · 截止 ")
+                                    append(formatCapabilityDeadline(expiresAt))
+                                }
+                                else -> append(" · 不限时")
+                            }
+                        },
                         style = RuntimeTheme.typography.labelSmall,
                         color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                RuntimeOutlinedButton(onClick = { onRevoke(token.id) }, enabled = !busy) { Text("撤销") }
+                RuntimeOutlinedButton(onClick = { onRevoke(token.id) }, enabled = !busy) {
+                    Text(if (expired) "清理" else "撤销")
+                }
             }
+        }
+        if (expiredTokens.isNotEmpty()) {
+            RuntimeOutlinedButton(
+                onClick = onRevokeExpired,
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("清理全部过期令牌") }
         }
         if (bot.runtimeMode == BotRuntimeMode.EXTERNAL) {
             RuntimeOutlinedButton(

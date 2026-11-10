@@ -53,7 +53,7 @@ fun FtpSettingsScreen(
     viewModel: FtpSettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
     val settings by viewModel?.settings?.collectAsStateWithLifecycle() ?: previewStateOf(FtpSettingsUiState())
-    val serviceState by viewModel?.serviceState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.FtpServiceState.Stopped("ubuntu"))
+    val serviceState by viewModel?.serviceState?.collectAsStateWithLifecycle() ?: previewStateOf(FtpServiceState.Stopped("ubuntu"))
     val operating by viewModel?.operating?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
@@ -129,16 +129,6 @@ fun FtpSettingsScreen(
                     icon = RuntimeIconName.Server,
                     title = "启用 FTP 服务",
                     subtitle = "保持启用并随 Linux 运行时自动启动",
-                    value = if (busy) {
-                        "正在处理..."
-                    } else {
-                        when (serviceState) {
-                            is FtpServiceState.Running -> "运行中"
-                            is FtpServiceState.Starting -> "启动中"
-                            is FtpServiceState.Failed -> "失败"
-                            is FtpServiceState.Stopped -> "已停止"
-                        }
-                    },
                     trailing = {
                         if (busy) {
                             RuntimeCircularProgressIndicator(
@@ -247,7 +237,6 @@ fun FtpSettingsScreen(
                     icon = RuntimeIconName.Admin,
                     title = "登录用户名",
                     subtitle = "FTP 客户端连接时使用的用户名",
-                    value = settings.username,
                     onClick = { showUsernameDialog = true },
                 )
                 val passwordSubtitle = if (settings.passwordConfigured) {
@@ -257,18 +246,10 @@ fun FtpSettingsScreen(
                 } else {
                     "未设置密码（免密登录，客户端密码留空或填任意内容即可）"
                 }
-                val passwordValue = if (settings.passwordConfigured) {
-                    "已设置"
-                } else if (settings.sshPasswordConfigured) {
-                    "同 SSH 密码"
-                } else {
-                    "免密"
-                }
                 SettingsRow(
                     icon = RuntimeIconName.Key,
                     title = "登录密码",
                     subtitle = passwordSubtitle,
-                    value = passwordValue,
                     onClick = { showPasswordDialog = true },
                 )
                 SettingsRow(

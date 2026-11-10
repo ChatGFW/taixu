@@ -113,14 +113,12 @@ fun SystemDevSettingsScreen(
                     icon = RuntimeIconName.Shield,
                     title = "厂商后台防杀与权限向导",
                     subtitle = "自启动、电池无限制、多任务加锁等 OEM 专属配置指引",
-                    value = "查看向导",
                     onClick = onOpenPermissionGuide,
                 )
                 SettingsRow(
                     icon = RuntimeIconName.Battery,
                     title = "电池优化与后台保活",
                     subtitle = "豁免系统电池限制，防止 Agent 息屏被冻结",
-                    value = if (batteryExempted) "已豁免" else "未豁免",
                     onClick = { showBatteryDialog = true },
                 )
                 if (isRestrictiveRom) {
@@ -128,7 +126,6 @@ fun SystemDevSettingsScreen(
                         icon = RuntimeIconName.Cpu,
                         title = "$romLabel 快捷自启动跳转",
                         subtitle = "一键直达厂商系统自启动管理设置项",
-                        value = "前往开启",
                         onClick = {
                             runCatching { RomAutostartHelper.openAutostartSettings(context) }.onFailure {
                                 Toast.makeText(context, "无法跳转厂商设置，请在系统设置的应用管理中手动配置", Toast.LENGTH_LONG).show()
@@ -140,13 +137,6 @@ fun SystemDevSettingsScreen(
                     icon = RuntimeIconName.Speed,
                     title = "Android 12 子进程限制",
                     subtitle = "解除 Phantom Process 最多 32 个的后台限制",
-                    value = when {
-                        phantomBusy && phantomStatus == null -> "检测中"
-                        phantomStatus?.state == PhantomProcessLimitState.REMOVED -> "已解除"
-                        phantomStatus?.state == PhantomProcessLimitState.ACTIVE -> "未解除"
-                        phantomStatus?.state == PhantomProcessLimitState.UNSUPPORTED -> "无需处理"
-                        else -> "待检测"
-                    },
                     onClick = {
                         showPhantomProcessDialog = true
                         viewModel?.refreshPhantomProcessLimit()
@@ -167,7 +157,6 @@ fun SystemDevSettingsScreen(
                     icon = RuntimeIconName.Terminal,
                     title = "无线 ADB 与日志抓取",
                     subtitle = "mDNS 自动配对发现、免配对自动重连与 Logcat 实时工作台",
-                    value = "进入工作台",
                     onClick = onOpenAdbLogcat,
                 )
             }
@@ -246,7 +235,7 @@ private fun BatteryOptimizationDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(RuntimeIconName.Shield, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Shield, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text("电池优化与后台运行", fontWeight = FontWeight.Medium)
             }
         },
@@ -361,7 +350,7 @@ private fun PhantomProcessLimitDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(RuntimeIconName.Speed, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Speed, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text("Android 12 子进程限制", fontWeight = FontWeight.Medium)
             }
         },

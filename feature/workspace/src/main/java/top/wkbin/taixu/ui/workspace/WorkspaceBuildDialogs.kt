@@ -45,6 +45,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * 后台构建常驻状态栏（列表首项 Banner）：
@@ -132,7 +133,7 @@ internal fun WorkspaceBuildStatusBanner(
                     }
                 }
                 }
-                top.wkbin.taixu.ui.components.RuntimeActionRow() {
+                RuntimeActionRow() {
                     if (progress.isSuccess == true && progress.apkPath != null) {
                         TextButton(onClick = { onLaunchInstaller(progress.apkPath!!) }) {
                             Text(stringResource(R.string.workspace_install), fontWeight = FontWeight.Medium)
@@ -345,7 +346,7 @@ internal fun BuildProgressDialog(
                 // running (and for completed tasks) instead of tying it
                 // to logOutput being non-empty.
                 run {
-                    top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                    RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                         TextButton(
                             onClick = { showBuildLog = !showBuildLog },
                         ) {
@@ -477,7 +478,7 @@ internal fun BuildProgressDialog(
         },
         confirmButton = {
             if (!progress.isRunning) {
-                top.wkbin.taixu.ui.components.RuntimeActionRow() {
+                RuntimeActionRow() {
                     // 缺少环境时展示前往插件中心准备环境按钮
                     if (progress.suggestedSuiteId != null) {
                         Button(
@@ -507,7 +508,7 @@ internal fun BuildProgressDialog(
                     }
                 }
             } else {
-                top.wkbin.taixu.ui.components.RuntimeActionRow() {
+                RuntimeActionRow() {
                     TextButton(onClick = onCancelBuild) {
                         Text(stringResource(R.string.workspace_stop_build), fontWeight = FontWeight.Medium)
                     }

@@ -2,23 +2,26 @@ package top.wkbin.taixu.ui.navigation
 
 import androidx.compose.runtime.Composable
 import top.wkbin.taixu.plugin.api.PluginExtensionRef
+import top.wkbin.taixu.plugin.runtime.PluginController
+import top.wkbin.taixu.plugin.ui.PluginManagerScreen
 import top.wkbin.taixu.plugin.ui.PluginPageHost
 import top.wkbin.taixu.plugin.ui.PluginPages
-import top.wkbin.taixu.ui.terminal.TerminalPlugin
 import top.wkbin.taixu.ui.browser.BrowserPlugin
 import top.wkbin.taixu.ui.browser.BrowserViewModel
-import top.wkbin.taixu.plugin.runtime.PluginController
+import top.wkbin.taixu.ui.settings.PackagedWebPluginScreen
+import top.wkbin.taixu.ui.settings.ToolServicePluginScreen
+import top.wkbin.taixu.ui.terminal.TerminalPlugin
 
 /** New plugins use this generic destination; existing saved terminal destinations remain valid. */
 @Composable
 internal fun RegisteredPluginPage(pages: PluginPages, destination: PluginPageDestination, onBack: () -> Unit) {
     if (destination.pageId == "main" && destination.arguments.keys == setOf("web.package.id", "web.package.version")) {
-        top.wkbin.taixu.ui.settings.PackagedWebPluginScreen(
+        PackagedWebPluginScreen(
             destination.arguments.getValue("web.package.id"), destination.arguments.getValue("web.package.version"), destination.pluginId, onBack)
         return
     }
     if (destination.pageId == "main" && destination.arguments.keys == setOf("web.tool.id")) {
-        top.wkbin.taixu.ui.settings.ToolServicePluginScreen(destination.arguments.getValue("web.tool.id"), onBack)
+        ToolServicePluginScreen(destination.arguments.getValue("web.tool.id"), onBack)
         return
     }
     PluginPageHost(
@@ -61,5 +64,5 @@ internal fun selectedPluginPage(destination: androidx.navigation3.runtime.NavKey
 
 @Composable
 internal fun ManagedPluginsScreen(platform: NativePluginPlatform, controller: PluginController, onOpen: (PluginExtensionRef) -> Unit, onBack: () -> Unit) {
-    top.wkbin.taixu.plugin.ui.PluginManagerScreen(platform.plugins, controller, onOpen, onBack)
+    PluginManagerScreen(platform.plugins, controller, onOpen, onBack)
 }

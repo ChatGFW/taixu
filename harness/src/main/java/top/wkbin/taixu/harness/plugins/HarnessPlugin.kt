@@ -3,11 +3,12 @@ package top.wkbin.taixu.harness.plugins
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import okhttp3.OkHttpClient
+import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeContext
 import top.wkbin.taixu.harness.LlmApiAdapter
-import top.wkbin.taixu.harness.core.LlmApi
-import top.wkbin.taixu.harness.core.ToolCheckpoint
 import top.wkbin.taixu.harness.ToolExecutionRequest
 import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.core.LlmApi
+import top.wkbin.taixu.harness.core.ToolCheckpoint
 import top.wkbin.taixu.harness.workflow.NodeExecutor
 import top.wkbin.taixu.plugin.api.PluginDescriptor
 
@@ -32,6 +33,6 @@ data class PluginContext(val id: String, val provide: suspend (PluginContextRequ
 /** Receives the selected request's model credentials through LlmApiAdapter; no credential repository. */
 data class PluginProvider(val id: String, val api: LlmApi, val providerId: String? = null, val create: (OkHttpClient, Json) -> LlmApiAdapter)
 data class PluginWorkflow(val id: String, val create: () -> NodeExecutor)
-data class PluginWorkflowRequest(val arguments: JsonObject, val context: top.wkbin.taixu.core.model.workflow.WorkflowRuntimeContext)
+data class PluginWorkflowRequest(val arguments: JsonObject, val context: WorkflowRuntimeContext)
 data class PluginWorkflowNode(val id: String, val description: String, val schema: JsonObject,
     val execute: suspend (PluginWorkflowRequest) -> PluginToolOutput)

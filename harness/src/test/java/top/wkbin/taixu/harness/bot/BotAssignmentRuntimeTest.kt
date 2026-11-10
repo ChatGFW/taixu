@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.json.Json
 import org.junit.After
@@ -19,6 +19,7 @@ import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.repository.*
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.*
+import top.wkbin.taixu.core.security.SecretManager
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 import top.wkbin.taixu.harness.queue.PromptQueue
@@ -61,7 +62,7 @@ class BotAssignmentRuntimeTest {
         val chief = bots.getBot("chief")!!
         bots.saveBot(chief.copy(capabilityToolNames = mapOf("remote" to listOf("read")), capabilityExpiresAt = Long.MAX_VALUE))
         val capabilities = RepositoryBotCapabilityScope(bots,
-            McpServerRepository(db.mcpServerDao(), top.wkbin.taixu.core.security.SecretManager()), tasks)
+            McpServerRepository(db.mcpServerDao(), SecretManager()), tasks)
         val engine = runtime(capabilities) { _, _, _ -> GroupTurnOutcome("done", false) }
         val task = engine.create("member", "group", "chief", "parent", "bounded work")
         val grant = requireNotNull(tasks.get(task.id)!!.capabilityGrant)

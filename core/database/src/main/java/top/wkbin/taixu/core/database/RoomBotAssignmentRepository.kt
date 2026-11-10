@@ -6,6 +6,8 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
+import top.wkbin.taixu.core.database.repository.IndependentAssignmentRepository
+import top.wkbin.taixu.core.database.repository.RoomIndependentAssignmentRepository
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.core.model.bot.BotWorkBatch
@@ -14,8 +16,8 @@ import top.wkbin.taixu.core.model.bot.BotWorkBatchStatus
 class RoomBotAssignmentRepository(
     private val dao: BotAssignmentDao,
     private val json: Json,
-) : BotAssignmentRepository, top.wkbin.taixu.core.database.repository.IndependentAssignmentRepository by
-    top.wkbin.taixu.core.database.repository.RoomIndependentAssignmentRepository(dao, json) {
+) : BotAssignmentRepository, IndependentAssignmentRepository by
+    RoomIndependentAssignmentRepository(dao, json) {
     override fun observeForGroup(groupId: String): Flow<List<BotAssignment>> =
         dao.observeForGroup(groupId).map { rows -> rows.map { it.toModel(json) } }
 

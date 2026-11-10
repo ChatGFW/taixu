@@ -8,10 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Surface
-import top.yukonga.miuix.kmp.basic.Text
-import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +24,7 @@ import top.wkbin.taixu.feature.workspace.R
 import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.IconTile
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
@@ -35,9 +33,12 @@ import top.wkbin.taixu.ui.components.RuntimeIconMenu
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
-import androidx.compose.foundation.shape.CircleShape
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.basic.Text
 
 /** 工坊项目卡片：类型徽章 + 路径/体积 + 快捷操作栏。 */
 @Composable
@@ -172,7 +173,7 @@ internal fun ProjectCard(
             }
 
             // 快捷操作栏：精简去噪，只保留最核心的直达动作
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 // 插件工程直达打包与导入，Android / Flutter 仍进入构建配置。
                 if (project.projectType == ProjectType.ANDROID ||
                     project.projectType == ProjectType.FLUTTER || project.projectType == ProjectType.TAIXU_PLUGIN
@@ -219,7 +220,7 @@ internal fun ProjectCard(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(15.dp), RuntimeTheme.colorScheme.primary)
+                            RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(15.dp), RuntimeTheme.colorScheme.onSurface)
                             Text(
                                 stringResource(R.string.workspace_terminal),
                                 maxLines = 1,

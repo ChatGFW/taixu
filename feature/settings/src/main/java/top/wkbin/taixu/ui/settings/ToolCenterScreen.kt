@@ -1,11 +1,10 @@
 package top.wkbin.taixu.ui.settings
-
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
-import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,46 +28,48 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import top.wkbin.taixu.ui.miuix.*
-import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.model.ToolState
-import top.wkbin.taixu.ui.components.NoticeBanner
-import top.wkbin.taixu.ui.components.RuntimeCard
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeTopBar
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
 import top.wkbin.taixu.core.tools.LocalPluginImportState
 import top.wkbin.taixu.feature.settings.R
-/**
- * 太墟 · 插件与 AI 工具中心 (Tool & Plugin Center)
- */
+import top.wkbin.taixu.ui.components.NoticeBanner
+import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeButton as Button
+import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
+import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
+import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimePullToRefresh
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.*
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
+/** 太墟 · 插件与 AI 工具中心 */
 @Composable
 internal fun LocalToolCenterContent(
     onBack: () -> Unit,
@@ -90,7 +91,7 @@ internal fun LocalToolCenterContent(
     val isInstallingComponents by viewModel?.isInstallingComponents?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val componentInstallProgress by viewModel?.componentInstallProgress?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val componentInstallLog by viewModel?.componentInstallLog?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val localPluginImport by viewModel?.localPluginImport?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.tools.LocalPluginImportState.Idle)
+    val localPluginImport by viewModel?.localPluginImport?.collectAsStateWithLifecycle() ?: previewStateOf(LocalPluginImportState.Idle)
     val isSyncing by viewModel?.isSyncing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val operationError by viewModel?.operationError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     var showBundleInstallLog by remember { mutableStateOf(false) }
@@ -99,7 +100,6 @@ internal fun LocalToolCenterContent(
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let({ arg0 -> viewModel?.importLocalPlugin(arg0) })
     }
-
     val categories = listOf(
         "INSTALLED" to "已安装",
         "ALL" to "全部插件",
@@ -107,14 +107,11 @@ internal fun LocalToolCenterContent(
         "CODING_AGENT" to "编程助手",
         "AI_AGENT" to "智能体生态",
     )
-
     val showBundles = selectedCategory == "ALL" || selectedCategory == "BUNDLES"
     val showTools = selectedCategory != "BUNDLES"
-
     val filteredTools = PluginCenterCatalogPolicy.visibleTools(tools, selectedCategory)
-
     Box(modifier = Modifier.fillMaxSize()) {
-    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = RuntimeTheme.colorScheme.surface,
@@ -149,11 +146,18 @@ internal fun LocalToolCenterContent(
             )
         },
     ) { innerPadding ->
+        RuntimePullToRefresh(
+            isRefreshing = isSyncing,
+            onRefresh = { viewModel?.syncRegistry(); viewModel?.refreshInstalledStatus() },
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = innerPadding.calculateTopPadding()),
+            topAppBarScrollBehavior = scrollBehavior,
+        ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding)),
-            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(innerPadding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                .then(runtimeScrollViewport(innerPadding)),
+            contentPadding = runtimeScrollContentPadding(innerPadding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
             verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             item("plugin-actions") {
@@ -195,7 +199,6 @@ internal fun LocalToolCenterContent(
                         )
                     }
                 }
-
                 if (localPluginImport !is LocalPluginImportState.Idle) {
                     item {
                         val state = localPluginImport
@@ -294,7 +297,6 @@ internal fun LocalToolCenterContent(
                         }
                     }
                 }
-
                 // 🚀 后台装配进行中提示卡片 (Background Installing Banner)
                 if (isInstallingComponents || componentInstallLog.isNotEmpty()) {
                     item {
@@ -344,7 +346,6 @@ internal fun LocalToolCenterContent(
                         }
                     }
                 }
-
                 // 1. 聚合大套件专区 (Plugin Bundles)
                 if (showBundles) {
                     item {
@@ -355,11 +356,9 @@ internal fun LocalToolCenterContent(
                             modifier = Modifier.padding(bottom = 2.dp),
                         )
                     }
-
                     items(viewModel?.pluginBundles.orEmpty(), key = { it.id }) { bundle ->
                         val installedCount = bundle.components.count { it.id in installedComponentIds }
                         val isCoreReady = bundle.components.filter { it.isRequired }.all { it.id in installedComponentIds }
-
                         RuntimeCard(
                             modifier = Modifier.fillMaxWidth(),
                             onClick = { viewModel?.openBundleSetup(bundle) },
@@ -388,7 +387,7 @@ internal fun LocalToolCenterContent(
                                         RuntimeIcon(
                                             name = bundleIcon(bundle.iconName),
                                             modifier = Modifier.size(22.dp),
-                                            tint = if (isCoreReady) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
+                                            tint = if (isCoreReady) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
 
@@ -455,7 +454,7 @@ internal fun LocalToolCenterContent(
                                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             ) {
                                                 if (comp.isRequired) {
-                                                    RuntimeIcon(RuntimeIconName.Shield, Modifier.size(10.dp), tint = RuntimeTheme.colorScheme.primary)
+                                                    RuntimeIcon(RuntimeIconName.Shield, Modifier.size(10.dp), tint = RuntimeTheme.colorScheme.onSurface)
                                                 }
                                                 Text(
                                                     text = if (comp.isRequired) "${comp.name} (必选)" else comp.name,
@@ -566,6 +565,7 @@ internal fun LocalToolCenterContent(
                         }
                     }
                 }
+        }
         }
 
         // A package is only committed/installed after explicit confirmation.

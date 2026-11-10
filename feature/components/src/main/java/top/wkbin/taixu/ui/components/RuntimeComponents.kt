@@ -1,6 +1,5 @@
 package top.wkbin.taixu.ui.components
 
-import top.wkbin.taixu.ui.miuix.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -18,34 +17,31 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import top.yukonga.miuix.kmp.squircle.squircleBackground
-import top.yukonga.miuix.kmp.icon.extended.Home
-import top.yukonga.miuix.kmp.basic.NavigationBarItem
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -53,12 +49,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.feature.components.R
-import androidx.compose.ui.res.stringResource
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.NavigationBarItem
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.icon.extended.Home
+import top.yukonga.miuix.kmp.squircle.squircleBackground
 
-/**
- * 太墟 (TaiXu) 四大核心中枢导航定义：
- * 太墟（开辟画布）· 智枢（AI 结对）· 工坊（工作区）· 乾坤（设置与模型）
- */
+/** 太墟四大中枢：太墟·智枢·工坊·乾坤 */
 enum class MainDestination(val labelRes: Int, val subtitleRes: Int, val icon: RuntimeIconName) {
     Home(R.string.components_nav_home, R.string.components_nav_subtitle_home, RuntimeIconName.NavDashboard),
     Agent(R.string.components_nav_agent, R.string.components_nav_subtitle_agent, RuntimeIconName.NavMessage), Bots(R.string.components_nav_bots, R.string.components_nav_subtitle_bots, RuntimeIconName.Bot),
@@ -183,7 +180,7 @@ fun RuntimeSwitch(
     colors: SwitchColors = SwitchDefaults.colors(),
     thumbContent: (@Composable (() -> Unit))? = null,
 ) {
-    top.wkbin.taixu.ui.miuix.Switch(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, enabled = enabled, colors = colors, thumbContent = thumbContent)
+    Switch(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, enabled = enabled, colors = colors, thumbContent = thumbContent)
 }
 
 @Composable
@@ -194,17 +191,18 @@ fun RuntimeLinearProgressIndicator(
     trackColor: Color = RuntimeTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
     wavy: Boolean = false,
 ) {
-    top.wkbin.taixu.ui.miuix.LinearProgressIndicator(progress = progress, modifier = modifier, color = color, trackColor = trackColor)
+    LinearProgressIndicator(progress = progress, modifier = modifier, color = color, trackColor = trackColor)
 }
 
+/** 不确定加载：miuix 圆环 + 轨道点（InfiniteProgressIndicator），不是蓝色扫弧。 */
 @Composable
 fun RuntimeCircularProgressIndicator(
     modifier: Modifier = Modifier,
-    color: Color = top.yukonga.miuix.kmp.theme.LocalContentColor.current,
+    color: Color = RuntimeTheme.colorScheme.onSurfaceVariant,
     trackColor: Color = Color.Transparent,
-    strokeWidth: Dp = 4.5.dp,
+    strokeWidth: Dp = 2.dp,
 ) {
-    top.wkbin.taixu.ui.miuix.CircularProgressIndicator(modifier = modifier, color = color, trackColor = trackColor, strokeWidth = strokeWidth)
+    CircularProgressIndicator(modifier = modifier, color = color, trackColor = trackColor, strokeWidth = strokeWidth)
 }
 
 @Composable
@@ -215,7 +213,7 @@ fun RuntimeCheckbox(
     enabled: Boolean = true,
     colors: CheckboxColors = CheckboxDefaults.colors(),
 ) {
-    top.wkbin.taixu.ui.miuix.Checkbox(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, enabled = enabled, colors = colors)
+    Checkbox(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, enabled = enabled, colors = colors)
 }
 
 @Composable
@@ -226,7 +224,7 @@ fun RuntimeRadioButton(
     enabled: Boolean = true,
     colors: RadioButtonColors = RadioButtonDefaults.colors(),
 ) {
-    top.wkbin.taixu.ui.miuix.RadioButton(selected = selected, onClick = onClick, modifier = modifier, enabled = enabled, colors = colors)
+    RadioButton(selected = selected, onClick = onClick, modifier = modifier, enabled = enabled, colors = colors)
 }
 
 @Composable
@@ -240,7 +238,7 @@ fun RuntimeSlider(
     onValueChangeFinished: (() -> Unit)? = null,
     colors: SliderColors = SliderDefaults.colors(),
 ) {
-    top.wkbin.taixu.ui.miuix.Slider(
+    Slider(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
@@ -310,7 +308,7 @@ fun StatusBadge(
 fun IconTile(
     icon: RuntimeIconName,
     modifier: Modifier = Modifier,
-    color: Color = RuntimeTheme.colorScheme.primary,
+    color: Color = RuntimeTheme.colorScheme.onSurface,
     size: Dp = 42.dp,
 ) {
     Box(
@@ -408,7 +406,7 @@ fun EmptyPanel(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            IconTile(icon, color = RuntimeTheme.colorScheme.primary, size = 48.dp)
+            IconTile(icon, color = RuntimeTheme.colorScheme.onSurface, size = 48.dp)
             Text(
                 title,
                 style = RuntimeTheme.typography.titleMedium,

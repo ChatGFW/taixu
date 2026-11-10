@@ -1,10 +1,14 @@
 package top.wkbin.taixu.harness.directory
 
 import kotlinx.serialization.json.JsonObject
+import top.wkbin.taixu.core.model.McpConnectionState
 import top.wkbin.taixu.core.model.McpToolAnnotations
+import top.wkbin.taixu.harness.JsonArgs
+import top.wkbin.taixu.harness.bot.BotCapabilityScope
 import top.wkbin.taixu.harness.mcp.McpManager
 import top.wkbin.taixu.harness.mcp.McpToolCallPolicy
-import top.wkbin.taixu.harness.JsonArgs
+import top.wkbin.taixu.harness.plugins.HarnessPluginRegistry
+import top.wkbin.taixu.harness.plugins.PluginToolRequest
 
 /**
  * use_capability 统一代理的分发器（自 ToolExecutor 零增长迁出，对齐 Reasonix 的代理入口）：
@@ -22,11 +26,11 @@ class CapabilityToolRouter(
     private val mcpManager: McpManager?,
     /** 嵌套记录脱敏（调用方注入 SecretRedactor；目录层保持纯净）。 */
     private val argRedactor: (String) -> String = { it },
-    private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
+    private val plugins: HarnessPluginRegistry? = null,
     /** 按工具策略过滤模型可见面并在执行前拒绝已禁用工具。 */
     private val toolPolicy: McpToolCallPolicy? = null,
     /** Bot 级能力白名单：设置后非白名单 MCP 服务在 list/inspect/call 一律拒绝。 */
-    private val capabilityScope: top.wkbin.taixu.harness.bot.BotCapabilityScope? = null,
+    private val capabilityScope: BotCapabilityScope? = null,
     /** 宿主执行通道：与直接 host 调用共用同一 executeHost（含输出上限与截图 metadata 附带）。 */
     private val hostExecutor: suspend (JsonObject, String?, String, MutableMap<String, String>) -> Pair<Boolean, String>,
 ) {
@@ -104,9 +108,9 @@ class CapabilityToolRouter(
                 appendLine(
                     "- ${summary.id} · ${summary.name} · 已缓存 ${summary.cachedToolCount} 个工具 · " +
                         when (summary.processState) {
-                            top.wkbin.taixu.core.model.McpConnectionState.SLEEPING -> "已就绪（休眠）"
-                            top.wkbin.taixu.core.model.McpConnectionState.WAKING -> "正在唤醒"
-                            top.wkbin.taixu.core.model.McpConnectionState.OFFLINE -> "进程离线"
+                            McpConnectionState.SLEEPING -> "已就绪（休眠）"
+                            McpConnectionState.WAKING -> "正在唤醒"
+                            McpConnectionState.OFFLINE -> "进程离线"
                             else -> if (summary.connected) "工具目录已就绪" else "未发现工具"
                         },
                 )
@@ -213,7 +217,7 @@ class CapabilityToolRouter(
             }
             hostExecutor(HostCapabilityDirectory.flattenHostArgs(tool, callArgs), operationId, sessionId, metadata)
         } else if (serverId.startsWith("plugin.")) {
-            plugins?.call(serverId, tool, top.wkbin.taixu.harness.plugins.PluginToolRequest(callArgs, sessionId, workspace, operationId))
+            plugins?.call(serverId, tool, PluginToolRequest(callArgs, sessionId, workspace, operationId))
                 ?: (false to "插件目录未初始化")
         } else {
             val manager = mcpManager ?: run {

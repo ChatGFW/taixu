@@ -38,7 +38,7 @@ inspect-assignment 可查看当前任务与后代独立会话的已入账 token�
 - 后台委派创建时固定 `reportToBotId`。任务终态、确定 ID 的群内结果报告、主控收件在同一事务中提交。重复终态回调不覆盖先前结论，也不重复唤醒主控。取消仅保留报告，不唤醒主控。
 - 收件处理沿用 `(Bot, Group)` 的执行锁，与普通群回复、定时回复共享停止边界；独立委派按任务 ID 串行。在实际处理时重新读取群记录；这不保证同时运行的其他成员已经看到彼此尚未提交的回复。
 - 领取收件时写入一次性 `claimNonce`；准备会话、原生受理与终态回执必须携带同一租约。错配或迟到回执被忽略。未领取的取消只作用于 `pending`；进程恢复对 `submitting`/`admitted` 走管理结算，不依赖原执行器的 nonce。数据库 88→89 增加可空列，历史收件 nonce 为空，仍按状态机恢复。
-- `runtimeMode=EXTERNAL` 的成员由外部运行时领取其收件；本地泵跳过它们。同一群连续未领取收件最多并入一轮（8 条），各条仍用独立 `claimNonce` 回执。签发/撤销令牌与切回 LOCAL 见 [`EXTERNAL_AGENT_RUNTIME.md`](EXTERNAL_AGENT_RUNTIME.md)。
+- `runtimeMode=EXTERNAL` 的成员由外部运行时领取其收件；本地泵跳过它们。同一群连续未领取收件最多并入一轮（8 条），各条仍用独立 `claimNonce` 回执；可 `release` 放回队列；长任务需 `heartbeat` 续租，默认 15 分钟无心跳会回收。冷启动对 EXTERNAL 的 `submitting` 重新入队；切回 LOCAL 也会先回收该成员未结算租约。本地中断收件仍标待核对。签发/撤销令牌与切回 LOCAL 见 [`EXTERNAL_AGENT_RUNTIME.md`](EXTERNAL_AGENT_RUNTIME.md)。
 - 来源附件在处理时经现有 SAF 授权和大小检查读取，不把图片编码复制到收件表。
 - 移出成员会取消该成员的未结束收件；重新加入不会复活它们。清空消息、解散群聊通过来源消息的外键级联清理回执。
 - 群聊诊断导出展示最近 100 份回执，包含来源、状态、Bot、session/task 引用及安全错误说明。

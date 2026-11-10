@@ -58,6 +58,7 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /** 创建项目向导步骤：平台选择 → 空项目详情 / 模板选择 → 模板详情。 */
 internal enum class CreateProjectStep { PROJECT_TYPE, EMPTY_DETAILS, TEMPLATE, DETAILS }
@@ -200,7 +201,7 @@ internal fun CreateProjectDialog(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
                                 ) {
-                                    RuntimeIcon(RuntimeIconName.Folder, Modifier.size(36.dp), RuntimeTheme.colorScheme.primary)
+                                    RuntimeIcon(RuntimeIconName.Folder, Modifier.size(36.dp), RuntimeTheme.colorScheme.onSurface)
                                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                         Text("空项目", fontWeight = FontWeight.Medium)
                                         Text(
@@ -387,7 +388,7 @@ internal fun CreateProjectDialog(
                                 style = RuntimeTheme.typography.labelMedium,
                                 color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
-                            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                                 OutlinedButton(
                                     onClick = { state.showAppPicker = true },
                                     modifier = Modifier,
@@ -496,7 +497,7 @@ internal fun CreateProjectDialog(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                                     ) {
-                                        RuntimeIcon(RuntimeIconName.Reverse, Modifier.size(18.dp), RuntimeTheme.colorScheme.primary)
+                                        RuntimeIcon(RuntimeIconName.Reverse, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurface)
                                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                             Text(
                                                 text = source.displayName,

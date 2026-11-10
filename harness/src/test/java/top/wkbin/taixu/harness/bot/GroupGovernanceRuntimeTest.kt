@@ -15,6 +15,8 @@ import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.repository.*
+import top.wkbin.taixu.core.database.task.AgentTaskEntity
+import top.wkbin.taixu.core.database.task.RoomAgentTaskRepository
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.*
 import top.wkbin.taixu.harness.*
@@ -45,8 +47,8 @@ class GroupGovernanceRuntimeTest {
         groups.saveGovernance("g", GroupGovernance(listOf(GroupReviewRule("r", "Review", "author", "reviewer", "executor"))))
         sessions.upsert(HarnessSessionEntity("parent", "Root", 1, 1, null, workspace = "/workspace/project"))
         val guard = GroupGovernanceGuard(groups, bots, tasks)
-        val nativeTasks = top.wkbin.taixu.core.database.task.RoomAgentTaskRepository(db.agentTaskDao())
-        nativeTasks.upsert(top.wkbin.taixu.core.database.task.AgentTaskEntity("native-root", "parent", "Root", "draft",
+        val nativeTasks = RoomAgentTaskRepository(db.agentTaskDao())
+        nativeTasks.upsert(AgentTaskEntity("native-root", "parent", "Root", "draft",
             "RUNNING", 1, 1, operationId = "root-operation", groupWorkId = "root-work", groupId = "g"))
         val executions = mutableListOf<String>()
         lateinit var engine: BotAssignmentRuntime
@@ -118,7 +120,8 @@ class GroupGovernanceRuntimeTest {
         override fun cancel(targetSessionId: String?) { targetSessionId?.let { setState(it, SessionRunState.IDLE) } }
         override fun send(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
         override fun steer(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
-        override fun followUp(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
+        override fun followUp(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
+
         override fun appendOnly(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
         override fun resolveApproval(requestId: String, approved: Boolean, rememberForSession: Boolean) = Unit
         override fun resolveQuestion(requestId: String, answersJson: String) = Unit

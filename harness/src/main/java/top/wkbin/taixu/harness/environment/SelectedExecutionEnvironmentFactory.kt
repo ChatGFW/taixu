@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness.environment
 import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.runtime.environment.*
 import top.wkbin.taixu.runtime.remote.SshConnector
+import top.wkbin.taixu.runtime.remote.remoteConnectionScope
 
 /** Explicit inherited distributions take precedence over the current global selection. */
 class SelectedExecutionEnvironmentFactory(
@@ -18,7 +19,7 @@ class SelectedExecutionEnvironmentFactory(
     override suspend fun open(owner: String, workspace: String, distribution: String?): ExecutionEnvironment {
         val target = targets.resolve(owner, workspace, distribution)
         val standaloneScope = owner.takeIf { it.startsWith("mcp:") }?.substringAfter("@environment:", "").orEmpty()
-        if (standaloneScope.isNotEmpty()) check((target.remote?.let { top.wkbin.taixu.runtime.remote.remoteConnectionScope(it) }
+        if (standaloneScope.isNotEmpty()) check((target.remote?.let { remoteConnectionScope(it) }
                 ?: "local:${target.distribution}") == standaloneScope) {
             "当前服务器已改变，请重新测试 MCP 连接"
         }

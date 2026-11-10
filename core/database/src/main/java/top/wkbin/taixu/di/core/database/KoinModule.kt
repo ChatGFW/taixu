@@ -1,40 +1,37 @@
 package top.wkbin.taixu.di.core.database
 
-import org.koin.dsl.module
 import android.content.Context
 import java.io.File
-import top.wkbin.taixu.core.database.EncryptedRequestDiagnosticsRepository
-import top.wkbin.taixu.core.database.RequestDiagnosticsRepository
-import top.wkbin.taixu.core.security.SecretManager
+import org.koin.dsl.module
 import top.wkbin.taixu.core.database.AgencyAgentCatalogLoader
 import top.wkbin.taixu.core.database.AgentApprovalAuditRepository
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.AgentContextRepository
 import top.wkbin.taixu.core.database.AgentMessageFeedbackRepository
-import top.wkbin.taixu.core.database.MessageFeedbackService
 import top.wkbin.taixu.core.database.AgentSkillRepository
 import top.wkbin.taixu.core.database.AgentSubagentRepository
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.database.AndroidAppRepository
-import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
-import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
-import top.wkbin.taixu.core.database.repository.BotMemberGroupRepository
+import top.wkbin.taixu.core.database.BotAssignmentDao
 import top.wkbin.taixu.core.database.BuildScriptRepository
 import top.wkbin.taixu.core.database.DatabaseBackupRepository
-import top.wkbin.taixu.core.database.RoomDatabaseBackupRepository
+import top.wkbin.taixu.core.database.EncryptedRequestDiagnosticsRepository
 import top.wkbin.taixu.core.database.HarnessBlobStore
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.database.McpOAuthCredentialRepository
 import top.wkbin.taixu.core.database.McpServerRepository
+import top.wkbin.taixu.core.database.MessageFeedbackService
 import top.wkbin.taixu.core.database.QuickPhraseRepository
+import top.wkbin.taixu.core.database.RequestDiagnosticsRepository
 import top.wkbin.taixu.core.database.RoomAgentContextRepository
 import top.wkbin.taixu.core.database.RoomAiModelRepository
 import top.wkbin.taixu.core.database.RoomAndroidAppRepository
-import top.wkbin.taixu.core.database.RoomBuildScriptRepository
 import top.wkbin.taixu.core.database.RoomBotAssignmentRepository
 import top.wkbin.taixu.core.database.RoomBotGroupSessionRepository
 import top.wkbin.taixu.core.database.RoomBtwQueryRepository
+import top.wkbin.taixu.core.database.RoomBuildScriptRepository
+import top.wkbin.taixu.core.database.RoomDatabaseBackupRepository
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
 import top.wkbin.taixu.core.database.RoomHarnessSessionRepository
 import top.wkbin.taixu.core.database.RoomQuickPhraseRepository
@@ -47,15 +44,24 @@ import top.wkbin.taixu.core.database.TerminalSessionRepository
 import top.wkbin.taixu.core.database.ToolSettingsRepository
 import top.wkbin.taixu.core.database.WorkflowRepository
 import top.wkbin.taixu.core.database.WorkspaceRepository
+import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
+import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
+import top.wkbin.taixu.core.database.repository.BotMemberGroupRepository
 import top.wkbin.taixu.core.database.repository.BotScheduleRepository
+import top.wkbin.taixu.core.database.repository.BtwQueryRepository
+import top.wkbin.taixu.core.database.repository.ExternalAgentRuntimeTokenRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.database.repository.RoomBotMemberGroupRepository
 import top.wkbin.taixu.core.database.repository.RoomBotScheduleRepository
+import top.wkbin.taixu.core.database.repository.RoomExternalAgentRuntimeTokenRepository
 import top.wkbin.taixu.core.database.repository.RoomGroupChatRepository
 import top.wkbin.taixu.core.database.repository.RoomPersonaBotRepository
+import top.wkbin.taixu.core.database.repository.RoomTaskBudgetRepository
+import top.wkbin.taixu.core.database.repository.TaskBudgetRepository
 import top.wkbin.taixu.core.database.task.AgentTaskRepository
 import top.wkbin.taixu.core.database.task.RoomAgentTaskRepository
+import top.wkbin.taixu.core.security.SecretManager
 
 /** Dependency registrations owned by the core:database module. */
 val coreDatabaseModule = module {
@@ -121,8 +127,8 @@ val coreDatabaseModule = module {
 
     factory<PersonaBotRepository> { get<RoomPersonaBotRepository>() }
 
-    single<top.wkbin.taixu.core.database.repository.ExternalAgentRuntimeTokenRepository> {
-        top.wkbin.taixu.core.database.repository.RoomExternalAgentRuntimeTokenRepository(dao = get())
+    single<ExternalAgentRuntimeTokenRepository> {
+        RoomExternalAgentRuntimeTokenRepository(dao = get())
     }
 
     single<RoomGroupChatRepository> { RoomGroupChatRepository(dao = get(), json = get()) }
@@ -137,7 +143,7 @@ val coreDatabaseModule = module {
 
     factory<BotScheduleRepository> { get<RoomBotScheduleRepository>() }
 
-    single<top.wkbin.taixu.core.database.repository.TaskBudgetRepository> { top.wkbin.taixu.core.database.repository.RoomTaskBudgetRepository(get<top.wkbin.taixu.core.database.BotAssignmentDao>()) }
+    single<TaskBudgetRepository> { RoomTaskBudgetRepository(get<BotAssignmentDao>()) }
     single<RoomBotAssignmentRepository> { RoomBotAssignmentRepository(dao = get(), json = get()) }
 
     factory<BotAssignmentRepository> { get<RoomBotAssignmentRepository>() }
@@ -148,7 +154,7 @@ val coreDatabaseModule = module {
 
     single<RoomBtwQueryRepository> { RoomBtwQueryRepository(dao = get()) }
 
-    factory<top.wkbin.taixu.core.database.repository.BtwQueryRepository> { get<RoomBtwQueryRepository>() }
+    factory<BtwQueryRepository> { get<RoomBtwQueryRepository>() }
 
     factory<TerminalSessionRepository> { get<RoomTerminalSessionRepository>() }
 

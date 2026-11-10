@@ -33,6 +33,7 @@ import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeSwitch
 import top.wkbin.taixu.ui.components.StatusBadge
+import top.wkbin.taixu.ui.components.runtimeContentPadding
 
 /**
  * Bot 人格设置面板（从 BotDetailScreen 抽出以控制文件尺寸）。
@@ -83,7 +84,7 @@ internal fun BotPersonaPanel(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+            .padding(runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
         verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
     ) {
         Row(

@@ -9,10 +9,10 @@ import android.os.Build
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import java.io.File
-import java.util.UUID
 import java.io.InputStream
 import java.net.InetSocketAddress
 import java.net.URLDecoder
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +40,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.common.result.AppResult
+import top.wkbin.taixu.core.database.AgentMessageFeedbackEntity
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
@@ -501,7 +502,7 @@ class WebChatBridgeServer(
         messages.forEach { add(json.encodeToJsonElement(WebChatMessage.serializer(), it)) }
     }
 
-    private fun feedbackJson(entry: top.wkbin.taixu.core.database.AgentMessageFeedbackEntity) = buildJsonObject {
+    private fun feedbackJson(entry: AgentMessageFeedbackEntity) = buildJsonObject {
         put("id", entry.id)
         put("messageId", entry.messageId)
         put("rating", entry.rating)

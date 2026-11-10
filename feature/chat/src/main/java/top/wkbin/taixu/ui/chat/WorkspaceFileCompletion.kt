@@ -3,6 +3,7 @@ package top.wkbin.taixu.ui.chat
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withTimeoutOrNull
+import top.wkbin.taixu.runtime.environment.ExecutionFileEntry
 import top.wkbin.taixu.runtime.environment.ExecutionFiles
 
 /** Bounded guest-path inventory; never resolves a path against the phone filesystem. */
@@ -69,7 +70,7 @@ internal class WorkspaceFileCompletion(private val clock: () -> Long = { System.
     }
 
     private suspend fun rules(files: ExecutionFiles, absolute: String, path: String,
-        children: List<top.wkbin.taixu.runtime.environment.ExecutionFileEntry>, inherited: List<WorkspaceIgnoreRule>): List<WorkspaceIgnoreRule> {
+        children: List<ExecutionFileEntry>, inherited: List<WorkspaceIgnoreRule>): List<WorkspaceIgnoreRule> {
         val ignore = children.firstOrNull { it.name == ".gitignore" && !it.directory && it.size in 0..32_768 }
         val text = if (ignore != null) files.readTextForEdit("$absolute/.gitignore").getOrNull()?.take(32_768) else null
         return inherited + WorkspaceIgnoreRule.parse(path, text.orEmpty())

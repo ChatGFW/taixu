@@ -54,7 +54,7 @@ fun SshSettingsScreen(
     viewModel: SshSettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
     val settings by viewModel?.settings?.collectAsStateWithLifecycle() ?: previewStateOf(SshSettingsUiState())
-    val serviceState by viewModel?.serviceState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.SshServiceState.Stopped("ubuntu"))
+    val serviceState by viewModel?.serviceState?.collectAsStateWithLifecycle() ?: previewStateOf(SshServiceState.Stopped("ubuntu"))
     val operating by viewModel?.operating?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
@@ -118,21 +118,6 @@ fun SshSettingsScreen(
                     icon = RuntimeIconName.Server,
                     title = "启用 SSH 服务",
                     subtitle = "保持启用并随 Linux 运行时自动启动",
-                    value = if (busy) {
-                        when (serviceState) {
-                            is SshServiceState.Installing -> "正在安装 OpenSSH"
-                            is SshServiceState.Starting -> "正在等待 SSH 服务就绪"
-                            else -> "正在处理"
-                        }
-                    } else {
-                        when (serviceState) {
-                            is SshServiceState.Running -> "运行中"
-                            is SshServiceState.Installing -> "安装中"
-                            is SshServiceState.Starting -> "启动中"
-                            is SshServiceState.Failed -> "失败"
-                            is SshServiceState.Stopped -> if ((serviceState as SshServiceState.Stopped).installed) "已安装" else "未安装"
-                        }
-                    },
                     trailing = {
                         if (busy) {
                             RuntimeCircularProgressIndicator(
@@ -170,13 +155,11 @@ fun SshSettingsScreen(
                     icon = RuntimeIconName.Admin,
                     title = "登录用户名",
                     subtitle = "PRoot Linux 沙箱管理员账户",
-                    value = "root",
                 )
                 SettingsRow(
                     icon = RuntimeIconName.Key,
                     title = "登录密码",
                     subtitle = if (settings.passwordConfigured) "密码已加密保存，可点击修改或清除" else "尚未设置，使用密码登录前必须配置",
-                    value = if (settings.passwordConfigured) "已设置" else "未设置",
                     onClick = { showPasswordDialog = true },
                 )
                 SettingsRow(

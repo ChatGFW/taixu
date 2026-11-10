@@ -34,6 +34,7 @@ import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.core.database.MessageSearchHitRow
 
 /**
  * 会话侧栏：固定搜索与底部功能入口，会话列表独立滚动。
@@ -62,7 +63,7 @@ internal fun SessionsSideDrawer(
     onDelete: (String) -> Unit,
     onRename: (String, String) -> Unit,
     onCollapse: (() -> Unit)? = null, navigationContent: @Composable () -> Unit = {},
-    searchMessages: suspend (String) -> List<top.wkbin.taixu.core.database.MessageSearchHitRow> = { emptyList() },
+    searchMessages: suspend (String) -> List<MessageSearchHitRow> = { emptyList() },
     onTogglePin: (String, Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {

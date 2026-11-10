@@ -1,28 +1,28 @@
 package top.wkbin.taixu.ui.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.size
-import androidx.compose.ui.graphics.toPixelMap
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -31,14 +31,17 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.model.ApprovalMode
-import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeSearchBar
 import top.wkbin.taixu.ui.components.RuntimeTextButton
-import top.wkbin.taixu.core.model.McpServerConfig
-import top.yukonga.miuix.kmp.basic.Text
+import top.wkbin.taixu.ui.miuix.ButtonDefaults
 import top.wkbin.taixu.ui.miuix.Scaffold
 import top.wkbin.taixu.ui.theme.TaiXuTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "zh-rCN-w360dp-h800dp-mdpi")
@@ -183,7 +186,7 @@ class MiuixDeepPageRenderTest {
     @Test fun searchIconsKeepAnInsetFromTheFieldEdge() {
         compose.setContent {
             TaiXuTheme(dynamicColor = false) {
-                top.wkbin.taixu.ui.components.RuntimeSearchBar("", {},
+                RuntimeSearchBar("", {},
                     Modifier.width(320.dp).testTag("search"), leadingIcon = { Text("⌕", Modifier.testTag("search-icon")) })
             }
         }
@@ -202,7 +205,7 @@ class MiuixDeepPageRenderTest {
                     Modifier.size(72.dp).background(androidx.compose.ui.graphics.Color.White).testTag("loading-frame"),
                     contentAlignment = androidx.compose.ui.Alignment.Center,
                 ) {
-                    top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator(
+                    RuntimeCircularProgressIndicator(
                         Modifier.size(16.dp), color = androidx.compose.ui.graphics.Color.Blue,
                         trackColor = androidx.compose.ui.graphics.Color.Blue, strokeWidth = 1.5.dp)
                 }
@@ -226,10 +229,10 @@ class MiuixDeepPageRenderTest {
         RuntimeEnvironment.setFontScale(1f)
         compose.setContent {
             TaiXuTheme(dynamicColor = false) {
-                RuntimeButton(onClick = {}, colors = top.wkbin.taixu.ui.miuix.ButtonDefaults.buttonColors(
+                RuntimeButton(onClick = {}, colors = ButtonDefaults.buttonColors(
                     containerColor = androidx.compose.ui.graphics.Color.Blue,
                     contentColor = androidx.compose.ui.graphics.Color.White)) {
-                    top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator(
+                    RuntimeCircularProgressIndicator(
                         Modifier.size(16.dp).testTag("button-loading"), strokeWidth = 1.5.dp)
                     Text("下一步")
                 }

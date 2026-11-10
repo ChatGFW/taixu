@@ -4,13 +4,14 @@ import kotlinx.coroutines.flow.first
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.core.database.UsageLedgerSessionRow
 import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
+import top.wkbin.taixu.core.database.repository.TaskBudgetRepository
 import top.wkbin.taixu.core.model.bot.BotAssignment
 
 /** Aggregate ledger scalars for the original task tree, without loading conversation payloads. */
 class GroupTaskUsage(
     private val assignments: BotAssignmentRepository,
     private val runtime: HarnessRuntimeRepository,
-    private val budgets: top.wkbin.taixu.core.database.repository.TaskBudgetRepository? = null,
+    private val budgets: TaskBudgetRepository? = null,
 ) {
     suspend fun describe(id: String): String {
         val root = assignments.get(id) ?: return "任务不存在，无法核对用量"

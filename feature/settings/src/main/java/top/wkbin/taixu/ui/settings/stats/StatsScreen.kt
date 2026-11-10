@@ -1,15 +1,10 @@
 package top.wkbin.taixu.ui.settings.stats
 
-import top.wkbin.taixu.ui.miuix.RuntimeSpacing
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,24 +12,32 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Scaffold
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.model.StatsDateRangePreset
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
 import top.wkbin.taixu.ui.settings.stats.widgets.LedgerBreakdownPanel
 import top.wkbin.taixu.ui.settings.stats.widgets.LedgerCompositionPanel
 import top.wkbin.taixu.ui.settings.stats.widgets.LedgerDetailDialog
@@ -45,6 +48,7 @@ import top.wkbin.taixu.ui.settings.stats.widgets.StatsHeatmap
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsMetricGrid
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsSectionCard
 import top.wkbin.taixu.ui.settings.stats.widgets.StatsUsageChart
+import top.yukonga.miuix.kmp.basic.Text
 @Composable
 fun StatsScreen(
     onBack: () -> Unit,
@@ -67,7 +71,8 @@ fun StatsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
+                .then(runtimeScrollViewport(padding))
+                .padding(top = padding.calculateTopPadding()),
         ) {
             // 顶部时间范围筛选胶囊
             Row(
@@ -167,7 +172,10 @@ fun StatsScreen(
             if (snapshot != null) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                    contentPadding = runtimeScrollContentPadding(
+                        PaddingValues(bottom = padding.calculateBottomPadding()),
+                        runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
+                    ),
                     verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
                 ) {
                     // 1. 活跃度打卡热力图（与用量无关的独立维度，原样保留）

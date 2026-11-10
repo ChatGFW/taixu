@@ -31,7 +31,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.wkbin.taixu.ui.components.RuntimeArrowPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -132,7 +132,7 @@ internal fun OnboardingPermissionPage(
                         granted -> R.string.onboarding_permission_granted
                         else -> R.string.onboarding_permission_optional
                     })
-                    ArrowPreference(
+                    top.wkbin.taixu.ui.components.RuntimeArrowPreference(
                         title = stringResource(permission.title),
                         summary = stringResource(permission.description),
                         startAction = {
@@ -142,7 +142,7 @@ internal fun OnboardingPermissionPage(
                         endActions = {
                             Text(status, Modifier.widthIn(max = 96.dp), style = MiuixTheme.textStyles.body2,
                                 color = if (granted) RuntimeTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantActions,
-                                maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
                         },
                         onClick = { request(permission) },
                         enabled = !legacyFiles,

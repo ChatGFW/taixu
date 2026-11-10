@@ -62,6 +62,10 @@ import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.StatusBadge
 import top.wkbin.taixu.core.model.CcSwitchDaemonStatus
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 /**
  * 太墟 · CC-Switch 智能体中枢主界面
  *
@@ -107,9 +111,8 @@ internal fun LocalCcSwitchContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding))
-                .verticalScroll(rememberScrollState()).padding(bottom = innerPadding.calculateBottomPadding())
-                .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                .then(runtimeScrollViewport(innerPadding)).verticalScroll(rememberScrollState())
+                .padding(runtimeScrollContentPadding(innerPadding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom))),
             verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             // 提示横幅
@@ -190,7 +193,7 @@ internal fun LocalCcSwitchContent(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                top.wkbin.taixu.ui.components.RuntimeActionRow() {
+                RuntimeActionRow() {
                     if (state.installLogs.isNotEmpty()) {
                         RuntimeOutlinedButton(
                             onClick = { viewModel?.showInstallLogs() },
@@ -365,7 +368,7 @@ private fun DaemonServiceCard(
                     fontWeight = FontWeight.Medium,
                     color = RuntimeTheme.colorScheme.onSurface,
                 )
-                top.wkbin.taixu.ui.components.RuntimeActionRow() {
+                RuntimeActionRow() {
                     RuntimeTextButton(
                         onClick = {
                             val creds = "${state.webUsername} / ${state.webPassword}"
@@ -409,7 +412,7 @@ private fun DaemonServiceCard(
 
         Spacer(modifier = Modifier.height(14.dp))
         if (state.isDaemonRunning) {
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 RuntimeFilledTonalButton(
                     onClick = onRestart,
                     enabled = !state.isOperating,

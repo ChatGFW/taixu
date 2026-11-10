@@ -75,7 +75,7 @@ internal fun WorkspaceMoreMenu(
             entries = menuEntries,
             enabled = enabled,
             content = {
-                RuntimeIcon(RuntimeIconName.More, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.More, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
             },
         )
     }

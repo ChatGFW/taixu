@@ -1,5 +1,4 @@
 package top.wkbin.taixu.ui.settings
-
 import androidx.compose.runtime.*
 
 import top.wkbin.taixu.ui.components.previewOrNull
@@ -271,6 +270,7 @@ fun StorageUsageScreen(
     RuntimeSettingsScaffold(
         title = "存储管理", onBack = onBack,
         statusText = usage?.totalManagedBytes?.readableSize() ?: "统计中",
+        isRefreshing = refreshing, onRefresh = { viewModel?.refresh() },
     ) {
         // 1. 顶部存储看板与多段占比仪表条
         item(key = "header_dashboard") {
@@ -612,7 +612,7 @@ private fun SmartCleanupCards(
                     ) {
                         IconTile(
                             icon = RuntimeIconName.Shield,
-                            color = top.wkbin.taixu.ui.theme.semanticColors().success,
+                            color = semanticColors().success,
                             size = 40.dp,
                         )
                         Spacer(Modifier.width(12.dp))
@@ -634,7 +634,7 @@ private fun SmartCleanupCards(
                             safeCleanableBytes.readableSize(),
                             style = RuntimeTheme.typography.titleLarge,
                             fontWeight = FontWeight.Medium,
-                            color = top.wkbin.taixu.ui.theme.semanticColors().success,
+                            color = semanticColors().success,
                         )
                     }
 
@@ -703,7 +703,7 @@ private fun SmartCleanupCards(
                     ) {
                         IconTile(
                             icon = RuntimeIconName.Code,
-                            color = top.wkbin.taixu.ui.theme.semanticColors().warning,
+                            color = semanticColors().warning,
                             size = 40.dp,
                         )
                         Spacer(Modifier.width(12.dp))
@@ -725,7 +725,7 @@ private fun SmartCleanupCards(
                             cautionCleanableBytes.readableSize(),
                             style = RuntimeTheme.typography.titleLarge,
                             fontWeight = FontWeight.Medium,
-                            color = top.wkbin.taixu.ui.theme.semanticColors().warning,
+                            color = semanticColors().warning,
                         )
                     }
 
@@ -959,8 +959,8 @@ private fun StorageEntryRow(
                                 style = RuntimeTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Medium,
                                 color = when (entry.riskLevel) {
-                                    StorageRiskLevel.SAFE -> top.wkbin.taixu.ui.theme.semanticColors().success
-                                    StorageRiskLevel.CAUTION -> top.wkbin.taixu.ui.theme.semanticColors().warning
+                                    StorageRiskLevel.SAFE -> semanticColors().success
+                                    StorageRiskLevel.CAUTION -> semanticColors().warning
                                     StorageRiskLevel.DANGEROUS -> RuntimeTheme.colorScheme.error
                                     StorageRiskLevel.READONLY -> RuntimeTheme.colorScheme.outline
                                 },
@@ -999,7 +999,7 @@ private fun StorageEntryRow(
                                         .size(6.dp)
                                         .clip(CircleShape)
                                         .background(
-                                            if (sub.cleanable) top.wkbin.taixu.ui.theme.semanticColors().warning else RuntimeTheme.colorScheme.outlineVariant
+                                            if (sub.cleanable) semanticColors().warning else RuntimeTheme.colorScheme.outlineVariant
                                         ),
                                 )
                                 Spacer(Modifier.width(6.dp))

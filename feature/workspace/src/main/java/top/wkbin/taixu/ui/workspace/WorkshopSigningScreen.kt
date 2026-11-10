@@ -47,6 +47,10 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
 import androidx.compose.ui.res.stringResource
 import java.util.UUID
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 /**
  * 工坊签名管理：创建 / 导入 / 删除 Android 签名（keystore）。
  * Release 构建时在构建类型选择弹窗中选用这里登记的签名。
@@ -61,10 +65,10 @@ fun WorkshopSigningScreen(onBack: () -> Unit, viewModel: WorkshopSigningViewMode
     var deleteTarget by remember { mutableStateOf<WorkshopKeystore?>(null) }
 
     Scaffold(containerColor = RuntimeTheme.colorScheme.background, topBar = { RuntimeTopBar(stringResource(R.string.workshop_signing_title), onBack, stringResource(R.string.workshop_signing_subtitle)) }) { padding ->
-        LazyColumn(Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)), contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = 12.dp, bottom = 24.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.fillMaxSize().then(runtimeScrollViewport(padding)), contentPadding = runtimeScrollContentPadding(padding, runtimeContentPadding(top = 12.dp, bottom = 24.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { SectionHeader(stringResource(R.string.workshop_signing_section), stringResource(R.string.workshop_signing_section_description)) }
             item {
-                top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                     RuntimeOutlinedButton(onClick = { showImport = true }, enabled = !busy, modifier = Modifier) { Text(stringResource(R.string.workshop_signing_import)) }
                     RuntimeButton(onClick = { showCreate = true }, enabled = !busy, modifier = Modifier) { Text(stringResource(R.string.workshop_signing_create)) }
                 }

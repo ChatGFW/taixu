@@ -4,34 +4,59 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.work.WorkerParameters
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.HttpClientEngine
+import java.io.File
+import kotlinx.coroutines.Job
+import okhttp3.OkHttpClient
 import org.junit.Assert.assertSame
 import org.junit.Test
 import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.dsl.koinApplication
-import org.koin.test.verify.verify
 import org.koin.test.verify.definition
 import org.koin.test.verify.injectedParameters
-import java.io.File
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.HttpClientEngine
-import okhttp3.OkHttpClient
+import org.koin.test.verify.verify
+import top.wkbin.taixu.core.browser.BrowserPreferences
+import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
+import top.wkbin.taixu.core.datastore.ChatBackgroundImageStore
+import top.wkbin.taixu.core.datastore.ChatBackgroundPreferences
+import top.wkbin.taixu.core.datastore.ChatIdentityPreferences
+import top.wkbin.taixu.core.datastore.ContainerBackendPreferences
+import top.wkbin.taixu.core.datastore.EncryptedRemoteServerRepository
+import top.wkbin.taixu.core.datastore.McpClientPreferences
+import top.wkbin.taixu.core.datastore.McpToolPolicyPreferences
+import top.wkbin.taixu.core.datastore.PluginLibraryPreferences
+import top.wkbin.taixu.core.datastore.PluginPreferences
+import top.wkbin.taixu.core.security.SecretRedactor
+import top.wkbin.taixu.core.tools.InstalledPluginCatalog
+import top.wkbin.taixu.core.tools.PluginReceiptStore
+import top.wkbin.taixu.core.tools.backup.BackupLocations
 import top.wkbin.taixu.harness.WorkspaceFileAccess
 import top.wkbin.taixu.harness.WorkspaceToolBackend
 import top.wkbin.taixu.harness.core.ToolCheckpoints
-import top.wkbin.taixu.harness.directory.CapabilityToolGateway
-import top.wkbin.taixu.harness.subagent.SubagentLaneRunner
-import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
-import top.wkbin.taixu.runtime.browser.tools.BrowserMcpResources
-import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
-import kotlinx.coroutines.Job
-import top.wkbin.taixu.core.browser.BrowserPreferences
-import top.wkbin.taixu.core.security.SecretRedactor
-import top.wkbin.taixu.core.tools.backup.BackupLocations
-import top.wkbin.taixu.harness.projection.CurrentSessionTracker
 import top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore
+import top.wkbin.taixu.harness.directory.CapabilityToolGateway
+import top.wkbin.taixu.harness.environment.SessionExecutionTargets
+import top.wkbin.taixu.harness.mcp.McpStdioTransport
+import top.wkbin.taixu.harness.mcp.McpTransport
+import top.wkbin.taixu.harness.mcp.StandaloneMcpScope
+import top.wkbin.taixu.harness.plugins.ExternalHarnessPlugins
+import top.wkbin.taixu.harness.plugins.HarnessPlugin
+import top.wkbin.taixu.harness.plugins.HarnessPluginRegistry
+import top.wkbin.taixu.harness.projection.CurrentSessionTracker
+import top.wkbin.taixu.harness.subagent.SubagentLaneRunner
 import top.wkbin.taixu.harness.workflow.VirtualScreenWorkflowRuns
+import top.wkbin.taixu.iteration.engine.AssetReader
+import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator
+import top.wkbin.taixu.plugin.api.PluginDescriptor
+import top.wkbin.taixu.runtime.SessionWorkspaceCatalog
+import top.wkbin.taixu.runtime.bridge.FullAccessGrant
+import top.wkbin.taixu.runtime.browser.tools.BrowserMcpResources
+import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
+import top.wkbin.taixu.runtime.environment.LocalDistributionSelection
 import top.wkbin.taixu.runtime.virtualdisplay.PhoneTaskRegistry
 import top.wkbin.taixu.runtime.virtualdisplay.PhoneTaskState
+import top.wkbin.taixu.ui.iteration.CustomIterationViewModel
 
 @OptIn(KoinExperimentalAPI::class)
 class TaiXuModulesTest {
@@ -45,39 +70,39 @@ class TaiXuModulesTest {
                 definition<CapabilityToolGateway>(Function5::class),
                 definition<ToolCheckpoints<*, *>>(List::class),
                 definition<BackupLocations>(File::class),
-                definition<top.wkbin.taixu.core.tools.PluginReceiptStore>(File::class),
-                definition<top.wkbin.taixu.harness.plugins.HarnessPluginRegistry>(List::class, Function0::class),
+                definition<PluginReceiptStore>(File::class),
+                definition<HarnessPluginRegistry>(List::class, Function0::class),
                 // Bot plugin factories construct their immutable descriptors; these are not DI services.
-                definition<top.wkbin.taixu.harness.plugins.HarnessPlugin>(top.wkbin.taixu.plugin.api.PluginDescriptor::class),
-                definition<top.wkbin.taixu.harness.plugins.ExternalHarnessPlugins>(Function2::class, top.wkbin.taixu.harness.mcp.McpTransport::class),
-                definition<top.wkbin.taixu.core.tools.InstalledPluginCatalog>(Function0::class, kotlinx.coroutines.CoroutineScope::class),
+                definition<HarnessPlugin>(PluginDescriptor::class),
+                definition<ExternalHarnessPlugins>(Function2::class, McpTransport::class),
+                definition<InstalledPluginCatalog>(Function0::class, kotlinx.coroutines.CoroutineScope::class),
                 definition<HttpClient>(HttpClientEngine::class),
                 definition<OkHttpClient>(OkHttpClient.Builder::class),
                 definition<SubagentLaneRunner>(Function0::class),
                 definition<BrowserMcpTools>(List::class, Function1::class, BrowserPreferences::class),
                 definition<BrowserMcpResources>(Function0::class),
-                definition<top.wkbin.taixu.runtime.bridge.FullAccessGrant>(kotlinx.coroutines.flow.Flow::class, kotlinx.coroutines.CoroutineScope::class, Function0::class),
+                definition<FullAccessGrant>(kotlinx.coroutines.flow.Flow::class, kotlinx.coroutines.CoroutineScope::class, Function0::class),
                 // These callbacks/files are built by explicit provider lambdas or secondary constructors.
-                definition<top.wkbin.taixu.runtime.SessionWorkspaceCatalog>(Function0::class, Function2::class),
-                definition<top.wkbin.taixu.harness.environment.SessionExecutionTargets>(Function1::class),
-                definition<top.wkbin.taixu.runtime.environment.LocalDistributionSelection>(kotlinx.coroutines.flow.Flow::class, kotlinx.coroutines.flow.StateFlow::class, kotlinx.coroutines.CoroutineScope::class),
-                definition<top.wkbin.taixu.harness.mcp.StandaloneMcpScope>(Function0::class, kotlinx.coroutines.flow.Flow::class),
-                definition<top.wkbin.taixu.harness.mcp.McpStdioTransport>(kotlinx.coroutines.flow.Flow::class, Function0::class),
-                definition<top.wkbin.taixu.core.datastore.McpClientPreferences>(androidx.datastore.core.DataStore::class),
-                definition<top.wkbin.taixu.core.datastore.McpToolPolicyPreferences>(androidx.datastore.core.DataStore::class),
-                definition<top.wkbin.taixu.core.datastore.ChatIdentityPreferences>(androidx.datastore.core.DataStore::class),
-                definition<top.wkbin.taixu.core.datastore.ChatBackgroundPreferences>(androidx.datastore.core.DataStore::class),
-                definition<top.wkbin.taixu.core.datastore.ChatBackgroundImageStore>(File::class, Function1::class, Long::class),
-                definition<top.wkbin.taixu.core.datastore.PluginPreferences>(androidx.datastore.core.DataStore::class),
-                definition<top.wkbin.taixu.core.datastore.PluginLibraryPreferences>(androidx.datastore.core.DataStore::class),
-                definition<top.wkbin.taixu.core.datastore.ContainerBackendPreferences>(androidx.datastore.core.DataStore::class),
-                definition<top.wkbin.taixu.core.datastore.EncryptedRemoteServerRepository>(android.util.AtomicFile::class, Function1::class),
+                definition<SessionWorkspaceCatalog>(Function0::class, Function2::class),
+                definition<SessionExecutionTargets>(Function1::class),
+                definition<LocalDistributionSelection>(kotlinx.coroutines.flow.Flow::class, kotlinx.coroutines.flow.StateFlow::class, kotlinx.coroutines.CoroutineScope::class),
+                definition<StandaloneMcpScope>(Function0::class, kotlinx.coroutines.flow.Flow::class),
+                definition<McpStdioTransport>(kotlinx.coroutines.flow.Flow::class, Function0::class),
+                definition<McpClientPreferences>(androidx.datastore.core.DataStore::class),
+                definition<McpToolPolicyPreferences>(androidx.datastore.core.DataStore::class),
+                definition<ChatIdentityPreferences>(androidx.datastore.core.DataStore::class),
+                definition<ChatBackgroundPreferences>(androidx.datastore.core.DataStore::class),
+                definition<ChatBackgroundImageStore>(File::class, Function1::class, Long::class),
+                definition<PluginPreferences>(androidx.datastore.core.DataStore::class),
+                definition<PluginLibraryPreferences>(androidx.datastore.core.DataStore::class),
+                definition<ContainerBackendPreferences>(androidx.datastore.core.DataStore::class),
+                definition<EncryptedRemoteServerRepository>(android.util.AtomicFile::class, Function1::class),
                 // The build coordinator's adapter and default callbacks are constructed by its lambda.
-                definition<top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator>(
-                    top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator.ShellRunner::class, Function2::class, Function0::class, String::class,
+                definition<TaiXuDevBuildCoordinator>(
+                    TaiXuDevBuildCoordinator.ShellRunner::class, Function2::class, Function0::class, String::class,
                 ),
-                definition<top.wkbin.taixu.ui.iteration.CustomIterationViewModel>(
-                    Function0::class, Function1::class, top.wkbin.taixu.iteration.engine.AssetReader::class,
+                definition<CustomIterationViewModel>(
+                    Function0::class, Function1::class, AssetReader::class,
                 ),
             ),
             extraTypes = listOf(Context::class, Application::class, SavedStateHandle::class, WorkerParameters::class),

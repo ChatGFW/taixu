@@ -4,11 +4,7 @@ import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Surface
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.icon.basic.ArrowRight
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -19,11 +15,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.WorkspaceProject
-import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.*
-import androidx.compose.foundation.shape.CircleShape
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.wkbin.taixu.ui.theme.chatBackdropSurface
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 
 @Composable
 internal fun EmptyChatGuidance(
@@ -135,7 +136,7 @@ internal fun EmptyChatGuidance(
             // 3. 核心场景快捷动作列表 (统一优雅卡片)
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(),
+                containerColor = chatBackdropSurface(),
                 contentPadding = PaddingValues(0.dp),
             ) {
                 quickCommands.forEach { cmd ->

@@ -3,13 +3,14 @@ package top.wkbin.taixu.core.tools
 import android.util.AtomicFile
 import java.io.File
 import java.io.InputStream
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.plugin.packages.PluginPackageProtocol
 import top.wkbin.taixu.plugin.packages.SemanticVersion
+import top.wkbin.taixu.plugin.packages.WebPluginPackagePolicy
 
 /** Immutable version directories plus an atomic selection pointer. Import never runs code. */
 internal class LocalPluginStore(private val root: File, private val cache: File) {
@@ -67,7 +68,7 @@ internal class LocalPluginStore(private val root: File, private val cache: File)
 
     /** Remove only a confirmed current static package, under the same lock used for imports. */
     suspend fun removeWeb(expected: ToolManifest) = mutations.withLock {
-        require(top.wkbin.taixu.plugin.packages.WebPluginPackagePolicy.isWeb(expected))
+        require(WebPluginPackagePolicy.isWeb(expected))
         val directory = versionDirectory(expected.id, expected.version).parentFile!!
         require(selected(directory) == expected) { "插件版本已变化，请重新确认移除" }
         val canonical = directory.canonicalFile

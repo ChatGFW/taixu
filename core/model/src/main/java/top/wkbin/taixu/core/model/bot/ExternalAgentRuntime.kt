@@ -54,11 +54,48 @@ data class ExternalAgentDeliveryEvent(
     val content: String,
     val createdAt: Long,
     val leases: List<ExternalAgentDeliveryLease> = emptyList(),
+    /** Absolute millis when silent leases may be reclaimed without heartbeat. */
+    val leaseExpiresAt: Long = 0L,
 ) {
     companion object {
         const val MAX_COALESCED_DELIVERIES = 8
     }
 }
+
+@Serializable
+data class ExternalAgentSessionInfo(
+    val botId: String,
+    val label: String,
+    val pendingCount: Int,
+    val groups: List<ExternalAgentGroupSummary>,
+    val claimLeaseTtlMs: Long,
+)
+
+@Serializable
+data class ExternalAgentPendingPreview(
+    val deliveryId: String,
+    val groupId: String,
+    val sourceMessageId: String,
+    val contentPreview: String,
+    val createdAt: Long,
+)
+
+@Serializable
+data class ExternalAgentGroupSummary(
+    val id: String,
+    val name: String,
+)
+
+@Serializable
+data class ExternalAgentGroupMessage(
+    val id: String,
+    val senderId: String,
+    val senderName: String,
+    val senderType: String,
+    val content: String,
+    val timestamp: Long,
+    val seq: Long,
+)
 
 @Serializable
 data class ExternalAgentDeliveryAck(

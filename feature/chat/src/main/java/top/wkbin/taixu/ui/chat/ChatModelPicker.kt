@@ -3,8 +3,6 @@ package top.wkbin.taixu.ui.chat
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -15,6 +13,9 @@ import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.model.ModelMetadataRegistry
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 /** 发现列表与手动输入共用一个面板，避免列表、表单和多组按钮互相挤占高度。 */
 @Composable
@@ -42,7 +43,7 @@ internal fun ProviderModelPickerDialog(
         subtitle = profile.name.ifBlank { profile.provider },
         onDismissRequest = onDismiss,
         actions = {
-            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = top.wkbin.taixu.ui.miuix.RuntimeSpacing.dialogActionGap, scrollable = true) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
                 RuntimeTextButton(onClick = { manual = !manual }) {
                     Text(stringResource(if (manual) R.string.chat_model_list else R.string.chat_manual_model))
                 }

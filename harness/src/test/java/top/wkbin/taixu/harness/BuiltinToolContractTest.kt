@@ -1,7 +1,7 @@
 package top.wkbin.taixu.harness
 
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -10,6 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.wkbin.taixu.core.model.McpToolInfo
 import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
+import top.wkbin.taixu.harness.prompt.PromptRouter
 
 class BuiltinToolContractTest {
     private val model = ModelConfig(name = "test", provider = "test", model = "test", baseUrl = "http://localhost", apiKey = null)
@@ -21,7 +22,7 @@ class BuiltinToolContractTest {
         val rule = properties["rule"] as kotlinx.serialization.json.JsonObject
         val names = (rule["enum"] as kotlinx.serialization.json.JsonArray)
             .map { (it as kotlinx.serialization.json.JsonPrimitive).content }.toSet()
-        assertEquals(top.wkbin.taixu.harness.prompt.PromptRouter.RuleBlock.entries.map { it.loadName }.toSet(), names)
+        assertEquals(PromptRouter.RuleBlock.entries.map { it.loadName }.toSet(), names)
     }
     @Test
     fun `build script tool exposes lifecycle and binding actions`() {

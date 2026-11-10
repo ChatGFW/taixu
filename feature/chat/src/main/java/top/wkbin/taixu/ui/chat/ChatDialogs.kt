@@ -116,7 +116,7 @@ internal fun SessionsDialog(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RuntimeIcon(RuntimeIconName.List, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.primary)
+                    RuntimeIcon(RuntimeIconName.List, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
                     Text(stringResource(R.string.chat_session_manager), fontWeight = FontWeight.Medium)
                 }
                 Surface(
@@ -150,7 +150,7 @@ internal fun SessionsDialog(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            RuntimeIcon(RuntimeIconName.Alert, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.primary)
+                            RuntimeIcon(RuntimeIconName.Alert, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.onSurface)
                             Text(
                                 stringResource(R.string.chat_last_session_hint),
                                 style = RuntimeTheme.typography.labelSmall,

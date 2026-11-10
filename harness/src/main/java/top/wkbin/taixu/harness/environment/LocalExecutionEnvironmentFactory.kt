@@ -1,22 +1,25 @@
 package top.wkbin.taixu.harness.environment
 
+import java.util.UUID
+import kotlinx.coroutines.withContext
+import top.wkbin.taixu.core.database.BuildScriptRepository
+import top.wkbin.taixu.core.network.FileDownloader
 import top.wkbin.taixu.harness.HarnessPathResolver
 import top.wkbin.taixu.harness.WorkspaceFileAccess
 import top.wkbin.taixu.harness.core.SessionResourceScope
+import top.wkbin.taixu.runtime.LinuxEnvironmentManager
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.environment.*
 import top.wkbin.taixu.runtime.shell.*
-import java.util.UUID
-import kotlinx.coroutines.withContext
 
 /** The only production composition point for files and processes. Replace this factory as a whole. */
 class LocalExecutionEnvironmentFactory(
     private val runtime: LinuxRuntime,
     private val files: WorkspaceFileAccess,
     private val paths: HarnessPathResolver,
-    private val downloader: top.wkbin.taixu.core.network.FileDownloader? = null,
-    private val buildScripts: top.wkbin.taixu.core.database.BuildScriptRepository? = null,
-    private val variables: top.wkbin.taixu.runtime.LinuxEnvironmentManager? = null,
+    private val downloader: FileDownloader? = null,
+    private val buildScripts: BuildScriptRepository? = null,
+    private val variables: LinuxEnvironmentManager? = null,
 ) : ExecutionEnvironmentFactory {
     override suspend fun open(owner: String, workspace: String, distribution: String?): ExecutionEnvironment {
         val cwd = workspace.ifBlank { "/workspace" }
@@ -49,7 +52,7 @@ private class LocalEnvironment(
     private val paths: HarnessPathResolver,
     override val downloads: ExecutionDownloads?,
     override val buildBindings: ExecutionBuildBindings?,
-    private val variables: top.wkbin.taixu.runtime.LinuxEnvironmentManager?,
+    private val variables: LinuxEnvironmentManager?,
 ) : ExecutionEnvironment, LocalTerminalLaunch {
     override val artifacts = LocalExecutionArtifacts(files)
     private val resources = SessionResourceScope()

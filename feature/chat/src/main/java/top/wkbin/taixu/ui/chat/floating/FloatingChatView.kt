@@ -191,7 +191,7 @@ private fun FloatingChatEdgeHandle(
                     RuntimeIcon(
                         RuntimeIconName.Brain,
                         modifier = Modifier.size(12.dp),
-                        tint = RuntimeTheme.colorScheme.primary,
+                        tint = RuntimeTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -273,7 +273,7 @@ private fun FloatingChatCapsule(
                     RuntimeIcon(
                         RuntimeIconName.Brain,
                         modifier = Modifier.size(14.dp),
-                        tint = RuntimeTheme.colorScheme.primary,
+                        tint = RuntimeTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -370,7 +370,7 @@ private fun FloatingChatPanel(
                     RuntimeIcon(
                         RuntimeIconName.Brain,
                         modifier = Modifier.size(16.dp),
-                        tint = RuntimeTheme.colorScheme.primary,
+                        tint = RuntimeTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = sessionTitle?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_title),
@@ -409,7 +409,7 @@ private fun FloatingChatPanel(
                         RuntimeIcon(
                             RuntimeIconName.OpenInNew,
                             modifier = Modifier.size(14.dp),
-                            tint = RuntimeTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                     }
                     RuntimeIconButton(

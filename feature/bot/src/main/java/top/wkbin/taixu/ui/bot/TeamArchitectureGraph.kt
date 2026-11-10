@@ -1,37 +1,38 @@
 package top.wkbin.taixu.ui.bot
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.yukonga.miuix.kmp.basic.Text
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
-import top.wkbin.taixu.feature.bot.R
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 import top.wkbin.taixu.core.model.bot.*
+import top.wkbin.taixu.feature.bot.R
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 /** Inline preview opens a separate full-window page without discarding the team draft. */
 @Composable
@@ -47,7 +48,7 @@ internal fun TeamArchitectureGraph(team: GroupTeam, governance: GroupGovernance,
         Text("实线：直属管理　虚线：审议／准奏　红色虚线：封驳", style = RuntimeTheme.typography.bodySmall)
         if (!fullScreen) RuntimeTextButton(onClick = { expanded = true }) { Text(stringResource(R.string.fbot_graph_open)) }
         else Text(stringResource(if (runtime != null) R.string.fbot_graph_runtime_hint else if (editable) R.string.fbot_graph_edit_hint else R.string.fbot_graph_view_hint), style = RuntimeTheme.typography.bodySmall)
-        top.wkbin.taixu.ui.components.RuntimeActionRow() {
+        RuntimeActionRow() {
             RuntimeTextButton(onClick = { fit = true }) { Text("全图") }
             RuntimeTextButton(onClick = { fit = false; manualScale = 1f }) { Text("原尺寸") }
             RuntimeTextButton(onClick = { manualScale = (manualScale / 1.4f).coerceAtLeast(.1f); fit = false }) { Text("−") }

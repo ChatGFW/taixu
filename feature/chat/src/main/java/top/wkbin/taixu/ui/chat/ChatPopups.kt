@@ -54,7 +54,7 @@ internal fun SlashCommandPopup(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    RuntimeIcon(cmd.icon, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.primary)
+                    RuntimeIcon(cmd.icon, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.onSurface)
                     Text(
                         cmd.command,
                         style = RuntimeTheme.typography.labelMedium,

@@ -16,7 +16,7 @@ import top.wkbin.taixu.ui.components.*
 @Composable
 internal fun BackendChoiceCard(title: String, detail: String, icon: RuntimeIconName, selected: Boolean, onClick: () -> Unit) {
     RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
-        top.yukonga.miuix.kmp.preference.RadioButtonPreference(
+        RuntimeRadioPreference(
             title = resolveLegacyString(title), summary = resolveLegacyString(detail),
             selected = selected, onClick = onClick,
             startAction = { SettingsRowIcon(icon) },
@@ -31,7 +31,7 @@ internal fun ConnectionProfileCard(server: RemoteServer, selected: Boolean, onSe
         borderColor = if (selected) RuntimeTheme.colorScheme.primary else Color.Transparent) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconTile(RuntimeIconName.Server, size = 36.dp, color = RuntimeTheme.colorScheme.primary)
+                IconTile(RuntimeIconName.Server, size = 36.dp, color = RuntimeTheme.colorScheme.onSurface)
                 Column(Modifier.weight(1f)) {
                     Text(server.name, style = RuntimeTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text("${server.username}@${server.host}:${server.port}", style = RuntimeTheme.typography.bodySmall,

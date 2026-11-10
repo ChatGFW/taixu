@@ -8,6 +8,7 @@ import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.harness.mcp.LinuxMcpStdioChannelFactory
 import top.wkbin.taixu.harness.mcp.McpCommandBuilder
+import top.wkbin.taixu.harness.mcp.mcpExecutionConfig
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.environment.*
 import top.wkbin.taixu.runtime.shell.*
@@ -41,7 +42,7 @@ class SshMcpExecutionConfigTest {
     }
     @Test fun `repository alias may already equal the actual remote workspace path`() {
         val world = FakeWorld(ExecutionEnvironmentId("ssh", "ssh:host", "/workspace/demo", "one"))
-        val prepared = top.wkbin.taixu.harness.mcp.mcpExecutionConfig(server, world)
+        val prepared = mcpExecutionConfig(server, world)
         assertEquals(listOf("--repository", "/workspace/demo"), prepared.args)
     }
     @Test fun `missing executable reports remote host and never starts protocol process`() = runBlocking {

@@ -30,7 +30,7 @@ internal fun AutoTitleSettingsCard(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        top.yukonga.miuix.kmp.preference.SwitchPreference(
+        top.wkbin.taixu.ui.components.RuntimeSwitchPreference(
             title = "回合结束后自动生成会话标题",
             summary = "仅对仍是「新会话」等默认标题的会话生效；每个会话只尝试一次",
             checked = enabled, onCheckedChange = onEnabledChange,

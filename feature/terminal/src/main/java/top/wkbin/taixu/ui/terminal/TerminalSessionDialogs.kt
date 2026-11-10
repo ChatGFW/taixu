@@ -3,8 +3,6 @@ package top.wkbin.taixu.ui.terminal
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,6 +18,9 @@ import top.wkbin.taixu.runtime.terminal.TerminalSessionHandle
 import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.miuix.ButtonDefaults
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun SessionListDialog(
@@ -120,7 +121,7 @@ internal fun CloseSessionConfirmDialog(
             Button(
                 onClick = onConfirm,
                 enabled = countdown == 0,
-                colors = top.wkbin.taixu.ui.miuix.ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = RuntimeTheme.colorScheme.error,
                     disabledContainerColor = RuntimeTheme.colorScheme.error.copy(alpha = 0.3f),
                 ),

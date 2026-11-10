@@ -94,6 +94,7 @@ import top.wkbin.taixu.core.common.navigation.AppNavigationTarget
 import top.wkbin.taixu.core.common.navigation.GlobalNavigationBus
 import top.wkbin.taixu.core.common.translation.TranslationManager
 import top.wkbin.taixu.core.common.translation.TranslationModelStatus
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /** 消息气泡：用户/助手气泡、思考块、任务计划卡、能力事件卡。 */
 @Composable
@@ -304,7 +305,7 @@ private fun RewindScopeOption(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RuntimeIcon(icon, Modifier.size(20.dp), RuntimeTheme.colorScheme.primary)
+            RuntimeIcon(icon, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurface)
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(label, style = RuntimeTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
@@ -624,7 +625,7 @@ internal fun ThinkingBlock(
                             RuntimeIcon(
                                 RuntimeIconName.Globe,
                                 Modifier.size(18.dp),
-                                tint = if (showTranslation) RuntimeTheme.colorScheme.primary
+                                tint = if (showTranslation) RuntimeTheme.colorScheme.onSurface
                                        else chatProcessColor(),
                             )
                         }
@@ -676,7 +677,7 @@ internal fun ThinkingBlock(
                                 RuntimeIcon(
                                     RuntimeIconName.Globe,
                                     Modifier.size(20.dp),
-                                    tint = RuntimeTheme.colorScheme.primary,
+                                    tint = RuntimeTheme.colorScheme.onSurface,
                                 )
                                 Text(
                                     text = "中文译文 (ML Kit 离线生成)",
@@ -815,7 +816,7 @@ internal fun SkillSuggestionCard(
                 RuntimeIcon(
                     RuntimeIconName.Sparkles,
                     Modifier.size(14.dp),
-                    tint = RuntimeTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     if (isUpdate) "技能进化建议 · 修复既有技能" else "技能进化建议 · 沉淀为新技能",
@@ -849,7 +850,7 @@ internal fun SkillSuggestionCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 if (isUpdate) {
                     OutlinedButton(
                         onClick = onUpdate,
@@ -892,7 +893,7 @@ internal fun CapabilityEventCard(event: CapabilityEvent) {
             RuntimeIcon(
                 if (isSkill) RuntimeIconName.BookOpen else RuntimeIconName.Extension,
                 Modifier.size(13.dp),
-                tint = RuntimeTheme.colorScheme.primary.copy(alpha = 0.8f),
+                tint = RuntimeTheme.colorScheme.onSurface.copy(alpha = 0.8f),
             )
         }
         Text(

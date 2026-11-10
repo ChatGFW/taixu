@@ -44,6 +44,7 @@ import top.wkbin.taixu.ui.developer.LocalizedText as Text
 import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * 智能体诊断区：本地调试日志 + 消息反馈只读视图。
@@ -85,7 +86,7 @@ internal fun AgentDiagnosticsSection(
         }
         if (agentLoggingEnabled || agentLogSize > 0L) {
             Spacer(Modifier.height(12.dp))
-            top.wkbin.taixu.ui.components.RuntimeActionRow() {
+            RuntimeActionRow() {
                 OutlinedButton(onClick = onViewLogs, modifier = Modifier) {
                     Text("查看日志")
                 }

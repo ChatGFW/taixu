@@ -1,5 +1,7 @@
 package top.wkbin.taixu.harness
 
+import java.security.MessageDigest
+import java.util.Base64
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.json.JsonObject
@@ -8,14 +10,13 @@ import top.wkbin.taixu.core.common.result.AppError
 import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.common.result.ErrorCode
 import top.wkbin.taixu.harness.core.ToolBackend
-import top.wkbin.taixu.runtime.environment.HashlineAnchors
+import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
 import top.wkbin.taixu.harness.text.HashlineEditArgs
 import top.wkbin.taixu.harness.text.HashlineEditStats
 import top.wkbin.taixu.harness.text.HashlinePolicy
 import top.wkbin.taixu.harness.text.UnifiedDiffGenerator
-import java.util.Base64
-import java.security.MessageDigest
 import top.wkbin.taixu.runtime.environment.FileFingerprint
+import top.wkbin.taixu.runtime.environment.HashlineAnchors
 import top.wkbin.taixu.runtime.environment.WorkspaceEditOutcome
 
 data class WorkspaceToolRequest(
@@ -38,7 +39,7 @@ class WorkspaceToolBackend(
     private val operationsFor: (String) -> WorkspaceToolOperations,
     private val snapshots: WorkspaceMutationSnapshots = WorkspaceMutationSnapshots(),
     private val imagePayload: (String) -> String = ImagePayloadCompressor::downscaleDataUrl,
-    private val environments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
+    private val environments: SessionExecutionEnvironments? = null,
     private val hashlinePolicy: () -> HashlinePolicy = { HashlinePolicy.DEFAULT },
 ) : ToolBackend<WorkspaceToolRequest, WorkspaceToolOutcome> {
     override suspend fun execute(request: WorkspaceToolRequest): WorkspaceToolOutcome {

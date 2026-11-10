@@ -5,6 +5,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import top.wkbin.taixu.harness.PendingMessage
+import top.wkbin.taixu.harness.approval.RunInitiator
+import top.wkbin.taixu.harness.approval.RunInitiatorContext
+import top.wkbin.taixu.harness.groupchat.GroupWorkContext
 import top.wkbin.taixu.harness.queue.PromptQueue
 import top.wkbin.taixu.harness.session.PromptSubmission.Accepted
 import top.wkbin.taixu.harness.session.PromptSubmission.Disposition
@@ -50,10 +53,10 @@ internal class SessionInputController(
             val busy = runtime.busy(sessionId)
             val backlog = queue == PromptQueue.NEXT_RUN && runtime.hasNextRun(sessionId)
             currentCoroutineContext().ensureActive()
-            val work = currentCoroutineContext()[top.wkbin.taixu.harness.groupchat.GroupWorkContext]
-            val initiator = currentCoroutineContext()[top.wkbin.taixu.harness.approval.RunInitiatorContext]
+            val work = currentCoroutineContext()[GroupWorkContext]
+            val initiator = currentCoroutineContext()[RunInitiatorContext]
                 ?.initiator?.normalized()
-                ?: top.wkbin.taixu.harness.approval.RunInitiator.person()
+                ?: RunInitiator.person()
             val pending = PendingMessage(trimmed, images, taskId =
                 if (!busy || queue == PromptQueue.NEXT_RUN) UUID.randomUUID().toString() else null,
                 groupWorkId = work?.workId, groupId = work?.groupId,

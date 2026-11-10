@@ -40,6 +40,7 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.coroutines.delay
+import top.wkbin.taixu.ui.components.runtimeContentPadding
 
 /** 当前聊天会话。卡片用它给 surfaceId 加前缀，和工具执行时写入总线的会话一致。 */
 val LocalA2uiSessionId = staticCompositionLocalOf { "" }
@@ -197,7 +198,7 @@ fun A2uiPocScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
+                    contentPadding = runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(surfaces, key = { "${it.sessionId}:${it.surfaceId}" }) { payload ->

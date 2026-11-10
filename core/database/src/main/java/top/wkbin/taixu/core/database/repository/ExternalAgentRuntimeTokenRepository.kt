@@ -11,6 +11,7 @@ interface ExternalAgentRuntimeTokenRepository {
     suspend fun listForBot(botId: String): List<ExternalAgentRuntimeToken>
     suspend fun revoke(id: String, revokedAt: Long): Boolean
     suspend fun revokeAllForBot(botId: String, revokedAt: Long): Int
+    suspend fun revokeExpiredForBot(botId: String, now: Long, revokedAt: Long): Int
 }
 
 class RoomExternalAgentRuntimeTokenRepository(
@@ -33,6 +34,8 @@ class RoomExternalAgentRuntimeTokenRepository(
     override suspend fun listForBot(botId: String) = dao.listForBot(botId).map { it.toModel() }
     override suspend fun revoke(id: String, revokedAt: Long) = dao.revoke(id, revokedAt) == 1
     override suspend fun revokeAllForBot(botId: String, revokedAt: Long) = dao.revokeAllForBot(botId, revokedAt)
+    override suspend fun revokeExpiredForBot(botId: String, now: Long, revokedAt: Long) =
+        dao.revokeExpiredForBot(botId, now, revokedAt)
 
     private fun ExternalAgentRuntimeTokenEntity.toModel() = ExternalAgentRuntimeToken(
         id = id,

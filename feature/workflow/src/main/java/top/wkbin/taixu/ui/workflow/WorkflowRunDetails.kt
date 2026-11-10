@@ -254,7 +254,7 @@ private fun ApkSelectorSection(
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         ) {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                RuntimeIcon(RuntimeIconName.Android, Modifier.size(18.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Android, Modifier.size(18.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Spacer(Modifier.width(6.dp))
                 Text("选择安装 APK", style = RuntimeTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
             }
@@ -293,7 +293,7 @@ private fun ApkSelectorSection(
                             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                         ) {
                             if (isSelected) {
-                                RuntimeIcon(RuntimeIconName.Check, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.primary)
+                                RuntimeIcon(RuntimeIconName.Check, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.onSurface)
                                 Spacer(Modifier.width(6.dp))
                             }
                             Text(
@@ -366,7 +366,7 @@ private fun ApkSelectorSection(
             ) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        RuntimeIcon(RuntimeIconName.Info, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.primary)
+                        RuntimeIcon(RuntimeIconName.Info, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.onSurface)
                         Spacer(Modifier.width(6.dp))
                         Text("未在工程中扫描到 APK", style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
                     }

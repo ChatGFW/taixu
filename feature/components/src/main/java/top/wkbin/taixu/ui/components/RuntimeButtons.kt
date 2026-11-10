@@ -3,19 +3,22 @@ package top.wkbin.taixu.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
-import top.wkbin.taixu.ui.miuix.Button
-import top.wkbin.taixu.ui.miuix.ButtonColors
-import top.wkbin.taixu.ui.miuix.ButtonDefaults
-import top.wkbin.taixu.ui.miuix.FilledTonalButton
-import top.wkbin.taixu.ui.miuix.IconButton
-import top.wkbin.taixu.ui.miuix.IconButtonDefaults
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import top.wkbin.taixu.ui.miuix.Button
+import top.wkbin.taixu.ui.miuix.ButtonColors
+import top.wkbin.taixu.ui.miuix.ButtonDefaults
+import top.wkbin.taixu.ui.miuix.FilledIconButton
+import top.wkbin.taixu.ui.miuix.FilledTonalButton
+import top.wkbin.taixu.ui.miuix.IconButton
+import top.wkbin.taixu.ui.miuix.IconButtonDefaults
+import top.wkbin.taixu.ui.miuix.OutlinedButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.TextButton
 
 // Use the native expressive shape animation while keeping existing sizing and callbacks.
 /**
@@ -69,7 +72,7 @@ fun RuntimeOutlinedButton(
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     content: @Composable RowScope.() -> Unit,
 ) {
-    top.wkbin.taixu.ui.miuix.OutlinedButton(
+    OutlinedButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
@@ -103,7 +106,7 @@ fun RuntimeTextButton(
     shape: Shape = ButtonDefaults.textShape,
     content: @Composable RowScope.() -> Unit,
 ) {
-    top.wkbin.taixu.ui.miuix.TextButton(
+    TextButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
@@ -123,13 +126,15 @@ fun RuntimeIconButton(
     content: @Composable () -> Unit,
 ) {
     val accessibilityLabel = contentDescription
-    // 将无障碍标签挂到按钮节点上（Icon 自身 contentDescription 恒为 null）
-    IconButton(
-        onClick = onClick,
-        modifier = modifier.semantics { accessibilityLabel?.let { this.contentDescription = it } },
-        enabled = enabled,
-        content = content,
-    )
+    // 无障碍标签挂到按钮节点；有文案时再套 miuix TooltipBox（长按 / 悬停）。
+    RuntimeTooltip(text = accessibilityLabel, enabled = enabled) {
+        IconButton(
+            onClick = onClick,
+            modifier = modifier.semantics { accessibilityLabel?.let { this.contentDescription = it } },
+            enabled = enabled,
+            content = content,
+        )
+    }
 }
 
 /** Filled icon action: default miuix IconButton 40dp, disabled alpha handled by the wrapper. */
@@ -143,7 +148,7 @@ fun RuntimeFilledIconButton(
     contentDescription: String? = null,
     content: @Composable () -> Unit,
 ) {
-    top.wkbin.taixu.ui.miuix.FilledIconButton(onClick = onClick, enabled = enabled,
+    FilledIconButton(onClick = onClick, enabled = enabled,
         modifier = modifier.semantics { contentDescription?.let { this.contentDescription = it } },
         colors = IconButtonDefaults.filledIconButtonColors(containerColor = containerColor, contentColor = contentColor),
         content = content)

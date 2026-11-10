@@ -1,8 +1,6 @@
 package top.wkbin.taixu.ui.chat
-
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-
 import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -52,6 +50,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.LazyListState
 import top.wkbin.taixu.harness.QueuedPrompt
+import top.wkbin.taixu.ui.components.RuntimeComposerTextField
+import top.wkbin.taixu.ui.theme.chatBackdropSurface
 
 /**
  * 输入区：斜杠/@ 弹窗、排队指令、附件预览、推理强度滑块、工具状态胶囊与一体化输入胶囊。
@@ -181,7 +181,7 @@ internal fun ChatComposer(
             .padding(top = 4.dp, bottom = 4.dp)
             .clip(RuntimeTheme.shapes.extraLarge),
         shape = RuntimeTheme.shapes.extraLarge, contentPadding = PaddingValues(0.dp),
-        containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(RuntimeTheme.colorScheme.surfaceContainer),
+        containerColor = chatBackdropSurface(RuntimeTheme.colorScheme.surfaceContainer),
         // 全包裹描边：常态 outlineVariant，运行中主色
         borderColor = if (running) RuntimeTheme.colorScheme.primary.copy(alpha = 0.5f)
             else RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
@@ -288,7 +288,7 @@ internal fun ChatComposer(
                 }
             }
 
-            top.wkbin.taixu.ui.components.RuntimeComposerTextField(
+            RuntimeComposerTextField(
                     placeholder = {
                         Text(stringResource(if (running) R.string.chat_input_running else R.string.chat_message_placeholder))
                     },

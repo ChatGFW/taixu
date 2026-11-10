@@ -36,6 +36,7 @@ import java.io.File
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 private data class SketchStroke(val points: List<Offset>)
 
@@ -93,7 +94,7 @@ internal fun ChatSketchSheet(
                     }
                 }
 
-                top.wkbin.taixu.ui.components.RuntimeActionRow() {
+                RuntimeActionRow() {
                     RuntimeTextButton(
                         onClick = { strokes.clear() },
                         modifier = Modifier,

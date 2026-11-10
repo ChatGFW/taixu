@@ -34,7 +34,7 @@ internal fun QuickPhraseCard(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                IconTile(parseIconName(phrase.iconName), size = 40.dp, color = RuntimeTheme.colorScheme.primary)
+                IconTile(parseIconName(phrase.iconName), size = 40.dp, color = RuntimeTheme.colorScheme.onSurface)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(phrase.title, style = RuntimeTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     val typeLabel = when (phrase.targetProjectType) {

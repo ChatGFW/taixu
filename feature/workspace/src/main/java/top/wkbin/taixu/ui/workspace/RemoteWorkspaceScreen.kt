@@ -6,10 +6,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.wkbin.taixu.ui.miuix.Scaffold
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,9 +15,17 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import top.wkbin.taixu.core.model.RemoteServer
 import top.wkbin.taixu.runtime.environment.ExecutionFileEntry
 import top.wkbin.taixu.runtime.remote.RemoteSystemService
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService? = previewOrNull { koinInject() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
@@ -51,12 +55,12 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
             statusText = target?.name ?: "当前服务器", onBack = { if (path.isNotBlank()) path = path.substringBeforeLast('/', "") else onBack() },
             actions = { RuntimeIconButton(onClick = { refresh++ }, contentDescription = "刷新") { RuntimeIcon(RuntimeIconName.Refresh) } }) },
     ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)), contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = 12.dp, bottom = 24.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.fillMaxSize().then(runtimeScrollViewport(padding)), contentPadding = runtimeScrollContentPadding(padding, runtimeContentPadding(top = 12.dp, bottom = 24.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp), containerColor = RuntimeTheme.colorScheme.surfaceContainerLow) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            IconTile(RuntimeIconName.FolderOpen, size = 40.dp, color = RuntimeTheme.colorScheme.primary)
+                            IconTile(RuntimeIconName.FolderOpen, size = 40.dp, color = RuntimeTheme.colorScheme.onSurface)
                             Column(Modifier.weight(1f)) {
                                 Text(if (path.isBlank()) "服务器项目" else "项目文件", style = RuntimeTheme.typography.titleMedium)
                                 Text((target?.workspace.orEmpty().trimEnd('/') + "/" + path).trimEnd('/'), style = RuntimeTheme.typography.bodySmall,
@@ -89,7 +93,7 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
                     }
                 }) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        IconTile(if (item.directory) RuntimeIconName.Folder else RuntimeIconName.Code, size = 36.dp, color = RuntimeTheme.colorScheme.primary)
+                        IconTile(if (item.directory) RuntimeIconName.Folder else RuntimeIconName.Code, size = 36.dp, color = RuntimeTheme.colorScheme.onSurface)
                         Column(Modifier.weight(1f)) {
                             Text(item.name, style = RuntimeTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(if (item.directory) "浏览目录" else "${item.size / 1024} KB · 点击编辑", style = RuntimeTheme.typography.bodySmall,
@@ -123,7 +127,7 @@ internal fun RemoteWorkspaceScreen(serverId: String, onNavigate: (MainDestinatio
 }
 
 @Composable
-private fun RemoteFileEditor(serverId: String, path: String, original: String, service: RemoteSystemService, target: top.wkbin.taixu.core.model.RemoteServer?, onDismiss: () -> Unit) {
+private fun RemoteFileEditor(serverId: String, path: String, original: String, service: RemoteSystemService, target: RemoteServer?, onDismiss: () -> Unit) {
     var content by remember(path, original) { mutableStateOf(original) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }

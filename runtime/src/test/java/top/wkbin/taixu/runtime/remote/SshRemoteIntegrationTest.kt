@@ -2,31 +2,32 @@ package top.wkbin.taixu.runtime.remote
 
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.KeyPair
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.runBlocking
-import org.apache.sshd.server.SshServer
-import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider
+import kotlinx.coroutines.withTimeout
 import org.apache.sshd.common.file.virtualfs.VirtualFileSystemFactory
+import org.apache.sshd.server.Environment
+import org.apache.sshd.server.ExitCallback
+import org.apache.sshd.server.SshServer
+import org.apache.sshd.server.channel.ChannelSession
+import org.apache.sshd.server.command.Command
+import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider
 import org.apache.sshd.sftp.server.SftpSubsystemFactory
 import org.junit.*
 import org.junit.Assert.*
 import org.junit.rules.TemporaryFolder
+import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.model.*
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentId
-import java.io.ByteArrayOutputStream
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicReference
-import org.apache.sshd.server.command.Command
-import org.apache.sshd.server.ExitCallback
-import org.apache.sshd.server.Environment
-import org.apache.sshd.server.channel.ChannelSession
-import java.io.InputStream
-import java.io.OutputStream
+import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.shell.ShellCommand
-import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collect
-import top.wkbin.taixu.core.datastore.RemoteServerRepository
 
 /** Local protocol fixture: no remote machine, paid provider, API key or host shell involved. */
 class SshRemoteIntegrationTest {
@@ -168,13 +169,13 @@ class SshRemoteIntegrationTest {
             assertFalse(lastCommand.contains("export "))
             assertFalse(lastCommand.contains("bridge-secret"))
             assertFalse(lastCommand.contains("/etc/profile"))
-            val terminal = world.openTerminal(top.wkbin.taixu.runtime.shell.SessionConfig(
+            val terminal = world.openTerminal(SessionConfig(
                 commandLine = "interactive", workingDirectory = "/workspace", environment = mapOf("KEEP" to "term")))
             withTimeout(5_000) { terminal.output.collect { } }
             assertEquals("term", observedEnvironment.get()["KEEP"])
             assertEquals("from-settings", observedEnvironment.get()["FROM_SETTINGS"])
             assertFalse(observedEnvironment.get().containsKey("TAIXU_BRIDGE_TOKEN"))
-            val protocol = world.openSession(top.wkbin.taixu.runtime.shell.SessionConfig(
+            val protocol = world.openSession(SessionConfig(
                 commandLine = "protocol", workingDirectory = "/workspace", environment = mapOf("KEEP" to "session")))
             withTimeout(5_000) { protocol.output.collect { } }
             assertEquals("session", observedEnvironment.get()["KEEP"])
@@ -238,7 +239,7 @@ class SshRemoteIntegrationTest {
         val trusted = pin(server(), credentials)
         val world = connector.openEnvironment(trusted, credentials, ExecutionEnvironmentId("ssh", trusted.distributionId, "/workspace", "pty-bytes"))
         try {
-            val pty = world.openTerminal(top.wkbin.taixu.runtime.shell.SessionConfig(commandLine = "terminal-bytes", workingDirectory = world.workingDirectory())) as SshLinuxSession
+            val pty = world.openTerminal(SessionConfig(commandLine = "terminal-bytes", workingDirectory = world.workingDirectory())) as SshLinuxSession
             val output = ByteArrayOutputStream()
             withTimeout(5_000) { pty.terminalBytes.collect { output.write(it) } }
             assertArrayEquals("\u001b[31m中文😀\u001b[0m".toByteArray(Charsets.UTF_8), output.toByteArray())

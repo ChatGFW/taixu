@@ -1,11 +1,13 @@
 package top.wkbin.taixu.di.harness
 
-import org.koin.dsl.module
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.koin.dsl.module
+import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
-import top.wkbin.taixu.core.datastore.hashlinePreferences
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.core.datastore.SettingsDataStore
+import top.wkbin.taixu.core.datastore.hashlinePreferences
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.AskUserToolBackend
 import top.wkbin.taixu.harness.ContextMemoryToolBackend
@@ -15,36 +17,54 @@ import top.wkbin.taixu.harness.HostCapabilityToolBackend
 import top.wkbin.taixu.harness.HostToolRequest
 import top.wkbin.taixu.harness.LinuxCommandToolBackend
 import top.wkbin.taixu.harness.PromptAssetToolBackend
+import top.wkbin.taixu.harness.ProviderClient
 import top.wkbin.taixu.harness.SearchWebToolBackend
-import top.wkbin.taixu.harness.ToolExecutor
 import top.wkbin.taixu.harness.ToolExecutionRequest
+import top.wkbin.taixu.harness.ToolExecutor
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.WorkspaceFileAccess
-import top.wkbin.taixu.harness.WorkspaceToolBackend
 import top.wkbin.taixu.harness.WorkspaceMutationSnapshots
+import top.wkbin.taixu.harness.WorkspaceToolBackend
+import top.wkbin.taixu.harness.bot.BotCapabilityScope
+import top.wkbin.taixu.harness.bot.RepositoryBotCapabilityScope
 import top.wkbin.taixu.harness.core.ToolCheckpoints
 import top.wkbin.taixu.harness.directory.CapabilityToolGateway
+import top.wkbin.taixu.harness.environment.LocalExecutionEnvironmentFactory
+import top.wkbin.taixu.harness.environment.SelectedExecutionEnvironmentFactory
+import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
+import top.wkbin.taixu.harness.environment.SessionExecutionTargets
+import top.wkbin.taixu.harness.plugins.HarnessPluginRegistry
+import top.wkbin.taixu.harness.session.SessionTitleGenerator
+import top.wkbin.taixu.harness.session.SessionTitleLog
+import top.wkbin.taixu.harness.session.SessionTitleModelPort
+import top.wkbin.taixu.harness.text.HashlineEditStats
+import top.wkbin.taixu.harness.text.HashlineEditStatsCodec
+import top.wkbin.taixu.harness.text.HashlinePolicy
+import top.wkbin.taixu.harness.websearch.BingSearchProvider
+import top.wkbin.taixu.harness.websearch.WebSearchProviders
+import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentFactory
+import top.wkbin.taixu.runtime.environment.LocalDistributionSelection
 
 internal val toolBackendModule = module {
-    single<top.wkbin.taixu.runtime.environment.ExecutionEnvironmentFactory>(org.koin.core.qualifier.named("local-execution")) {
-        top.wkbin.taixu.harness.environment.LocalExecutionEnvironmentFactory(get(), get(), get(), get(), get(), get())
+    single<ExecutionEnvironmentFactory>(org.koin.core.qualifier.named("local-execution")) {
+        LocalExecutionEnvironmentFactory(get(), get(), get(), get(), get(), get())
     }
     single {
-        val selection = get<top.wkbin.taixu.runtime.environment.LocalDistributionSelection>()
-        top.wkbin.taixu.harness.environment.SessionExecutionTargets(get(), get(), selection::capture)
+        val selection = get<LocalDistributionSelection>()
+        SessionExecutionTargets(get(), get(), selection::capture)
     }
-    single<top.wkbin.taixu.runtime.environment.ExecutionEnvironmentFactory> {
-        top.wkbin.taixu.harness.environment.SelectedExecutionEnvironmentFactory(
+    single<ExecutionEnvironmentFactory> {
+        SelectedExecutionEnvironmentFactory(
             get(org.koin.core.qualifier.named("local-execution")), get(), get(),
             get(),
         )
     }
-    single { top.wkbin.taixu.harness.environment.SessionExecutionEnvironments(get()) }
-    single { get<top.wkbin.taixu.harness.plugins.HarnessPluginRegistry>().checkpoints() }
+    single { SessionExecutionEnvironments(get()) }
+    single { get<HarnessPluginRegistry>().checkpoints() }
     single { WorkspaceMutationSnapshots(store = get(), events = get()) }
     single {
         val files = get<WorkspaceFileAccess>()
-        val settings = get<top.wkbin.taixu.core.datastore.SettingsDataStore>()
+        val settings = get<SettingsDataStore>()
         val hashline = settings.hashlinePreferences()
         // 启动时水合累计计数；落盘走 IO scope，避免 edit 热路径阻塞 DataStore。
         val persistScope = kotlinx.coroutines.CoroutineScope(
@@ -52,14 +72,14 @@ internal val toolBackendModule = module {
         )
         runCatching {
             kotlinx.coroutines.runBlocking {
-                val initial = top.wkbin.taixu.harness.text.HashlineEditStatsCodec.decode(
+                val initial = HashlineEditStatsCodec.decode(
                     hashline.editStatsJson.first(),
                 )
-                top.wkbin.taixu.harness.text.HashlineEditStats.bind(initial) { snap ->
+                HashlineEditStats.bind(initial) { snap ->
                     persistScope.launch {
                         runCatching {
                             hashline.setEditStatsJson(
-                                top.wkbin.taixu.harness.text.HashlineEditStatsCodec.encode(snap),
+                                HashlineEditStatsCodec.encode(snap),
                             )
                         }
                     }
@@ -74,13 +94,13 @@ internal val toolBackendModule = module {
                 // 与 LinuxCommandToolBackend 超时读取同型：热路径同步取最新偏好，失败回落默认全开。
                 runCatching {
                     kotlinx.coroutines.runBlocking {
-                        top.wkbin.taixu.harness.text.HashlinePolicy(
+                        HashlinePolicy(
                             readAnchorsDefault = hashline.readAnchorsDefault.first(),
                             editOpsEnabled = hashline.editOpsEnabled.first(),
                             legacyEditEnabled = hashline.legacyEditEnabled.first(),
                         )
                     }
-                }.getOrDefault(top.wkbin.taixu.harness.text.HashlinePolicy.DEFAULT)
+                }.getOrDefault(HashlinePolicy.DEFAULT)
             },
         )
     }
@@ -120,8 +140,8 @@ internal val toolBackendModule = module {
         )
     }
     single {
-        top.wkbin.taixu.harness.websearch.WebSearchProviders(
-            listOf(top.wkbin.taixu.harness.websearch.BingSearchProvider(get<okhttp3.OkHttpClient>())),
+        WebSearchProviders(
+            listOf(BingSearchProvider(get<okhttp3.OkHttpClient>())),
         )
     }
     single {
@@ -166,8 +186,8 @@ internal val toolBackendModule = module {
         )
     }
     // 能力统一网关：use_capability 分发 + codemode 脚本装配 + legacy mcp__ 直连回退。
-    single<top.wkbin.taixu.harness.bot.BotCapabilityScope> {
-        top.wkbin.taixu.harness.bot.RepositoryBotCapabilityScope(bots = get(), servers = get(), assignments = get())
+    single<BotCapabilityScope> {
+        RepositoryBotCapabilityScope(bots = get(), servers = get(), assignments = get())
     }
     single {
         CapabilityToolGateway(
@@ -182,21 +202,21 @@ internal val toolBackendModule = module {
         )
     }
     // 自动会话标题：模型解析与补全走 ProviderClient 的窄端口（测试用 lambda 打桩）。
-    single<top.wkbin.taixu.harness.session.SessionTitleModelPort> {
-        val providerClient = get<top.wkbin.taixu.harness.ProviderClient>()
-        top.wkbin.taixu.harness.session.SessionTitleModelPort { modelId, variant, messages ->
+    single<SessionTitleModelPort> {
+        val providerClient = get<ProviderClient>()
+        SessionTitleModelPort { modelId, variant, messages ->
             providerClient.chat(providerClient.resolveConfigured(modelId, variant), messages).content
         }
     }
-    single<top.wkbin.taixu.harness.session.SessionTitleLog> {
-        val appLogger = get<top.wkbin.taixu.core.common.logging.AppLogger>()
-        object : top.wkbin.taixu.harness.session.SessionTitleLog {
+    single<SessionTitleLog> {
+        val appLogger = get<AppLogger>()
+        object : SessionTitleLog {
             override fun info(message: String) = appLogger.i(message)
             override fun error(message: String, failure: Throwable) = appLogger.e(message, failure)
         }
     }
     single {
-        top.wkbin.taixu.harness.session.SessionTitleGenerator(
+        SessionTitleGenerator(
             sessions = get(),
             modelPort = get(),
             log = get(),

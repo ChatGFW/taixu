@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.plugin.packages.WebPluginPackagePolicy
+import top.wkbin.taixu.runtime.service.ProotWebBootstrapLimitException
 
 /** Web packages share immutable storage/identity checks with process packages, but never Linux installation. */
 class WebPluginRepository(private val registry: ToolRegistry) {
@@ -104,7 +105,7 @@ class WebPluginRepository(private val registry: ToolRegistry) {
 
     private fun throwImportFailure(result: AppResult.Failure): Nothing {
         val cause = result.error.cause
-        if (cause is top.wkbin.taixu.runtime.service.ProotWebBootstrapLimitException) throw cause
+        if (cause is ProotWebBootstrapLimitException) throw cause
         error("Web plugin processing failed")
     }
 }

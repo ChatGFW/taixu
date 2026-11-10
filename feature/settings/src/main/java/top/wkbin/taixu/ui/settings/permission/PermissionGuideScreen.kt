@@ -182,7 +182,7 @@ fun PermissionGuideScreen(
                             RuntimeIcon(
                                 name = selectedTopic.icon,
                                 modifier = Modifier.size(20.dp),
-                                tint = RuntimeTheme.colorScheme.primary,
+                                tint = RuntimeTheme.colorScheme.onSurface,
                             )
                             Text(
                                 text = selectedTopic.title,

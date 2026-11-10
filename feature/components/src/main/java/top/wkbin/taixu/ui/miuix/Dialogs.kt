@@ -12,6 +12,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowBottomSheet
@@ -76,7 +77,7 @@ private fun DialogActionRow(
     confirmButton: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    top.wkbin.taixu.ui.components.RuntimeActionRow(modifier, spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
+    RuntimeActionRow(modifier, spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
         dismissButton?.invoke()
         confirmButton()
     }

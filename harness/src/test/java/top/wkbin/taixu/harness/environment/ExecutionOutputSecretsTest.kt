@@ -15,6 +15,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.datastore.*
 import top.wkbin.taixu.core.security.SecretManager
+import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.HarnessPathResolver
 import top.wkbin.taixu.harness.WorkspaceFileAccess
 import top.wkbin.taixu.runtime.*
@@ -28,7 +29,7 @@ class ExecutionOutputSecretsTest {
         val registry = SessionExecutionEnvironments(ExecutionEnvironmentFactory { owner, workspace, _ ->
             FakeWorld(ExecutionEnvironmentId("ssh", "ssh:server", workspace, owner)).apply { secretValues += "abc" }
         })
-        val output = redactExecutionOutput("echo abc", top.wkbin.taixu.core.security.SecretRedactor(), registry, null, null, "remote", "")
+        val output = redactExecutionOutput("echo abc", SecretRedactor(), registry, null, null, "remote", "")
         assertEquals("echo [REDACTED]", output)
         registry.closeSession("remote")
     }

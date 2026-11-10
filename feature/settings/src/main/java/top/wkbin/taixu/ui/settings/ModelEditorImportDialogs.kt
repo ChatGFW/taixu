@@ -54,7 +54,7 @@ internal fun BatchImportKeysDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Key, Modifier.size(20.dp), RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Key, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurface)
                 Text("批量导入密钥")
             }
         },
@@ -143,7 +143,7 @@ internal fun QuickImportJsonDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Code, Modifier.size(20.dp), RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Code, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurface)
                 Text("从 JSON 填入模型配置")
             }
         },

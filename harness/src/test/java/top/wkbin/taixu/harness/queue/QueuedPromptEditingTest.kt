@@ -20,6 +20,7 @@ import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.task.AgentTaskEntity
 import top.wkbin.taixu.harness.PendingMessage
 import top.wkbin.taixu.harness.session.SessionTreeStore
+import top.wkbin.taixu.harness.session.SessionTurnCoordinatorImpl
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -204,7 +205,7 @@ class QueuedPromptEditingTest {
         val id = enqueue()
         val failures = mutableListOf<Exception>()
         val actions = QueuedPromptActions(queues,
-            top.wkbin.taixu.harness.session.SessionTurnCoordinatorImpl(), this,
+            SessionTurnCoordinatorImpl(), this,
             busy = { false }, startNext = { error("scheduler unavailable") }, refresh = {}, cancelTask = {},
             failure = { _, error -> failures += error })
         assertNotNull(actions.beginQueuedPromptEdit("s", id, "lease"))

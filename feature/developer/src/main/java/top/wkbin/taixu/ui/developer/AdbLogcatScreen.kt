@@ -48,6 +48,10 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
 import top.wkbin.taixu.ui.components.StatusBadge
 import top.wkbin.taixu.ui.developer.LocalizedText as Text
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 /**
  * 独立的无线 ADB 与日志抓取工作台页面。
  *
@@ -62,8 +66,8 @@ fun AdbLogcatScreen(
     onBack: () -> Unit,
     viewModel: DeveloperViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val adbState by viewModel?.adbState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager.ConnectionState.Disconnected)
-    val adbDiscovery by viewModel?.adbDiscovery?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager.DiscoveryState())
+    val adbState by viewModel?.adbState?.collectAsStateWithLifecycle() ?: previewStateOf(EmbeddedAdbManager.ConnectionState.Disconnected)
+    val adbDiscovery by viewModel?.adbDiscovery?.collectAsStateWithLifecycle() ?: previewStateOf(EmbeddedAdbManager.DiscoveryState())
     val adbBusy by viewModel?.adbBusy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val adbMessage by viewModel?.adbMessage?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val logcatOutput by viewModel?.logcatOutput?.collectAsStateWithLifecycle() ?: previewStateOf("")
@@ -93,9 +97,8 @@ fun AdbLogcatScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding))
-                .verticalScroll(rememberScrollState()).padding(bottom = innerPadding.calculateBottomPadding())
-                .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                .then(runtimeScrollViewport(innerPadding)).verticalScroll(rememberScrollState())
+                .padding(runtimeScrollContentPadding(innerPadding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom))),
             verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             // ── 1. 连接状态与概览 ──────────────────────────────────────────
@@ -231,7 +234,7 @@ fun AdbLogcatScreen(
                 }
                 Spacer(Modifier.height(8.dp))
 
-                top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = { viewModel?.pairWirelessAdb(pairingCode, explicitPort.toIntOrNull()) },
                         enabled = !adbBusy && pairingCode.length == 6 && (adbDiscovery.pairingEndpoints.isNotEmpty() || explicitPort.isNotBlank()),
@@ -280,7 +283,7 @@ fun AdbLogcatScreen(
                     singleLine = true,
                 )
                 Spacer(Modifier.height(6.dp))
-                top.wkbin.taixu.ui.components.RuntimeActionRow() {
+                RuntimeActionRow() {
                     FilledTonalButton(
                         onClick = { logcatPackage = "top.wkbin.taixu" },
                     ) {
@@ -346,7 +349,7 @@ fun AdbLogcatScreen(
                 }
                 Spacer(Modifier.height(12.dp))
 
-                top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = {
                             viewModel?.captureLogcat(

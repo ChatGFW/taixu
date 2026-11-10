@@ -74,7 +74,7 @@ internal fun OnboardingModelImportDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Download, Modifier.size(20.dp), RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Download, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurface)
                 Text("导入模型配置", fontWeight = FontWeight.Medium)
             }
         },

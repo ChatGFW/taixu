@@ -1,11 +1,4 @@
 package top.wkbin.taixu.ui.settings
-
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
-import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -31,24 +24,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import top.wkbin.taixu.ui.miuix.*
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -56,17 +43,33 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
-import top.wkbin.taixu.core.model.McpConnectionState
-import top.wkbin.taixu.core.model.McpAuthState
-import top.wkbin.taixu.core.model.McpServerConfig
-import top.wkbin.taixu.harness.mcp.server.AgentMcpAccess
-import top.wkbin.taixu.ui.components.RuntimeCard
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeTopBar
 import kotlinx.coroutines.delay
-
+import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
+import top.wkbin.taixu.core.model.McpAuthState
+import top.wkbin.taixu.core.model.McpConnectionState
+import top.wkbin.taixu.core.model.McpServerConfig
+import top.wkbin.taixu.feature.settings.R
+import top.wkbin.taixu.harness.mcp.server.AgentMcpAccess
+import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeButton as Button
+import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
+import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
+import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
+import top.wkbin.taixu.ui.components.RuntimePullToRefresh
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.*
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
 @Composable
 fun McpSettingsScreen(
     onBack: () -> Unit,
@@ -96,18 +99,15 @@ fun McpSettingsScreen(
     // 待确认删除的服务 id（破坏性操作二次确认）；McpServerConfig 非 Parcelable，仅保存 id
     var pendingDeleteServerId by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     val pendingDeleteServer = pendingDeleteServerId?.let { id -> servers.firstOrNull { it.id == id } }
-
     // 进入设置页时：对齐组件探针（决定哪些能力"还没装"）并探测一次已启用服务的连通性
     LaunchedEffect(Unit) {
         catalogViewModel?.refresh()
         viewModel?.refreshMcpConnections(probeSleeping = false)
     }
-
     // 详情打开时加载缓存工具清单（不启动进程），供逐工具开关与风险覆盖。
     LaunchedEffect(viewingDetailServer?.id) {
         viewingDetailServer?.let { toolPolicyViewModel?.loadTools(it.id) }
     }
-
     // 未安装能力的提示只展示一次，避免每次重组都弹
     LaunchedEffect(mcpInstallNotice) {
         mcpInstallNotice?.let { message ->
@@ -115,31 +115,37 @@ fun McpSettingsScreen(
             catalogViewModel?.consumeInstallNotice()
         }
     }
-
-    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = RuntimeTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
-                title = androidx.compose.ui.res.stringResource(top.wkbin.taixu.feature.settings.R.string.personal_mcp_title),
+                title = androidx.compose.ui.res.stringResource(R.string.personal_mcp_title),
                 onBack = onBack,
                 scrollBehavior = scrollBehavior,
             )
         },
     ) { padding ->
+        var mcpRefreshing by remember { mutableStateOf(false) }
+        RuntimePullToRefresh(
+            isRefreshing = mcpRefreshing,
+            onRefresh = { mcpRefreshing = true; viewModel?.refreshMcpConnections(); mcpRefreshing = false },
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = padding.calculateTopPadding()),
+            topAppBarScrollBehavior = scrollBehavior,
+        ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
-            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+                .then(runtimeScrollViewport(padding)),
+            contentPadding = runtimeScrollContentPadding(padding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
             verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             item {
                 Spacer(Modifier.height(4.dp))
                 McpClientSettingsSection()
             }
-
             item {
                 McpManagementActions(
                     count = servers.size,
@@ -148,10 +154,8 @@ fun McpSettingsScreen(
                     onAdd = { showAddDialog = true },
                 )
             }
-
             val builtinServers = servers.filter { it.isBuiltin }
             val customServers = servers.filterNot { it.isBuiltin }
-
             if (builtinServers.isNotEmpty()) {
                 item(key = "mcp_section_builtin") {
                     McpSectionHeader(
@@ -181,7 +185,6 @@ fun McpSettingsScreen(
                     )
                 }
             }
-
             if (customServers.isNotEmpty()) {
                 item(key = "mcp_section_custom") {
                     McpSectionHeader(
@@ -206,25 +209,22 @@ fun McpSettingsScreen(
                     )
                 }
             }
-
             item(key = "mcp_section_browser_gates") {
                 BrowserGatesCard(gates = browserGates, viewModel = viewModel)
             }
-
             item(key = "mcp_section_host_action_policy") {
                 HostActionPolicyCard(viewModel = viewModel)
             }
-
             item(key = "mcp_section_agent_server") {
                 AgentServerCard(
                     state = (viewModel?.agentServerState?.collectAsStateWithLifecycle() ?: previewStateOf(AgentServerState())).value,
                     viewModel = viewModel,
                 )
             }
-
             item {
                 Spacer(Modifier.height(24.dp))
             }
+        }
         }
     }
 
@@ -276,7 +276,7 @@ fun McpSettingsScreen(
                         viewModel?.deleteMcpServer(server.id)
                         pendingDeleteServerId = null
                     },
-                    colors = top.wkbin.taixu.ui.miuix.ButtonDefaults.buttonColors(
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = RuntimeTheme.colorScheme.error,
                     ),
                 ) {
@@ -493,7 +493,7 @@ private fun BrowserGateRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    top.yukonga.miuix.kmp.preference.SwitchPreference(
+    top.wkbin.taixu.ui.components.RuntimeSwitchPreference(
         title = resolveLegacyString(title), summary = resolveLegacyString(description),
         checked = checked, onCheckedChange = onCheckedChange,
         insideMargin = PaddingValues(horizontal = 0.dp, vertical = 16.dp),

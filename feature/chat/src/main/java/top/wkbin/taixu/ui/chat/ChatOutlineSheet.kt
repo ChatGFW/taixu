@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.OutlinedTextField
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +33,7 @@ import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeSearchBar
 
 private data class OutlineEntry(val id: String, val fromUser: Boolean, val summary: String, val createdAt: Long)
 
@@ -54,12 +54,11 @@ internal fun ChatOutlineSheet(
     PlainBackdropModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.chat_outline_title), style = RuntimeTheme.typography.titleLarge)
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
+            RuntimeSearchBar(
+                query = query,
+                onQueryChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.chat_outline_search_hint)) },
+                placeholder = stringResource(R.string.chat_outline_search_hint),
             )
             if (filtered.isEmpty()) {
                 Text(

@@ -46,7 +46,7 @@ fun WebChatBridgeDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Globe, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Globe, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text("太墟智枢 Web 协作台")
             }
         },

@@ -1,7 +1,5 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -14,14 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
-import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Surface
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,11 +26,19 @@ import top.wkbin.taixu.core.model.ToolState
 import top.wkbin.taixu.core.tools.ToolInstallProgress
 import top.wkbin.taixu.core.tools.ToolVerification
 import top.wkbin.taixu.ui.components.NoticeBanner
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.StatusBadge
-import androidx.compose.foundation.shape.CircleShape
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -236,80 +235,36 @@ internal fun ToolCard(
             }
 
 
-            // Actions row: Spacious, distinct secondary buttons on left, prominent action on right
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                // Secondary actions
-                top.wkbin.taixu.ui.components.RuntimeActionRow() {
-                    FilledTonalButton(
-                        onClick = onOpenDetail,
-                        shape = CircleShape,
-                    ) {
-                        Text("详情配置", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
-                    }
-
-                    TextButton(
-                        onClick = onViewLogs,
-                    ) {
-                        Text("日志", maxLines = 1, softWrap = false)
-                    }
-
-                    if (isInstalled) {
-                        TextButton(
-                            onClick = onUninstall,
-                        ) {
-                            Text("卸载", color = RuntimeTheme.colorScheme.error, maxLines = 1, softWrap = false)
-                        }
+            // 整卡可点进详情，操作区只留日志 / 卸载 / 安装类动作。
+            RuntimeActionRow(Modifier.fillMaxWidth()) {
+                TextButton(onClick = onViewLogs) {
+                    Text("日志", maxLines = 1, softWrap = false)
+                }
+                if (isInstalled) {
+                    TextButton(onClick = onUninstall) {
+                        Text("卸载", color = RuntimeTheme.colorScheme.error, maxLines = 1, softWrap = false)
                     }
                 }
-
-                // Primary actions (Install / Retry / Update)
-                top.wkbin.taixu.ui.components.RuntimeActionRow() {
-                    if (isUpdateAvailable) {
-                        Button(
-                            onClick = onUpdate,
-                            shape = CircleShape,
-                        ) {
-                            Text("更新", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
-                        }
-                    } else if (isFailed) {
-                        Button(
-                            onClick = onStartAiHealing,
-                            shape = CircleShape,
-                        ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Brain,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Spacer(Modifier.width(3.dp))
-                            Text("AI 自愈", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
-                        }
-                        FilledTonalButton(
-                            onClick = onInstall,
-                            shape = CircleShape,
-                        ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Download,
-                                modifier = Modifier.size(13.dp),
-                            )
-                            Spacer(Modifier.width(3.dp))
-                            Text("重试", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
-                        }
-                    } else if (!isInstalled && !isInstalling) {
-                        Button(
-                            onClick = onInstall,
-                            shape = CircleShape,
-                        ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Download,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text("安装", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
-                        }
+                if (isUpdateAvailable) {
+                    Button(onClick = onUpdate, shape = CircleShape) {
+                        Text("更新", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
+                    }
+                } else if (isFailed) {
+                    Button(onClick = onStartAiHealing, shape = CircleShape) {
+                        RuntimeIcon(RuntimeIconName.Brain, Modifier.size(14.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text("AI 自愈", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
+                    }
+                    FilledTonalButton(onClick = onInstall, shape = CircleShape) {
+                        RuntimeIcon(RuntimeIconName.Download, Modifier.size(13.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text("重试", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
+                    }
+                } else if (!isInstalled && !isInstalling) {
+                    Button(onClick = onInstall, shape = CircleShape) {
+                        RuntimeIcon(RuntimeIconName.Download, Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("安装", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
                     }
                 }
             }

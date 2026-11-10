@@ -11,8 +11,9 @@ import top.wkbin.taixu.plugin.ui.PluginEntryLocation
 import top.wkbin.taixu.ui.browser.BrowserPluginOwner
 import top.wkbin.taixu.ui.browser.BrowserViewModel
 import top.wkbin.taixu.ui.components.LocalAppNavigation
-import top.wkbin.taixu.ui.components.LocalPluginMenuContent
 import top.wkbin.taixu.ui.components.LocalOpenPluginManager
+import top.wkbin.taixu.ui.components.LocalPluginDestinationActive
+import top.wkbin.taixu.ui.components.LocalPluginMenuContent
 import top.wkbin.taixu.ui.components.LocalRuntimeWidthClass
 
 @Composable
@@ -26,7 +27,7 @@ internal fun PluginNavigationShell(
         LocalPluginController provides controller,
         // Rail or docked sidebar already exposes navigation; top bars drop their menu button.
         LocalAppNavigation provides onOpenNavigation.takeUnless { LocalRuntimeWidthClass.current.hasPersistentNavigation },
-        top.wkbin.taixu.ui.components.LocalPluginDestinationActive provides (selectedPage != null),
+        LocalPluginDestinationActive provides (selectedPage != null),
         LocalPluginMenuContent provides {
             PluginEntryLinks(platform.plugins, controller, PluginEntryLocation.MENU, onOpen, selectedPage)
         },

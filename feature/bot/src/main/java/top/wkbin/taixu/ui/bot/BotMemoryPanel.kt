@@ -38,6 +38,8 @@ import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.SectionHeader
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.runtimeContentPadding
 
 @Composable
 internal fun BotMemoryPanel(
@@ -51,7 +53,7 @@ internal fun BotMemoryPanel(
     var pendingRollback by remember { mutableStateOf<MemoryCommit?>(null) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
+        contentPadding = runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
         verticalArrangement = Arrangement.Top,
     ) {
         item {
@@ -162,7 +164,7 @@ internal fun BotMemoryPanel(
                             )
                         }
                     }
-                    top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                    RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                         RuntimeTextButton(
                             onClick = { onOpenDiff(commit.hash) },
                             enabled = !busy,

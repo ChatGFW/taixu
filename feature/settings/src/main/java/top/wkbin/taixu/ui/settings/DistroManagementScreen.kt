@@ -1,11 +1,5 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
-import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,42 +17,49 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import top.wkbin.taixu.ui.miuix.*
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import top.wkbin.taixu.ui.components.RuntimeRadioButton as RadioButton
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import top.yukonga.miuix.kmp.basic.SnackbarHost
-import top.yukonga.miuix.kmp.basic.SnackbarHostState
-import kotlinx.coroutines.delay
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.model.InstalledDistro
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.runtime.DistributionCatalog
 import top.wkbin.taixu.runtime.DistributionSpec
 import top.wkbin.taixu.runtime.RegistryRoute
 import top.wkbin.taixu.runtime.RuntimeInstallRequest
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeButton as Button
+import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeRadioButton as RadioButton
 import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.StatusBadge
 import top.wkbin.taixu.ui.components.distroIconFor
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.miuix.*
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
 
 /**
  * 太墟 · Linux 发行版与沙箱多实例管理 (Distro Management Hub)
@@ -72,7 +73,7 @@ fun DistroManagementScreen(
     val remoteViewModel = previewOrNull { koinViewModel<RemoteServerViewModel>() }
     val activeServerId by (remoteViewModel?.activeId?.collectAsStateWithLifecycle() ?: previewStateOf<String?>(null))
     val activeDistroId by viewModel?.activeDistroId?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
-    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
+    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(RuntimeState.Ready)
     val restoringDistroId by viewModel?.restoringDistroId?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val deletingDistroId by viewModel?.deletingDistroId?.collectAsStateWithLifecycle() ?: previewStateOf(null)
 
@@ -380,7 +381,7 @@ private fun DistroItemCard(
                 color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
             )
 
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 // 按钮 1: 设为主系统 (当前为主系统或仅有 1 个系统时置灰禁用)
                 OutlinedButton(
                     onClick = onSwitchActive,
@@ -558,7 +559,7 @@ private fun InstallDistroDialog(
                             color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
 
-                        top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                        RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                             OutlinedButton(
                                 onClick = { selectedRoute = RegistryRoute.AUTO },
                                 modifier = Modifier,

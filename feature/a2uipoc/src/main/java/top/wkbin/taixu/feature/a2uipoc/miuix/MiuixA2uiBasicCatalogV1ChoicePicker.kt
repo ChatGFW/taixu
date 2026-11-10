@@ -17,8 +17,6 @@ import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.miuix.ButtonDefaults
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.preference.CheckboxPreference
-import top.yukonga.miuix.kmp.preference.RadioButtonPreference
 import top.yukonga.miuix.kmp.window.WindowDialog
 
 internal object MiuixA2uiBasicCatalogV1ChoicePicker : A2uiBasicCatalogV1.ChoicePicker {
@@ -74,10 +72,10 @@ internal object MiuixA2uiBasicCatalogV1ChoicePicker : A2uiBasicCatalogV1.ChoiceP
                 if (filterable) RuntimeFilledTextField(query, { query = it }, enabled = enabled, singleLine = true)
                 visible.forEach { option ->
                     if (variant == Variant.MutuallyExclusive) {
-                        RadioButtonPreference(selected = option.value in value,
+                        top.wkbin.taixu.ui.components.RuntimeRadioPreference(selected = option.value in value,
                             onClick = { toggle(option.value); expanded = false }, title = option.label, enabled = enabled)
                     } else {
-                        CheckboxPreference(checked = option.value in value, onCheckedChange = { toggle(option.value) },
+                        top.wkbin.taixu.ui.components.RuntimeCheckboxPreference(checked = option.value in value, onCheckedChange = { toggle(option.value) },
                             title = option.label, enabled = enabled)
                     }
                 }

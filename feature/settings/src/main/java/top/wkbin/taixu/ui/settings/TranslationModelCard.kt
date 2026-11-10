@@ -1,7 +1,6 @@
 package top.wkbin.taixu.ui.settings
 
 import androidx.compose.foundation.background
-import top.wkbin.taixu.ui.theme.semanticColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,9 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Surface
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,12 +19,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.core.common.translation.TranslationModelStatus
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
+import top.wkbin.taixu.ui.theme.semanticColors
 
 /**
  * 离线语种模型状态与下载卡片（英语 -> 简体中文）。
@@ -62,7 +63,7 @@ fun TranslationModelCard(
                 RuntimeIcon(
                     name = RuntimeIconName.Globe,
                     modifier = Modifier.size(18.dp),
-                    tint = RuntimeTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
             }
             Column(Modifier.weight(1f)) {
@@ -202,7 +203,7 @@ fun TranslationModelCard(
             )
         }
 
-        top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+        RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
             when (status) {
                 is TranslationModelStatus.Ready -> {
                     OutlinedButton(

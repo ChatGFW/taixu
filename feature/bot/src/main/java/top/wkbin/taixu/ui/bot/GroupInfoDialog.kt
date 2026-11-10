@@ -27,11 +27,12 @@ import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.core.model.bot.Bot
 
 @Composable
 internal fun GroupInfoDialog(
     group: GroupChat,
-    members: List<top.wkbin.taixu.core.model.bot.Bot> = emptyList(),
+    members: List<Bot> = emptyList(),
     deleting: Boolean,
     onDismiss: () -> Unit,
     onSave: (

@@ -34,7 +34,7 @@ internal fun QuickPhraseEditorDialog(
         title = if (phrase == null) "新增快捷短语" else "编辑快捷短语",
         onDismissRequest = onDismiss,
         actions = {
-            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = top.wkbin.taixu.ui.miuix.RuntimeSpacing.dialogActionGap, scrollable = true) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
                 RuntimeTextButton(onDismiss) { Text("取消") }
                 RuntimeButton(onClick = {
                     if (valid) onSave(phrase?.id, title, content, description, iconName, targetProjectType, isEnabled)

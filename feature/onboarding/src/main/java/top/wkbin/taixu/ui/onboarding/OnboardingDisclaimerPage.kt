@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.preference.CheckboxPreference
+import top.wkbin.taixu.ui.components.RuntimeCheckboxPreference
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,7 +60,7 @@ internal fun OnboardingDisclaimerActions(
         Column(Modifier.widthIn(max = 560.dp).fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             RuntimeCard(contentPadding = PaddingValues(0.dp)) {
-                CheckboxPreference(
+                top.wkbin.taixu.ui.components.RuntimeCheckboxPreference(
                     title = stringResource(R.string.onboarding_notice_acknowledge),
                     checked = acknowledged,
                     onCheckedChange = onAcknowledge,

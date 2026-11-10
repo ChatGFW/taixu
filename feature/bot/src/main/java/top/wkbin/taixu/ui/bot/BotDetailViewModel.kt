@@ -7,20 +7,25 @@ import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import top.wkbin.taixu.core.database.AiModelRepository
+import top.wkbin.taixu.core.database.McpServerRepository
 import top.wkbin.taixu.core.database.repository.BotScheduleRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotCapabilityPolicy
+import top.wkbin.taixu.core.model.bot.BotMemoryDocument
 import top.wkbin.taixu.core.model.bot.BotMemoryFile
-import top.wkbin.taixu.core.model.bot.BotScheduleDelivery
 import top.wkbin.taixu.core.model.bot.BotSchedule
+import top.wkbin.taixu.core.model.bot.BotScheduleDelivery
 import top.wkbin.taixu.core.model.bot.ExternalAgentRuntimeToken
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.MemoryCommit
@@ -55,8 +60,8 @@ class BotDetailViewModel(
     private val memoryManager: BotMemoryManager,
     private val packageService: BotPackageService,
     private val wakeup: BotScheduleWakeup? = null,
-    private val models: top.wkbin.taixu.core.database.AiModelRepository,
-    private val mcpServerRepository: top.wkbin.taixu.core.database.McpServerRepository? = null,
+    private val models: AiModelRepository,
+    private val mcpServerRepository: McpServerRepository? = null,
     private val externalRuntime: ExternalAgentRuntimeService? = null,
     private val externalRuntimeServer: ExternalAgentRuntimeServer? = null,
 ) : ViewModel() {
@@ -110,17 +115,25 @@ class BotDetailViewModel(
         }
     }
 
-    fun issueRuntimeToken(label: String) {
+    fun issueRuntimeToken(label: String, expiresAt: Long? = null) {
         val bot = _uiState.value.bot ?: return
         val service = externalRuntime ?: run {
             emit("外部运行时服务不可用")
             return
         }
         launchBusy {
-            val issued = service.issueToken(bot.id, label)
+            val issued = service.issueToken(bot.id, label, expiresAt)
             refreshRuntimeTokens(bot.id)
             _uiState.update { it.copy(issuedRuntimeToken = issued.rawToken) }
-            "已签发运行时令牌，请立即复制"
+            val server = externalRuntimeServer
+            val expiryNote = expiresAt?.let { "（截止 ${formatCapabilityDeadline(it)}）" }.orEmpty()
+            val serverNote = when {
+                server == null -> "（局域网服务不可用）"
+                server.status.value.isRunning -> "；局域网服务已在运行"
+                withContext(Dispatchers.IO) { server.start() } -> "；已自动启动局域网服务"
+                else -> "；局域网服务启动失败，请手动开启"
+            }
+            "已签发运行时令牌$expiryNote，请立即复制$serverNote"
         }
     }
 
@@ -134,6 +147,16 @@ class BotDetailViewModel(
         }
     }
 
+    fun revokeExpiredRuntimeTokens() {
+        val bot = _uiState.value.bot ?: return
+        val service = externalRuntime ?: return
+        launchBusy {
+            val cleaned = service.revokeExpiredTokens(bot.id)
+            refreshRuntimeTokens(bot.id)
+            if (cleaned == 0) "没有可清理的过期令牌" else "已清理 $cleaned 个过期令牌"
+        }
+    }
+
     fun restoreLocalRuntime() {
         val bot = _uiState.value.bot ?: return
         val service = externalRuntime ?: return
@@ -141,7 +164,7 @@ class BotDetailViewModel(
             service.restoreLocalRuntime(bot.id)
             refreshRuntimeTokens(bot.id)
             _uiState.update { it.copy(issuedRuntimeToken = null) }
-            "已切回手机内执行"
+            "已切回手机内执行；未完成的外部租约已重新入队"
         }
     }
 
@@ -194,7 +217,7 @@ class BotDetailViewModel(
                 allowModelSelection = allowModelSelection,
                 isMainBot = isMainBot,
                 avatarSeed = avatarSeed,
-                capabilityPolicy = top.wkbin.taixu.core.model.bot.BotCapabilityPolicy(capabilityServerNames, capabilityToolNames, capabilityExpiresAt),
+                capabilityPolicy = BotCapabilityPolicy(capabilityServerNames, capabilityToolNames, capabilityExpiresAt),
             )
             refreshMemory(bot.id)
             "已保存"
@@ -239,7 +262,7 @@ class BotDetailViewModel(
 
     suspend fun memoryDiff(botId: String, hash: String) = memoryManager.getCommitDiff(botId, hash)
 
-    suspend fun saveMemoryDocument(botId: String, document: top.wkbin.taixu.core.model.bot.BotMemoryDocument, content: String) {
+    suspend fun saveMemoryDocument(botId: String, document: BotMemoryDocument, content: String) {
         check(boundBotId == botId && _uiState.value.bot?.id == botId) { "Bot 已切换，未保存" }
         memoryManager.writeMemory(botId, document.path, content, "memory: 编辑 ${document.path}", document.revision)
         refreshMemory(botId)

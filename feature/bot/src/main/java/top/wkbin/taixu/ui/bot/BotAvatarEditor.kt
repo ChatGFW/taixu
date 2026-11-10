@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -21,7 +19,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.feature.bot.R
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun BotAvatarEditor(
@@ -58,7 +59,7 @@ internal fun BotAvatarEditor(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             BotAvatar(seed, colorHex, 64.dp)
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.weight(1f), maxColumns = 1) {
+            RuntimeActionRow(modifier = Modifier.weight(1f), maxColumns = 1) {
                 RuntimeTextButton(enabled = enabled && !loading, onClick = { designing = true }) {
                     Text(stringResource(R.string.fbot_pixel_edit))
                 }

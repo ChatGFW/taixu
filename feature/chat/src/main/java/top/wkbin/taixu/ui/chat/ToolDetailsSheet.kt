@@ -46,7 +46,7 @@ internal fun ToolDetailsSheet(call: ToolCall, result: ToolResult?, workspace: St
         title = {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(renderer.icon(ui), Modifier.size(22.dp), RuntimeTheme.colorScheme.primary)
+                RuntimeIcon(renderer.icon(ui), Modifier.size(22.dp), RuntimeTheme.colorScheme.onSurface)
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.chat_tool_details_title), style = RuntimeTheme.typography.titleMedium)
                     Text(renderer.title(ui), style = RuntimeTheme.typography.bodySmall,

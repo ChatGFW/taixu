@@ -47,6 +47,7 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.theme.semanticColors
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * 🧰 沙箱工具链面板
@@ -87,7 +88,7 @@ internal fun ToolchainPanel(
                 RuntimeIcon(
                     name = RuntimeIconName.Hammer,
                     modifier = Modifier.size(16.dp),
-                    tint = RuntimeTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = stringResource(R.string.toolchain_title),
@@ -125,7 +126,7 @@ internal fun ToolchainPanel(
             // ---------- 一键补齐（仅 Debian 系发行版） ----------
             val repairables = current?.repairable.orEmpty()
             if (repairables.isNotEmpty() && debBased) {
-                top.wkbin.taixu.ui.components.RuntimeActionRow() {
+                RuntimeActionRow() {
                     Button(onClick = { showRepairConfirm = true }, enabled = !actionBusy) {
                         if (installBusy) {
                             CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)

@@ -15,6 +15,7 @@ import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.repository.*
 import top.wkbin.taixu.core.model.bot.*
+import top.wkbin.taixu.core.security.SecretManager
 import top.wkbin.taixu.harness.plugins.*
 
 @RunWith(RobolectricTestRunner::class)
@@ -125,7 +126,7 @@ class BotModelManagerTest {
         bots.saveBot(member.copy(capabilityToolNames = mapOf("remote" to listOf("Read"))))
         val scopedBots = RoomPersonaBotRepository(db.personaBotDao(), db.botGroupSessionDao())
         val scope = RepositoryBotCapabilityScope(scopedBots,
-            McpServerRepository(db.mcpServerDao(), top.wkbin.taixu.core.security.SecretManager()), tasks)
+            McpServerRepository(db.mcpServerDao(), SecretManager()), tasks)
         listOf("dm", "group-session", "task-session").forEach { session ->
             assertEquals(setOf("Read"), scope.allowedMcpTools(session, "remote"))
             assertTrue(scope.allowsTool(session, "remote", "Read"))
@@ -150,7 +151,7 @@ class BotModelManagerTest {
             override suspend fun getBotBySessionId(sessionId: String) = snapshots[(reads++).coerceAtMost(1)]
         }
         val scope = RepositoryBotCapabilityScope(changing,
-            McpServerRepository(db.mcpServerDao(), top.wkbin.taixu.core.security.SecretManager()), tasks)
+            McpServerRepository(db.mcpServerDao(), SecretManager()), tasks)
         assertFalse(scope.allowsTool("dm", "remote", "write"))
         assertEquals(1, reads)
         assertFalse(scope.allowsTool("dm", "remote", "write"))

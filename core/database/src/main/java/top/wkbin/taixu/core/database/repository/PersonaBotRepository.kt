@@ -9,9 +9,10 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.database.BotEntity
 import top.wkbin.taixu.core.database.BotGroupSessionDao
-import top.wkbin.taixu.core.database.BotScheduleDeliveryDao
-import top.wkbin.taixu.core.model.bot.BotScheduleDelivery
+import top.wkbin.taixu.core.database.BotMemberGroupEntity
+import top.wkbin.taixu.core.database.BotMemberGroupMemberEntity
 import top.wkbin.taixu.core.database.BotScheduleDao
+import top.wkbin.taixu.core.database.BotScheduleDeliveryDao
 import top.wkbin.taixu.core.database.BotScheduleEntity
 import top.wkbin.taixu.core.database.GroupChatDao
 import top.wkbin.taixu.core.database.GroupChatEntity
@@ -20,15 +21,20 @@ import top.wkbin.taixu.core.database.GroupMessageEntity
 import top.wkbin.taixu.core.database.GroupSeenEntity
 import top.wkbin.taixu.core.database.PersonaBotDao
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotMemberGroup
+import top.wkbin.taixu.core.model.bot.BotRuntimeMode
 import top.wkbin.taixu.core.model.bot.BotSchedule
+import top.wkbin.taixu.core.model.bot.BotScheduleDelivery
 import top.wkbin.taixu.core.model.bot.BotSessionGroupRef
 import top.wkbin.taixu.core.model.bot.GroupAttachment
 import top.wkbin.taixu.core.model.bot.GroupChat
+import top.wkbin.taixu.core.model.bot.GroupGovernance
 import top.wkbin.taixu.core.model.bot.GroupMessage
 import top.wkbin.taixu.core.model.bot.GroupReaction
 import top.wkbin.taixu.core.model.bot.GroupReplyMode
 import top.wkbin.taixu.core.model.bot.GroupRound
 import top.wkbin.taixu.core.model.bot.GroupSenderType
+import top.wkbin.taixu.core.model.bot.GroupTeam
 import top.wkbin.taixu.core.model.bot.GroupToolStep
 
 interface PersonaBotRepository {
@@ -46,18 +52,18 @@ interface PersonaBotRepository {
 }
 
 interface GroupChatRepository : GroupDeliveryRepository, GroupRoundRepository, GroupGovernanceRepository {
-    suspend fun getTeam(groupId: String): top.wkbin.taixu.core.model.bot.GroupTeam {
+    suspend fun getTeam(groupId: String): GroupTeam {
         val group = requireNotNull(getGroup(groupId)) { "群聊不存在" }
-        return top.wkbin.taixu.core.model.bot.GroupTeam(group.adminBotId, getMembers(groupId).map { it.id }.toSet())
+        return GroupTeam(group.adminBotId, getMembers(groupId).map { it.id }.toSet())
     }
-    fun observeTeam(groupId: String): Flow<top.wkbin.taixu.core.model.bot.GroupTeam> =
+    fun observeTeam(groupId: String): Flow<GroupTeam> =
         observeMembers(groupId).map { getTeam(groupId) }
     suspend fun saveTeam(groupId: String, supervisors: Map<String, String>) { error("团队结构保存不可用") }
-    suspend fun saveIndependentTeam(team: top.wkbin.taixu.core.model.bot.BotMemberGroup) { error("团队组保存不可用") }
+    suspend fun saveIndependentTeam(team: BotMemberGroup) { error("团队组保存不可用") }
     suspend fun attachTeam(groupId: String, teamId: String) { error("团队组引用不可用") }
     suspend fun createReferencedGroup(group: GroupChat, teamId: String) { error("团队建群不可用") }
     suspend fun installTeamTemplate(group: GroupChat, members: List<String>, supervisors: Map<String, String>,
-        policy: top.wkbin.taixu.core.model.bot.GroupGovernance, createNew: Boolean) { error("团队模板导入不可用") }
+        policy: GroupGovernance, createNew: Boolean) { error("团队模板导入不可用") }
     fun observeGroups(): Flow<List<GroupChat>>
     fun observeGroupsForBot(botId: String): Flow<List<GroupChat>>
     suspend fun getGroup(id: String): GroupChat?
@@ -153,23 +159,23 @@ class RoomGroupChatRepository(
     GroupRoundRepository by RoomGroupRoundRepository(dao, json),
     GroupGovernanceRepository by RoomGroupGovernanceRepository(dao) {
     override suspend fun installTeamTemplate(group: GroupChat, members: List<String>, supervisors: Map<String, String>,
-        policy: top.wkbin.taixu.core.model.bot.GroupGovernance, createNew: Boolean) = dao.installTeamTemplate(group.toEntity(), members, supervisors, policy, createNew)
-    override suspend fun saveIndependentTeam(team: top.wkbin.taixu.core.model.bot.BotMemberGroup) {
+        policy: GroupGovernance, createNew: Boolean) = dao.installTeamTemplate(group.toEntity(), members, supervisors, policy, createNew)
+    override suspend fun saveIndependentTeam(team: BotMemberGroup) {
         val definition = requireNotNull(team.definition) { "团队组缺少组织定义" }
         definition.validate(team.memberIds)
-        dao.installIndependentDefinition(top.wkbin.taixu.core.database.BotMemberGroupEntity(team.id, team.name, team.createdAt,
+        dao.installIndependentDefinition(BotMemberGroupEntity(team.id, team.name, team.createdAt,
             json.encodeToString(definition)), team.memberIds.mapIndexed { index, id ->
-                top.wkbin.taixu.core.database.BotMemberGroupMemberEntity(team.id, id, index, System.currentTimeMillis())
+                BotMemberGroupMemberEntity(team.id, id, index, System.currentTimeMillis())
             })
     }
     override suspend fun attachTeam(groupId: String, teamId: String) = dao.syncDefinitionToChat(groupId, teamId)
     override suspend fun createReferencedGroup(group: GroupChat, teamId: String) = dao.createReferencedGroup(group.toEntity(), teamId)
     private val reactionMutex = Mutex()
-    override suspend fun getTeam(groupId: String): top.wkbin.taixu.core.model.bot.GroupTeam =
+    override suspend fun getTeam(groupId: String): GroupTeam =
         dao.effectiveTeam(groupId)
-    override fun observeTeam(groupId: String): Flow<top.wkbin.taixu.core.model.bot.GroupTeam> =
+    override fun observeTeam(groupId: String): Flow<GroupTeam> =
         kotlinx.coroutines.flow.combine(dao.observeTeamMembers(groupId), dao.observeLinkedDefinition(groupId)) { _, _ ->
-            if (dao.teamAdmin(groupId) == null) top.wkbin.taixu.core.model.bot.GroupTeam("", emptySet()) else dao.effectiveTeam(groupId)
+            if (dao.teamAdmin(groupId) == null) GroupTeam("", emptySet()) else dao.effectiveTeam(groupId)
         }
     override suspend fun saveTeam(groupId: String, supervisors: Map<String, String>) = dao.saveTeam(groupId, supervisors)
 
@@ -311,7 +317,7 @@ private fun BotEntity.toModel() = Bot(
     capabilityServerNames = decodeCapabilityServers(capabilityServerNames),
     capabilityToolNames = decodeCapabilityTools(capabilityServerNames),
     capabilityExpiresAt = decodeCapabilityExpiry(capabilityServerNames),
-    runtimeMode = top.wkbin.taixu.core.model.bot.BotRuntimeMode.parse(runtimeMode),
+    runtimeMode = BotRuntimeMode.parse(runtimeMode),
 )
 
 private fun Bot.toEntity() = BotEntity(
