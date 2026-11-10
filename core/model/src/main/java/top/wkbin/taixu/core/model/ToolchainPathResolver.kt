@@ -107,21 +107,4 @@ object ToolchainPathResolver {
             [ -n "${'$'}_j" ] && printf '%s' "${'$'}_j"
         }
     """.trimIndent()
-
-    /**
-     * 生成一行 shell 赋值：把 [variable] 设为「[parent] 下前缀为 [prefix] 的最高版本目录 [+ 后缀]」。
-     *
-     * 例：`shellAssign("TAIXU_AAPT2_PATH", "/opt/android-sdk/build-tools", "", "/aapt2")`
-     * → `TAIXU_AAPT2_PATH="$(_tx_latest_dir /opt/android-sdk/build-tools '')/aapt2"`
-     */
-    fun shellAssign(variable: String, parent: String, prefix: String = "", suffix: String = ""): String =
-        "export $variable=\"\$(_tx_latest_dir $parent '$prefix')$suffix\""
-
-    /**
-     * 生成 shell 赋值，但**带兜底**：探测为空时回落到 [fallback]。
-     *
-     * 用于 NDK / JDK 这类「目录名固定、不靠版本排序」的场景：优先探测，探测不到再退回固定路径。
-     */
-    fun shellAssignWithFallback(variable: String, probeExpression: String, fallback: String): String =
-        "export $variable=\"\${$probeExpression:-$fallback}\""
 }

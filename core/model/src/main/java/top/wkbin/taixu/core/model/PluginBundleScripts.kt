@@ -8,7 +8,7 @@ internal object PluginBundleScripts {
     private val packageName = Regex("^[a-z0-9][a-z0-9+.-]*$")
     private val safeDirectory = Regex(
         "^/opt/(android-sdk|flutter|jadx)$" +
-            "|^/opt/gradle-8\\.14\\.2$" +
+            "|^/opt/gradle-([0-9]+(\\.[0-9]+)+|\\*)$" +
             "|^/opt/taixu/android-sdk-tools$" +
             "|^/opt/taixu/tools/android/(sdk-tools|jdk|ndk)$" +
             "|^/opt/taixu/tools/rust$" +
@@ -127,10 +127,23 @@ internal object PluginBundleScripts {
         directories.forEach(::requireDirectory)
         files.forEach(::requireFile)
         val steps = mutableListOf<String>()
-        if (directories.isNotEmpty()) steps.add("rm -rf -- ${directories.joinToString(" ")}")
+        if (directories.isNotEmpty()) steps.add("rm -rf -- ${directories.joinToString(" ") { toShellPattern(it) }}")
         if (files.isNotEmpty()) steps.add("rm -f -- ${files.joinToString(" ")}")
         return steps
     }
+
+    /**
+     * 把 `路径-*` 形态的卸载项转成 shell 端受限通配（`-[0-9]*`）。
+     *
+     * 关键约束：purgeSteps 产出的是 PRoot 沙箱内执行的 shell 命令，而本类跑在 App 进程，
+     * 进程内看不到沙箱的 /opt，**不能**用 java.io.File 列目录来展开（listFiles 恒为 null，
+     * 会导致卸载不生成任何 rm）。所以版本目录一律交给沙箱 shell 在卸载执行期展开。
+     *
+     * 通配改成 `[0-9]*` 而不是裸 `*`：`/opt/gradle-9.9.0` 命中，`/opt/gradle-evil` 不命中，
+     * 避免把 /opt 下同前缀的非版本目录一并删掉。
+     */
+    private fun toShellPattern(path: String): String =
+        if (path.endsWith("-*")) path.dropLast(1) + "[0-9]*" else path
 
     private fun requirePackage(name: String): String {
         require(packageName.matches(name)) { "拒绝卸载软件包：$name" }

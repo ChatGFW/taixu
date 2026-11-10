@@ -80,8 +80,9 @@ object BuiltinPluginBundles {
                     checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; JAVA_BIN=\"\${JAVA_HOME:-/opt/taixu/tools/android/jdk}/bin/java\"; PLATFORM_DIR=\$(ls -d /opt/android-sdk/platforms/android-*/ 2>/dev/null | sort -V | tail -n 1); BT_DIR=\$(ls -d /opt/android-sdk/build-tools/*/ 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1); (test -x \"\$JAVA_BIN\" || test -x /opt/taixu/bin/java || command -v java >/dev/null 2>&1) && test -f \"\${PLATFORM_DIR}android.jar\" && test -f \"\${BT_DIR}lib/d8.jar\" && (test -x \"\${TAIXU_AAPT2_PATH:-\${BT_DIR}aapt2}\" || test -x /opt/taixu/bin/aapt2) && (test -f \"\${TAIXU_NDK_PATH:-/opt/taixu/tools/ndk/current}/source.properties\" || test -f /opt/taixu/tools/ndk/current/source.properties) && (test -n \"\${GRADLE_HOME:-}\" || test -x /opt/taixu/bin/gradle || command -v gradle >/dev/null 2>&1)",
                     purgePaths = listOf(
                         "/opt/android-sdk",
-                        // 卸载路径故意写死单版本：卸载是危险操作，不做通配扫描，避免误删用户新装的 Gradle
-                        "/opt/gradle-8.14.2",
+                        // 卸载按实际安装的版本目录执行（/opt/gradle-*），不写死版本号；
+                        // 通配由 PRoot shell 在卸载期展开，App 进程不直接枚举沙箱路径。
+                        "/opt/gradle-*",
                         "/opt/taixu/android-sdk-tools",
                         "/opt/taixu/tools/android/sdk-tools",
                         "/opt/taixu/tools/android/jdk",

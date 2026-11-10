@@ -32,8 +32,9 @@ if test -f "$wrapper"; then
     version=$(sed -n 's#.*gradle-\([0-9][0-9.]*\)-bin\.zip.*#\1#p' "$wrapper" | head -n 1 || true)
     # TAIXU_DYNAMIC_GRADLE: 期望版本动态取本地最高 Gradle 实体，不再硬编码 8.14.2
     _tx_max_gradle=$(ls -d /opt/gradle-[0-9]* 2>/dev/null | sed "s|^/opt/gradle-||" | grep -E "^[0-9]+(\.[0-9]+)+$" | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)
-    test -n "$_tx_max_gradle" || _tx_max_gradle="8.14.2"
-    if test -n "$version" && test "$version" != "$_tx_max_gradle"; then echo "WARN gradleWrapper=$version expected=$_tx_max_gradle action=use_local_gradle_or_align"; else echo "OK gradleWrapper=${version:-unknown}"; fi
+    if test -z "$_tx_max_gradle"; then echo "INFO gradleLocalMax=unknown action=skip_wrapper_version_check"
+    elif test -n "$version" && test "$version" != "$_tx_max_gradle"; then echo "WARN gradleWrapper=$version expected=$_tx_max_gradle action=use_local_gradle_or_align"
+    else echo "OK gradleWrapper=${version:-unknown}"; fi
 else echo "WARN gradleWrapper=missing action=provide_wrapper_or_use_local_gradle"; fi
 
 if grep -RhsEiq 'abiFilters[^\n]*(x86_64|x86|armeabi-v7a)' "$project"/*.gradle "$project"/*.gradle.kts "$project"/app/*.gradle "$project"/app/*.gradle.kts "$project"/android/app/*.gradle "$project"/android/app/*.gradle.kts 2>/dev/null; then

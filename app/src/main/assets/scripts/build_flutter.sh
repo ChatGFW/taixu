@@ -365,7 +365,7 @@ else
     flutter pub get --verbose
 fi
 
-# 3. 确保 Android 宿主使用本地 Gradle 8.14.2 + 国内镜像，避免 Wrapper 从 services.gradle.org
+# 3. 确保 Android 宿主使用本地 Gradle + 国内镜像，避免 Wrapper 从 services.gradle.org
 #    下载发行版（国内网络易被重置，报 SocketException: connection abort）。
 mkdir -p android/gradle/wrapper
 # Gradle 发行版版本号从本机 GRADLE_HOME 推导，不写死
@@ -380,12 +380,13 @@ zipStorePath=wrapper/dists
 EOF
 cat > android/gradlew <<'EOF'
 #!/bin/sh
-# 优先复用插件装配期已装好的本地 Gradle 8.14.2，避免 Wrapper 重新下载发行版。
+# 优先复用插件装配期已装好的本地 Gradle，避免 Wrapper 重新下载发行版。
 DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -x "$GRADLE_HOME/bin/gradle" ]; then
     exec "$GRADLE_HOME/bin/gradle" "$@"
-elif [ -x /opt/gradle-8.7/bin/gradle ]; then
-    exec /opt/gradle-8.7/bin/gradle "$@"
+elif _tx_gv=$(ls -d /opt/gradle-[0-9]* 2>/dev/null | sed 's|^/opt/gradle-||' | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1) && [ -n "$_tx_gv" ] && [ -x "/opt/gradle-$_tx_gv/bin/gradle" ]; then
+    # 本机 /opt/gradle-* 取版本号最高的实体，不写死具体版本
+    exec "/opt/gradle-$_tx_gv/bin/gradle" "$@"
 elif [ -f "$DIR/gradle/wrapper/gradle-wrapper.jar" ]; then
     exec java -jar "$DIR/gradle/wrapper/gradle-wrapper.jar" "$@"
 elif [ -x /usr/local/bin/gradle ]; then

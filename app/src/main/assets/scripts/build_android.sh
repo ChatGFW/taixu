@@ -243,6 +243,14 @@ JAVA_RUNTIME_OPTS="-Djava.security.egd=file:/dev/urandom"
 export GRADLE_OPTS="${GRADLE_OPTS:-} $JAVA_RUNTIME_OPTS"
 GRADLE_JVM_MEMORY_OPTS="-Xmx1024m -XX:MaxMetaspaceSize=384m -XX:+UseSerialGC -Dfile.encoding=UTF-8"
 
+# TAIXU_DYNAMIC_GRADLE: 兜底 Gradle 取本机 /opt/gradle-* 中版本号最高的实体，不写死具体版本
+GRADLE_FALLBACK_HOME=""
+_tx_gradle_ver=$(ls -d /opt/gradle-[0-9]* 2>/dev/null \
+    | sed 's|^/opt/gradle-||' \
+    | grep -E '^[0-9]+(\.[0-9]+)+$' \
+    | sort -t. -k1,1n -k2,2n -k3,3n \
+    | tail -n 1)
+test -z "$_tx_gradle_ver" || GRADLE_FALLBACK_HOME="/opt/gradle-$_tx_gradle_ver"
 if [ -d "$GRADLE_HOME/lib" ]; then
     echo "==> [TaiXu Build] 调度 Gradle: $GRADLE_HOME"
     echo "==> [TaiXu Build] 依赖解析与任务执行即将开始；下载项、仓库地址与任务阶段会实时写入构建日志..."
@@ -252,13 +260,13 @@ if [ -d "$GRADLE_HOME/lib" ]; then
         $JAVA_RUNTIME_OPTS \
         -classpath "$GRADLE_HOME/lib/*" \
         org.gradle.launcher.GradleMain $TASK $EXTRA_ARGS
-elif [ -d /opt/gradle-8.7/lib ]; then
-    echo "==> [TaiXu Build] 调度官方独立完整版 Gradle 8.7 执行构建..."
+elif [ -n "$GRADLE_FALLBACK_HOME" ] && [ -d "$GRADLE_FALLBACK_HOME/lib" ]; then
+    echo "==> [TaiXu Build] 调度本地最高版 Gradle（$GRADLE_FALLBACK_HOME）执行构建..."
     exec "$JAVA_EXEC" $GRADLE_JVM_MEMORY_OPTS \
         -Dorg.gradle.appname=gradle \
-        -Dorg.gradle.installation.dir=/opt/gradle-8.7 \
+        -Dorg.gradle.installation.dir="$GRADLE_FALLBACK_HOME" \
         $JAVA_RUNTIME_OPTS \
-        -classpath "/opt/gradle-8.7/lib/*" \
+        -classpath "$GRADLE_FALLBACK_HOME/lib/*" \
         org.gradle.launcher.GradleMain $TASK $EXTRA_ARGS
 elif [ -x "$GRADLE_HOME/bin/gradle" ]; then
     echo "==> [TaiXu Build] 调度 $GRADLE_HOME/bin/gradle 执行构建..."

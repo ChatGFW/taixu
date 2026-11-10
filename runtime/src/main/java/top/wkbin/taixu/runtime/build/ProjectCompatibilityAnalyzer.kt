@@ -53,16 +53,30 @@ object ProjectCompatibilityAnalyzer {
      * 也会让 Gradle Wrapper 比对恒报“与固定版本不同”。
      * 目录不存在时返回 null，调用方据此跳过对应检查，而不是编造一个期望值。
      */
-    private fun localMaxPlatform(): Int? =
-        listOf(File("/opt/android-sdk/platforms"), File("/opt/taixu/tools/android/platforms"))
+    /**
+     * 本地可用工具链的版本上限，供可行性判定使用。
+     *
+     * 探测基准是**沙箱 rootfs 根目录**（调用方从 RuntimePathManager.rootfsDir() 取），
+     * 不能直接用 `/opt`：那是 PRoot 内的路径，App 进程看到的是宿主根，恒为空，
+     * 检查会全部静默跳过。版本号不写死，按目录实际内容取最高值。
+     * rootfs 未安装或目录缺失时返回 null，调用方据此跳过检查，而不是编造一个期望值。
+     */
+    private fun localMaxPlatform(rootfs: File?): Int? {
+        if (rootfs == null) return null
+        return listOf(
+            File(rootfs, "opt/android-sdk/platforms"),
+            File(rootfs, "opt/taixu/tools/android/platforms"),
+        )
             .asSequence()
             .filter { it.isDirectory }
             .flatMap { dir -> dir.listFiles().orEmpty().asSequence() }
             .mapNotNull { it.name.removePrefix("android-").substringBefore('.').toIntOrNull() }
             .maxOrNull()
+    }
 
-    private fun localMaxGradle(): String? {
-        val versions = File("/opt").listFiles().orEmpty().asSequence()
+    private fun localMaxGradle(rootfs: File?): String? {
+        if (rootfs == null) return null
+        val versions = File(rootfs, "opt").listFiles().orEmpty().asSequence()
             .filter { it.isDirectory && it.name.startsWith("gradle-") }
             .map { it.name.removePrefix("gradle-") }
             .filter { it.matches(Regex("[0-9]+(\\.[0-9]+)+")) }
@@ -82,7 +96,7 @@ object ProjectCompatibilityAnalyzer {
         }
     }
 
-    fun analyze(projectDir: File, offline: Boolean = false): ProjectCompatibilityReport {
+    fun analyze(projectDir: File, offline: Boolean = false, rootfsRoot: File? = null): ProjectCompatibilityReport {
         val root = projectDir.canonicalFile
         val files = root.walkTopDown()
             .filter { it.isFile && it.length() <= 512 * 1024L }
@@ -100,7 +114,7 @@ object ProjectCompatibilityAnalyzer {
         val findings = mutableListOf<CompatibilityFinding>()
 
         // 上限取本地实有 Platform；读不到时跳过检查，不编造期望值。
-        val maxPlatform = localMaxPlatform()
+        val maxPlatform = localMaxPlatform(rootfsRoot)
         val compileSdk = compileSdkPattern.find(allText)?.groupValues?.getOrNull(1)?.toIntOrNull()
         if (compileSdk != null && maxPlatform != null) {
             if (compileSdk > maxPlatform) findings += CompatibilityFinding(
@@ -122,7 +136,7 @@ object ProjectCompatibilityAnalyzer {
         val wrapper = listOf(File(root, "gradle/wrapper/gradle-wrapper.properties"), File(root, "android/gradle/wrapper/gradle-wrapper.properties"))
             .firstOrNull { it.isFile }
         // 期望值取本地实有 Gradle；读不到时跳过，避免恒报与“固定版本”不符。
-        val maxGradle = localMaxGradle()
+        val maxGradle = localMaxGradle(rootfsRoot)
         val wrapperVersion = wrapper?.let { gradleVersionPattern.find(runCatching { it.readText() }.getOrDefault(""))?.groupValues?.getOrNull(1) }
         if (wrapperVersion != null && maxGradle != null && wrapperVersion != maxGradle) findings += CompatibilityFinding(
             id = "gradle_wrapper",

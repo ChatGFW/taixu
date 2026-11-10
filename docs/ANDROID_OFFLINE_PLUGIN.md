@@ -23,11 +23,11 @@ android-suite-offline/
 └── payload/
     ├── archives/
     │   ├── jdk-17-linux-arm64.tar.xz
-    │   ├── gradle-8.14.2-bin.zip
-    │   ├── android-platform-34.zip
-    │   ├── android-build-tools-35.0.0.zip
+    │   ├── gradle-<version>-bin.zip
+    │   ├── android-platform-<version>.zip
+    │   ├── android-build-tools-<version>.zip
     │   ├── android-sdk-tools-static-aarch64.zip
-    │   ├── android-ndk-r29-arm64.tar.xz
+    │   ├── android-ndk-<version>-arm64.tar.xz
     │   ├── cmake-linux-arm64.tar.xz
     │   ├── ninja-linux-arm64.zip
     │   ├── adb-linux-arm64
@@ -132,12 +132,12 @@ sha256sum payload/archives/* > payload/checksums/SHA256SUMS
     "/bin/sh \"$TAIXU_PLUGIN_PAYLOAD/scripts/uninstall-android-suite.sh\""
   ],
   "launchCommand": "gradle --version",
-  "verifyCommand": "test -x \"$TAIXU_TOOL_DIR/bin/java\" && java -version && gradle --version && test -f /opt/android-sdk/platforms/android-34/android.jar && test -f /opt/gradle-8.14.2/lib/gradle-launcher-8.14.2.jar",
+  "verifyCommand": "test -x \"$TAIXU_TOOL_DIR/bin/java\" && java -version && gradle --version && test -n \"$(ls -d /opt/android-sdk/platforms/android-[0-9]* 2>/dev/null)\" && test -n \"$(ls -d /opt/gradle-[0-9]* 2>/dev/null)\"",
   "commandLinks": ["java", "javac", "gradle", "adb", "flutter", "dart"],
   "environment": {
     "ANDROID_HOME": "/opt/android-sdk",
     "ANDROID_SDK_ROOT": "/opt/android-sdk",
-    "GRADLE_HOME": "/opt/gradle-8.14.2",
+    "GRADLE_HOME": "$(ls -d /opt/gradle-[0-9]* 2>/dev/null | tail -n1)",
     "JAVA_HOME": "/opt/taixu/tools/android/jdk",
     "ANDROID_NDK_HOME": "/opt/taixu/tools/android/ndk"
   }
@@ -168,7 +168,11 @@ ANDROID_HOME="/opt/android-sdk"
 TOOLCHAIN_ROOT="/opt/taixu/tools/android"
 JDK_HOME="$TOOLCHAIN_ROOT/jdk"
 NDK_HOME="$TOOLCHAIN_ROOT/ndk"
-GRADLE_VERSION="8.14.2"
+# 版本号不写死：从归档文件名推导，与 install-android-suite.sh 的 pick_archive 同口径
+GRADLE_VERSION="$(basename "$(ls "$ARCHIVES"/gradle-*-bin.zip 2>/dev/null | head -n1)" | sed 's/^gradle-//; s/-bin\.zip$//')"
+PLATFORM_VERSION="$(basename "$(ls "$ARCHIVES"/android-platform-*.zip 2>/dev/null | head -n1)" | sed 's/^android-platform-//; s/\.zip$//')"
+BUILD_TOOLS_VERSION="$(basename "$(ls "$ARCHIVES"/android-build-tools-*.zip 2>/dev/null | head -n1)" | sed 's/^android-build-tools-//; s/\.zip$//')"
+test -n "$GRADLE_VERSION" && test -n "$PLATFORM_VERSION" && test -n "$BUILD_TOOLS_VERSION"
 
 mkdir -p "$TOOL_DIR/bin" "$ANDROID_HOME" "$TOOLCHAIN_ROOT" /opt/taixu/bin
 
@@ -200,36 +204,38 @@ rm -rf "/opt/gradle-$GRADLE_VERSION.staging"
 # 4. Android Platform。
 rm -rf /tmp/android-platform-staging
 mkdir -p /tmp/android-platform-staging
-unzip -q "$ARCHIVES/android-platform-34.zip" -d /tmp/android-platform-staging
+unzip -q "$ARCHIVES/android-platform-$PLATFORM_VERSION.zip" -d /tmp/android-platform-staging
 PLATFORM_SOURCE=$(find /tmp/android-platform-staging -name android.jar -print -quit | xargs -r dirname)
 test -n "$PLATFORM_SOURCE"
-rm -rf "$ANDROID_HOME/platforms/android-34"
+rm -rf "$ANDROID_HOME/platforms/$PLATFORM_VERSION"
 mkdir -p "$ANDROID_HOME/platforms"
-mv "$PLATFORM_SOURCE" "$ANDROID_HOME/platforms/android-34"
+mv "$PLATFORM_SOURCE" "$ANDROID_HOME/platforms/$PLATFORM_VERSION"
 rm -rf /tmp/android-platform-staging
 
 # 5. Build-Tools + ARM64 原生工具。
 rm -rf /tmp/android-build-tools-staging
 mkdir -p /tmp/android-build-tools-staging
-unzip -q "$ARCHIVES/android-build-tools-35.0.0.zip" -d /tmp/android-build-tools-staging
+unzip -q "$ARCHIVES/android-build-tools-$BUILD_TOOLS_VERSION.zip" -d /tmp/android-build-tools-staging
 BUILD_SOURCE=$(find /tmp/android-build-tools-staging -name source.properties -print -quit | xargs -r dirname)
 test -f "$BUILD_SOURCE/lib/d8.jar"
-rm -rf "$ANDROID_HOME/build-tools/35.0.0"
+rm -rf "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
 mkdir -p "$ANDROID_HOME/build-tools"
-mv "$BUILD_SOURCE" "$ANDROID_HOME/build-tools/35.0.0"
+mv "$BUILD_SOURCE" "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
 rm -rf /tmp/android-build-tools-staging
 
 rm -rf /tmp/android-arm64-tools-staging
 mkdir -p /tmp/android-arm64-tools-staging
 unzip -q "$ARCHIVES/android-sdk-tools-static-aarch64.zip" -d /tmp/android-arm64-tools-staging
 test -x /tmp/android-arm64-tools-staging/build-tools/aapt2
-cp -a /tmp/android-arm64-tools-staging/build-tools/. "$ANDROID_HOME/build-tools/35.0.0/"
+cp -a /tmp/android-arm64-tools-staging/build-tools/. "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/"
 rm -rf /tmp/android-arm64-tools-staging
 
 # 6. NDK / CMake / Ninja / ADB。根据实际归档结构调整目录名。
 rm -rf "$NDK_HOME.staging"
 mkdir -p "$NDK_HOME.staging"
-tar -xJf "$ARCHIVES/android-ndk-r29-arm64.tar.xz" -C "$NDK_HOME.staging"
+NDK_ARCHIVE="$(ls "$ARCHIVES"/android-ndk-*-arm64.tar.xz 2>/dev/null | head -n1)"
+test -n "$NDK_ARCHIVE"
+tar -xJf "$NDK_ARCHIVE" -C "$NDK_HOME.staging"
 NDK_SOURCE=$(find "$NDK_HOME.staging" -name source.properties -print -quit | xargs -r dirname)
 test -x "$NDK_SOURCE/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
 rm -rf "$NDK_HOME"
@@ -274,7 +280,7 @@ cp "$PAYLOAD/config/taixu-android-ndk.gradle" /root/.gradle/init.d/taixu-android
 printf '%s\n' 'android.builder.sdkDownload=false' >> /root/.gradle/gradle.properties
 
 test -x "$TOOL_DIR/bin/java"
-test -f "$ANDROID_HOME/platforms/android-34/android.jar"
+test -f "$ANDROID_HOME/platforms/$PLATFORM_VERSION/android.jar"
 test -f "/opt/gradle-$GRADLE_VERSION/lib/gradle-launcher-$GRADLE_VERSION.jar"
 test -x "$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
 ```
@@ -294,7 +300,7 @@ rm -f /opt/taixu/bin/java /opt/taixu/bin/javac /opt/taixu/bin/gradle
 rm -f /opt/taixu/bin/adb /opt/taixu/bin/flutter /opt/taixu/bin/dart
 rm -rf "$TOOL_DIR"
 rm -rf /opt/android-sdk
-rm -rf /opt/gradle-8.14.2
+rm -rf /opt/gradle-*
 rm -rf /opt/taixu/tools/android
 rm -rf /opt/flutter
 rm -f /root/.gradle/init.d/taixu-android-ndk.gradle

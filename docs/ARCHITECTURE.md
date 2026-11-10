@@ -6,7 +6,8 @@
 
 - **核心定位**：在 **Android 无 Root 用户态** 下，基于 **PRoot** 运行完整的 **Linux 沙箱**，并深度集成 **AI Agent Harness 智能体引擎**、**原生 PTY 终端**、**工作区文件管理** 与 **Miuix 原生 UI**。
 - **Android / UI 层**：
-  - **主工程构建链**：Gradle 9.7.0 / AGP 9.3.1 / Kotlin 2.4.10 / compileSdk 37.1 / targetSdk 37 / NDK 30.0.15729638
+  - **主工程构建链**：Gradle 9.9.0 / AGP 9.4.1 / Kotlin 2.4.21 / KSP 2.3.11 / compileSdk 37.1（`compileSdk=37` + `compileSdkMinor=1`）/ targetSdk 37 / minSdk 29 / NDK 声明 `30.0.15729638`（构建时由 `taixu-android-ndk.gradle` 覆盖为沙箱实际 r30 `30.0.16248370`）
+    （取值位置：`gradle/libs.versions.toml:5-7`、`build-logic/convention/.../KotlinAndroid.kt:18-19`、`app/build.gradle.kts:26,30-31`；Gradle 来自 `gradle/wrapper/gradle-wrapper.properties`）
   - **语言**：Kotlin（100% Kotlin + Jetpack Compose）
   - **UI 风格**：Miuix（原生组件、HCT 动态配色、触觉反馈、双栏自适应）
   - **依赖注入**：Koin 4.2.2（显式 Kotlin DSL）
@@ -21,7 +22,9 @@
   - **内置工具**：`read` / `write` / `edit` / `base` / `process`，并可扩展 MCP 与子智能体工具
   - **命令生命周期**：`base` 用于有界前台命令，默认超时由用户配置；`process` 通过 Runtime 进程注册表托管跨工具调用持续运行的命令
   - **本地端侧模型**：沙箱内原生支持 `llama.cpp` 与 `Ollama`，无需 API Key
-- **沙箱 Android 开发套件（不要与主工程构建链混淆）**：Gradle 8.14.2 / AGP 8.11.1 / Kotlin 2.2.20 / compileSdk & targetSdk 34 / NDK 29.0.14206865，仅面向 ARM64 沙箱内的 Android/Flutter APK 构建。
+- **沙箱 Android 开发套件（不要与主工程构建链混淆）**：Gradle 9.9.0 / JDK 21.0.13 (Temurin) / build-tools 37.0.0 / platforms `android-37.2`（另有 `android-34`、`android-37`）/ NDK 30.0.16248370 (r30) / CMake 4.4.5 / Ninja 1.13.2 / platform-tools 37.0.0p1，仅面向 ARM64 沙箱内的 Android/Flutter APK 构建。
+  - **插件版本不锁定**：AGP 与 Kotlin 由各工程自行声明（非套件固定值），当前工作区工程为 AGP 9.4.1 / Kotlin 2.4.21；Gradle 9.9.0 内置 Kotlin 也是 2.4.21，与工程声明一致。
+  - **路径**：`/opt/gradle-9.9.0`、`/opt/android-sdk/{build-tools,platforms}`、`/opt/taixu/tools/ndk`、`/opt/taixu/tools/cmake-4.4.5`；`GRADLE_HOME` 由 `/etc/profile.d/zz-taixu-pin.sh` 动态取 `/opt/gradle-*` 最高版，脚本勿写死版本号。
 
 ---
 
