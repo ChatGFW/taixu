@@ -3,7 +3,6 @@ package top.wkbin.taixu.plugin.cli
 import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
-
 private class UsageException(message: String) : Exception(message)
 
 class Cli(private val out: PrintStream, private val err: PrintStream) {

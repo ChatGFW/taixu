@@ -1,12 +1,10 @@
 package top.wkbin.taixu.runtime.browser.tools
 
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import top.wkbin.taixu.runtime.browser.BrowserEngine
 import top.wkbin.taixu.runtime.browser.BrowserSessionToken
-
 /**
  * MCP resources 提供者（`browser://current-page`, `browser://dom`, ...）。
  *

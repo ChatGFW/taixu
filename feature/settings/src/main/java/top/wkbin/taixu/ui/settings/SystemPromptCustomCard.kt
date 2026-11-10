@@ -1,7 +1,6 @@
 package top.wkbin.taixu.ui.settings
 
 import androidx.compose.foundation.layout.*
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.SuggestionChip
 import androidx.compose.runtime.*
@@ -15,7 +14,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
-
 @Composable
 internal fun SystemPromptCustomCard(
     enabled: Boolean,

@@ -127,9 +127,4 @@ class CodexToolInstaller(
             "Linux Runtime 未就绪，请先初始化 Linux"
         }
     }
-
-    private fun CommandResult.toActionResult() = ToolActionResult(
-        success = isSuccess,
-        message = stderr.ifBlank { stdout }.trim().ifBlank { if (isSuccess) "卸载完成" else "命令退出码 $exitCode" },
-    )
 }

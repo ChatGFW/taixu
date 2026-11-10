@@ -370,6 +370,5 @@ class HostCapabilityToolBackend(
         private val APP_DATABASE_GUARDED_ACTIONS = setOf(
             "package_disable", "package_enable", "package_uninstall_user", "app_freeze", "app_unfreeze", "app_grant_permission",
         )
-        private val LOGCAT_TAG = Regex("^[A-Za-z0-9_.-]{1,80}$")
     }
 }

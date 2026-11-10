@@ -10,8 +10,8 @@ android {
 dependencies {
     api(project(":core:browser"))
     implementation(project(":core:model"))
+    // SecretRedactor(:core:security) 的父类型 SensitiveDataRedactor 在 :core:common，编译期必须可见
     implementation(project(":core:common"))
-    implementation(project(":core:datastore"))
     implementation(project(":core:security"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.webkit)

@@ -1,6 +1,5 @@
 package top.wkbin.taixu.harness.mcp.oauth
 
-import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -9,7 +8,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-
 /**
  * MCP OAuth 2.1 自动发现与动态客户端注册（RFC 9728 / RFC 8414 / RFC 7591）。
  *

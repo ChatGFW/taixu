@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.miuix.ButtonDefaults
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Surface
 import top.yukonga.miuix.kmp.basic.Text
@@ -37,7 +36,6 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
-
 /**
  * 技能端侧静态安全审计与权限审查弹窗（基于 RuntimeAlertDialog 与 Miuix 设计规范）。
  */

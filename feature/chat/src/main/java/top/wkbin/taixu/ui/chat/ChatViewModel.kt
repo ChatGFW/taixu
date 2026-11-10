@@ -41,7 +41,6 @@ import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.harness.session.ConversationBranchKind
 import top.wkbin.taixu.harness.session.LaneManager
 import top.wkbin.taixu.runtime.WorkspaceManager
-import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.core.tools.AgentModelDiscovery
 import top.wkbin.taixu.core.tools.AgentProviderCatalog
 import top.wkbin.taixu.core.tools.ProviderEndpointPolicy
@@ -110,7 +109,6 @@ import top.wkbin.taixu.harness.operation.OperationCoordinator
 import top.wkbin.taixu.harness.session.SessionTitleGenerator
 import top.wkbin.taixu.runtime.SessionWorkspaceCatalog
 import top.wkbin.taixu.runtime.SessionWorkspaceCatalogState
-
 private const val MAX_RUNTIME_EVENTS = 160
 private const val TAG = "ChatViewModel"
 

@@ -1,12 +1,9 @@
 package top.wkbin.taixu.harness.projection
 
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.harness.HarnessTool
-import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.text.HashlineEditArgs
-
 /** 会话抽屉 / 状态点所展示的"正在执行什么"动作描述。 */
 object ToolStatusDescriber {
     const val MAX_STATUS_ARG_LENGTH = 60

@@ -16,7 +16,6 @@ import kotlinx.coroutines.supervisorScope
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -38,9 +37,7 @@ import top.wkbin.taixu.harness.subagent.renderSubagentClaimAdjudication
 import top.wkbin.taixu.harness.subagent.stripSubagentClaimBlock
 import top.wkbin.taixu.harness.prompt.PromptAssetLoader
 import top.wkbin.taixu.harness.WorkspaceFileAccess
-import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.database.AgentSubagentRepository
-
 internal class SubagentConcurrencyGate(
     maxParallelism: Int = DEFAULT_MAX_CONCURRENT_SUBAGENTS,
 ) {

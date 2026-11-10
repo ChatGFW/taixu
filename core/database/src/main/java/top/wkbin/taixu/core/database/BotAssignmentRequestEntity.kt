@@ -8,11 +8,9 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
-import androidx.room.Transaction
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
-
 @Entity(tableName = "bot_assignment_requests", foreignKeys = [ForeignKey(
     entity = BotAssignmentEntity::class, parentColumns = ["id"], childColumns = ["assignmentId"], onDelete = ForeignKey.CASCADE,
 )], indices = [Index(value = ["assignmentId", "createdAt"]), Index(value = ["status"])])

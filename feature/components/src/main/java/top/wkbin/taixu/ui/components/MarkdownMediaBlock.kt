@@ -31,16 +31,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.components.R
 import androidx.compose.ui.unit.dp
-import coil3.compose.SubcomposeAsyncImage
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import coil3.request.crossfade
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import android.util.Log
 import top.wkbin.taixu.core.markdown.*
-
 @Composable
 internal fun RemoteMediaBlock(block: MdRemoteMedia, cacheKey: String? = null) {
     val context = LocalContext.current

@@ -7,15 +7,12 @@ import android.app.PendingIntent
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.core.content.FileProvider
 import java.io.File
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import top.wkbin.taixu.tools.R
-
 /**
  * 插件与工具安装系统通知栏控制器
  * 实时同步并发安装进度、完成与失败状态到 Android 系统通知栏。

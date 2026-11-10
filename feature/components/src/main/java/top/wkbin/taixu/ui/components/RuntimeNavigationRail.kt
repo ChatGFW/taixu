@@ -17,13 +17,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.yukonga.miuix.kmp.icon.extended.Info
 import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-
 val RuntimeNavigationRailWidth = 80.dp
 
 data class RuntimeRailItem(

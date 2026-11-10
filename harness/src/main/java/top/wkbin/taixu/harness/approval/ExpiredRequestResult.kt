@@ -5,7 +5,6 @@ import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.harness.ApprovalPolicyEngine
 import top.wkbin.taixu.harness.AskUserQuestions
 import top.wkbin.taixu.harness.ToolResult
-
 /** Timeout defaults answer questions only; they never approve an expired tool invocation. */
 internal suspend fun expiredRequestResult(
     request: AgentApprovalRequestEntity,

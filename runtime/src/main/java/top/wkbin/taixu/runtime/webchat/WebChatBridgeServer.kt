@@ -1,17 +1,12 @@
 package top.wkbin.taixu.runtime.webchat
 
-import android.R
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.PowerManager
-import androidx.core.app.NotificationCompat
 import java.io.File
 import java.io.InputStream
 import java.net.InetSocketAddress
-import java.net.URLDecoder
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
@@ -29,17 +24,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import top.wkbin.taixu.core.common.logging.AppLogger
-import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.database.AgentMessageFeedbackEntity
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.database.HarnessSessionEntity

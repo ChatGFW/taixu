@@ -3,7 +3,6 @@ package top.wkbin.taixu.ui.settings
 import java.time.Instant
 import top.wkbin.taixu.core.database.InstallLogEntity
 import top.wkbin.taixu.plugin.packages.PackagedPluginEntry
-
 internal fun buildPluginDiagnostics(entry: PackagedPluginEntry, logs: List<InstallLogEntity>): String {
     val manifest = entry.manifest
     val spec = manifest.plugin

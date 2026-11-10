@@ -3,8 +3,6 @@ package top.wkbin.taixu.runtime.browser.engine
 import android.content.Context
 import android.net.Uri
 import android.webkit.WebResourceResponse
-import top.wkbin.taixu.core.browser.TaiXuNewTab
-
 /**
  * 品牌起始页（新标签页）本地拦截：WebView 请求 [TaiXuNewTab.URL] 虚拟地址时，
  * 直接从 assets 返回 newtab.html，全程不出网（该域名并不真实存在）。

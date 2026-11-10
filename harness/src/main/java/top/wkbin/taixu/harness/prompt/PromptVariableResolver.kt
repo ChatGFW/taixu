@@ -9,7 +9,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-
 /**
  * 提示词动态宏变量解析引擎。
  * 支持在自定义系统提示词中嵌入 {{cur_datetime}}、{{device_info}} 等动态占位符。

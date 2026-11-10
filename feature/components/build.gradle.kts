@@ -7,7 +7,6 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:common"))
     implementation(project(":core:model"))
     api(project(":core:markdown"))
     api(project(":feature:theme"))

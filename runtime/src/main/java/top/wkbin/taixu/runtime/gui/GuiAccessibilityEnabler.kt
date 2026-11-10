@@ -7,7 +7,6 @@ import kotlinx.coroutines.delay
 import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
-
 /**
  * With Shizuku/Root, programmatically enable [TaiXuGuiAccessibilityService]
  * via Secure settings — no manual trip to 无障碍 settings.

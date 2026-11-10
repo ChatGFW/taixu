@@ -6,7 +6,6 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.model.ExecutionMode
@@ -18,7 +17,6 @@ import top.wkbin.taixu.core.model.workflow.WorkflowConditionEvaluator
 import top.wkbin.taixu.core.model.workflow.WorkflowNode
 import top.wkbin.taixu.core.model.workflow.WorkflowNodeType
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeContext
-import top.wkbin.taixu.core.model.workflow.previousOutput
 import top.wkbin.taixu.harness.capHostOutput
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.gui.HostGuiController
@@ -27,7 +25,6 @@ import top.wkbin.taixu.runtime.shell.ShellCommand
 import android.R
 import kotlinx.coroutines.CancellationException
 import top.wkbin.taixu.runtime.gui.ScrollDirection
-
 class ConditionNodeExecutor() : NodeExecutor {
     override val supportedTypes = setOf(WorkflowNodeType.CONDITION_BRANCH)
 

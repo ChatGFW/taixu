@@ -2,7 +2,6 @@ package top.wkbin.taixu.harness
 
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.HarnessSessionRepository
@@ -33,7 +32,6 @@ import top.wkbin.taixu.harness.mcp.McpManager
 import top.wkbin.taixu.harness.mcp.McpToolCallPolicy
 import top.wkbin.taixu.harness.validation.ToolSchemaValidator
 import top.wkbin.taixu.runtime.LinuxEnvironmentManager
-
 /**
  * Harness 工具执行器：把 LLM 发出的 ToolCall 翻译成受控操作。
  *

@@ -12,7 +12,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -36,7 +35,6 @@ import top.wkbin.taixu.core.tools.ToolManager
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.environment.LocalBackendAccess
 import top.wkbin.taixu.runtime.shell.ShellCommand
-
 data class CcSwitchUiState(
     val isInstalled: Boolean = true,
     val isDaemonRunning: Boolean = false,

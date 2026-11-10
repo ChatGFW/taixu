@@ -3,7 +3,6 @@ package top.wkbin.taixu.ui.components
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import top.yukonga.miuix.kmp.basic.TopAppBar
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -11,7 +10,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.components.R
-
 /** Scroll-aware variant for spacious settings and personalization pages. */
 @Composable
 fun RuntimeTopBar(

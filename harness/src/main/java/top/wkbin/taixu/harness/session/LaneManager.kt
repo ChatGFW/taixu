@@ -6,9 +6,7 @@ import top.wkbin.taixu.core.database.HarnessLaneEntity
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.AssistantText
-import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.UserMessage
-
 enum class ConversationBranchKind { MAIN, BRANCH, SUBAGENT, HISTORY }
 
 data class ConversationBranch(

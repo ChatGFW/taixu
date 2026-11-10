@@ -19,13 +19,11 @@ import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.*
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Surface
 import top.wkbin.taixu.ui.theme.chatBackdropSurface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
-
 @Composable
 internal fun EmptyChatGuidance(
     workspaceProject: WorkspaceProject? = null,

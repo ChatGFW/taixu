@@ -15,7 +15,6 @@ import top.wkbin.taixu.core.database.BotScheduleDao
 import top.wkbin.taixu.core.database.BotScheduleDeliveryDao
 import top.wkbin.taixu.core.database.BotScheduleEntity
 import top.wkbin.taixu.core.database.GroupChatDao
-import top.wkbin.taixu.core.database.GroupChatEntity
 import top.wkbin.taixu.core.database.GroupMemberEntity
 import top.wkbin.taixu.core.database.GroupMessageEntity
 import top.wkbin.taixu.core.database.GroupSeenEntity
@@ -31,12 +30,10 @@ import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupGovernance
 import top.wkbin.taixu.core.model.bot.GroupMessage
 import top.wkbin.taixu.core.model.bot.GroupReaction
-import top.wkbin.taixu.core.model.bot.GroupReplyMode
 import top.wkbin.taixu.core.model.bot.GroupRound
 import top.wkbin.taixu.core.model.bot.GroupSenderType
 import top.wkbin.taixu.core.model.bot.GroupTeam
 import top.wkbin.taixu.core.model.bot.GroupToolStep
-
 interface PersonaBotRepository {
     fun observeBots(): Flow<List<Bot>>
     fun observeBot(id: String): Flow<Bot?>

@@ -21,9 +21,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 import top.wkbin.taixu.core.tools.ProviderEndpointPolicy
@@ -100,7 +98,6 @@ class OnboardingViewModel(
     val discoveringModels = _discoveringModels.asStateFlow()
     private val _modelDiscoveryError = MutableStateFlow<String?>(null)
     val modelDiscoveryError = _modelDiscoveryError.asStateFlow()
-    private var discoveryDebounceJob: Job? = null
     private val _isImporting = MutableStateFlow(false)
     val isImporting = _isImporting.asStateFlow()
     private val _importError = MutableStateFlow<String?>(null)
@@ -156,20 +153,7 @@ class OnboardingViewModel(
         _modelDiscoveryError.value = null
     }
 
-    private fun scheduleModelDiscovery(delayMillis: Long = 600) {
-        discoveryDebounceJob?.cancel()
-        val cleanUrl = ProviderEndpointPolicy.normalizeUrl(_baseUrl.value)
-        if (!ProviderEndpointPolicy.isSafeBaseUrl(cleanUrl)) return
-        discoveryDebounceJob = viewModelScope.launch {
-            delay(delayMillis)
-            discoveryDebounceJob = null
-            startModelDiscovery(cleanUrl)
-        }
-    }
-
     fun discoverModels() {
-        discoveryDebounceJob?.cancel()
-        discoveryDebounceJob = null
         val cleanUrl = ProviderEndpointPolicy.normalizeUrl(_baseUrl.value)
         if (!ProviderEndpointPolicy.isSafeBaseUrl(cleanUrl)) return
         startModelDiscovery(cleanUrl)

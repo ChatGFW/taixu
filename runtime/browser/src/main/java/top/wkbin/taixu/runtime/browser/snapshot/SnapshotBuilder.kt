@@ -5,7 +5,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -20,7 +19,6 @@ import top.wkbin.taixu.runtime.browser.BrowserEvent
 import top.wkbin.taixu.runtime.browser.BrowserEventBus
 import top.wkbin.taixu.runtime.browser.BrowserSessionToken
 import top.wkbin.taixu.runtime.browser.js.JsEvaluator
-
 private fun JsonPrimitive.textOrNull(): String? =
     if (this === JsonNull) null else content.takeIf { it.isNotEmpty() }
 

@@ -15,7 +15,6 @@ import java.util.Date
 import java.util.Locale
 import top.wkbin.taixu.core.model.workflow.*
 import top.wkbin.taixu.ui.components.*
-
 @Composable
 internal fun WorkflowHistoryCard(
     entry: WorkflowHistoryEntry,

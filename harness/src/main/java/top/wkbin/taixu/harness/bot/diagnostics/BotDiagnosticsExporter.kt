@@ -24,7 +24,6 @@ import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.session.SessionControl
-
 /**
  * 一键导出群聊诊断：群消息 + 每个 Bot 的完整会话（含工具调用/结果）+ 相关运行日志。
  * 输出为 Markdown，便于直接分享排查“哪一步出错”。

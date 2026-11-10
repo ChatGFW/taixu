@@ -77,8 +77,6 @@ import coil3.request.ImageRequest
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.CapabilityEvent
 import top.wkbin.taixu.harness.SkillSuggestion
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.FlowRow
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.UserMessage
@@ -95,7 +93,6 @@ import top.wkbin.taixu.core.common.navigation.GlobalNavigationBus
 import top.wkbin.taixu.core.common.translation.TranslationManager
 import top.wkbin.taixu.core.common.translation.TranslationModelStatus
 import top.wkbin.taixu.ui.components.RuntimeActionRow
-
 /** 消息气泡：用户/助手气泡、思考块、任务计划卡、能力事件卡。 */
 @Composable
 internal fun UserBubble(

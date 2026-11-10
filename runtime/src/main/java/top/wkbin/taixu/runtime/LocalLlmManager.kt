@@ -36,7 +36,6 @@ import top.wkbin.taixu.runtime.service.LocalServiceSpec
 import top.wkbin.taixu.runtime.shell.ManagedProcess
 import top.wkbin.taixu.runtime.shell.ProcessType
 import top.wkbin.taixu.runtime.shell.ShellCommand
-
 data class LocalGgufModel(
     val fileName: String,
     val sizeBytes: Long,

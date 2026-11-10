@@ -80,7 +80,6 @@ import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.BuiltinMcpPresets
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpToolInfo
-import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.core.model.QuickPhrase
 import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.core.model.RunningSendMode
@@ -99,8 +98,6 @@ import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.RuntimeInstallRequest
 import top.wkbin.taixu.runtime.webchat.WebChatBridgeServer
 import top.wkbin.taixu.runtime.webchat.WebChatServerStatus
-
-
 class SettingsViewModel(
     private val application: Application,
     private val logger: AppLogger,

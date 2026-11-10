@@ -5,8 +5,6 @@ import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.core.database.UsageLedgerSessionRow
 import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
 import top.wkbin.taixu.core.database.repository.TaskBudgetRepository
-import top.wkbin.taixu.core.model.bot.BotAssignment
-
 /** Aggregate ledger scalars for the original task tree, without loading conversation payloads. */
 class GroupTaskUsage(
     private val assignments: BotAssignmentRepository,

@@ -37,7 +37,6 @@ import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeDropdownField
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeNumberPicker
-
 /** 重复方式的展示文案（列表与对话框共用）。 */
 fun scheduleRepeatLabel(entity: WorkflowScheduleEntity): String = when (WorkflowScheduleRepeat.valueOf(entity.repeatType)) {
     WorkflowScheduleRepeat.DAILY -> "每天 ${"%02d".format(entity.hour ?: 0)}:${"%02d".format(entity.minute ?: 0)}"

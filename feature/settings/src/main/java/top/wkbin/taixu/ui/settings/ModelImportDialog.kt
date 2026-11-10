@@ -13,7 +13,6 @@ import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -29,7 +28,6 @@ import top.wkbin.taixu.core.model.AiProfileImportMode
 import top.wkbin.taixu.core.tools.AiProfileTransferFormat
 import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.*
-
 /** Preview is read-only; only the second confirmation writes the selected batch. */
 @Composable
 fun ModelImportDialog(

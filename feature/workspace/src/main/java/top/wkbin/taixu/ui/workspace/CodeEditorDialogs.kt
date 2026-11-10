@@ -1,13 +1,11 @@
 package top.wkbin.taixu.ui.workspace
 
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.workspace.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
-
 /** 顶栏「放弃修改」二次确认：撤销全部未保存编辑属于破坏性操作。 */
 @Composable
 internal fun DiscardEditsDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {

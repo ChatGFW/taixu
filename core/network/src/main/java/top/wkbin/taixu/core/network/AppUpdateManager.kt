@@ -3,7 +3,6 @@ package top.wkbin.taixu.core.network
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -18,7 +17,6 @@ import okhttp3.Request
 import top.wkbin.taixu.core.model.AppUpdateInfo
 import java.io.File
 import java.io.FileOutputStream
-
 /**
  * 太墟 · 应用版本更新管理器 (GitHub Releases API)
  */

@@ -7,7 +7,6 @@ import java.io.IOException
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.eclipse.jgit.api.CreateBranchCommand
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.ListBranchCommand
 import org.eclipse.jgit.api.errors.CannotDeleteCurrentBranchException
@@ -35,7 +34,6 @@ import java.util.Date
 import org.eclipse.jgit.api.MergeResult
 import org.eclipse.jgit.lib.ObjectId
 import org.eclipse.jgit.lib.ProgressMonitor
-
 /** 当前路径不是 Git 仓库 */
 class GitNotARepoException : IOException("NOT_A_GIT_REPO")
 

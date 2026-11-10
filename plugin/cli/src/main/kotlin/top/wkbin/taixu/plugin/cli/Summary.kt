@@ -4,7 +4,6 @@ import java.io.PrintStream
 import java.util.Locale
 import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.plugin.packages.WebPluginPackagePolicy
-
 internal object Summary {
     fun print(out: PrintStream, manifest: ToolManifest, files: Collection<ContentFile>) {
         val spec = requireNotNull(manifest.plugin)

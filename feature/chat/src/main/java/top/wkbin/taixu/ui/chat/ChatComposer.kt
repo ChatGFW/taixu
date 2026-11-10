@@ -28,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.chat.R
@@ -52,7 +51,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import top.wkbin.taixu.harness.QueuedPrompt
 import top.wkbin.taixu.ui.components.RuntimeComposerTextField
 import top.wkbin.taixu.ui.theme.chatBackdropSurface
-
 /**
  * 输入区：斜杠/@ 弹窗、排队指令、附件预览、推理强度滑块、工具状态胶囊与一体化输入胶囊。
  */

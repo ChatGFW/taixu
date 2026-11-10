@@ -9,17 +9,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
-import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
-
 /**
  * OpenAI Responses API（POST /responses）适配层：把内部统一的 OpenAI 风格 [ApiMessage] 列表
  * 翻译成 Responses API 的 `input` items 结构，并把响应（含 SSE 流式）映射回 [ChatResult]。

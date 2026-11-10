@@ -4,7 +4,6 @@ import top.wkbin.taixu.ui.miuix.*
 import androidx.compose.runtime.*
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,7 +47,6 @@ import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.runtimeContentPadding
 import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
 import top.wkbin.taixu.ui.components.runtimeScrollViewport
-
 /**
  * 太墟 · 全局功能与设置选项搜索页面
  */

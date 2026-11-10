@@ -4,13 +4,11 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import top.wkbin.taixu.runtime.browser.BrowserEventBus
 import top.wkbin.taixu.runtime.browser.hook.HookRuleStore
 import top.wkbin.taixu.runtime.browser.hook.NetworkBodyStore
-
 /**
  * 单 tab 的完整 CDP 连接：一个 WebSocket 会话承载 page 会话 + auto-attach 的 worker 子会话。
  *

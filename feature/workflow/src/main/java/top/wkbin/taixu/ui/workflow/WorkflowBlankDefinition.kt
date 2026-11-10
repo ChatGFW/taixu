@@ -2,7 +2,6 @@ package top.wkbin.taixu.ui.workflow
 
 import java.util.UUID
 import top.wkbin.taixu.core.model.workflow.*
-
 internal fun blankWorkflowDefinition() = WorkflowDefinition(
     id = "workflow_${UUID.randomUUID().toString().take(8)}", name = "新工作流",
     description = "在画布中添加并连接节点", category = "自定义",

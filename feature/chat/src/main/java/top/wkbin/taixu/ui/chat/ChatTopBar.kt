@@ -2,7 +2,6 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
@@ -19,7 +18,6 @@ import top.wkbin.taixu.harness.events.HarnessEvent
 import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.chat.floating.rememberFloatingChatLauncher
-
 /** Floating navigation and actions; advanced controls unfold on demand. */
 @Composable
 internal fun ChatTopBar(

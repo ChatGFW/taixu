@@ -8,7 +8,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -26,7 +25,6 @@ import top.wkbin.taixu.core.model.*
 import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.*
 import java.util.UUID
-
 @Composable
 internal fun RemoteServerDialog(viewModel: RemoteServerViewModel, existing: RemoteServer? = null, onDismiss: () -> Unit) {
     val state by viewModel.connectionState.collectAsStateWithLifecycle()

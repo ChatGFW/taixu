@@ -260,6 +260,5 @@ object ModelMetadataRegistry {
     private fun ModelDefinitionBuilder.reasoningAbility() = ability(ModelAbility.REASONING)
     private fun ModelDefinitionBuilder.toolReasoningAbility() = ability(ModelAbility.TOOL, ModelAbility.REASONING)
 
-    private val Int.k: Int get() = this * 1_000
     private val Int.m: Int get() = this * 1_000_000
 }
