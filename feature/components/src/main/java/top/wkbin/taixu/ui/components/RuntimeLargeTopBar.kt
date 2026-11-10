@@ -19,9 +19,10 @@ fun RuntimeTopBar(
     onBack: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
     modifier: Modifier = Modifier,
-    color: Color = RuntimeTheme.colorScheme.surface,
+    color: Color? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
+    val barColor = color ?: runtimeBarColor(LocalRuntimeBackdrop.current)
     TopAppBar(
         modifier = modifier,
         title = title,
@@ -31,7 +32,7 @@ fun RuntimeTopBar(
             }
         },
         actions = actions,
-        color = color,
+        color = barColor,
         scrollBehavior = scrollBehavior,
     )
 }

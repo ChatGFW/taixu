@@ -1,11 +1,5 @@
 package top.wkbin.taixu.ui.workspace
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
-import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
@@ -22,52 +16,59 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Scaffold
-import top.wkbin.taixu.ui.miuix.Surface
-import top.yukonga.miuix.kmp.basic.Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import top.wkbin.taixu.feature.workspace.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import top.wkbin.taixu.runtime.WorkspaceFileItem
-import top.wkbin.taixu.ui.components.EmptyPanel
-import top.wkbin.taixu.ui.components.NoticeBanner
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconMenu
-import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeTopBar
-import top.yukonga.miuix.kmp.basic.DropdownEntry
-import top.yukonga.miuix.kmp.basic.DropdownItem
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.koin.compose.viewmodel.koinViewModel
+import top.wkbin.taixu.feature.workspace.R
+import top.wkbin.taixu.runtime.WorkspaceFileItem
+import top.wkbin.taixu.ui.components.EmptyPanel
+import top.wkbin.taixu.ui.components.NoticeBanner
+import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
+import top.wkbin.taixu.ui.components.RuntimeIconMenu
+import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.miuix.Surface
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.basic.Text
 
 /**
  * 太墟 · 文件浏览器 (File Explorer)
@@ -182,7 +183,7 @@ fun WorkspaceExplorerScreen(
                             ),
                             enabled = !busy,
                             content = {
-                                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.primary)
+                                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
                             },
                         )
                     }
@@ -192,7 +193,7 @@ fun WorkspaceExplorerScreen(
                         onClick = { onOpenTerminal(projectName) },
                         contentDescription = stringResource(R.string.workspace_cd_terminal),
                     ) {
-                        RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.primary)
+                        RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
                     }
 
                     // 刷新
@@ -207,69 +208,45 @@ fun WorkspaceExplorerScreen(
             )
         },
     ) { padding ->
-        Column(
+        val topInset = padding.calculateTopPadding()
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
+                .then(runtimeScrollViewport(padding)),
         ) {
-            // 面包屑导航栏
-            BreadcrumbBar(
-                projectName = projectName,
-                currentPath = currentPath,
-                onNavigate = { targetPath -> viewModel?.navigateToDirectory(targetPath) },
-            )
-
-            HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
-
-            // 共享存储"所有文件访问"权限缺失横幅：系统会过滤其他应用的文件（只显示文件夹）
-            if (sharedStorageAccessLimited) {
-                SharedStoragePermissionBanner(
-                    onAuthorize = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                            allFilesPermissionLauncher.launch(
-                                Intent(
-                                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                    Uri.parse("package:${context.packageName}"),
-                                ),
-                            )
-                        } else {
-                            legacyStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                        }
-                    },
-                )
+            // 列表从 y=0 铺满，contentPadding.top 含顶栏+面包屑占位；上滑后条目可进磨砂后方。
+            val chromePad = 48.dp + when {
+                sharedStorageAccessLimited && message != null -> 96.dp
+                sharedStorageAccessLimited || message != null -> 52.dp
+                else -> 0.dp
             }
-
-            // 消息提示
-            message?.let { notice ->
-                Box(Modifier.padding(horizontal = 14.dp, vertical = 6.dp)) {
-                    NoticeBanner(text = notice, isError = messageIsError)
-                }
-            }
-
-            if (loading && fileItems.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            when {
+                loading && fileItems.isEmpty() -> Box(
+                    Modifier.fillMaxSize().padding(top = topInset + chromePad),
+                    contentAlignment = Alignment.Center,
+                ) {
                     CircularProgressIndicator(Modifier.size(36.dp), color = RuntimeTheme.colorScheme.primary)
                 }
-            } else if (fileItems.isEmpty()) {
-                EmptyPanel(
+                fileItems.isEmpty() -> EmptyPanel(
                     icon = RuntimeIconName.Folder,
                     title = stringResource(R.string.workspace_empty_directory),
                     description = stringResource(R.string.workspace_empty_directory_hint),
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier.padding(top = topInset + chromePad).padding(24.dp),
                 )
-            } else {
-                Box(Modifier.fillMaxSize()) {
+                else -> Box(Modifier.fillMaxSize()) {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = padding.calculateBottomPadding()),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            top = topInset + chromePad,
+                            bottom = padding.calculateBottomPadding(),
+                        ),
                     ) {
-                        // 如果在子目录，显示返回上一级项
                         if (currentPath.isNotBlank()) {
                             item {
                                 ParentDirectoryRow(onClick = { viewModel?.navigateUp() })
                                 HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
                             }
                         }
-
                         items(fileItems, key = { it.relativePath }) { item ->
                             FileItemRow(
                                 item = item,
@@ -285,14 +262,11 @@ fun WorkspaceExplorerScreen(
                                     renameTarget = item
                                     renameInput = item.name
                                 },
-                                onDelete = {
-                                    deleteTarget = item
-                                },
+                                onDelete = { deleteTarget = item },
                             )
                             HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                         }
                     }
-                    // 进入子目录时的覆盖式加载指示：列表非空但正在刷新
                     if (loading) {
                         Box(
                             modifier = Modifier
@@ -302,6 +276,42 @@ fun WorkspaceExplorerScreen(
                         ) {
                             CircularProgressIndicator(Modifier.size(30.dp), color = RuntimeTheme.colorScheme.primary)
                         }
+                    }
+                }
+            }
+
+            // 固定面包屑叠在列表之上，自身顶 inset 落在顶栏下。
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = topInset)
+                    .background(RuntimeTheme.colorScheme.background),
+            ) {
+                BreadcrumbBar(
+                    projectName = projectName,
+                    currentPath = currentPath,
+                    onNavigate = { targetPath -> viewModel?.navigateToDirectory(targetPath) },
+                )
+                HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
+                if (sharedStorageAccessLimited) {
+                    SharedStoragePermissionBanner(
+                        onAuthorize = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                allFilesPermissionLauncher.launch(
+                                    Intent(
+                                        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                        Uri.parse("package:${context.packageName}"),
+                                    ),
+                                )
+                            } else {
+                                legacyStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            }
+                        },
+                    )
+                }
+                message?.let { notice ->
+                    Box(Modifier.padding(horizontal = 14.dp, vertical = 6.dp)) {
+                        NoticeBanner(text = notice, isError = messageIsError)
                     }
                 }
             }
@@ -525,7 +535,7 @@ private fun ParentDirectoryRow(onClick: () -> Unit) {
         RuntimeIcon(
             RuntimeIconName.ArrowUp,
             Modifier.size(18.dp),
-            tint = RuntimeTheme.colorScheme.primary,
+            tint = RuntimeTheme.colorScheme.onSurface,
         )
         Text(
             text = stringResource(R.string.workspace_parent_directory),
@@ -569,7 +579,7 @@ private fun FileItemRow(
                 RuntimeIcon(
                     RuntimeIconName.Folder,
                     Modifier.size(20.dp),
-                    tint = RuntimeTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
             }
         } else {

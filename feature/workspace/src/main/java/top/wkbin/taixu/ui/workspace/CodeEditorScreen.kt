@@ -1,17 +1,12 @@
 package top.wkbin.taixu.ui.workspace
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,47 +29,55 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Scaffold
-import top.wkbin.taixu.ui.miuix.Surface
-import top.yukonga.miuix.kmp.basic.Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import top.wkbin.taixu.feature.workspace.R
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
+import org.koin.compose.viewmodel.koinViewModel
+import top.wkbin.taixu.feature.workspace.R
+import top.wkbin.taixu.runtime.WorkspaceFileInspection
 import top.wkbin.taixu.ui.components.NoticeBanner
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
+import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.miuix.Surface
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
+import top.yukonga.miuix.kmp.basic.Text
 private val EditorBackground = Color(0xFF0F1117)
 private val EditorGutterBackground = Color(0xFF181A22)
 private val EditorText = Color(0xFFE2E2E9)
@@ -101,7 +103,7 @@ fun CodeEditorScreen(
     val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val saveConflict by viewModel?.saveConflict?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val binaryFile by viewModel?.binaryFile?.collectAsStateWithLifecycle()
-        ?: previewStateOf<top.wkbin.taixu.runtime.WorkspaceFileInspection?>(null)
+        ?: previewStateOf<WorkspaceFileInspection?>(null)
     val context = LocalContext.current
 
     var showUnsavedDialog by rememberSaveable(projectName, relativePath) { mutableStateOf(false) }
@@ -208,39 +210,51 @@ fun CodeEditorScreen(
                         contentDescription = stringResource(R.string.workspace_cd_save),
                     ) {
                         if (isSaving) CircularProgressIndicator(Modifier.size(18.dp), color = RuntimeTheme.colorScheme.primary, strokeWidth = 2.dp)
-                        else RuntimeIcon(RuntimeIconName.Save, Modifier.size(20.dp), tint = if (isDirty) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                        else RuntimeIcon(RuntimeIconName.Save, Modifier.size(20.dp), tint = if (isDirty) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                     }
                 },
             )
         },
     ) { padding ->
+        val topInset = padding.calculateTopPadding()
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .then(runtimeScrollViewport(padding))
+                .padding(bottom = padding.calculateBottomPadding())
                 .imePadding(),
         ) {
-            // 提示信息
+            // 提示信息（固定在顶栏下；编辑区滚动可进磨砂后方）
             message?.let { notice ->
-                Box(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                Box(Modifier.padding(start = 12.dp, end = 12.dp, top = topInset, bottom = 4.dp)) {
                     NoticeBanner(text = notice, isError = messageIsError)
                 }
             }
 
             if (loading) {
-                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(top = if (message == null) topInset else 0.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
                     CircularProgressIndicator(Modifier.size(36.dp), color = EditorAccent)
                 }
             } else if (binaryFile != null) {
-                BinaryFileNotice(
-                    inspection = binaryFile!!,
-                    onOpen = { viewModel?.openCurrentFileExternally(share = false) },
-                    onShare = { viewModel?.openCurrentFileExternally(share = true) },
-                )
+                Box(Modifier.padding(top = if (message == null) topInset else 0.dp)) {
+                    BinaryFileNotice(
+                        inspection = binaryFile!!,
+                        onOpen = { viewModel?.openCurrentFileExternally(share = false) },
+                        onShare = { viewModel?.openCurrentFileExternally(share = true) },
+                    )
+                }
             } else {
                 // 代码编辑核心区域
                 val scrollState = rememberScrollState()
                 val horizontalScrollState = rememberScrollState()
+                // 无横幅时首屏避开顶栏；该 inset 在 verticalScroll 内容内，上滑后可穿过磨砂。
+                val editorTopPad = if (message == null) topInset + 12.dp else 12.dp
 
                 // 高亮语法生成：key 仅依赖 extension，避免每次高亮区间更新都生成新的 OutputTransformation 实例
                 // 导致 BasicTextField 重置 InputConnection 和软键盘闪烁
@@ -282,7 +296,7 @@ fun CodeEditorScreen(
                         modifier = Modifier
                             .width(gutterWidth)
                             .background(EditorGutterBackground)
-                            .padding(vertical = 12.dp, horizontal = 6.dp),
+                            .padding(start = 6.dp, end = 6.dp, top = editorTopPad, bottom = 12.dp),
                         horizontalAlignment = Alignment.End,
                     ) {
                         Text(
@@ -314,7 +328,7 @@ fun CodeEditorScreen(
                                 if (!wordWrap) Modifier.horizontalScroll(horizontalScrollState)
                                 else Modifier,
                             )
-                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                            .padding(start = 12.dp, end = 12.dp, top = editorTopPad, bottom = 12.dp),
                     ) {
                         BasicTextField(
                             state = editorState,

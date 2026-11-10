@@ -1,17 +1,12 @@
 package top.wkbin.taixu.ui.git
 
-import top.wkbin.taixu.ui.miuix.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,21 +15,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,17 +42,26 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.feature.git.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimePullToRefresh
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.StatusBadge
-import android.widget.Toast
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.Text
 /**
  * 分支管理（参考 MGit）：
  * 分支列表/切换/新建/删除 + 多色提交记录树（哈希/作者/时间）+ HTTPS Token 推送拉取。
@@ -97,50 +100,35 @@ fun GitScreen(
         onPauseOrDispose { }
     }
 
-    // 与 TerminalScreen/CodeEditorScreen 对齐：不透明背景，避免转场动画期间下层页面透出
-    // （无背景时转场中下层 ChatScreen 仍全量渲染并可见，既视觉怪异又掉帧）
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = RuntimeTheme.colorScheme.background,
-    ) {
-        Column(
+    // Scaffold 提供顶栏毛玻璃；不透明背景避免转场期间下层 ChatScreen 透出。
+    Scaffold(
+        containerColor = RuntimeTheme.colorScheme.background,
+        topBar = {
+            RuntimeTopBar(
+                title = stringResource(R.string.fgit_title),
+                statusText = projectName,
+                onBack = onBack,
+            ) {
+                RuntimeIconButton(onClick = { viewModel?.refresh() }) {
+                    RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurface)
+                }
+                RuntimeIconButton(onClick = { showCredentials = true }) {
+                    RuntimeIcon(RuntimeIconName.Key, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurface)
+                }
+            }
+        },
+    ) { padding ->
+        RuntimePullToRefresh(
+            isRefreshing = state.loading && state.overview != null,
+            onRefresh = { viewModel?.refresh() },
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding(),
+                .then(runtimeScrollViewport(padding)),
+            contentPadding = PaddingValues(
+                top = padding.calculateTopPadding(),
+                bottom = padding.calculateBottomPadding(),
+            ),
         ) {
-        // 顶栏
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 6.dp, end = 10.dp, top = 6.dp, bottom = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            RuntimeIconButton(onClick = onBack) {
-                RuntimeIcon(RuntimeIconName.Back, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
-            }
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.fgit_title),
-                    style = RuntimeTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = projectName,
-                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            RuntimeIconButton(onClick = { viewModel?.refresh() }) {
-                RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(19.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
-            }
-            RuntimeIconButton(onClick = { showCredentials = true }) {
-                RuntimeIcon(RuntimeIconName.Key, Modifier.size(19.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-
         when {
             state.loading && state.overview == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -430,7 +418,7 @@ private fun RepoHeaderCard(
                 RuntimeIcon(
                     name = RuntimeIconName.GitBranch,
                     modifier = Modifier.size(18.dp),
-                    tint = RuntimeTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = overview.currentBranch,
@@ -640,7 +628,7 @@ private fun BranchesTab(
     val overview = state.overview ?: return
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
+        contentPadding = runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         item {
@@ -665,7 +653,7 @@ private fun BranchesTab(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(13.dp), RuntimeTheme.colorScheme.primary)
+                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(13.dp), RuntimeTheme.colorScheme.onSurface)
                         Text(
                             stringResource(R.string.fgit_new_branch),
                             style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
@@ -848,7 +836,7 @@ private fun TagsTab(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
+        contentPadding = runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         item {
@@ -873,7 +861,7 @@ private fun TagsTab(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(13.dp), RuntimeTheme.colorScheme.primary)
+                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(13.dp), RuntimeTheme.colorScheme.onSurface)
                         Text(
                             stringResource(R.string.fgit_new_tag),
                             style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),

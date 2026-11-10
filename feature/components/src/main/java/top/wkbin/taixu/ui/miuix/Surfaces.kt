@@ -11,6 +11,10 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import top.wkbin.taixu.ui.components.LocalRuntimeBackdrop
+import top.wkbin.taixu.ui.components.RuntimeBlurredBar
+import top.wkbin.taixu.ui.components.rememberRuntimeBackdrop
+import top.wkbin.taixu.ui.components.runtimeBackdropSource
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.basic.Surface as MiuixSurface
 
@@ -90,10 +94,13 @@ fun VerticalDivider(
     color: Color = RuntimeTheme.colorScheme.outlineVariant,
 ) = top.yukonga.miuix.kmp.basic.VerticalDivider(modifier = modifier, thickness = thickness, color = color)
 
+/** 与默认参数共用同一引用，便于识别「未提供顶栏」从而跳过零尺寸 textureBlur。 */
+private val EmptyScaffoldTopBar: @Composable () -> Unit = {}
+
 @Composable
 fun Scaffold(
     modifier: Modifier = Modifier,
-    topBar: @Composable () -> Unit = {},
+    topBar: @Composable () -> Unit = EmptyScaffoldTopBar,
     bottomBar: @Composable () -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
     snackbarHost: @Composable () -> Unit = {},
@@ -102,10 +109,29 @@ fun Scaffold(
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    CompositionLocalProvider(LocalContentColor provides contentColor) {
-        top.yukonga.miuix.kmp.basic.Scaffold(modifier, topBar, bottomBar, floatingActionButton,
-            snackbarHost = snackbarHost, containerColor = containerColor,
-            contentWindowInsets = contentWindowInsets, content = content)
+    // 无顶栏时不建 backdrop：避免空 topBar 上 textureBlur 在部分 GPU 上 RenderThread SIGSEGV，
+    // 也避免聊天等把胶囊画在 layerBackdrop 内容树内再采样自身。
+    val useFrostedTopBar = topBar !== EmptyScaffoldTopBar
+    val backdrop = if (useFrostedTopBar) rememberRuntimeBackdrop() else null
+    CompositionLocalProvider(
+        LocalContentColor provides contentColor,
+        LocalRuntimeBackdrop provides backdrop,
+    ) {
+        top.yukonga.miuix.kmp.basic.Scaffold(
+            modifier = modifier,
+            topBar = {
+                if (useFrostedTopBar) RuntimeBlurredBar(backdrop) { topBar() } else topBar()
+            },
+            bottomBar = bottomBar,
+            floatingActionButton = floatingActionButton,
+            snackbarHost = snackbarHost,
+            containerColor = containerColor,
+            contentWindowInsets = contentWindowInsets,
+        ) { padding ->
+            Box(Modifier.fillMaxSize().runtimeBackdropSource(backdrop)) {
+                content(padding)
+            }
+        }
     }
 }
 

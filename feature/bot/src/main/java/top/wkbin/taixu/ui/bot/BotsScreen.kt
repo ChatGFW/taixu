@@ -38,6 +38,8 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 
 @Composable
 fun BotsScreen(
@@ -109,9 +111,17 @@ fun BotsScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .then(runtimeScrollViewport(padding))
+                .padding(bottom = padding.calculateBottomPadding()),
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = padding.calculateTopPadding())
+                    .padding(runtimeContentPadding(top = RuntimeSpacing.pageTop)),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 listOf(

@@ -2,6 +2,7 @@ package top.wkbin.taixu.ui.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -13,6 +14,9 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+/** Backdrop owned by the nearest [top.wkbin.taixu.ui.miuix.Scaffold] / blur host; null below API 33. */
+val LocalRuntimeBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
 
 /** Page backdrop for frosted bars; null where runtime shaders are unavailable (below Android 13). */
 @Composable

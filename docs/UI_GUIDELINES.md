@@ -33,9 +33,11 @@ Compose / miuix 相关的全部约定与踩坑约束。改 `feature/*/src/main/j
 
 ## 顶栏毛玻璃
 
-- 每个 Scaffold 各自一份 backdrop：`val backdrop = rememberRuntimeBackdrop()`（API&lt;33 为 null）。
-- TopAppBar / 相关 bar 用 [`RuntimeBlurredBar`](../feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeBlurredBar.kt) 包裹；bar 色 `runtimeBarColor(backdrop)`（有 backdrop 时 Transparent，否则 surface）。
-- 滚动内容追加 `.runtimeBackdropSource(backdrop)`（内部 `layerBackdrop`）。嵌套页面各自一份 backdrop，嵌套 `layerBackdrop` OK。
+- **默认已接入**：[`Scaffold`](../feature/components/src/main/java/top/wkbin/taixu/ui/miuix/Surfaces.kt) 会创建 backdrop、用 [`RuntimeBlurredBar`](../feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeBlurredBar.kt) 包裹 `topBar`，并在内容根挂 `.runtimeBackdropSource`。[`RuntimeTopBar`](../feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeSmallTopBar.kt)（大/小标题）默认读 `LocalRuntimeBackdrop`，有 backdrop 时 bar 色 Transparent，否则 surface。API&lt;33 无 shader 时 backdrop 为 null，退化为实色顶栏。
+- **内容必须能滚进顶栏后方**：用 [`runtimeScrollViewport`](../feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeScrollInsets.kt)（只垫左右）+ [`runtimeScrollContentPadding`](../feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeScrollInsets.kt)（把 Scaffold 顶/底并进 LazyColumn / 滚动子树）。禁止对滚动根再 `Modifier.padding(scaffoldPadding)` 整包顶距，否则毛玻璃采不到列表。
+- 手写页优先走 `Scaffold` + `RuntimeTopBar` / `RuntimeSettingsScaffold`，**不要**再各自包一层 `RuntimeBlurredBar`（会双磨砂）。
+- **`textureBlur` 只能用在 `layerBackdrop` 内容树之外**（通常是 Scaffold 的 `topBar` 槽）。聊天胶囊等画在内容区里的控件禁止对同一 backdrop 再磨砂，否则 RenderThread SIGSEGV。无顶栏的 Scaffold（如聊天根页）不会创建 backdrop。
+- 不用 `Scaffold` 的顶栏（少数 Column 布局）需自备：`rememberRuntimeBackdrop()` + `RuntimeBlurredBar` + `CompositionLocalProvider(LocalRuntimeBackdrop provides …)` + 内容 `.runtimeBackdropSource`。
 - 搜索页若有顶栏动画，动画背景色与 bar 色同一源，避免实色盖住毛玻璃。
 
 ---

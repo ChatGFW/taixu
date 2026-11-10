@@ -1,10 +1,4 @@
 package top.wkbin.taixu.ui.workflow
-
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -27,31 +21,30 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Scaffold
-import top.yukonga.miuix.kmp.basic.SnackbarHost
-import top.yukonga.miuix.kmp.basic.SnackbarHostState
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
-import top.wkbin.taixu.core.model.workflow.NodeRunStatus
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.database.WorkflowScheduleEntity
+import top.wkbin.taixu.core.model.workflow.NodeRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
 import top.wkbin.taixu.core.model.workflow.WorkflowRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
+import top.wkbin.taixu.harness.workflow.SentinelState
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
@@ -59,6 +52,17 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.RuntimeWidthClass
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.components.widthClassOf
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.miuix.TopAppBarDefaults
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
 @Composable
 fun WorkflowScreen(
     projectName: String = "",
@@ -72,7 +76,7 @@ fun WorkflowScreen(
     val history by viewModel?.history?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val schedules by viewModel?.schedules?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val sentinelState by viewModel?.sentinelState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.harness.workflow.SentinelState())
+    val sentinelState by viewModel?.sentinelState?.collectAsStateWithLifecycle() ?: previewStateOf(SentinelState())
     val backgroundRuns by viewModel?.backgroundActiveRuns?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val error by viewModel?.error?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val snackbar = remember { SnackbarHostState() }
@@ -98,7 +102,7 @@ fun WorkflowScreen(
         }
     }
     val catalogVisible = activeState == null && editorState == null
-    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = if (catalogVisible) Modifier.nestedScroll(scrollBehavior.nestedScrollConnection) else Modifier,
         containerColor = RuntimeTheme.colorScheme.surface,
@@ -175,12 +179,16 @@ fun WorkflowScreen(
                 sentinelState = sentinelState,
                 onEnableSentinel = { hour, minute -> viewModel?.enableSentinel(hour, minute) },
                 onDisableSentinel = { viewModel?.disableSentinel() },
-                modifier = Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)), bottomPadding = padding.calculateBottomPadding(),
+                modifier = Modifier.fillMaxSize().then(runtimeScrollViewport(padding)),
+                topPadding = padding.calculateTopPadding(),
+                bottomPadding = padding.calculateBottomPadding(),
             )
             else -> WorkflowRunView(
                 state = activeState!!,
                 onCancel = { viewModel?.cancel() },
-                modifier = Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)), bottomPadding = padding.calculateBottomPadding(),
+                modifier = Modifier.fillMaxSize().then(runtimeScrollViewport(padding)),
+                topPadding = padding.calculateTopPadding(),
+                bottomPadding = padding.calculateBottomPadding(),
             )
         }
     }
@@ -236,17 +244,18 @@ fun WorkflowScreen(
         )
     }
 }
-
 @Composable
 private fun WorkflowRunView(
     state: WorkflowRuntimeState,
     onCancel: () -> Unit,
-    modifier: Modifier = Modifier, bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    modifier: Modifier = Modifier,
+    topPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     BoxWithConstraints(modifier) {
         var selectedNode by remember(state.executionId) { mutableStateOf<String?>(null) }
-        if (top.wkbin.taixu.ui.components.widthClassOf(maxWidth.value) == top.wkbin.taixu.ui.components.RuntimeWidthClass.Expanded) {
-            Row(Modifier.fillMaxSize()) {
+        if (widthClassOf(maxWidth.value) == RuntimeWidthClass.Expanded) {
+            Row(Modifier.fillMaxSize().padding(top = topPadding)) {
                 WorkflowCanvas2D(state.definition, state, Modifier.weight(1f).fillMaxSize(), selectedNodeId = selectedNode, onNodeSelected = { selectedNode = it })
                 Column(Modifier.width(320.dp).verticalScroll(rememberScrollState()).padding(12.dp).padding(bottom = bottomPadding), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     RunSummary(state)
@@ -259,7 +268,7 @@ private fun WorkflowRunView(
                 }
             }
         } else {
-            WorkflowTimelineView(state, Modifier.fillMaxSize(), bottomPadding)
+            WorkflowTimelineView(state, Modifier.fillMaxSize(), topPadding = topPadding, bottomPadding = bottomPadding)
         }
         if (state.status in setOf(WorkflowRunStatus.RUNNING, WorkflowRunStatus.WAITING_APPROVAL)) {
             RuntimeOutlinedButton(
@@ -270,10 +279,18 @@ private fun WorkflowRunView(
         }
     }
 }
-
 @Composable
-fun WorkflowTimelineView(state: WorkflowRuntimeState, modifier: Modifier = Modifier, bottomPadding: androidx.compose.ui.unit.Dp = 0.dp) {
-    LazyColumn(modifier, contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + bottomPadding), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+fun WorkflowTimelineView(
+    state: WorkflowRuntimeState,
+    modifier: Modifier = Modifier,
+    topPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
+) {
+    LazyColumn(
+        modifier,
+        contentPadding = PaddingValues(start = 16.dp, top = 16.dp + topPadding, end = 16.dp, bottom = 16.dp + bottomPadding),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         item {
             RunSummary(state)
         }

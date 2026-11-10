@@ -1,10 +1,17 @@
 package top.wkbin.taixu.ui.home
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
+import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.SystemClock
+import android.provider.Settings
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -15,8 +22,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,68 +34,69 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
-import top.wkbin.taixu.ui.miuix.*
-import top.yukonga.miuix.kmp.basic.Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import android.Manifest
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.stringResource
-import top.wkbin.taixu.feature.home.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.model.DoctorItem
 import top.wkbin.taixu.core.model.DoctorReport
 import top.wkbin.taixu.core.model.DoctorStatus
+import top.wkbin.taixu.core.model.InstalledDistro
 import top.wkbin.taixu.core.model.RepairProgress
 import top.wkbin.taixu.core.model.RuntimeState
-import top.wkbin.taixu.ui.components.MainDestination
+import top.wkbin.taixu.feature.home.R
+import top.wkbin.taixu.runtime.webchat.WebChatServerStatus
 import top.wkbin.taixu.ui.components.IconTile
+import top.wkbin.taixu.ui.components.MainDestination
 import top.wkbin.taixu.ui.components.NoticeBanner
-import top.wkbin.taixu.ui.components.RuntimeCard
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
+import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
+import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.distroIconFor
-import android.os.SystemClock
-import top.wkbin.taixu.core.model.InstalledDistro
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.*
+import top.wkbin.taixu.ui.miuix.TopAppBarDefaults
+import top.wkbin.taixu.ui.theme.semanticColors
+import top.yukonga.miuix.kmp.basic.Text
 /** 自动体检防抖间隔：ON_RESUME 触发时距上次不足该间隔则跳过。 */
 private const val DOCTOR_CHECK_MIN_INTERVAL_MS = 30_000L
 
@@ -99,11 +105,11 @@ private const val DOCTOR_CHECK_MIN_INTERVAL_MS = 30_000L
  */
 @Composable
 private fun healthyStatusColor(): Color =
-    top.wkbin.taixu.ui.theme.semanticColors().success
+    semanticColors().success
 
 @Composable
 private fun warningStatusColor(): Color =
-    top.wkbin.taixu.ui.theme.semanticColors().warning
+    semanticColors().warning
 
 /**
  * 太墟 · 运行仪表盘 (TaiXu Linux Runtime Dashboard)
@@ -120,7 +126,7 @@ internal fun LocalHomeScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     var lastAutoDoctorCheckAt by remember { mutableLongStateOf(0L) }
 
-    val state by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
+    val state by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(RuntimeState.Ready)
     val metrics by viewModel?.metrics?.collectAsStateWithLifecycle() ?: previewStateOf(SystemResourceMetrics())
     val doctorReport by viewModel?.doctorReport?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val isCheckingDoctor by viewModel?.isCheckingDoctor?.collectAsStateWithLifecycle() ?: previewStateOf(false)
@@ -130,7 +136,7 @@ internal fun LocalHomeScreen(
     val activeDistroId by viewModel?.activeDistroId?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
     val switchingDistro by viewModel?.switchingDistro?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val modeStatus by viewModel?.executionModeStatus?.collectAsStateWithLifecycle() ?: previewStateOf(ExecutionModeStatus())
-    val webChatStatus by viewModel?.webChatStatus?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.webchat.WebChatServerStatus())
+    val webChatStatus by viewModel?.webChatStatus?.collectAsStateWithLifecycle() ?: previewStateOf(WebChatServerStatus())
 
     val allFilesPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -191,7 +197,7 @@ internal fun LocalHomeScreen(
         }
     }
 
-    val scrollBehavior = top.wkbin.taixu.ui.miuix.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = RuntimeTheme.colorScheme.surface,
@@ -231,10 +237,15 @@ internal fun LocalHomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = innerPadding.calculateTopPadding())
-                .verticalScroll(rememberScrollState())
-                .padding(top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom))
-                .padding(bottom = innerPadding.calculateBottomPadding()),
+                .then(runtimeScrollViewport(innerPadding))
+                // padding 在 verticalScroll 之前：顶/底 inset 属于可滚内容，上滑后能进磨砂后方。
+                .padding(
+                    runtimeContentPadding(
+                        top = RuntimeSpacing.pageTop + innerPadding.calculateTopPadding(),
+                        bottom = RuntimeSpacing.pageBottom + innerPadding.calculateBottomPadding(),
+                    ),
+                )
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             // 1. 运行时引擎主状态卡片 (Status Banner)
@@ -461,7 +472,7 @@ private fun EnvironmentDoctorCard(
                                     wavy = true,
                                 )
 
-                                top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                                     TextButton(
                                         onClick = { showLogs = !showLogs },
                                     ) {
@@ -745,7 +756,7 @@ private fun AndroidEnvAcquisitionCard(
                 }
             }
 
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 RuntimeButton(
                     onClick = onJoinQqGroup,
                     modifier = Modifier,
@@ -996,7 +1007,7 @@ private fun RuntimeEngineStatusCard(
             }
 
             // 快捷控制操作区
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 if (ready) {
                     RuntimeButton(
                         onClick = onOpenTerminal,

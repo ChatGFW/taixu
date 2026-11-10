@@ -1,10 +1,5 @@
 package top.wkbin.taixu.ui.terminal
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
 import android.app.Activity
 import android.view.WindowManager
 import android.widget.Toast
@@ -19,42 +14,53 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlin.math.roundToInt
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.feature.terminal.R
 import top.wkbin.taixu.ui.components.LocalAppNavigation
+import top.wkbin.taixu.ui.components.RuntimeButton as Button
+import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SpotlightGuideOverlay
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
 import top.wkbin.taixu.ui.components.rememberSpotlightAnchor
-import kotlin.math.roundToInt
+import top.wkbin.taixu.ui.components.spotlightAnchor
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.theme.terminalContentColor
+import top.wkbin.taixu.ui.theme.terminalSurfaceColor
+import top.yukonga.miuix.kmp.basic.Text
 
 private const val MIN_TERMINAL_FONT_SIZE_SP = 10f
 private const val MAX_TERMINAL_FONT_SIZE_SP = 24f
@@ -85,8 +91,8 @@ fun TerminalScreen(
     var fontSizeSp by remember { mutableFloatStateOf(configuredFontSize.toFloat()) }
     var sessionToClose by remember { mutableStateOf<String?>(null) }
 
-    val termBg = top.wkbin.taixu.ui.theme.terminalSurfaceColor(colorScheme)
-    val termText = top.wkbin.taixu.ui.theme.terminalContentColor(colorScheme)
+    val termBg = terminalSurfaceColor(colorScheme)
+    val termText = terminalContentColor(colorScheme)
 
     val view = LocalView.current
     val restoreLightBars by rememberUpdatedState(RuntimeTheme.colorScheme.background.luminance() > 0.5f)
@@ -158,28 +164,10 @@ fun TerminalScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(termBg),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                // 独立页面自行消费状态栏与“导航栏 ∪ 软键盘”；内嵌分屏由宿主提供内边距
-                .then(if (embedded) Modifier else Modifier.statusBarsPadding())
-                .then(
-                    if (embedded) Modifier
-                    else Modifier.windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime)),
-                ),
-        ) {
-            TerminalConsoleBar(
-                onBack = if (showBackButton) navigateBack else null,
-                onOpenNavigation = if (showBackButton) null else LocalAppNavigation.current,
-                onOpenSessions = { showSessions = true },
-                sessionsAnchor = sessionsAnchor,
-            )
-
+    val sessionStatus = activeHandle?.label?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.terminal_active_sessions, handles.size)
+    val terminalBody: @Composable (Modifier) -> Unit = { bodyModifier ->
+        Column(modifier = bodyModifier) {
             TerminalRestoreWarnings(viewModel)
 
             Box(
@@ -189,7 +177,7 @@ fun TerminalScreen(
                     .padding(horizontal = 4.dp, vertical = 2.dp),
             ) {
                 when {
-                    error != null -> top.wkbin.taixu.ui.components.RuntimeCard(
+                    error != null -> RuntimeCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(12.dp),
@@ -255,6 +243,54 @@ fun TerminalScreen(
             // Row1: ESC TAB / - ~ HOME ▲ END
             // Row2: CTRL ALT | ^C ^D ◀ ▼ ▶
             TerminalExtraKeys(bridge, hapticsEnabled)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(termBg),
+    ) {
+        if (embedded) {
+            // 内嵌分屏：不占整页顶栏，继续用轻量 ConsoleBar，由宿主提供 insets。
+            Column(Modifier.fillMaxSize()) {
+                TerminalConsoleBar(
+                    onBack = if (showBackButton) navigateBack else null,
+                    onOpenNavigation = if (showBackButton) null else LocalAppNavigation.current,
+                    onOpenSessions = { showSessions = true },
+                    sessionsAnchor = sessionsAnchor,
+                )
+                terminalBody(Modifier.fillMaxSize())
+            }
+        } else {
+            // 独立二级页：Scaffold + RuntimeTopBar 启用顶栏毛玻璃；底边消费导航栏 ∪ IME。
+            Scaffold(
+                containerColor = termBg,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                topBar = {
+                    RuntimeTopBar(
+                        title = stringResource(R.string.terminal_screen_title),
+                        statusText = sessionStatus,
+                        onBack = if (showBackButton) navigateBack else null,
+                        actions = {
+                            RuntimeIconButton(
+                                onClick = { showSessions = true },
+                                contentDescription = stringResource(R.string.terminal_sessions),
+                                modifier = Modifier.spotlightAnchor(sessionsAnchor),
+                            ) {
+                                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp))
+                            }
+                        },
+                    )
+                },
+            ) { _ ->
+                // 正文铺满含顶栏后方，便于 layerBackdrop 采到终端画面；底边避让导航栏 ∪ IME。
+                terminalBody(
+                    Modifier
+                        .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime)),
+                )
+            }
         }
 
         if ("terminal_sessions" !in firstUseGuidesShown) {

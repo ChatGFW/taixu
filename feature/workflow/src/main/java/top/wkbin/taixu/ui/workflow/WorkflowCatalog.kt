@@ -1,8 +1,5 @@
 package top.wkbin.taixu.ui.workflow
 
-import top.wkbin.taixu.ui.miuix.RuntimeSpacing
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,29 +10,35 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import top.wkbin.taixu.core.database.WorkflowScheduleEntity
 import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
+import top.wkbin.taixu.harness.workflow.SentinelState
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -57,15 +60,20 @@ internal fun WorkflowCatalog(
     onEditSchedule: (WorkflowScheduleEntity) -> Unit = {},
     onToggleSchedule: (String, Boolean) -> Unit = { _, _ -> },
     onDeleteSchedule: (String) -> Unit = {},
-    sentinelState: top.wkbin.taixu.harness.workflow.SentinelState = top.wkbin.taixu.harness.workflow.SentinelState(),
+    sentinelState: SentinelState = SentinelState(),
     onEnableSentinel: (Int, Int) -> Unit = { _, _ -> },
     onDisableSentinel: () -> Unit = {},
-    modifier: Modifier = Modifier, bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    modifier: Modifier = Modifier,
+    topPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     var deleteRequested by remember { mutableStateOf<WorkflowDefinition?>(null) }
     LazyColumn(
         modifier = modifier,
-        contentPadding = top.wkbin.taixu.ui.components.runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom + bottomPadding),
+        contentPadding = runtimeContentPadding(
+            top = RuntimeSpacing.pageTop + topPadding,
+            bottom = RuntimeSpacing.pageBottom + bottomPadding,
+        ),
         verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
     ) {
         item { WorkflowCatalogEntry(onCreate, onImport) }
@@ -73,7 +81,7 @@ internal fun WorkflowCatalog(
             item(key = "background_banner") {
                 RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        RuntimeIcon(RuntimeIconName.Play, Modifier.size(18.dp), tint = RuntimeTheme.colorScheme.primary)
+                        RuntimeIcon(RuntimeIconName.Play, Modifier.size(18.dp), tint = RuntimeTheme.colorScheme.onSurface)
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
@@ -103,7 +111,7 @@ internal fun WorkflowCatalog(
             RuntimeCard(modifier = Modifier.fillMaxWidth(), shape = RuntimeTheme.shapes.extraLarge, containerColor = RuntimeTheme.colorScheme.surfaceContainer, contentPadding = PaddingValues(RuntimeSpacing.cardContent)) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        RuntimeIcon(RuntimeIconName.Hub, Modifier.size(22.dp), tint = RuntimeTheme.colorScheme.primary)
+                        RuntimeIcon(RuntimeIconName.Hub, Modifier.size(22.dp), tint = RuntimeTheme.colorScheme.onSurface)
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(workflow.name, style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -111,7 +119,7 @@ internal fun WorkflowCatalog(
                         }
                     }
                     Text(workflow.description, style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
-                    top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                    RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                         if (!workflow.isBuiltin) {
                             RuntimeOutlinedButton(onClick = { deleteRequested = workflow }) {
                                 RuntimeIcon(RuntimeIconName.Trash, Modifier.size(16.dp))
@@ -159,7 +167,7 @@ internal fun WorkflowCatalog(
                 RuntimeCard(modifier = Modifier.fillMaxWidth(), shape = RuntimeTheme.shapes.extraLarge, containerColor = RuntimeTheme.colorScheme.surfaceContainer, contentPadding = PaddingValues(RuntimeSpacing.cardContent)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.primary)
+                            RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(schedule.name, style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -181,7 +189,7 @@ internal fun WorkflowCatalog(
                                 color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                        RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                             RuntimeOutlinedButton(onClick = { onDeleteSchedule(schedule.id) }) {
                                 RuntimeIcon(RuntimeIconName.Trash, Modifier.size(16.dp))
                             }

@@ -5,7 +5,6 @@ import androidx.compose.runtime.*
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
-import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -26,6 +25,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarDuration
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
@@ -40,12 +40,12 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 import top.wkbin.taixu.ui.browser.network.NetworkTimelineSheet
 import top.wkbin.taixu.ui.browser.snapshot.SnapshotSheet
 import top.wkbin.taixu.ui.theme.semanticColors
@@ -56,15 +56,19 @@ fun BrowserScreen(
     viewModel: BrowserViewModel? = previewOrNull { koinViewModel() },
 ) {
     val state by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(BrowserUiState.Empty)
-    // 系统返回优先走 WebView 历史栈；无法后退时才退出浏览器页
+    // 系统返回优先走 WebView 历史栈；无法后退时才退出浏览器页。Scaffold 自带顶栏磨砂。
     BackHandler(enabled = state.canGoBack) { viewModel?.onBack(onExhausted = onBack) }
-    Column(modifier = Modifier.fillMaxSize()) {
-        RuntimeTopBar(
-            title = "内置浏览器",
-            statusText = state.title.takeIf { it.isNotBlank() } ?: state.url.takeIf { it.isNotBlank() } ?: "—",
-            onBack = onBack,
+    val status = state.title.takeIf { it.isNotBlank() } ?: state.url.takeIf { it.isNotBlank() } ?: "—"
+    Scaffold(topBar = { RuntimeTopBar(title = "内置浏览器", statusText = status, onBack = onBack) }) { padding ->
+        // 只保左右/底 inset；顶栏叠在内容上，状态条垫在顶栏下，WebView 可伸进磨砂后方。
+        BrowserPane(
+            viewModel = viewModel,
+            modifier = Modifier
+                .fillMaxSize()
+                .then(runtimeScrollViewport(padding))
+                .padding(bottom = padding.calculateBottomPadding()),
+            topContentPadding = padding.calculateTopPadding(),
         )
-        BrowserPane(viewModel = viewModel, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -83,6 +87,7 @@ fun BrowserPane(
     viewModel: BrowserViewModel?,
     modifier: Modifier = Modifier,
     onExit: (() -> Unit)? = null,
+    topContentPadding: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     val state by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(BrowserUiState.Empty)
     val networkRequests by viewModel?.network?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
@@ -103,7 +108,7 @@ fun BrowserPane(
             viewModel?.dismissToolMessage()
         }
     }
-    Column(modifier = modifier) {
+    val statusBar: @Composable (Modifier) -> Unit = { statusModifier ->
         BrowserStatusBar(
             coBrowsingEnabled = state.coBrowsingEnabled,
             onCoBrowsingToggle = { viewModel?.onCoBrowsingToggle(!state.coBrowsingEnabled) },
@@ -114,19 +119,19 @@ fun BrowserPane(
             onShowNetwork = { viewModel?.showNetworkSheet() },
             networkCount = networkRequests.size,
             onExit = onExit,
+            modifier = statusModifier,
         )
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            state.activeTab?.let { tab ->
-                key(tab.tabId) {
-                    viewModel?.activeWebView()?.let { webView ->
-                        AndroidView(
-                            factory = {
-                                (webView.parent as? ViewGroup)?.removeView(webView)
-                                webView
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
+    }
+    val browseStage: @Composable (Modifier) -> Unit = { stageModifier ->
+        Box(modifier = stageModifier) {
+            // FrameLayout 宿主在重组中保持稳定；只在 tab/WebView 变化时 re-parent，避免直接把 WebView 当 AndroidView 根节点反复摘挂闪白。
+            val tabId = state.activeTab?.tabId
+            if (tabId != null) {
+                key(tabId) {
+                    StableBrowserWebView(
+                        resolveWebView = { viewModel?.activeWebView() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
             }
             // CDP 断点/异常暂停横幅：页面被挂起时提示原因与位置，支持手动放行
@@ -134,7 +139,7 @@ fun BrowserPane(
                 DebugPausedBanner(
                     paused = paused,
                     onResume = { viewModel?.resumeDebugger() },
-                    modifier = Modifier.align(Alignment.TopCenter),
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = topContentPadding + 40.dp),
                 )
             }
             SnackbarHost(
@@ -157,6 +162,8 @@ fun BrowserPane(
                 )
             }
         }
+    }
+    val urlBar: @Composable () -> Unit = {
         BrowserUrlBar(
             urlInput = state.urlInput,
             onUrlChange = { arg0 -> viewModel?.onUrlInputChanged(arg0) },
@@ -167,6 +174,22 @@ fun BrowserPane(
             canGoBack = state.canGoBack,
             canGoForward = state.canGoForward,
         )
+    }
+    if (topContentPadding > 0.dp) {
+        // 独立全屏：WebView 铺满含顶栏后方；状态条叠在顶栏下，不顶死整包 padding。
+        Box(modifier = modifier) {
+            Column(Modifier.fillMaxSize()) {
+                browseStage(Modifier.weight(1f).fillMaxWidth())
+                urlBar()
+            }
+            statusBar(Modifier.align(Alignment.TopCenter).padding(top = topContentPadding))
+        }
+    } else {
+        Column(modifier = modifier) {
+            statusBar(Modifier)
+            browseStage(Modifier.weight(1f).fillMaxWidth())
+            urlBar()
+        }
     }
 }
 
@@ -185,10 +208,11 @@ private fun BrowserStatusBar(
     onShowNetwork: () -> Unit,
     networkCount: Int,
     onExit: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
         color = RuntimeTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.65f),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (onExit != null) RuntimeIconButton(onClick = onExit, contentDescription = "返回对话") {
@@ -257,7 +281,7 @@ private fun BrowserTabChip(
     onSelect: () -> Unit,
     onClose: () -> Unit,
 ) {
-    val tint = if (tab.active) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant
+    val tint = if (tab.active) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant
     Surface(
         onClick = onSelect,
         shape = RuntimeTheme.shapes.tiny,

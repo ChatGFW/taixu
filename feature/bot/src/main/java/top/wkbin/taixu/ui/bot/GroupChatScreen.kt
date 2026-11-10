@@ -48,6 +48,7 @@ import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.EmptyPanel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -174,7 +175,10 @@ fun GroupChatScreen(
                 .fillMaxSize()
                 .then(
                     if (studio) Modifier
-                    else Modifier.padding(padding).background(groupBackgroundBrush(state.group?.background)),
+                    else Modifier
+                        .then(runtimeScrollViewport(padding))
+                        .padding(bottom = padding.calculateBottomPadding())
+                        .background(groupBackgroundBrush(state.group?.background)),
                 ),
         ) {
             Box(Modifier.fillMaxWidth().weight(1f)) {
@@ -216,7 +220,10 @@ fun GroupChatScreen(
                     )
                 } else if (messages.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp)
+                        .padding(top = padding.calculateTopPadding()),
                     contentAlignment = Alignment.Center,
                 ) {
                     EmptyPanel(
@@ -230,7 +237,11 @@ fun GroupChatScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = runtimeContentPadding(horizontal = 16.dp, top = 8.dp, bottom = 8.dp),
+                        contentPadding = runtimeContentPadding(
+                            horizontal = 16.dp,
+                            top = 8.dp + padding.calculateTopPadding(),
+                            bottom = 8.dp,
+                        ),
                         verticalArrangement = Arrangement.Top,
                     ) {
                         items(chatEntries, key = { it.message.id }) { entry ->

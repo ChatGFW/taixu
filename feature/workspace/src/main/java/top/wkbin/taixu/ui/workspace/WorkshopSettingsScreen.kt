@@ -1,13 +1,7 @@
 package top.wkbin.taixu.ui.workspace
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,44 +9,53 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.*
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
+import top.wkbin.taixu.core.database.BuildScriptEntity
 import top.wkbin.taixu.feature.workspace.R
+import top.wkbin.taixu.runtime.ProjectType
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeDropdownField
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconMenu
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
-import top.wkbin.taixu.core.database.BuildScriptEntity
-import top.wkbin.taixu.runtime.ProjectType
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.*
+import top.wkbin.taixu.ui.miuix.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.basic.Text
 @Composable
 fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, onOpenSigning: () -> Unit = {}, onEditScript: (WorkshopScriptType) -> Unit = {}, viewModel: WorkshopSettingsViewModel? = previewOrNull { koinViewModel() }) {
     val draft by viewModel?.draft?.collectAsStateWithLifecycle() ?: previewStateOf(WorkshopEnvironmentDraft())
@@ -124,7 +127,7 @@ fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, on
                 RuntimeButton(onClick = {
                     viewModel?.deleteManagedScript(script.id)
                     deleteScriptTarget = null
-                }, colors = top.wkbin.taixu.ui.miuix.ButtonDefaults.buttonColors(containerColor = RuntimeTheme.colorScheme.error, contentColor = RuntimeTheme.colorScheme.onError)) { Text(stringResource(R.string.workspace_confirm_delete)) }
+                }, colors = ButtonDefaults.buttonColors(containerColor = RuntimeTheme.colorScheme.error, contentColor = RuntimeTheme.colorScheme.onError)) { Text(stringResource(R.string.workspace_confirm_delete)) }
             },
             dismissButton = {
                 RuntimeOutlinedButton(onClick = { deleteScriptTarget = null }) { Text(stringResource(R.string.workspace_cancel)) }
@@ -268,7 +271,7 @@ fun WorkshopEnvironmentSettingsScreen(onBack: () -> Unit, viewModel: WorkshopSet
                 }
             }
             item {
-                top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                     RuntimeOutlinedButton(onClick = { viewModel?.resetEnvironment() }, modifier = Modifier) { Text(stringResource(R.string.workshop_action_reset)) }
                     RuntimeButton(onClick = { viewModel?.saveEnvironment() }, modifier = Modifier) { Text(stringResource(R.string.workshop_action_save)) }
                 }
@@ -320,10 +323,24 @@ fun WorkshopScriptEditorScreen(type: WorkshopScriptType, onBack: () -> Unit, vie
     // 未保存修改时拦截返回键，避免静默丢失编辑
     BackHandler(enabled = isDirty && !showUnsavedDialog) { showUnsavedDialog = true }
     Scaffold(containerColor = RuntimeTheme.colorScheme.background, topBar = { RuntimeTopBar(type.title, onBack, if (isCustom) stringResource(R.string.workshop_script_screen_custom) else stringResource(R.string.workshop_script_screen_default)) }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            ScriptPathPanel(if (isCustom) type.customPath else type.defaultPath)
-            CodeEditorPanel(value = content, onValueChange = { content = it }, fileName = type.defaultPath.substringAfterLast('/'), modifier = Modifier.fillMaxWidth().weight(1f))
-            top.wkbin.taixu.ui.components.RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .then(runtimeScrollViewport(padding))
+                .padding(bottom = padding.calculateBottomPadding())
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(Modifier.padding(top = padding.calculateTopPadding() + 12.dp)) {
+                ScriptPathPanel(if (isCustom) type.customPath else type.defaultPath)
+            }
+            CodeEditorPanel(
+                value = content,
+                onValueChange = { content = it },
+                fileName = type.defaultPath.substringAfterLast('/'),
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                 RuntimeOutlinedButton(onClick = { viewModel?.resetScript(type, onBack) }, modifier = Modifier) { Text(stringResource(R.string.workshop_script_reset_default)) }
                 RuntimeButton(onClick = { viewModel?.saveScript(type, content, onBack) }, enabled = isDirty, modifier = Modifier) { Text(stringResource(R.string.workshop_script_save)) }
             }
@@ -375,7 +392,7 @@ private fun CodeEditorPanel(value: String, onValueChange: (String) -> Unit, file
     val shape = RuntimeTheme.shapes.medium
     Column(modifier.background(RuntimeTheme.colorScheme.surfaceContainerLowest, shape)) {
         Row(Modifier.fillMaxWidth().background(RuntimeTheme.colorScheme.surfaceContainerLow, androidx.compose.foundation.shape.RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RuntimeIcon(RuntimeIconName.Code, Modifier.size(15.dp), RuntimeTheme.colorScheme.primary)
+            RuntimeIcon(RuntimeIconName.Code, Modifier.size(15.dp), RuntimeTheme.colorScheme.onSurface)
             Text(fileName, style = RuntimeTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp), color = RuntimeTheme.colorScheme.onSurfaceVariant)
         }
         BasicTextField(
