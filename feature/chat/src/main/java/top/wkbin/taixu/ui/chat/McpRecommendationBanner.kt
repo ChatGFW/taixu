@@ -1,18 +1,19 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.mcp.McpWorkspaceRecommender
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 
 /** 工作区感知的 MCP 预设推荐横幅：每条推荐展示启用理由，可一键启用或忽略。 */
 @Composable
@@ -28,30 +29,32 @@ internal fun McpRecommendationBanner(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
-            shape = RoundedCornerShape(10.dp),
-            color = MaterialTheme.colorScheme.secondaryContainer,
+            shape = RuntimeTheme.shapes.small,
+            color = RuntimeTheme.colorScheme.secondaryContainer,
         ) {
-            Row(
-                Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Column(Modifier.weight(1f)) {
+                Column {
                     Text(
                         recommendation.presetName,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        style = MaterialTheme.typography.labelLarge,
+                        color = RuntimeTheme.colorScheme.onSecondaryContainer,
+                        style = RuntimeTheme.typography.labelLarge,
                     )
                     Text(
                         recommendation.reason,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-                        style = MaterialTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                        style = RuntimeTheme.typography.bodySmall,
                     )
                 }
-                TextButton(onClick = { if (recommendation.needsInstall) onInstall() else onEnable(recommendation.presetId) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)) {
-                    Text(stringResource(if (recommendation.needsInstall) R.string.chat_install_mcp else R.string.chat_enable), color = MaterialTheme.colorScheme.onSecondaryContainer, maxLines = 1)
+                RuntimeActionRow {
+                RuntimeButton(onClick = { if (recommendation.needsInstall) onInstall() else onEnable(recommendation.presetId) }) {
+                    Text(stringResource(if (recommendation.needsInstall) R.string.chat_install_mcp else R.string.chat_enable), maxLines = 1)
                 }
-                TextButton(onClick = { onDismiss(recommendation.presetId) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)) {
-                    Text(stringResource(R.string.chat_ignore), color = MaterialTheme.colorScheme.onSecondaryContainer, maxLines = 1)
+                TextButton(onClick = { onDismiss(recommendation.presetId) }) {
+                    Text(stringResource(R.string.chat_ignore), maxLines = 1)
+                }
                 }
             }
         }

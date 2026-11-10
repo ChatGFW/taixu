@@ -2,6 +2,7 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,25 +10,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCheckbox as Checkbox
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,12 +34,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import top.wkbin.taixu.feature.chat.R
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -52,7 +44,6 @@ import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -65,13 +56,15 @@ import top.wkbin.taixu.ui.theme.semanticColors
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import top.wkbin.taixu.harness.text.HashlineEditArgs
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * 工具调用卡的运行态配色：组合期读取 [semanticColors]，随明暗主题切换。
  * 原先的文件级十六进制常量在三套主题（标准 M3 / 动态取色 / 液态玻璃）下都固定为深色值，两头都不达标。
  */
 private val DotSuccess: Color @Composable get() = semanticColors().success
-private val DotFailed: Color @Composable get() = MaterialTheme.colorScheme.error
+private val DotFailed: Color @Composable get() = RuntimeTheme.colorScheme.error
 
 @Composable
 internal fun ToolCard(
@@ -103,7 +96,7 @@ internal fun ToolCard(
                     }
             }
             Column(
-                modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).clickable { showDetails = true },
+                modifier = Modifier.fillMaxWidth().clip(RuntimeTheme.shapes.small).clickable { showDetails = true },
             ) {
                 ToolStepHeader(call, result, executing)
             }
@@ -117,8 +110,8 @@ internal fun ToolCard(
             if (downloadStatus != null) {
                 Text(
                     downloadStatus,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     fontFamily = FontFamily.Monospace,
                 )
                 val percent = Regex("\\((\\d+)%\\)").find(downloadStatus)
@@ -126,13 +119,13 @@ internal fun ToolCard(
                 if (percent == null) {
                     LinearProgressIndicator(
                         modifier = Modifier.fillMaxWidth().height(2.dp),
-                        color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        color = RuntimeTheme.colorScheme.primary, trackColor = RuntimeTheme.colorScheme.surfaceContainerHighest,
                     )
                 } else {
                     LinearProgressIndicator(
                         progress = { percent },
                         modifier = Modifier.fillMaxWidth().height(2.dp),
-                        color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        color = RuntimeTheme.colorScheme.primary, trackColor = RuntimeTheme.colorScheme.surfaceContainerHighest,
                     )
                 }
             }
@@ -155,14 +148,14 @@ internal fun ApprovalRequestCard(
     onReject: () -> Unit,
 ) {
     val riskColor = when (request.riskLevel) {
-        "critical" -> MaterialTheme.colorScheme.error
+        "critical" -> RuntimeTheme.colorScheme.error
         "high" -> semanticColors().warning
-        else -> MaterialTheme.colorScheme.primary
+        else -> RuntimeTheme.colorScheme.primary
     }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(12.dp),
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.small,
         border = androidx.compose.foundation.BorderStroke(1.dp, riskColor.copy(alpha = 0.55f)),
     ) {
         Column(
@@ -171,18 +164,18 @@ internal fun ApprovalRequestCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RuntimeIcon(RuntimeIconName.Shield, Modifier.size(18.dp), riskColor)
-                Text(stringResource(R.string.chat_approval_required), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
-                Surface(color = riskColor.copy(alpha = 0.12f), shape = RoundedCornerShape(4.dp)) {
+                Text(stringResource(R.string.chat_approval_required), style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium))
+                Surface(color = riskColor.copy(alpha = 0.12f), shape = RuntimeTheme.shapes.tiny) {
                     Text(
                         request.riskLevel.uppercase(),
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                         color = riskColor,
                     )
                 }
             }
-            Text(request.summary, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
-            Text(request.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(request.summary, style = RuntimeTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+            Text(request.reason, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
 
             // 过期倒计时：审批 TTL 默认 10 分钟，超时未决会被 Harness 判定失效。
             var remainingMinutes by remember(request.expiresAt) { mutableStateOf(Int.MAX_VALUE) }
@@ -202,8 +195,8 @@ internal fun ApprovalRequestCard(
                     } else {
                         stringResource(R.string.chat_approval_expires_minutes, remainingMinutes)
                     },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (urgent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = if (urgent) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -222,22 +215,22 @@ internal fun ApprovalRequestCard(
                     )
                     Text(
                         stringResource(R.string.chat_approval_remember_session),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
             // 审批处理期间禁用按钮，防止重复提交
             var resolving by remember { mutableStateOf(false) }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
                     onClick = {
                         resolving = true
                         onReject()
                     },
                     enabled = !resolving,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier,
                 ) { Text(stringResource(R.string.chat_reject)) }
                 Button(
                     onClick = {
@@ -245,7 +238,7 @@ internal fun ApprovalRequestCard(
                         onApprove(rememberForSession)
                     },
                     enabled = !resolving,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier,
                 ) { Text(stringResource(R.string.chat_approve_continue)) }
             }
         }
@@ -274,20 +267,20 @@ internal fun AskUserCard(
     }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)),
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.small,
+        border = BorderStroke(1.dp, RuntimeTheme.colorScheme.primary.copy(alpha = 0.55f)),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Chat, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
-                Text(stringResource(R.string.chat_ask_user_title), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
+                RuntimeIcon(RuntimeIconName.Chat, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurface)
+                Text(stringResource(R.string.chat_ask_user_title), style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium))
             }
             if (questions.isEmpty()) {
-                Text(stringResource(R.string.chat_ask_user_parse_failed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.chat_ask_user_parse_failed), style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
             questions.forEachIndexed { index, question ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -296,7 +289,7 @@ internal fun AskUserCard(
                             question.header?.let { append("[$it] ") }
                             append(question.question)
                         },
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                     )
                     if (question.options.isNotEmpty()) {
                         FlowRow(
@@ -329,22 +322,22 @@ internal fun AskUserCard(
                                 if (value.isNotBlank()) selected.remove(index)
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text(stringResource(R.string.chat_ask_user_custom_hint), style = MaterialTheme.typography.bodySmall) },
-                            textStyle = MaterialTheme.typography.bodyMedium,
+                            placeholder = { Text(stringResource(R.string.chat_ask_user_custom_hint), style = RuntimeTheme.typography.bodySmall) },
+                            textStyle = RuntimeTheme.typography.bodyMedium,
                             singleLine = true,
                         )
                     }
                 }
             }
             var resolving by remember { mutableStateOf(false) }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
                     onClick = {
                         resolving = true
                         onSkip()
                     },
                     enabled = !resolving,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier,
                 ) { Text(stringResource(R.string.chat_ask_user_skip)) }
                 Button(
                     onClick = {
@@ -365,7 +358,7 @@ internal fun AskUserCard(
                         onAnswer(request.id, answers.toString())
                     },
                     enabled = !resolving && allAnswered,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier,
                 ) { Text(stringResource(R.string.chat_ask_user_submit)) }
             }
         }
@@ -380,18 +373,18 @@ private fun AskUserOptionChip(
     onClick: () -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
+        shape = RuntimeTheme.shapes.chip,
+        color = if (isSelected) RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f) else RuntimeTheme.colorScheme.surface,
         border = BorderStroke(
             1.dp,
-            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+            if (isSelected) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.outlineVariant,
         ),
         onClick = onClick,
     ) {
         Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-            Text(label, style = MaterialTheme.typography.labelLarge, color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+            Text(label, style = RuntimeTheme.typography.labelLarge, color = if (isSelected) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurface)
             if (!description.isNullOrBlank()) {
-                Text(description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(description, style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -438,8 +431,8 @@ internal fun DiffStatBadge(
     if (added == 0 && deleted == 0) return
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
+            .clip(RuntimeTheme.shapes.tiny)
+            .background(RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
             .padding(horizontal = 4.dp, vertical = 1.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -447,10 +440,10 @@ internal fun DiffStatBadge(
         if (added > 0) {
             Text(
                 text = "+$added",
-                style = MaterialTheme.typography.labelSmall.copy(
+                style = RuntimeTheme.typography.labelSmall.copy(
                     fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.sp,
                 ),
                 color = DotSuccess,
             )
@@ -458,10 +451,10 @@ internal fun DiffStatBadge(
         if (deleted > 0) {
             Text(
                 text = "-$deleted",
-                style = MaterialTheme.typography.labelSmall.copy(
+                style = RuntimeTheme.typography.labelSmall.copy(
                     fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.sp,
                 ),
                 color = DotFailed,
             )
@@ -500,7 +493,7 @@ internal fun parseDiffStat(call: ToolCall, result: ToolResult?): Pair<Int, Int>?
                 val added = newText?.lines()?.size ?: 0
                 val deleted = oldText?.lines()?.size ?: 0
                 if (added > 0 || deleted > 0) added to deleted else null
-            } else top.wkbin.taixu.harness.text.HashlineEditArgs.opCount(call.args).takeIf { it > 0 }?.to(0)
+            } else HashlineEditArgs.opCount(call.args).takeIf { it > 0 }?.to(0)
         }
         else -> null
     }

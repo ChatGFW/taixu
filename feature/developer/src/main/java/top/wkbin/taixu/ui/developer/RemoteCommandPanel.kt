@@ -1,9 +1,9 @@
 package top.wkbin.taixu.ui.developer
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -20,13 +20,13 @@ internal fun RemoteCommandPanel(serverId: String, service: RemoteSystemService) 
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val target = runCatching { service.server(serverId) }.getOrNull()
-    RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(20.dp)) {
+    RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("服务器命令", style = MaterialTheme.typography.titleMedium)
-            Text("命令在当前服务器的工作目录执行，使用连接用户的实际权限。", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("服务器命令", style = RuntimeTheme.typography.titleMedium)
+            Text("命令在当前服务器的工作目录执行，使用连接用户的实际权限。", style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant)
             RuntimeFilledTextField(command, { command = it }, modifier = Modifier.fillMaxWidth(), enabled = !busy,
-                label = { Text("命令") }, maxLines = 5, textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                labelText = "命令", maxLines = 5, textStyle = RuntimeTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
             RuntimeButton(enabled = !busy && command.isNotBlank(), onClick = {
                 val snapshot = command
                 scope.launch {
@@ -38,7 +38,7 @@ internal fun RemoteCommandPanel(serverId: String, service: RemoteSystemService) 
                 }
             }) { Text(if (busy) "执行中…" else "执行") }
             if (busy) RuntimeLinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            if (output.isNotBlank()) Text(output, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+            if (output.isNotBlank()) Text(output, style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
         }
     }
 }

@@ -4,6 +4,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.GroupToolStep
+import top.wkbin.taixu.harness.session.ProviderActivity
 
 /** Compact host observations. No provider heartbeat or retry reason is inferred from reasoning text. */
 internal class GroupExecutionTelemetry(private val startedAt: Long) {
@@ -14,7 +15,7 @@ internal class GroupExecutionTelemetry(private val startedAt: Long) {
     fun output(now: Long) { lastOutputAt = now }
     fun checkpoint(now: Long, state: SessionRunState, reasoning: String, steps: List<GroupToolStep>,
         watchdog: GroupExecutionWatchdog,
-        provider: top.wkbin.taixu.harness.session.ProviderActivity? = null): String? {
+        provider: ProviderActivity? = null): String? {
         val phase = when {
             state == SessionRunState.WAITING_APPROVAL -> "waiting_approval"
             steps.any { it.success == null } -> "tool_running"

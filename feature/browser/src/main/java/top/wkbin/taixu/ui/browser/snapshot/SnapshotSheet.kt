@@ -8,12 +8,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
@@ -27,7 +26,7 @@ fun SnapshotSheet(state: SnapshotSheetState, onDismiss: () -> Unit) {
         title = {
             Text(
                 "Snapshot · ${state.title.ifBlank { state.url }}",
-                style = MaterialTheme.typography.titleMedium,
+                style = RuntimeTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -42,8 +41,8 @@ fun SnapshotSheet(state: SnapshotSheetState, onDismiss: () -> Unit) {
             ) {
                 Text(
                     state.url,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -54,7 +53,7 @@ fun SnapshotSheet(state: SnapshotSheetState, onDismiss: () -> Unit) {
                     items(state.snapshot.interactiveRefs, key = { it.ref }) { ref ->
                         RuntimeCard(
                             modifier = Modifier.fillMaxWidth(),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
                             contentPadding = PaddingValues(10.dp),
                         ) {
                             val parts = buildString {
@@ -66,8 +65,8 @@ fun SnapshotSheet(state: SnapshotSheetState, onDismiss: () -> Unit) {
                             }
                             Text(
                                 parts,
-                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                color = MaterialTheme.colorScheme.onSurface,
+                                style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                color = RuntimeTheme.colorScheme.onSurface,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -78,7 +77,7 @@ fun SnapshotSheet(state: SnapshotSheetState, onDismiss: () -> Unit) {
         },
         confirmButton = {
             RuntimeTextButton(onClick = onDismiss) {
-                Text("关闭", color = MaterialTheme.colorScheme.primary)
+                Text("关闭")
             }
         },
     )

@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.components
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridItemScope
@@ -31,7 +32,7 @@ fun runtimeContentGutter(maxContentWidth: Dp = RuntimeContentMaxWidth): Dp {
  * contentPadding (or inside verticalScroll) so scroll gestures still cover the full page width.
  */
 @Composable
-fun runtimeContentPadding(horizontal: Dp, top: Dp = 0.dp, bottom: Dp = 0.dp): PaddingValues {
+fun runtimeContentPadding(horizontal: Dp = RuntimeSpacing.pageHorizontal, top: Dp = 0.dp, bottom: Dp = 0.dp): PaddingValues {
     val side = horizontal + runtimeContentGutter()
     return PaddingValues(start = side, end = side, top = top, bottom = bottom)
 }

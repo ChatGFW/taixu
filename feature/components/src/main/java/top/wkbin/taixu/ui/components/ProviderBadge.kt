@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -114,8 +114,8 @@ fun ProviderBadge(
                 text = visual.label,
                 color = Color.White,
                 fontSize = fontSize,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                style = RuntimeTheme.typography.labelSmall,
                 maxLines = 1,
                 softWrap = false,
             )

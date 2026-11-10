@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.settings
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -7,24 +10,20 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,7 +51,7 @@ fun EnvironmentVariableSettingsScreen(
     val loading by viewModel?.environmentLoading?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val error by viewModel?.environmentError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val activeDistroId by viewModel?.activeDistroId?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
-    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
+    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(RuntimeState.Ready)
     // 对象状态仅保存可 Bundle 化的字段，旋转后按 key/entry 恢复
     var showEditor by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var editingKey by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
@@ -126,20 +125,20 @@ fun EnvironmentVariableSettingsScreen(
             SettingsDetailCard(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = semanticColors().warningContainer,
-                borderColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f),
-                contentPadding = PaddingValues(14.dp),
+                borderColor = RuntimeTheme.colorScheme.tertiary,
+                contentPadding = PaddingValues(16.dp),
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
                     RuntimeIcon(RuntimeIconName.Alert, tint = semanticColors().warning)
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
                             "警告 · 修改环境变量可能导致运行异常",
-                            style = MaterialTheme.typography.titleSmall,
+                            style = RuntimeTheme.typography.titleSmall,
                             color = semanticColors().onWarningContainer,
                         )
                         Text(
                             "错误覆盖 JAVA_HOME、GRADLE_HOME、LANG 等变量，可能使终端、构建工具或插件无法启动。请只修改你明确了解用途的变量；TaiXu 运行时关键变量会被强制保护。",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = RuntimeTheme.typography.bodySmall,
                             color = semanticColors().onWarningContainer,
                         )
                     }
@@ -149,8 +148,8 @@ fun EnvironmentVariableSettingsScreen(
         item {
             Text(
                 "用户变量保存在 $activeDistroId 的 Linux /etc/profile.d 中，并在下一次命令或终端会话启动时生效。值以受限文件权限保存。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
         }
         error?.let { message ->
@@ -159,8 +158,8 @@ fun EnvironmentVariableSettingsScreen(
                     Text(
                         message,
                         modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
+                        style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.error,
                     )
                 }
             }
@@ -169,7 +168,7 @@ fun EnvironmentVariableSettingsScreen(
             SectionHeader(
                 title = "用户变量",
                 subtitle = "可编辑的 TaiXu 用户配置",
-                trailing = { Text(entries.size.toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                trailing = { Text(entries.size.toString(), style = RuntimeTheme.typography.labelLarge, color = RuntimeTheme.colorScheme.onSurfaceVariant) },
             )
         }
         if (loading && entries.isEmpty()) {
@@ -179,7 +178,7 @@ fun EnvironmentVariableSettingsScreen(
                 }
             }
         } else if (entries.isEmpty()) {
-            item { SettingsDetailCard(modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text("暂无用户变量", style = MaterialTheme.typography.titleMedium); Text("点击右上角 + 添加", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }
+            item { SettingsDetailCard(modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text("暂无用户变量", style = RuntimeTheme.typography.titleMedium); Text("点击右上角 + 添加", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant) } } }
         } else {
             items(entries, key = { it.id }) { entry ->
                 SettingsDetailCard(
@@ -190,7 +189,7 @@ fun EnvironmentVariableSettingsScreen(
                         Column(Modifier.weight(1f)) {
                             Text(
                                 entry.key,
-                                style = MaterialTheme.typography.titleMedium,
+                                style = RuntimeTheme.typography.titleMedium,
                                 fontFamily = FontFamily.Monospace,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -198,23 +197,23 @@ fun EnvironmentVariableSettingsScreen(
                             if (entry.note.isNotBlank()) {
                                 Text(
                                     entry.note,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.bodySmall,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
                             Text(
                                 values[entry.key].orEmpty().ifEmpty { "（空值）" },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 fontFamily = FontFamily.Monospace,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
                         IconButton(onClick = { openEnvironmentEditor(entry, entry.key, values[entry.key].orEmpty()) }, contentDescription = "编辑 ${entry.key}") { RuntimeIcon(RuntimeIconName.Edit) }
-                        IconButton(onClick = { deleteKey = entry.id }, contentDescription = "删除 ${entry.key}") { RuntimeIcon(RuntimeIconName.Trash, tint = MaterialTheme.colorScheme.error) }
+                        IconButton(onClick = { deleteKey = entry.id }, contentDescription = "删除 ${entry.key}") { RuntimeIcon(RuntimeIconName.Trash, tint = RuntimeTheme.colorScheme.error) }
                     }
                 }
             }
@@ -223,7 +222,7 @@ fun EnvironmentVariableSettingsScreen(
             SectionHeader(
                 title = "当前有效环境",
                 subtitle = "新命令实际可见的变量与值",
-                trailing = { Text(effectiveEntries.size.toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                trailing = { Text(effectiveEntries.size.toString(), style = RuntimeTheme.typography.labelLarge, color = RuntimeTheme.colorScheme.onSurfaceVariant) },
             )
         }
         if (loading && effectiveEntries.isEmpty()) {
@@ -235,14 +234,13 @@ fun EnvironmentVariableSettingsScreen(
         } else if (effectiveEntries.isEmpty()) {
             item {
                 SettingsDetailCard(modifier = Modifier.fillMaxWidth()) {
-                    Text("暂无可读取的运行时环境", modifier = Modifier.padding(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("暂无可读取的运行时环境", modifier = Modifier.padding(20.dp), color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
             }
         } else {
             item {
                 SettingsGroup {
                     effectiveEntries.forEachIndexed { index, entry ->
-                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         val managedEntry = entries.firstOrNull { it.key == entry.key }
                         SettingsRow(
                             icon = RuntimeIconName.Key,
@@ -281,21 +279,24 @@ private fun EnvironmentVariableEditor(
         text = {
             Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                    RuntimeIcon(RuntimeIconName.Alert, Modifier.size(18.dp), MaterialTheme.colorScheme.tertiary)
+                    RuntimeIcon(RuntimeIconName.Alert, Modifier.size(18.dp), RuntimeTheme.colorScheme.tertiary)
                     Text(
                         if (entry == null && initialKey.isNotBlank()) {
                             "这会在用户配置中覆盖 Linux 当前值。错误配置可能导致相关命令无法运行。"
                         } else {
                             "修改后会影响新启动的命令与终端，请确认变量名称和值正确。"
                         },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.tertiary,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.tertiary,
                     )
                 }
-                RuntimeFilledTextField(value = key, onValueChange = { key = it.uppercase() }, label = { Text("名称") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                RuntimeFilledTextField(value = value, onValueChange = { value = it }, label = { Text("值") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                RuntimeFilledTextField(value = note, onValueChange = { note = it }, label = { Text("备注（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                RuntimeFilledTextField(value = key, onValueChange = { key = it.uppercase() },
+ labelText = resolveLegacyString("名称"), singleLine = true, modifier = Modifier.fillMaxWidth())
+                RuntimeFilledTextField(value = value, onValueChange = { value = it },
+ labelText = resolveLegacyString("值"), singleLine = true, modifier = Modifier.fillMaxWidth())
+                RuntimeFilledTextField(value = note, onValueChange = { note = it },
+ labelText = resolveLegacyString("备注（可选）"), singleLine = true, modifier = Modifier.fillMaxWidth())
+                error?.let { Text(it, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall) }
             }
         },
         confirmButton = { TextButton(onClick = { onSave(key, value, note) }, enabled = key.isNotBlank() && (entry != null || value.isNotEmpty())) { Text("保存") } },

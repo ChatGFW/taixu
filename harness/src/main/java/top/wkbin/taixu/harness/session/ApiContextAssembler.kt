@@ -5,25 +5,31 @@ import kotlinx.coroutines.flow.first
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.model.RunMode
+import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.ApiMessage
-import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.harness.ContextBudgetPlanner
+import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.harness.CurrentTurnToolResultBudget
-import top.wkbin.taixu.harness.ImagePayloadCompressor
 import top.wkbin.taixu.harness.HarnessApiMapper
 import top.wkbin.taixu.harness.HarnessMessage
-import top.wkbin.taixu.harness.ModelConfig
+import top.wkbin.taixu.harness.ImagePayloadCompressor
 import top.wkbin.taixu.harness.MentionExtractor
+import top.wkbin.taixu.harness.ModelConfig
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolCallMode
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.compaction.CompactionManager
+import top.wkbin.taixu.harness.compaction.CompactionSteward
 import top.wkbin.taixu.harness.compaction.SummaryRequestContext
-import top.wkbin.taixu.harness.prompt.MemoryRecallSelector
-import top.wkbin.taixu.harness.prompt.SystemPromptBuilder
-import top.wkbin.taixu.harness.operation.OperationCoordinator
 import top.wkbin.taixu.harness.diagnostics.ContextGovernanceTrace
 import top.wkbin.taixu.harness.diagnostics.ContextStage
+import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
+import top.wkbin.taixu.harness.environment.executionOutputRedactor
+import top.wkbin.taixu.harness.operation.OperationCoordinator
+import top.wkbin.taixu.harness.plugins.HarnessPluginRegistry
+import top.wkbin.taixu.harness.plugins.PluginContextRequest
+import top.wkbin.taixu.harness.prompt.MemoryRecallSelector
+import top.wkbin.taixu.harness.prompt.SystemPromptBuilder
 
 /**
  * API 请求上下文组装器：把会话实时消息投影成提供商协议消息列表。
@@ -47,11 +53,11 @@ class ApiContextAssembler(
     private val memoryRecallSelector: MemoryRecallSelector,
     private val agentApprovalRepository: AgentApprovalRepository,
     private val operationCoordinator: OperationCoordinator,
-    private val plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry? = null,
-    private val secretRedactor: top.wkbin.taixu.core.security.SecretRedactor? = null,
-    private val environments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
+    private val plugins: HarnessPluginRegistry? = null,
+    private val secretRedactor: SecretRedactor? = null,
+    private val environments: SessionExecutionEnvironments? = null,
     /** 上下文管家（DS Bot steward）：压缩触发时判断「换段 vs 窗口压缩」；null = 禁用。 */
-    private val compactionSteward: top.wkbin.taixu.harness.compaction.CompactionSteward? = null,
+    private val compactionSteward: CompactionSteward? = null,
 ) {
     suspend fun assemble(
         sessId: String,
@@ -140,8 +146,8 @@ class ApiContextAssembler(
         val systemPrompt = ContextWindowPolicy.fitSystemPrompt(rawSystemPrompt, budgetTokens)
         var failureMemory = if (model.pureChatMode || toolCallMode == ToolCallMode.DISABLED) "" else operationCoordinator.failureMemoryBlock(sessId)
         var pluginContext = if (model.pureChatMode || toolCallMode == ToolCallMode.DISABLED || secretRedactor == null || plugins == null) "" else plugins.context(
-            top.wkbin.taixu.harness.plugins.PluginContextRequest(sessId, workspacePath),
-            top.wkbin.taixu.harness.environment.executionOutputRedactor(secretRedactor, environments, null, settingsDataStore, sessId, workspacePath),
+            PluginContextRequest(sessId, workspacePath),
+            executionOutputRedactor(secretRedactor, environments, null, settingsDataStore, sessId, workspacePath),
         )
 
         val rawFailureMemory = failureMemory
@@ -229,9 +235,9 @@ class ApiContextAssembler(
                 // 窗口压缩。判定失败一律退化为现状。被折叠原文仍在会话树，可 history_search。
                 var keepFromIndex = computedKeepFromIndex
                 if (compactionSteward != null && compactionEnabled) {
-                    val recent = top.wkbin.taixu.harness.compaction.CompactionSteward.recentTranscript(msgs)
+                    val recent = CompactionSteward.recentTranscript(msgs)
                     if (compactionSteward.shouldSwitchSegment(model, recent)) {
-                        keepFromIndex = top.wkbin.taixu.harness.compaction.CompactionSteward
+                        keepFromIndex = CompactionSteward
                             .switchKeepFromIndex(msgs, computedKeepFromIndex)
                         trace?.contribution("steward", listOf("switch segment: keepFrom=$keepFromIndex"))
                     }

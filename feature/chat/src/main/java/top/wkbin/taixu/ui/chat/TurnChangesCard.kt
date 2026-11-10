@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,7 +52,7 @@ internal fun TurnChangesCard(event: TurnChangesEvent) {
                 modifier = Modifier
                     .weight(1f)
                     .height(1.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+                    .background(RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -62,15 +62,15 @@ internal fun TurnChangesCard(event: TurnChangesEvent) {
                 RuntimeIcon(
                     RuntimeIconName.File,
                     Modifier.size(13.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     summary.joinToString(" · "),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 11.5.sp,
+                    style = RuntimeTheme.typography.labelSmall.copy(
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -79,13 +79,13 @@ internal fun TurnChangesCard(event: TurnChangesEvent) {
                 modifier = Modifier
                     .weight(1f)
                     .height(1.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+                    .background(RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
             )
         }
         Text(
             (event.created + event.modified + event.touched).joinToString("\n"),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+            style = RuntimeTheme.typography.bodySmall.copy(fontSize = 11.sp),
+            color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
             modifier = Modifier.fillMaxWidth(),
             maxLines = 6,
             overflow = TextOverflow.Ellipsis,

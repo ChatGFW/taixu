@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import top.wkbin.taixu.feature.chat.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -14,20 +17,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import top.wkbin.taixu.ui.miuix.Button
+import top.wkbin.taixu.ui.miuix.CircularProgressIndicator
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.wkbin.taixu.ui.miuix.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -46,6 +46,8 @@ import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.theme.semanticColors
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * 🧰 沙箱工具链面板
@@ -68,8 +70,8 @@ internal fun ToolchainPanel(
     var showRepairConfirm by remember { mutableStateOf(false) }
 
     Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(16.dp),
+        color = RuntimeTheme.colorScheme.surface,
+        shape = RuntimeTheme.shapes.medium,
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(
@@ -86,18 +88,18 @@ internal fun ToolchainPanel(
                 RuntimeIcon(
                     name = RuntimeIconName.Hammer,
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = stringResource(R.string.toolchain_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
                     text = stringResource(R.string.toolchain_subtitle),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -107,7 +109,7 @@ internal fun ToolchainPanel(
             when {
                 current == null && failed -> StatusBanner(
                     text = stringResource(R.string.toolchain_detect_failed),
-                    color = Color(0xFFC62828),
+                    color = RuntimeTheme.colorScheme.error,
                 )
 
                 current == null -> Row(
@@ -115,7 +117,7 @@ internal fun ToolchainPanel(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                    Text(stringResource(R.string.toolchain_detecting), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.toolchain_detecting), style = RuntimeTheme.typography.bodySmall)
                 }
 
                 else -> SummaryRow(current)
@@ -124,15 +126,12 @@ internal fun ToolchainPanel(
             // ---------- 一键补齐（仅 Debian 系发行版） ----------
             val repairables = current?.repairable.orEmpty()
             if (repairables.isNotEmpty() && debBased) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                RuntimeActionRow() {
                     Button(onClick = { showRepairConfirm = true }, enabled = !actionBusy) {
                         if (installBusy) {
                             CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.toolchain_repairing), fontSize = 12.sp)
+                            Text(stringResource(R.string.toolchain_repairing))
                         } else {
                             RuntimeIcon(
                                 name = RuntimeIconName.Download,
@@ -140,12 +139,12 @@ internal fun ToolchainPanel(
                                 tint = Color.White,
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.toolchain_repair_all, repairables.size), fontSize = 12.sp)
+                            Text(stringResource(R.string.toolchain_repair_all, repairables.size))
                         }
                     }
                     if (!actionBusy) {
                         TextButton(onClick = { viewModel.refresh(force = true) }) {
-                            Text(stringResource(R.string.toolchain_recheck), fontSize = 12.sp)
+                            Text(stringResource(R.string.toolchain_recheck))
                         }
                     }
                 }
@@ -174,7 +173,7 @@ internal fun ToolchainPanel(
                         R.string.toolchain_manual_only,
                         manualOnly.joinToString(", ") { it.probe.displayName },
                     ),
-                    color = Color(0xFFE65100),
+                    color = semanticColors().warning,
                 )
             }
 
@@ -186,7 +185,7 @@ internal fun ToolchainPanel(
                         R.string.toolchain_root_banner,
                         rootTools.joinToString(", ") { it.probe.displayName },
                     ),
-                    color = Color(0xFF6A1B9A),
+                    color = semanticColors().agent,
                 )
             }
 
@@ -194,15 +193,15 @@ internal fun ToolchainPanel(
             val allLogs = installState?.let { listOf(it) }.orEmpty() + logs
             if (allLogs.isNotEmpty()) {
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    shape = RoundedCornerShape(8.dp),
+                    color = RuntimeTheme.colorScheme.surfaceContainerLow,
+                    shape = RuntimeTheme.shapes.chip,
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         allLogs.takeLast(12).forEach {
                             Text(
                                 text = it,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -218,9 +217,9 @@ internal fun ToolchainPanel(
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = groupTitle(group),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold,
+                            style = RuntimeTheme.typography.labelMedium,
+                            color = RuntimeTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium,
                         )
                         items.forEach { item -> ToolchainRow(item) }
                     }
@@ -284,17 +283,17 @@ private fun groupTitle(group: ToolchainGroup): String = when (group) {
 @Composable
 private fun SummaryRow(report: ToolchainReport) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        CountChip(stringResource(R.string.toolchain_chip_ready, report.readyCount), Color(0xFF2E7D32))
-        if (report.missingCount > 0) CountChip(stringResource(R.string.toolchain_chip_missing, report.missingCount), Color(0xFFC62828))
-        if (report.outdatedCount > 0) CountChip(stringResource(R.string.toolchain_chip_outdated, report.outdatedCount), Color(0xFFE65100))
-        if (report.needsRootCount > 0) CountChip(stringResource(R.string.toolchain_chip_needs_root, report.needsRootCount), Color(0xFF6A1B9A))
-        if (report.unknownCount > 0) CountChip(stringResource(R.string.toolchain_chip_unknown, report.unknownCount), Color(0xFF546E7A))
+        CountChip(stringResource(R.string.toolchain_chip_ready, report.readyCount), semanticColors().success)
+        if (report.missingCount > 0) CountChip(stringResource(R.string.toolchain_chip_missing, report.missingCount), RuntimeTheme.colorScheme.error)
+        if (report.outdatedCount > 0) CountChip(stringResource(R.string.toolchain_chip_outdated, report.outdatedCount), semanticColors().warning)
+        if (report.needsRootCount > 0) CountChip(stringResource(R.string.toolchain_chip_needs_root, report.needsRootCount), semanticColors().agent)
+        if (report.unknownCount > 0) CountChip(stringResource(R.string.toolchain_chip_unknown, report.unknownCount), RuntimeTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
 private fun CountChip(text: String, color: Color) {
-    Surface(color = color.copy(alpha = 0.12f), shape = RoundedCornerShape(6.dp)) {
+    Surface(color = color.copy(alpha = 0.12f), shape = RuntimeTheme.shapes.extraSmall) {
         Text(
             text = text,
             fontSize = 11.sp,
@@ -307,7 +306,7 @@ private fun CountChip(text: String, color: Color) {
 
 @Composable
 private fun StatusBanner(text: String, color: Color) {
-    Surface(color = color.copy(alpha = 0.10f), shape = RoundedCornerShape(8.dp)) {
+    Surface(color = color.copy(alpha = 0.10f), shape = RuntimeTheme.shapes.chip) {
         Text(
             text = text,
             fontSize = 12.sp,
@@ -322,8 +321,8 @@ private fun ToolchainRow(item: ToolchainProbeResult) {
     val (dotColor, statusText) = statusPresentation(item)
 
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f),
-        shape = RoundedCornerShape(8.dp),
+        color = RuntimeTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f),
+        shape = RuntimeTheme.shapes.chip,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
@@ -336,7 +335,7 @@ private fun ToolchainRow(item: ToolchainProbeResult) {
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = item.probe.displayName,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = RuntimeTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
@@ -344,16 +343,16 @@ private fun ToolchainRow(item: ToolchainProbeResult) {
                 )
                 Text(
                     text = statusText,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     color = dotColor,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                 )
             }
             Spacer(Modifier.height(3.dp))
             Text(
                 text = item.probe.purpose,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 15.sp,
             )
             // 落后项额外提示版本升级目标
@@ -361,7 +360,7 @@ private fun ToolchainRow(item: ToolchainProbeResult) {
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = "v${item.version} → ${item.probe.minVersion}",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = RuntimeTheme.typography.labelSmall,
                     color = dotColor.copy(alpha = 0.85f),
                 )
             }
@@ -371,9 +370,9 @@ private fun ToolchainRow(item: ToolchainProbeResult) {
 
 @Composable
 private fun statusPresentation(item: ToolchainProbeResult): Pair<Color, String> = when (item.status) {
-    ToolchainStatus.READY -> Color(0xFF2E7D32) to stringResource(R.string.toolchain_status_ready)
-    ToolchainStatus.OUTDATED -> Color(0xFFE65100) to stringResource(R.string.toolchain_status_outdated)
-    ToolchainStatus.MISSING -> Color(0xFFC62828) to stringResource(R.string.toolchain_status_missing)
-    ToolchainStatus.NEEDS_ROOT -> Color(0xFF6A1B9A) to stringResource(R.string.toolchain_status_needs_root)
-    ToolchainStatus.UNKNOWN -> Color(0xFF546E7A) to stringResource(R.string.toolchain_status_unknown)
+    ToolchainStatus.READY -> semanticColors().success to stringResource(R.string.toolchain_status_ready)
+    ToolchainStatus.OUTDATED -> semanticColors().warning to stringResource(R.string.toolchain_status_outdated)
+    ToolchainStatus.MISSING -> RuntimeTheme.colorScheme.error to stringResource(R.string.toolchain_status_missing)
+    ToolchainStatus.NEEDS_ROOT -> semanticColors().agent to stringResource(R.string.toolchain_status_needs_root)
+    ToolchainStatus.UNKNOWN -> RuntimeTheme.colorScheme.onSurfaceVariant to stringResource(R.string.toolchain_status_unknown)
 }

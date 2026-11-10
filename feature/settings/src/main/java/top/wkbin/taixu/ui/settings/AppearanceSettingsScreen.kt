@@ -3,8 +3,8 @@ package top.wkbin.taixu.ui.settings
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -24,10 +24,7 @@ fun AppearanceSettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val paletteViewModel = previewOrNull { koinViewModel<ThemePaletteViewModel>() }
-    val palette by paletteViewModel?.palette?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.ThemePalette())
     val themeMode by viewModel?.themeMode?.collectAsStateWithLifecycle() ?: previewStateOf("system")
-    val dynamicColor by viewModel?.dynamicColorEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(true)
     val fontSize by viewModel?.terminalFontSize?.collectAsStateWithLifecycle() ?: previewStateOf(14)
     val terminalScheme by viewModel?.terminalColorScheme?.collectAsStateWithLifecycle() ?: previewStateOf("obsidian")
     val haptics by viewModel?.terminalHapticsEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(true)
@@ -40,20 +37,9 @@ fun AppearanceSettingsScreen(
     LaunchedEffect(fontSize) { terminalSize = fontSize.toFloat() }
     LaunchedEffect(fontScale) { pageScale = fontScale }
     PersonalizationScaffold(stringResource(R.string.personal_appearance_title), onBack) {
-        item("palette_illustration") { PersonalColorPreview() }
-        item("palette") {
-            ThemePalettePicker(
-                palette = palette,
-                dynamicColor = dynamicColor,
-                themeMode = themeMode,
-                onColor = { paletteViewModel?.selectColor(it) },
-                onStyle = { paletteViewModel?.selectStyle(it) },
-                onDynamicColor = { viewModel?.setDynamicColorEnabled(it) },
-            )
-        }
         item("theme") {
             PersonalizationSection(stringResource(R.string.settings_color_mode)) {
-                Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(Modifier.selectableGroup()) {
                     val modes = listOf(
                         Triple("system", R.string.settings_color_system, R.string.settings_color_system_description),
                         Triple("light", R.string.settings_color_light, R.string.settings_color_light_description),
@@ -84,7 +70,7 @@ fun AppearanceSettingsScreen(
         }
         item("language") {
             PersonalizationSection(stringResource(R.string.settings_language_title)) {
-                Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(Modifier.selectableGroup()) {
                     val languages = listOf(
                         Triple("system", R.string.settings_language_system, R.string.settings_language_system_description),
                         Triple("zh", R.string.settings_language_chinese, R.string.settings_language_chinese_description),
@@ -112,8 +98,8 @@ fun AppearanceSettingsScreen(
         item("terminal") {
             PersonalizationSection(stringResource(R.string.settings_terminal_appearance)) {
                 PreferenceSurface(last = false) {
-                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text(stringResource(R.string.settings_terminal_color_scheme), style = MaterialTheme.typography.titleMedium)
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(stringResource(R.string.settings_terminal_color_scheme), style = RuntimeTheme.typography.titleMedium)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TerminalThemeChip(stringResource(R.string.settings_terminal_theme_obsidian), Color(0xFF0F1117), Color(0xFFE2E2E9),
                                 terminalScheme == "obsidian", { viewModel?.setTerminalColorScheme("obsidian") }, Modifier.weight(1f))

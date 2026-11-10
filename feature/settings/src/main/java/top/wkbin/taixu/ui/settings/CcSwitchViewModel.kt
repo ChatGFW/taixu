@@ -2,6 +2,11 @@ package top.wkbin.taixu.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,9 +15,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.database.ToolSettingsRepository
@@ -20,21 +27,15 @@ import top.wkbin.taixu.core.model.CcAgentState
 import top.wkbin.taixu.core.model.CcAgentType
 import top.wkbin.taixu.core.model.CcProviderProfile
 import top.wkbin.taixu.core.model.CcSwitchDaemonStatus
-import top.wkbin.taixu.core.network.CcSwitchClient
 import top.wkbin.taixu.core.model.RuntimeName
 import top.wkbin.taixu.core.model.RuntimeRequirement
+import top.wkbin.taixu.core.network.CcSwitchClient
 import top.wkbin.taixu.core.tools.DependencyManager
 import top.wkbin.taixu.core.tools.ProviderRepository
 import top.wkbin.taixu.core.tools.ToolManager
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import kotlinx.coroutines.flow.update
 import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.environment.LocalBackendAccess
 import top.wkbin.taixu.runtime.shell.ShellCommand
-import java.net.Inet4Address
-import java.net.NetworkInterface
-import top.wkbin.taixu.core.common.result.AppResult
 
 data class CcSwitchUiState(
     val isInstalled: Boolean = true,
@@ -86,7 +87,7 @@ class CcSwitchViewModel(
     private val linuxRuntime: LinuxRuntime,
     private val dependencyManager: DependencyManager,
     private val logger: AppLogger,
-    private val localAccess: top.wkbin.taixu.runtime.environment.LocalBackendAccess? = null,
+    private val localAccess: LocalBackendAccess? = null,
 ) : ViewModel() {
 
     private val toolId = "cc-switch"
@@ -1004,7 +1005,6 @@ EOF
             }
         }
     }
-
     private fun detectLanIp(): String? {
         return try {
             val interfaces = NetworkInterface.getNetworkInterfaces() ?: return null

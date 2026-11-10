@@ -6,9 +6,10 @@ import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.bot.ProposalDecision
+import top.wkbin.taixu.harness.bot.BotAssignmentRuntime
 
 internal fun groupReviewTools(bots: PersonaBotRepository, groups: GroupChatRepository,
-    runtime: (() -> top.wkbin.taixu.harness.bot.BotAssignmentRuntime)? = null): List<PluginTool> {
+    runtime: (() -> BotAssignmentRuntime)? = null): List<PluginTool> {
     val properties = mapOf(
         "group_id" to pluginStringProperty("来源群聊ID"),
         "rule_id" to pluginStringProperty("团队审议规则ID；从 inspect-governance 获取"),

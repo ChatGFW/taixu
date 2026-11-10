@@ -6,10 +6,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -88,7 +88,7 @@ internal fun RemoteServerDialog(viewModel: RemoteServerViewModel, existing: Remo
             text = { Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                 Text("请与服务器管理员提供的 SSH 主机指纹核对。确认后才会发送密码或使用私钥认证。")
                 Spacer(Modifier.height(12.dp))
-                Text(state.fingerprint.orEmpty(), style = MaterialTheme.typography.bodySmall)
+                Text(state.fingerprint.orEmpty(), style = RuntimeTheme.typography.bodySmall)
             } },
             confirmButton = { RuntimeTextButton(onClick = viewModel::confirmFingerprint) { Text("指纹一致，连接") } },
             dismissButton = { RuntimeTextButton(onClick = viewModel::clear) { Text("取消") } },
@@ -100,39 +100,44 @@ internal fun RemoteServerDialog(viewModel: RemoteServerViewModel, existing: Remo
         title = { Text(if (existing == null) "新增连接" else "编辑连接") },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("保存 SSH 连接档案后，可选择它作为主系统。每个档案独立保存认证信息。", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                RuntimeFilledTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), label = { Text("名称") }, singleLine = true, enabled = !state.busy)
-                RuntimeFilledTextField(host, { host = it }, modifier = Modifier.fillMaxWidth(), label = { Text("主机地址") }, singleLine = true, enabled = !state.busy)
+                Text("保存 SSH 连接档案后，可选择它作为主系统。每个档案独立保存认证信息。", style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                RuntimeFilledTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(),
+ labelText = "名称", singleLine = true, enabled = !state.busy)
+                RuntimeFilledTextField(host, { host = it }, modifier = Modifier.fillMaxWidth(),
+ labelText = "主机地址", singleLine = true, enabled = !state.busy)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    RuntimeFilledTextField(port, { port = it }, modifier = Modifier.weight(1f), label = { Text("端口") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, enabled = !state.busy)
-                    RuntimeFilledTextField(username, { username = it }, modifier = Modifier.weight(1f), label = { Text("用户名") }, singleLine = true, enabled = !state.busy)
+                    RuntimeFilledTextField(port, { port = it }, modifier = Modifier.weight(1f),
+ labelText = "端口", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, enabled = !state.busy)
+                    RuntimeFilledTextField(username, { username = it }, modifier = Modifier.weight(1f),
+ labelText = "用户名", singleLine = true, enabled = !state.busy)
                 }
-                RuntimeFilledTextField(workspace, { workspace = it }, modifier = Modifier.fillMaxWidth(), label = { Text("工作目录") }, supportingText = { Text("服务器上已存在的目录，需允许当前用户访问") }, singleLine = true, enabled = !state.busy)
-                HorizontalDivider()
-                Text("认证方式", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RuntimeOutlinedButton(modifier = Modifier.weight(1f), onClick = { if (keyMode) { keyMode = false; secret = "" } }, enabled = !state.busy) { Text(if (!keyMode) "✓ 密码" else "密码") }
-                    RuntimeOutlinedButton(modifier = Modifier.weight(1f), onClick = { if (!keyMode) { keyMode = true; secret = "" } }, enabled = !state.busy) { Text(if (keyMode) "✓ SSH 私钥" else "SSH 私钥") }
+                RuntimeFilledTextField(workspace, { workspace = it }, modifier = Modifier.fillMaxWidth(),
+ labelText = "工作目录", supportingText = { Text("服务器上已存在的目录，需允许当前用户访问") }, singleLine = true, enabled = !state.busy)
+                Text("认证方式", style = RuntimeTheme.typography.labelLarge)
+                RuntimeActionRow() {
+                    RuntimeOutlinedButton(modifier = Modifier, onClick = { if (keyMode) { keyMode = false; secret = "" } }, enabled = !state.busy) { Text(if (!keyMode) "✓ 密码" else "密码") }
+                    RuntimeOutlinedButton(modifier = Modifier, onClick = { if (!keyMode) { keyMode = true; secret = "" } }, enabled = !state.busy) { Text(if (keyMode) "✓ SSH 私钥" else "SSH 私钥") }
                 }
-                RuntimeFilledTextField(secret, { secret = it }, modifier = Modifier.fillMaxWidth(), label = { Text(if (keyMode) "PEM / OpenSSH 私钥" else "密码") },
+                RuntimeFilledTextField(secret, { secret = it }, modifier = Modifier.fillMaxWidth(),
+ labelText = if (keyMode) "PEM / OpenSSH 私钥" else "密码",
                     visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(), singleLine = !keyMode, maxLines = 5, enabled = !state.busy,
                     trailingIcon = { RuntimeTextButton(onClick = { showSecret = !showSecret }) { Text(if (showSecret) "隐藏" else "显示") } })
                 if (keyMode) {
                     RuntimeTextButton(onClick = { importKey.launch(arrayOf("*/*")) }, enabled = !state.busy) { Text("从文件导入私钥") }
-                    RuntimeFilledTextField(phrase, { phrase = it }, modifier = Modifier.fillMaxWidth(), label = { Text("私钥口令（可选）") }, singleLine = true,
+                    RuntimeFilledTextField(phrase, { phrase = it }, modifier = Modifier.fillMaxWidth(),
+ labelText = "私钥口令（可选）", singleLine = true,
                         visualTransformation = PasswordVisualTransformation(), enabled = !state.busy)
                 }
-                HorizontalDivider()
-                Text("连接测试", style = MaterialTheme.typography.labelLarge)
-                Text("测试不会保存配置。首次连接需核对主机指纹，服务器需启用 SSH / SFTP。", style = MaterialTheme.typography.bodySmall)
+                Text("连接测试", style = RuntimeTheme.typography.labelLarge)
+                Text("测试不会保存配置。首次连接需核对主机指纹，服务器需启用 SSH / SFTP。", style = RuntimeTheme.typography.bodySmall)
                 RuntimeOutlinedButton(enabled = valid && !state.busy, onClick = {
                     localNetworkMessage = null
                     val target = server()
                     val credentials = SshCredentials(secret, phrase)
                     withLocalNetwork(target.host) { viewModel.test(target, credentials) }
                 }) { Text("测试连接") }
-                (localNetworkMessage ?: state.message ?: importError)?.let { Text(it, color = if (state.tested && localNetworkMessage == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
+                (localNetworkMessage ?: state.message ?: importError)?.let { Text(it, color = if (state.tested && localNetworkMessage == null) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.error) }
                 if (state.busy) RuntimeLinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
         },

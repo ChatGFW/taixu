@@ -5,12 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,14 +48,14 @@ internal fun LedgerDetailDialog(
         title = {
             Text(
                 text = "用量明细",
-                style = MaterialTheme.typography.titleMedium,
+                style = RuntimeTheme.typography.titleMedium,
             )
         },
         text = {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(380.dp)
+                    .heightIn(max = 380.dp)
                     .verticalScroll(rememberScrollState()),
             ) {
                 Column(
@@ -100,25 +100,25 @@ private fun LedgerDetailHeader(ledger: StatsLedger) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = "合计 ${ledgerCompact(ledger.totalTokens)} Token，共 ${ledger.calls} 次调用",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+            style = RuntimeTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Medium,
+                color = RuntimeTheme.colorScheme.onSurface,
             ),
         )
         Text(
             text = "输入 ${ledgerCompact(ledger.inputTokens)} · 输出 ${ledgerCompact(ledger.outputTokens)} · " +
                 "推理 ${ledgerCompact(ledger.reasoningTokens)} · 缓存读 ${ledgerCompact(ledger.cacheReadTokens)} · " +
                 "缓存写 ${ledgerCompact(ledger.cacheWriteTokens)}",
-            style = MaterialTheme.typography.bodySmall.copy(
+            style = RuntimeTheme.typography.bodySmall.copy(
                 fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             ),
         )
         Text(
             text = "成本暂未计算：目前还没有定价表可用，因此这里显式留空，而不是给一个看起来像真的估算值。",
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            style = RuntimeTheme.typography.bodySmall.copy(
+                fontSize = 11.sp,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             ),
         )
     }
@@ -132,10 +132,10 @@ private fun DetailBlock(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             text = title,
-            style = MaterialTheme.typography.bodySmall.copy(
+            style = RuntimeTheme.typography.bodySmall.copy(
                 fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium,
+                color = RuntimeTheme.colorScheme.primary,
             ),
         )
         content()
@@ -146,9 +146,9 @@ private fun DetailBlock(
 private fun DetailEmpty(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.bodySmall.copy(
+        style = RuntimeTheme.typography.bodySmall.copy(
             fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
         ),
     )
 }
@@ -189,18 +189,18 @@ private fun DetailRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = primary,
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = RuntimeTheme.colorScheme.onSurface,
                 ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = secondary,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                style = RuntimeTheme.typography.bodySmall.copy(
+                    fontSize = 11.sp,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -208,10 +208,10 @@ private fun DetailRow(
         }
         Text(
             text = trailing,
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontSize = 10.sp,
+            style = RuntimeTheme.typography.bodySmall.copy(
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             ),
             maxLines = 1,
         )

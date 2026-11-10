@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.onboarding
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import top.wkbin.taixu.ui.components.previewStateOf
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,20 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenu
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.MaterialTheme
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
+import top.wkbin.taixu.ui.components.RuntimeWindowDropdownPreference
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,7 +31,6 @@ import top.wkbin.taixu.feature.onboarding.R
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.runtime.DistributionCatalog
 import top.wkbin.taixu.ui.components.RuntimeCard
-import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.runtimeContentPadding
 import androidx.compose.foundation.layout.heightIn
 import top.wkbin.taixu.ui.components.RuntimeButton
@@ -53,7 +45,7 @@ private val distributionOptions = DistributionCatalog.supported.map { SetupOptio
 internal fun SystemSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier) {
     val distribution by viewModel?.distribution?.collectAsStateWithLifecycle() ?: previewStateOf("ubuntu")
     val mirror by viewModel?.mirror?.collectAsStateWithLifecycle() ?: previewStateOf("auto")
-    val state by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
+    val state by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(RuntimeState.Ready)
     val importing by viewModel?.isImporting?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val importError by viewModel?.importError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val installing = state is RuntimeState.Initializing || importing
@@ -68,8 +60,8 @@ internal fun SystemSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier
 
     LazyColumn(
         modifier = modifier,
-        contentPadding = runtimeContentPadding(horizontal = 24.dp, top = 8.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = runtimeContentPadding(horizontal = 12.dp, top = 8.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
             OnboardingPageHeading(
@@ -78,29 +70,19 @@ internal fun SystemSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier
             )
         }
         item {
-            SetupDropdown(
-                label = stringResource(R.string.onboarding_distribution),
-                selectedId = distribution,
-                options = distributionOptions,
-                enabled = !installing,
-                onSelected = { arg0 -> viewModel?.selectDistribution(arg0) },
-            )
-        }
-        item {
-            SetupDropdown(
-                label = stringResource(R.string.onboarding_mirror),
-                selectedId = mirror,
-                options = mirrorOptions,
-                enabled = !installing,
-                onSelected = { arg0 -> viewModel?.selectMirror(arg0) },
-            )
+            RuntimeCard(contentPadding = PaddingValues(0.dp)) {
+                SetupDropdown(stringResource(R.string.onboarding_distribution), distribution, distributionOptions,
+                    enabled = !installing) { viewModel?.selectDistribution(it) }
+                SetupDropdown(stringResource(R.string.onboarding_mirror), mirror, mirrorOptions,
+                    enabled = !installing) { viewModel?.selectMirror(it) }
+            }
         }
         if (state is RuntimeState.Initializing) {
             val progress = state as RuntimeState.Initializing
             item {
                 RuntimeCard(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    shape = MaterialTheme.shapes.extraLarge,
+                    containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+                    shape = RuntimeTheme.shapes.extraLarge,
                     contentPadding = PaddingValues(0.dp),
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -111,15 +93,15 @@ internal fun SystemSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier
                         ) {
                             Text(
                                 text = progress.step,
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
                                 modifier = Modifier.weight(1f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 text = "${(progress.progress * 100).toInt()}%",
-                                style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
-                                color = MaterialTheme.colorScheme.primary,
+                                style = RuntimeTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
+                                color = RuntimeTheme.colorScheme.primary,
                                 modifier = Modifier.padding(start = 8.dp),
                                 maxLines = 1,
                                 softWrap = false,
@@ -127,15 +109,15 @@ internal fun SystemSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier
                         }
                         RuntimeLinearProgressIndicator(
                             progress = { progress.progress },
-                            modifier = Modifier.fillMaxWidth().height(10.dp).clip(MaterialTheme.shapes.small),
-                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth().height(10.dp).clip(RuntimeTheme.shapes.small),
+                            color = RuntimeTheme.colorScheme.primary,
                             wavy = true,
                         )
                         progress.detail?.let {
                             Text(
                                 text = it,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -148,8 +130,8 @@ internal fun SystemSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier
             item {
                 Text(
                     error.throwable.message ?: stringResource(R.string.onboarding_initialization_failed),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.error,
+                    style = RuntimeTheme.typography.bodyMedium,
                 )
             }
         }
@@ -165,7 +147,7 @@ internal fun SystemSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier
                         else if (installing) R.string.onboarding_preparing
                         else R.string.onboarding_initialize,
                     ),
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Medium,
                 )
             }
         }
@@ -173,8 +155,8 @@ internal fun SystemSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier
             item {
                 Text(
                     error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.error,
+                    style = RuntimeTheme.typography.bodyMedium,
                 )
             }
         }
@@ -190,8 +172,8 @@ internal fun SystemSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier
         item {
             Text(
                 stringResource(R.string.onboarding_import_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
         }
         if (state is RuntimeState.Error) {
@@ -200,14 +182,13 @@ internal fun SystemSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier
                     onClick = { viewModel?.retryReady() },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(stringResource(R.string.onboarding_recheck), color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.onboarding_recheck))
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SetupDropdown(
     label: String,
@@ -216,35 +197,11 @@ private fun SetupDropdown(
     enabled: Boolean,
     onSelected: (String) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val selected = options.firstOrNull { it.id == selectedId } ?: options.first()
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { if (enabled) expanded = !expanded },
-    ) {
-        RuntimeFilledTextField(
-            value = selected.label,
-            onValueChange = {},
-            readOnly = true,
-            enabled = enabled,
-            label = { Text(label) },
-            shape = MaterialTheme.shapes.large,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(
-                ExposedDropdownMenuAnchorType.PrimaryNotEditable,
-                enabled,
-            ),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label) },
-                    onClick = {
-                        onSelected(option.id)
-                        expanded = false
-                    },
-                )
-            }
-        }
-    }
+    top.wkbin.taixu.ui.components.RuntimeWindowDropdownPreference(
+        items = options.map { it.label },
+        selectedIndex = options.indexOfFirst { it.id == selectedId }.coerceAtLeast(0),
+        title = label,
+        enabled = enabled,
+        onSelectedIndexChange = { onSelected(options[it].id) },
+    )
 }

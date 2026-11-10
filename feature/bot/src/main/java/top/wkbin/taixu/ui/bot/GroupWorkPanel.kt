@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,18 +12,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -39,6 +39,7 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import androidx.compose.foundation.shape.CircleShape
 
 /** 群聊「工作」面板：成员实时状态 + 持久化委派进度，支持展开详情与取消。 */
 @Composable
@@ -79,8 +80,8 @@ internal fun GroupWorkDialog(
                 Text(stringResource(R.string.fbot_work_title))
                 Text(
                     stringResource(R.string.fbot_work_summary, running, finished),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
@@ -96,8 +97,8 @@ internal fun GroupWorkDialog(
                     item(key = "members-empty") {
                         Text(
                             stringResource(R.string.fbot_work_empty),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 } else {
@@ -116,8 +117,8 @@ internal fun GroupWorkDialog(
                     item(key = "assignments-empty") {
                         Text(
                             stringResource(R.string.fbot_work_empty),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 } else {
@@ -147,8 +148,8 @@ internal fun GroupWorkDialog(
 private fun SectionTitle(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
+        style = RuntimeTheme.typography.labelLarge,
+        color = RuntimeTheme.colorScheme.primary,
         modifier = Modifier.padding(top = 2.dp),
     )
 }
@@ -179,23 +180,23 @@ private fun MemberStatusRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = bot.name,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = RuntimeTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (bot.isMainBot) {
                     Text(
                         text = " · ${stringResource(R.string.fbot_main_bot)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.primary,
                     )
                 }
             }
             if (status != null) {
                 Text(
                     text = status,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -203,8 +204,8 @@ private fun MemberStatusRow(
             assignment?.let {
                 Text(
                     text = it.title,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -215,8 +216,8 @@ private fun MemberStatusRow(
         } else {
             Text(
                 text = stringResource(R.string.fbot_member_idle),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
+                style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.outline,
             )
         }
     }
@@ -232,11 +233,11 @@ internal fun WorkCard(
 ) {
     var expanded by rememberSaveable(assignment.id) { mutableStateOf(false) }
     val statusColor = when (assignment.status) {
-        BotAssignmentStatus.QUEUED, BotAssignmentStatus.RUNNING, BotAssignmentStatus.WAITING_CHILDREN -> MaterialTheme.colorScheme.primary
-        BotAssignmentStatus.BLOCKED, BotAssignmentStatus.INTERRUPTED -> MaterialTheme.colorScheme.error
-        BotAssignmentStatus.COMPLETED -> MaterialTheme.colorScheme.tertiary
-        BotAssignmentStatus.FAILED -> MaterialTheme.colorScheme.error
-        BotAssignmentStatus.CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant
+        BotAssignmentStatus.QUEUED, BotAssignmentStatus.RUNNING, BotAssignmentStatus.WAITING_CHILDREN -> RuntimeTheme.colorScheme.primary
+        BotAssignmentStatus.BLOCKED, BotAssignmentStatus.INTERRUPTED -> RuntimeTheme.colorScheme.error
+        BotAssignmentStatus.COMPLETED -> RuntimeTheme.colorScheme.tertiary
+        BotAssignmentStatus.FAILED -> RuntimeTheme.colorScheme.error
+        BotAssignmentStatus.CANCELLED -> RuntimeTheme.colorScheme.onSurfaceVariant
     }
     val detail = assignment.summary?.takeIf { it.isNotBlank() } ?: assignment.error
     val timing = if (assignment.status == BotAssignmentStatus.RUNNING) {
@@ -251,8 +252,8 @@ internal fun WorkCard(
     }
     Surface(
         onClick = { expanded = !expanded },
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.small,
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
@@ -262,7 +263,7 @@ internal fun WorkCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     assignment.botName,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = RuntimeTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -270,11 +271,11 @@ internal fun WorkCard(
                 Surface(
                     color = statusColor.copy(alpha = 0.12f),
                     contentColor = statusColor,
-                    shape = RoundedCornerShape(50),
+                    shape = CircleShape,
                 ) {
                     Text(
                         statusLabel(assignment.status),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = RuntimeTheme.typography.labelSmall,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     )
                 }
@@ -292,24 +293,25 @@ internal fun WorkCard(
                 RuntimeTextButton(onClick = { onContinue(assignment) }) {
                     Text(stringResource(if (assignment.status.isActive) R.string.fbot_assignment_add_instruction else R.string.fbot_assignment_continue))
                 }
-                Text(stringResource(R.string.fbot_assignment_round, assignment.revision), style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.fbot_assignment_round, assignment.revision), style = RuntimeTheme.typography.labelSmall)
             }
             Text(
                 assignment.title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = RuntimeTheme.typography.bodyMedium,
                 maxLines = if (expanded) Int.MAX_VALUE else 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (timing.isNotBlank()) {
                 Text(
                     timing,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (expanded && !assignment.error.isNullOrBlank()) {
-                Text(assignment.error.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                Text(assignment.error.orEmpty(), style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.error)
             }
+            if (expanded) TaskCapabilityGrantSummary(assignment, now)
             if (!liveText.isNullOrBlank()) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -318,8 +320,8 @@ internal fun WorkCard(
                     RuntimeCircularProgressIndicator(Modifier.size(11.dp), strokeWidth = 1.5.dp)
                     Text(
                         text = liveText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.primary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -328,8 +330,8 @@ internal fun WorkCard(
             if (!detail.isNullOrBlank()) {
                 Text(
                     detail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = if (expanded) Int.MAX_VALUE else 3,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -337,8 +339,8 @@ internal fun WorkCard(
             if (!expanded) {
                 Text(
                     stringResource(R.string.fbot_work_tap_detail),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.primary,
                 )
             }
         }

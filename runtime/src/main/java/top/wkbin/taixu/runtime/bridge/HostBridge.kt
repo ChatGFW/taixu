@@ -190,11 +190,9 @@ class HostBridge(
             request.method == "POST" && request.path.startsWith("/api/screen") -> "host.screen"
             else -> null
         }
-        if (!credentialAuthority.authorize(bearerToken(request.headers), action)) {
-            return HttpResponse(
-                401,
-                errorJson("Unauthorized: missing or invalid bridge credential", HostFailure.PERMISSION_DENIED),
-            )
+        val denial = credentialAuthority.denialReason(bearerToken(request.headers), action)
+        if (denial != null) {
+            return HttpResponse(401, errorJson(unauthorizedMessage(denial, action), HostFailure.PERMISSION_DENIED))
         }
         return when (action) {
             "host.install-apk" -> handleInstallApk(request.body)
@@ -382,6 +380,17 @@ class HostBridge(
         put("stderr", stderr)
         put("channel", channel)
     }.toString()
+
+    /**
+     * 凭据被拒时的文案。只有在凭据本身有效、仅缺动作授权时才点名具体动作，
+     * 让用户知道该去开权限而不是去查 token；凭据无效时仍返回不放大的模糊文案。
+     */
+    private fun unauthorizedMessage(denial: HostCredentialAuthority.Denial, action: String?): String =
+        if (denial == HostCredentialAuthority.Denial.ActionNotGranted) {
+            "Unauthorized: bridge credential is valid but not granted for '$action'; enable full access in settings"
+        } else {
+            "Unauthorized: missing or invalid bridge credential"
+        }
 
     private fun errorJson(message: String, failure: HostFailure? = null): String = HostJson.error(message, failure)
 }

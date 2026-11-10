@@ -15,9 +15,9 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.android.ext.koin.androidContext
+import org.koin.core.qualifier.named
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
-import org.koin.core.qualifier.named
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.model.ApprovalMode
@@ -31,6 +31,7 @@ import top.wkbin.taixu.harness.session.SessionTreeStore
 import top.wkbin.taixu.plugin.api.*
 import top.wkbin.taixu.runtime.FakeLinuxRuntime
 import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.runtime.webchat.WebChatBridgeServer
 import top.wkbin.taixu.testing.Aarch64AwareRobolectricTestRunner
 
@@ -126,7 +127,7 @@ class ContextRecoveryWebEndToEndTest {
             androidContext(context)
             modules(taiXuModule, module {
                 single<LinuxRuntime> {
-                    val paths = get<top.wkbin.taixu.runtime.RuntimePathManager>()
+                    val paths = get<RuntimePathManager>()
                     object : LinuxRuntime by FakeLinuxRuntime() { override fun workspacePath() = paths.workspaceDir }
                 }
                 single { OkHttpClient.Builder().addInterceptor { error("Provider network is forbidden") }.build() }
@@ -144,7 +145,7 @@ class ContextRecoveryWebEndToEndTest {
             koin.get<AiModelRepository>().upsert(AiModelEntity("context-fake", "Fake", "context-test", "fixture",
                 "https://example.invalid", isActive = true, createdAt = 1))
             val gateway = koin.get<TaiXuWebChatAgentGateway>()
-            val testWorkspace = java.io.File(koin.get<top.wkbin.taixu.runtime.RuntimePathManager>().workspaceDir,
+            val testWorkspace = java.io.File(koin.get<RuntimePathManager>().workspaceDir,
                 "context-${java.util.UUID.randomUUID()}").apply { mkdirs() }
             val id = gateway.createSession("Context recovery", "/workspace/${testWorkspace.name}")
             session = id

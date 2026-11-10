@@ -1,18 +1,12 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import top.wkbin.taixu.ui.components.RuntimeSwitchPreference
 
-/** Secondary control inside a form card; the parent card owns the outer surface. */
+/** The form card supplies the horizontal inset, and the preference supplies its row spacing. */
 @Composable
 internal fun EditorToggleRow(
     title: String,
@@ -20,19 +14,11 @@ internal fun EditorToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    Row(
-        Modifier.fillMaxWidth().toggleable(checked, role = Role.Switch, onValueChange = onCheckedChange)
-            .heightIn(min = SettingsDensity.rowMinHeight).padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(SettingsDensity.textGap)) {
-            Text(title, style = settingsTitleStyle(), color = MaterialTheme.colorScheme.onSurface)
-            Text(subtitle, style = settingsSupportingStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        RuntimeSwitch(checked, onCheckedChange = null,
-            thumbContent = if (checked) {
-                { RuntimeIcon(RuntimeIconName.Check, Modifier.size(16.dp), MaterialTheme.colorScheme.onPrimaryContainer) }
-            } else null)
-    }
+    RuntimeSwitchPreference(
+        title = resolveLegacyString(title),
+        summary = resolveLegacyString(subtitle),
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        insideMargin = PaddingValues(horizontal = 0.dp, vertical = RuntimeSpacing.cardContent),
+    )
 }

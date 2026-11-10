@@ -1,7 +1,7 @@
 package top.wkbin.taixu.ui.settings
 
 import androidx.annotation.StringRes
-import androidx.compose.material3.LocalTextStyle
+import top.wkbin.taixu.ui.miuix.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -178,7 +178,7 @@ private fun legacyStringResource(source: String): Int? = hashlineLegacyString(so
         "GGUF 文件路径" -> R.string.settings_text_0010
         "JSON 语法解析错误" -> R.string.settings_text_0011
         "JSON 配置已复制" -> R.string.settings_text_0012
-        "M3 曜石天鹅绒暗色，沉浸专注" -> R.string.settings_text_0013
+        "深色沉浸，专注阅读" -> R.string.settings_text_0013
         "MCP JSON 配置" -> R.string.settings_text_0014
         "MCP JSON 配置 (Cursor / Claude 格式)" -> R.string.settings_text_0015
         "MCP 插件与协议生态" -> R.string.settings_text_0016
@@ -408,7 +408,7 @@ private fun legacyStringResource(source: String): Int? = hashlineLegacyString(so
         "点击上方“新增挂载”将任意 Android 目录映射到 Linux 沙箱中" -> R.string.settings_text_0244
         "点击右上角 + 添加" -> R.string.settings_text_0245
         "点击快捷插入动态宏变量：" -> R.string.settings_text_0246
-        "版本: v0.3.0 (Material 3 Expressive)" -> R.string.settings_text_0247
+        "版本: v0.3.0" -> R.string.settings_text_0247
         "生成安全 Token" -> R.string.settings_text_0248
         "用户名称" -> R.string.settings_text_0249
         "申请豁免电池优化" -> R.string.settings_text_0251
@@ -531,7 +531,7 @@ private fun legacyStringResource(source: String): Int? = hashlineLegacyString(so
     }
 
 @Composable
-private fun resolveLegacyString(source: String): String {
+internal fun resolveLegacyString(source: String): String {
     legacyStringResource(source)?.let { return stringResource(it) }
     // NOTE: raw 字符串不做转义处理，此处必须写 \d；写成 \\d 会匹配字面 "\d" 导致永不命中。
     Regex("""(\d+) 套系统 · (.+)""").matchEntire(source)?.also {
@@ -599,7 +599,7 @@ fun LocalizedText(
     minLines: Int = 1,
     onTextLayout: (TextLayoutResult) -> Unit = {},
     style: TextStyle = LocalTextStyle.current,
-) = androidx.compose.material3.Text(
+) = top.yukonga.miuix.kmp.basic.Text(
     text = resolveLegacyString(text), modifier = modifier, color = color,
     fontSize = fontSize, fontStyle = fontStyle, fontWeight = fontWeight,
     fontFamily = fontFamily, letterSpacing = letterSpacing, textDecoration = textDecoration,
@@ -628,7 +628,7 @@ fun LocalizedText(
     inlineContent: Map<String, androidx.compose.foundation.text.InlineTextContent> = mapOf(),
     onTextLayout: (TextLayoutResult) -> Unit = {},
     style: TextStyle = LocalTextStyle.current,
-) = androidx.compose.material3.Text(
+) = top.yukonga.miuix.kmp.basic.Text(
     text = text, modifier = modifier, color = color, fontSize = fontSize,
     fontStyle = fontStyle, fontWeight = fontWeight, fontFamily = fontFamily,
     letterSpacing = letterSpacing, textDecoration = textDecoration, textAlign = textAlign,

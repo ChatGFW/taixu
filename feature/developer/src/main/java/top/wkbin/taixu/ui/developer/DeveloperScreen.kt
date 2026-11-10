@@ -1,4 +1,8 @@
 package top.wkbin.taixu.ui.developer
+
+import top.wkbin.taixu.ui.miuix.*
+import androidx.compose.runtime.*
+
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -18,21 +22,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.material3.HorizontalDivider
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import top.wkbin.taixu.ui.developer.LocalizedText as Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.core.model.InstalledRuntime
 import top.wkbin.taixu.core.model.RuntimeState
-import top.wkbin.taixu.ui.components.EmptyPanel
 import top.wkbin.taixu.ui.components.IconTile
 import top.wkbin.taixu.ui.components.InfoRow
 import top.wkbin.taixu.ui.components.NoticeBanner
@@ -60,13 +53,17 @@ import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import top.wkbin.taixu.runtime.RootfsUpdateInfo
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 
 @Composable
 internal fun LocalDeveloperScreen(
     onBack: () -> Unit,
     viewModel: DeveloperViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.core.model.RuntimeState.Ready)
+    val runtimeState by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(RuntimeState.Ready)
     val busy by viewModel?.busy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val commandInput by viewModel?.commandInput?.collectAsStateWithLifecycle() ?: previewStateOf("")
     val health by viewModel?.health?.collectAsStateWithLifecycle() ?: previewStateOf(null)
@@ -85,8 +82,8 @@ internal fun LocalDeveloperScreen(
     val agentLoggingEnabled by viewModel?.agentLoggingEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val agentLogSize by viewModel?.agentLogSize?.collectAsStateWithLifecycle() ?: previewStateOf(0L)
     val agentLogLocation by viewModel?.agentLogLocation?.collectAsStateWithLifecycle() ?: previewStateOf("")
-    val adbState by viewModel?.adbState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager.ConnectionState.Disconnected)
-    val adbDiscovery by viewModel?.adbDiscovery?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager.DiscoveryState())
+    val adbState by viewModel?.adbState?.collectAsStateWithLifecycle() ?: previewStateOf(EmbeddedAdbManager.ConnectionState.Disconnected)
+    val adbDiscovery by viewModel?.adbDiscovery?.collectAsStateWithLifecycle() ?: previewStateOf(EmbeddedAdbManager.DiscoveryState())
     val adbBusy by viewModel?.adbBusy?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val adbMessage by viewModel?.adbMessage?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val logcatOutput by viewModel?.logcatOutput?.collectAsStateWithLifecycle() ?: previewStateOf("")
@@ -111,16 +108,15 @@ internal fun LocalDeveloperScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RuntimeTheme.colorScheme.background,
         topBar = { RuntimeTopBar("开发者控制台", onBack) },
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding))
-                .verticalScroll(rememberScrollState()).padding(bottom = innerPadding.calculateBottomPadding())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .then(runtimeScrollViewport(innerPadding)).verticalScroll(rememberScrollState())
+                .padding(runtimeScrollContentPadding(innerPadding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom))),
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             Spacer(Modifier.height(4.dp))
 
@@ -142,17 +138,17 @@ internal fun LocalDeveloperScreen(
             health?.let { result ->
                 RuntimeCard(
                     Modifier.fillMaxWidth(),
-                    containerColor = if (result.isHealthy) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
-                    else MaterialTheme.colorScheme.error.copy(alpha = 0.08f),
+                    containerColor = if (result.isHealthy) RuntimeTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+                    else RuntimeTheme.colorScheme.error.copy(alpha = 0.08f),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         IconTile(
                             if (result.isHealthy) RuntimeIconName.Shield else RuntimeIconName.Alert,
-                            color = if (result.isHealthy) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
+                            color = if (result.isHealthy) RuntimeTheme.colorScheme.secondary else RuntimeTheme.colorScheme.error,
                         )
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(if (result.isHealthy) "健康检查通过" else "健康检查异常", style = MaterialTheme.typography.titleLarge)
-                            Text(result.detail ?: "Runtime 核心能力已完成检测", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(if (result.isHealthy) "健康检查通过" else "健康检查异常", style = RuntimeTheme.typography.titleLarge)
+                            Text(result.detail ?: "Runtime 核心能力已完成检测", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Spacer(Modifier.height(15.dp))
@@ -174,7 +170,7 @@ internal fun LocalDeveloperScreen(
                 ) {
                     IconTile(RuntimeIconName.Terminal)
                     Column(Modifier.weight(1f)) {
-                        Text("内置无线 ADB", style = MaterialTheme.typography.titleMedium)
+                        Text("内置无线 ADB", style = RuntimeTheme.typography.titleMedium)
                         Text(
                             when (val current = adbState) {
                                 EmbeddedAdbManager.ConnectionState.Disconnected -> "未连接"
@@ -184,53 +180,53 @@ internal fun LocalDeveloperScreen(
                                 is EmbeddedAdbManager.ConnectionState.Connected -> "${current.host}:${current.port}"
                                 is EmbeddedAdbManager.ConnectionState.Failed -> current.message
                             },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                         )
                     }
-                    StatusBadge(if (connected != null) "已连接" else "未就绪", if (connected != null) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary)
+                    StatusBadge(if (connected != null) "已连接" else "未就绪", if (connected != null) RuntimeTheme.colorScheme.secondary else RuntimeTheme.colorScheme.primary)
                 }
                 Spacer(Modifier.height(10.dp))
                 Text(
                     "已发现：配对端口 ${adbDiscovery.pairingEndpoints.size} 个 · 连接端口 ${adbDiscovery.connectEndpoints.size} 个",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(12.dp))
                 RuntimeFilledTextField(
                     value = pairingCode,
                     onValueChange = { value -> pairingCode = value.filter(Char::isDigit).take(6) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("一次性 6 位配对码") },
+                    labelText = resolveLocalizedString("一次性 6 位配对码"),
                     supportingText = { Text("先在系统“无线调试”中打开“使用配对码配对设备”；端口无需手填") },
                     singleLine = true,
                 )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = { viewModel?.pairWirelessAdb(pairingCode) },
                         enabled = !adbBusy && pairingCode.length == 6 && adbDiscovery.pairingEndpoints.isNotEmpty(),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                     ) { Text("配对并连接") }
                     OutlinedButton(
                         onClick = { viewModel?.connectWirelessAdb() },
                         enabled = !adbBusy && adbDiscovery.connectEndpoints.isNotEmpty(),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                     ) { Text("重新连接") }
                 }
                 adbMessage?.let {
                     Spacer(Modifier.height(10.dp))
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(it, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
 
                 Spacer(Modifier.height(18.dp))
-                Text("应用日志抓取", style = MaterialTheme.typography.titleMedium)
+                Text("应用日志抓取", style = RuntimeTheme.typography.titleMedium)
                 Spacer(Modifier.height(10.dp))
                 RuntimeFilledTextField(
                     value = logcatPackage,
                     onValueChange = { logcatPackage = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("包名（留空抓取全部）") },
+                    labelText = resolveLocalizedString("包名（留空抓取全部）"),
                     singleLine = true,
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -238,14 +234,14 @@ internal fun LocalDeveloperScreen(
                         value = logcatTag,
                         onValueChange = { logcatTag = it },
                         modifier = Modifier.weight(1f),
-                        label = { Text("Tag（可选）") },
+                        labelText = resolveLocalizedString("Tag（可选）"),
                         singleLine = true,
                     )
                     RuntimeFilledTextField(
                         value = logcatLines,
                         onValueChange = { logcatLines = it.filter(Char::isDigit).take(4) },
                         modifier = Modifier.weight(0.55f),
-                        label = { Text("行数") },
+                        labelText = resolveLocalizedString("行数"),
                         singleLine = true,
                     )
                 }
@@ -253,7 +249,7 @@ internal fun LocalDeveloperScreen(
                     value = logcatKeyword,
                     onValueChange = { logcatKeyword = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("关键词（可选，忽略大小写）") },
+                    labelText = resolveLocalizedString("关键词（可选，忽略大小写）"),
                     singleLine = true,
                 )
                 Spacer(Modifier.height(10.dp))
@@ -267,11 +263,11 @@ internal fun LocalDeveloperScreen(
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = { viewModel?.captureLogcat(logcatPackage, logcatTag, logcatPriority, logcatKeyword, logcatLines.toIntOrNull() ?: 200) },
                         enabled = connected != null && !adbBusy,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                     ) { Text("抓取日志") }
                     OutlinedButton(onClick = { viewModel?.clearDeviceLogcat() }, enabled = connected != null && !adbBusy) { Text("清空") }
                 }
@@ -279,13 +275,13 @@ internal fun LocalDeveloperScreen(
                     Spacer(Modifier.height(12.dp))
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                        shape = MaterialTheme.shapes.medium,
+                        color = RuntimeTheme.colorScheme.surfaceContainerLowest,
+                        shape = RuntimeTheme.shapes.medium,
                     ) {
                         Text(
                             logcatOutput,
                             modifier = Modifier.padding(12.dp),
-                            style = MaterialTheme.typography.bodySmall,
+                            style = RuntimeTheme.typography.bodySmall,
                             fontFamily = FontFamily.Monospace,
                         )
                     }
@@ -312,7 +308,7 @@ internal fun LocalDeveloperScreen(
                         value = manifestUrl,
                         onValueChange = { manifestUrl = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("清单 HTTPS 地址") },
+                        labelText = resolveLocalizedString("清单 HTTPS 地址"),
                         isError = manifestUrl.isNotBlank() && !manifestUrlValid,
                         supportingText = {
                             if (manifestUrl.isNotBlank() && !manifestUrlValid) Text("地址需以 https:// 开头")
@@ -323,7 +319,7 @@ internal fun LocalDeveloperScreen(
                         value = signatureUrl,
                         onValueChange = { signatureUrl = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("签名 HTTPS 地址") },
+                        labelText = resolveLocalizedString("签名 HTTPS 地址"),
                         isError = signatureUrl.isNotBlank() && !signatureUrlValid,
                         supportingText = {
                             if (signatureUrl.isNotBlank() && !signatureUrlValid) Text("地址需以 https:// 开头")
@@ -334,7 +330,7 @@ internal fun LocalDeveloperScreen(
                         value = publicKey,
                         onValueChange = { publicKey = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Ed25519 公钥（Base64）") },
+                        labelText = resolveLocalizedString("Ed25519 公钥（Base64）"),
                         isError = !publicKeyValid,
                         supportingText = {
                             if (!publicKeyValid) Text("公钥不能为空")
@@ -343,10 +339,10 @@ internal fun LocalDeveloperScreen(
                     )
                     Text(
                         "提示：能控制清单地址的人也能提供公钥，自填密钥只用于防传输损坏/校验内容一致性，不能提供端到端防篡改。如需真正的信任锚，请在 APK 内置固定公钥。",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RuntimeActionRow() {
                         Button(
                             onClick = { viewModel?.saveRegistryConfig(manifestUrl.trim(), signatureUrl.trim(), publicKey.trim()) },
                             enabled = manifestUrlValid && signatureUrlValid && publicKeyValid,
@@ -366,14 +362,13 @@ internal fun LocalDeveloperScreen(
                 ResourceHeader(RuntimeIconName.Cpu, "后台进程", "${processes.size} 个活动进程", { viewModel?.refreshProcesses() })
                 Spacer(Modifier.height(14.dp))
                 if (processes.isEmpty()) {
-                    Text("当前没有登记中的后台进程。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("当前没有登记中的后台进程。", style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 } else {
                     processes.forEachIndexed { index, process ->
-                        if (index > 0) HorizontalDivider(Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(process.toolId ?: process.id, style = MaterialTheme.typography.titleMedium)
-                                Text("${process.type} · PID ${process.pid ?: "未知"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(process.toolId ?: process.id, style = RuntimeTheme.typography.titleMedium)
+                                Text("${process.type} · PID ${process.pid ?: "未知"}", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                             }
                             TextButton(onClick = { viewModel?.stopProcess(process.id) }, enabled = !busy) { Text("停止") }
                         }
@@ -384,17 +379,16 @@ internal fun LocalDeveloperScreen(
             RuntimeCard(Modifier.fillMaxWidth()) {
                 ResourceHeader(RuntimeIconName.Package, "可清理 Runtime", "引用计数为 0", { viewModel?.refreshUnusedRuntimes() })
                 Spacer(Modifier.height(8.dp))
-                Text("这里只列出未被任何工具引用的共享依赖，清理会在 Linux 沙箱内执行包管理清理。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("这里只列出未被任何工具引用的共享依赖，清理会在 Linux 沙箱内执行包管理清理。", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
                 if (unusedRuntimes.isEmpty()) {
-                    Text("当前没有可安全清理的共享 Runtime。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("当前没有可安全清理的共享 Runtime。", color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 } else {
                     unusedRuntimes.forEachIndexed { index, runtime ->
-                        if (index > 0) HorizontalDivider(Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(runtime.name.name, style = MaterialTheme.typography.titleMedium)
-                                Text(runtime.version ?: "版本未知", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(runtime.name.name, style = RuntimeTheme.typography.titleMedium)
+                                Text(runtime.version ?: "版本未知", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                             }
                             TextButton(onClick = { cleanupTarget = runtime }, enabled = !busy) { Text("清理") }
                         }
@@ -425,8 +419,8 @@ internal fun LocalDeveloperScreen(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     IconTile(RuntimeIconName.Terminal)
                     Column(Modifier.weight(1f)) {
-                        Text("Shell Runner", style = MaterialTheme.typography.titleMedium)
-                        Text("适合快速诊断，不会创建持久终端会话", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Shell Runner", style = RuntimeTheme.typography.titleMedium)
+                        Text("适合快速诊断，不会创建持久终端会话", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 Spacer(Modifier.height(14.dp))
@@ -434,9 +428,9 @@ internal fun LocalDeveloperScreen(
                     value = commandInput,
                     onValueChange = { arg0 -> viewModel?.onCommandInputChanged(arg0) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Shell 命令") },
+                    labelText = resolveLocalizedString("Shell 命令"),
                     singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                    textStyle = RuntimeTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                 )
                 Spacer(Modifier.height(10.dp))
                 Button(onClick = { viewModel?.runCommand() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
@@ -445,14 +439,13 @@ internal fun LocalDeveloperScreen(
                 commandResult?.let { result ->
                     Spacer(Modifier.height(14.dp))
                     Column(
-                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Color(0xFF080D16)).padding(14.dp),
+                        Modifier.fillMaxWidth().clip(RuntimeTheme.shapes.medium).background(Color(0xFF080D16)).padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text("exit ${result.exitCode}  •  ${result.durationMs} ms", style = MaterialTheme.typography.labelMedium, color = if (result.exitCode == 0) Color(0xFF83EDC9) else Color(0xFFFFA2AE))
-                        Text(result.stdout.ifBlank { "(no stdout)" }, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color(0xFFD9E2F1))
+                        Text("exit ${result.exitCode}  •  ${result.durationMs} ms", style = RuntimeTheme.typography.labelMedium, color = if (result.exitCode == 0) Color(0xFF83EDC9) else Color(0xFFFFA2AE))
+                        Text(result.stdout.ifBlank { "(no stdout)" }, style = RuntimeTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color(0xFFD9E2F1))
                         if (result.stderr.isNotBlank()) {
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.10f))
-                            Text(result.stderr, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color(0xFFFFA2AE))
+                            Text(result.stderr, style = RuntimeTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color(0xFFFFA2AE))
                         }
                     }
                 }
@@ -466,7 +459,7 @@ internal fun LocalDeveloperScreen(
             onDismissRequest = { cleanupTarget = null },
             title = { Text("清理 ${runtime.name.name}？") },
             text = { Text("将移除未被工具引用的共享 Runtime，此操作无法自动恢复。") },
-            confirmButton = { TextButton(onClick = { cleanupTarget = null; viewModel?.cleanupRuntime(runtime.id) }) { Text("确认清理", color = MaterialTheme.colorScheme.error) } },
+            confirmButton = { TextButton(onClick = { cleanupTarget = null; viewModel?.cleanupRuntime(runtime.id) }) { Text("确认清理") } },
             dismissButton = { TextButton(onClick = { cleanupTarget = null }) { Text("取消") } },
         )
     }
@@ -483,8 +476,8 @@ internal fun LocalDeveloperScreen(
             title = { Text("重置当前沙箱？") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("• 将清除自行安装的软件包与系统修改", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("• 不会删除 /workspace 中的项目代码", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("• 将清除自行安装的软件包与系统修改", style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                    Text("• 不会删除 /workspace 中的项目代码", style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.primary)
                 }
             },
             confirmButton = {
@@ -494,7 +487,7 @@ internal fun LocalDeveloperScreen(
                 ) {
                     Text(
                         if (countdown > 0) "确认重置 (${countdown}s)" else "确认重置",
-                        color = if (countdown == 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.error.copy(alpha = 0.4f),
+                        color = if (countdown == 0) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.error.copy(alpha = 0.4f),
                     )
                 }
             },
@@ -518,7 +511,7 @@ internal fun LocalDeveloperScreen(
                 Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
                     Text(
                         agentLogText.ifBlank { "暂无日志" },
-                        style = MaterialTheme.typography.bodySmall,
+                        style = RuntimeTheme.typography.bodySmall,
                         fontFamily = FontFamily.Monospace,
                     )
                 }
@@ -551,21 +544,21 @@ private fun RuntimeControlCard(
     onReset: () -> Unit,
 ) {
     val color = when (state) {
-        RuntimeState.Ready -> MaterialTheme.colorScheme.secondary
-        is RuntimeState.Error -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.primary
+        RuntimeState.Ready -> RuntimeTheme.colorScheme.secondary
+        is RuntimeState.Error -> RuntimeTheme.colorScheme.error
+        else -> RuntimeTheme.colorScheme.primary
     }
     RuntimeCard(Modifier.fillMaxWidth(), containerColor = color.copy(alpha = 0.08f)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             IconTile(RuntimeIconName.Terminal, color = color)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Linux Runtime", style = MaterialTheme.typography.titleLarge)
-                Text("RootFS ${rootfsVersion ?: "未安装"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Linux Runtime", style = RuntimeTheme.typography.titleLarge)
+                Text("RootFS ${rootfsVersion ?: "未安装"}", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 rootfsUpdate?.let { info ->
                     Text(
                         if (info.hasUpdate) "检测到可用更新" else "已是最新",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (info.hasUpdate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = if (info.hasUpdate) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -577,10 +570,10 @@ private fun RuntimeControlCard(
             LinearProgressIndicator(progress = { initializing.progress }, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(displayStep(initializing.step), style = MaterialTheme.typography.bodySmall)
-                Text("${(initializing.progress * 100).toInt()}%", style = MaterialTheme.typography.labelLarge)
+                Text(displayStep(initializing.step), style = RuntimeTheme.typography.bodySmall)
+                Text("${(initializing.progress * 100).toInt()}%", style = RuntimeTheme.typography.labelLarge)
             }
-            initializing.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            initializing.detail?.let { Text(it, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant) }
             Spacer(Modifier.height(10.dp))
             OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text("取消下载") }
         } else {
@@ -588,30 +581,27 @@ private fun RuntimeControlCard(
             Button(onClick = onInitialize, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                 Text(if (state is RuntimeState.Error) "重试初始化" else if (state is RuntimeState.Ready) "重新检查初始化" else "下载并初始化")
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
                     onClick = onHealthCheck,
                     enabled = !busy,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                    modifier = Modifier,
                 ) {
-                    Text("健康检查", style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                    Text("健康检查", maxLines = 1)
                 }
                 OutlinedButton(
                     onClick = onCheckUpdate,
                     enabled = !busy && state is RuntimeState.Ready,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                    modifier = Modifier,
                 ) {
-                    Text("检查更新", style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                    Text("检查更新", maxLines = 1)
                 }
                 OutlinedButton(
                     onClick = onUpdate,
                     enabled = !busy && state is RuntimeState.Ready,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                    modifier = Modifier,
                 ) {
-                    Text("更新RootFS", style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                    Text("更新RootFS", maxLines = 1)
                 }
             }
             Spacer(Modifier.height(9.dp))
@@ -619,7 +609,7 @@ private fun RuntimeControlCard(
                 onClick = onReset,
                 enabled = !busy && state !is RuntimeState.Initializing,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("恢复 Linux 初始状态", color = MaterialTheme.colorScheme.error) }
+            ) { Text("恢复 Linux 初始状态", color = RuntimeTheme.colorScheme.error) }
         }
         (state as? RuntimeState.Error)?.let {
             Spacer(Modifier.height(12.dp))
@@ -637,8 +627,8 @@ private fun ResourceHeader(icon: RuntimeIconName, title: String, detail: String,
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         IconTile(icon)
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(title, style = RuntimeTheme.typography.titleMedium)
+            Text(detail, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
         }
         TextButton(onClick = onRefresh) { Text("刷新") }
     }

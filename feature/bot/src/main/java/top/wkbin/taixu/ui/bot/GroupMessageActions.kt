@@ -2,7 +2,7 @@ package top.wkbin.taixu.ui.bot
 
 import android.content.ClipData
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
@@ -22,7 +22,7 @@ internal fun GroupMessageActions(message: GroupMessage) {
         RuntimeIconButton(onClick = { scope.launch {
             clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("taixu-group-message", message.content)))
         } }, modifier = Modifier.size(32.dp), contentDescription = stringResource(R.string.fbot_copy)) {
-            RuntimeIcon(RuntimeIconName.Copy, Modifier.size(16.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+            RuntimeIcon(RuntimeIconName.Copy, Modifier.size(16.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

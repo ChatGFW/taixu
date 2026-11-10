@@ -1,22 +1,24 @@
 package top.wkbin.taixu.ui.settings
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Surface
+import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -25,9 +27,11 @@ import top.wkbin.taixu.core.model.McpAuthMode
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.RuntimeFilterChip
+import top.wkbin.taixu.ui.components.RuntimeSelectionSheet
 
 /**
  * 新增 / 编辑自定义 MCP 服务。
@@ -83,12 +87,11 @@ internal fun McpServerEditorDialog(
         (transport != McpTransportType.SSE || serverUrl.isNotBlank()) &&
         (!oauthEnabled || (oauthClientId.isNotBlank() && oauthAuthorizationEndpoint.isNotBlank() && oauthTokenEndpoint.isNotBlank()))
 
-    top.wkbin.taixu.ui.components.RuntimeSelectionSheet(
+    RuntimeSelectionSheet(
         title = if (editing) "编辑 MCP 服务" else "添加 MCP 服务",
         onDismissRequest = onDismiss,
         actions = {
-            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
                 TextButton(onClick = onDismiss) { Text("取消") }
             if (editing || selectedTab == 0) {
                 Button(
@@ -136,18 +139,18 @@ internal fun McpServerEditorDialog(
         },
     ) {
         if (!editing) androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            top.wkbin.taixu.ui.components.RuntimeFilterChip(selectedTab == 0, { selectedTab = 0 },
-                label = { Text("表单模式") }, shape = MaterialTheme.shapes.small)
-            top.wkbin.taixu.ui.components.RuntimeFilterChip(selectedTab == 1, { selectedTab = 1 },
-                label = { Text("JSON 导入") }, shape = MaterialTheme.shapes.small)
+            RuntimeFilterChip(selectedTab == 0, { selectedTab = 0 },
+                label = { Text("表单模式") }, shape = RuntimeTheme.shapes.small)
+            RuntimeFilterChip(selectedTab == 1, { selectedTab = 1 },
+                label = { Text("JSON 导入") }, shape = RuntimeTheme.shapes.small)
         }
         Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap)) {
             if (editing || selectedTab == 0) {
                     RuntimeFilledTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("服务名称") },
+                        labelText = resolveLegacyString("服务名称"),
                         placeholder = { Text("如: sqlite / github / fetch") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -155,32 +158,32 @@ internal fun McpServerEditorDialog(
                     RuntimeFilledTextField(
                         value = description,
                         onValueChange = { description = it },
-                        label = { Text("描述（可选）") },
+                        labelText = resolveLegacyString("描述（可选）"),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                Text("传输协议", style = MaterialTheme.typography.titleSmall)
+                Text("传输协议", style = RuntimeTheme.typography.titleSmall)
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    top.wkbin.taixu.ui.components.RuntimeFilterChip(transport == McpTransportType.STDIO,
-                        { transport = McpTransportType.STDIO }, label = { Text("Stdio") }, shape = MaterialTheme.shapes.small)
-                    top.wkbin.taixu.ui.components.RuntimeFilterChip(transport == McpTransportType.SSE,
-                        { transport = McpTransportType.SSE }, label = { Text("SSE / HTTP") }, shape = MaterialTheme.shapes.small)
+                    RuntimeFilterChip(transport == McpTransportType.STDIO,
+                        { transport = McpTransportType.STDIO }, label = { Text("Stdio") }, shape = RuntimeTheme.shapes.small)
+                    RuntimeFilterChip(transport == McpTransportType.SSE,
+                        { transport = McpTransportType.SSE }, label = { Text("SSE / HTTP") }, shape = RuntimeTheme.shapes.small)
                 }
                 Text(if (transport == McpTransportType.STDIO) "在沙箱中启动服务进程" else "连接远程 HTTP / SSE 服务",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                     if (transport == McpTransportType.STDIO) {
                         RuntimeFilledTextField(
                             value = command,
                             onValueChange = { command = it },
-                            label = { Text("执行命令（如 npx / uvx / python3）") },
+                            labelText = resolveLegacyString("执行命令（如 npx / uvx / python3）"),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         RuntimeFilledTextField(
                             value = argsStr,
                             onValueChange = { argsStr = it },
-                            label = { Text("参数（空格分隔）") },
+                            labelText = resolveLegacyString("参数（空格分隔）"),
                             placeholder = { Text("-y @modelcontextprotocol/server-sqlite") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -189,69 +192,68 @@ internal fun McpServerEditorDialog(
                         RuntimeFilledTextField(
                             value = serverUrl,
                             onValueChange = { serverUrl = it },
-                            label = { Text("HTTP / SSE 端点 URL") },
+                            labelText = resolveLegacyString("HTTP / SSE 端点 URL"),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         initial?.headersReadError?.let {
-                            Text(it, color = MaterialTheme.colorScheme.error)
+                            Text(it, color = RuntimeTheme.colorScheme.error)
                         }
                         McpHeadersEditor(headersJson, { headersJson = it },
                             if (headerConflict) "自定义 Authorization 与 OAuth 不能同时启用" else parsedHeaders.exceptionOrNull()?.message)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text("OAuth 2.0 + PKCE", style = MaterialTheme.typography.labelMedium)
-                                Text("授权码模式；token 加密保存且不会导出", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Switch(checked = oauthEnabled, onCheckedChange = { oauthEnabled = it })
-                        }
+                        top.wkbin.taixu.ui.components.RuntimeSwitchPreference(
+                            title = resolveLegacyString("OAuth 2.0 + PKCE"), summary = resolveLegacyString("授权码模式；token 加密保存且不会导出"),
+                            checked = oauthEnabled, onCheckedChange = { oauthEnabled = it },
+                            insideMargin = PaddingValues(horizontal = 0.dp, vertical = 16.dp),
+                        )
                         if (oauthEnabled) {
-                            RuntimeFilledTextField(oauthClientId, { oauthClientId = it }, label = { Text("OAuth client ID") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                            RuntimeFilledTextField(oauthAuthorizationEndpoint, { oauthAuthorizationEndpoint = it }, label = { Text("Authorization endpoint") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                            RuntimeFilledTextField(oauthTokenEndpoint, { oauthTokenEndpoint = it }, label = { Text("Token endpoint") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                            RuntimeFilledTextField(oauthScope, { oauthScope = it }, label = { Text("Scope（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                            RuntimeFilledTextField(oauthResource, { oauthResource = it }, label = { Text("Resource（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                            RuntimeFilledTextField(oauthClientId, { oauthClientId = it },
+ labelText = resolveLegacyString("OAuth client ID"), singleLine = true, modifier = Modifier.fillMaxWidth())
+                            RuntimeFilledTextField(oauthAuthorizationEndpoint, { oauthAuthorizationEndpoint = it },
+ labelText = resolveLegacyString("Authorization endpoint"), singleLine = true, modifier = Modifier.fillMaxWidth())
+                            RuntimeFilledTextField(oauthTokenEndpoint, { oauthTokenEndpoint = it },
+ labelText = resolveLegacyString("Token endpoint"), singleLine = true, modifier = Modifier.fillMaxWidth())
+                            RuntimeFilledTextField(oauthScope, { oauthScope = it },
+ labelText = resolveLegacyString("Scope（可选）"), singleLine = true, modifier = Modifier.fillMaxWidth())
+                            RuntimeFilledTextField(oauthResource, { oauthResource = it },
+ labelText = resolveLegacyString("Resource（可选）"), singleLine = true, modifier = Modifier.fillMaxWidth())
                         }
                     }
 
                     if (editing && initial.env.isNotEmpty()) {
                         Text(
                             "环境变量（${initial.env.size} 项）与导入来源保持不变",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodyMedium,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
             } else {
                     Text(
                         "直接粘贴 Claude Desktop / Cursor 标准配置：",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     RuntimeFilledTextField(
                         value = jsonText,
                         onValueChange = { jsonText = it },
-                        label = { Text("MCP JSON 配置") },
+                        labelText = resolveLegacyString("MCP JSON 配置"),
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 160.dp, max = 280.dp),
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                        textStyle = RuntimeTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                     )
 
                     if (parsedServers.isSuccess) {
                         val list = parsedServers.getOrThrow()
                         Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                            shape = MaterialTheme.shapes.small,
+                            color = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                            shape = RuntimeTheme.shapes.small,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
                                 "已解析 ${list.size} 个服务: " + list.joinToString(", ") { it.name },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.primary,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             )
                         }
@@ -259,8 +261,8 @@ internal fun McpServerEditorDialog(
                         val errMsg = parsedServers.exceptionOrNull()?.message ?: "JSON 语法解析错误"
                         Text(
                             errMsg,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error,
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.error,
                         )
                     }
             }

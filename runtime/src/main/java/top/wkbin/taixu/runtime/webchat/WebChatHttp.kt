@@ -13,7 +13,10 @@ import kotlinx.serialization.json.put
  * WebChat HTTP 层共享工具：桥接主服务器、终端桥与各路由文件共用的响应/解析函数。
  * 全部为纯函数（只依赖入参），internal 限定在 runtime 模块内。
  */
-internal fun errorJson(message: String) = buildJsonObject { put("error", message) }
+internal fun errorJson(message: String, code: String? = null) = buildJsonObject {
+    put("error", message)
+    if (!code.isNullOrBlank()) put("code", code)
+}
 
 internal fun sendJson(exchange: AndroidHttpExchange, code: Int, payload: JsonElement) =
     sendResponse(exchange, code, "application/json; charset=utf-8", payload.toString().toByteArray())

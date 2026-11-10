@@ -10,6 +10,7 @@ android {
 dependencies {
     implementation(project(":harness"))
     implementation(project(":core:database"))
+    implementation(project(":runtime"))
     implementation(project(":feature:theme"))
     implementation(libs.androidx.activity.compose)
 

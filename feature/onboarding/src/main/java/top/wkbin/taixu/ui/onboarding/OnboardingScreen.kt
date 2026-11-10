@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.onboarding
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -18,15 +21,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -71,7 +72,7 @@ fun OnboardingScreen(
     BackHandler(enabled = stage == 4) { viewModel?.setPage(1) }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = RuntimeTheme.colorScheme.surface,
         topBar = {
             Row(
                 Modifier.fillMaxWidth().padding(WindowInsets.statusBars.asPaddingValues())
@@ -94,14 +95,14 @@ fun OnboardingScreen(
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
                     repeat(5) { index ->
                         Surface(
-                            shape = MaterialTheme.shapes.extraLarge,
-                            color = if (index == stage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                            shape = RuntimeTheme.shapes.extraLarge,
+                            color = if (index == stage) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.size(width = if (index == stage) 32.dp else 8.dp, height = 8.dp),
                         ) {}
                     }
                 }
-                Text(stringResource(R.string.onboarding_step, stage + 1), style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp))
+                Text(stringResource(R.string.onboarding_step, stage + 1), style = RuntimeTheme.typography.labelMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp))
             }
         },
         bottomBar = {

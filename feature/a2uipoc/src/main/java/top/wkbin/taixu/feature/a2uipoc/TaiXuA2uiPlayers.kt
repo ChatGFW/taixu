@@ -1,5 +1,8 @@
 package top.wkbin.taixu.feature.a2uipoc
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.a2ui.compose.runtime.A2uiComponentScope
 import androidx.a2ui.compose.ui.catalog.A2uiBasicCatalogV1
 import androidx.a2ui.compose.ui.catalog.A2uiBasicCatalogV1.AccessibilityAttributes
@@ -10,18 +13,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.IconButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Slider
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -89,7 +90,7 @@ internal class TaiXuVideoComponent : A2uiBasicCatalogV1.Video {
             if (!firstFrameRendered) {
                 TaiXuA2uiSkeleton(
                     Modifier.matchParentSize(),
-                    shape = MaterialTheme.shapes.small,
+                    shape = RuntimeTheme.shapes.small,
                 )
             }
         }
@@ -137,8 +138,8 @@ internal class TaiXuAudioPlayerComponent : A2uiBasicCatalogV1.AudioPlayer {
         val playLabel = stringResource(if (playing) R.string.fa2ui_pause else R.string.fa2ui_play)
         val title = description ?: accessibility?.label ?: allowed
         Surface(
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RuntimeTheme.shapes.medium,
+            color = RuntimeTheme.colorScheme.surfaceContainerHigh,
             modifier = modifier.fillMaxWidth(),
         ) {
             Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
@@ -159,15 +160,15 @@ internal class TaiXuAudioPlayerComponent : A2uiBasicCatalogV1.AudioPlayer {
                     }
                     Text(
                         title,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = RuntimeTheme.typography.bodyMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
                     Text(
                         "${formatClock(position)} / ${formatClock(duration)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                     )
                 }

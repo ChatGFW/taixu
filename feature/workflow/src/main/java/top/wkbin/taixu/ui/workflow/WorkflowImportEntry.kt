@@ -5,35 +5,36 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
 import top.wkbin.taixu.core.model.workflow.WorkflowDefinitionImport
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun WorkflowCatalogEntry(onCreate: () -> Unit, onImport: (WorkflowDefinition) -> Unit) {
     var importing by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("把构建、诊断、逆向与 Git 操作编排成可观察、可暂停的 DAG。",
-            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RuntimeButton(onClick = onCreate, modifier = Modifier.weight(1f)) { Text("新建", maxLines = 1) }
-            RuntimeOutlinedButton(onClick = { importing = true }, modifier = Modifier.weight(1f)) { Text("导入 JSON", maxLines = 1) }
+            style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+        RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+            RuntimeButton(onClick = onCreate, modifier = Modifier) { Text("新建", maxLines = 1) }
+            RuntimeOutlinedButton(onClick = { importing = true }, modifier = Modifier) { Text("导入 JSON", maxLines = 1) }
         }
     }
     if (importing) WorkflowImportDialog(onDismiss = { importing = false }, onImport = { definition ->
@@ -98,13 +99,14 @@ private fun WorkflowImportDialog(onDismiss: () -> Unit, onImport: (WorkflowDefin
                 catch (_: Exception) { reading = false; fileError = "无法打开系统文件选择窗口" }
             }) { Text(if (reading) "正在读取…" else "选择 JSON 文件", maxLines = 1) }
             RuntimeFilledTextField(value = raw, onValueChange = { if (!reading) { raw = it; preview = null; error = null; fileError = null; checking = it.isNotBlank() } },
-                enabled = !reading, label = { Text("工作流 JSON") }, minLines = 4, maxLines = 8, isError = error != null || fileError != null,
+                enabled = !reading,
+ labelText = "工作流 JSON", minLines = 4, maxLines = 8, isError = error != null || fileError != null,
                 modifier = Modifier.fillMaxWidth())
-            if (checking) Text("正在校验…", style = MaterialTheme.typography.bodySmall)
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-            fileError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            if (checking) Text("正在校验…", style = RuntimeTheme.typography.bodySmall)
+            error?.let { Text(it, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall) }
+            fileError?.let { Text(it, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall) }
             preview?.let { Text("${it.name}\n${it.nodes.size} 个节点 · ${it.edges.size} 条连接 · 最大执行并发 ${it.maxParallelNodes}",
-                style = MaterialTheme.typography.bodyMedium) }
+                style = RuntimeTheme.typography.bodyMedium) }
         }
     }, dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text("取消", maxLines = 1) } },
         confirmButton = { RuntimeButton(enabled = preview != null && !checking && !reading && fileError == null,

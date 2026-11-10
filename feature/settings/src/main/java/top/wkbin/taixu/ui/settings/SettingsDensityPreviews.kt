@@ -25,7 +25,7 @@ private fun SettingsDensityPreview() {
             PersonalizationSection("模型档案与提供商") {
                 PreferenceSurface(last = false) {
                     SettingsRow(RuntimeIconName.Model, "模型档案管理",
-                        stringResource(R.string.settings_nav_models_summary), value = "未配置", onClick = {})
+                        stringResource(R.string.settings_nav_models_summary), onClick = {})
                 }
                 PreferenceSurface(first = false, last = false) {
                     SettingsRow(RuntimeIconName.Cpu, "本地 LLM",
@@ -33,7 +33,7 @@ private fun SettingsDensityPreview() {
                 }
                 PreferenceSurface(first = false, last = false) {
                     SettingsRow(RuntimeIconName.Chat, "快捷短语与常用指令",
-                        stringResource(R.string.settings_nav_phrases_summary), value = "14 条已启用", onClick = {})
+                        stringResource(R.string.settings_nav_phrases_summary), onClick = {})
                 }
                 PreferenceSurface(first = false) {
                     SettingsRow(RuntimeIconName.Speed, "数据统计与用量分析",
@@ -44,22 +44,17 @@ private fun SettingsDensityPreview() {
             PersonalizationSection("首页导航入口 · 色调图标") {
                 PreferenceSurface(last = false) {
                     SettingsRow(RuntimeIconName.Brain, "智能体与生态",
-                        stringResource(R.string.settings_nav_agents_summary), value = "3 个模型 · 5 技能",
+                        stringResource(R.string.settings_nav_agents_summary),
                         onClick = {}, tonalIcon = true)
                 }
                 PreferenceSurface(first = false, last = false) {
                     SettingsRow(RuntimeIconName.Server, "Linux 环境",
-                        stringResource(R.string.settings_nav_linux_summary), value = "2 套系统 · PRoot",
-                        onClick = {}, tonalIcon = true)
-                }
-                PreferenceSurface(first = false, last = false) {
-                    SettingsRow(RuntimeIconName.Sparkles, "特色功能",
-                        stringResource(R.string.settings_nav_features_summary), value = "5 项功能",
+                        stringResource(R.string.settings_nav_linux_summary),
                         onClick = {}, tonalIcon = true)
                 }
                 PreferenceSurface(first = false) {
                     SettingsRow(RuntimeIconName.Admin, "诊断与系统",
-                        stringResource(R.string.settings_nav_diagnostics_summary), value = "运行平稳",
+                        stringResource(R.string.settings_nav_diagnostics_summary),
                         onClick = {}, tonalIcon = true)
                 }
             }

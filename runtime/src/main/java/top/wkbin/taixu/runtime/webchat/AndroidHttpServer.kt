@@ -33,12 +33,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class AndroidHttpServer private constructor(
     private val address: InetSocketAddress,
     private val backlog: Int,
+    private val maxBodyBytes: Int,
 ) {
     private val contexts = ConcurrentHashMap<String, AndroidHttpHandler>()
 
     /** 已 accept 且尚未关闭的连接，用于 [stop] 时回收 SSE 这类长连接。 */
     private val activeSockets = ConcurrentHashMap.newKeySet<Socket>()
     private var serverSocket: ServerSocket? = null
+    private var acceptThread: Thread? = null
 
     @Volatile
     private var running = false
@@ -72,22 +74,37 @@ internal class AndroidHttpServer private constructor(
         }
         serverSocket = socket
         running = true
-        Thread({ acceptConnections(socket) }, "taixu-webchat-accept").apply {
+        val thread = Thread({ acceptConnections(socket) }, "taixu-webchat-accept").apply {
             isDaemon = true
             start()
         }
+        acceptThread = thread
     }
 
-    @Synchronized
     fun stop(delaySeconds: Int) {
-        running = false
-        runCatching { serverSocket?.close() }
-        serverSocket = null
-        // 已 accept 的连接不会随监听 socket 一起关闭：SSE 流可以挂住工作线程与 fd。
-        activeSockets.forEach { runCatching { it.close() } }
-        activeSockets.clear()
-        ownedExecutor?.shutdownNow()
-        ownedExecutor = null
+        val thread = synchronized(this) {
+            running = false
+            runCatching { serverSocket?.close() }
+            serverSocket = null
+            // 已 accept 的连接不会随监听 socket 一起关闭：SSE 流可以挂住工作线程与 fd。
+            activeSockets.forEach { runCatching { it.close() } }
+            activeSockets.clear()
+            ownedExecutor?.shutdownNow()
+            ownedExecutor = null
+            acceptThread.also { acceptThread = null }
+        }
+        // 必须等 accept 线程真正退出：关闭监听 socket 只是让 accept() 抛异常，收尾发生在另一个线程。
+        // 不等就返回的话，调用方紧接着 start() 会在旧 socket 仍占用端口时 bind 同一地址，
+        // 抛 BindException —— reuseAddress 挡不住仍在监听的 socket。
+        // join 放在锁外：accept 线程收尾时会调用 currentExecutor()，那里要拿同一把锁；
+        // 在锁内 join 会一直等到超时也等不到线程退出（实测 300 轮中 87 次等满 1000ms 且线程仍存活）。
+        if (thread != null && thread !== Thread.currentThread()) {
+            try {
+                thread.join(ACCEPT_THREAD_JOIN_MILLIS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
         if (delaySeconds > 0) {
             // The WebChat caller always requests an immediate stop. The argument
             // is kept to mirror the old API and make that intent explicit.
@@ -114,6 +131,8 @@ internal class AndroidHttpServer private constructor(
         .apply { allowCoreThreadTimeOut(true) }
 
     private fun acceptConnections(socket: ServerSocket) {
+        // Throwable 也要兜住：未捕获的 Error 会让 accept 线程静默死亡，
+        // 监听 socket 仍在、isRunning 仍为 true，但 Recv-Q 持续堆积，局域网表现为「能连上却无 HTTP 响应」。
         while (running) {
             try {
                 val client = socket.accept()
@@ -129,9 +148,8 @@ internal class AndroidHttpServer private constructor(
                     runCatching { client.close() }
                 }
             } catch (_: SocketException) {
-                if (running) continue
-                break
-            } catch (_: Exception) {
+                if (!running) break
+            } catch (_: Throwable) {
                 if (!running) break
             }
         }
@@ -168,7 +186,7 @@ internal class AndroidHttpServer private constructor(
             }
 
             val contentLength = headers.getFirst("Content-Length")?.toIntOrNull() ?: 0
-            if (contentLength !in 0..MAX_BODY_BYTES) {
+            if (contentLength !in 0..maxBodyBytes) {
                 writeSimpleError(socket, 413, "Payload Too Large")
                 return
             }
@@ -245,6 +263,9 @@ internal class AndroidHttpServer private constructor(
 
     companion object {
         private const val DEFAULT_BACKLOG = 16
+
+        /** [stop] 等待 accept 线程退出的上限，避免异常情况下无限阻塞调用方。 */
+        private const val ACCEPT_THREAD_JOIN_MILLIS = 1_000L
         private const val READ_TIMEOUT_MS = 15_000
         private const val MAX_LINE_BYTES = 8 * 1024
         private const val MAX_HEADER_BYTES = 32 * 1024
@@ -255,8 +276,11 @@ internal class AndroidHttpServer private constructor(
         private const val MAX_WORKER_THREADS = 8
         private const val WORKER_KEEP_ALIVE_SECONDS = 30L
 
-        fun create(address: InetSocketAddress, backlog: Int): AndroidHttpServer =
-            AndroidHttpServer(address, backlog)
+        fun create(
+            address: InetSocketAddress,
+            backlog: Int,
+            maxBodyBytes: Int = MAX_BODY_BYTES,
+        ): AndroidHttpServer = AndroidHttpServer(address, backlog, maxBodyBytes)
     }
 }
 
@@ -298,6 +322,8 @@ internal class AndroidHttpExchange(
     val responseHeaders = AndroidHttpHeaders()
     private val output = BufferedOutputStream(socket.getOutputStream())
     val responseBody: OutputStream = output
+    val remoteAddress: InetSocketAddress?
+        get() = socket.remoteSocketAddress as? InetSocketAddress
 
     @Volatile
     private var responseStarted = false

@@ -16,6 +16,7 @@ val featureWorkflowModule = module {
             aiModelRepository = get(),
             pathManager = get(),
             json = get(),
+            logger = get(),
         )
     }
 }

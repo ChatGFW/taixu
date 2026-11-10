@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -12,15 +15,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,7 +85,7 @@ internal fun GroupCoworkingDeskBar(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
             .testTag("group-coworking-desk-bar"),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(Modifier.fillMaxWidth().padding(8.dp)) {
             // Header summary strip
@@ -98,19 +99,19 @@ internal fun GroupCoworkingDeskBar(
                 RuntimeIcon(
                     name = RuntimeIconName.Sessions,
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = stringResource(R.string.fbot_desk_title),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Medium,
                 )
                 Text(
                     text = " · " + stringResource(R.string.fbot_desk_members_count, members.size) +
                         if (busyCount > 0) stringResource(R.string.fbot_desk_busy_count, busyCount) else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (busyCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = if (busyCount > 0) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -141,7 +142,7 @@ internal fun GroupCoworkingDeskBar(
                         val botState = states[bot.id] ?: BotAvatarState.IDLE
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RuntimeTheme.shapes.chip)
                                 .clickable { onSelectBot(bot) }
                                 .padding(2.dp),
                         ) {
@@ -193,12 +194,12 @@ private fun DeskStationCard(
 ) {
     val statusColor = when (state) {
         BotAvatarState.THINKING -> Color(0xFFFFB74D)
-        BotAvatarState.EXECUTING -> MaterialTheme.colorScheme.primary
-        BotAvatarState.ACTIVE -> MaterialTheme.colorScheme.primary
-        BotAvatarState.BLOCKED -> MaterialTheme.colorScheme.error
+        BotAvatarState.EXECUTING -> RuntimeTheme.colorScheme.primary
+        BotAvatarState.ACTIVE -> RuntimeTheme.colorScheme.primary
+        BotAvatarState.BLOCKED -> RuntimeTheme.colorScheme.error
         BotAvatarState.SUCCESS -> Color(0xFF4CAF50)
-        BotAvatarState.FAILED -> MaterialTheme.colorScheme.error
-        BotAvatarState.IDLE -> MaterialTheme.colorScheme.outline
+        BotAvatarState.FAILED -> RuntimeTheme.colorScheme.error
+        BotAvatarState.IDLE -> RuntimeTheme.colorScheme.outline
     }
 
     val statusText = when (state) {
@@ -213,8 +214,8 @@ private fun DeskStationCard(
 
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RuntimeTheme.shapes.small,
+        color = RuntimeTheme.colorScheme.surfaceContainer,
         modifier = Modifier
             .width(88.dp)
             .testTag("desk-station-${bot.id}"),
@@ -233,14 +234,14 @@ private fun DeskStationCard(
                 if (bot.isMainBot) {
                     Text(
                         text = "👑",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = RuntimeTheme.typography.labelSmall,
                         modifier = Modifier.padding(end = 2.dp),
                     )
                 }
                 Text(
                     text = bot.name,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
@@ -270,7 +271,7 @@ private fun DeskStationCard(
             // Status Badge
             Surface(
                 color = statusColor.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(6.dp),
+                shape = RuntimeTheme.shapes.extraSmall,
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
@@ -284,7 +285,7 @@ private fun DeskStationCard(
                     )
                     Text(
                         text = statusText,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = RuntimeTheme.typography.labelSmall,
                         color = statusColor,
                         maxLines = 1,
                     )

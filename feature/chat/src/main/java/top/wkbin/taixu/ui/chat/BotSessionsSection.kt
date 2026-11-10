@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,15 +13,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -111,7 +112,7 @@ internal fun BotSessionsSection(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MaterialTheme.shapes.small)
+                            .clip(RuntimeTheme.shapes.small)
                             .clickable {
                                 expandedBuckets = if (bucket.key in expandedBuckets) {
                                     expandedBuckets - bucket.key
@@ -126,11 +127,11 @@ internal fun BotSessionsSection(
                         RuntimeIcon(
                             RuntimeIconName.Chat,
                             Modifier.size(18.dp),
-                            MaterialTheme.colorScheme.primary,
+                            RuntimeTheme.colorScheme.primary,
                         )
                         Text(
                             text = bucket.name ?: stringResource(R.string.chat_drawer_bot_sessions_other),
-                            style = MaterialTheme.typography.titleSmall,
+                            style = RuntimeTheme.typography.titleSmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
@@ -140,13 +141,13 @@ internal fun BotSessionsSection(
                         }
                         Text(
                             text = "${bucket.sessions.size}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline,
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.outline,
                         )
                         RuntimeIcon(
                             name = if (bucketExpanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
                             modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     if (bucketExpanded) {

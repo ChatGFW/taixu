@@ -8,6 +8,7 @@ import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.repository.BotScheduleRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotSchedule
 import top.wkbin.taixu.harness.bot.schedule.BotScheduleWakeup
 import top.wkbin.taixu.harness.bot.schedule.CronSchedule
@@ -148,10 +149,10 @@ private fun formatTime(epochMillis: Long): String =
 
 private suspend fun findSchedule(
     rawId: String,
-    caller: top.wkbin.taixu.core.model.bot.Bot,
+    caller: Bot,
     botRepository: PersonaBotRepository,
     scheduleRepository: BotScheduleRepository,
-): top.wkbin.taixu.core.model.bot.BotSchedule? {
+): BotSchedule? {
     scheduleRepository.getSchedule(rawId)?.let { return it }
     if (rawId.length < 8) return null
     val scope = if (caller.isMainBot) botRepository.listBots() else listOf(caller)

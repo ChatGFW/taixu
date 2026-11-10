@@ -17,10 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -34,15 +34,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.SyntaxHighlighter
 import top.wkbin.taixu.core.markdown.*
 
 @Composable
 internal fun CodeBlock(block: MdCodeBlock) {
     val context = LocalContext.current
-    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val isDark = RuntimeTheme.colorScheme.surface.luminance() < 0.5f
 
     val copyCode = {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -77,7 +74,7 @@ internal fun CodeBlock(block: MdCodeBlock) {
             ) {
                 Text(
                     text = if (block.language.isNotBlank()) block.language.uppercase() else stringResource(R.string.components_md_code_badge),
-                    style = MaterialTheme.typography.labelSmall.copy(
+                    style = RuntimeTheme.typography.labelSmall.copy(
                         fontSize = 10.5.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.SemiBold,
@@ -101,7 +98,7 @@ internal fun CodeBlock(block: MdCodeBlock) {
                         )
                         Text(
                             text = stringResource(R.string.components_md_copy),
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                            style = RuntimeTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
                             color = headerTextColor,
                         )
                     }
@@ -117,7 +114,7 @@ internal fun CodeBlock(block: MdCodeBlock) {
             ) {
                 Text(
                     text = highlightedText,
-                    style = MaterialTheme.typography.bodySmall.copy(
+                    style = RuntimeTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.5.sp,
                         lineHeight = 16.5.sp,
@@ -151,7 +148,7 @@ internal fun TableBlock(table: MdTable) {
     Box(
         Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
+            .background(RuntimeTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
     ) {
         Column(
             Modifier
@@ -163,7 +160,7 @@ internal fun TableBlock(table: MdTable) {
                 (0 until colCount).forEach { c ->
                     InlineText(
                         table.headers.getOrNull(c) ?: "",
-                        MaterialTheme.typography.bodySmall,
+                        RuntimeTheme.typography.bodySmall,
                         bold = true,
                         modifier = Modifier
                             .width(colWidths[c])
@@ -171,13 +168,13 @@ internal fun TableBlock(table: MdTable) {
                     )
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
             table.rows.forEach { row ->
                 Row {
                     (0 until colCount).forEach { c ->
                         InlineText(
                             row.getOrNull(c) ?: "",
-                            MaterialTheme.typography.bodySmall,
+                            RuntimeTheme.typography.bodySmall,
                             modifier = Modifier
                                 .width(colWidths[c])
                                 .padding(end = 12.dp),
@@ -224,11 +221,11 @@ internal fun ListBlock(block: MdList) {
             Row(Modifier.fillMaxWidth()) {
                 Text(
                     if (block.ordered) "${index + 1}." else "\u2022",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(end = 8.dp),
                 )
-                InlineText(item, MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 0.dp))
+                InlineText(item, RuntimeTheme.typography.bodyMedium, modifier = Modifier.padding(end = 0.dp))
             }
         }
     }
@@ -240,11 +237,11 @@ internal fun QuoteBlock(block: MdQuote) {
         verticalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+            .background(RuntimeTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         block.lines.forEach { line ->
-            InlineText(line, MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            InlineText(line, RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

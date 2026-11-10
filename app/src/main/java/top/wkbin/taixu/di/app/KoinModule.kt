@@ -1,19 +1,17 @@
 package top.wkbin.taixu.di.app
 
-import org.koin.dsl.module
-import org.koin.androidx.workmanager.dsl.worker
-import top.wkbin.taixu.bot.BotSchedulePlanner
-import top.wkbin.taixu.bot.BotScheduleWorker
-import top.wkbin.taixu.workflow.WorkflowScheduleWorker
-import top.wkbin.taixu.core.database.repository.BotScheduleRepository
-import top.wkbin.taixu.harness.bot.schedule.BotScheduleWakeup
 import io.ktor.client.HttpClient
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
+import org.koin.androidx.workmanager.dsl.worker
+import org.koin.core.qualifier.named
+import org.koin.dsl.module
+import top.wkbin.taixu.bot.BotSchedulePlanner
+import top.wkbin.taixu.bot.BotScheduleWorker
 import top.wkbin.taixu.core.database.AgentApprovalAuditDao
-import top.wkbin.taixu.core.database.AgentMessageFeedbackDao
 import top.wkbin.taixu.core.database.AgentApprovalDao
 import top.wkbin.taixu.core.database.AgentContextDao
+import top.wkbin.taixu.core.database.AgentMessageFeedbackDao
 import top.wkbin.taixu.core.database.AgentSkillDao
 import top.wkbin.taixu.core.database.AgentSubagentDao
 import top.wkbin.taixu.core.database.AiModelDao
@@ -21,12 +19,12 @@ import top.wkbin.taixu.core.database.AndroidAppDao
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.BotAssignmentDao
 import top.wkbin.taixu.core.database.BotGroupSessionDao
-import top.wkbin.taixu.core.database.BtwQueryDao
 import top.wkbin.taixu.core.database.BotMemberGroupDao
 import top.wkbin.taixu.core.database.BotScheduleDao
 import top.wkbin.taixu.core.database.BotScheduleDeliveryDao
-import top.wkbin.taixu.di.AppModule.provideBotScheduleDeliveryDao
+import top.wkbin.taixu.core.database.BtwQueryDao
 import top.wkbin.taixu.core.database.BuildScriptDao
+import top.wkbin.taixu.core.database.ExternalAgentRuntimeTokenDao
 import top.wkbin.taixu.core.database.GroupChatDao
 import top.wkbin.taixu.core.database.HarnessRuntimeDao
 import top.wkbin.taixu.core.database.HarnessSessionDao
@@ -46,16 +44,17 @@ import top.wkbin.taixu.core.database.WorkflowDao
 import top.wkbin.taixu.core.database.WorkflowScheduleDao
 import top.wkbin.taixu.core.database.WorkflowScheduleStore
 import top.wkbin.taixu.core.database.WorkspaceDao
+import top.wkbin.taixu.core.database.repository.BotScheduleRepository
 import top.wkbin.taixu.core.database.task.AgentTaskDao
 import top.wkbin.taixu.core.network.FileDownloader
 import top.wkbin.taixu.core.tools.DependencyManager
 import top.wkbin.taixu.core.tools.RuntimeManager
 import top.wkbin.taixu.core.tools.ToolRuntimeAdapter
 import top.wkbin.taixu.di.AppModule.provideAgentApprovalAuditDao
-import top.wkbin.taixu.di.AppModule.provideAgentMessageFeedbackDao
 import top.wkbin.taixu.di.AppModule.provideAgentApprovalDao
 import top.wkbin.taixu.di.AppModule.provideAgentContextDao
 import top.wkbin.taixu.di.AppModule.provideAgentForegroundLauncher
+import top.wkbin.taixu.di.AppModule.provideAgentMessageFeedbackDao
 import top.wkbin.taixu.di.AppModule.provideAgentSkillDao
 import top.wkbin.taixu.di.AppModule.provideAgentSubagentDao
 import top.wkbin.taixu.di.AppModule.provideAgentTaskDao
@@ -63,16 +62,17 @@ import top.wkbin.taixu.di.AppModule.provideAiModelDao
 import top.wkbin.taixu.di.AppModule.provideAndroidAppDao
 import top.wkbin.taixu.di.AppModule.provideBotAssignmentDao
 import top.wkbin.taixu.di.AppModule.provideBotGroupSessionDao
-import top.wkbin.taixu.di.AppModule.provideBtwQueryDao
-import top.wkbin.taixu.di.AppModule.provideBotScheduleDao
-import top.wkbin.taixu.di.AppModule.provideBuildScriptDao
-import top.wkbin.taixu.di.AppModule.provideGroupChatDao
 import top.wkbin.taixu.di.AppModule.provideBotMemberGroupDao
-import top.wkbin.taixu.di.AppModule.providePersonaBotDao
+import top.wkbin.taixu.di.AppModule.provideBotScheduleDao
+import top.wkbin.taixu.di.AppModule.provideBotScheduleDeliveryDao
+import top.wkbin.taixu.di.AppModule.provideBtwQueryDao
+import top.wkbin.taixu.di.AppModule.provideBuildScriptDao
 import top.wkbin.taixu.di.AppModule.provideCheckpointStore
 import top.wkbin.taixu.di.AppModule.provideDatabase
 import top.wkbin.taixu.di.AppModule.provideDependencyManager
+import top.wkbin.taixu.di.AppModule.provideExternalAgentRuntimeTokenDao
 import top.wkbin.taixu.di.AppModule.provideFileDownloader
+import top.wkbin.taixu.di.AppModule.provideGroupChatDao
 import top.wkbin.taixu.di.AppModule.provideHarnessRuntimeDao
 import top.wkbin.taixu.di.AppModule.provideHarnessSessionDao
 import top.wkbin.taixu.di.AppModule.provideInstallLogDao
@@ -84,8 +84,9 @@ import top.wkbin.taixu.di.AppModule.provideLocalServiceLauncher
 import top.wkbin.taixu.di.AppModule.provideMcpOAuthCredentialDao
 import top.wkbin.taixu.di.AppModule.provideMcpOAuthTransactionDao
 import top.wkbin.taixu.di.AppModule.provideMcpServerDao
-import top.wkbin.taixu.di.AppModule.provideOkHttpClient
 import top.wkbin.taixu.di.AppModule.provideModelsDevUpdater
+import top.wkbin.taixu.di.AppModule.provideOkHttpClient
+import top.wkbin.taixu.di.AppModule.providePersonaBotDao
 import top.wkbin.taixu.di.AppModule.provideProcessRegistry
 import top.wkbin.taixu.di.AppModule.providePtyManager
 import top.wkbin.taixu.di.AppModule.provideQuickPhraseDao
@@ -102,10 +103,11 @@ import top.wkbin.taixu.di.AppModule.provideWorkflowScheduleStore
 import top.wkbin.taixu.di.AppModule.provideWorkspaceDao
 import top.wkbin.taixu.di.AppModule.provideWorkspaceFileAccess
 import top.wkbin.taixu.harness.AgentForegroundLauncher
-import top.wkbin.taixu.harness.model.ModelsDevUpdater
 import top.wkbin.taixu.harness.WorkspaceFileAccess
 import top.wkbin.taixu.harness.agent.AgentMcpForegroundLauncher
+import top.wkbin.taixu.harness.bot.schedule.BotScheduleWakeup
 import top.wkbin.taixu.harness.checkpoint.CheckpointStore
+import top.wkbin.taixu.harness.model.ModelsDevUpdater
 import top.wkbin.taixu.harness.workflow.WorkflowScheduleDispatcher
 import top.wkbin.taixu.lifecycle.RuntimeLifecycleSupervisor
 import top.wkbin.taixu.runtime.LinuxRuntime
@@ -116,17 +118,19 @@ import top.wkbin.taixu.runtime.shell.ProcessRegistry
 import top.wkbin.taixu.runtime.shell.ShellExecutor
 import top.wkbin.taixu.runtime.tools.CodexToolInstaller
 import top.wkbin.taixu.runtime.tools.HelloToolInstaller
+import top.wkbin.taixu.runtime.webchat.ExternalAgentRuntimeGateway
 import top.wkbin.taixu.runtime.webchat.WebChatAgentGateway
 import top.wkbin.taixu.service.AgentForegroundLauncherImpl
 import top.wkbin.taixu.service.AgentMcpForegroundLauncherImpl
 import top.wkbin.taixu.service.adb.AdbNotificationManager
+import top.wkbin.taixu.webchat.TaiXuExternalAgentRuntimeGateway
 import top.wkbin.taixu.webchat.TaiXuWebChatAgentGateway
 import top.wkbin.taixu.workflow.AppForegroundTracker
 import top.wkbin.taixu.workflow.WorkManagerScheduleDispatcher
 import top.wkbin.taixu.workflow.WorkManagerScheduleDispatcher.ScheduleDispatcherModule.provideDispatcher
 import top.wkbin.taixu.workflow.WorkflowApprovalNotifier
 import top.wkbin.taixu.workflow.WorkflowRunUiController
-import org.koin.core.qualifier.named
+import top.wkbin.taixu.workflow.WorkflowScheduleWorker
 
 /** Dependency registrations owned by the app module. */
 val appModule = module {
@@ -171,6 +175,8 @@ val appModule = module {
     single<BotGroupSessionDao> { provideBotGroupSessionDao(database = get()) }
 
     single<BtwQueryDao> { provideBtwQueryDao(database = get()) }
+
+    single<ExternalAgentRuntimeTokenDao> { provideExternalAgentRuntimeTokenDao(database = get()) }
 
     single<RuntimeDao> { provideRuntimeDao(database = get()) }
 
@@ -247,6 +253,10 @@ val appModule = module {
     single<WorkflowScheduleDispatcher> { provideDispatcher(context = get()) }
 
     factory<WebChatAgentGateway> { get<TaiXuWebChatAgentGateway>() }
+
+    single<ExternalAgentRuntimeGateway> {
+        TaiXuExternalAgentRuntimeGateway(runtime = get())
+    }
 
     single<RuntimeServiceController> { RuntimeServiceController(context = get()) }
 

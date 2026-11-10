@@ -8,7 +8,9 @@ import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.model.*
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentFactory
+import top.wkbin.taixu.runtime.environment.LocalDistributionSelection
 import top.wkbin.taixu.runtime.remote.SshConnector
+import top.wkbin.taixu.runtime.remote.remoteConnectionScope
 
 class SessionExecutionTargetsTest {
     private val a = RemoteServer("a", "A", "server-a", username = "agent", workspace = "/srv/projects", fingerprint = "SHA256:a")
@@ -29,7 +31,7 @@ class SessionExecutionTargetsTest {
         val savedChoice = kotlinx.coroutines.flow.MutableSharedFlow<String>(replay = 1)
         val active = MutableStateFlow("ubuntu")
         val state = MutableStateFlow<RuntimeState>(RuntimeState.NotInitialized)
-        val selection = top.wkbin.taixu.runtime.environment.LocalDistributionSelection(savedChoice, active, state, scope)
+        val selection = LocalDistributionSelection(savedChoice, active, state, scope)
         try {
             savedChoice.emit("debian")
             val targets = SessionExecutionTargets(servers, sessions, selection::capture)
@@ -106,7 +108,7 @@ class SessionExecutionTargetsTest {
         catch (e: IllegalStateException) { assertTrue(e.message!!.contains("档案已更改")) }
     }
     @Test fun `standalone MCP acquisition rejects server switches before opening remote or phone`() = runBlocking {
-        val scope = top.wkbin.taixu.runtime.remote.remoteConnectionScope(a)
+        val scope = remoteConnectionScope(a)
         val factory = SelectedExecutionEnvironmentFactory(ExecutionEnvironmentFactory { _, _, _ -> error("phone fallback") }, servers, SshConnector())
         for ((index, selected) in listOf(b.id, null).withIndex()) {
             servers.select(selected)

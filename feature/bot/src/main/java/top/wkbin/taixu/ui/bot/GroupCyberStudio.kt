@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -16,17 +19,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,7 +39,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.graphics.RectangleShape
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotAssignment
@@ -54,6 +53,7 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * Full-screen pixel office. Members walk to a desk, the whiteboard, the racks or the sofa
@@ -299,11 +299,11 @@ private fun OfficeActorCard(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(bot.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(bot.name, style = RuntimeTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     text = bot.role.ifBlank { officeStateLabel(state) },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -315,7 +315,7 @@ private fun OfficeActorCard(
         if (task != null) {
             Text(
                 text = task.title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = RuntimeTheme.typography.bodyMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -323,36 +323,29 @@ private fun OfficeActorCard(
         if (!liveText.isNullOrBlank()) {
             Text(
                 text = liveText,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
+                style = RuntimeTheme.typography.labelMedium,
+                color = RuntimeTheme.colorScheme.primary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
+        RuntimeActionRow(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
             RuntimeTextButton(
                 onClick = onMention,
                 modifier = Modifier.testTag("studio-actor-mention"),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
             ) { Text(stringResource(R.string.fbot_cyber_studio_mention_action), maxLines = 1) }
             RuntimeTextButton(
                 onClick = onProfile,
                 modifier = Modifier.testTag("studio-actor-profile"),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
             ) { Text(stringResource(R.string.fbot_cyber_studio_profile_action), maxLines = 1) }
             if (task != null && task.status.isActive) {
                 RuntimeTextButton(
                     onClick = onCancel,
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                 ) { Text(stringResource(R.string.fbot_work_cancel), maxLines = 1) }
             }
             if (task?.independent == true) {
                 RuntimeTextButton(
                     onClick = onContinue,
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                 ) {
                     Text(
                         stringResource(

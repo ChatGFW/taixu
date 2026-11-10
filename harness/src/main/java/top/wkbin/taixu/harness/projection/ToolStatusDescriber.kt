@@ -1,10 +1,11 @@
 package top.wkbin.taixu.harness.projection
 
-import top.wkbin.taixu.harness.ToolCall
-import top.wkbin.taixu.harness.HarnessTool
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import top.wkbin.taixu.harness.HarnessTool
+import top.wkbin.taixu.harness.ToolCall
+import top.wkbin.taixu.harness.text.HashlineEditArgs
 
 /** 会话抽屉 / 状态点所展示的"正在执行什么"动作描述。 */
 object ToolStatusDescriber {
@@ -46,7 +47,7 @@ object ToolStatusDescriber {
         HarnessTool.WRITE -> arg(args, "path")?.let { "写入文件：${it.takeLast(MAX_STATUS_ARG_LENGTH)}" } ?: "写入文件"
         HarnessTool.EDIT -> {
             val path = arg(args, "path")?.takeLast(MAX_STATUS_ARG_LENGTH)
-            val hashline = top.wkbin.taixu.harness.text.HashlineEditArgs.opsLabel(args)
+            val hashline = HashlineEditArgs.opsLabel(args)
             when {
                 path != null && hashline != null -> "编辑文件：$path · $hashline"
                 path != null -> "编辑文件：$path"

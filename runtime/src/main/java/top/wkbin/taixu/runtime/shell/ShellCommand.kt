@@ -1,5 +1,8 @@
 package top.wkbin.taixu.runtime.shell
 
+import top.wkbin.taixu.core.model.PluginExecutionIdentity
+
+
 data class ShellCommand(
     val commandLine: String,
     val workingDirectory: String = "/root",
@@ -18,7 +21,7 @@ data class ShellCommand(
     val outputCapture: CommandOutputCapture? = null,
     /** Trusted callers may escalate arbitrary build scripts; this never disables inferred admission. */
     val memoryHeavy: Boolean = false,
-    val pluginIdentity: top.wkbin.taixu.core.model.PluginExecutionIdentity? = null,
+    val pluginIdentity: PluginExecutionIdentity? = null,
     /** 发起方会话；决定 `/attachments` 绑定到哪个会话私有目录。null = 共享目录（非会话调用）。 */
     val sessionId: String? = null,
 ) {

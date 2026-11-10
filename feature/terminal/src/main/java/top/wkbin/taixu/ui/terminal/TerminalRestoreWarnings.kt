@@ -3,8 +3,8 @@ package top.wkbin.taixu.ui.terminal
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -23,11 +23,11 @@ internal fun TerminalRestoreWarnings(viewModel: TerminalViewModel?) {
         title = { Text("未恢复的终端") },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("已保留原连接身份。这些终端不会改连其它服务器；移除记录仅删除本机的终端配置。", style = MaterialTheme.typography.bodySmall)
+                Text("已保留原连接身份。这些终端不会改连其它服务器；移除记录仅删除本机的终端配置。", style = RuntimeTheme.typography.bodySmall)
                 RuntimeTextButton(onClick = viewModel::retryFailedRestorations) { Text("重试恢复") }
                 failures.forEach { failure ->
-                    Text(failure.label, style = MaterialTheme.typography.titleSmall)
-                    Text(failure.message, style = MaterialTheme.typography.bodySmall)
+                    Text(failure.label, style = RuntimeTheme.typography.titleSmall)
+                    Text(failure.message, style = RuntimeTheme.typography.bodySmall)
                     RuntimeTextButton(onClick = { viewModel.removeFailedRestoration(failure.id) }) { Text("移除记录") }
                 }
             }

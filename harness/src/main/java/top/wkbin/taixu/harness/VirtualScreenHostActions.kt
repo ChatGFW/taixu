@@ -38,7 +38,7 @@ internal class VirtualScreenHostActions(
             val session = optionalSession(args)
             val displayId = coordinator.ensureVirtualDisplay(session)
             if (displayId == null) {
-                false to "虚拟屏创建失败（session=$session）：Shower 服务未启动或建屏失败，详见 runtime.log 中的 [Shower] 日志（不一定是授权问题）"
+                false to coordinator.creationFailure(session)
             } else {
                 val hidden = coordinator.reveal(session, "等待打开应用")
                 true to "虚拟屏已就绪：session=$session displayId=$displayId。" +
@@ -56,7 +56,7 @@ internal class VirtualScreenHostActions(
             if (coordinator.getDisplayId(session) == null &&
                 coordinator.ensureVirtualDisplay(session) == null
             ) {
-                return false to "虚拟屏创建失败（session=$session）：Shower 服务未启动或建屏失败，详见 runtime.log 中的 [Shower] 日志（不一定是授权问题）"
+                return false to coordinator.creationFailure(session)
             }
             if (!canInject()) return false to "应用启动已中止：任务暂停或已被人工介入"
             val res = coordinator.launchApp(session, packageName)
@@ -189,7 +189,7 @@ internal class VirtualScreenHostActions(
             if (coordinator.getDisplayId(session) == null &&
                 coordinator.ensureVirtualDisplay(session) == null
             ) {
-                return false to "虚拟屏创建失败（session=$session）：Shower 服务未启动或建屏失败，详见 runtime.log 中的 [Shower] 日志（不一定是授权问题）"
+                return false to coordinator.creationFailure(session)
             }
             if (coordinator.showOverlay(session)) {
                 coordinator.reveal(session, "正在显示画面")

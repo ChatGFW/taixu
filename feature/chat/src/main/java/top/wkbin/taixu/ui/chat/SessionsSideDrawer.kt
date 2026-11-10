@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.imePadding
@@ -12,18 +15,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.database.HarnessSessionEntity
@@ -34,6 +34,7 @@ import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.core.database.MessageSearchHitRow
 
 /**
  * 会话侧栏：固定搜索与底部功能入口，会话列表独立滚动。
@@ -62,7 +63,7 @@ internal fun SessionsSideDrawer(
     onDelete: (String) -> Unit,
     onRename: (String, String) -> Unit,
     onCollapse: (() -> Unit)? = null, navigationContent: @Composable () -> Unit = {},
-    searchMessages: suspend (String) -> List<top.wkbin.taixu.core.database.MessageSearchHitRow> = { emptyList() },
+    searchMessages: suspend (String) -> List<MessageSearchHitRow> = { emptyList() },
     onTogglePin: (String, Boolean) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
@@ -116,7 +117,7 @@ internal fun SessionsSideDrawer(
 
     Surface(
         modifier = modifier.fillMaxHeight().fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 0.dp,
     ) {
         Column(
@@ -135,8 +136,8 @@ internal fun SessionsSideDrawer(
                 if (query.isNotBlank() && partition.projectGroups.isEmpty() && partition.recentSessions.isEmpty() && botMatches.isEmpty() && pinnedMatches.isEmpty()) {
                     Text(stringResource(R.string.chat_drawer_no_matches),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
                 if (query.isBlank() && attentionSessions.isNotEmpty()) {
                     SessionAttentionBanner(
@@ -241,13 +242,13 @@ internal fun SessionsSideDrawer(
     deleteTargetId?.let { targetId ->
         RuntimeAlertDialog(
             onDismissRequest = { deleteTargetId = null },
-            title = { Text(stringResource(R.string.chat_delete_session_title), fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.chat_delete_session_title), fontWeight = FontWeight.Medium) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         stringResource(R.string.chat_delete_session_message),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             },
@@ -258,7 +259,7 @@ internal fun SessionsSideDrawer(
                         onDelete(targetId)
                     },
                 ) {
-                    Text(stringResource(R.string.chat_confirm_delete), color = MaterialTheme.colorScheme.onError)
+                    Text(stringResource(R.string.chat_confirm_delete), color = RuntimeTheme.colorScheme.onError)
                 }
             },
             dismissButton = {
@@ -293,7 +294,7 @@ private fun RecentSection(
 
         if (recentSessions.isEmpty()) {
             Text(text = stringResource(R.string.chat_drawer_no_recent_sessions),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp))
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

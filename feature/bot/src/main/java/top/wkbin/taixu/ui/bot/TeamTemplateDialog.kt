@@ -3,7 +3,8 @@ package top.wkbin.taixu.ui.bot
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -36,22 +37,22 @@ internal fun TeamTemplateDialog(onDismiss: () -> Unit,
                         if (!saving) { selected = candidate.id; name = candidate.name }
                     }) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text((if (selected == candidate.id) "✓ " else "") + candidate.name, style = MaterialTheme.typography.titleSmall)
-                            Text(candidate.description, style = MaterialTheme.typography.bodySmall)
+                            Text((if (selected == candidate.id) "✓ " else "") + candidate.name, style = RuntimeTheme.typography.titleSmall)
+                            Text(candidate.description, style = RuntimeTheme.typography.bodySmall)
                         }
                     }
                 }
                 RuntimeFilledTextField(value = name, onValueChange = { name = it.take(40) },
-                    label = { Text("团队组名称") }, modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving)
+                    labelText = "团队组名称", modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !saving)
                 val previewMembers = remember(template.id) { template.members.map { member ->
                     Bot(member.key, templateMemberName(member.key), member.role ?: "团队成员", "", member.key,
                         sessionId = "preview:${member.key}", createdAt = 0, updatedAt = 0)
                 } }
                 val previewTeam = GroupTeam(template.adminKey, template.members.map { it.key }.toSet(),
                     template.members.mapNotNull { member -> member.supervisorKey?.let { member.key to it } }.toMap())
-                Text("模板架构预览", style = MaterialTheme.typography.titleSmall)
+                Text("模板架构预览", style = RuntimeTheme.typography.titleSmall)
                 TeamArchitectureGraph(previewTeam, GroupGovernance(template.rules), previewMembers)
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
             }
         },
         confirmButton = { RuntimeButton(enabled = !saving && name.isNotBlank(), onClick = {

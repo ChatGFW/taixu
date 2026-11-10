@@ -7,6 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.wkbin.taixu.core.model.ChunkedText
 import top.wkbin.taixu.harness.AssistantText
+import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ModelConfig
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
@@ -67,15 +68,15 @@ class CompactionStewardTest {
     @Test
     fun `switch keep index prefers the last user turn and never empties the tail`() {
         val messages = listOf(
-            UserMessage("a", 1, "第一轮") as top.wkbin.taixu.harness.HarnessMessage,
-            AssistantText("b", 2, ChunkedText.of("已答复")) as top.wkbin.taixu.harness.HarnessMessage,
+            UserMessage("a", 1, "第一轮") as HarnessMessage,
+            AssistantText("b", 2, ChunkedText.of("已答复")) as HarnessMessage,
             UserMessage("c", 3, "第二轮"),
         )
         assertEquals(2, CompactionSteward.switchKeepFromIndex(messages, 0))
         // 预算线更深时尊重预算线，但始终至少保留最后一条（keepFromIndex 钳在末条内）
         assertEquals(2, CompactionSteward.switchKeepFromIndex(messages, 3))
         // 无用户消息时退化为预算线，且至少保留最后一条
-        val toolOnly = listOf<top.wkbin.taixu.harness.HarnessMessage>(ToolResult("r", 3, "c", true, "ok"))
+        val toolOnly = listOf<HarnessMessage>(ToolResult("r", 3, "c", true, "ok"))
         assertEquals(0, CompactionSteward.switchKeepFromIndex(toolOnly, 5))
     }
 

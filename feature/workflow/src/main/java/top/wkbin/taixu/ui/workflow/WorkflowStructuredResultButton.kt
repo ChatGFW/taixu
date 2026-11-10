@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
@@ -55,21 +55,21 @@ private fun WorkflowStructuredResultDialog(result: JsonObject, onDismiss: () -> 
     }
     RuntimeAlertDialog(onDismissRequest = onDismiss, title = { Text("结构化结果 JSON") }, text = {
         Column(Modifier.fillMaxWidth().verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("查看打开窗口时的结果。复制和保存包含完整 JSON；结果文件用于核对和分析，不是工作流定义。", style = MaterialTheme.typography.bodySmall)
+            Text("查看打开窗口时的结果。复制和保存包含完整 JSON；结果文件用于核对和分析，不是工作流定义。", style = RuntimeTheme.typography.bodySmall)
             raw?.let { text ->
-                Text("${text.length} 个字符 · 第 ${page + 1} / ${pages.size} 页", style = MaterialTheme.typography.labelSmall)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RuntimeOutlinedButton(enabled = page > 0, onClick = { if (page > 0) page-- }, modifier = Modifier.weight(1f)) { Text("上一页", maxLines = 1) }
-                    RuntimeOutlinedButton(enabled = page < pages.lastIndex, onClick = { if (page < pages.lastIndex) page++ }, modifier = Modifier.weight(1f)) { Text("下一页", maxLines = 1) }
+                Text("${text.length} 个字符 · 第 ${page + 1} / ${pages.size} 页", style = RuntimeTheme.typography.labelSmall)
+                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                    RuntimeOutlinedButton(enabled = page > 0, onClick = { if (page > 0) page-- }, modifier = Modifier) { Text("上一页", maxLines = 1) }
+                    RuntimeOutlinedButton(enabled = page < pages.lastIndex, onClick = { if (page < pages.lastIndex) page++ }, modifier = Modifier) { Text("下一页", maxLines = 1) }
                 }
                 key(page) {
-                    SelectionContainer { Text(pages[page], style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace) }
+                    SelectionContainer { Text(pages[page], style = RuntimeTheme.typography.bodySmall, fontFamily = FontFamily.Monospace) }
                 }
                 WorkflowSaveDocumentButton(text, "workflow_result")
             }
             if (raw == null && error == null) Text("正在生成…")
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-            if (copied) Text("完整结果 JSON 已复制", style = MaterialTheme.typography.bodySmall)
+            error?.let { Text(it, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall) }
+            if (copied) Text("完整结果 JSON 已复制", style = RuntimeTheme.typography.bodySmall)
         }
     }, dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text("关闭", maxLines = 1) } }, confirmButton = {
         RuntimeButton(enabled = raw != null && !copying, onClick = {

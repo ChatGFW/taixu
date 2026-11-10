@@ -12,12 +12,14 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.*
 import org.junit.Test
+import top.wkbin.taixu.core.model.PluginLibraryChannel
+import top.wkbin.taixu.plugin.packages.PluginPackageProtocol
 
 class RemotePluginLibraryTest {
     @Test fun sourceSelectionNeverFallsBackToGithubForMissingGiteeAssets() {
         val release = RemotePluginRelease("example.hello", "hello-plugin", "Hello", "", "PROCESS", "1.0.0", 1, 1,
             3, "0".repeat(64), listOf(RemotePluginPart("https://github.com/a/b/file", 3, "0".repeat(64))))
-        val gitee = top.wkbin.taixu.core.model.PluginLibraryChannel.GITEE
+        val gitee = PluginLibraryChannel.GITEE
         assertFalse(RemotePluginSource.available(release, gitee))
         assertThrows(IllegalArgumentException::class.java) { RemotePluginSource.select(release, gitee) }
         val mirrored = release.copy(parts = release.parts.map { it.copy(mirrors = mapOf("GITEE" to "https://gitee.com/a/b/file")) })
@@ -53,7 +55,7 @@ class RemotePluginLibraryTest {
         val text = catalog().replace("example.hello", "legacy.tool-hello-plugin")
             .replace("\"version\":\"1.0.0\"", "\"version\":\"1.0.0\",\"packageSchema\":1")
         val release = RemotePluginCatalog.parse(text).latest().single()
-        val manifest = top.wkbin.taixu.plugin.packages.PluginPackageProtocol.decode("""{"id":"hello-plugin","name":"Hello","description":"Legacy","version":"1.0.0"}""")
+        val manifest = PluginPackageProtocol.decode("""{"id":"hello-plugin","name":"Hello","description":"Legacy","version":"1.0.0"}""")
         assertTrue(RemotePluginSource.matches(release, manifest))
         assertFalse(RemotePluginSource.matches(release.copy(pluginId = "legacy.tool-other-plugin"), manifest))
     }

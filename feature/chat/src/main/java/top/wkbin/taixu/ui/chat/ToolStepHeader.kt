@@ -1,22 +1,23 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.*
+import top.wkbin.taixu.harness.text.HashlineEditArgs
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.theme.semanticColors
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun ToolStepHeader(call: ToolCall, result: ToolResult?, running: Boolean) {
@@ -25,7 +26,7 @@ internal fun ToolStepHeader(call: ToolCall, result: ToolResult?, running: Boolea
     val state = toolStepState(result, running)
     val stateText = stringResource(toolStateLabel(state))
     val tint = when (state) {
-        ToolStepState.FAILED, ToolStepState.UNKNOWN -> MaterialTheme.colorScheme.error
+        ToolStepState.FAILED, ToolStepState.UNKNOWN -> RuntimeTheme.colorScheme.error
         ToolStepState.WAITING, ToolStepState.DEFERRED -> semanticColors().warning
         ToolStepState.SUCCEEDED, ToolStepState.RUNNING, ToolStepState.INCOMPLETE -> chatProcessColor()
     }
@@ -36,10 +37,10 @@ internal fun ToolStepHeader(call: ToolCall, result: ToolResult?, running: Boolea
         val target = renderer.target(ui)
         val title = renderer.title(ui)
         Text(if (target == null) title else "$title · $target", Modifier.weight(1f).then(chatProcessPulse(state == ToolStepState.RUNNING)),
-            style = MaterialTheme.typography.bodySmall, color = chatProcessColor(),
+            style = RuntimeTheme.typography.bodySmall, color = chatProcessColor(),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (state != ToolStepState.SUCCEEDED && state != ToolStepState.RUNNING) Text(stateText,
-            style = MaterialTheme.typography.labelSmall, color = tint, maxLines = 1)
+            style = RuntimeTheme.typography.labelSmall, color = tint, maxLines = 1)
         val diff = remember(renderer, call, result) {
             renderer.diffStat(ui)
         }
@@ -73,7 +74,7 @@ internal fun toolStepTarget(call: ToolCall): String? {
         ?.replace('\\', '/')?.trimEnd('/')?.substringAfterLast('/')
         ?.replace(Regex("[\\r\\n\\t]+"), " ")?.take(100)?.takeIf { it.isNotBlank() }
     if (call.tool != HarnessTool.EDIT) return base
-    val hashline = top.wkbin.taixu.harness.text.HashlineEditArgs.opsLabel(call.args) ?: return base
+    val hashline = HashlineEditArgs.opsLabel(call.args) ?: return base
     return when {
         base != null -> "$base · $hashline"
         else -> hashline

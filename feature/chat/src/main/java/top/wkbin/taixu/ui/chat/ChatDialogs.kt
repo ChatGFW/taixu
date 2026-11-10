@@ -2,6 +2,7 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
@@ -9,14 +10,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.minimumInteractiveComponentSize
+import top.wkbin.taixu.ui.miuix.*
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,15 +23,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.material3.ButtonDefaults
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.material3.MaterialTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -41,22 +35,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import top.wkbin.taixu.feature.chat.R
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.core.model.SessionRunState
-import top.wkbin.taixu.ui.components.ModelBadge
 
 /** 会话 / 模型 / 新建会话对话框。 */
 @Composable
@@ -68,7 +58,7 @@ internal fun EditAndResendDialog(
     var text by remember(originalText) { mutableStateOf(originalText) }
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.chat_edit_resend), fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.chat_edit_resend), fontWeight = FontWeight.Medium) },
         text = {
             Column(
                 modifier = Modifier
@@ -79,15 +69,15 @@ internal fun EditAndResendDialog(
                 RuntimeFilledTextField(
                     value = text,
                     onValueChange = { text = it },
-                    label = { Text(stringResource(R.string.chat_user_request_clipboard)) },
+                    labelText = stringResource(R.string.chat_user_request_clipboard),
                     minLines = 2,
                     maxLines = 6,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
                     stringResource(R.string.chat_resend_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
@@ -95,7 +85,7 @@ internal fun EditAndResendDialog(
             TextButton(
                 onClick = { onConfirm(text) },
                 enabled = text.isNotBlank(),
-            ) { Text(stringResource(R.string.chat_send), color = MaterialTheme.colorScheme.primary) }
+            ) { Text(stringResource(R.string.chat_send)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_cancel)) }
@@ -126,17 +116,17 @@ internal fun SessionsDialog(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RuntimeIcon(RuntimeIconName.List, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                    Text(stringResource(R.string.chat_session_manager), fontWeight = FontWeight.Bold)
+                    RuntimeIcon(RuntimeIconName.List, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
+                    Text(stringResource(R.string.chat_session_manager), fontWeight = FontWeight.Medium)
                 }
                 Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(6.dp),
+                    color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    shape = RuntimeTheme.shapes.extraSmall,
                 ) {
                     Text(
                         stringResource(R.string.chat_session_count, sessions.size),
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary,
+                        style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
@@ -151,8 +141,8 @@ internal fun SessionsDialog(
             ) {
                 if (sessions.size == 1) {
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = RoundedCornerShape(8.dp),
+                        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
+                        shape = RuntimeTheme.shapes.chip,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
@@ -160,11 +150,11 @@ internal fun SessionsDialog(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            RuntimeIcon(RuntimeIconName.Alert, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                            RuntimeIcon(RuntimeIconName.Alert, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.onSurface)
                             Text(
                                 stringResource(R.string.chat_last_session_hint),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -182,19 +172,19 @@ internal fun SessionsDialog(
                         val (dotColor, stateLabel) = when (runState) {
                             SessionRunState.RUNNING -> semantics.warning to stringResource(R.string.chat_state_running)
                             SessionRunState.WAITING_APPROVAL -> semantics.agent to stringResource(R.string.chat_state_approval)
-                            SessionRunState.FAILED -> MaterialTheme.colorScheme.error to stringResource(R.string.chat_state_failed)
+                            SessionRunState.FAILED -> RuntimeTheme.colorScheme.error to stringResource(R.string.chat_state_failed)
                             SessionRunState.COMPLETED -> semantics.success to stringResource(R.string.chat_state_completed)
                             SessionRunState.IDLE -> semantics.success to stringResource(R.string.chat_state_ready)
                         }
 
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isCurrent) MaterialTheme.colorScheme.surfaceContainer
-                                else MaterialTheme.colorScheme.surfaceContainerLow,
+                            shape = RuntimeTheme.shapes.small,
+                            color = if (isCurrent) RuntimeTheme.colorScheme.surfaceContainer
+                                else RuntimeTheme.colorScheme.surfaceContainerLow,
                             border = androidx.compose.foundation.BorderStroke(
                                 if (isCurrent) 1.5.dp else 1.dp,
-                                if (isCurrent) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                if (isCurrent) RuntimeTheme.colorScheme.primary
+                                else RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                             ),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
@@ -221,23 +211,23 @@ internal fun SessionsDialog(
                                     ) {
                                         Text(
                                             session.title,
-                                            style = MaterialTheme.typography.bodyMedium.copy(
-                                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.SemiBold,
+                                            style = RuntimeTheme.typography.bodyMedium.copy(
+                                                fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Medium,
                                             ),
-                                            color = MaterialTheme.colorScheme.onSurface,
+                                            color = RuntimeTheme.colorScheme.onSurface,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                             modifier = Modifier.weight(1f, fill = false),
                                         )
                                         if (isCurrent) {
                                             Surface(
-                                                color = MaterialTheme.colorScheme.primaryContainer,
-                                                shape = RoundedCornerShape(4.dp),
+                                                color = RuntimeTheme.colorScheme.primaryContainer,
+                                                shape = RuntimeTheme.shapes.tiny,
                                             ) {
                                                 Text(
                                                     stringResource(R.string.chat_current),
-                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                                    color = RuntimeTheme.colorScheme.onPrimaryContainer,
                                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                                                 )
                                             }
@@ -246,13 +236,13 @@ internal fun SessionsDialog(
                                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Surface(
                                             color = dotColor.copy(alpha = 0.12f),
-                                            shape = RoundedCornerShape(4.dp),
+                                            shape = RuntimeTheme.shapes.tiny,
                                         ) {
                                             Text(
                                                 stateLabel,
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.SemiBold,
+                                                style = RuntimeTheme.typography.labelSmall.copy(
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium,
                                                 ),
                                                 color = dotColor,
                                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
@@ -261,13 +251,13 @@ internal fun SessionsDialog(
 
                                         if (session.workspace.isNotBlank()) {
                                             Surface(
-                                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                shape = RoundedCornerShape(4.dp),
+                                                color = RuntimeTheme.colorScheme.surfaceContainerHigh,
+                                                shape = RuntimeTheme.shapes.tiny,
                                             ) {
                                                 Text(
                                                     session.workspace,
-                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
@@ -276,8 +266,8 @@ internal fun SessionsDialog(
                                         } else {
                                             Text(
                                                 stringResource(R.string.chat_isolated_sandbox),
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                     }
@@ -287,14 +277,14 @@ internal fun SessionsDialog(
                                     modifier = Modifier.minimumInteractiveComponentSize(),
                                     contentDescription = stringResource(R.string.chat_rename_session_button),
                                 ) {
-                                    RuntimeIcon(RuntimeIconName.Settings, Modifier.size(15.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                                    RuntimeIcon(RuntimeIconName.Settings, Modifier.size(15.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
                                 }
                                 IconButton(
                                     onClick = { deleteTargetId = session.id },
                                     modifier = Modifier.minimumInteractiveComponentSize(),
                                     contentDescription = stringResource(R.string.chat_delete_session),
                                 ) {
-                                    RuntimeIcon(RuntimeIconName.Trash, Modifier.size(15.dp), MaterialTheme.colorScheme.error)
+                                    RuntimeIcon(RuntimeIconName.Trash, Modifier.size(15.dp), RuntimeTheme.colorScheme.error)
                                 }
                             }
                         }
@@ -303,9 +293,9 @@ internal fun SessionsDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onNew, shape = RoundedCornerShape(8.dp)) {
+            Button(onClick = onNew, shape = RuntimeTheme.shapes.medium) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    RuntimeIcon(RuntimeIconName.Plus, Modifier.size(16.dp), MaterialTheme.colorScheme.onPrimary)
+                    RuntimeIcon(RuntimeIconName.Plus, Modifier.size(16.dp), RuntimeTheme.colorScheme.onPrimary)
                     Text(stringResource(R.string.chat_new_session))
                 }
             }
@@ -331,13 +321,13 @@ internal fun SessionsDialog(
     deleteTargetId?.let { targetId ->
         RuntimeAlertDialog(
             onDismissRequest = { deleteTargetId = null },
-            title = { Text(stringResource(R.string.chat_delete_session_title), fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.chat_delete_session_title), fontWeight = FontWeight.Medium) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         stringResource(R.string.chat_delete_session_message),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             },
@@ -348,11 +338,11 @@ internal fun SessionsDialog(
                         onDelete(targetId)
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        disabledContainerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.3f),
+                        containerColor = RuntimeTheme.colorScheme.error,
+                        disabledContainerColor = RuntimeTheme.colorScheme.error.copy(alpha = 0.3f),
                     ),
                 ) {
-                    Text(stringResource(R.string.chat_confirm_delete), color = MaterialTheme.colorScheme.onError)
+                    Text(stringResource(R.string.chat_confirm_delete), color = RuntimeTheme.colorScheme.onError)
                 }
             },
             dismissButton = {
@@ -372,7 +362,7 @@ internal fun RenameSessionDialog(
     val titleBlank = title.isBlank()
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.chat_rename_session), fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.chat_rename_session), fontWeight = FontWeight.Medium) },
         text = {
             Column(
                 modifier = Modifier
@@ -382,14 +372,14 @@ internal fun RenameSessionDialog(
                 RuntimeFilledTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text(stringResource(R.string.chat_title_label)) },
+                    labelText = stringResource(R.string.chat_title_label),
                     singleLine = true,
                     isError = titleBlank,
                     supportingText = {
                         if (titleBlank) {
                             Text(
                                 stringResource(R.string.chat_title_required),
-                                color = MaterialTheme.colorScheme.error,
+                                color = RuntimeTheme.colorScheme.error,
                             )
                         }
                     },
@@ -401,7 +391,7 @@ internal fun RenameSessionDialog(
             TextButton(
                 onClick = { onRename(title) },
                 enabled = !titleBlank,
-            ) { Text(stringResource(R.string.chat_save), color = MaterialTheme.colorScheme.primary) }
+            ) { Text(stringResource(R.string.chat_save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_cancel)) } },
     )
@@ -414,13 +404,13 @@ internal fun WorkspaceOption(name: String, path: String, selected: Boolean, onSe
             .fillMaxWidth()
             .clickable(onClick = onSelect)
             .background(
-                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow,
-                RoundedCornerShape(8.dp),
+                if (selected) RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f) else RuntimeTheme.colorScheme.surfaceContainerLow,
+                RuntimeTheme.shapes.chip,
             )
             .border(
                 1.dp,
-                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant,
-                RoundedCornerShape(8.dp),
+                if (selected) RuntimeTheme.colorScheme.primary.copy(alpha = 0.4f) else RuntimeTheme.colorScheme.outlineVariant,
+                RuntimeTheme.shapes.chip,
             )
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -428,13 +418,13 @@ internal fun WorkspaceOption(name: String, path: String, selected: Boolean, onSe
     ) {
         Box(
             Modifier.size(12.dp).clip(CircleShape).background(
-                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                if (selected) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
             ),
         )
         Column {
-            Text(name.ifBlank { path }, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal))
+            Text(name.ifBlank { path }, style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal))
             if (path.isNotBlank()) {
-                Text(path, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(path, style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

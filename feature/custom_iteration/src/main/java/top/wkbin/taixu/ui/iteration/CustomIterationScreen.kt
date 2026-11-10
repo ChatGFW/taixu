@@ -1,7 +1,5 @@
 package top.wkbin.taixu.ui.iteration
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,12 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,12 +23,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.feature.custom_iteration.R
 import top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator
 import top.wkbin.taixu.ui.components.NoticeBanner
@@ -45,6 +38,15 @@ import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 @Composable
 fun CustomIterationScreen(
     onBack: () -> Unit,
@@ -52,33 +54,33 @@ fun CustomIterationScreen(
     viewModel: CustomIterationViewModel? = previewOrNull { koinViewModel() }
 ) {
     val uiState by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(CustomIterationViewModel.UiState())
-    val buildState by viewModel?.buildState?.collectAsStateWithLifecycle() ?: previewStateOf(top.wkbin.taixu.iteration.engine.TaiXuDevBuildCoordinator.BuildStatus.Idle)
+    val buildState by viewModel?.buildState?.collectAsStateWithLifecycle() ?: previewStateOf(TaiXuDevBuildCoordinator.BuildStatus.Idle)
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RuntimeTheme.colorScheme.background,
         topBar = { RuntimeTopBar(title = stringResource(R.string.iteration_title), onBack = onBack) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(innerPadding))
-                .verticalScroll(rememberScrollState()).padding(bottom = innerPadding.calculateBottomPadding())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .then(runtimeScrollViewport(innerPadding))
+                .verticalScroll(rememberScrollState())
+                .padding(runtimeScrollContentPadding(innerPadding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom))),
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap)
         ) {
             // 头部 Hero 卡片
             RuntimeCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = stringResource(R.string.iteration_hero_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        style = RuntimeTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = RuntimeTheme.colorScheme.onSurface
                     )
                     Text(
                         text = stringResource(R.string.iteration_hero_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 22.sp
                     )
                 }
@@ -93,25 +95,25 @@ fun CustomIterationScreen(
             IterationFeatureItem(
                 title = stringResource(R.string.iteration_feature_workspace_title),
                 description = stringResource(R.string.iteration_feature_workspace_desc),
-                badgeColor = MaterialTheme.colorScheme.primary
+                badgeColor = RuntimeTheme.colorScheme.primary
             )
 
             IterationFeatureItem(
                 title = stringResource(R.string.iteration_feature_skill_title),
                 description = stringResource(R.string.iteration_feature_skill_desc),
-                badgeColor = MaterialTheme.colorScheme.secondary
+                badgeColor = RuntimeTheme.colorScheme.secondary
             )
 
             IterationFeatureItem(
                 title = stringResource(R.string.iteration_feature_ci_title),
                 description = stringResource(R.string.iteration_feature_ci_desc),
-                badgeColor = MaterialTheme.colorScheme.tertiary
+                badgeColor = RuntimeTheme.colorScheme.tertiary
             )
 
             IterationFeatureItem(
                 title = stringResource(R.string.iteration_feature_dual_title),
                 description = stringResource(R.string.iteration_feature_dual_desc),
-                badgeColor = MaterialTheme.colorScheme.primary
+                badgeColor = RuntimeTheme.colorScheme.primary
             )
 
             // 错误提示：可关闭，不再常驻；重试走下方"开启自定义迭代"按钮
@@ -136,12 +138,12 @@ fun CustomIterationScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                shape = RoundedCornerShape(12.dp),
+                shape = RuntimeTheme.shapes.medium,
             ) {
                 if (uiState.isBusy) {
                     RuntimeCircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = RuntimeTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp,
                     )
                     Spacer(Modifier.width(8.dp))
@@ -150,7 +152,7 @@ fun CustomIterationScreen(
                     Text(
                         text = stringResource(R.string.iteration_start),
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
@@ -170,7 +172,7 @@ fun CustomIterationScreen(
                     RuntimeFilledTextField(
                         value = branchText,
                         onValueChange = { branchText = it },
-                        label = { Text(stringResource(R.string.iteration_build_branch_label)) },
+                        labelText = stringResource(R.string.iteration_build_branch_label),
                         singleLine = true,
                         enabled = !isBuildPipelineActive(buildState),
                         modifier = Modifier.fillMaxWidth()
@@ -178,8 +180,8 @@ fun CustomIterationScreen(
 
                     Text(
                         text = describeBuildStatus(buildState),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 18.sp
                     )
 
@@ -195,14 +197,13 @@ fun CustomIterationScreen(
                         onClick = { viewModel?.startCloudBuild(branchText) },
                         enabled = !isBuildPipelineActive(buildState),
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
-                        shape = RoundedCornerShape(12.dp),
+                            .fillMaxWidth(),
+                        shape = RuntimeTheme.shapes.medium,
                     ) {
                         if (isBuildPipelineActive(buildState)) {
                             RuntimeCircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
+                                color = RuntimeTheme.colorScheme.onPrimary,
                                 strokeWidth = 2.dp,
                             )
                             Spacer(Modifier.width(8.dp))
@@ -211,7 +212,7 @@ fun CustomIterationScreen(
                             Text(
                                 text = stringResource(R.string.iteration_build_trigger),
                                 fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
@@ -257,30 +258,30 @@ private fun IterationFeatureItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+            .clip(RuntimeTheme.shapes.small)
+            .background(RuntimeTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(8.dp)
-                .clip(RoundedCornerShape(4.dp))
+                .clip(RuntimeTheme.shapes.tiny)
                 .background(badgeColor)
         )
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                style = RuntimeTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+                color = RuntimeTheme.colorScheme.onSurface
             )
             Spacer(Modifier.height(3.dp))
             Text(
                 text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 18.sp
             )
         }

@@ -6,9 +6,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -57,12 +57,13 @@ internal fun BotMemoryEditorDialog(path: String, onDismiss: () -> Unit,
         title = { Text(stringResource(R.string.fbot_memory_edit)) },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                Text(path, style = MaterialTheme.typography.bodyMedium)
+                Text(path, style = RuntimeTheme.typography.bodyMedium)
                 if (loading) RuntimeCircularProgressIndicator()
                 if (draft != null) RuntimeFilledTextField(value = draft.orEmpty(), onValueChange = { draft = it },
-                    enabled = !saving && !loading, label = { Text(stringResource(R.string.fbot_memory_body)) }, minLines = 8, maxLines = 18,
-                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), modifier = Modifier.fillMaxWidth())
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    enabled = !saving && !loading,
+ labelText = stringResource(R.string.fbot_memory_body), minLines = 8, maxLines = 18,
+                    textStyle = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), modifier = Modifier.fillMaxWidth())
+                error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
                 RuntimeTextButton(enabled = !saving && !loading, onClick = {
                     draft = null; revision = null; document = null; reload++
                 }) { Text(stringResource(R.string.fbot_memory_reload)) }
@@ -102,16 +103,16 @@ internal fun BotMemoryDiffDialog(hash: String, onDismiss: () -> Unit, load: susp
                 val shown = diff
                 if (shown == null && error == null) RuntimeCircularProgressIndicator()
                 if (shown != null) {
-                    Text(stringResource(R.string.fbot_memory_diff_hint), style = MaterialTheme.typography.bodySmall)
-                    if (shown.truncated) Text(stringResource(R.string.fbot_memory_diff_truncated), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.fbot_memory_diff_hint), style = RuntimeTheme.typography.bodySmall)
+                    if (shown.truncated) Text(stringResource(R.string.fbot_memory_diff_truncated), color = RuntimeTheme.colorScheme.error)
                     SelectionContainer {
                         Text(shown.text.ifEmpty { stringResource(R.string.fbot_memory_diff_empty) },
                             modifier = Modifier.horizontalScroll(rememberScrollState()),
-                            style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                            style = RuntimeTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
                     }
                 }
                 error?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error)
+                    Text(it, color = RuntimeTheme.colorScheme.error)
                     RuntimeTextButton(onClick = { attempt++ }) { Text(stringResource(R.string.fbot_memory_retry)) }
                 }
             }

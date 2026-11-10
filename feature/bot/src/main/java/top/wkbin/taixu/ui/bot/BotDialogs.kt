@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,15 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -57,7 +58,7 @@ fun CreateBotDialog(
                 RuntimeFilledTextField(
                     value = name,
                     onValueChange = { name = it.take(40) },
-                    label = { Text(stringResource(R.string.fbot_name)) },
+                    labelText = stringResource(R.string.fbot_name),
                     placeholder = { Text(stringResource(R.string.fbot_bot_name_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -65,7 +66,7 @@ fun CreateBotDialog(
                 RuntimeFilledTextField(
                     value = role,
                     onValueChange = { role = it.take(40) },
-                    label = { Text(stringResource(R.string.fbot_role)) },
+                    labelText = stringResource(R.string.fbot_role),
                     placeholder = { Text(stringResource(R.string.fbot_bot_role_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -73,7 +74,7 @@ fun CreateBotDialog(
                 RuntimeFilledTextField(
                     value = persona,
                     onValueChange = { persona = it },
-                    label = { Text(stringResource(R.string.fbot_persona)) },
+                    labelText = stringResource(R.string.fbot_persona),
                     placeholder = { Text(stringResource(R.string.fbot_persona_placeholder)) },
                     minLines = 4,
                     maxLines = 8,
@@ -82,8 +83,8 @@ fun CreateBotDialog(
                 if (groups.isNotEmpty()) {
                     Text(
                         stringResource(R.string.fbot_join_group),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -143,19 +144,19 @@ fun CreateGroupDialog(
                 RuntimeFilledTextField(
                     value = name,
                     onValueChange = { name = it.take(40) },
-                    label = { Text(stringResource(R.string.fbot_group_name)) },
+                    labelText = stringResource(R.string.fbot_group_name),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 RuntimeFilledTextField(
                     value = description,
                     onValueChange = { description = it.take(200) },
-                    label = { Text(stringResource(R.string.fbot_group_desc)) },
+                    labelText = stringResource(R.string.fbot_group_desc),
                     minLines = 2,
                     maxLines = 4,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Text("引用团队组", style = MaterialTheme.typography.titleSmall)
+                Text("引用团队组", style = RuntimeTheme.typography.titleSmall)
                 RuntimeTextButton(onClick = { selectedTeamId = null }) { Text(if (selectedTeamId == null) "✓ 手动选人（不带入团队规则）" else "手动选人") }
                 memberGroups.filter { it.publishedSnapshot != null }.forEach { team ->
                     RuntimeTextButton(onClick = {
@@ -173,14 +174,14 @@ fun CreateGroupDialog(
                 if (bots.isEmpty()) {
                     Text(
                         stringResource(R.string.fbot_need_bots),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.error,
                     )
                 } else {
                     Text(
                         stringResource(R.string.fbot_admin_bot),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -241,8 +242,8 @@ fun GroupMembersDialog(
             ) {
                 Text(
                     stringResource(R.string.fbot_members_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 allBots.forEach { bot ->
                     Row(
@@ -259,20 +260,20 @@ fun GroupMembersDialog(
                         BotAvatar(bot, 28.dp)
                         Column(Modifier.padding(start = 10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(bot.name, style = MaterialTheme.typography.bodyMedium)
+                                Text(bot.name, style = RuntimeTheme.typography.bodyMedium)
                                 if (bot.id == adminBotId) {
                                     Text(
                                         text = stringResource(R.string.fbot_main_bot),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        style = RuntimeTheme.typography.labelSmall,
+                                        color = RuntimeTheme.colorScheme.primary,
                                         modifier = Modifier.padding(start = 6.dp),
                                     )
                                 }
                             }
                             Text(
                                 bot.role,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }

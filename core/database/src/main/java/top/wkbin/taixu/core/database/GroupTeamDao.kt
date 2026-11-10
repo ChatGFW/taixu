@@ -6,6 +6,7 @@ import androidx.room.Transaction
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
+import top.wkbin.taixu.core.model.bot.BotTeamDefinition
 import top.wkbin.taixu.core.model.bot.GroupTeam
 
 /** Reads the referenced team definition; old unlinked rooms retain their compatibility path. */
@@ -27,7 +28,7 @@ interface GroupTeamDao {
     suspend fun effectiveTeam(groupId: String): GroupTeam {
         val rows = teamMembers(groupId)
         if (linkedTeamId(groupId) != null) {
-            val definition = kotlinx.serialization.json.Json.decodeFromString<top.wkbin.taixu.core.model.bot.BotTeamDefinition>(requireNotNull(linkedDefinition(groupId)) { "团队组定义缺失" })
+            val definition = kotlinx.serialization.json.Json.decodeFromString<BotTeamDefinition>(requireNotNull(linkedDefinition(groupId)) { "团队组定义缺失" })
             return definition.team(rows.map { it.botId })
         }
         return GroupTeam(requireNotNull(teamAdmin(groupId)), rows.map { it.botId }.toSet(), rows.mapNotNull { row -> row.supervisorBotId?.let { row.botId to it } }.toMap())

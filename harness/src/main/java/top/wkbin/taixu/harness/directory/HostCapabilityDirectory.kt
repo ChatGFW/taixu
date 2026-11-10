@@ -1,5 +1,7 @@
 package top.wkbin.taixu.harness.directory
 
+import kotlinx.serialization.json.Json as SerializationJson
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -8,8 +10,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import top.wkbin.taixu.harness.ApiFunctionDefinition
 import top.wkbin.taixu.harness.ApiToolDefinition
-import kotlinx.serialization.json.Json as SerializationJson
-import kotlinx.serialization.json.JsonArray
+import top.wkbin.taixu.harness.approval.TrustedToolRiskPolicy
 
 /**
  * 宿主能力目录 —— host 工具 direct / deferred 拆分与动作分类的唯一事实源。
@@ -115,10 +116,10 @@ object HostCapabilityDirectory {
     private val HIDDEN_ACTIONS: Set<String> = emptySet()
 
     /** PLAN 只读门禁引用的宿主只读动作（自 ApprovalPolicyEngine 迁入，动作分类统一归目录）。 */
-    val READ_ONLY_ACTIONS: Set<String> = top.wkbin.taixu.harness.approval.TrustedToolRiskPolicy.readOnlyHostActions
+    val READ_ONLY_ACTIONS: Set<String> = TrustedToolRiskPolicy.readOnlyHostActions
 
     /** ASSISTED 自动放行动作与审批引擎使用同一可信策略目录。 */
-    val GUI_ASSISTED_ACTIONS: Set<String> = top.wkbin.taixu.harness.approval.TrustedToolRiskPolicy.assistedHostActions
+    val GUI_ASSISTED_ACTIONS: Set<String> = TrustedToolRiskPolicy.assistedHostActions
 
     fun isDeferred(action: String): Boolean = deferredNames.contains(action)
     fun isHidden(action: String): Boolean = action in HIDDEN_ACTIONS

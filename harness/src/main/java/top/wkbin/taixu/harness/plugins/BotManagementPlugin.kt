@@ -11,11 +11,14 @@ import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.Bot
-import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
+import top.wkbin.taixu.core.model.bot.GroupChat
+import top.wkbin.taixu.harness.bot.BotAssignmentRuntime
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
+import top.wkbin.taixu.harness.bot.BotModelManager
 import top.wkbin.taixu.harness.bot.BotOrchestrator
 import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
 
@@ -31,10 +34,10 @@ fun botManagementPlugin(
     dispatcher: () -> GroupChatDispatcher,
     assignments: BotAssignmentTracker,
     logger: AppLogger,
-    runtime: (() -> top.wkbin.taixu.harness.bot.BotAssignmentRuntime)? = null,
-    modelManager: top.wkbin.taixu.harness.bot.BotModelManager? = null,
+    runtime: (() -> BotAssignmentRuntime)? = null,
+    modelManager: BotModelManager? = null,
     /** 各会话运行态快照（list-bots 状态行用）；缺省空表时状态行退化为任务维度。 */
-    sessionStates: () -> Map<String, top.wkbin.taixu.core.model.SessionRunState> = { emptyMap() },
+    sessionStates: () -> Map<String, SessionRunState> = { emptyMap() },
 ): HarnessPlugin {
     val descriptor = botManagementDescriptor()
     val createSchema = pluginObjectSchema(

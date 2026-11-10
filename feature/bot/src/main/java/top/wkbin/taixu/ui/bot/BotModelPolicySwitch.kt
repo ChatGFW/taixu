@@ -3,8 +3,8 @@ package top.wkbin.taixu.ui.bot
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,9 +16,9 @@ import top.wkbin.taixu.ui.components.RuntimeSwitch
 internal fun BotModelPolicySwitch(allowed: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.fbot_model_self_selection), style = MaterialTheme.typography.bodyMedium)
-            Text(stringResource(R.string.fbot_model_self_selection_hint), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.fbot_model_self_selection), style = RuntimeTheme.typography.bodyMedium)
+            Text(stringResource(R.string.fbot_model_self_selection_hint), style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant)
         }
         RuntimeSwitch(checked = allowed, onCheckedChange = onChange, enabled = enabled)
     }

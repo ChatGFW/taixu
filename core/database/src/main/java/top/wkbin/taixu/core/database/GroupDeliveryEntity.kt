@@ -32,8 +32,12 @@ data class GroupDeliveryEntity(
     val sessionId: String? = null,
     val taskId: String? = null,
     val error: String? = null,
+    val claimNonce: String? = null,
+    val claimedAt: Long? = null,
 ) {
-    fun toModel() = GroupDelivery(id, sourceMessageId, groupId, botId, createdAt, status, sessionId, taskId, error)
+    fun toModel() = GroupDelivery(
+        id, sourceMessageId, groupId, botId, createdAt, status, sessionId, taskId, error, claimNonce, claimedAt,
+    )
 }
 
 /** Shared by the message and assignment owners so staging is inside their existing transactions. */
@@ -75,9 +79,22 @@ interface GroupDeliveryDao {
         // A replay of a staged source must not change its recipients or recreate cleared work.
         val withSeq = message.copy(seq = nextMessageSeq(message.groupId))
         if (insertDeliverySource(withSeq) == -1L) return
+        enqueueGroupDeliveries(message.id, message.groupId, botIds, message.timestamp)
+    }
+
+    /** Attach pending receipts to an already-posted source (e.g. mid-round @ of EXTERNAL). */
+    @Transaction
+    suspend fun enqueueGroupDeliveries(
+        sourceMessageId: String,
+        groupId: String,
+        botIds: List<String>,
+        createdAt: Long,
+    ) {
         botIds.distinct().forEach { botId ->
-            if (deliveryMember(message.groupId, botId)) {
-                insertGroupDelivery(GroupDeliveryEntity("${message.id}:$botId", message.id, message.groupId, botId, message.timestamp))
+            if (deliveryMember(groupId, botId)) {
+                insertGroupDelivery(
+                    GroupDeliveryEntity("$sourceMessageId:$botId", sourceMessageId, groupId, botId, createdAt),
+                )
             }
         }
     }
@@ -96,27 +113,113 @@ interface GroupDeliveryDao {
     @Query("SELECT * FROM group_deliveries WHERE status IN ('submitting', 'admitted')")
     suspend fun interruptedGroupDeliveries(): List<GroupDeliveryEntity>
 
-    @Query("UPDATE group_deliveries SET status = 'submitting' WHERE id = :id AND status = 'pending' AND EXISTS " +
+    /** LOCAL / 未知模式中断收件；EXTERNAL 租约冷启动时保留 nonce，失联靠 TTL 回收。 */
+    @Query(
+        "SELECT * FROM group_deliveries WHERE status IN ('submitting', 'admitted') AND NOT EXISTS (" +
+            "SELECT 1 FROM persona_bots b WHERE b.id = group_deliveries.botId AND b.runtimeMode = 'EXTERNAL')",
+    )
+    suspend fun interruptedLocalGroupDeliveries(): List<GroupDeliveryEntity>
+
+    @Query(
+        "UPDATE group_deliveries SET status = 'submitting', claimNonce = :claimNonce, claimedAt = :claimedAt " +
+            "WHERE id = :id AND status = 'pending' AND claimNonce IS NULL AND EXISTS " +
+            "(SELECT 1 FROM group_members m WHERE m.groupId = group_deliveries.groupId AND m.botId = group_deliveries.botId)",
+    )
+    suspend fun claimGroupDelivery(id: String, claimNonce: String, claimedAt: Long): Int
+
+    @Query("UPDATE group_deliveries SET sessionId = :sessionId WHERE id = :id AND status = 'submitting' AND claimNonce = :claimNonce AND EXISTS " +
         "(SELECT 1 FROM group_members m WHERE m.groupId = group_deliveries.groupId AND m.botId = group_deliveries.botId)")
-    suspend fun claimGroupDelivery(id: String): Int
+    suspend fun prepareGroupDelivery(id: String, sessionId: String, claimNonce: String): Int
 
-    @Query("UPDATE group_deliveries SET sessionId = :sessionId WHERE id = :id AND status = 'submitting' AND EXISTS " +
-        "(SELECT 1 FROM group_members m WHERE m.groupId = group_deliveries.groupId AND m.botId = group_deliveries.botId)")
-    suspend fun prepareGroupDelivery(id: String, sessionId: String): Int
+    @Query("UPDATE group_deliveries SET status = 'admitted', sessionId = :sessionId, taskId = :taskId WHERE id = :id AND status = 'submitting' AND claimNonce = :claimNonce")
+    suspend fun admitGroupDelivery(id: String, sessionId: String, taskId: String?, claimNonce: String): Int
 
-    @Query("UPDATE group_deliveries SET status = 'admitted', sessionId = :sessionId, taskId = :taskId WHERE id = :id AND status = 'submitting'")
-    suspend fun admitGroupDelivery(id: String, sessionId: String, taskId: String?): Int
+    @Query(
+        "UPDATE group_deliveries SET status = :status, error = :error, claimedAt = NULL " +
+            "WHERE id = :id AND status IN ('submitting', 'admitted') AND claimNonce = :claimNonce",
+    )
+    suspend fun settleClaimedGroupDelivery(id: String, status: String, error: String?, claimNonce: String): Int
 
-    @Query("UPDATE group_deliveries SET status = :status, error = :error WHERE id = :id AND status IN ('pending', 'submitting', 'admitted')")
-    suspend fun settleGroupDelivery(id: String, status: String, error: String?): Int
+    @Query("UPDATE group_deliveries SET status = :status, error = :error WHERE id = :id AND status = 'pending'")
+    suspend fun settlePendingGroupDelivery(id: String, status: String, error: String?): Int
+
+    @Query(
+        "UPDATE group_deliveries SET status = :status, error = :error, claimedAt = NULL " +
+            "WHERE id = :id AND status IN ('submitting', 'admitted')",
+    )
+    suspend fun settleInterruptedGroupDelivery(id: String, status: String, error: String?): Int
+
+    /** External executors may put a claimed-but-unsettled receipt back on the queue. */
+    @Query(
+        "UPDATE group_deliveries SET status = 'pending', claimNonce = NULL, claimedAt = NULL, sessionId = NULL, taskId = NULL, error = NULL " +
+            "WHERE id = :id AND status = 'submitting' AND claimNonce = :claimNonce",
+    )
+    suspend fun requeueClaimedGroupDelivery(id: String, claimNonce: String): Int
+
+    /**
+     * EXTERNAL members only claim to submitting; if the phone process dies mid-turn,
+     * put those receipts back to pending instead of marking UNKNOWN.
+     */
+    @Query(
+        "UPDATE group_deliveries SET status = 'pending', claimNonce = NULL, claimedAt = NULL, sessionId = NULL, taskId = NULL, error = NULL " +
+            "WHERE status = 'submitting' AND EXISTS (" +
+            "SELECT 1 FROM persona_bots b WHERE b.id = group_deliveries.botId AND b.runtimeMode = 'EXTERNAL')",
+    )
+    suspend fun requeueExternalSubmittingDeliveries(): Int
+
+    /**
+     * Live reclaim for crashed external executors: EXTERNAL submitting leases whose
+     * claimedAt is missing or older than [beforeMs] go back to pending.
+     */
+    @Query(
+        "UPDATE group_deliveries SET status = 'pending', claimNonce = NULL, claimedAt = NULL, sessionId = NULL, taskId = NULL, error = NULL " +
+            "WHERE status = 'submitting' AND (claimedAt IS NULL OR claimedAt < :beforeMs) AND EXISTS (" +
+            "SELECT 1 FROM persona_bots b WHERE b.id = group_deliveries.botId AND b.runtimeMode = 'EXTERNAL')",
+    )
+    suspend fun requeueStaleExternalSubmittingDeliveries(beforeMs: Long): Int
+
+    @Query(
+        "UPDATE group_deliveries SET claimedAt = :claimedAt " +
+            "WHERE id = :id AND botId = :botId AND status = 'submitting' AND claimNonce = :claimNonce",
+    )
+    suspend fun touchExternalClaim(id: String, botId: String, claimNonce: String, claimedAt: Long): Int
+
+    /** When a member leaves EXTERNAL, put its unsettled claims back so LOCAL pump can take them. */
+    @Query(
+        "UPDATE group_deliveries SET status = 'pending', claimNonce = NULL, claimedAt = NULL, sessionId = NULL, taskId = NULL, error = NULL " +
+            "WHERE botId = :botId AND status = 'submitting'",
+    )
+    suspend fun requeueSubmittingForBot(botId: String): Int
 
     @Query("UPDATE group_messages SET isStreaming = 0, content = CASE WHEN content = '' THEN :notice ELSE content || char(10) || :notice END " +
         "WHERE id = :id AND isStreaming = 1")
     suspend fun interruptDeliveryReply(id: String, notice: String)
 
     @Transaction
-    suspend fun finishGroupDelivery(id: String, status: String, error: String?) {
-        if (settleGroupDelivery(id, status, error) != 1) return
+    suspend fun finishGroupDelivery(id: String, status: String, error: String?, claimNonce: String?) {
+        val settled = when {
+            claimNonce != null -> settleClaimedGroupDelivery(id, status, error, claimNonce)
+            else -> settlePendingGroupDelivery(id, status, error)
+        }
+        if (settled != 1) return
+        annotateTerminalDelivery(id, status, error)
+    }
+
+    @Transaction
+    suspend fun recoverGroupDeliveries() {
+        // EXTERNAL submitting 保留 claimNonce：执行器仍可幂等 ack。
+        // 冷启动立刻 requeue 会清掉 nonce，电脑无法收口且同一消息可再次领取。
+        // 失联租约由运行中 TTL reclaim（claimedAt）处理。
+        interruptedLocalGroupDeliveries().forEach {
+            if (settleInterruptedGroupDelivery(it.id, GroupDelivery.UNKNOWN,
+                    "进程在处理群消息时退出，结果待核对；未自动重新执行") == 1) {
+                annotateTerminalDelivery(it.id, GroupDelivery.UNKNOWN,
+                    "进程在处理群消息时退出，结果待核对；未自动重新执行")
+            }
+        }
+    }
+
+    private suspend fun annotateTerminalDelivery(id: String, status: String, error: String?) {
         if (status != GroupDelivery.UNKNOWN && status != GroupDelivery.REJECTED) return
         val receipt = findGroupDelivery(id) ?: return
         val notice = "⚠️ ${error ?: "消息处理结果待核对，请检查会话记录"}"
@@ -126,13 +229,6 @@ interface GroupDeliveryDao {
             senderType = "SYSTEM", content = notice, timestamp = System.currentTimeMillis(), isStreaming = false, delegatedTaskId = null,
             seq = nextMessageSeq(receipt.groupId),
         ))
-    }
-
-    @Transaction
-    suspend fun recoverGroupDeliveries() {
-        interruptedGroupDeliveries().forEach {
-            finishGroupDelivery(it.id, GroupDelivery.UNKNOWN, "进程在处理群消息时退出，结果待核对；未自动重新执行")
-        }
     }
 
     @Query("UPDATE group_deliveries SET status = 'cancelled', error = '用户停止或成员已移出' WHERE groupId = :groupId " +

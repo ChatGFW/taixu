@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
@@ -31,10 +31,8 @@ internal fun DeveloperAccessSettings(developer: Boolean, change: (Boolean) -> Un
     ToggleRow(icon = RuntimeIconName.Bug, title = stringResource(R.string.host_access_developer),
         subtitle = stringResource(R.string.host_access_developer_detail), checked = developer, change = change)
     if (developer) {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         SettingsRow(icon = RuntimeIconName.Terminal, title = "开发者控制台", subtitle = "实时查看 PRoot 进程与命令追踪",
             onClick = onOpenDeveloper)
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         ContainerBackendToggle()
         if (hostControls) HostAccessSettings()
     }
@@ -83,13 +81,8 @@ private fun HostAccessSettings() {
             HostAccessTarget(HostAccessScope(distro, it.manifest.plugin!!.id, it.manifest.version), it.manifest.name.take(128))
         }
     for (target in targets) {
-        val allowed = remember(consents, target, tick) {
-            SandboxCredentialStore.SHELL_ACTION in grant.snapshot(target.scope).actions
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         SettingsRow(icon = RuntimeIconName.Admin, title = target.label,
             subtitle = stringResource(R.string.host_access_target, distro, target.scope.pluginId, target.scope.version),
-            value = stringResource(if (allowed) R.string.host_access_active else R.string.host_access_request),
             onClick = { pending = target })
     }
     pending?.let { target ->

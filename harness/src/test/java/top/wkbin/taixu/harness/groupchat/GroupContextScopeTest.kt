@@ -14,6 +14,8 @@ import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.repository.RoomGroupChatRepository
 import top.wkbin.taixu.core.database.repository.RoomPersonaBotRepository
+import top.wkbin.taixu.core.database.task.AgentTaskEntity
+import top.wkbin.taixu.core.database.task.RoomAgentTaskRepository
 import top.wkbin.taixu.core.model.bot.*
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.UserMessage
@@ -58,8 +60,8 @@ class GroupContextScopeTest {
 
     @Test fun `only current native operation dispatch receipts suppress relays and receipts survive a new scope instance`() = runBlocking {
         seed()
-        val native = top.wkbin.taixu.core.database.task.RoomAgentTaskRepository(db.agentTaskDao())
-        native.upsert(top.wkbin.taixu.core.database.task.AgentTaskEntity("native", "group-session", "Root", "work", "COMPLETED", 1, 2,
+        val native = RoomAgentTaskRepository(db.agentTaskDao())
+        native.upsert(AgentTaskEntity("native", "group-session", "Root", "work", "COMPLETED", 1, 2,
             operationId = "operation", groupWorkId = "work", groupId = "g"))
         db.botAssignmentDao().recordDispatch(AssignmentDispatchReceipt("operation", "leader", "g", "lead", "native"))
         val restored = GroupContextScope(groups, tasks, native)

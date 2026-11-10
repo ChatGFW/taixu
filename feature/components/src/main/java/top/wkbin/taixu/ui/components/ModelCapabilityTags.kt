@@ -1,15 +1,9 @@
 package top.wkbin.taixu.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import java.util.Locale
 
 /** 模型能力标签的展示数据；null 表示未知，不展示 */
@@ -37,8 +31,8 @@ fun ModelCapabilityTags(
     }
     if (tags.isEmpty()) return
     Text(tags.joinToString(" · "), modifier = modifier,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant)
+        style = RuntimeTheme.typography.labelMedium,
+        color = RuntimeTheme.colorScheme.onSurfaceVariant)
 }
 
 fun formatModelContext(tokens: Int): String = when {

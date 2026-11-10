@@ -9,6 +9,8 @@ import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.common.result.ErrorCode
 import top.wkbin.taixu.runtime.environment.ExecutionFileEntry
 import top.wkbin.taixu.runtime.environment.ExecutionFiles
+import top.wkbin.taixu.runtime.environment.WorkspaceEditOutcome
+import top.wkbin.taixu.ui.components.RuntimeIconName
 
 class WorkspaceFileCompletionTest {
     @Test fun `indexes nested files and applies scoped ignore and negation`() = runBlocking {
@@ -84,7 +86,7 @@ class WorkspaceFileCompletionTest {
 
     @Test fun `stale suggestion cannot overwrite another session workspace or query`() {
         val item = MentionItem("/workspace/p/readme.md", "readme.md", "", "", MentionType.FILE,
-            top.wkbin.taixu.ui.components.RuntimeIconName.File, "one", "/workspace/p", "read")
+            RuntimeIconName.File, "one", "/workspace/p", "read")
         assertEquals("请读 @/workspace/p/readme.md ", insertMention("请读 @read", item, "one", "/workspace/p"))
         assertNull(insertMention("请读 @read", item, "two", "/workspace/p"))
         assertNull(insertMention("请读 @read", item, "one", "/workspace/other"))
@@ -113,7 +115,7 @@ class WorkspaceFileCompletionTest {
         override suspend fun read(path: String, offset: Int?, limit: Int?, anchors: Boolean): AppResult<String> = error("Unexpected file content read")
         override suspend fun readRawBytes(path: String): AppResult<ByteArray> = error("Unexpected file read")
         override suspend fun write(path: String, content: String): AppResult<Unit> = error("read only")
-        override suspend fun editDetailed(path: String, oldText: String, newText: String): AppResult<top.wkbin.taixu.runtime.environment.WorkspaceEditOutcome> = error("read only")
+        override suspend fun editDetailed(path: String, oldText: String, newText: String): AppResult<WorkspaceEditOutcome> = error("read only")
         override suspend fun previewOrNull(path: String): String? = null
         override suspend fun fileSizeOrNull(path: String): Long? = null
         override suspend fun delete(path: String) = error("read only")

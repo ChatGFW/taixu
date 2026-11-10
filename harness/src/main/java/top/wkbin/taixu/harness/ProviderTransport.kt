@@ -5,13 +5,14 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
+import top.wkbin.taixu.harness.bot.TaskBudgetGuard
 import top.wkbin.taixu.harness.diagnostics.withRequestDiagnostics
 
 /** Request policy shared by every wire API; independent of persisted model selection. */
 internal class ProviderTransport(
     client: OkHttpClient,
     json: Json,
-    private val budgetGuard: top.wkbin.taixu.harness.bot.TaskBudgetGuard? = null,
+    private val budgetGuard: TaskBudgetGuard? = null,
     private val adapters: (OkHttpClient) -> LlmApiRegistry = { LlmApiRegistry.builtIn(it, json) },
 ) {
     private val keys = ApiKeyScheduler()

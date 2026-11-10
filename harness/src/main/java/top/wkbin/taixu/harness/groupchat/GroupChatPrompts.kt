@@ -2,8 +2,10 @@ package top.wkbin.taixu.harness.groupchat
 
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.GroupChat
+import top.wkbin.taixu.core.model.bot.GroupGovernance
 import top.wkbin.taixu.core.model.bot.GroupMessage
 import top.wkbin.taixu.core.model.bot.GroupSenderType
+import top.wkbin.taixu.core.model.bot.GroupTeam
 
 internal fun buildGroupPrompt(
     group: GroupChat,
@@ -11,8 +13,8 @@ internal fun buildGroupPrompt(
     trigger: String,
     history: String,
     members: List<Bot>,
-    team: top.wkbin.taixu.core.model.bot.GroupTeam = top.wkbin.taixu.core.model.bot.GroupTeam(group.adminBotId, members.map { it.id }.toSet()),
-    governance: top.wkbin.taixu.core.model.bot.GroupGovernance = top.wkbin.taixu.core.model.bot.GroupGovernance(),
+    team: GroupTeam = GroupTeam(group.adminBotId, members.map { it.id }.toSet()),
+    governance: GroupGovernance = GroupGovernance(),
 ): String = buildString {
     appendLine("【群聊「${group.name}」】")
     appendLine("群聊 ID：${group.id}")

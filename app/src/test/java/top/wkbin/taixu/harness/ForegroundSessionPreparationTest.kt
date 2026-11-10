@@ -22,6 +22,7 @@ import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.database.RoomHarnessSessionRepository
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.di.taiXuModule
+import top.wkbin.taixu.harness.projection.SessionMessageProjector
 import top.wkbin.taixu.runtime.FakeLinuxRuntime
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentFactory
@@ -123,7 +124,7 @@ class ForegroundSessionPreparationTest {
 
     @Test fun `editing an assistant message cannot truncate the conversation`() = runBlocking {
         val sessionId = loop.newSession("edit")
-        val projector = application.koin.get<top.wkbin.taixu.harness.projection.SessionMessageProjector>()
+        val projector = application.koin.get<SessionMessageProjector>()
         projector.append(sessionId, UserMessage("user", 0, "original question"))
         projector.append(sessionId, AssistantText("assistant", 1, "existing answer"))
         loop.truncateAndResend("assistant", "must not be sent", sessionId)

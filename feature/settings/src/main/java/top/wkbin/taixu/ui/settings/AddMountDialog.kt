@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -7,9 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,13 +47,13 @@ internal fun AddMountDialog(
 
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("新增存储挂载点", fontWeight = FontWeight.Bold) },
+        title = { Text("新增存储挂载点", fontWeight = FontWeight.Medium) },
         text = {
             Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 RuntimeFilledTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("挂载点名称") },
+                    labelText = resolveLegacyString("挂载点名称"),
                     placeholder = { Text("例如：相册照片、项目源码") },
                     isError = !nameValid,
                     supportingText = { if (!nameValid) Text("请输入挂载点名称") },
@@ -62,7 +63,7 @@ internal fun AddMountDialog(
                 RuntimeFilledTextField(
                     value = hostPath,
                     onValueChange = { hostPath = it },
-                    label = { Text("宿主路径 (Android)") },
+                    labelText = resolveLegacyString("宿主路径 (Android)"),
                     placeholder = { Text("/storage/emulated/0/...") },
                     isError = hostPath.isNotBlank() && !hostPathValid,
                     supportingText = {
@@ -79,7 +80,7 @@ internal fun AddMountDialog(
                 RuntimeFilledTextField(
                     value = guestPath,
                     onValueChange = { guestPath = it },
-                    label = { Text("容器挂载路径 (Linux)") },
+                    labelText = resolveLegacyString("容器挂载路径 (Linux)"),
                     placeholder = { Text("/mnt/my_folder") },
                     isError = guestPath.isNotBlank() && !guestPathValid,
                     supportingText = {

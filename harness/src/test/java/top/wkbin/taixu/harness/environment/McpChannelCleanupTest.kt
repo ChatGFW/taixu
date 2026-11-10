@@ -7,6 +7,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import top.wkbin.taixu.harness.core.ResourceCleanupException
 import top.wkbin.taixu.harness.mcp.LinuxMcpStdioChannel
+import top.wkbin.taixu.harness.mcp.McpResourceCleanup
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironment
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentId
 import top.wkbin.taixu.runtime.shell.*
@@ -100,7 +101,7 @@ class McpChannelCleanupTest {
     }
 
     @Test fun `recursive MCP cleanup is rejected and can be retried`() = runTest {
-        val cleanup = top.wkbin.taixu.harness.mcp.McpResourceCleanup()
+        val cleanup = McpResourceCleanup()
         assertTrue(runCatching { cleanup.close { cleanup.close {} } }.exceptionOrNull() is IllegalStateException)
         var releases = 0
         cleanup.close { releases++ }

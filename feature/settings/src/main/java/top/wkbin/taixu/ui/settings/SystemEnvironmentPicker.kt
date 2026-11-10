@@ -3,8 +3,8 @@ package top.wkbin.taixu.ui.settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -19,7 +19,7 @@ import top.wkbin.taixu.ui.components.*
 @Composable
 internal fun SystemEnvironmentPicker(localCount: Int, onInstallLocal: () -> Unit, viewModel: RemoteServerViewModel? = previewOrNull { koinViewModel() }) {
     if (viewModel == null) {
-        Text("运行后端", style = MaterialTheme.typography.titleMedium)
+        Text("运行后端", style = RuntimeTheme.typography.titleMedium)
         return
     }
     val servers by viewModel.servers.collectAsStateWithLifecycle()
@@ -43,7 +43,7 @@ internal fun SystemEnvironmentPicker(localCount: Int, onInstallLocal: () -> Unit
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         configurationError?.let { NoticeBanner(text = it, isError = true) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text("运行后端", style = MaterialTheme.typography.titleMedium)
+            Text("运行后端", style = RuntimeTheme.typography.titleMedium)
             RuntimeButton(onClick = { choose = true }) { Text("添加系统") }
         }
         NoticeBanner(text = "主系统决定新对话、首页指标和工坊项目使用的环境。已有对话保留原环境，服务器文件不会自动复制到手机。")
@@ -56,13 +56,13 @@ internal fun SystemEnvironmentPicker(localCount: Int, onInstallLocal: () -> Unit
                 else -> chooseRemote = true
             }
         }
-        connection.message?.let { Text(it, color = if (connection.tested) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
-        localNetworkMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        connection.message?.let { Text(it, color = if (connection.tested) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.error) }
+        localNetworkMessage?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text("连接档案 (${servers.size})", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text("连接档案 (${servers.size})", style = RuntimeTheme.typography.titleSmall, color = RuntimeTheme.colorScheme.primary)
             RuntimeTextButton(onClick = { viewModel.clear(); addRemote = true }) { Text("新增连接") }
         }
-        if (servers.isEmpty()) Text("添加 SSH 连接后，可选择它作为主系统。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (servers.isEmpty()) Text("添加 SSH 连接后，可选择它作为主系统。", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
         servers.forEach { server ->
             ConnectionProfileCard(server, server.id == active, onSelect = { selectServer(server) },
                 onEdit = { viewModel.clear(); editing = server }, onRemove = { remove = server })

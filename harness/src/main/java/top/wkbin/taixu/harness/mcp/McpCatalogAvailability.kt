@@ -1,19 +1,21 @@
 package top.wkbin.taixu.harness.mcp
 
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import top.wkbin.taixu.core.common.McpCatalogRevisions
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.model.McpCatalog
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.withInstalledComponents
 import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.environment.ExecutionEnvironment
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentFactory
-import top.wkbin.taixu.runtime.environment.ExecutionEnvironment
 import top.wkbin.taixu.runtime.shell.CommandResult
 import top.wkbin.taixu.runtime.shell.ShellCommand
 
@@ -39,7 +41,7 @@ internal suspend fun probeMcpCatalog(
 class McpCatalogAvailability(
     private val runtime: LinuxRuntime,
     private val environments: ExecutionEnvironmentFactory? = null,
-    private val remoteServers: top.wkbin.taixu.core.datastore.RemoteServerRepository? = null,
+    private val remoteServers: RemoteServerRepository? = null,
     private val logger: AppLogger? = null,
 ) {
     private val probeMutex = Mutex()
@@ -93,7 +95,7 @@ class McpCatalogAvailability(
             val resolved = server.withInstalledComponents(installed)
             if (!server.requiresInstall || distribution.isBlank()) resolved else resolved.copy(
                 catalogDistribution = distribution,
-                catalogRevision = top.wkbin.taixu.core.common.McpCatalogRevisions.current(distribution, server.id),
+                catalogRevision = McpCatalogRevisions.current(distribution, server.id),
             )
         }
     }

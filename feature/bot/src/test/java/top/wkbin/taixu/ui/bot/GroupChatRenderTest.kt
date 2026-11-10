@@ -11,8 +11,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.input.TextFieldValue
@@ -58,20 +58,24 @@ class GroupChatRenderTest {
                     GroupToolStep("build", "base", true, 2400, "./gradlew assembleDebug")),
                 reasoning = "先读取配置，再验证构建与模块依赖。")
             activity.setContent {
-                TaiXuTheme(darkTheme = dark, dynamicColor = false) {
-                    Surface(color = MaterialTheme.colorScheme.surface) {
-                        Column(Modifier.fillMaxSize()) {
-                            GroupChatTopBar(GroupChatViewMode.CHAT, "太墟项目协作", "2 位成员 · 阿策主持", false,
-                                GroupWorkSummary(0, 0, 0), false, {}, {}, {}, {})
-                            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                GroupMessageRow(question, null, true, true, {})
-                                GroupMessageRow(answer, members.first(), true, true, {})
-                                GroupMessageRow(GroupMessage("review", "g", "reviewer", "阿审", GroupSenderType.BOT,
-                                    "收到，我会重点检查小屏布局与运行状态。", 2), members.last(), true, true, {})
+                androidx.compose.runtime.CompositionLocalProvider(
+                    top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled provides false,
+                ) {
+                    TaiXuTheme(darkTheme = dark, dynamicColor = false) {
+                        Surface(color = RuntimeTheme.colorScheme.surface) {
+                            Column(Modifier.fillMaxSize()) {
+                                GroupChatTopBar(GroupChatViewMode.CHAT, "太墟项目协作", "2 位成员 · 阿策主持", false,
+                                    GroupWorkSummary(0, 0, 0), false, {}, {}, {}, {})
+                                Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                    GroupMessageRow(question, null, true, true, {})
+                                    GroupMessageRow(answer, members.first(), true, true, {})
+                                    GroupMessageRow(GroupMessage("review", "g", "reviewer", "阿审", GroupSenderType.BOT,
+                                        "收到，我会重点检查小屏布局与运行状态。", 2), members.last(), true, true, {})
+                                }
+                                GroupChatComposer(members, TextFieldValue(), emptyList(), false, false, false,
+                                    {}, {}, {}, {}, {}, {})
                             }
-                            GroupChatComposer(members, TextFieldValue(), emptyList(), false, false, false,
-                                {}, {}, {}, {}, {}, {})
                         }
                     }
                 }

@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import top.wkbin.taixu.core.model.PluginLibraryChannel
+import top.wkbin.taixu.plugin.packages.PluginPackageProtocol
 
 class RemotePluginLibrary(private val context: Context, private val http: OkHttpClient) {
     private val operations = Mutex()
@@ -39,7 +40,7 @@ class RemotePluginLibrary(private val context: Context, private val http: OkHttp
             val file = downloader.download(release, progress)
             val coroutine = currentCoroutineContext()
             val manifest = file.inputStream().use { input ->
-                top.wkbin.taixu.plugin.packages.PluginPackageProtocol.decode(LocalPluginArchive.inspect(input, { coroutine.ensureActive() }))
+                PluginPackageProtocol.decode(LocalPluginArchive.inspect(input, { coroutine.ensureActive() }))
             }
             require(RemotePluginSource.matches(release, manifest)) { "插件包身份与签名目录不一致" }
             Uri.fromFile(file)

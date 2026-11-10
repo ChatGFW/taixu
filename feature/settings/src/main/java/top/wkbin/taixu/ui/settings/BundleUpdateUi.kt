@@ -1,15 +1,18 @@
 package top.wkbin.taixu.ui.settings
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -102,7 +105,7 @@ internal fun BundleSectionHeader(
     ) {
         Text(
             text,
-            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
             color = color,
             modifier = Modifier.padding(top = 4.dp),
         )
@@ -114,7 +117,7 @@ internal fun BundleSectionHeader(
             ) {
                 Text(
                     if (checking) "检查中..." else "检查更新",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = RuntimeTheme.typography.labelSmall,
                     maxLines = 1,
                     softWrap = false,
                 )
@@ -128,8 +131,8 @@ internal fun BundleSectionHeader(
 internal fun McpUpdateNoticeBanner(text: String) {
     Text(
         text,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = RuntimeTheme.typography.labelSmall,
+        color = RuntimeTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 2.dp),
     )
 }
@@ -147,7 +150,7 @@ internal fun McpComponentUpdateRow(
     onUpgrade: ((PluginComponent) -> Unit)?,
 ) {
     if (status == null || onUpgrade == null) return
-    val accent = if (status.updateAvailable) warningStatusColor() else MaterialTheme.colorScheme.onSurfaceVariant
+    val accent = if (status.updateAvailable) warningStatusColor() else RuntimeTheme.colorScheme.onSurfaceVariant
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -160,7 +163,7 @@ internal fun McpComponentUpdateRow(
         )
         Text(
             text = status.summary,
-            style = MaterialTheme.typography.labelSmall,
+            style = RuntimeTheme.typography.labelSmall,
             color = accent,
             maxLines = 2,
             modifier = Modifier.weight(1f),
@@ -173,7 +176,7 @@ internal fun McpComponentUpdateRow(
             ) {
                 Text(
                     if (upgrading) "升级中..." else "升级到 v${status.latestVersion}",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = RuntimeTheme.typography.labelSmall,
                     maxLines = 1,
                     softWrap = false,
                 )

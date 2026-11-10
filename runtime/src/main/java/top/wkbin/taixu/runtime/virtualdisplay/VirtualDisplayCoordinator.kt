@@ -46,6 +46,7 @@ class VirtualDisplayCoordinator(
 ) {
 
     private val sessions = ConcurrentHashMap<String, ShowerController>()
+    private val creationFailures = ConcurrentHashMap<String, String>()
     val phoneTasks = PhoneTaskRegistry()
     private val lifecycleMutex = Mutex()
 
@@ -80,6 +81,10 @@ class VirtualDisplayCoordinator(
     /** 指定会话当前虚拟屏 displayId（未创建为 null） */
     fun getDisplayId(sessionId: String): Int? = sessions[sessionId]?.getDisplayId()
 
+    fun creationFailure(sessionId: String): String =
+        "虚拟屏创建失败（session=$sessionId）：" +
+            (creationFailures[sessionId] ?: "请查看 runtime.log 中的 [Shower] 日志")
+
     /** 指定会话的视频流尺寸（未创建或未收到流为 null） */
     fun getVideoSize(sessionId: String): Pair<Int, Int>? = sessions[sessionId]?.getVideoSize()
 
@@ -98,9 +103,10 @@ class VirtualDisplayCoordinator(
     }
 
     private suspend fun ensureDisplayLocked(sessionId: String, bitrateKbps: Int?): Int? {
+        creationFailures.remove(sessionId)
         val controller = controller(sessionId)
-        if (!ShowerServerManager.ensureServerStarted(context)) {
-            logger.w("虚拟屏 server 启动失败：请检查 Shizuku/Root 特权状态（PRoot 模式不支持虚拟屏）")
+        if (!ShowerServerManager.ensureServerStarted(context) { creationFailures[sessionId] = it }) {
+            logger.w(creationFailure(sessionId))
             return null
         }
         // Application 的 displayMetrics 在分屏/折叠屏上常常不是物理屏尺寸。
@@ -117,6 +123,7 @@ class VirtualDisplayCoordinator(
             logger.w("虚拟屏创建失败（session=$sessionId，server 已启动）")
             return null
         }
+        creationFailures.remove(sessionId)
         return controller.getDisplayId()
     }
 
@@ -276,6 +283,7 @@ class VirtualDisplayCoordinator(
     }
 
     private fun closeSessionLocked(sessionId: String) {
+        creationFailures.remove(sessionId)
         if (VirtualDisplayHud.showingSessionId == sessionId) {
             hideOverlay()
         }

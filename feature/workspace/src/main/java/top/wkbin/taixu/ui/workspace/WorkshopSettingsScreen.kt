@@ -1,12 +1,7 @@
 package top.wkbin.taixu.ui.workspace
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
+
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,20 +9,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,26 +23,39 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
+import top.wkbin.taixu.core.database.BuildScriptEntity
 import top.wkbin.taixu.feature.workspace.R
+import top.wkbin.taixu.runtime.ProjectType
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeDropdownField
+import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconMenu
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
-import top.wkbin.taixu.core.database.BuildScriptEntity
-import top.wkbin.taixu.runtime.ProjectType
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.*
+import top.wkbin.taixu.ui.miuix.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.basic.Text
 @Composable
 fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, onOpenSigning: () -> Unit = {}, onEditScript: (WorkshopScriptType) -> Unit = {}, viewModel: WorkshopSettingsViewModel? = previewOrNull { koinViewModel() }) {
     val draft by viewModel?.draft?.collectAsStateWithLifecycle() ?: previewStateOf(WorkshopEnvironmentDraft())
@@ -127,7 +127,7 @@ fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, on
                 RuntimeButton(onClick = {
                     viewModel?.deleteManagedScript(script.id)
                     deleteScriptTarget = null
-                }, colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError)) { Text(stringResource(R.string.workspace_confirm_delete)) }
+                }, colors = ButtonDefaults.buttonColors(containerColor = RuntimeTheme.colorScheme.error, contentColor = RuntimeTheme.colorScheme.onError)) { Text(stringResource(R.string.workspace_confirm_delete)) }
             },
             dismissButton = {
                 RuntimeOutlinedButton(onClick = { deleteScriptTarget = null }) { Text(stringResource(R.string.workspace_cancel)) }
@@ -135,72 +135,55 @@ fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, on
         )
     }
 }
-
 @Composable
 private fun ManagedScriptCard(script: BuildScriptEntity, onEdit: () -> Unit, onClone: () -> Unit, onDelete: () -> Unit) {
-    var actionsExpanded by remember { mutableStateOf(false) }
-    RuntimeCard(onClick = onEdit, shape = MaterialTheme.shapes.extraLarge, containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+    RuntimeCard(onClick = onEdit, shape = RuntimeTheme.shapes.extraLarge, containerColor = RuntimeTheme.colorScheme.surfaceContainer) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 RuntimeIcon(if (script.projectType == ProjectType.FLUTTER.name) RuntimeIconName.Flutter else RuntimeIconName.Android, Modifier.size(24.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(script.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(script.name, style = RuntimeTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
                         "${script.projectType} · ${if (script.isBuiltin) stringResource(R.string.workshop_script_builtin) else stringResource(R.string.workshop_script_user)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.primary,
                     )
                 }
                 // 与文件浏览器一致的溢出菜单模式（替代裸文字 clickable，保证触摸热区）
-                Box {
-                    RuntimeIconButton(
-                        onClick = { actionsExpanded = true },
-                        contentDescription = stringResource(R.string.workspace_cd_more),
-                    ) {
-                        RuntimeIcon(RuntimeIconName.More, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    DropdownMenu(expanded = actionsExpanded, onDismissRequest = { actionsExpanded = false }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.workshop_script_edit)) },
-                            onClick = { actionsExpanded = false; onEdit() },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.workshop_script_clone)) },
-                            onClick = { actionsExpanded = false; onClone() },
-                        )
-                        if (!script.isBuiltin) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.workspace_delete), color = MaterialTheme.colorScheme.error) },
-                                onClick = { actionsExpanded = false; onDelete() },
-                            )
-                        }
-                    }
+                RuntimeIconMenu(
+                    entries = listOf(
+                        DropdownEntry(
+                            items = buildList {
+                                add(DropdownItem(text = stringResource(R.string.workshop_script_edit), onClick = onEdit))
+                                add(DropdownItem(text = stringResource(R.string.workshop_script_clone), onClick = onClone))
+                                if (!script.isBuiltin) {
+                                    add(DropdownItem(text = stringResource(R.string.workspace_delete), onClick = onDelete))
+                                }
+                            },
+                        ),
+                    ),
+                    modifier = Modifier.size(40.dp),
+                ) {
+                        RuntimeIcon(RuntimeIconName.More, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            if (script.description.isNotBlank()) Text(script.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (script.description.isNotBlank()) Text(script.description, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
-
 @Composable
 private fun ProjectScriptBindingRow(projectName: String, projectType: ProjectType, scripts: List<BuildScriptEntity>, selectedId: String?, onSelect: (String?) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
     val selected = scripts.firstOrNull { it.id == selectedId }
-    RuntimeCard(onClick = { expanded = true }, shape = MaterialTheme.shapes.extraLarge, containerColor = MaterialTheme.colorScheme.surfaceContainer) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(projectName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text("${projectType.displayName} · ${selected?.name ?: stringResource(R.string.workshop_binding_standard)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(20.dp))
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                DropdownMenuItem(text = { Text(stringResource(R.string.workshop_binding_standard)) }, onClick = { expanded = false; onSelect(null) })
-                scripts.forEach { script -> DropdownMenuItem(text = { Text(script.name) }, onClick = { expanded = false; onSelect(script.id) }) }
-            }
-        }
-    }
+    val items = listOf(stringResource(R.string.workshop_binding_standard)) + scripts.map { it.name }
+    val selectedIndex = selected?.let { scripts.indexOf(it) + 1 } ?: 0
+    RuntimeDropdownField(
+        title = projectName,
+        items = items,
+        selectedIndex = selectedIndex,
+        onSelectedIndexChange = { index -> onSelect(if (index == 0) null else scripts.getOrNull(index - 1)?.id) },
+        summary = projectType.displayName,
+    )
 }
-
 @Composable
 private fun ManagedScriptEditorDialog(script: BuildScriptEntity?, onDismiss: () -> Unit, onSave: (String, String, ProjectType, String) -> String?) {
     val defaultAndroidTemplate = "#!/bin/sh\n# 太墟标准 Android 构建脚本入口\nset -eu\nPROJECT_DIR=\"\${1:-.}\"\nTASK=\"\${2:-assembleDebug}\"\nexec /bin/sh /opt/taixu/scripts/taixu-build.sh android \"\$PROJECT_DIR\" \"\$TASK\"\n"
@@ -209,11 +192,11 @@ private fun ManagedScriptEditorDialog(script: BuildScriptEntity?, onDismiss: () 
     var description by androidx.compose.runtime.saveable.rememberSaveable(script?.id) { mutableStateOf(script?.description.orEmpty()) }
     var type by androidx.compose.runtime.saveable.rememberSaveable(script?.id) { mutableStateOf(runCatching { ProjectType.valueOf(script?.projectType ?: ProjectType.ANDROID.name) }.getOrDefault(ProjectType.ANDROID)) }
     var content by androidx.compose.runtime.saveable.rememberSaveable(script?.id) { mutableStateOf(script?.content ?: if (type == ProjectType.FLUTTER) defaultFlutterTemplate else defaultAndroidTemplate) }
-    var typeExpanded by remember { mutableStateOf(false) }
     var saveError by androidx.compose.runtime.saveable.rememberSaveable(script?.id) { mutableStateOf<String?>(null) }
+    val scriptTypes = listOf(ProjectType.ANDROID, ProjectType.FLUTTER)
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(if (script == null) R.string.workshop_script_editor_new else R.string.workshop_script_editor_edit), fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(if (script == null) R.string.workshop_script_editor_new else R.string.workshop_script_editor_edit), fontWeight = FontWeight.Medium) },
         text = {
             Column(
                 modifier = Modifier
@@ -221,26 +204,25 @@ private fun ManagedScriptEditorDialog(script: BuildScriptEntity?, onDismiss: () 
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                RuntimeFilledTextField(name, { name = it }, label = { Text(stringResource(R.string.workshop_script_field_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                RuntimeFilledTextField(description, { description = it }, label = { Text(stringResource(R.string.workshop_script_field_desc)) }, modifier = Modifier.fillMaxWidth())
-                RuntimeOutlinedButton(onClick = { typeExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.workshop_script_type, type.displayName)) }
-                DropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
-                    listOf(ProjectType.ANDROID, ProjectType.FLUTTER).forEach { candidate ->
-                        DropdownMenuItem(
-                            text = { Text(candidate.displayName) },
-                            onClick = {
-                                if (script == null && (content == defaultAndroidTemplate || content == defaultFlutterTemplate || content.isBlank())) {
-                                    content = if (candidate == ProjectType.FLUTTER) defaultFlutterTemplate else defaultAndroidTemplate
-                                }
-                                type = candidate
-                                typeExpanded = false
-                            },
-                        )
+                RuntimeFilledTextField(name, { name = it },
+ labelText = stringResource(R.string.workshop_script_field_name), singleLine = true, modifier = Modifier.fillMaxWidth())
+                RuntimeFilledTextField(description, { description = it },
+ labelText = stringResource(R.string.workshop_script_field_desc), modifier = Modifier.fillMaxWidth())
+                RuntimeDropdownField(
+                    title = stringResource(R.string.workshop_script_type, type.displayName),
+                    items = scriptTypes.map { it.displayName },
+                    selectedIndex = scriptTypes.indexOf(type).coerceAtLeast(0),
+                    onSelectedIndexChange = { index ->
+                        val candidate = scriptTypes[index]
+                        if (script == null && (content == defaultAndroidTemplate || content == defaultFlutterTemplate || content.isBlank())) {
+                            content = if (candidate == ProjectType.FLUTTER) defaultFlutterTemplate else defaultAndroidTemplate
+                        }
+                        type = candidate
                     }
-                }
+                )
                 CodeEditorPanel(content, { content = it }, "build.sh", Modifier.fillMaxWidth().height(260.dp))
-                Text(stringResource(R.string.workshop_script_api_note, "\$1", "\$2"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                saveError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                Text(stringResource(R.string.workshop_script_api_note, "\$1", "\$2"), style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                saveError?.let { Text(it, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.error) }
             }
         },
         confirmButton = { RuntimeButton(onClick = { saveError = onSave(name, description, type, content) }, enabled = name.isNotBlank() && content.isNotBlank()) { Text(stringResource(R.string.workshop_action_save)) } },
@@ -272,7 +254,7 @@ fun WorkshopEnvironmentSettingsScreen(onBack: () -> Unit, viewModel: WorkshopSet
                 }
             }
             item {
-                RuntimeCard(shape = MaterialTheme.shapes.extraLarge) {
+                RuntimeCard(shape = RuntimeTheme.shapes.extraLarge) {
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         ToolchainPathDropdownField("Gradle", draft.gradlePath, detected.gradleOptions) { viewModel?.update(draft.copy(gradlePath = it)) }
                         ToolchainPathDropdownField("Java / JDK", draft.javaPath, detected.javaOptions) { viewModel?.update(draft.copy(javaPath = it)) }
@@ -289,9 +271,9 @@ fun WorkshopEnvironmentSettingsScreen(onBack: () -> Unit, viewModel: WorkshopSet
                 }
             }
             item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    RuntimeOutlinedButton(onClick = { viewModel?.resetEnvironment() }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_action_reset)) }
-                    RuntimeButton(onClick = { viewModel?.saveEnvironment() }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_action_save)) }
+                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                    RuntimeOutlinedButton(onClick = { viewModel?.resetEnvironment() }, modifier = Modifier) { Text(stringResource(R.string.workshop_action_reset)) }
+                    RuntimeButton(onClick = { viewModel?.saveEnvironment() }, modifier = Modifier) { Text(stringResource(R.string.workshop_action_save)) }
                 }
             }
     }
@@ -304,98 +286,28 @@ private fun ToolchainPathDropdownField(
     options: List<ToolchainOption>,
     onValueChange: (String) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    val selectedIndex = options.indexOfFirst { it.path == value }.takeIf { it >= 0 } ?: 0
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (options.isNotEmpty()) {
-                Surface(
-                    onClick = { expanded = true },
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                    Text(
-                        stringResource(R.string.workshop_env_switch_version),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                        RuntimeIcon(RuntimeIconName.ChevronDown, Modifier.size(14.dp), MaterialTheme.colorScheme.onPrimaryContainer)
-                    }
-                }
-            }
+        if (options.isEmpty()) {
+            Text(label, style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+        } else {
+            RuntimeDropdownField(
+                title = label,
+                items = options.map { option ->
+                    option.label + if (option.isDetected) " · ${stringResource(R.string.workshop_env_detected)}" else ""
+                },
+                selectedIndex = selectedIndex,
+                onSelectedIndexChange = { index -> onValueChange(options[index].path) },
+                summary = value,
+            )
         }
 
         RuntimeFilledTextField(
             value = value, onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(), singleLine = true,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-            trailingIcon = {
-                if (options.isNotEmpty()) RuntimeIconButton(onClick = { expanded = true }, contentDescription = label) {
-                    RuntimeIcon(RuntimeIconName.ChevronDown, Modifier.size(20.dp))
-                }
-            },
+            textStyle = RuntimeTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
         )
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            options.forEach { option ->
-                val isSelected = option.path == value
-                DropdownMenuItem(
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            ) {
-                                Text(
-                                    option.label,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                )
-                                if (option.isDetected) {
-                                    Surface(
-                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                    ) {
-                                        Text(
-                                            stringResource(R.string.workshop_env_detected),
-                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                            color = MaterialTheme.colorScheme.primary,
-                                        )
-                                    }
-                                }
-                            }
-                            Text(
-                                option.path,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                ),
-                            )
-                        }
-                    },
-                    onClick = {
-                        onValueChange(option.path)
-                        expanded = false
-                    },
-                )
-            }
-        }
     }
 }
 
@@ -410,13 +322,27 @@ fun WorkshopScriptEditorScreen(type: WorkshopScriptType, onBack: () -> Unit, vie
     val isCustom = type in customScripts
     // 未保存修改时拦截返回键，避免静默丢失编辑
     BackHandler(enabled = isDirty && !showUnsavedDialog) { showUnsavedDialog = true }
-    Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = { RuntimeTopBar(type.title, onBack, if (isCustom) stringResource(R.string.workshop_script_screen_custom) else stringResource(R.string.workshop_script_screen_default)) }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            ScriptPathPanel(if (isCustom) type.customPath else type.defaultPath)
-            CodeEditorPanel(value = content, onValueChange = { content = it }, fileName = type.defaultPath.substringAfterLast('/'), modifier = Modifier.fillMaxWidth().weight(1f))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeOutlinedButton(onClick = { viewModel?.resetScript(type, onBack) }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_script_reset_default)) }
-                RuntimeButton(onClick = { viewModel?.saveScript(type, content, onBack) }, enabled = isDirty, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_script_save)) }
+    Scaffold(containerColor = RuntimeTheme.colorScheme.background, topBar = { RuntimeTopBar(type.title, onBack, if (isCustom) stringResource(R.string.workshop_script_screen_custom) else stringResource(R.string.workshop_script_screen_default)) }) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .then(runtimeScrollViewport(padding))
+                .padding(bottom = padding.calculateBottomPadding())
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(Modifier.padding(top = padding.calculateTopPadding() + 12.dp)) {
+                ScriptPathPanel(if (isCustom) type.customPath else type.defaultPath)
+            }
+            CodeEditorPanel(
+                value = content,
+                onValueChange = { content = it },
+                fileName = type.defaultPath.substringAfterLast('/'),
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                RuntimeOutlinedButton(onClick = { viewModel?.resetScript(type, onBack) }, modifier = Modifier) { Text(stringResource(R.string.workshop_script_reset_default)) }
+                RuntimeButton(onClick = { viewModel?.saveScript(type, content, onBack) }, enabled = isDirty, modifier = Modifier) { Text(stringResource(R.string.workshop_script_save)) }
             }
         }
     }
@@ -435,45 +361,46 @@ fun WorkshopScriptEditorScreen(type: WorkshopScriptType, onBack: () -> Unit, vie
                 RuntimeOutlinedButton(onClick = {
                     showUnsavedDialog = false
                     onBack()
-                }) { Text(stringResource(R.string.workshop_script_discard), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.workshop_script_discard), color = RuntimeTheme.colorScheme.error) }
             },
         )
     }
 }
 
 @Composable private fun SettingEntry(icon: RuntimeIconName, title: String, subtitle: String, onClick: () -> Unit) {
-    RuntimeCard(onClick = onClick, shape = MaterialTheme.shapes.extraLarge, containerColor = MaterialTheme.colorScheme.surfaceContainer) { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Surface(shape = MaterialTheme.shapes.largeIncreased, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(40.dp)) { RuntimeIcon(icon, Modifier.padding(9.dp), MaterialTheme.colorScheme.onSecondaryContainer) }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) { Text(title, style = MaterialTheme.typography.titleMedium); Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis) }
-        RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+    RuntimeCard(onClick = onClick, shape = RuntimeTheme.shapes.extraLarge, containerColor = RuntimeTheme.colorScheme.surfaceContainer) { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Surface(shape = RuntimeTheme.shapes.largeIncreased, color = RuntimeTheme.colorScheme.secondaryContainer, modifier = Modifier.size(40.dp)) { RuntimeIcon(icon, Modifier.padding(9.dp), RuntimeTheme.colorScheme.onSecondaryContainer) }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) { Text(title, style = RuntimeTheme.typography.titleMedium); Text(subtitle, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis) }
+        RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
     } }
 }
 
-@Composable private fun ScriptPathPanel(path: String) { RuntimeCard(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { Text(stringResource(R.string.workshop_script_path_title), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text(path, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp)) } } }
+@Composable private fun ScriptPathPanel(path: String) { RuntimeCard(containerColor = RuntimeTheme.colorScheme.surfaceContainerLow) { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { Text(stringResource(R.string.workshop_script_path_title), style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant); Text(path, style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp)) } } }
 
 @Composable
 private fun PathField(label: String, value: String, onValueChange: (String) -> Unit) {
     RuntimeFilledTextField(
         value = value, onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(), label = { Text(label) }, singleLine = true,
-        textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+        modifier = Modifier.fillMaxWidth(),
+ labelText = label, singleLine = true,
+        textStyle = RuntimeTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
     )
 }
 
 @Composable
 private fun CodeEditorPanel(value: String, onValueChange: (String) -> Unit, fileName: String, modifier: Modifier = Modifier) {
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
-    Column(modifier.background(MaterialTheme.colorScheme.surfaceContainerLowest, shape).border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f), shape)) {
-        Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, androidx.compose.foundation.shape.RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RuntimeIcon(RuntimeIconName.Code, Modifier.size(15.dp), MaterialTheme.colorScheme.primary)
-            Text(fileName, style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val shape = RuntimeTheme.shapes.medium
+    Column(modifier.background(RuntimeTheme.colorScheme.surfaceContainerLowest, shape)) {
+        Row(Modifier.fillMaxWidth().background(RuntimeTheme.colorScheme.surfaceContainerLow, androidx.compose.foundation.shape.RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RuntimeIcon(RuntimeIconName.Code, Modifier.size(15.dp), RuntimeTheme.colorScheme.onSurface)
+            Text(fileName, style = RuntimeTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp), color = RuntimeTheme.colorScheme.onSurfaceVariant)
         }
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
-            textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface, fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 16.sp),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            textStyle = RuntimeTheme.typography.bodySmall.copy(color = RuntimeTheme.colorScheme.onSurface, fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 16.sp),
+            cursorBrush = SolidColor(RuntimeTheme.colorScheme.primary),
         )
     }
 }

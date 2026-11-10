@@ -1,12 +1,14 @@
 package top.wkbin.taixu.ui.workflow
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.graphics.Paint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -21,23 +23,19 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.ui.text.font.FontFamily
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -76,6 +74,7 @@ import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
 import top.wkbin.taixu.core.model.workflow.WorkflowNode
 import top.wkbin.taixu.core.model.workflow.WorkflowNodeType
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
+import androidx.compose.foundation.shape.CircleShape
 
 private val NodeWidth = 228.dp
 private val NodeHeight = 118.dp
@@ -151,11 +150,11 @@ fun WorkflowCanvas2D(
         prevNodeCount = currentCount
     }
 
-    val surfaceColor = MaterialTheme.colorScheme.surface
-    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)
-    val labelBackground = MaterialTheme.colorScheme.surfaceContainerHigh
-    val labelTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val inactiveEdgeColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.46f)
+    val surfaceColor = RuntimeTheme.colorScheme.surface
+    val gridColor = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)
+    val labelBackground = RuntimeTheme.colorScheme.surfaceContainerHigh
+    val labelTextColor = RuntimeTheme.colorScheme.onSurfaceVariant
+    val inactiveEdgeColor = RuntimeTheme.colorScheme.outline.copy(alpha = 0.46f)
 
     Box(
         modifier = modifier
@@ -315,8 +314,8 @@ fun WorkflowCanvas2D(
 
         Text(
             text = "双指缩放 · 拖动画布 · 双击适配",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.labelSmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.BottomStart).padding(start = 14.dp, bottom = 10.dp),
         )
     }
@@ -436,18 +435,18 @@ private fun WorkflowNodeCard(
     val theme = node.type.visualTheme()
     val statusClr = statusColor(status)
     val borderColor = when {
-        connecting -> MaterialTheme.colorScheme.tertiary
+        connecting -> RuntimeTheme.colorScheme.tertiary
         selected -> theme.accentColor
         status != NodeRunStatus.IDLE -> statusClr
         else -> theme.accentColor.copy(alpha = 0.38f)
     }
     val borderWidth = if (selected || connecting) 2.5.dp else 1.2.dp
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RuntimeTheme.shapes.medium
 
     Surface(
         modifier = modifier.size(NodeWidth, NodeHeight),
         shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
         border = BorderStroke(borderWidth, borderColor),
         tonalElevation = if (selected) 8.dp else 2.dp,
         shadowElevation = if (selected) 5.dp else 1.5.dp,
@@ -475,7 +474,7 @@ private fun WorkflowNodeCard(
                 ) {
                     Surface(
                         color = theme.accentColor.copy(alpha = 0.16f),
-                        shape = RoundedCornerShape(6.dp),
+                        shape = RuntimeTheme.shapes.extraSmall,
                         modifier = Modifier.size(20.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -484,19 +483,19 @@ private fun WorkflowNodeCard(
                     }
                     Text(
                         text = theme.tag,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = RuntimeTheme.typography.labelSmall,
                         color = theme.accentColor,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                     )
                     Spacer(Modifier.weight(1f))
                     Surface(
                         color = statusClr.copy(alpha = 0.16f),
-                        shape = RoundedCornerShape(50),
+                        shape = CircleShape,
                     ) {
                         Text(
                             text = statusLabel(status),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = RuntimeTheme.typography.labelSmall,
                             color = statusClr,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             maxLines = 1,
@@ -507,8 +506,8 @@ private fun WorkflowNodeCard(
                 // 节点标题
                 Text(
                     text = node.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = RuntimeTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -522,39 +521,39 @@ private fun WorkflowNodeCard(
                     ) {
                         Surface(
                             onClick = onConfigure,
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                            shape = RuntimeTheme.shapes.extraSmall,
+                            color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.18f),
                             modifier = Modifier.weight(1f),
                         ) {
                             Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 4.dp)) {
-                                Text("⚙ 调参", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, maxLines = 1)
+                                Text("⚙ 调参", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.primary, maxLines = 1)
                             }
                         }
                         Surface(
                             onClick = onBeginConnection,
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                            shape = RuntimeTheme.shapes.extraSmall,
+                            color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.18f),
                             modifier = Modifier.weight(1f),
                         ) {
                             Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 4.dp)) {
-                                Text("🔗 连线", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, maxLines = 1)
+                                Text("🔗 连线", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.primary, maxLines = 1)
                             }
                         }
                         Surface(
                             onClick = onRemove,
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.18f),
+                            shape = RuntimeTheme.shapes.extraSmall,
+                            color = RuntimeTheme.colorScheme.error.copy(alpha = 0.18f),
                             modifier = Modifier.weight(1f),
                         ) {
                             Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 4.dp)) {
-                                Text("🗑 删除", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, maxLines = 1)
+                                Text("🗑 删除", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.error, maxLines = 1)
                             }
                         }
                     }
                 } else {
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
-                        shape = RoundedCornerShape(6.dp),
+                        color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
+                        shape = RuntimeTheme.shapes.extraSmall,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         val previewText = when (node.type) {
@@ -570,8 +569,8 @@ private fun WorkflowNodeCard(
                         }
                         Text(
                             text = previewText,
-                            style = if (node.type == WorkflowNodeType.BASH_COMMAND) MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace) else MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = if (node.type == WorkflowNodeType.BASH_COMMAND) RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace) else RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -593,9 +592,9 @@ private fun ViewportControls(
 ) {
     Surface(
         modifier = modifier.padding(12.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+        shape = RuntimeTheme.shapes.small,
+        color = RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
+        border = BorderStroke(1.dp, RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
         tonalElevation = 2.dp,
         shadowElevation = 2.dp,
     ) {
@@ -609,13 +608,13 @@ private fun ViewportControls(
                 modifier = Modifier.size(32.dp),
                 contentDescription = "缩小",
             ) {
-                Text("−", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("−", style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
             }
             Text(
                 text = "${(scale * 100).roundToInt()}%",
-                style = MaterialTheme.typography.labelSmall,
+                style = RuntimeTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
             RuntimeIconButton(
@@ -623,7 +622,7 @@ private fun ViewportControls(
                 modifier = Modifier.size(32.dp),
                 contentDescription = "适配视口",
             ) {
-                Text("适配", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                Text("适配", style = RuntimeTheme.typography.labelSmall, fontWeight = FontWeight.Medium, color = RuntimeTheme.colorScheme.primary)
             }
             RuntimeIconButton(
                 onClick = onZoomIn,

@@ -42,9 +42,12 @@ import top.wkbin.taixu.harness.projection.CurrentSessionTracker
 import top.wkbin.taixu.harness.projection.SessionMessageProjector
 import top.wkbin.taixu.harness.projection.SessionStateMirrors
 import top.wkbin.taixu.harness.session.SessionTreeStore
+import top.wkbin.taixu.harness.subagent.SubagentToolRoundRunner
 import top.wkbin.taixu.harness.validation.ToolCallLoopDetector
-import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.harness.websearch.StubSearchProvider
+import top.wkbin.taixu.harness.websearch.WebSearchProviders
+import top.wkbin.taixu.runtime.LinuxRuntime
+
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -95,7 +98,7 @@ class ToolExecutorCheckpointTest {
             askUserToolBackend = AskUserToolBackend(ApprovalPolicyEngine(paths), approvals),
             promptAssetToolBackend = PromptAssetToolBackend(),
             harnessServiceToolBackend = HarnessServiceToolBackend(),
-            searchWebToolBackend = SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(StubSearchProvider()))),
+            searchWebToolBackend = SearchWebToolBackend(WebSearchProviders(listOf(StubSearchProvider()))),
             capabilityToolGateway = CapabilityToolGateway(null) { _, _, _, _ -> error("unexpected host dispatch") },
             approvalRepository = approvals, sessionDao = sessions,
             toolCheckpoints = ToolCheckpoints(listOf(hook)),
@@ -320,7 +323,7 @@ class ToolExecutorCheckpointTest {
         val operations = OperationCoordinator(runtime, Json, HarnessEventBus())
         val operation = operations.acceptRun("session", UserMessage("user", 1, "write"), "child")
         val backend = executor(checkpoint())
-        val runner = top.wkbin.taixu.harness.subagent.SubagentToolRoundRunner(
+        val runner = SubagentToolRoundRunner(
             operations, Json, ToolRoundDispatcher(),
         ) { call, session, _, _ -> backend.execute(call, session, allowApprovalRequest = false) }
         runner.execute(listOf(

@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness.groupchat
 import kotlinx.coroutines.flow.first
 import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
+import top.wkbin.taixu.core.database.task.AgentTaskRepository
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.GroupChat
@@ -14,7 +15,7 @@ import top.wkbin.taixu.harness.MentionExtractor
 class GroupContextScope(
     private val groups: GroupChatRepository,
     private val assignments: BotAssignmentRepository,
-    private val nativeTasks: top.wkbin.taixu.core.database.task.AgentTaskRepository? = null,
+    private val nativeTasks: AgentTaskRepository? = null,
 ) {
     internal suspend fun workForReceipt(id: String?): String? {
         if (id == null) return null

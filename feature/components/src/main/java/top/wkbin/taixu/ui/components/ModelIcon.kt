@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.components
 
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
+import top.yukonga.miuix.kmp.theme.LocalContentColor
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -159,7 +159,7 @@ fun AutoModelIcon(
         RuntimeIcon(
             name = RuntimeIconName.Model,
             modifier = modifier.size(size),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         return
     }

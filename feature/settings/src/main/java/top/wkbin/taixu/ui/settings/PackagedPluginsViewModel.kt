@@ -10,13 +10,14 @@ import kotlinx.coroutines.flow.stateIn
 import top.wkbin.taixu.core.database.InstallLogEntity
 import top.wkbin.taixu.core.tools.PackagePluginInventory
 import top.wkbin.taixu.core.tools.ToolManager
+import top.wkbin.taixu.harness.plugins.HarnessPluginRegistry
 import top.wkbin.taixu.plugin.packages.PackagedPluginEntry
 
 data class PackagedPluginsState(val entries: List<PackagedPluginEntry> = emptyList(), val failed: Boolean = false)
 
 class PackagedPluginsViewModel(
     inventory: PackagePluginInventory,
-    plugins: top.wkbin.taixu.harness.plugins.HarnessPluginRegistry,
+    plugins: HarnessPluginRegistry,
     private val tools: ToolManager,
 ) : ViewModel() {
     val harnessPlugins = plugins.descriptors

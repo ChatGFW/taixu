@@ -12,9 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,7 +54,7 @@ fun LedgerUsagePanel(
                 RuntimeIcon(
                     name = RuntimeIconName.OpenInNew,
                     modifier = Modifier.size(15.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                 )
             }
         },
@@ -92,9 +91,9 @@ fun LedgerUsagePanel(
 
         Text(
             text = "以上均为用量账本记录的真实计量值；底部三项是与 token 无关的行为指标。成本暂未计算——目前还没有定价表可用。",
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            style = RuntimeTheme.typography.bodySmall.copy(
+                fontSize = 11.sp,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             ),
             modifier = Modifier.padding(top = 8.dp),
         )
@@ -112,18 +111,18 @@ private fun LedgerMetricRow(label: String, value: String) {
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontSize = 11.5.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall.copy(
+                fontSize = 12.sp,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             ),
             maxLines = 1,
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+            style = RuntimeTheme.typography.bodySmall.copy(
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = RuntimeTheme.colorScheme.onSurface,
             ),
             maxLines = 1,
         )
@@ -134,25 +133,25 @@ private fun LedgerMetricRow(label: String, value: String) {
 private fun LedgerCounter(label: String, value: String, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+            .clip(RuntimeTheme.shapes.small)
+            .background(RuntimeTheme.colorScheme.onSurface.copy(alpha = 0.05f))
             .padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium.copy(
+            style = RuntimeTheme.typography.bodyMedium.copy(
                 fontSize = 13.5.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
+                color = RuntimeTheme.colorScheme.onSurface,
             ),
             maxLines = 1,
         )
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall.copy(
+                fontSize = 11.sp,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             ),
             maxLines = 1,
         )
@@ -174,9 +173,9 @@ fun LedgerTrendPanel(
         if (days.isEmpty()) {
             Text(
                 text = "所选范围内没有账本记录",
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 ),
                 modifier = Modifier.padding(vertical = 12.dp),
             )
@@ -184,9 +183,9 @@ fun LedgerTrendPanel(
             StatsUsageChart(days = days, modifier = Modifier.fillMaxWidth())
             Text(
                 text = "点立柱看当日各模型用量，左右滑动可看更早区间。",
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                style = RuntimeTheme.typography.bodySmall.copy(
+                    fontSize = 11.sp,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 ),
                 modifier = Modifier.padding(top = 6.dp),
             )
@@ -214,9 +213,9 @@ fun LedgerBreakdownPanel(
         if (rows.isEmpty()) {
             Text(
                 text = "该作用域下没有可分解的数据",
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 ),
             )
             return@StatsSectionCard
@@ -233,9 +232,9 @@ fun LedgerBreakdownPanel(
                 ) {
                     Text(
                         text = row.label,
-                        style = MaterialTheme.typography.bodySmall.copy(
+                        style = RuntimeTheme.typography.bodySmall.copy(
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = RuntimeTheme.colorScheme.onSurface,
                         ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -243,9 +242,9 @@ fun LedgerBreakdownPanel(
                     )
                     Text(
                         text = "${ledgerCompact(row.totalTokens)} · ${ledgerPercent(row.totalTokens.toDouble() / sumTokens)} · ${row.calls} 次",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 10.5.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall.copy(
+                            fontSize = 11.sp,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         ),
                         maxLines = 1,
                     )
@@ -255,21 +254,21 @@ fun LedgerBreakdownPanel(
                         .fillMaxWidth()
                         .padding(top = 4.dp)
                         .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                        .clip(RuntimeTheme.shapes.tiny)
+                        .background(RuntimeTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth((row.totalTokens.toFloat() / maxTokens.toFloat()).coerceIn(0.02f, 1f))
                             .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.primary),
+                            .background(RuntimeTheme.colorScheme.primary),
                     )
                 }
                 Text(
                     text = "入 ${ledgerCompact(row.inputTokens)} · 出 ${ledgerCompact(row.outputTokens)} · 推 ${ledgerCompact(row.reasoningTokens)}",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    style = RuntimeTheme.typography.bodySmall.copy(
+                        fontSize = 11.sp,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     ),
                     maxLines = 1,
                     modifier = Modifier.padding(top = 3.dp),
@@ -289,19 +288,19 @@ fun LedgerCompositionPanel(
     modifier: Modifier = Modifier,
 ) {
     val segments = listOf(
-        Triple("输入", ledger.inputTokens, MaterialTheme.colorScheme.primary),
-        Triple("输出", ledger.outputTokens, MaterialTheme.colorScheme.secondary),
-        Triple("推理", ledger.reasoningTokens, MaterialTheme.colorScheme.tertiary),
-        Triple("缓存写入", ledger.cacheWriteTokens, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+        Triple("输入", ledger.inputTokens, RuntimeTheme.colorScheme.primary),
+        Triple("输出", ledger.outputTokens, RuntimeTheme.colorScheme.secondary),
+        Triple("推理", ledger.reasoningTokens, RuntimeTheme.colorScheme.tertiary),
+        Triple("缓存写入", ledger.cacheWriteTokens, RuntimeTheme.colorScheme.primary.copy(alpha = 0.35f)),
     ).filter { (_, value, _) -> value > 0L }
 
     StatsSectionCard(title = "构成", modifier = modifier) {
         if (segments.isEmpty()) {
             Text(
                 text = "所选范围内没有账本记录",
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 ),
             )
             return@StatsSectionCard
@@ -312,7 +311,7 @@ fun LedgerCompositionPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(24.dp)
-                .clip(RoundedCornerShape(8.dp)),
+                .clip(RuntimeTheme.shapes.chip),
         ) {
             for ((_, value, color) in segments) {
                 Box(
@@ -340,9 +339,9 @@ fun LedgerCompositionPanel(
                     )
                     Text(
                         text = "$label  ${ledgerCompact(value)} · ${ledgerPercent(value.toDouble() / total)}",
-                        style = MaterialTheme.typography.bodySmall.copy(
+                        style = RuntimeTheme.typography.bodySmall.copy(
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         ),
                         maxLines = 1,
                     )
@@ -352,9 +351,9 @@ fun LedgerCompositionPanel(
 
         Text(
             text = "缓存命中读取 ${ledgerCompact(ledger.cacheReadTokens)} 不计入合计：它是输入前缀的复用部分，计入会与输入双重计算。",
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            style = RuntimeTheme.typography.bodySmall.copy(
+                fontSize = 11.sp,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             ),
             modifier = Modifier.padding(top = 8.dp),
         )

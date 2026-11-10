@@ -19,6 +19,8 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
+import top.wkbin.taixu.core.model.bot.BotCapabilityPolicy
 
 /**
  * PersonaBot 生命周期编排：独占会话、模型选择、人格记忆与后台 Lane 委派。
@@ -36,7 +38,7 @@ class BotOrchestrator(
     private val memoryManager: BotMemoryManager,
     private val logger: AppLogger,
     private val modelManager: BotModelManager,
-    private val assignmentRepository: top.wkbin.taixu.core.database.repository.BotAssignmentRepository? = null,
+    private val assignmentRepository: BotAssignmentRepository? = null,
 ) {
     private val groupSessionLocks = ConcurrentHashMap<String, Mutex>()
 
@@ -111,6 +113,7 @@ class BotOrchestrator(
         modelVariant: String? = null,
         allowModelSelection: Boolean? = null,
         capabilityServerNames: List<String>? = null,
+        capabilityPolicy: BotCapabilityPolicy? = null,
     ): Bot = modelManager.withBotLock(botId) {
         val current = requireNotNull(botRepository.getBot(botId)) { "Bot 不存在" }
         val selection = modelManager.validate(modelId, modelVariant)
@@ -130,7 +133,9 @@ class BotOrchestrator(
             allowModelSelection = allowModelSelection ?: current.allowModelSelection,
             isMainBot = keepMain,
             avatarSeed = avatarSeed?.takeIf { it.isNotBlank() } ?: current.avatarSeed,
-            capabilityServerNames = capabilityServerNames ?: current.capabilityServerNames,
+            capabilityServerNames = if (capabilityPolicy != null) capabilityPolicy.servers else capabilityServerNames ?: current.capabilityServerNames,
+            capabilityToolNames = capabilityPolicy?.tools ?: current.capabilityToolNames,
+            capabilityExpiresAt = if (capabilityPolicy != null) capabilityPolicy.expiresAt else current.capabilityExpiresAt,
             updatedAt = System.currentTimeMillis(),
         )
         botRepository.saveBot(updated)

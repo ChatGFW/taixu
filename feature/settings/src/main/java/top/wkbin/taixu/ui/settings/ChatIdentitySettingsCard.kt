@@ -4,7 +4,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -38,15 +39,16 @@ internal fun ChatIdentitySettingsCard(viewModel: ChatIdentitySettingsViewModel? 
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     RuntimeChatIdentityAvatar(40.dp, saved)
-                    Text(saved.name, style = MaterialTheme.typography.titleMedium)
+                    Text(saved.name, style = RuntimeTheme.typography.titleMedium)
                 }
-                Text(stringResource(R.string.settings_chat_identity_description), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.settings_chat_identity_description), style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 RuntimeFilledTextField(value = name, onValueChange = { value ->
                     if (value.codePointCount(0, value.length) <= ChatIdentityStyle.MAX_NAME_LENGTH) name = value
-                }, label = { Text(stringResource(R.string.settings_chat_identity_name)) }, singleLine = true,
+                },
+ labelText = stringResource(R.string.settings_chat_identity_name), singleLine = true,
                     enabled = !busy, modifier = Modifier.fillMaxWidth())
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RuntimeActionRow() {
                     RuntimeOutlinedButton(onClick = { viewModel?.setName(name) },
                         enabled = !busy && name.isNotBlank() && ChatIdentityStyle(name).normalized().name != saved.name) {
                         Text(stringResource(R.string.settings_chat_identity_save))
@@ -58,8 +60,8 @@ internal fun ChatIdentitySettingsCard(viewModel: ChatIdentitySettingsViewModel? 
                 RuntimeTextButton(onClick = { viewModel?.reset() }, enabled = !busy && saved != ChatIdentityStyle()) {
                     Text(stringResource(R.string.settings_chat_identity_reset))
                 }
-                if (failed) Text(stringResource(R.string.settings_chat_identity_error), color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall)
+                if (failed) Text(stringResource(R.string.settings_chat_identity_error), color = RuntimeTheme.colorScheme.error,
+                    style = RuntimeTheme.typography.bodySmall)
             }
         }
     }

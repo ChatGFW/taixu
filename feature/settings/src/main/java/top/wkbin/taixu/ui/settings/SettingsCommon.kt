@@ -7,37 +7,23 @@ import android.content.Context
 import android.os.Build
 import android.content.pm.PackageManager
 import android.widget.Toast
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import top.wkbin.taixu.ui.components.IconTile
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCard
@@ -60,7 +46,7 @@ fun WebChatBridgeDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Globe, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Globe, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text("太墟智枢 Web 协作台")
             }
         },
@@ -71,7 +57,7 @@ fun WebChatBridgeDialog(
             ) {
                 Text(
                     text = "在同一 Wi-Fi / 局域网下，通过电脑浏览器连接太墟智枢，同步处理 Agent 任务、对话与 Linux 工作区文件。",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = RuntimeTheme.typography.bodyMedium,
                 )
 
                 RuntimeCard(
@@ -85,7 +71,7 @@ fun WebChatBridgeDialog(
                         ) {
                             Text(
                                 text = "协作服务状态",
-                                style = MaterialTheme.typography.titleSmall,
+                                style = RuntimeTheme.typography.titleSmall,
                             )
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 if (toggling) {
@@ -100,10 +86,9 @@ fun WebChatBridgeDialog(
                         }
 
                         if (status.isRunning) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("浏览器访问地址", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("浏览器访问地址", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                                 Row(
                                     Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -111,8 +96,8 @@ fun WebChatBridgeDialog(
                                 ) {
                                     Text(
                                         text = status.accessUrl,
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace),
-                                        color = MaterialTheme.colorScheme.primary,
+                                        style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
+                                        color = RuntimeTheme.colorScheme.primary,
                                     )
                                     TextButton(
                                         onClick = {
@@ -125,7 +110,7 @@ fun WebChatBridgeDialog(
                             }
 
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("安全配对码 (PIN)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("安全配对码 (PIN)", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                                 Row(
                                     Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -133,8 +118,8 @@ fun WebChatBridgeDialog(
                                 ) {
                                     Text(
                                         text = status.pinCode,
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold, fontFamily = FontFamily.Monospace),
-                                        color = MaterialTheme.colorScheme.secondary,
+                                        style = RuntimeTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace),
+                                        color = RuntimeTheme.colorScheme.secondary,
                                     )
                                     TextButton(
                                         onClick = {
@@ -154,7 +139,7 @@ fun WebChatBridgeDialog(
                                     Toast.makeText(context, "已复制免密直达链接，在电脑浏览器打开即可！", Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RuntimeTheme.shapes.medium,
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     RuntimeIcon(RuntimeIconName.Copy, Modifier.size(16.dp))
@@ -163,9 +148,9 @@ fun WebChatBridgeDialog(
                             }
 
                             Text(
-                                text = "💡 提示：确保电脑与手机处于同一 Wi-Fi；当前在线设备：${status.activeConnections} 台",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = "请确认电脑与手机同一 Wi-Fi；若手机开着 VPN/代理，请临时关闭或允许局域网，否则可能出现地址能打开但页面无响应。当前在线：${status.activeConnections} 台",
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }

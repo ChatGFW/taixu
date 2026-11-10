@@ -166,6 +166,55 @@ class AndroidHttpServerTest {
         }
     }
 
+    /**
+     * 回归：stop() 返回时 accept 线程必须已经结束。
+     *
+     * 此前 stop() 只置 running=false 并关闭监听 socket 就返回，收尾发生在另一个线程；
+     * 调用方紧接着 start() 会在旧 socket 仍占用端口时 bind 同一地址，抛 BindException。
+     * reuseAddress 挡不住仍在监听的旧 socket，所以只能在 stop() 里等线程退出。
+     *
+     * 端口冲突本身是概率性的（实测约 7/3000），单次断言抓不住，故循环多轮观察线程存活状态。
+     * 修复后每轮都应观察到 0 个存活 accept 线程；修复前单轮约 2% 概率观察到残留，
+     * 循环 200 轮后捕获概率约 98%。
+     */
+    @Test
+    fun `stop waits for the accept thread to finish before returning`() {
+        val acceptThreadName = "taixu-webchat-accept"
+        fun aliveAcceptThreads() =
+            Thread.getAllStackTraces().keys.filter { it.name == acceptThreadName && it.isAlive }
+
+        val port = ServerSocket(0).use { it.localPort }
+        val server = AndroidHttpServer.create(InetSocketAddress("127.0.0.1", port), 0)
+        server.createContext("/api/ping") { exchange ->
+            val body = "pong".toByteArray()
+            exchange.sendResponseHeaders(200, body.size.toLong())
+            exchange.responseBody.write(body)
+            exchange.close()
+        }
+
+        try {
+            repeat(200) { round ->
+                server.start()
+                Socket("127.0.0.1", port).use { socket ->
+                    socket.soTimeout = 5_000
+                    socket.getOutputStream().apply {
+                        write("GET /api/ping HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".toByteArray())
+                        flush()
+                    }
+                    socket.getInputStream().bufferedReader().readText()
+                }
+                server.stop(0)
+                assertTrue(
+                    "第 ${round + 1} 轮 stop() 返回后 accept 线程仍在运行，" +
+                        "紧接着 start() 会撞 BindException",
+                    aliveAcceptThreads().isEmpty(),
+                )
+            }
+        } finally {
+            server.stop(0)
+        }
+    }
+
     @Test
     fun `injected executor is owned by the caller and survives stop`() {
         val port = ServerSocket(0).use { it.localPort }

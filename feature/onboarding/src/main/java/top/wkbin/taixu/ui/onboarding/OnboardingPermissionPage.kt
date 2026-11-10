@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.onboarding
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -26,14 +29,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
+import top.wkbin.taixu.ui.components.RuntimeArrowPreference
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -88,9 +91,27 @@ internal fun OnboardingPermissionPage(
         permission != SetupPermission.LOCAL_NETWORK || preview || LocalNetworkAccess.enforcedAt(Build.VERSION.SDK_INT)
     }
 
+    fun request(permission: SetupPermission) {
+        if (permission == SetupPermission.AUTOSTART && onOpenAutostartSettings != null) {
+            if (!onOpenAutostartSettings()) {
+                Toast.makeText(context, R.string.onboarding_permission_unavailable, Toast.LENGTH_LONG).show()
+            }
+        } else if (permission == SetupPermission.NOTIFICATION && Build.VERSION.SDK_INT >= 33 &&
+            !notificationRequested && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationRequested = true
+            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else if (permission == SetupPermission.LOCAL_NETWORK && context.needsLocalNetworkPermission() && !localNetworkRequested) {
+            localNetworkRequested = true
+            localNetworkLauncher.launch(LocalNetworkAccess.PERMISSION)
+        } else {
+            openPermissionSettings(context, permission)
+        }
+    }
+
     LazyColumn(
         modifier = modifier,
-        contentPadding = runtimeContentPadding(horizontal = 24.dp, top = 8.dp, bottom = 24.dp),
+        contentPadding = runtimeContentPadding(horizontal = 12.dp, top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
@@ -99,52 +120,33 @@ internal fun OnboardingPermissionPage(
                 description = stringResource(R.string.onboarding_permissions_description),
             )
         }
-        items(permissions) { permission ->
-            val granted = statuses[permission] == true
-            val legacyFiles = permission == SetupPermission.FILES && Build.VERSION.SDK_INT < Build.VERSION_CODES.R
-            RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        RuntimeIcon(permission.icon, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                        Text(stringResource(permission.title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    }
-                    Text(stringResource(permission.description), style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(
-                        stringResource(when {
-                            permission == SetupPermission.AUTOSTART -> R.string.onboarding_permission_manual
-                            legacyFiles -> R.string.onboarding_permission_files_legacy
-                            granted && permission == SetupPermission.BATTERY -> R.string.onboarding_permission_battery_granted
-                            granted -> R.string.onboarding_permission_granted
-                            else -> R.string.onboarding_permission_optional
-                        }),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (granted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    RuntimeOutlinedButton(
-                        onClick = {
-                            if (permission == SetupPermission.AUTOSTART && onOpenAutostartSettings != null) {
-                                if (!onOpenAutostartSettings()) {
-                                    Toast.makeText(context, R.string.onboarding_permission_unavailable, Toast.LENGTH_LONG).show()
-                                }
-                            } else if (permission == SetupPermission.NOTIFICATION && Build.VERSION.SDK_INT >= 33 &&
-                                !notificationRequested && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                            ) {
-                                notificationRequested = true
-                                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            } else if (permission == SetupPermission.LOCAL_NETWORK && context.needsLocalNetworkPermission() && !localNetworkRequested) {
-                                localNetworkRequested = true
-                                localNetworkLauncher.launch(LocalNetworkAccess.PERMISSION)
-                            } else {
-                                openPermissionSettings(context, permission)
-                            }
+        item {
+            RuntimeCard(contentPadding = PaddingValues(0.dp)) {
+                permissions.forEach { permission ->
+                    val granted = statuses[permission] == true
+                    val legacyFiles = permission == SetupPermission.FILES && Build.VERSION.SDK_INT < Build.VERSION_CODES.R
+                    val status = stringResource(when {
+                        permission == SetupPermission.AUTOSTART -> R.string.onboarding_permission_manual
+                        legacyFiles -> R.string.onboarding_permission_files_legacy
+                        granted && permission == SetupPermission.BATTERY -> R.string.onboarding_permission_battery_granted
+                        granted -> R.string.onboarding_permission_granted
+                        else -> R.string.onboarding_permission_optional
+                    })
+                    top.wkbin.taixu.ui.components.RuntimeArrowPreference(
+                        title = stringResource(permission.title),
+                        summary = stringResource(permission.description),
+                        startAction = {
+                            RuntimeIcon(permission.icon, Modifier.padding(end = 16.dp).size(24.dp),
+                                tint = RuntimeTheme.colorScheme.onSurfaceVariant)
                         },
+                        endActions = {
+                            Text(status, Modifier.widthIn(max = 96.dp), style = MiuixTheme.textStyles.body2,
+                                color = if (granted) RuntimeTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantActions,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        },
+                        onClick = { request(permission) },
                         enabled = !legacyFiles,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(if (granted) R.string.onboarding_permission_manage else R.string.onboarding_permission_configure),
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
+                    )
                 }
             }
         }

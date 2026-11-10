@@ -5,8 +5,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -31,21 +31,21 @@ fun WebPluginsScreen(onOpen: (String, String, String) -> Unit, onBack: () -> Uni
             }
         },
     ) {
-        item { Text(stringResource(R.string.web_packages_scope), style = MaterialTheme.typography.bodyMedium) }
+        item { Text(stringResource(R.string.web_packages_scope), style = RuntimeTheme.typography.bodyMedium) }
         if (state.busy) item { Text(stringResource(R.string.web_packages_busy)) }
         if (state.failed) item {
-            Text(stringResource(if (state.bootstrapTooLarge) R.string.web_packages_proot_too_large else R.string.web_packages_failed), color = MaterialTheme.colorScheme.error)
+            Text(stringResource(if (state.bootstrapTooLarge) R.string.web_packages_proot_too_large else R.string.web_packages_failed), color = RuntimeTheme.colorScheme.error)
             RuntimeTextButton(onClick = model::refresh, enabled = !state.busy) { Text(stringResource(R.string.web_packages_retry)) }
         }
         if (packages.isEmpty() && !state.busy) item { Text(stringResource(R.string.web_packages_empty)) }
         packages.forEach { manifest -> item(manifest.id) {
             RuntimeCard(Modifier.fillMaxWidth()) {
-                Text(manifest.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${manifest.plugin!!.id} · ${manifest.version}", style = MaterialTheme.typography.bodySmall)
+                Text(manifest.name, style = RuntimeTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${manifest.plugin!!.id} · ${manifest.version}", style = RuntimeTheme.typography.bodySmall)
                 Text(manifest.description, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                if (manifest.plugin!!.webSource == "PROOT_STATIC") Text(stringResource(R.string.web_packages_proot_label), style = MaterialTheme.typography.labelMedium)
-                manifest.plugin!!.serviceToolId?.let { Text(stringResource(R.string.web_packages_service_label, it), style = MaterialTheme.typography.labelMedium) }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (manifest.plugin!!.webSource == "PROOT_STATIC") Text(stringResource(R.string.web_packages_proot_label), style = RuntimeTheme.typography.labelMedium)
+                manifest.plugin!!.serviceToolId?.let { Text(stringResource(R.string.web_packages_service_label, it), style = RuntimeTheme.typography.labelMedium) }
+                RuntimeActionRow() {
                     RuntimeTextButton(onClick = { onOpen(manifest.id, manifest.version, manifest.plugin!!.id) }, enabled = !state.busy) { Text(stringResource(R.string.web_packages_open)) }
                     RuntimeTextButton(onClick = { removal = manifest }, enabled = !state.busy) { Text(stringResource(R.string.web_packages_remove)) }
                 }

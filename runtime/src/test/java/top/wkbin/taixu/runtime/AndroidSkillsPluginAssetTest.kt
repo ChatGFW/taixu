@@ -9,7 +9,7 @@ import org.junit.Test
 import top.wkbin.taixu.core.database.AgentSkillRepository
 
 /**
- * `android-skills` 本地插件（Google Android CLI + 33 个官方 Android Skills）的资产守门。
+ * `android-skills` 本地插件（Google Android CLI + 36 个官方 Android Skills）的资产守门。
  *
  * 插件资源是离线装配契约的一部分：清单字段、POSIX 脚本、结构化进度、离线纯度、
  * SHA-256 闭环与技能语料缺一不可，否则真机上会以“装完却不可用”的形式失败。
@@ -89,7 +89,7 @@ class AndroidSkillsPluginAssetTest {
         // 技能必须落到自动扫描根；/attachments 未挂载时要显式失败，而不是写进 rootfs。
         assertTrue(installer.contains("test -d /attachments"))
         assertTrue(installer.contains("/attachments/skills/android-skills"))
-        assertTrue(installer.contains("MIN_SKILL_COUNT=33"))
+        assertTrue(installer.contains("MIN_SKILL_COUNT=36"))
         val skillCount = installer.indexOf("SKILL.md' | wc -l")
         assertTrue(skillCount > 0)
         // 原子替换旧技能集合，避免“先删后写”留下空窗。
@@ -121,7 +121,7 @@ class AndroidSkillsPluginAssetTest {
         val firstElfAssertion = verifier.indexOf("require_aarch64")
         val firstExecution = verifier.indexOf("\" info")
         assertTrue(firstElfAssertion in 1 until firstExecution)
-        assertTrue(verifier.contains("MIN_SKILL_COUNT=33"))
+        assertTrue(verifier.contains("MIN_SKILL_COUNT=36"))
         // 命令入口是本插件产物，指向别处即视为被抢占。
         assertTrue(verifier.contains("/opt/taixu/bin/android"))
     }
@@ -140,7 +140,7 @@ class AndroidSkillsPluginAssetTest {
     @Test
     fun vendoredSkillsKeepUpstreamFrontmatterReadable() {
         val skillDirs = skillsDir.listFiles().orEmpty().filter { it.isDirectory }
-        assertEquals(33, skillDirs.size)
+        assertEquals(36, skillDirs.size)
 
         skillDirs.forEach { dir ->
             val prompt = File(dir, "SKILL.md")

@@ -1,23 +1,8 @@
 package top.wkbin.taixu.ui.settings
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.settings.R
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 /**
  * 二级子页 1：智能体与 AI 模型生态
@@ -35,12 +20,7 @@ fun AgentEcoSettingsScreen(
     onOpenStats: () -> Unit,
     onOpenPhoneAgent: () -> Unit,
     onOpenCcSwitch: () -> Unit = {},
-    viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
-    val models by viewModel?.models?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val skills by viewModel?.allSkills?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val phrases by viewModel?.quickPhrases?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-
     PersonalizationScaffold(stringResource(R.string.personal_agents_title), onBack) {
         item {
             PersonalizationSection("模型与对话") {
@@ -49,7 +29,6 @@ fun AgentEcoSettingsScreen(
                         icon = RuntimeIconName.Model,
                         title = "模型档案管理",
                         subtitle = stringResource(R.string.settings_nav_models_summary),
-                        value = if (models.isEmpty()) "未配置" else "${models.size} 个模型",
                         onClick = onOpenModelProfiles, tonalIcon = true,
                     )
                 }
@@ -66,7 +45,6 @@ fun AgentEcoSettingsScreen(
                         icon = RuntimeIconName.Chat,
                         title = "快捷短语与常用指令",
                         subtitle = stringResource(R.string.settings_nav_phrases_summary),
-                        value = "${phrases.count { it.isEnabled }} 条已启用",
                         onClick = onOpenQuickPhrases, tonalIcon = true,
                     )
                 }
@@ -106,7 +84,7 @@ fun AgentEcoSettingsScreen(
                     SettingsRow(icon = RuntimeIconName.Bot, title = "子智能体角色", subtitle = stringResource(R.string.settings_nav_roles_summary), onClick = onOpenSubagentSettings, tonalIcon = true)
                 }
                 PreferenceSurface(first = false, last = false) {
-                    SettingsRow(icon = RuntimeIconName.Sparkles, title = "Skills 与插件", subtitle = stringResource(R.string.settings_nav_skills_summary), value = "${skills.count { it.isEnabled }} 个技能", onClick = onOpenSkillSettings, tonalIcon = true)
+                    SettingsRow(icon = RuntimeIconName.Sparkles, title = "Skills 与插件", subtitle = stringResource(R.string.settings_nav_skills_summary), onClick = onOpenSkillSettings, tonalIcon = true)
                 }
                 PreferenceSurface(first = false, last = true) {
                     SettingsRow(

@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import top.wkbin.taixu.core.model.EnvironmentVariable
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.core.model.RunningSendMode
+import top.wkbin.taixu.core.model.ThemePaletteStyle
 /** Narrow preference views keep consumers from depending on the complete settings schema. */
 class AppearancePreferences(private val store: SettingsDataStore) {
     private val toolStatusStore = ToolStatusPreferences(store.appearanceDataStore)
@@ -14,7 +15,7 @@ class AppearancePreferences(private val store: SettingsDataStore) {
     private val paletteStore = ThemePalettePreferences(store.appearanceDataStore)
     val themePalette get() = paletteStore.palette
     suspend fun selectThemeColor(id: String) = paletteStore.selectColor(id)
-    suspend fun setPaletteStyle(style: top.wkbin.taixu.core.model.ThemePaletteStyle) = paletteStore.selectStyle(style)
+    suspend fun setPaletteStyle(style: ThemePaletteStyle) = paletteStore.selectStyle(style)
     val themeMode get() = store.themeMode
     val dynamicColorEnabled get() = store.dynamicColorEnabled
     val appFontScale get() = store.appFontScale

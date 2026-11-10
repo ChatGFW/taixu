@@ -2,9 +2,9 @@ package top.wkbin.taixu.ui.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.LocalContentColor
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 
 /** Process rows share geometry and neutral ink; status remains in text and accessibility semantics. */
 @Composable
-fun runtimeProcessColor(): Color = MaterialTheme.colorScheme.onSurfaceVariant
+fun runtimeProcessColor(): Color = RuntimeTheme.colorScheme.onSurfaceVariant
 
 @Composable
 fun RuntimeProcessContent(content: @Composable () -> Unit) {
@@ -33,7 +33,7 @@ fun RuntimeProcessIcon(name: RuntimeIconName, running: Boolean = false) {
     val tint = runtimeProcessColor()
     Box(Modifier.size(18.dp).then(runtimeProcessPulse(running)), contentAlignment = Alignment.Center) {
         if (running) {
-            RuntimeCircularProgressIndicator(Modifier.size(18.dp), color = tint)
+            RuntimeCircularProgressIndicator(Modifier.size(16.dp), color = tint, strokeWidth = 1.5.dp)
         } else {
             val vector = remember(name) {
                 ImageVector.Builder("Process$name", 18.dp, 18.dp, 24f, 24f).apply {

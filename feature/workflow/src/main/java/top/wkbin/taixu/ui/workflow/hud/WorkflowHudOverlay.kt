@@ -11,11 +11,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,11 +33,11 @@ fun WorkflowHudOverlay(
     onDismiss: () -> Unit,
 ) {
     val phaseColor = when (session.phase) {
-        WorkflowGuiHudBridge.Phase.SUCCESS -> MaterialTheme.colorScheme.primary
-        WorkflowGuiHudBridge.Phase.FAILED -> MaterialTheme.colorScheme.error
-        WorkflowGuiHudBridge.Phase.CANCELLED -> MaterialTheme.colorScheme.outline
-        WorkflowGuiHudBridge.Phase.ACTING -> MaterialTheme.colorScheme.tertiary
-        else -> MaterialTheme.colorScheme.secondary
+        WorkflowGuiHudBridge.Phase.SUCCESS -> RuntimeTheme.colorScheme.primary
+        WorkflowGuiHudBridge.Phase.FAILED -> RuntimeTheme.colorScheme.error
+        WorkflowGuiHudBridge.Phase.CANCELLED -> RuntimeTheme.colorScheme.outline
+        WorkflowGuiHudBridge.Phase.ACTING -> RuntimeTheme.colorScheme.tertiary
+        else -> RuntimeTheme.colorScheme.secondary
     }
     val phaseLabel = when (session.phase) {
         WorkflowGuiHudBridge.Phase.THINKING -> "思考中"
@@ -53,8 +52,8 @@ fun WorkflowHudOverlay(
         modifier = Modifier
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .heightIn(min = 40.dp),
-        shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
+        shape = CircleShape,
+        color = RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
         tonalElevation = 3.dp,
     ) {
         Row(
@@ -86,23 +85,23 @@ fun WorkflowHudOverlay(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = phaseLabel,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = RuntimeTheme.typography.labelMedium,
+                color = RuntimeTheme.colorScheme.onSurface,
                 maxLines = 1,
             )
             if (session.active) {
                 Spacer(modifier = Modifier.width(6.dp))
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(50))
+                        .clip(CircleShape)
                         .clickable(onClick = onStop)
                         .padding(horizontal = 10.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = "停止",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.error,
+                        style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.error,
                         maxLines = 1,
                     )
                 }
@@ -110,15 +109,15 @@ fun WorkflowHudOverlay(
                 Spacer(modifier = Modifier.width(6.dp))
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(50))
+                        .clip(CircleShape)
                         .clickable(onClick = onDismiss)
                         .padding(horizontal = 10.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = "✕",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

@@ -8,14 +8,15 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.produceIn
 import kotlinx.coroutines.withTimeoutOrNull
 import top.wkbin.taixu.core.common.logging.AppLogger
-import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.ChunkedText
+import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.GroupToolStep
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.session.ProviderActivity
 import top.wkbin.taixu.harness.session.SessionControl
 
 internal data class GroupReplyProgress(
@@ -239,7 +240,7 @@ internal class GroupReplyObserver(
     private data class ReplySnapshot(
         val messages: List<HarnessMessage>, val state: SessionRunState, val revision: Long,
         val task: GroupReplyTaskTracker.Snapshot?,
-        val activity: top.wkbin.taixu.harness.session.ProviderActivity? = null,
+        val activity: ProviderActivity? = null,
     )
 
     private companion object {

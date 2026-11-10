@@ -1,32 +1,26 @@
 package top.wkbin.taixu.ui.workflow
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.FilterChip
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.PaddingValues
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -40,7 +34,9 @@ import top.wkbin.taixu.core.model.workflow.WorkflowScheduleRepeat
 import top.wkbin.taixu.harness.workflow.WorkflowScheduleRepository
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeDropdownField
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeNumberPicker
 
 /** 重复方式的展示文案（列表与对话框共用）。 */
 fun scheduleRepeatLabel(entity: WorkflowScheduleEntity): String = when (WorkflowScheduleRepeat.valueOf(entity.repeatType)) {
@@ -99,15 +95,18 @@ fun WorkflowScheduleEditDialog(
                 RuntimeFilledTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("计划名称") },
+                    labelText = "计划名称",
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                SimplePickerField(
-                    label = "目标工作流",
-                    value = definitions.firstOrNull { it.id == workflowId }?.name ?: "请选择",
-                    options = definitions.map { it.id to it.name },
-                    onSelect = { workflowId = it },
+                val workflowOptions = definitions.map { it.id to it.name }
+                RuntimeDropdownField(
+                    title = "目标工作流",
+                    items = workflowOptions.map { it.second }.ifEmpty { listOf("请选择") },
+                    selectedIndex = workflowOptions.indexOfFirst { it.first == workflowId }.coerceAtLeast(0),
+                    onSelectedIndexChange = { index -> workflowOptions.getOrNull(index)?.let { workflowId = it.first } },
+                    enabled = workflowOptions.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth(),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = repeat == WorkflowScheduleRepeat.DAILY, onClick = { repeat = WorkflowScheduleRepeat.DAILY }, label = { Text("每天") })
@@ -116,45 +115,57 @@ fun WorkflowScheduleEditDialog(
                 }
                 when (repeat) {
                     WorkflowScheduleRepeat.DAILY -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        RuntimeFilledTextField(
-                            value = hour, onValueChange = { hour = it.filter(Char::isDigit).take(2) },
-                            label = { Text("时(0-23)") }, singleLine = true, modifier = Modifier.weight(1f),
-                        )
-                        RuntimeFilledTextField(
-                            value = minute, onValueChange = { minute = it.filter(Char::isDigit).take(2) },
-                            label = { Text("分(0-59)") }, singleLine = true, modifier = Modifier.weight(1f),
-                        )
+                        Column(Modifier.weight(1f)) {
+                            Text("时", style = RuntimeTheme.typography.labelMedium)
+                            RuntimeNumberPicker(
+                                value = hour.toIntOrNull()?.coerceIn(0, 23) ?: 9,
+                                onValueChange = { hour = it.toString() },
+                                range = 0..23,
+                                label = { "%02d".format(it) },
+                            )
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text("分", style = RuntimeTheme.typography.labelMedium)
+                            RuntimeNumberPicker(
+                                value = minute.toIntOrNull()?.coerceIn(0, 59) ?: 0,
+                                onValueChange = { minute = it.toString() },
+                                range = 0..59,
+                                label = { "%02d".format(it) },
+                            )
+                        }
                     }
                     WorkflowScheduleRepeat.INTERVAL -> RuntimeFilledTextField(
                         value = intervalMinutes, onValueChange = { intervalMinutes = it.filter(Char::isDigit).take(4) },
-                        label = { Text("间隔分钟（≥15）") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        labelText = "间隔分钟（≥15）", singleLine = true, modifier = Modifier.fillMaxWidth(),
                     )
                     WorkflowScheduleRepeat.ONCE -> RuntimeFilledTextField(
                         value = onceAt, onValueChange = { onceAt = it },
-                        label = { Text("触发时间（yyyy-MM-dd HH:mm）") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        labelText = "触发时间（yyyy-MM-dd HH:mm）", singleLine = true, modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 RuntimeFilledTextField(
                     value = variablesText,
                     onValueChange = { variablesText = it },
-                    label = { Text("变量（每行 KEY=VALUE，可空）") },
+                    labelText = "变量（每行 KEY=VALUE，可空）",
                     modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
-                    textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = MaterialTheme.typography.bodySmall.fontSize),
+                    textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = RuntimeTheme.typography.bodySmall.fontSize),
                 )
                 RuntimeFilledTextField(
                     value = workspacePath,
                     onValueChange = { workspacePath = it },
-                    label = { Text("工作区路径") },
+                    labelText = "工作区路径",
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                SimplePickerField(
-                    label = "模型（可选，默认走全局）",
-                    value = models.firstOrNull { it.id == modelId }?.name ?: "全局默认",
-                    options = listOf("" to "全局默认") + models.map { it.id to it.name },
-                    onSelect = { modelId = it },
+                val modelOptions = listOf("" to "全局默认") + models.map { it.id to it.name }
+                RuntimeDropdownField(
+                    title = "模型（可选，默认走全局）",
+                    items = modelOptions.map { it.second },
+                    selectedIndex = modelOptions.indexOfFirst { it.first == modelId }.coerceAtLeast(0),
+                    onSelectedIndexChange = { index -> modelOptions.getOrNull(index)?.let { modelId = it.first } },
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                error?.let { Text(it, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall) }
             }
         },
         dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text("取消") } },
@@ -279,44 +290,3 @@ private fun formatVariables(variablesJson: String?): String {
     }.getOrDefault("")
 }
 
-/** 轻量下拉选择：OutlinedTextField 只读外观 + DropdownMenu，不依赖 ExposedDropdownMenuBox 的版本敏感 API。 */
-@Composable
-private fun SimplePickerField(
-    label: String,
-    value: String,
-    options: List<Pair<String, String>>,
-    onSelect: (String) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-    Box {
-        RuntimeFilledTextField(
-            value = value,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        // readOnly TextField 会消费触摸；用透明覆盖层接管点击事件打开菜单
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                ) { expanded = true },
-        )
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.surface)
-                .heightIn(max = 260.dp),
-        ) {
-            options.forEach { (id, optionLabel) ->
-                DropdownMenuItem(text = { Text(optionLabel) }, onClick = { onSelect(id); expanded = false })
-            }
-        }
-    }
-}

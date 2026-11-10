@@ -9,7 +9,7 @@ TOOL_DIR="${TAIXU_TOOL_DIR:-/opt/taixu/tools/android-skills}"
 TOOL_DATA="${TAIXU_TOOL_DATA:-/opt/taixu/data/android-skills}"
 ANDROID_USER_HOME_DIR="$TOOL_DATA/android-user-home"
 SKILLS_COLLECTION="/attachments/skills/android-skills"
-MIN_SKILL_COUNT=33
+MIN_SKILL_COUNT=36
 
 fail() { echo "$1" >&2; exit 1; }
 require_aarch64() {

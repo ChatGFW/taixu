@@ -8,9 +8,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,7 +37,7 @@ internal fun ChatAttachSheet(
 ) {
     ChatBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("添加内容", fontWeight = FontWeight.Bold) },
+        title = { Text("添加内容", fontWeight = FontWeight.Medium) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // 附件宫格
@@ -84,19 +84,19 @@ private fun AttachGridCell(
 ) {
     Surface(
         modifier = modifier.heightIn(min = 84.dp).clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RuntimeTheme.shapes.medium,
+        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column(
             modifier = Modifier.padding(vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            RuntimeIcon(icon, Modifier.size(24.dp), MaterialTheme.colorScheme.primary)
+            RuntimeIcon(icon, Modifier.size(24.dp), RuntimeTheme.colorScheme.onSurface)
             Text(
                 label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = RuntimeTheme.typography.labelMedium,
+                color = RuntimeTheme.colorScheme.onSurface,
             )
         }
     }
@@ -114,7 +114,7 @@ private fun AttachListEntry(
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick),
         shape = shape,
-        color = if (enabled) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = if (enabled) RuntimeTheme.colorScheme.surfaceContainerHigh else RuntimeTheme.colorScheme.surfaceContainerLowest,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -124,18 +124,18 @@ private fun AttachListEntry(
             RuntimeIcon(
                 icon,
                 Modifier.size(20.dp),
-                if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                if (enabled) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     title,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = if (enabled) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

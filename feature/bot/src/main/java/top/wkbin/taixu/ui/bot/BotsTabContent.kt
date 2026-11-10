@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.bot
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,20 +11,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -29,21 +27,21 @@ import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotMemberGroup
 import top.wkbin.taixu.core.model.bot.GroupChat
-import top.wkbin.taixu.core.model.bot.MarketBotItem
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.EmptyPanel
 import top.wkbin.taixu.ui.components.RuntimeCard
-import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.StatusBadge
+import top.wkbin.taixu.core.database.AiModelEntity
+import top.wkbin.taixu.ui.components.runtimeContentPadding
 
 @Composable
 internal fun BotList(
     bots: List<Bot>,
-    modelProfiles: List<top.wkbin.taixu.core.database.AiModelEntity>?,
+    modelProfiles: List<AiModelEntity>?,
     memberGroups: List<BotMemberGroup>,
     selectedGroupId: String?,
     onSelectGroup: (String?) -> Unit,
@@ -57,7 +55,7 @@ internal fun BotList(
         if (memberIds == null) bots else bots.filter { it.id in memberIds }
     }
     LazyColumn(
-        contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 96.dp),
+        contentPadding = runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "member-group-filter") {
@@ -117,7 +115,7 @@ internal fun BotList(
                         ) {
                             Text(
                                 bot.name,
-                                style = MaterialTheme.typography.titleMedium,
+                                style = RuntimeTheme.typography.titleMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f, fill = false),
@@ -126,8 +124,8 @@ internal fun BotList(
                         }
                         Text(
                             bot.role,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -136,7 +134,7 @@ internal fun BotList(
                     RuntimeIcon(
                         RuntimeIconName.ChevronRight,
                         Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -152,7 +150,7 @@ internal fun GroupList(
     onDeleteGroup: (GroupChat) -> Unit,
 ) {
     LazyColumn(
-        contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 96.dp),
+        contentPadding = runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (groups.isEmpty()) {
@@ -174,22 +172,22 @@ internal fun GroupList(
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(
                             group.name,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = RuntimeTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             stringResource(R.string.fbot_group_admin, adminName(group.adminBotId).ifBlank { "—" }),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         if (group.description.isNotBlank()) {
                             Text(
                                 group.description,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -202,7 +200,7 @@ internal fun GroupList(
                         RuntimeIcon(
                             RuntimeIconName.Trash,
                             Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.error,
+                            tint = RuntimeTheme.colorScheme.error,
                         )
                     }
                 }
@@ -213,10 +211,10 @@ internal fun GroupList(
 
 @Composable
 private fun BotGroupBadge(name: String) {
-    val color = MaterialTheme.colorScheme.primary
+    val color = RuntimeTheme.colorScheme.primary
     RuntimeCard(
         containerColor = color.copy(alpha = 0.12f),
-        shape = MaterialTheme.shapes.medium,
+        shape = RuntimeTheme.shapes.medium,
         contentPadding = PaddingValues(0.dp),
         modifier = Modifier.size(52.dp),
     ) {
@@ -228,7 +226,7 @@ private fun BotGroupBadge(name: String) {
             RuntimeIcon(RuntimeIconName.Chat, Modifier.size(20.dp), tint = color)
             Text(
                 name.take(1),
-                style = MaterialTheme.typography.labelSmall,
+                style = RuntimeTheme.typography.labelSmall,
                 color = color,
             )
         }

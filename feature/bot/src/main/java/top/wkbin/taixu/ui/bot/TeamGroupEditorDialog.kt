@@ -3,8 +3,6 @@ package top.wkbin.taixu.ui.bot
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -13,6 +11,9 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.model.bot.*
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun TeamGroupEditorDialog(group: BotMemberGroup, bots: List<Bot>, onDismiss: () -> Unit,
@@ -37,8 +38,9 @@ internal fun TeamGroupEditorDialog(group: BotMemberGroup, bots: List<Bot>, onDis
     val team = definition.team(selected)
     RuntimeAlertDialog(onDismissRequest = { if (!saving) onDismiss() }, title = { Text("创作团队组") }, text = {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            RuntimeFilledTextField(value = name, onValueChange = { name = it.take(40) }, label = { Text("团队名称") }, enabled = !saving, modifier = Modifier.fillMaxWidth())
-            Text("修改先保存为草稿，不影响引用群。回到团队列表，通过“发布与升级”选择版本和升级范围。", style = MaterialTheme.typography.bodySmall)
+            RuntimeFilledTextField(value = name, onValueChange = { name = it.take(40) },
+ labelText = "团队名称", enabled = !saving, modifier = Modifier.fillMaxWidth())
+            Text("修改先保存为草稿，不影响引用群。回到团队列表，通过“发布与升级”选择版本和升级范围。", style = RuntimeTheme.typography.bodySmall)
             MemberSelection(bots = bots, selectedIds = selected, onSelectionChange = {
                 selected = it
                 if (root !in selected) root = bots.firstOrNull { bot -> bot.id in selected }?.id.orEmpty()
@@ -47,16 +49,16 @@ internal fun TeamGroupEditorDialog(group: BotMemberGroup, bots: List<Bot>, onDis
                 Text("团队主控：${members.firstOrNull { it.id == root }?.name ?: "请选择"}")
             }
             if (root in selected) {
-                Text("组织与审议架构", style = MaterialTheme.typography.titleMedium)
+                Text("组织与审议架构", style = RuntimeTheme.typography.titleMedium)
                 TeamArchitectureGraph(team, definition.governance, members, editable = !saving) { id ->
                     if (id == root) selectingRoot = true else { selectedNode = id; editingManagement = true }
                 }
-                Row {
+                RuntimeActionRow() {
                     RuntimeTextButton(enabled = !saving, onClick = { selectedNode = null; editingManagement = true }) { Text("编辑管理关系") }
                     RuntimeTextButton(enabled = !saving, onClick = { editingReview = true }) { Text("编辑审议规则") }
                 }
             }
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
         }
     }, confirmButton = {
         RuntimeButton(enabled = !saving && name.isNotBlank() && root in selected, onClick = {

@@ -3,8 +3,8 @@ package top.wkbin.taixu.ui.components
 import top.wkbin.taixu.core.markdown.*
 import android.util.LruCache
 import androidx.compose.foundation.background
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.remember
@@ -37,8 +37,8 @@ internal fun InlineText(
     color: Color = Color.Unspecified,
     modifier: Modifier = Modifier,
 ) {
-    val linkColor = MaterialTheme.colorScheme.primary
-    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val linkColor = RuntimeTheme.colorScheme.primary
+    val isDark = RuntimeTheme.colorScheme.surface.luminance() < 0.5f
     val cacheEnabled = LocalMarkdownCacheEnabled.current
     val inlineCodeBg = if (isDark) Color(0xFF21262D) else Color(0xFFEFF1F4)
     val inlineCodeColor = if (isDark) Color(0xFF79C0FF) else Color(0xFF0969DA)

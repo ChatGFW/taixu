@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.onboarding
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
@@ -15,20 +18,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -76,8 +74,8 @@ internal fun OnboardingModelImportDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Download, Modifier.size(20.dp), MaterialTheme.colorScheme.primary)
-                Text("导入模型配置", fontWeight = FontWeight.Bold)
+                RuntimeIcon(RuntimeIconName.Download, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurface)
+                Text("导入模型配置", fontWeight = FontWeight.Medium)
             }
         },
         text = {
@@ -87,24 +85,14 @@ internal fun OnboardingModelImportDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                SecondaryTabRow(
-                    selectedTabIndex = selectedTab,
-                    containerColor = Color.Transparent,
-                ) {
-                    Tab(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        text = { Text("剪贴板粘贴") },
-                    )
-                    Tab(
-                        selected = selectedTab == 1,
-                        onClick = {
-                            selectedTab = 1
-                            filePickerLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
-                        },
-                        text = { Text("选择本地文件") },
-                    )
-                }
+                top.yukonga.miuix.kmp.basic.TabRow(
+                tabs = listOf(
+                    "剪贴板粘贴",
+                    "选择本地文件",
+                ),
+                selectedTabIndex = selectedTab,
+                onTabSelected = { selectedTab = it },
+            )
 
                 if (selectedTab == 0) {
                     RuntimeFilledTextField(
@@ -112,8 +100,8 @@ internal fun OnboardingModelImportDialog(
                         onValueChange = { jsonText = it },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
                         placeholder = { Text("粘贴导出的 JSON 模型配置（单个或 bundle 均支持）") },
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                        shape = MaterialTheme.shapes.medium,
+                        textStyle = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        shape = RuntimeTheme.shapes.medium,
                     )
 
                     RuntimeOutlinedButton(
@@ -149,8 +137,8 @@ internal fun OnboardingModelImportDialog(
                         if (jsonText.isNotBlank()) {
                             Text(
                                 text = "已载入 ${jsonText.length} 字符",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.primary,
                             )
                         }
                     }

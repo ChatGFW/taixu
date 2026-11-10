@@ -11,6 +11,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import top.wkbin.taixu.harness.HarnessPathResolver
 import top.wkbin.taixu.harness.WorkspaceFileAccess
+import top.wkbin.taixu.harness.core.SessionResourceScope
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.environment.LocalTerminalLaunch
 import top.wkbin.taixu.runtime.shell.*
@@ -18,7 +19,7 @@ import top.wkbin.taixu.runtime.shell.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class LocalExecutionEnvironmentTest {
     @Test fun `explicit subprocess close revokes ownership and later environment close does not close it again`() = runTest {
-        val resources = top.wkbin.taixu.harness.core.SessionResourceScope()
+        val resources = SessionResourceScope()
         var closes = 0
         val session = object : LinuxSession by FakeSession(events) {
             override suspend fun close() { closes++ }

@@ -1,13 +1,14 @@
 package top.wkbin.taixu.ui.bot
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
+import androidx.compose.foundation.layout.Column
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -36,7 +37,7 @@ internal fun ExpandableGroupText(
     streaming: Boolean,
     modifier: Modifier = Modifier,
     markdown: Boolean = true,
-    color: Color = MaterialTheme.colorScheme.onSurface,
+    color: Color = RuntimeTheme.colorScheme.onSurface,
 ) {
     var expanded by rememberSaveable(messageId) { mutableStateOf(false) }
     val collapsible = !streaming && (text.length > 1200 || text.count { it == '\n' } >= 14)
@@ -44,11 +45,11 @@ internal fun ExpandableGroupText(
         if (collapsible && !expanded) {
             // Plain preview avoids parsing a truncated code fence or Markdown table.
             Text(text.take(1200), maxLines = 8, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium, color = color)
+                style = RuntimeTheme.typography.bodyMedium, color = color)
         } else if (markdown) {
             MarkdownText(text)
         } else {
-            Text(text, style = MaterialTheme.typography.bodyMedium, color = color)
+            Text(text, style = RuntimeTheme.typography.bodyMedium, color = color)
         }
         if (collapsible) {
             RuntimeTextButton(onClick = { expanded = !expanded }) {

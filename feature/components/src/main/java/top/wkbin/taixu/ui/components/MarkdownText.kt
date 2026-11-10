@@ -3,8 +3,8 @@ package top.wkbin.taixu.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.core.model.ChunkedText
 import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
@@ -59,14 +59,14 @@ private fun MarkdownBlocks(blocks: List<MdBlock>, modifier: Modifier, cacheKey: 
 @Composable
 private fun MarkdownBlock(block: MdBlock, mediaCacheKey: String?) {
     when (block) {
-        is MdParagraph -> InlineText(block.text, MaterialTheme.typography.bodyMedium)
+        is MdParagraph -> InlineText(block.text, RuntimeTheme.typography.bodyMedium)
         is MdHeading -> InlineText(
             block.text,
             when (block.level) {
-                1 -> MaterialTheme.typography.headlineSmall
-                2 -> MaterialTheme.typography.titleLarge
-                3 -> MaterialTheme.typography.titleMedium
-                else -> MaterialTheme.typography.titleSmall
+                1 -> RuntimeTheme.typography.headlineSmall
+                2 -> RuntimeTheme.typography.titleLarge
+                3 -> RuntimeTheme.typography.titleMedium
+                else -> RuntimeTheme.typography.titleSmall
             },
             bold = true,
         )
@@ -75,7 +75,7 @@ private fun MarkdownBlock(block: MdBlock, mediaCacheKey: String?) {
         is MdQuote -> QuoteBlock(block)
         is MdTable -> LocalMarkdownComponents.current.table(block)
         is MdRemoteMedia -> LocalMarkdownComponents.current.media(block, mediaCacheKey)
-        is MdHr -> HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        is MdHr -> HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
     }
 }
 

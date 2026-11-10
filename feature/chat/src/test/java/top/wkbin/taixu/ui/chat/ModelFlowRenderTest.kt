@@ -9,12 +9,10 @@ import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
@@ -23,6 +21,8 @@ import androidx.compose.ui.platform.ViewRootForTest
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import java.io.File
+import java.time.Duration
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,9 +36,10 @@ import org.robolectric.shadows.ShadowChoreographer
 import org.robolectric.shadows.ShadowDialog
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.feature.chat.R
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
 import top.wkbin.taixu.ui.theme.TaiXuTheme
-import java.io.File
-import java.time.Duration
 
 /** 真正渲染面板并执行语义动作；不访问 Provider 或用户设备。 */
 abstract class ModelFlowRenderSupport {
@@ -53,9 +54,13 @@ abstract class ModelFlowRenderSupport {
         controller.setup()
         try {
             activity.setContent {
-                TaiXuTheme(darkTheme = dark, dynamicColor = false) {
-                    CompositionLocalProvider(LocalInspectionMode provides true) {
-                        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { content() }
+                androidx.compose.runtime.CompositionLocalProvider(
+                    top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled provides false,
+                ) {
+                    TaiXuTheme(darkTheme = dark, dynamicColor = false) {
+                        CompositionLocalProvider(LocalInspectionMode provides true) {
+                            Surface(Modifier.fillMaxSize(), color = RuntimeTheme.colorScheme.background) { content() }
+                        }
                     }
                 }
             }
@@ -210,7 +215,7 @@ class ComposerMaterialRenderTest : ModelFlowRenderSupport() {
             assertEquals("帮我检查这段代码", draft.value)
             val send = nodes(root).single {
                 it.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty().any { text ->
-                    text == RuntimeEnvironment.getApplication().getString(top.wkbin.taixu.feature.chat.R.string.chat_send)
+                    text == RuntimeEnvironment.getApplication().getString(R.string.chat_send)
                 }
             }
             assertNull(send.config.getOrNull(SemanticsProperties.Disabled))

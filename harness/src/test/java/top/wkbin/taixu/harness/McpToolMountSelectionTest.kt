@@ -24,6 +24,15 @@ class McpToolMountSelectionTest {
     }
 
     @Test
+    fun `bot tool restrictions filter exact names before mount limits`() {
+        val tools = (1..30).map { tool("s1", "t$it") } + tool("s1", "Read")
+        val mounted = selectMountedTools(listOf(server("s1"), server("s2")), emptyMap(),
+            mapOf("s1" to tools, "s2" to listOf(tool("s2", "read"))),
+            mapOf("s1" to setOf("t30", "read"), "s2" to emptySet()))
+        assertEquals(listOf("t30"), mounted.map { it.name })
+    }
+
+    @Test
     fun `servers and tools mount in stable order`() {
         val mounted = selectMountedTools(
             servers = listOf(server("s2"), server("s1")),

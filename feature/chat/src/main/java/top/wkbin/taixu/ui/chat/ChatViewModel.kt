@@ -104,6 +104,12 @@ import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.RuntimePathManager
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.harness.ContextMemoryToolBackend
+import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
+import top.wkbin.taixu.harness.operation.OperationCoordinator
+import top.wkbin.taixu.harness.session.SessionTitleGenerator
+import top.wkbin.taixu.runtime.SessionWorkspaceCatalog
+import top.wkbin.taixu.runtime.SessionWorkspaceCatalogState
 
 private const val MAX_RUNTIME_EVENTS = 160
 private const val TAG = "ChatViewModel"
@@ -143,13 +149,13 @@ class ChatViewModel(
     private val approvalRepository: AgentApprovalRepository,
     private val agentContextDao: AgentContextRepository,
     private val runtimeRepository: HarnessRuntimeRepository,
-    private val titleGenerator: top.wkbin.taixu.harness.session.SessionTitleGenerator,
+    private val titleGenerator: SessionTitleGenerator,
     private val compactionManager: CompactionManager,
-    private val contextMemoryBackend: top.wkbin.taixu.harness.ContextMemoryToolBackend,
+    private val contextMemoryBackend: ContextMemoryToolBackend,
     private val sessionModelSwitcher: SessionModelSwitcher,
     private val quickPhraseRepository: QuickPhraseRepository,
     private val laneManager: LaneManager,
-    private val operationCoordinator: top.wkbin.taixu.harness.operation.OperationCoordinator,
+    private val operationCoordinator: OperationCoordinator,
     private val eventBus: HarnessEventBus,
     private val proactiveWorkflowAdvisor: ProactiveWorkflowAdvisor,
     private val modelDiscovery: AgentModelDiscovery,
@@ -161,9 +167,9 @@ class ChatViewModel(
     private val workflowRepository: WorkflowRepository,
     val translationManager: TranslationManager? = null,
     val globalNavigationBus: GlobalNavigationBus? = null,
-    private val workspaceCatalogSource: top.wkbin.taixu.runtime.SessionWorkspaceCatalog,
+    private val workspaceCatalogSource: SessionWorkspaceCatalog,
     val btwController: BtwChatController? = null,
-    private val completionEnvironments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments,
+    private val completionEnvironments: SessionExecutionEnvironments,
     private val sessionStartup: ChatSessionStartup,
 ) : ViewModel() {
     val failureMemoryAccess get() = operationCoordinator.failureMemories
@@ -526,7 +532,7 @@ class ChatViewModel(
             ?: currentModels.firstOrNull { it.isActive }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val workspaceCatalog = workspaceCatalogSource.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), top.wkbin.taixu.runtime.SessionWorkspaceCatalogState())
+    val workspaceCatalog = workspaceCatalogSource.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SessionWorkspaceCatalogState())
     val workspaces = workspaceCatalog.map { it.projects }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     /** 思考过程块是否默认展开（持久化，重启后保留）。 */
     val thinkingExpanded: StateFlow<Boolean> = settingsDataStore.thinkingExpanded
@@ -1022,7 +1028,7 @@ class ChatViewModel(
 
         // 只发不答（长按 answer=false）：仅追加用户消息不触发推理；命令语义保持常规发送，忙时退化为队列。
         val appendOnly = shouldAppendOnly(answer, rawText)
-        if (harnessLoop.sessionRunStates.value[owner] != top.wkbin.taixu.core.model.SessionRunState.RUNNING) {
+        if (harnessLoop.sessionRunStates.value[owner] != SessionRunState.RUNNING) {
             if (appendOnly) harnessLoop.appendOnly(effectiveText, targetSessionId = owner, imageUrls = imageUrls)
             else harnessLoop.send(effectiveText, targetSessionId = owner, imageUrls = imageUrls)
         } else {
@@ -1387,14 +1393,12 @@ internal fun mergeHistoricalAndLiveEvents(
     val priorEvents = synthesizeHistoricalEvents(sessionId, priorMessages)
     return priorEvents + live
 }
-
 private fun synthesizeHistoricalEvents(sessionId: String, messages: List<HarnessMessage>): List<HarnessEvent> {
     if (sessionId.isBlank() || messages.isEmpty()) return emptyList()
     val events = mutableListOf<HarnessEvent>()
     var currentRound = 0
     var opId = "hist-$sessionId"
     val toolCallMap = messages.filterIsInstance<ToolCall>().associateBy { it.id }
-
     messages.forEach { msg ->
         when (msg) {
             is UserMessage -> {
@@ -1463,23 +1467,19 @@ private fun synthesizeHistoricalEvents(sessionId: String, messages: List<Harness
     }
     return events
 }
-
 /** 聊天发送键语义：仅驱动发送键配色。实际投递行为由「运行中发送方式」偏好（RunningSendMode）决定。 */
 enum class ComposerSendMode { STEER, NEXT_RUN }
-
 private data class ContextUsageInputs(
     val currentMessages: List<HarnessMessage>,
     val activeModel: AiModelEntity?,
     val defaultBudget: Int,
 )
-
 private data class ContextUsageCalculation(
     val inputs: ContextUsageInputs,
     val sessionId: String,
     val compactionEnabled: Boolean,
     val foldingRatioPercent: Int,
 )
-
 /**
  * 分支列表重投影的触发键。
  *

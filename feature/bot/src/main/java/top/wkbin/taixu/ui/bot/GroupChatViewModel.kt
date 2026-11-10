@@ -11,11 +11,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -23,22 +23,27 @@ import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
-import top.wkbin.taixu.harness.session.SessionControl
+import top.wkbin.taixu.core.database.repository.BotMemberGroupRepository
 import top.wkbin.taixu.core.database.repository.BotScheduleRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.core.database.repository.TaskBudgetRepository
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotAssignment
+import top.wkbin.taixu.core.model.bot.BotMemberGroup
 import top.wkbin.taixu.core.model.bot.GroupAttachment
 import top.wkbin.taixu.core.model.bot.GroupChat
+import top.wkbin.taixu.core.model.bot.GroupGovernance
 import top.wkbin.taixu.core.model.bot.GroupMessage
 import top.wkbin.taixu.core.model.bot.GroupReplyMode
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.harness.bot.ActiveBotAssignment
+import top.wkbin.taixu.harness.bot.BotAssignmentRuntime
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
 import top.wkbin.taixu.harness.bot.BotOrchestrator
 import top.wkbin.taixu.harness.bot.diagnostics.BotDiagnosticsExporter
 import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
+import top.wkbin.taixu.harness.session.SessionControl
 
 data class GroupChatUiState(
     val group: GroupChat? = null,
@@ -56,14 +61,14 @@ class GroupChatViewModel(
     private val dispatcher: GroupChatDispatcher,
     private val exporter: BotDiagnosticsExporter,
     private val assignments: BotAssignmentTracker,
-    private val assignmentRuntime: top.wkbin.taixu.harness.bot.BotAssignmentRuntime,
+    private val assignmentRuntime: BotAssignmentRuntime,
     private val orchestrator: BotOrchestrator,
     private val scheduleRepository: BotScheduleRepository,
     private val groupSessions: BotGroupSessionRepository,
     private val approvals: AgentApprovalRepository,
     private val sessionControl: SessionControl,
-    private val budgets: top.wkbin.taixu.core.database.repository.TaskBudgetRepository? = null,
-    private val memberGroups: top.wkbin.taixu.core.database.repository.BotMemberGroupRepository? = null,
+    private val budgets: TaskBudgetRepository? = null,
+    private val memberGroups: BotMemberGroupRepository? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(GroupChatUiState())
     val uiState: StateFlow<GroupChatUiState> = _uiState.asStateFlow()
@@ -76,7 +81,7 @@ class GroupChatViewModel(
 
     private val groupId = MutableStateFlow<String?>(null)
     val teamGroups = memberGroups?.observeGroups()?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-        ?: MutableStateFlow(emptyList<top.wkbin.taixu.core.model.bot.BotMemberGroup>())
+        ?: MutableStateFlow(emptyList<BotMemberGroup>())
     suspend fun referenceTeam(id: String) { groupRepository.attachTeam(requireNotNull(groupId.value), id) }
     init {
         viewModelScope.launch {
@@ -98,7 +103,7 @@ class GroupChatViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val governance = groupId.filterNotNull().flatMapLatest { groupRepository.observeGovernance(it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), top.wkbin.taixu.core.model.bot.GroupGovernance())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupGovernance())
     val proposals = groupId.filterNotNull().flatMapLatest { groupRepository.observeProposals(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

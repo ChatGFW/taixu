@@ -1,8 +1,8 @@
 package top.wkbin.taixu.harness
 
-import java.lang.reflect.Proxy
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import java.lang.reflect.Proxy
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -17,16 +17,16 @@ import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.HarnessSessionEntity
-import top.wkbin.taixu.core.model.ApprovalMode
-import top.wkbin.taixu.harness.directory.CapabilityToolGateway
-import top.wkbin.taixu.harness.directory.NestedCalls
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
 import top.wkbin.taixu.core.database.RoomHarnessSessionRepository
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.datastore.SettingsDataStore
+import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.network.FileDownloader
-import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.core.security.SecretManager
+import top.wkbin.taixu.core.security.SecretRedactor
+import top.wkbin.taixu.harness.directory.CapabilityToolGateway
+import top.wkbin.taixu.harness.directory.NestedCalls
 import top.wkbin.taixu.harness.events.AgentEventLogger
 import top.wkbin.taixu.harness.events.HarnessEventBus
 import top.wkbin.taixu.harness.metrics.RunMetrics
@@ -39,8 +39,10 @@ import top.wkbin.taixu.harness.recovery.RecoveryManager
 import top.wkbin.taixu.harness.recovery.RecoveryOutcome
 import top.wkbin.taixu.harness.session.SessionTreeStore
 import top.wkbin.taixu.harness.validation.ToolCallLoopDetector
-import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.harness.websearch.StubSearchProvider
+import top.wkbin.taixu.harness.websearch.WebSearchProviders
+import top.wkbin.taixu.runtime.LinuxRuntime
+
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -84,7 +86,7 @@ class HarnessApprovalBoundaryTest {
                 askUserToolBackend = AskUserToolBackend(ApprovalPolicyEngine(resolver), approvals),
                 promptAssetToolBackend = PromptAssetToolBackend(),
                 harnessServiceToolBackend = HarnessServiceToolBackend(),
-                searchWebToolBackend = SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(StubSearchProvider()))),
+                searchWebToolBackend = SearchWebToolBackend(WebSearchProviders(listOf(StubSearchProvider()))),
                 capabilityToolGateway = CapabilityToolGateway(null) { _, _, _, _ -> error("unexpected host dispatch") },
                 approvalRepository = approvals, sessionDao = sessions,
             )

@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,15 +12,13 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -28,7 +29,6 @@ import org.koin.compose.koinInject
 import top.wkbin.taixu.core.tools.ProviderProtocol
 import top.wkbin.taixu.core.tools.AgentConnectionThreeWayProbe
 import top.wkbin.taixu.core.tools.ConnectionThreeWayResult
-import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -73,7 +73,7 @@ internal fun ModelConnectionThreeWayPanel(
                 Spacer(Modifier.width(6.dp))
                 Text("三项测试中…")
             } else {
-                RuntimeIcon(RuntimeIconName.Checklist, Modifier.size(16.dp), MaterialTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Checklist, Modifier.size(16.dp), RuntimeTheme.colorScheme.onSurface)
                 Spacer(Modifier.width(6.dp))
                 Text("三项连接测试（非流式 / 流式 / 工具调用）")
             }
@@ -81,8 +81,8 @@ internal fun ModelConnectionThreeWayPanel(
 
         result?.let { r ->
             Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+                shape = RuntimeTheme.shapes.medium,
+                color = RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -130,7 +130,7 @@ internal fun ModelConnectionTestBlock(
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    RuntimeIcon(RuntimeIconName.Play, Modifier.size(16.dp), MaterialTheme.colorScheme.primary)
+                    RuntimeIcon(RuntimeIconName.Play, Modifier.size(16.dp), RuntimeTheme.colorScheme.onSurface)
                     Text("测试连接")
                 }
             }
@@ -138,8 +138,8 @@ internal fun ModelConnectionTestBlock(
 
         discoveryError?.let {
             Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                shape = RuntimeTheme.shapes.medium,
+                color = RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
@@ -147,11 +147,11 @@ internal fun ModelConnectionTestBlock(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    RuntimeIcon(RuntimeIconName.Alert, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                    RuntimeIcon(RuntimeIconName.Alert, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.error)
                     Text(
                         text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.error,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -171,8 +171,8 @@ internal fun ModelConnectionTestBlock(
         testResult?.let { resultMsg ->
             val isSuccess = resultMsg == "连接成功"
             Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = if (isSuccess) successStatusColor().copy(alpha = 0.15f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                shape = RuntimeTheme.shapes.medium,
+                color = if (isSuccess) successStatusColor().copy(alpha = 0.15f) else RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
@@ -183,12 +183,12 @@ internal fun ModelConnectionTestBlock(
                     RuntimeIcon(
                         name = if (isSuccess) RuntimeIconName.Check else RuntimeIconName.Alert,
                         modifier = Modifier.size(16.dp),
-                        tint = if (isSuccess) successStatusColor() else MaterialTheme.colorScheme.error,
+                        tint = if (isSuccess) successStatusColor() else RuntimeTheme.colorScheme.error,
                     )
                     Text(
                         text = resultMsg,
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = if (isSuccess) successStatusColor() else MaterialTheme.colorScheme.error,
+                        style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = if (isSuccess) successStatusColor() else RuntimeTheme.colorScheme.error,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -208,13 +208,13 @@ private fun ProbeRow(label: String, success: Boolean, detail: String) {
         RuntimeIcon(
             name = if (success) RuntimeIconName.Check else RuntimeIconName.Alert,
             modifier = Modifier.size(14.dp),
-            tint = if (success) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            tint = if (success) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.error,
         )
-        Text(label, style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(72.dp))
+        Text(label, style = RuntimeTheme.typography.labelMedium, modifier = Modifier.width(72.dp))
         Text(
             detail,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (success) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+            style = RuntimeTheme.typography.bodySmall,
+            color = if (success) RuntimeTheme.colorScheme.onSurfaceVariant else RuntimeTheme.colorScheme.error,
             maxLines = 2,
         )
     }

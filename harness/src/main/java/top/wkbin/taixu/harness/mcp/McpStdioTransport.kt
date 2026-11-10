@@ -2,25 +2,25 @@ package top.wkbin.taixu.harness.mcp
 
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.currentCoroutineContext
-import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -30,11 +30,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
-import top.wkbin.taixu.core.model.McpServerConfig
+import top.wkbin.taixu.core.common.McpCatalogRevisions
 import top.wkbin.taixu.core.model.McpConnectionState
 import top.wkbin.taixu.core.model.McpIdlePolicy
+import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpToolInfo
-import kotlin.time.Duration.Companion.milliseconds
+import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext
 
 internal class McpStdioChannelException(message: String) : IOException(message)
 
@@ -75,9 +76,9 @@ class McpStdioTransport(
 
     init {
         scope.launch {
-            top.wkbin.taixu.core.common.McpCatalogRevisions.changes.collect { changes ->
+            McpCatalogRevisions.changes.collect { changes ->
                 connections.values.forEach { conn ->
-                    val revision = changes[top.wkbin.taixu.core.common.McpCatalogRevisions.Key(conn.distribution, conn.serverId.mcpServerKey())] ?: 0L
+                    val revision = changes[McpCatalogRevisions.Key(conn.distribution, conn.serverId.mcpServerKey())] ?: 0L
                     if (conn.distribution.isNotBlank() && revision > conn.revision) retire(conn)
                 }
             }
@@ -214,7 +215,7 @@ class McpStdioTransport(
             var waiting: McpStdioConnection? = null
             val acquired = startupMutexes.getOrPut(server.id.mcpServerKey()) { Mutex() }.withLock {
                 val revision = if (server.catalogDistribution.isBlank()) server.catalogRevision else
-                    top.wkbin.taixu.core.common.McpCatalogRevisions.current(server.catalogDistribution, server.id.mcpServerKey())
+                    McpCatalogRevisions.current(server.catalogDistribution, server.id.mcpServerKey())
                 val scoped = server.copy(id = scopedId, catalogRevision = revision)
                 val old = connections[scopedId]
                 if (old != null && (old.uses.retiring || old.fingerprint != commandBuilder.fingerprint(scoped))) {
@@ -222,7 +223,7 @@ class McpStdioTransport(
                     if (old.uses.busy()) { waiting = old; return@withLock null }
                 }
                 val conn = connectionLocked(scoped, bypassCooldown)
-                if (scoped.catalogDistribution.isNotBlank() && top.wkbin.taixu.core.common.McpCatalogRevisions.current(scoped.catalogDistribution, server.id.mcpServerKey()) != revision) { retire(conn); null }
+                if (scoped.catalogDistribution.isNotBlank() && McpCatalogRevisions.current(scoped.catalogDistribution, server.id.mcpServerKey()) != revision) { retire(conn); null }
                 else conn.takeIf { it.uses.acquire() }
             }
             if (acquired != null) return acquired

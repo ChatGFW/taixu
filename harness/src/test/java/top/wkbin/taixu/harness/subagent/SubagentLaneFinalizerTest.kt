@@ -23,6 +23,7 @@ import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.harness.ApiToolCallSpec
 import top.wkbin.taixu.harness.HarnessMessage
+import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ModelConfig
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
@@ -239,10 +240,10 @@ class SubagentLaneFinalizerTest {
     }
 
     @Test fun `timeout summary retains earlier unknown outcome despite later read failure`() {
-        val call = ToolCall("write", 1, top.wkbin.taixu.harness.HarnessTool.WRITE,
+        val call = ToolCall("write", 1, HarnessTool.WRITE,
             Json.parseToJsonElement(write.argumentsJson) as kotlinx.serialization.json.JsonObject, rawToolName = "write")
         val transcript = listOf(call, ToolRecoveryNotice.unknown().result("unknown", 2, call.id),
-            call.copy(id = "read", tool = top.wkbin.taixu.harness.HarnessTool.READ, rawToolName = "read"),
+            call.copy(id = "read", tool = HarnessTool.READ, rawToolName = "read"),
             ToolResult("read-failure", 3, "read", false, "file unavailable"))
         val summary = buildSubagentTimeoutSummary(1_000, 2, transcript, "child")
         assertTrue(summary.contains("禁止直接重新发起"))

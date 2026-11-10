@@ -6,6 +6,7 @@ import top.wkbin.taixu.core.datastore.McpToolPolicyMap
 import top.wkbin.taixu.core.datastore.McpToolPolicyPreferences
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpToolInfo
+import top.wkbin.taixu.harness.bot.BotCapabilityScope
 import top.wkbin.taixu.harness.events.CapabilityEventWriter
 import top.wkbin.taixu.harness.mcp.McpManager
 import top.wkbin.taixu.harness.mcp.filterEnabledBy
@@ -23,7 +24,7 @@ class McpToolMountResolver(
     private val policies: McpToolPolicyPreferences,
     private val capabilityWriter: CapabilityEventWriter,
     /** Bot 级能力白名单：null = 不限制；设置后仅白名单内服务可被该会话挂载。 */
-    private val capabilityScope: top.wkbin.taixu.harness.bot.BotCapabilityScope? = null,
+    private val capabilityScope: BotCapabilityScope? = null,
 ) {
     suspend fun resolve(sessionId: String, messages: List<HarnessMessage>, model: ModelConfig): ModelConfig {
         val userMessages = messages.filterIsInstance<UserMessage>()
@@ -39,9 +40,10 @@ class McpToolMountResolver(
         val candidates = if (mentioned.isEmpty()) emptyList() else scoped
             .filter { it.isEnabled && (it.id.lowercase() in mentioned || it.name.lowercase() in mentioned) }
         val toolsByServer = candidates.associate { server ->
-            server.id to runCatching { mcpManager.cachedToolsOf(server.id) }.getOrDefault(emptyList())
+            server.id to mcpManager.cachedToolsOf(server.id)
         }
-        val mounted = selectMountedTools(candidates, policies.snapshot(), toolsByServer)
+        val allowedTools = candidates.associate { it.id to capabilityScope?.allowedMcpTools(sessionId, it.id) }
+        val mounted = selectMountedTools(candidates, policies.snapshot(), toolsByServer, allowedTools)
         val mountedModel = model.copy(dynamicMcpTools = mounted)
         capabilityWriter.writeIfMentioned(sessionId, latest.id, latestMentions, mountedModel)
         return mountedModel
@@ -53,11 +55,13 @@ internal fun selectMountedTools(
     servers: List<McpServerConfig>,
     policies: McpToolPolicyMap,
     toolsByServer: Map<String, List<McpToolInfo>>,
+    allowedToolsByServer: Map<String, Set<String>?> = emptyMap(),
 ): List<McpToolInfo> {
     val mounted = mutableListOf<McpToolInfo>()
     loop@ for (server in servers.sortedBy { it.id }.take(MAX_MOUNTED_SERVERS)) {
         val tools = toolsByServer[server.id].orEmpty()
             .filterEnabledBy(policies[server.id])
+            .filter { allowedToolsByServer[server.id]?.contains(it.name) != false }
             .sortedBy { it.name }
             .take(MAX_TOOLS_PER_SERVER)
         for (tool in tools) {

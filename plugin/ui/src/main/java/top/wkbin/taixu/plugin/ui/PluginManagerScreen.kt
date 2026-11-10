@@ -10,10 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +50,7 @@ fun PluginManagerScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item { SectionHeader(stringResource(R.string.ui_plugin_pages_title), stringResource(R.string.ui_plugin_pages_description)) }
             if (preferenceFailure) item {
-                Text(stringResource(R.string.ui_plugin_preferences_failed), color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.ui_plugin_preferences_failed), color = RuntimeTheme.colorScheme.error)
                 if (!initialized) RuntimeTextButton(onClick = { perform { controller.initialize() } }, enabled = !busy) {
                     Text(stringResource(R.string.ui_plugin_retry))
                 }
@@ -60,23 +60,23 @@ fun PluginManagerScreen(
                 val title = plugin.title()
                 RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.secondaryContainer) {
-                            RuntimeIcon(plugin.icon, Modifier.padding(12.dp).size(22.dp), MaterialTheme.colorScheme.onSecondaryContainer)
+                        Surface(shape = RuntimeTheme.shapes.medium, color = RuntimeTheme.colorScheme.secondaryContainer) {
+                            RuntimeIcon(plugin.icon, Modifier.padding(12.dp).size(22.dp), RuntimeTheme.colorScheme.onSecondaryContainer)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+                            Text(title, style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
                             val description = plugin.description()
-                            if (description.isNotBlank()) Text(description, style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            if (description.isNotBlank()) Text(description, style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                         RuntimeSwitch(modifier = Modifier.semantics { contentDescription = title },
                             checked = status.selected, onCheckedChange = { enabled -> perform { controller.setEnabled(plugin.descriptor.id, enabled) } },
                             enabled = initialized && !busy && status.phase !in setOf(PluginPhase.STARTING, PluginPhase.DRAINING))
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(phaseLabel(status.phase), Modifier.weight(1f), style = MaterialTheme.typography.labelMedium,
-                            color = if (status.phase == PluginPhase.FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        Text(phaseLabel(status.phase), Modifier.weight(1f), style = RuntimeTheme.typography.labelMedium,
+                            color = if (status.phase == PluginPhase.FAILED) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
                         if (status.phase == PluginPhase.FAILED) RuntimeTextButton(
                             onClick = { perform { controller.setEnabled(plugin.descriptor.id, status.selected) } }, enabled = !busy,
@@ -92,8 +92,8 @@ fun PluginManagerScreen(
                     }
                 }
             }
-            item { Text(stringResource(R.string.ui_plugin_manager_scope), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) }
+            item { Text(stringResource(R.string.ui_plugin_manager_scope), style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) }
         }
     }
 }

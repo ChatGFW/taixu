@@ -3,9 +3,9 @@ package top.wkbin.taixu.harness.approval
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -16,12 +16,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.database.AgentApprovalRepository
+import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
 import top.wkbin.taixu.core.database.RoomHarnessSessionRepository
+import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.harness.ApprovalPolicyEngine
 import top.wkbin.taixu.harness.AskUserQuestions
 import top.wkbin.taixu.harness.AskUserRequest
@@ -87,7 +88,7 @@ class HarnessApprovalTimeoutTest {
     }
 
     @Test fun `new settings and sessions use full access without prompt instructions`() = runBlocking {
-        assertEquals(top.wkbin.taixu.core.model.ApprovalMode.FULL_ACCESS, approvalRepo.currentMode())
+        assertEquals(ApprovalMode.FULL_ACCESS, approvalRepo.currentMode())
         assertEquals("full_access", HarnessSessionEntity("new", "chat", 1, 1, modelId = null).approvalMode)
     }
 

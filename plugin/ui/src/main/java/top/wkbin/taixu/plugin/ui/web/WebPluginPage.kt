@@ -3,10 +3,9 @@ package top.wkbin.taixu.plugin.ui.web
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -25,12 +24,11 @@ import top.wkbin.taixu.plugin.ui.PluginPageRequest
 import top.wkbin.taixu.plugin.ui.R
 import top.wkbin.taixu.ui.components.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val colors = MaterialTheme.colorScheme
+    val colors = RuntimeTheme.colorScheme
     val themeCss = remember(colors) {
         fun cssColor(color: androidx.compose.ui.graphics.Color) = "#%06x".format(color.toArgb() and 0xffffff)
         ":root { --surface: ${cssColor(colors.surface)}; --on-surface: ${cssColor(colors.onSurface)}; " +
@@ -114,7 +112,7 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
                     onClick = { showScope = true },
                     contentDescription = stringResource(R.string.ui_web_plugin_scope_title),
                 ) {
-                    RuntimeIcon(RuntimeIconName.Info, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    RuntimeIcon(RuntimeIconName.Info, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
             },
         )
@@ -148,19 +146,19 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
                     .padding(bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(stringResource(R.string.ui_web_plugin_scope_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.ui_web_plugin_scope_title), style = RuntimeTheme.typography.titleMedium)
                 if (plugin.openSource != null) {
-                    Text(plugin.description(), style = MaterialTheme.typography.bodyMedium)
+                    Text(plugin.description(), style = RuntimeTheme.typography.bodyMedium)
                 }
                 Text(
                     stringResource(R.string.ui_web_plugin_scope),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     stringResource(R.string.ui_web_plugin_grants, grants),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (grants > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelLarge,
+                    color = if (grants > 0) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 RuntimeFilledTonalButton(
                     onClick = { session.revoke(); showScope = false },

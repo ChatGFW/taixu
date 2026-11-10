@@ -1,7 +1,7 @@
 package top.wkbin.taixu.ui.components
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,7 +21,7 @@ fun RuntimeChatIdentityAvatar(size: Dp, style: ChatIdentityStyle = LocalChatIden
     val name = style.normalized().imageName
     val file = remember(context, name) { name?.let { File(File(context.filesDir, ChatIdentityStyle.IMAGE_DIRECTORY), it) } }
     var loaded by remember(file) { mutableStateOf(false) }
-    Box(Modifier.size(size).clip(MaterialTheme.shapes.small)) {
+    Box(Modifier.size(size).clip(RuntimeTheme.shapes.small)) {
         if (!loaded) TaiXuBrandBadge(size)
         if (file != null) AsyncImage(model = file, contentDescription = null,
             modifier = Modifier.matchParentSize().graphicsLayer { alpha = if (loaded) 1f else 0f },

@@ -5,9 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -48,9 +48,9 @@ fun PackagedPluginInventorySection(onOpenTool: (String) -> Unit, viewModel: Pack
         RuntimeSegmentedControl(
             options = listOf(stringResource(R.string.packaged_plugins_filter_installed), stringResource(R.string.packaged_plugins_filter_all)),
             selectedIndex = if (installedOnly) 0 else 1, onSelect = { installedOnly = it == 0 }, modifier = Modifier.fillMaxWidth())
-        if (state.failed) Text(stringResource(R.string.packaged_plugins_failed), color = MaterialTheme.colorScheme.error)
+        if (state.failed) Text(stringResource(R.string.packaged_plugins_failed), color = RuntimeTheme.colorScheme.error)
         if (entries.isEmpty() && !state.failed) Text(stringResource(R.string.packaged_plugins_empty),
-            Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Modifier.padding(16.dp), style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
         if (entries.isNotEmpty()) RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
             entries.forEachIndexed { index, entry ->
                 if (index > 0) InventoryDivider()
@@ -77,4 +77,4 @@ fun PackagedPluginInventorySection(onOpenTool: (String) -> Unit, viewModel: Pack
 
 @Composable
 private fun InventoryDivider() = HorizontalDivider(Modifier.padding(start = 68.dp),
-    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+    color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))

@@ -1,12 +1,14 @@
 package top.wkbin.taixu.core.tools
 
 import kotlinx.coroutines.flow.MutableStateFlow
+import top.wkbin.taixu.core.model.PluginExecutionIdentity
+import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.shell.*
 
 /** Captured install target; selection changes cannot redirect commands, payload copies or links. */
 internal class PinnedToolRuntime(private val delegate: LinuxRuntime, private val distribution: String,
-    private val identity: top.wkbin.taixu.core.model.PluginExecutionIdentity? = null) : LinuxRuntime by delegate {
+    private val identity: PluginExecutionIdentity? = null) : LinuxRuntime by delegate {
     override val activeDistroId = MutableStateFlow(distribution)
     private fun target(requested: String?): String {
         require(requested == null || requested == distribution) { "插件操作不能切换发行版" }
@@ -18,5 +20,5 @@ internal class PinnedToolRuntime(private val delegate: LinuxRuntime, private val
         delegate.startBackground(id, command.copy(pluginIdentity = identity ?: command.pluginIdentity), toolId, type, target(distroId))
 }
 
-internal fun top.wkbin.taixu.core.model.ToolManifest.executionIdentity() =
-    plugin?.takeIf { schemaVersion == 2 }?.let { top.wkbin.taixu.core.model.PluginExecutionIdentity(it.id, version) }
+internal fun ToolManifest.executionIdentity() =
+    plugin?.takeIf { schemaVersion == 2 }?.let { PluginExecutionIdentity(it.id, version) }

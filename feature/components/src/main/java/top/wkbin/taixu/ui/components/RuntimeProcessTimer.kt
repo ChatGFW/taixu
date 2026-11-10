@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.components
 
 import android.os.SystemClock
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -32,7 +32,7 @@ fun RuntimeProcessTimer(id: String, running: Boolean, startedAtMs: Long? = null,
         formatRuntimeProcessDuration(if (running) elapsed else durationMs ?: elapsed),
         // Avoid announcing ten updates a second inside the first-response live region.
         modifier = Modifier.clearAndSetSemantics { },
-        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+        style = RuntimeTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
         color = runtimeProcessColor(), maxLines = 1,
     )
 }

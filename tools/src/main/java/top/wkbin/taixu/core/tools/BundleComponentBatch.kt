@@ -15,6 +15,7 @@ import top.wkbin.taixu.core.database.InstallLogEntity
 import top.wkbin.taixu.core.model.BuiltinPluginBundles
 import top.wkbin.taixu.runtime.BackgroundTaskRegistry
 import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.environment.LocalBackendAccess
 import top.wkbin.taixu.runtime.scripts.RuntimeAssetSynchronizer
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import top.wkbin.taixu.runtime.tools.InstallEvent
@@ -37,7 +38,7 @@ internal class BundleComponentBatch(
     private val scope: CoroutineScope,
     private val currentDistroId: () -> String,
     private val probeInstalledComponents: suspend () -> Set<String>,
-    private val localAccess: top.wkbin.taixu.runtime.environment.LocalBackendAccess? = null,
+    private val localAccess: LocalBackendAccess? = null,
 ) {
     fun install(componentIds: Set<String>, reinstall: Boolean): Flow<InstallEvent> = runPipeline(
         componentIds = componentIds,

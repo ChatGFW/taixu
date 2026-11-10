@@ -1,5 +1,8 @@
 package top.wkbin.taixu
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import org.koin.android.ext.android.inject
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
@@ -26,22 +29,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,6 +82,7 @@ import top.wkbin.taixu.ui.chat.floating.FloatingChatService
 import org.koin.android.ext.android.getKoin
 import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
 import top.wkbin.taixu.navigation.AgentNotificationIntentExtractor
+import top.wkbin.taixu.core.model.ThemePalette
 class MainActivity : AppCompatActivity() {
     val settingsDataStore: AppearancePreferences by inject()
     val appUpdateManager: AppUpdateManager by inject()
@@ -107,7 +108,7 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val themeMode by settingsDataStore.themeMode.collectAsStateWithLifecycle(initialValue = "system")
             val dynamicColorEnabled by settingsDataStore.dynamicColorEnabled.collectAsStateWithLifecycle(initialValue = true)
-            val themePalette by settingsDataStore.themePalette.collectAsStateWithLifecycle(initialValue = top.wkbin.taixu.core.model.ThemePalette())
+            val themePalette by settingsDataStore.themePalette.collectAsStateWithLifecycle(initialValue = ThemePalette())
             val pageScale by settingsDataStore.appFontScale.collectAsStateWithLifecycle(initialValue = 1f)
             val systemDark = isSystemInDarkTheme()
             val systemDensity = LocalDensity.current
@@ -194,7 +195,7 @@ class MainActivity : AppCompatActivity() {
                                 RuntimeIcon(
                                     name = RuntimeIconName.Refresh,
                                     modifier = Modifier.size(24.dp),
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = RuntimeTheme.colorScheme.primary,
                                 )
                                 Text(stringResource(R.string.taixu_update_available, info.latestVersion), fontWeight = FontWeight.Bold)
                             }
@@ -205,20 +206,20 @@ class MainActivity : AppCompatActivity() {
                                 verticalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
                                 Surface(
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                    shape = RoundedCornerShape(8.dp),
+                                    color = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                    shape = RuntimeTheme.shapes.chip,
                                 ) {
                                     Text(
                                         text = stringResource(R.string.taixu_update_versions, info.currentVersion, info.latestVersion),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = RuntimeTheme.colorScheme.onPrimaryContainer,
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                     )
                                 }
                                 if (info.releaseNotes.isNotBlank()) {
                                     Surface(
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        shape = RoundedCornerShape(10.dp),
+                                        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
+                                        shape = RuntimeTheme.shapes.small,
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         MarkdownText(
@@ -229,7 +230,7 @@ class MainActivity : AppCompatActivity() {
                                 }
                                 if (isDownloading) {
                                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text(stringResource(R.string.taixu_update_downloading_package), style = MaterialTheme.typography.labelMedium)
+                                        Text(stringResource(R.string.taixu_update_downloading_package), style = RuntimeTheme.typography.labelMedium)
                                         if (downloadProgress != null) {
                                             LinearProgressIndicator(
                                                 progress = { downloadProgress ?: 0f },
@@ -247,8 +248,8 @@ class MainActivity : AppCompatActivity() {
                                     // 下载失败必须可见：不再静默停止
                                     Text(
                                         text = stringResource(R.string.taixu_update_download_failed),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.error,
+                                        style = RuntimeTheme.typography.labelMedium,
+                                        color = RuntimeTheme.colorScheme.error,
                                     )
                                 }
                             }
@@ -308,7 +309,7 @@ class MainActivity : AppCompatActivity() {
                 ProvideRuntimeWidthClass {
                     when {
                         !onboarding.loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            CircularProgressIndicator(color = RuntimeTheme.colorScheme.primary)
                         }
                         onboarding.completed -> TaiXuNavHost(globalNavigationBus = globalNavigationBus)
                         else -> OnboardingScreen(

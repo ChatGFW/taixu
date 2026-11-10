@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.settings
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
@@ -7,17 +8,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
@@ -71,8 +70,7 @@ fun ModelImportDialog(
         onDismissRequest = onDismiss, dismissEnabled = !busy,
         title = stringResource(if (profiles == null) R.string.profile_transfer_import else R.string.profile_transfer_preview),
         actions = {
-            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
             RuntimeTextButton(enabled = !busy, onClick = {
                 if (profiles == null) onDismiss() else { profiles = null; error = null }
             }) { Text(stringResource(if (profiles == null) R.string.profile_transfer_cancel else R.string.profile_transfer_edit)) }
@@ -95,14 +93,14 @@ fun ModelImportDialog(
         },
     ) {
         Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap)) {
                 val preview = profiles
                 if (preview == null) {
                     RuntimeFilledTextField(
                         value = jsonText, onValueChange = ::replaceInput, enabled = !busy,
                         modifier = Modifier.fillMaxWidth(), minLines = 4, maxLines = 8,
                         placeholder = { Text(stringResource(R.string.profile_transfer_paste_hint)) },
-                        textStyle = MaterialTheme.typography.bodyMedium,
+                        textStyle = RuntimeTheme.typography.bodyMedium,
                     )
                     RuntimeTextButton(onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
@@ -116,8 +114,8 @@ fun ModelImportDialog(
                         modifier = Modifier.fillMaxWidth(), enabled = !busy) {
                         Text(stringResource(R.string.profile_transfer_choose_file))
                     }
-                    Text(stringResource(R.string.profile_transfer_limits), style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.profile_transfer_limits), style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 } else {
                     val existing = models.associateBy { it.id }
                     val matches = preview.count { it.id?.trim() in existing }
@@ -131,34 +129,34 @@ fun ModelImportDialog(
                         stringResource(R.string.profile_transfer_update_detail, matches, preview.size - matches)) {
                         mode = AiProfileImportMode.UPDATE_MATCHING_IDS
                     }
-                    Text(stringResource(R.string.profile_transfer_credentials_detail), style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.profile_transfer_credentials_detail), style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant)
                     preview.forEach { profile ->
                         val old = existing[profile.id?.trim()]
                         val update = mode == AiProfileImportMode.UPDATE_MATCHING_IDS && old != null
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(stringResource(if (update) R.string.profile_transfer_row_update else R.string.profile_transfer_row_create,
                                 profile.name.ifBlank { profile.model }), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.titleSmall)
+                                style = RuntimeTheme.typography.titleSmall)
                             Text(if (update) old.name else profile.provider.ifBlank { "Custom" }, maxLines = 1,
-                                overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                overflow = TextOverflow.Ellipsis, style = RuntimeTheme.typography.bodyMedium,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+                error?.let { Text(it, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodyMedium) }
         }
     }
 }
 
 @Composable
 private fun ImportChoice(selected: Boolean, enabled: Boolean, title: String, detail: String, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = onClick)
-        .heightIn(min = 72.dp).padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        RuntimeRadioButton(selected = selected, onClick = null, enabled = enabled)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
+    top.wkbin.taixu.ui.components.RuntimeRadioPreference(
+        title = resolveLegacyString(title),
+        summary = resolveLegacyString(detail),
+        selected = selected,
+        enabled = enabled,
+        onClick = onClick,
+        insideMargin = PaddingValues(horizontal = 0.dp, vertical = 16.dp),
+    )
 }

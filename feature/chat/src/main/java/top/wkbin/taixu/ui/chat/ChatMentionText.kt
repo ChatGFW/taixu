@@ -39,7 +39,7 @@ internal fun formatMentionText(
         builder.addStyle(
             SpanStyle(
                 color = mentionColor,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
                 background = mentionBg,
             ),
             range.first,

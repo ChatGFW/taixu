@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,15 +10,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -26,11 +27,12 @@ import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.core.model.bot.Bot
 
 @Composable
 internal fun GroupInfoDialog(
     group: GroupChat,
-    members: List<top.wkbin.taixu.core.model.bot.Bot> = emptyList(),
+    members: List<Bot> = emptyList(),
     deleting: Boolean,
     onDismiss: () -> Unit,
     onSave: (
@@ -69,22 +71,22 @@ internal fun GroupInfoDialog(
                 RuntimeFilledTextField(
                     value = name,
                     onValueChange = { name = it.take(40) },
-                    label = { Text(stringResource(R.string.fbot_group_name)) },
+                    labelText = stringResource(R.string.fbot_group_name),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 RuntimeFilledTextField(
                     value = description,
                     onValueChange = { description = it.take(200) },
-                    label = { Text(stringResource(R.string.fbot_group_desc)) },
+                    labelText = stringResource(R.string.fbot_group_desc),
                     minLines = 2,
                     maxLines = 4,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
                     stringResource(R.string.fbot_reply_mode),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     GroupReplyMode.entries.forEach { mode ->
@@ -97,8 +99,8 @@ internal fun GroupInfoDialog(
                 }
                 Text(
                     stringResource(R.string.fbot_reply_mode_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 BackgroundStyleRow(background) { background = it }
                 UnifiedApprovalModeRow(unifiedApprovalMode) { unifiedApprovalMode = it }
@@ -124,7 +126,7 @@ internal fun GroupInfoDialog(
                 RuntimeTextButton(onClick = { confirmDelete = true }, enabled = !deleting) {
                     Text(
                         text = stringResource(R.string.fbot_group_disband),
-                        color = MaterialTheme.colorScheme.error,
+                        color = RuntimeTheme.colorScheme.error,
                     )
                 }
             }

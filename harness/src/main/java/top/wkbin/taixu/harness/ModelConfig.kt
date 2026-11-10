@@ -1,9 +1,10 @@
 package top.wkbin.taixu.harness
 
+import top.wkbin.taixu.core.model.FirstResponseTimeoutPolicy
+import top.wkbin.taixu.core.model.McpToolInfo
 import top.wkbin.taixu.harness.core.LlmApi
 import top.wkbin.taixu.harness.core.ModelCapabilities
 import top.wkbin.taixu.harness.core.ModelDescriptor
-import top.wkbin.taixu.core.model.McpToolInfo
 
 /** 解析后的模型运行配置。 */
 data class ModelConfig(
@@ -62,7 +63,7 @@ data class ModelConfig(
      * 等待首个模型事件或心跳的毫秒数。默认 90 秒；0 表示关闭这项本机上限。
      * 由全局设置在解析模型时写入，不是供应商接口参数。
      */
-    val firstResponseTimeoutMs: Long = top.wkbin.taixu.core.model.FirstResponseTimeoutPolicy.DEFAULT_TIMEOUT_MS,
+    val firstResponseTimeoutMs: Long = FirstResponseTimeoutPolicy.DEFAULT_TIMEOUT_MS,
 ) {
     /** Legacy flags are decoded once here; Responses retains its historical precedence. */
     val api: LlmApi

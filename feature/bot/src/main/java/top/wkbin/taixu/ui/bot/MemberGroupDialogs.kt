@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,15 +12,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -33,6 +33,8 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.core.model.bot.TeamPublishedVersion
+import top.wkbin.taixu.core.model.bot.TeamUpgradeImpact
 
 @Composable
 internal fun MemberGroupsDialog(
@@ -42,8 +44,8 @@ internal fun MemberGroupsDialog(
     onSave: suspend (BotMemberGroup) -> Unit,
     onDelete: (BotMemberGroup) -> Unit,
     initialGroupId: String? = null,
-    loadImpact: suspend (String) -> List<top.wkbin.taixu.core.model.bot.TeamUpgradeImpact> = { emptyList() },
-    loadVersions: suspend (String) -> List<top.wkbin.taixu.core.model.bot.TeamPublishedVersion> = { emptyList() },
+    loadImpact: suspend (String) -> List<TeamUpgradeImpact> = { emptyList() },
+    loadVersions: suspend (String) -> List<TeamPublishedVersion> = { emptyList() },
     onPublish: suspend (String, Int, Set<String>) -> Int = { _, _, _ -> error("发布不可用") },
     onUpgrade: suspend (String, Int, Set<String>) -> Unit = { _, _, _ -> error("升级不可用") },
 ) {
@@ -71,14 +73,14 @@ internal fun MemberGroupsDialog(
                 ) {
                     Text(
                         stringResource(R.string.fbot_member_groups_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     if (groups.isEmpty()) {
                         Text(
                             stringResource(R.string.fbot_member_group_empty),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     groups.forEach { group ->
@@ -93,14 +95,14 @@ internal fun MemberGroupsDialog(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text(group.name, style = MaterialTheme.typography.bodyMedium)
+                                Text(group.name, style = RuntimeTheme.typography.bodyMedium)
                                 RuntimeTextButton(onClick = { publicationId = group.id }) {
                                     Text("发布与升级 · " + if (group.publishedVersion == 0) "尚未发布" else "v${group.publishedVersion}")
                                 }
                                 Text(
                                     stringResource(R.string.fbot_member_group_member_count, group.memberIds.size),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.labelSmall,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                             RuntimeIconButton(
@@ -110,7 +112,7 @@ internal fun MemberGroupsDialog(
                                 RuntimeIcon(
                                     RuntimeIconName.Trash,
                                     Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.error,
+                                    tint = RuntimeTheme.colorScheme.error,
                                 )
                             }
                         }

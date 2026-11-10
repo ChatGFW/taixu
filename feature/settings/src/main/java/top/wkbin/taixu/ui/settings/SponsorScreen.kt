@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.settings
+
+import androidx.compose.runtime.*
+
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -33,13 +36,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -106,7 +105,7 @@ fun SponsorScreen(
         item {
             SettingsDetailCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
                 contentPadding = PaddingValues(16.dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -114,21 +113,21 @@ fun SponsorScreen(
                         Box(
                             modifier = Modifier
                                 .size(44.dp)
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.tertiaryContainer),
+                                .clip(RuntimeTheme.shapes.medium)
+                                .background(RuntimeTheme.colorScheme.tertiaryContainer),
                             contentAlignment = Alignment.Center,
                         ) {
-                            RuntimeIcon(RuntimeIconName.Sponsor, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                            RuntimeIcon(RuntimeIconName.Sponsor, Modifier.size(22.dp), tint = RuntimeTheme.colorScheme.onTertiaryContainer)
                         }
                         Text(
                             "感谢你考虑赞助太墟",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = RuntimeTheme.typography.titleMedium,
                         )
                     }
                     Text(
                         "太墟（TaiXu）完全免费且开源，由作者在业余时间独立维护。你的每一份赞助都将用于购买 API Token 与持续的开发迭代，帮助我们把项目做得更好。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -138,8 +137,8 @@ fun SponsorScreen(
         item {
             Text(
                 text = "赞助方式",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelLarge,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
             )
             SettingsGroup {
@@ -149,14 +148,12 @@ fun SponsorScreen(
                     subtitle = "支付宝扫一扫，随心赞赏",
                     onClick = { showAlipayQrDialog = true },
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 SettingsRow(
                     icon = RuntimeIconName.Sponsor,
                     title = "微信赞赏码",
                     subtitle = "微信扫一扫，随心赞赏",
                     onClick = { showWeChatQrDialog = true },
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 SettingsRow(
                     icon = RuntimeIconName.Mail,
                     title = "Token 赞助",
@@ -170,8 +167,8 @@ fun SponsorScreen(
         item {
             Text(
                 text = "回馈与鸣谢",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelLarge,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
             )
             SettingsGroup {
@@ -186,8 +183,8 @@ fun SponsorScreen(
                             Spacer(Modifier.size(10.dp))
                             Text(
                                 "正在加载鸣谢名单…",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -198,8 +195,8 @@ fun SponsorScreen(
                         ) {
                             Text(
                                 "名单加载失败：${s.message}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                             TextButton(onClick = { viewModel?.refresh() }) {
                                 Text("重试")
@@ -208,9 +205,7 @@ fun SponsorScreen(
                     }
                     is SponsorListUiState.Success -> {
                         SponsorKindGroup("资金赞助", s.entries.filter { it.kind == SponsorKind.Funding })
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         SponsorKindGroup("资源赞助", s.entries.filter { it.kind == SponsorKind.Resource })
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         SponsorKindGroup("贡献者", s.entries.filter { it.kind == SponsorKind.Contribution })
                     }
                 }
@@ -262,8 +257,8 @@ private fun SponsorQrDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Sponsor, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
-                Text(title, fontWeight = FontWeight.Bold)
+                RuntimeIcon(RuntimeIconName.Sponsor, Modifier.size(22.dp), tint = RuntimeTheme.colorScheme.onSurface)
+                Text(title, fontWeight = FontWeight.Medium)
             }
         },
         text = {
@@ -275,9 +270,8 @@ private fun SponsorQrDialog(
                 Box(
                     modifier = Modifier
                         .widthIn(max = 220.dp).fillMaxWidth().aspectRatio(1f)
-                        .clip(MaterialTheme.shapes.large)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), MaterialTheme.shapes.large),
+                        .clip(RuntimeTheme.shapes.large)
+                        .background(RuntimeTheme.colorScheme.surfaceContainerHigh),
                     contentAlignment = Alignment.Center,
                 ) {
                     SubcomposeAsyncImage(
@@ -291,11 +285,11 @@ private fun SponsorQrDialog(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                RuntimeIcon(RuntimeIconName.Sponsor, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
+                                RuntimeIcon(RuntimeIconName.Sponsor, Modifier.size(32.dp), tint = RuntimeTheme.colorScheme.onSurface)
                                 Text(
                                     "二维码加载失败，请稍后重试",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.bodySmall,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         },
@@ -303,8 +297,8 @@ private fun SponsorQrDialog(
                 }
                 Text(
                     "打开对应 App 扫一扫即可赞赏，感谢支持",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
@@ -324,8 +318,8 @@ private fun SponsorQrDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    RuntimeIcon(RuntimeIconName.Download, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onPrimary)
-                    Text("保存到相册", color = MaterialTheme.colorScheme.onPrimary)
+                    RuntimeIcon(RuntimeIconName.Download, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.onPrimary)
+                    Text("存相册", color = RuntimeTheme.colorScheme.onPrimary, maxLines = 1)
                 }
             }
         },
@@ -374,14 +368,14 @@ private fun SponsorKindGroup(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         if (entries.isEmpty()) {
             Text(
                 text = "暂无，感谢每一位默默支持的朋友",
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                style = RuntimeTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             )
         } else {
             FlowRow(
@@ -399,8 +393,8 @@ private fun SponsorKindGroup(
 private fun SponsorChip(entry: SponsorEntry) {
     Surface(
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(1.dp, RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
@@ -411,7 +405,7 @@ private fun SponsorChip(entry: SponsorEntry) {
                 modifier = Modifier
                     .size(24.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                    .background(RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {
                 SubcomposeAsyncImage(
@@ -423,13 +417,13 @@ private fun SponsorChip(entry: SponsorEntry) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                .background(RuntimeTheme.colorScheme.surfaceContainerHighest),
                             contentAlignment = Alignment.Center,
                         ) {
                             RuntimeIcon(
                                 RuntimeIconName.Sponsor,
                                 Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.tertiary,
+                                tint = RuntimeTheme.colorScheme.tertiary,
                             )
                         }
                     },
@@ -438,16 +432,16 @@ private fun SponsorChip(entry: SponsorEntry) {
             Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                 Text(
                     entry.name,
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    color = RuntimeTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (entry.note != null) {
                     Text(
                         entry.note,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.settings.permission
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -17,17 +20,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,12 +42,12 @@ import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.settings.SettingsDetailCard
 import top.wkbin.taixu.ui.theme.semanticColors
 import androidx.compose.foundation.layout.FlowRow
+import top.wkbin.taixu.ui.components.RuntimeDropdownField
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.settings.successStatusColor
 import top.wkbin.taixu.ui.settings.warningStatusColor
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
 
 @Composable
@@ -60,7 +59,6 @@ fun PermissionGuideScreen(
     // 品牌/主题选择迁移 rememberSaveable，旋转后不重置
     var selectedBrand by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(OemBrand.detect()) }
     var selectedTopic by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(KeepaliveTopic.AUTOSTART) }
-    var brandMenuExpanded by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
 
     // 状态刷新
     var statusMap by remember { mutableStateOf(mapOf<KeepaliveTopic, Boolean>()) }
@@ -103,49 +101,29 @@ fun PermissionGuideScreen(
                         Column {
                             Text(
                                 text = "当前适配厂商机型",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelMedium,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
                                 text = "${selectedBrand.label} (${selectedBrand.osName})",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary,
+                                style = RuntimeTheme.typography.titleMedium,
+                                color = RuntimeTheme.colorScheme.primary,
                             )
                         }
-                        Box {
-                            RuntimeOutlinedButton(
-                                onClick = { brandMenuExpanded = true },
-                            ) {
-                                Text("切换品牌", style = MaterialTheme.typography.labelLarge)
-                                Spacer(Modifier.width(4.dp))
-                                RuntimeIcon(RuntimeIconName.ChevronDown, modifier = Modifier.size(14.dp))
-                            }
-                            DropdownMenu(
-                                expanded = brandMenuExpanded,
-                                onDismissRequest = { brandMenuExpanded = false },
-                            ) {
-                                OemBrand.entries.forEach { brand ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                text = "${brand.label} (${brand.osName})",
-                                                fontWeight = if (brand == selectedBrand) FontWeight.Bold else FontWeight.Normal,
-                                            )
-                                        },
-                                        onClick = {
-                                            selectedBrand = brand
-                                            brandMenuExpanded = false
-                                        },
-                                    )
-                                }
-                            }
-                        }
+                        RuntimeDropdownField(
+                            title = "切换品牌",
+                            items = OemBrand.entries.map { brand -> "${brand.label} (${brand.osName})" },
+                            selectedIndex = OemBrand.entries.indexOf(selectedBrand),
+                            onSelectedIndexChange = { index ->
+                                OemBrand.entries.getOrNull(index)?.let { selectedBrand = it }
+                            },
+                        )
                     }
 
                     Text(
                         text = "国产定制系统后台清理机制较为激进，为了保证 PRoot 沙箱、后台编译任务与 Agent 长时间思考不被冻结杀掉，建议根据指引完成配置。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 18.sp,
                     )
                 }
@@ -168,7 +146,7 @@ fun PermissionGuideScreen(
                     RuntimeFilterChip(
                         selected = isSelected, onClick = { selectedTopic = topic },
                         shape = CircleShape,
-                        label = { Text(topic.title, style = MaterialTheme.typography.labelLarge) },
+                        label = { Text(topic.title, style = RuntimeTheme.typography.labelLarge) },
                         leadingIcon = { RuntimeIcon(topic.icon, Modifier.size(18.dp)) },
                         trailingIcon = if (hasRealStatus) ({
                             Box(Modifier.size(8.dp).clip(CircleShape)
@@ -204,11 +182,11 @@ fun PermissionGuideScreen(
                             RuntimeIcon(
                                 name = selectedTopic.icon,
                                 modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = RuntimeTheme.colorScheme.onSurface,
                             )
                             Text(
                                 text = selectedTopic.title,
-                                style = MaterialTheme.typography.titleMedium,
+                                style = RuntimeTheme.typography.titleMedium,
                             )
                         }
 
@@ -220,7 +198,7 @@ fun PermissionGuideScreen(
                                 Text(
                                     text = if (isGranted) "已放行 / 已就绪" else "待配置 / 未豁免",
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                                     color = if (isGranted) semanticColors().onSuccessContainer else semanticColors().onWarningContainer,
                                 )
                             }
@@ -229,8 +207,8 @@ fun PermissionGuideScreen(
 
                     Text(
                         text = selectedTopic.subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 20.sp,
                     )
 
@@ -252,8 +230,8 @@ fun PermissionGuideScreen(
         item {
             Text(
                 text = "配置步骤详解",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelLarge,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp),
             )
         }
@@ -274,13 +252,13 @@ fun PermissionGuideScreen(
                         modifier = Modifier
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
+                            .background(RuntimeTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = "${index + 1}",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                            color = RuntimeTheme.colorScheme.onPrimaryContainer,
                         )
                     }
 
@@ -290,21 +268,21 @@ fun PermissionGuideScreen(
                     ) {
                         Text(
                             text = step.title,
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
+                            color = RuntimeTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = step.description,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodyMedium,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 20.sp,
                         )
                         if (step.tip != null) {
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 text = "💡 ${step.tip}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.primary,
                             )
                         }
                     }

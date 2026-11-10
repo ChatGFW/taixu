@@ -4,11 +4,7 @@ import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -19,10 +15,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.WorkspaceProject
-import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.wkbin.taixu.ui.theme.chatBackdropSurface
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 
 @Composable
 internal fun EmptyChatGuidance(
@@ -72,7 +74,7 @@ internal fun EmptyChatGuidance(
             modifier = Modifier
                 .widthIn(max = 640.dp)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 20.dp),
+                .padding(vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -84,16 +86,16 @@ internal fun EmptyChatGuidance(
                 TaiXuBrandBadge(size = 48.dp)
                 Text(
                     text = greeting, modifier = chatGreetingModifier(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             // 2. Linux 沙箱与工作区实时微胶囊
             Surface(
-                shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                shape = CircleShape,
+                color = RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
@@ -104,27 +106,27 @@ internal fun EmptyChatGuidance(
                         modifier = Modifier
                             .size(8.dp)
                             .clip(androidx.compose.foundation.shape.CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
+                            .background(RuntimeTheme.colorScheme.primary),
                     )
                     Text(
                         text = "Linux 沙箱就绪",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = "•",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outlineVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.outlineVariant,
                     )
                     RuntimeIcon(
                         name = RuntimeIconName.Folder,
                         modifier = Modifier.size(13.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = workspaceProject?.name ?: "默认全局沙箱",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -134,65 +136,31 @@ internal fun EmptyChatGuidance(
             // 3. 核心场景快捷动作列表 (统一优雅卡片)
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = top.wkbin.taixu.ui.theme.chatBackdropSurface(),
-                shape = RoundedCornerShape(20.dp),
-                borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                contentPadding = PaddingValues(vertical = 4.dp),
+                containerColor = chatBackdropSurface(),
+                contentPadding = PaddingValues(0.dp),
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    quickCommands.forEachIndexed { index, cmd ->
-                        if (index > 0) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(start = 64.dp, end = 16.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                            )
+                quickCommands.forEach { cmd ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectCommand(cmd) }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RuntimeIcon(cmd.icon, Modifier.padding(end = 14.dp).size(22.dp),
+                            RuntimeTheme.colorScheme.onSurface.copy(alpha = 0.8f))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(cmd.label, style = RuntimeTheme.typography.titleMedium,
+                                color = RuntimeTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(cmd.description, style = top.yukonga.miuix.kmp.theme.MiuixTheme.textStyles.body2,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelectCommand(cmd) }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(MaterialTheme.colorScheme.secondaryContainer),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                RuntimeIcon(
-                                    name = cmd.icon,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                )
-                            }
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp),
-                            ) {
-                                Text(
-                                    text = cmd.label,
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = cmd.description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                            RuntimeIcon(
-                                name = RuntimeIconName.ChevronRight,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                            )
-                        }
+                        top.yukonga.miuix.kmp.basic.Icon(
+                            imageVector = top.yukonga.miuix.kmp.icon.MiuixIcons.Basic.ArrowRight,
+                            contentDescription = null,
+                            modifier = Modifier.padding(start = 8.dp).size(width = 10.dp, height = 16.dp),
+                            tint = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.onSurfaceVariantActions,
+                        )
                     }
                 }
             }
@@ -210,8 +178,8 @@ internal fun EmptyChatGuidance(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 6.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }

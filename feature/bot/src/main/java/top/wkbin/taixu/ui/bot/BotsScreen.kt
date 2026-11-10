@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.bot
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -9,18 +13,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -31,12 +33,13 @@ import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
-import top.wkbin.taixu.ui.components.RuntimeFloatingActionButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 
 @Composable
 fun BotsScreen(
@@ -91,25 +94,34 @@ fun BotsScreen(
                         },
                         contentDescription = stringResource(R.string.fbot_import),
                     ) {
-                        RuntimeIcon(RuntimeIconName.FolderDownload, Modifier.size(21.dp))
+                        RuntimeIcon(RuntimeIconName.FolderDownload, Modifier.size(20.dp))
+                    }
+                    if (tab != TAB_MARKET) {
+                        RuntimeIconButton(
+                            onClick = { if (tab == TAB_BOTS) showCreateBot = true else showCreateGroup = true },
+                            contentDescription = stringResource(
+                                if (tab == TAB_BOTS) R.string.fbot_create_bot else R.string.fbot_create_group,
+                            ),
+                        ) {
+                            RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp))
+                        }
                     }
                 },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            if (tab != TAB_MARKET) {
-                RuntimeFloatingActionButton(
-                    onClick = { if (tab == TAB_BOTS) showCreateBot = true else showCreateGroup = true },
-                ) {
-                    RuntimeIcon(RuntimeIconName.Plus, Modifier.size(22.dp))
-                }
-            }
-        },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .then(runtimeScrollViewport(padding))
+                .padding(bottom = padding.calculateBottomPadding()),
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = padding.calculateTopPadding())
+                    .padding(runtimeContentPadding(top = RuntimeSpacing.pageTop)),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 listOf(

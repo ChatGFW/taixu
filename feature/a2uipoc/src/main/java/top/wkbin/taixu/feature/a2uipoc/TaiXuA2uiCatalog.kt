@@ -11,10 +11,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -110,13 +110,13 @@ internal object TaiXuTableComponent : A2uiComponent {
         val headers = properties[columnsProperty].orEmpty().take(MAX_COLUMNS)
         val body = properties[rowsProperty].orEmpty().take(MAX_ROWS)
         Surface(
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RuntimeTheme.shapes.medium,
+            color = RuntimeTheme.colorScheme.surfaceContainerLow,
             modifier = modifier,
         ) {
             Column(Modifier.horizontalScroll(rememberScrollState()).padding(12.dp)) {
                 HeaderRow(headers)
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
                 body.forEach { row ->
                     val cells = row[cellsProperty].orEmpty()
                     DataRow(headers.indices.map { index -> cells.getOrElse(index) { "" } })
@@ -132,7 +132,7 @@ internal object TaiXuTableComponent : A2uiComponent {
                 Text(
                     header,
                     modifier = Modifier.widthIn(min = 72.dp).padding(horizontal = 8.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = RuntimeTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -148,7 +148,7 @@ internal object TaiXuTableComponent : A2uiComponent {
                 Text(
                     cell,
                     modifier = Modifier.widthIn(min = 72.dp).padding(horizontal = 8.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = RuntimeTheme.typography.bodyMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )

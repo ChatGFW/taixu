@@ -13,8 +13,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -82,14 +82,14 @@ fun ModelExportDialog(
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 RuntimeCheckbox(checked = includeKeys, enabled = !busy, onCheckedChange = null)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("包含 API Key 与自定义请求头", style = MaterialTheme.typography.bodyLarge)
+                    Text("包含 API Key 与自定义请求头", style = RuntimeTheme.typography.bodyLarge)
                     Text(if (includeKeys) "包含敏感凭据，请妥善保管，切勿公开发送" else "默认不导出 API Key 与任何自定义请求头",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (includeKeys) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                        style = RuntimeTheme.typography.bodyMedium,
+                        color = if (includeKeys) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            RuntimeCard(contentPadding = PaddingValues(0.dp), shape = MaterialTheme.shapes.extraLarge,
-                containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+            RuntimeCard(contentPadding = PaddingValues(0.dp), shape = RuntimeTheme.shapes.extraLarge,
+                containerColor = RuntimeTheme.colorScheme.surfaceContainer) {
                 SettingsRow(RuntimeIconName.Copy, "复制 JSON", "复制配置到剪贴板", enabled = !busy, onClick = {
                     generate { content ->
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
@@ -115,10 +115,10 @@ fun ModelExportDialog(
             }
             if (busy) Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 RuntimeCircularProgressIndicator(Modifier.size(24.dp))
-                Text("正在导出配置…", style = MaterialTheme.typography.bodyMedium)
+                Text("正在导出配置…", style = RuntimeTheme.typography.bodyMedium)
             }
-            if (failed) Text("导出失败，请检查凭据、配置及文件访问权限后重试", color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium)
+            if (failed) Text("导出失败，请检查凭据、配置及文件访问权限后重试", color = RuntimeTheme.colorScheme.error,
+                style = RuntimeTheme.typography.bodyMedium)
         }
     }
 }

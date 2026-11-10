@@ -7,9 +7,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -30,7 +29,7 @@ internal fun DiffScrollColumn(content: LazyListScope.() -> Unit) {
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF06090F), RoundedCornerShape(6.dp))
+            .background(Color(0xFF06090F), RuntimeTheme.shapes.extraSmall)
             .heightIn(max = 320.dp)
             .padding(vertical = 4.dp),
         content = content,
@@ -42,8 +41,8 @@ internal fun HashlineOpsLabel(args: JsonObject) {
     val label = remember(args) { HashlineEditArgs.opsLabel(args) } ?: return
     Text(
         text = label,
-        style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
-        color = MaterialTheme.colorScheme.primary,
+        style = RuntimeTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
+        color = RuntimeTheme.colorScheme.primary,
     )
 }
 

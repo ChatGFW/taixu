@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.components
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,14 +14,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -89,7 +90,7 @@ internal fun RemoteMediaBlock(block: MdRemoteMedia, cacheKey: String? = null) {
         modifier = Modifier
             .size(imageWidth, imageHeight)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .background(RuntimeTheme.colorScheme.surfaceContainerHigh)
             .then(if (loaded) Modifier.clickable { previewing = true } else Modifier),
         contentAlignment = Alignment.Center,
     ) {
@@ -130,12 +131,12 @@ internal fun RemoteMediaBlock(block: MdRemoteMedia, cacheKey: String? = null) {
                 RuntimeIcon(
                     RuntimeIconName.Image,
                     Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     stringResource(R.string.components_md_image_load_failed),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             !loaded -> CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)

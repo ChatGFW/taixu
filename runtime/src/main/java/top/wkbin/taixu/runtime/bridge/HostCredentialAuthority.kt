@@ -72,12 +72,35 @@ class HostCredentialAuthority(
     }
 
     /**
+     * 拒绝原因。[token] 本身有效时才能区分出 [ActionNotGranted]；
+     * 凭据不存在/已消费/被撤销统称 [Unknown]，不向调用方泄露具体是哪一种。
+     */
+    internal enum class Denial {
+        /** 无此票据：未携带、已一次性消费、显式撤销。 */
+        Unknown,
+
+        /** 票据存在但已过期、代次切换或归属不可用。 */
+        Expired,
+
+        /** 凭据有效，但未绑定本次请求的动作（例如沙箱未开启全权模式时的 host.shell）。 */
+        ActionNotGranted,
+    }
+
+    /**
      * 端点的统一校验入口：取出票据 + 有效性 +（可选）所需动作绑定。
      * [action] 为 null 表示只校验"持有有效凭据"，用于未知路径先鉴权后 404。
      */
-    internal fun authorize(token: String?, action: String?): Boolean {
-        val ticket = begin(token) ?: return false
-        return valid(ticket) && (action == null || action in ticket.binding.actions)
+    internal fun authorize(token: String?, action: String?): Boolean = denialReason(token, action) == null
+
+    /**
+     * 与 [authorize] 同一判定，但返回具体拒绝原因，供调用方给出可操作的错误提示。
+     * 票据消费语义与 [authorize] 完全一致（一次性票据在此处被原子消费）。
+     */
+    internal fun denialReason(token: String?, action: String?): Denial? {
+        val ticket = begin(token) ?: return Denial.Unknown
+        if (!valid(ticket)) return Denial.Expired
+        if (action != null && action !in ticket.binding.actions) return Denial.ActionNotGranted
+        return null
     }
 
     internal fun revoke(token: String) {

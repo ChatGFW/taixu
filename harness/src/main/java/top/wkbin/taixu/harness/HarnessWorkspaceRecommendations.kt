@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.McpServerRepository
+import top.wkbin.taixu.core.model.BuiltinMcpPresets
 import top.wkbin.taixu.harness.mcp.McpWorkspaceRecommender
 import top.wkbin.taixu.runtime.RuntimePathManager
 
@@ -28,7 +29,7 @@ class HarnessWorkspaceRecommendations(
     private var scanJob: Job? = null
 
     suspend fun enable(presetId: String) {
-        if (top.wkbin.taixu.core.model.BuiltinMcpPresets.find(presetId)?.requiresInstall == true) return
+        if (BuiltinMcpPresets.find(presetId)?.requiresInstall == true) return
         try {
             servers.setEnabled(presetId, true)
             dismiss(presetId)
