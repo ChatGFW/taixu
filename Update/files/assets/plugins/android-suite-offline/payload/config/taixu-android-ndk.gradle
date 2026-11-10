@@ -1,0 +1,74 @@
+// 回退时必须实际探测：本沙箱存在两套 NDK 布局 —— 主环境走 tools/ndk/current
+// （由 setup_termux_ndk.sh 维护的软链），离线套件走 tools/android/ndk。
+// 写死其中任一个都会在另一套布局下指向不存在的目录，导致 ndkPath 漂移拦截。
+def taixuNdkCandidates = [
+    '/opt/taixu/tools/ndk/current',
+    '/opt/taixu/tools/android/ndk'
+]
+def taixuNdkPath = System.getenv('TAIXU_NDK_PATH') ?:
+    System.getenv('ANDROID_NDK_HOME') ?:
+    taixuNdkCandidates.find { new File(it, 'source.properties').isFile() }
+def taixuNdkProperties = new Properties()
+def taixuNdkSourceProperties = new File(taixuNdkPath, 'source.properties')
+if (taixuNdkSourceProperties.isFile()) {
+    taixuNdkSourceProperties.withInputStream { taixuNdkProperties.load(it) }
+}
+def taixuNdkVersion = taixuNdkProperties.getProperty('Pkg.Revision', '').trim()
+def taixuAndroidPluginIds = [
+    'com.android.application',
+    'com.android.library',
+    'com.android.dynamic-feature',
+    'com.android.test',
+    'com.android.kotlin.multiplatform.library'
+]
+
+gradle.beforeProject { project ->
+    taixuAndroidPluginIds.each { pluginId ->
+        project.pluginManager.withPlugin(pluginId) {
+            def androidExtension = project.extensions.findByName('android')
+            if (androidExtension != null && androidExtension.hasProperty('ndkPath')) {
+                androidExtension.ndkPath = taixuNdkPath
+                project.logger.info('TaiXu ARM64 NDK: ' + taixuNdkPath)
+            }
+        }
+    }
+}
+
+gradle.projectsEvaluated {
+    gradle.rootProject.allprojects.each { project ->
+        def androidExtension = project.extensions.findByName('android')
+        if (androidExtension != null && androidExtension.hasProperty('ndkPath')) {
+            def effective = androidExtension.ndkPath == null ? '' :
+                new File(androidExtension.ndkPath.toString()).canonicalPath
+            def expected = new File(taixuNdkPath).canonicalPath
+            if (effective != expected) {
+                throw new GradleException(
+                    'TaiXu blocked Android NDK path drift: ' + effective + ' != ' + expected
+                )
+            }
+            if (taixuNdkVersion && androidExtension.hasProperty('ndkVersion')) {
+                def declared = androidExtension.ndkVersion == null ? '' : androidExtension.ndkVersion.toString()
+            if (declared && taixuNdkVersion && declared != taixuNdkVersion) {
+                project.logger.warn('TaiXu aligning project NDK version ' + declared + ' -> ' + taixuNdkVersion)
+                androidExtension.ndkVersion = taixuNdkVersion
+            }
+            }
+            // ARM64-only sandbox: AAR dependencies (e.g. androidx.graphics.path)
+            // bundle x86/x86_64 native libraries and AGP packages every ABI
+            // present in the dependency graph unless abiFilters narrows it.
+            // Strip x86 ABIs here; when the project declares no filter at all,
+            // pin arm64-v8a so the final APK matches the host device.
+            try {
+                def ndkOptions = androidExtension.defaultConfig.ndk
+                def abiFilters = ndkOptions.abiFilters
+                abiFilters.removeAll(['x86', 'x86_64', 'armeabi-v7a'])
+                if (abiFilters.isEmpty()) {
+                    abiFilters.add('arm64-v8a')
+                }
+                project.logger.info('TaiXu ARM64 ABI filters: ' + abiFilters)
+            } catch (Throwable t) {
+                project.logger.warn('TaiXu ABI filter injection skipped: ' + t.message)
+            }
+        }
+    }
+}

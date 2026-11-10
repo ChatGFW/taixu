@@ -1,0 +1,4 @@
+app/src/main/assets/bin/apktool
+app/src/main/assets/bin/baksmali
+app/src/main/assets/bin/smali
+core/model/src/main/java/top/wkbin/taixu/core/model/ToolchainPathResolver.kt

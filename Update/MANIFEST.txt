@@ -1,0 +1,58 @@
+# 改造文件清单（Update/files 下均保持仓库相对路径）
+# 生成时间: 2026-11-10 12:51:24
+# 基线: 745c82d9（同步上游后的 head，我方改造相对此基线）
+# 基线快照: Update/base/ 存基线侧整文件（48 份，已按同步后的上游内容刷新）；我方新增的 4 份见 Update/BASE-ABSENT.txt
+# 补丁: Update/docs/fork-patches/0001-dynamic-toolchain-paths.patch（52 段，与本清单 52 个文件一一对应）
+
+app/src/main/assets/bin/apktool                                                                      apktool 包装器：按 apktool_<版本>.jar 通配取最高版，JAVA_HOME 回退 PATH
+app/src/main/assets/bin/baksmali                                                                     baksmali 包装器：同 smali 扫描规则，取最高版本 fat jar
+app/src/main/assets/bin/gradle                                                                       gradle 包装器：GRADLE_HOME 默认值改为取 /opt 下最高正式版，不再写死 8.14.2
+app/src/main/assets/bin/smali                                                                        smali 包装器：按 smali-<版本> 目录动态扫描取最高版，不写死版本号
+app/src/main/assets/bin/taixu-build-guard                                                            构建守卫动态版本判定：去掉旧默认值注入，Gradle/aapt2 改探测
+app/src/main/assets/scripts/apktool_mcp_server.py                                                    补 ANDROID_DATA=/data，避免 AOSP 系 aapt 非零退出导致 manifest 分析退化为全解包
+app/src/main/assets/scripts/build_android.sh                                                         构建脚本动态路径（platform/build-tools）+ aapt2 白名单通配
+app/src/main/assets/scripts/build_android_qemu.sh                                                    QEMU 客机 JDK/Gradle/Build-Tools 按目录动态取最高正式版
+app/src/main/assets/scripts/build_flutter.sh                                                         GRADLE_DIST_VERSION 动态推导 + d8/aapt2/platform 动态探测
+app/src/main/assets/scripts/build_flutter_qemu.sh                                                    QEMU 客机 Flutter 分支：JDK/Gradle/Build-Tools 动态取最高正式版
+app/src/main/assets/scripts/setup_android_core.sh                                                    BUILD_TOOLS_VERSION 跟随已装；ARM64_TOOLS_VERSION 查 latest
+app/src/main/assets/scripts/setup_flutter.sh                                                         Flutter 版本动态探测，platform 校验不再固定 android-34
+app/src/main/assets/scripts/setup_jadx.sh                                                            JADX_VERSION 查 GitHub latest
+app/src/main/assets/scripts/setup_rust.sh                                                            RUST_VERSION 查官方 stable 通道
+app/src/main/assets/scripts/setup_termux_ndk.sh                                                      跟随已有可用 ARM64 NDK，不强制重下 r29；版本读 source.properties
+app/src/main/assets/scripts/taixu-android-ndk.gradle                                                 NDK 回退路径改为多候选实探（toolchains/ndk/current 与 toolchains/android/ndk 两套布局）
+app/src/main/assets/scripts/taixu-build-analyze.sh                                                   compileSdk 上限改为本地最高 platform 动态判定，不再硬编码 34
+app/src/main/assets/scripts/taixu-build.sh                                                           构建入口动态路径：GRADLE_HOME/aapt2/platform 全部探测
+app/src/main/assets/scripts/template_gradlew.sh                                                      gradlew 模板动态 Gradle 版本（TX_GRADLE_DIR 探测）
+app/src/main/assets/scripts/websearch_mcp_server.py                                                  去掉首行 BOM，保证 shebang 可执行
+assets/plugins/android-suite-offline/manifest.json                                                   env 去掉写死的 GRADLE_HOME 与版本化 PATH 段
+assets/plugins/android-suite-offline/payload/config/gradle.properties                                aapt2 覆盖路径改由安装脚本按实际 build-tools 动态写入
+assets/plugins/android-suite-offline/payload/config/taixu-android-ndk.gradle                         套件侧副本：NDK 多候选实探，与主树同一口径
+assets/plugins/android-suite-offline/payload/scripts/install-android-suite.sh                        pick_archive 通配+架构过滤、probe_* 探测、版本常量推导、多组件不降级保护
+assets/plugins/android-suite-offline/payload/scripts/uninstall-android-suite.sh                      卸载脚本删除路径 toolchains→tools（合并后统一根）
+assets/plugins/android-suite-offline/payload/scripts/verify-android-suite.sh                         校验改为动态版本判定，避免误判触发自愈还原
+core/model/src/main/java/top/wkbin/taixu/core/model/AgentSkill.kt                                    技能文档下载链接去掉固定版本号
+core/model/src/main/java/top/wkbin/taixu/core/model/DevEnvironmentSuite.kt                           checkCommand 改为动态探测（不再硬编码 android-34/35.0.0）与并集去重
+core/model/src/main/java/top/wkbin/taixu/core/model/PluginBundleScripts.kt                           插件脚本白名单正则 toolchains→tools：android/(sdk-tools|jdk|ndk) 与 rust
+core/model/src/main/java/top/wkbin/taixu/core/model/SandboxToolchain.kt                              工具链探测：动态版本探测、aarch64 优先
+core/model/src/main/java/top/wkbin/taixu/core/model/ToolchainPathResolver.kt                         新增：动态工具链路径解析 + TARGET_ARCH/ARCH_PATTERN/ARCH_AGNOSTIC
+core/model/src/test/java/top/wkbin/taixu/core/model/PluginBundleScriptsTest.kt                       白名单断言同步 tools 路径
+docs/ANDROID_OFFLINE_PLUGIN.md                                                                       文档中 JAVA_HOME/ANDROID_NDK_HOME/TOOLCHAIN_ROOT 改为 tools
+docs/KNOWN_ISSUES.md                                                                                 NDK 安装路径说明改为 tools/android/ndk/artifacts/<digest>/ndk
+feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkshopSettingsViewModel.kt            工具链下拉按物理实体去重（JDK 5→2、NDK 2→1）；内置 JDK 标签修为 21；NDK 跟随本机 ARM64
+harness/src/main/java/top/wkbin/taixu/harness/mcp/McpHttpPayload.kt                                  MCP 阈值：配套负载处理
+harness/src/main/java/top/wkbin/taixu/harness/mcp/McpHttpTransport.kt                                MCP 阈值：legacy SSE 单事件校验 4MB→16MB
+harness/src/main/java/top/wkbin/taixu/harness/mcp/McpResponseSizeLimiter.kt                          MCP 响应体积阈值上调：内联 512KB→5MB、落盘 4MB→16MB、硬限 8MB→16MB、目录 64MB→128MB
+harness/src/main/java/top/wkbin/taixu/harness/mcp/McpStdioTransport.kt                               MCP 阈值：帧上限 1MB→5MB、落盘帧 8MB→16MB
+harness/src/test/java/top/wkbin/taixu/harness/mcp/McpLargeMetadataTest.kt                            MCP 阈值：大元数据测试同步
+runtime/src/main/java/top/wkbin/taixu/runtime/StorageManager.kt                                      合并后取消 toolchains 目录遍历：插件与开发套件统一由 plugins 分类，environment 只留 runtimes/compat/镜像 opt 避免重复
+runtime/src/main/java/top/wkbin/taixu/runtime/build/BuildEnvironmentPreflight.kt                     编译前置检查：动态 build-tools/platform，失败文案去版本号
+runtime/src/main/java/top/wkbin/taixu/runtime/build/ProjectCompatibilityAnalyzer.kt                  版本上限改为探测本地工具链，目录缺失返回 null 跳过检查
+runtime/src/main/java/top/wkbin/taixu/runtime/build/WorkshopSigningManager.kt                        JAVA_HOME 兜底路径 toolchains→tools/android/jdk
+runtime/src/main/java/top/wkbin/taixu/runtime/doctor/EnvironmentRepairer.kt                          修复环境：profile 动态探测、Node 仅缺失时安装、不覆盖已有版本
+runtime/src/main/java/top/wkbin/taixu/runtime/doctor/ToolchainInspector.kt                           工具版本探测加 timeout，并注入 ToolchainPathResolver.SHELL_PRELUDE
+runtime/src/test/java/top/wkbin/taixu/runtime/BuildEnvironmentPreflightTest.kt                       前置检查测试同步为探测链路断言
+runtime/src/test/java/top/wkbin/taixu/runtime/BuildGuardAssetTest.kt                                 资产断言同步为 pick_archive 通配与 ndk/current 字面量
+runtime/src/test/java/top/wkbin/taixu/runtime/StorageManagerTest.kt                                  fixture 工具链目录 toolchains→tools，保持 151 字节断言口径
+runtime/src/test/java/top/wkbin/taixu/runtime/signing/WorkshopSigningManagerTest.kt                  javaHome 用例路径同步 tools
+tools/src/main/java/top/wkbin/taixu/runtime/tools/GenericRecipeInstaller.kt                          recipe 内 jar 候选路径 toolchains→tools
+tools/src/main/java/top/wkbin/taixu/runtime/tools/RuntimeBinaryInstaller.kt                          NODE_URL 由版本派生，支持 TAIXU_NODE_VERSION 覆盖

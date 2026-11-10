@@ -1,0 +1,14 @@
+#!/bin/sh -e
+# TAIXU_DYN_PATH — apktool 包装器（动态版本，不写死版本号）
+#
+# 扫描 $TAIXU_APKTOOL_DIR 下 apktool_<版本>.jar，取版本号最高者。
+# 上游制品名固定为 apktool_<ver>.jar（实测定向 v3.0.3 的资产即此名），
+# 因此安装新版只是多一个同规律文件名的 jar，不需要改本脚本。
+ROOT="${TAIXU_APKTOOL_DIR:-/opt/apktool}"
+JAR=$(ls "$ROOT"/apktool_[0-9]*.jar 2>/dev/null | sort -V | tail -n 1)
+[ -n "$JAR" ] || { echo "apktool: 未找到 $ROOT/apktool_<版本>.jar" >&2; exit 127; }
+# JAVA_HOME 优先；未设或不合法时退回 PATH 里的 java（不写死 jdk21 路径）
+JAVA_BIN=""
+[ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ] && JAVA_BIN="$JAVA_HOME/bin/java"
+[ -n "$JAVA_BIN" ] || JAVA_BIN=java
+exec "$JAVA_BIN" -jar "$JAR" "$@"

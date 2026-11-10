@@ -1,0 +1,16 @@
+#!/bin/sh -e
+# TAIXU_DYN_PATH — smali 包装器（动态版本，不写死版本号）
+#
+# 每次执行扫描 $TAIXU_TOOLS_DIR 下形如 smali-<版本>/smali-<版本>-fat.jar 的制品，
+# 取版本号最高者。安装新版只需落到 smali-<新版本>/，入口不需修改即自动跟随；
+# 旧版本目录原地保留，回滚 = 删掉新版目录即可。
+TOOLS="${TAIXU_TOOLS_DIR:-/opt/taixu/tools}"
+JAR=$(
+    for d in "$TOOLS"/smali-[0-9]*/ ; do
+        [ -d "$d" ] || continue
+        _v="${d%/}"; _v="${_v##*/smali-}"
+        [ -f "$d/smali-$_v-fat.jar" ] && printf '%s|%s\n' "$_v" "$d/smali-$_v-fat.jar"
+    done | sort -V | tail -n 1 | cut -d'|' -f2
+)
+[ -n "$JAR" ] || { echo "smali: 未找到 $TOOLS/smali-<版本>/smali-<版本>-fat.jar" >&2; exit 127; }
+exec java -jar "$JAR" "$@"
