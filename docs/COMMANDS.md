@@ -41,7 +41,7 @@ $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; .\gradlew.bat asse
 # 6. 验证架构依赖边界（规则唯一事实源：根目录 architecture-policy.json）
 $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; .\gradlew.bat architectureCheck --console=plain
 # 检查内容：模块依赖白名单（含反向依赖）、依赖图无环、import 黑名单（模型层纯 Kotlin / DAO 直连）、
-#          文件尺寸棘轮（maxFileLines=400，存量超限文件登记在 .architecture-baseline.json，只许缩减）
+#          文件尺寸棘轮（maxFileLines=1000，存量超限文件登记在 .architecture-baseline.json，只许缩减）
 
 # 6.1 同步尺寸棘轮基线（收缩下调 / 拒绝上涨 / 清理失效条目；代码缩减后运行以下调基线）
 $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; .\gradlew.bat architectureBaselineSync --console=plain

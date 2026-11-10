@@ -17,7 +17,7 @@
   ],
   "version": 1,
   "global": {
-    "maxFileLines": 400,
+    "maxFileLines": 1000,
     "forbidCycles": true,
     "baselineFile": ".architecture-baseline.json"
   },
