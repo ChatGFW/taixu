@@ -263,6 +263,7 @@ internal class AndroidHttpServer private constructor(
 
     companion object {
         private const val DEFAULT_BACKLOG = 16
+
         /** [stop] 等待 accept 线程退出的上限，避免异常情况下无限阻塞调用方。 */
         private const val ACCEPT_THREAD_JOIN_MILLIS = 1_000L
         private const val READ_TIMEOUT_MS = 15_000
